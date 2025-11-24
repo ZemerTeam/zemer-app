@@ -57,6 +57,7 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionToken
 import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.utils.ResilientDns
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.music.MainActivity
@@ -1136,13 +1137,14 @@ class MusicService :
                         DefaultDataSource.Factory(
                             this,
                             OkHttpDataSource.Factory(
-                                OkHttpClient
-                                    .Builder()
-                                    .proxy(YouTube.proxy)
-                                    .proxyAuthenticator { _, response ->
-                                        YouTube.proxyAuth?.let { auth ->
-                                            response.request.newBuilder()
-                                                .header("Proxy-Authorization", auth)
+                            OkHttpClient
+                                .Builder()
+                                .dns(ResilientDns())
+                                .proxy(YouTube.proxy)
+                                .proxyAuthenticator { _, response ->
+                                    YouTube.proxyAuth?.let { auth ->
+                                        response.request.newBuilder()
+                                            .header("Proxy-Authorization", auth)
                                                 .build()
                                         } ?: response.request
                                     }

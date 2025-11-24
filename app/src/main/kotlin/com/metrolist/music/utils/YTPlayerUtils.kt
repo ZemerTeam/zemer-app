@@ -1,6 +1,7 @@
 package com.metrolist.music.utils
 
 import android.net.ConnectivityManager
+import androidx.core.net.toUri
 import androidx.media3.common.PlaybackException
 import com.metrolist.music.constants.AudioQuality
 import com.metrolist.innertube.NewPipeUtils
@@ -19,6 +20,7 @@ import com.metrolist.innertube.models.YouTubeClient.Companion.WEB
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.metrolist.innertube.models.response.PlayerResponse
+import com.metrolist.innertube.utils.ResilientDns
 import okhttp3.OkHttpClient
 import timber.log.Timber
 
@@ -26,6 +28,7 @@ object YTPlayerUtils {
     private const val logTag = "YTPlayerUtils"
 
     private val httpClient = OkHttpClient.Builder()
+        .dns(ResilientDns())
         .proxy(YouTube.proxy)
         .build()
     /**
@@ -73,6 +76,7 @@ object YTPlayerUtils {
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
     ): Result<PlaybackData> = runCatching {
+        val defaultStreamTtlSeconds = 6 * 60 * 60 // 6 hours
         Timber.tag(logTag).d("Fetching player response for videoId: $videoId, playlistId: $playlistId")
         /**
          * This is required for some clients to get working streams however
@@ -158,8 +162,12 @@ object YTPlayerUtils {
                     continue
                 }
 
-                streamExpiresInSeconds = streamPlayerResponse.streamingData?.expiresInSeconds
-                if (streamExpiresInSeconds == null) {
+                streamExpiresInSeconds =
+                    streamPlayerResponse.streamingData?.expiresInSeconds
+                        ?: streamUrl?.let(::deriveExpireSecondsFromUrl)
+                        ?: defaultStreamTtlSeconds
+
+                if (streamExpiresInSeconds <= 0) {
                     Timber.tag(logTag).d("Stream expiration time not found")
                     continue
                 }
@@ -314,5 +322,15 @@ object YTPlayerUtils {
                 reportException(it)
             }
             .getOrNull()
+    }
+}
+
+private fun deriveExpireSecondsFromUrl(streamUrl: String): Int? {
+    val uri = streamUrl.toUri()
+    val expireEpoch = uri.getQueryParameter("expire")?.toLongOrNull()
+        ?: uri.getQueryParameter("exp")?.toLongOrNull()
+    return expireEpoch?.let { epoch ->
+        val remainingMillis = epoch * 1000L - System.currentTimeMillis()
+        if (remainingMillis > 0) (remainingMillis / 1000L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt() else null
     }
 }

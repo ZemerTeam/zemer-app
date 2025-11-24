@@ -9,6 +9,7 @@ import com.metrolist.innertube.models.body.*
 import com.metrolist.innertube.models.response.NextResponse
 import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.innertube.utils.sha1
+import com.metrolist.innertube.utils.ResilientDns
 import io.ktor.client.*
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.*
@@ -66,6 +67,8 @@ class InnerTube {
         // Optimize HTTP client for high concurrency
         engine {
             config {
+                // Bypass host file rewrites (e.g., adblockers) by falling back to DoH when needed.
+                dns(ResilientDns())
                 // Increase connection pool for parallel requests
                 connectionPool(ConnectionPool(
                     maxIdleConnections = 200,  // Keep 200 connections alive

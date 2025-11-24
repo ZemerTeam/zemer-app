@@ -43,8 +43,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Divider
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material3.HorizontalDivider
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -145,7 +145,7 @@ fun AboutScreen(
                     )
                 }
 
-                Divider(modifier = Modifier.fillMaxWidth(0.8f))
+                HorizontalDivider(modifier = Modifier.fillMaxWidth(0.8f))
 
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -180,7 +180,7 @@ fun AboutScreen(
                     )
                 }
 
-                Divider(modifier = Modifier.fillMaxWidth(0.8f))
+                HorizontalDivider(modifier = Modifier.fillMaxWidth(0.8f))
 
                 Column(
                     verticalArrangement = Arrangement.spacedBy(4.dp),

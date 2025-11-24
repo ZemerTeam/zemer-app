@@ -87,9 +87,6 @@ suspend fun List<YTItem>.filterWhitelisted(database: MusicDatabase): List<YTItem
             is PlaylistItem -> item.isWhitelisted(database).also {
                 Timber.d("WhitelistFilter: PlaylistItem '${item.title}' - whitelisted=$it")
             }
-            else -> false.also {
-                Timber.d("WhitelistFilter: Unknown item type ${item.javaClass.simpleName} - filtered out")
-            }
         }
         isWhitelisted
     }

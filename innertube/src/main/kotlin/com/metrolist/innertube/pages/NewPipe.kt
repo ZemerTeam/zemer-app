@@ -6,6 +6,7 @@ import io.ktor.http.URLBuilder
 import io.ktor.http.parseQueryString
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
+import com.metrolist.innertube.utils.ResilientDns
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.downloader.CancellableCall
 import org.schabi.newpipe.extractor.downloader.Downloader
@@ -20,6 +21,7 @@ import java.net.Proxy
 private class NewPipeDownloaderImpl(proxy: Proxy?, proxyAuth: String?) : Downloader() {
 
     private val client = OkHttpClient.Builder()
+        .dns(ResilientDns())
         .proxy(proxy)
         .proxyAuthenticator { _, response ->
             proxyAuth?.let { auth ->
