@@ -29,6 +29,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.min
 import kotlin.math.pow
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import com.metrolist.innertube.utils.ResilientDns
+import com.metrolist.innertube.YouTube
 
 /**
  * Download manager that uses MediaStore to save music files to the public Music/Zemer folder.
@@ -53,6 +57,17 @@ constructor(
     private val mediaStoreHelper = MediaStoreHelper(context)
     private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
+    private val httpClient = OkHttpClient.Builder()
+        .dns(ResilientDns())
+        .proxy(YouTube.proxy)
+        .proxyAuthenticator { _, response ->
+            YouTube.proxyAuth?.let { auth ->
+                response.request.newBuilder()
+                    .header("Proxy-Authorization", auth)
+                    .build()
+            } ?: response.request
+        }
+        .build()
 
     // Concurrent download limiter (max 3 simultaneous downloads)
     private val downloadSemaphore = Semaphore(MAX_CONCURRENT_DOWNLOADS)
@@ -356,34 +371,30 @@ constructor(
      * Download a file from a URL to a temp file with progress tracking
      */
     private suspend fun downloadFile(url: String, outputFile: File, songId: String) = withContext(Dispatchers.IO) {
-        val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .header("Accept", "*/*")
+            .header("Accept-Language", "en-US,en;q=0.9")
+            .header("Range", "bytes=0-")
+            .build()
 
-        // Configure connection for YouTube
-        connection.apply {
-            setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            setRequestProperty("Accept", "*/*")
-            setRequestProperty("Accept-Language", "en-US,en;q=0.9")
-            setRequestProperty("Range", "bytes=0-")
-            connectTimeout = 30000
-            readTimeout = 30000
-            instanceFollowRedirects = true
-        }
-
-        connection.connect()
-
-        // Check response code
-        val responseCode = connection.responseCode
+        val response = httpClient.newCall(request).execute()
+        val responseCode = response.code
         Timber.d("Download HTTP response: $responseCode for songId: $songId")
 
-        if (responseCode !in 200..299) {
-            throw Exception("HTTP error $responseCode: ${connection.responseMessage}")
+        if (!response.isSuccessful) {
+            response.close()
+            throw Exception("HTTP error $responseCode: ${response.message}")
         }
 
-        val contentLength = connection.contentLength
+        val body = response.body ?: throw Exception("Empty response body")
+        val contentLength = body.contentLength().coerceAtLeast(0)
         Timber.d("Download content length: $contentLength bytes")
         var totalBytesRead = 0L
 
-        connection.getInputStream().use { input ->
+        body.byteStream().use { input ->
             outputFile.outputStream().use { output ->
                 val buffer = ByteArray(8192)
                 var bytesRead: Int
