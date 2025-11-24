@@ -354,4 +354,34 @@
     <string name="new_version_available">New version available</string>
     <string name="translation_models">Translation Models</string>
     <string name="clear_translation_models">Clear translation models</string>
+
+    <!-- D-pad Button Mapper -->
+    <string name="settings_button_setup">Set up your D-pad</string>
+    <string name="settings_button_setup_desc">Assign your hardware D-pad buttons</string>
+    <string name="dpad_setup_title">Set up your D-pad</string>
+    <string name="dpad_setup_description">Capture the arrows and center button from your hardware D-pad. We will automatically move to the next direction as soon as it is detected.</string>
+    <string name="dpad_setup_start">Start</string>
+    <string name="dpad_setup_skip">Skip</string>
+    <string name="dpad_setup_listening">Press D-pad %1$s</string>
+    <string name="dpad_setup_step_progress">Step %1$d of %2$d</string>
+    <string name="dpad_setup_auto_hint">We will jump to the next direction as soon as we detect a press.</string>
+    <string name="dpad_setup_press_any_key">Press any key to get started</string>
+    <string name="dpad_setup_listening_hint">Waiting for the requested direction.</string>
+    <string name="dpad_setup_skip_direction">Skip this direction</string>
+    <string name="dpad_setup_cancel">Cancel</string>
+    <string name="dpad_setup_completed">D-pad buttons saved</string>
+    <string name="dpad_setup_completed_hint">These values are now stored. We will close this screen automatically.</string>
+    <string name="dpad_setup_done">Done</string>
+    <string name="dpad_setup_again">Set again</string>
+    <string name="dpad_current_mapping">Current mapping</string>
+    <string name="dpad_mapping_not_set">Not set</string>
+    <string name="dpad_clear_button">Clear</string>
+    <string name="dpad_direction_right">Right</string>
+    <string name="dpad_direction_left">Left</string>
+    <string name="dpad_direction_up">Up</string>
+    <string name="dpad_direction_down">Down</string>
+    <string name="dpad_direction_center">Center</string>
+    <string name="button_setup_accessibility_required">Accessibility service required</string>
+    <string name="button_setup_enable_accessibility">Enable accessibility service</string>
+    <string name="accessibility_service_description">D-pad button mapper for custom hardware controls</string>
 </resources>

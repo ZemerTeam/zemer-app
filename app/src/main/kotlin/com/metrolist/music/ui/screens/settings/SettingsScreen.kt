@@ -86,6 +86,11 @@ fun SettingsScreen(
                     icon = painterResource(R.drawable.language),
                     title = { Text(stringResource(R.string.content)) },
                     onClick = { navController.navigate("settings/content") }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.swipe),
+                    title = { Text(stringResource(R.string.settings_button_setup)) },
+                    onClick = { navController.navigate("settings/dpad") }
                 )
             )
         )

@@ -12,6 +12,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.os.SystemClock
+import android.view.InputDevice
+import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -115,6 +119,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -156,6 +161,7 @@ import com.metrolist.music.constants.StopMusicOnTaskClearKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.SearchHistory
 import com.metrolist.music.extensions.toEnum
+import com.metrolist.music.models.DpadDirection
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.DownloadUtil
 import com.metrolist.music.playback.MusicService
@@ -186,6 +192,8 @@ import com.metrolist.music.ui.theme.extractThemeColor
 import com.metrolist.music.ui.utils.appBarScrollBehavior
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.ui.utils.resetHeightOffset
+import com.metrolist.music.utils.ButtonInputCapture
+import com.metrolist.music.utils.ButtonMapperBridge
 import com.metrolist.music.utils.SyncUtils
 import com.metrolist.music.utils.Updater
 import com.metrolist.music.utils.dataStore
@@ -248,6 +256,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    private var dpadKeyMap: Map<Int, Int> by mutableStateOf(emptyMap())
+    private val hatTracker = HatInputTracker()
+
     /**
      * Request storage permissions at startup if not already granted.
      * Required for MediaStore downloads to Music/Zemer folder.
@@ -293,6 +304,16 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
+    override fun onResume() {
+        super.onResume()
+        ButtonMapperBridge.register(this)
+    }
+
+    override fun onPause() {
+        ButtonMapperBridge.unregister(this)
+        super.onPause()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         if (dataStore.get(
@@ -321,6 +342,23 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
         WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                dataStore.data
+                    .map { prefs ->
+                        val mapping = mutableMapOf<Int, Int>()
+                        DpadDirection.entries.forEach { direction ->
+                            val keyCode = prefs[direction.prefKey]
+                            if (keyCode != null) {
+                                mapping[keyCode] = direction.keyCode
+                            }
+                        }
+                        mapping.toMap()
+                    }
+                    .collectLatest { dpadKeyMap = it }
+            }
+        }
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             val locale = dataStore[AppLanguageKey]
@@ -1403,6 +1441,46 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    fun handleAccessibilityKey(event: KeyEvent): Boolean {
+        if (isProtectedKey(event.keyCode)) {
+            return false
+        }
+        return handleMappedKeyEvent(event)
+    }
+
+    private fun handleMappedKeyEvent(event: KeyEvent): Boolean {
+        val mapped = dpadKeyMap[event.keyCode] ?: return false
+        val target = if (mapped == event.keyCode) {
+            event
+        } else {
+            KeyEvent(
+                event.downTime,
+                event.eventTime,
+                event.action,
+                mapped,
+                event.repeatCount,
+                event.metaState,
+                event.deviceId,
+                event.scanCode,
+                event.flags,
+                event.source
+            )
+        }
+        super.dispatchKeyEvent(target)
+        return true
+    }
+
+    private fun isProtectedKey(keyCode: Int): Boolean {
+        return keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_POWER
+    }
+
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        if (ButtonInputCapture.isCapturing() && hatTracker.handle(event)) {
+            return true
+        }
+        return super.dispatchGenericMotionEvent(event)
+    }
+
     companion object {
         const val ACTION_SEARCH = "com.metrolist.music.action.SEARCH"
         const val ACTION_LIBRARY = "com.metrolist.music.action.LIBRARY"
@@ -1416,3 +1494,48 @@ val LocalPlayerAwareWindowInsets =
     compositionLocalOf<WindowInsets> { error("No WindowInsets provided") }
 val LocalDownloadUtil = staticCompositionLocalOf<DownloadUtil> { error("No DownloadUtil provided") }
 val LocalSyncUtils = staticCompositionLocalOf<SyncUtils> { error("No SyncUtils provided") }
+
+private class HatInputTracker {
+    private var lastKeyCode: Int? = null
+
+    fun handle(event: MotionEvent): Boolean {
+        val source = event.source
+        val isGamepad = (source and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
+        val isJoystick = (source and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
+        if (!isGamepad && !isJoystick) {
+            return false
+        }
+        val x = event.getAxisValue(MotionEvent.AXIS_HAT_X)
+        val y = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
+        val keyCode = when {
+            x > 0.5f -> KeyEvent.KEYCODE_DPAD_RIGHT
+            x < -0.5f -> KeyEvent.KEYCODE_DPAD_LEFT
+            y < -0.5f -> KeyEvent.KEYCODE_DPAD_UP
+            y > 0.5f -> KeyEvent.KEYCODE_DPAD_DOWN
+            else -> null
+        }
+        if (keyCode == null) {
+            lastKeyCode = null
+            return false
+        }
+        if (keyCode == lastKeyCode) {
+            return true
+        }
+        lastKeyCode = keyCode
+        val time = SystemClock.uptimeMillis()
+        val synthetic = KeyEvent(
+            time,
+            time,
+            KeyEvent.ACTION_DOWN,
+            keyCode,
+            0,
+            0,
+            event.deviceId,
+            0,
+            0,
+            event.source
+        )
+        ButtonInputCapture.notify(synthetic)
+        return true
+    }
+}
