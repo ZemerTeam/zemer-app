@@ -16,8 +16,9 @@ android {
         applicationId = "com.metrolist.music"
         minSdk = 26
         targetSdk = 36
-        versionCode = 128
-        versionName = "12.7.0"
+        versionCode = 1
+        versionName = "1"
+        buildConfigField("String", "ARCHITECTURE", "\"universal\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -26,17 +27,6 @@ android {
 
     androidResources {
         localeFilters += listOf("en", "iw")
-    }
-
-    flavorDimensions += "abi"
-    productFlavors {
-        create("universal") {
-            dimension = "abi"
-            ndk {
-                abiFilters += listOf("armeabi-v7a", "arm64-v8a")
-            }
-            buildConfigField("String", "ARCHITECTURE", "\"universal\"")
-        }
     }
 
     signingConfigs {
