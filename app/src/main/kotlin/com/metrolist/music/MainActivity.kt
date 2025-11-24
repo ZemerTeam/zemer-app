@@ -536,6 +536,7 @@ class MainActivity : ComponentActivity() {
                     val topLevelScreens = remember {
                         listOf(
                             Screens.Home.route,
+                            Screens.Artists.route,
                             Screens.Search.route,
                             Screens.Library.route,
                             "settings",
@@ -798,6 +799,7 @@ class MainActivity : ComponentActivity() {
                     val currentTitleRes = remember(navBackStackEntry) {
                         when (navBackStackEntry?.destination?.route) {
                             Screens.Home.route -> R.string.home
+                            Screens.Artists.route -> R.string.artists
                             Screens.Search.route -> R.string.search
                             Screens.Library.route -> R.string.filter_library
                             else -> null

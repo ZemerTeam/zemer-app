@@ -773,7 +773,15 @@ fun ArtistScreen(
     }
 
     TopAppBar(
-        title = { if (!transparentAppBar) Text(artistPage?.artist?.title.orEmpty()) },
+        title = {
+            if (!transparentAppBar) {
+                Text(
+                    text = artistPage?.artist?.title.orEmpty().ifEmpty { stringResource(R.string.artists) },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        },
         navigationIcon = {
             IconButton(
                 onClick = navController::navigateUp,
