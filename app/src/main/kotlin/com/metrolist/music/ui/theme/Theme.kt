@@ -5,8 +5,10 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
@@ -48,13 +50,21 @@ fun ZemerTheme(
         )
     }
 
-    // Apply pureBlack modification if needed, similar to original logic
-    val colorScheme = remember(baseColorScheme, pureBlack, darkTheme) {
-        if (darkTheme && pureBlack) {
-            baseColorScheme.pureBlack(true)
-        } else {
-            baseColorScheme
-        }
+    // Neutralize surfaces to avoid overly tinted backgrounds from vivid seeds.
+    val neutralDefaults = if (darkTheme) darkColorScheme() else lightColorScheme()
+    val mergedColorScheme = baseColorScheme.copy(
+        surface = neutralDefaults.surface,
+        surfaceVariant = neutralDefaults.surfaceVariant,
+        background = neutralDefaults.background,
+        onSurface = neutralDefaults.onSurface,
+        onSurfaceVariant = neutralDefaults.onSurfaceVariant,
+        outline = neutralDefaults.outline,
+        outlineVariant = neutralDefaults.outlineVariant,
+    )
+
+    // Apply pureBlack modification if needed
+    val colorScheme = remember(mergedColorScheme, pureBlack, darkTheme) {
+        if (darkTheme && pureBlack) mergedColorScheme.pureBlack(true) else mergedColorScheme
     }
 
     // Use standard MaterialTheme instead of MaterialExpressiveTheme
