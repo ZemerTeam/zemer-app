@@ -12,11 +12,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.size.Scale
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.music.R
@@ -79,6 +81,8 @@ fun WhitelistedArtistListItem(
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(artist.artist.thumbnailUrl)
+                .scale(Scale.FILL) // fill the target bounds to avoid narrow slices
+                .size(ListThumbnailSize.value.toInt())
                 .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
                 .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
                 .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -87,6 +91,10 @@ fun WhitelistedArtistListItem(
             modifier = Modifier
                 .size(ListThumbnailSize)
                 .clip(CircleShape),
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.Center,
+            placeholder = painterResource(R.drawable.artist),
+            error = painterResource(R.drawable.artist),
         )
     },
     trailingContent = {
