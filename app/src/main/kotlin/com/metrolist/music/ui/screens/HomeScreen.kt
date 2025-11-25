@@ -98,7 +98,6 @@ import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.AlbumGridItem
 import com.metrolist.music.ui.component.ArtistGridItem
 import com.metrolist.music.ui.component.ChipsRow
-import com.metrolist.music.ui.component.HideOnScrollFAB
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.NavigationTitle
@@ -170,11 +169,56 @@ fun HomeScreen(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val scrollToTop =
         backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
+    val shuffleNow =
+        backStackEntry?.savedStateHandle?.getStateFlow("shuffleNow", false)?.collectAsState()
 
     LaunchedEffect(scrollToTop?.value) {
         if (scrollToTop?.value == true) {
             lazylistState.animateScrollToItem(0)
             backStackEntry?.savedStateHandle?.set("scrollToTop", false)
+        }
+    }
+
+    suspend fun performShuffle() {
+        val local = when {
+            allLocalItems.isNotEmpty() && allYtItems.isNotEmpty() -> Random.nextFloat() < 0.5
+            allLocalItems.isNotEmpty() -> true
+            else -> false
+        }
+        if (local) {
+            when (val luckyItem = allLocalItems.random()) {
+                is Song -> playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata(), database))
+                is Album -> {
+                    val albumWithSongs = withContext(Dispatchers.IO) {
+                        database.albumWithSongs(luckyItem.id).first()
+                    }
+                    albumWithSongs?.let {
+                        playerConnection.playQueue(LocalAlbumRadio(it, database = database))
+                    }
+                }
+
+                is Artist -> {}
+                is Playlist -> {}
+            }
+        } else {
+            when (val luckyItem = allYtItems.random()) {
+                is SongItem -> playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata(), database))
+                is AlbumItem -> playerConnection.playQueue(YouTubeAlbumRadio(luckyItem.playlistId, database))
+                is ArtistItem -> luckyItem.radioEndpoint?.let {
+                    playerConnection.playQueue(YouTubeQueue(it, preloadItem = null, database))
+                }
+
+                is PlaylistItem -> luckyItem.playEndpoint?.let {
+                    playerConnection.playQueue(YouTubeQueue(it, preloadItem = null, database))
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(shuffleNow?.value) {
+        if (shuffleNow?.value == true) {
+            performShuffle()
+            backStackEntry?.savedStateHandle?.set("shuffleNow", false)
         }
     }
 
@@ -690,47 +734,6 @@ fun HomeScreen(
                 }
             }
         }
-
-        HideOnScrollFAB(
-            visible = allLocalItems.isNotEmpty() || allYtItems.isNotEmpty(),
-            lazyListState = lazylistState,
-            icon = R.drawable.shuffle,
-            onClick = {
-                val local = when {
-                    allLocalItems.isNotEmpty() && allYtItems.isNotEmpty() -> Random.nextFloat() < 0.5
-                    allLocalItems.isNotEmpty() -> true
-                    else -> false
-                }
-                scope.launch(Dispatchers.Main) {
-                    if (local) {
-                        when (val luckyItem = allLocalItems.random()) {
-                            is Song -> playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata(), database))
-                            is Album -> {
-                                val albumWithSongs = withContext(Dispatchers.IO) {
-                                    database.albumWithSongs(luckyItem.id).first()
-                                }
-                                albumWithSongs?.let {
-                                    playerConnection.playQueue(LocalAlbumRadio(it, database = database))
-                                }
-                            }
-                            is Artist -> {}
-                            is Playlist -> {}
-                        }
-                    } else {
-                        when (val luckyItem = allYtItems.random()) {
-                            is SongItem -> playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata(), database))
-                            is AlbumItem -> playerConnection.playQueue(YouTubeAlbumRadio(luckyItem.playlistId, database))
-                            is ArtistItem -> luckyItem.radioEndpoint?.let {
-                                playerConnection.playQueue(YouTubeQueue(it, preloadItem = null, database))
-                            }
-                            is PlaylistItem -> luckyItem.playEndpoint?.let {
-                                playerConnection.playQueue(YouTubeQueue(it, preloadItem = null, database))
-                            }
-                        }
-                    }
-                }
-            }
-        )
 
         Indicator(
             isRefreshing = isRefreshing,

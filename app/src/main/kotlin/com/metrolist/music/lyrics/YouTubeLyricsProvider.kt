@@ -3,6 +3,7 @@ package com.metrolist.music.lyrics
 import android.content.Context
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.WatchEndpoint
+import com.metrolist.music.lyrics.model.LyricsUnavailableException
 
 object YouTubeLyricsProvider : LyricsProvider {
     override val name = "YouTube Music"
@@ -20,7 +21,7 @@ object YouTubeLyricsProvider : LyricsProvider {
             YouTube
                 .lyrics(
                     endpoint = nextResult.lyricsEndpoint
-                        ?: throw IllegalStateException("Lyrics endpoint not found"),
-                ).getOrThrow() ?: throw IllegalStateException("Lyrics unavailable")
+                        ?: throw LyricsUnavailableException,
+                ).getOrThrow() ?: throw LyricsUnavailableException
         }
 }

@@ -52,6 +52,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -86,12 +90,21 @@ import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import androidx.compose.foundation.clickable
 
+data class MiniPlayerFocusTargets(
+    val play: FocusRequester,
+    val account: FocusRequester,
+    val heart: FocusRequester,
+    val afterHeart: FocusRequester?,
+    val down: FocusRequester?
+)
+
 @Composable
 fun MiniPlayer(
     position: Long,
     duration: Long,
     modifier: Modifier = Modifier,
     pureBlack: Boolean,
+    focusTargets: MiniPlayerFocusTargets? = null,
 ) {
     val useNewMiniPlayerDesign by rememberPreference(UseNewMiniPlayerDesignKey, true)
 
@@ -100,7 +113,8 @@ fun MiniPlayer(
             position = position,
             duration = duration,
             modifier = modifier,
-            pureBlack = pureBlack
+            pureBlack = pureBlack,
+            focusTargets = focusTargets
         )
     } else {
         // NEW: Wrap LegacyMiniPlayer in a Box to allow alignment on tablet landscape.
@@ -131,6 +145,7 @@ private fun NewMiniPlayer(
     duration: Long,
     modifier: Modifier = Modifier,
     pureBlack: Boolean,
+    focusTargets: MiniPlayerFocusTargets? = null,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val database = LocalDatabase.current
@@ -165,6 +180,11 @@ private fun NewMiniPlayer(
         label = "overlay_alpha",
         animationSpec = animationSpec
     )
+    val playRequester = focusTargets?.play ?: remember { FocusRequester() }
+    val accountRequester = focusTargets?.account ?: remember { FocusRequester() }
+    val heartRequester = focusTargets?.heart ?: remember { FocusRequester() }
+    val afterHeartRequester = focusTargets?.afterHeart
+    val downRequester = focusTargets?.down
 
     /**
      * Calculates the auto-swipe threshold based on swipe sensitivity.
@@ -284,7 +304,18 @@ private fun NewMiniPlayer(
                 // Play/Pause button with circular progress indicator (left side)
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier
+                        .size(48.dp)
+                        .focusRequester(playRequester)
+                        .then(
+                            if (focusTargets != null) {
+                                Modifier.focusProperties {
+                                    next = accountRequester
+                                    down = downRequester ?: FocusRequester.Default
+                                }
+                            } else Modifier
+                        )
+                        .focusable()
                 ) {
                     // Circular progress indicator around the play button
                     if (duration > 0) {
@@ -446,6 +477,17 @@ private fun NewMiniPlayer(
                                         Color.Transparent,
                                     shape = CircleShape
                                 )
+                                .focusRequester(accountRequester)
+                                .then(
+                                    if (focusTargets != null) {
+                                        Modifier.focusProperties {
+                                            previous = playRequester
+                                            next = heartRequester
+                                            down = downRequester ?: FocusRequester.Default
+                                        }
+                                    } else Modifier
+                                )
+                                .focusable()
                                 .clickable {
                                     database.transaction {
                                         val artist = libraryArtist?.artist
@@ -508,6 +550,17 @@ private fun NewMiniPlayer(
                                     Color.Transparent,
                                 shape = CircleShape
                             )
+                            .focusRequester(heartRequester)
+                            .then(
+                                if (focusTargets != null) {
+                                    Modifier.focusProperties {
+                                        previous = accountRequester
+                                        afterHeartRequester?.let { next = it }
+                                        down = downRequester ?: FocusRequester.Default
+                                    }
+                                } else Modifier
+                            )
+                            .focusable()
                             .clickable {
                                 playerConnection.service.toggleLike()
                             }

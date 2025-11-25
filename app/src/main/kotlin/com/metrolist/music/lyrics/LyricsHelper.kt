@@ -10,6 +10,7 @@ import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.reportException
 import com.metrolist.music.utils.NetworkConnectivityObserver
+import com.metrolist.music.lyrics.model.LyricsUnavailableException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -76,6 +77,9 @@ constructor(
                         result.onSuccess { lyrics ->
                             return@async lyrics
                         }.onFailure {
+                            if (it is LyricsUnavailableException || (it is IllegalStateException && it.message?.contains("Lyrics") == true)) {
+                                return@async LYRICS_NOT_FOUND
+                            }
                             reportException(it)
                         }
                     } catch (e: Exception) {

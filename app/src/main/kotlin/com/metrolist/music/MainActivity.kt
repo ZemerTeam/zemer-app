@@ -23,7 +23,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -59,12 +58,10 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Surface
@@ -72,7 +69,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.contentColorFor
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -90,6 +92,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -106,6 +110,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastForEach
+import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.ActivityCompat
@@ -148,8 +153,6 @@ import com.metrolist.music.constants.MiniPlayerHeight
 import com.metrolist.music.constants.MiniPlayerBottomSpacing
 import com.metrolist.music.constants.UpdateNotificationsEnabledKey
 import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
-import com.metrolist.music.constants.NavigationBarAnimationSpec
-import com.metrolist.music.constants.NavigationBarHeight
 import com.metrolist.music.constants.PauseSearchHistoryKey
 import com.metrolist.music.constants.PureBlackKey
 import com.metrolist.music.constants.SYSTEM_DEFAULT
@@ -178,6 +181,7 @@ import com.metrolist.music.ui.component.rememberBottomSheetState
 import com.metrolist.music.ui.component.shimmer.ShimmerTheme
 import com.metrolist.music.ui.menu.YouTubeSongMenu
 import com.metrolist.music.ui.player.BottomSheetPlayer
+import com.metrolist.music.ui.player.MiniPlayerFocusTargets
 import com.metrolist.music.ui.screens.Screens
 import com.metrolist.music.ui.screens.navigationBuilder
 import com.metrolist.music.ui.screens.search.LocalSearchScreen
@@ -518,6 +522,7 @@ class MainActivity : ComponentActivity() {
                     val homeViewModel: HomeViewModel = hiltViewModel()
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
+                    val drawerState = rememberDrawerState(DrawerValue.Closed)
 
                     val navigationItems = remember { Screens.MainScreens }
                     val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
@@ -597,32 +602,13 @@ class MainActivity : ComponentActivity() {
                                 inSearchScreen
                     }
 
-                    val shouldShowNavigationBar = remember(navBackStackEntry, active) {
-                        navBackStackEntry?.destination?.route == null ||
-                                navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } &&
-                                !active
-                    }
+                    val shouldShowNavigationBar = false
 
-                    val isLandscape = remember(configuration) {
-                        configuration.screenWidthDp > configuration.screenHeightDp
-                    }
-                    val showRail = isLandscape && !inSearchScreen
+                    val showRail = false
 
-                    val getNavPadding: () -> Dp = remember {
-                        {
-                            if (shouldShowNavigationBar && !showRail) {
-                                if (slimNav) SlimNavBarHeight else NavigationBarHeight
-                            } else {
-                                0.dp
-                            }
-                        }
-                    }
+                    val getNavPadding: () -> Dp = remember { { 0.dp } }
 
-                    val navigationBarHeight by animateDpAsState(
-                        targetValue = if (shouldShowNavigationBar && !showRail) NavigationBarHeight else 0.dp,
-                        animationSpec = NavigationBarAnimationSpec,
-                        label = "",
-                    )
+                    val navigationBarHeight = 0.dp
 
                     val playerBottomSheetState =
                         rememberBottomSheetState(
@@ -641,9 +627,6 @@ class MainActivity : ComponentActivity() {
                         showRail,
                     ) {
                         var bottom = bottomInset
-                        if (shouldShowNavigationBar && !showRail) {
-                            bottom += NavigationBarHeight
-                        }
                         if (!playerBottomSheetState.isDismissed) bottom += MiniPlayerHeight
                         windowsInsets
                             .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
@@ -808,6 +791,13 @@ class MainActivity : ComponentActivity() {
 
                     val baseBg = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
                     val insetBg = if (playerBottomSheetState.progress > 0f) Color.Transparent else baseBg
+                    val drawerFocusRequester = remember { FocusRequester() }
+                    val topPlayFocusRequester = remember { FocusRequester() }
+                    val miniPlayFocusRequester = remember { FocusRequester() }
+                    val miniAccountFocusRequester = remember { FocusRequester() }
+                    val miniHeartFocusRequester = remember { FocusRequester() }
+                    val burgerFocusRequester = remember { FocusRequester() }
+                    val contentFocusRequester = remember { FocusRequester() }
 
                     CompositionLocalProvider(
                         LocalDatabase provides database,
@@ -818,7 +808,139 @@ class MainActivity : ComponentActivity() {
                         LocalShimmerTheme provides ShimmerTheme,
                         LocalSyncUtils provides syncUtils,
                     ) {
-                        Scaffold(
+                        ModalNavigationDrawer(
+                            drawerState = drawerState,
+                            drawerContent = {
+                                ModalDrawerSheet(
+                                    modifier = Modifier.focusProperties {
+                                        canFocus = drawerState.isOpen
+                                    }
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.app_name),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+                                    )
+                                    navigationItems.fastForEachIndexed { index, screen ->
+                                        val isSelected =
+                                            navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true
+                                        NavigationDrawerItem(
+                                            label = {
+                                                Text(
+                                                    text = stringResource(screen.titleId),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            },
+                                            icon = {
+                                                Icon(
+                                                    painter = painterResource(
+                                                        id = if (isSelected) screen.iconIdActive else screen.iconIdInactive
+                                                    ),
+                                                    contentDescription = null,
+                                                )
+                                            },
+                                            selected = isSelected,
+                                            onClick = {
+                                                coroutineScope.launch { drawerState.close() }
+                                                if (screen.route == Screens.Search.route) {
+                                                    onActiveChange(true)
+                                                } else if (isSelected) {
+                                                    navController.currentBackStackEntry?.savedStateHandle?.set("scrollToTop", true)
+                                                    coroutineScope.launch {
+                                                        searchBarScrollBehavior.state.resetHeightOffset()
+                                                    }
+                                                } else {
+                                                    navController.navigate(screen.route) {
+                                                        popUpTo(navController.graph.startDestinationId) {
+                                                            saveState = true
+                                                        }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .padding(NavigationDrawerItemDefaults.ItemPadding)
+                                                .focusProperties { canFocus = drawerState.isOpen }
+                                                .then(
+                                                    if (index == 0) Modifier.focusRequester(drawerFocusRequester) else Modifier
+                                                )
+                                        )
+                                    }
+                                    NavigationDrawerItem(
+                                        label = { Text(stringResource(R.string.random_playlist)) },
+                                        icon = {
+                                            Icon(
+                                                painter = painterResource(R.drawable.shuffle),
+                                                contentDescription = null
+                                            )
+                                        },
+                                        selected = false,
+                                        onClick = {
+                                            coroutineScope.launch { drawerState.close() }
+                                            navController.navigate(Screens.Home.route) {
+                                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
+                                            navController.getBackStackEntry(Screens.Home.route)
+                                                .savedStateHandle["shuffleNow"] = true
+                                        },
+                                        modifier = Modifier
+                                            .padding(NavigationDrawerItemDefaults.ItemPadding)
+                                            .focusProperties { canFocus = drawerState.isOpen }
+                                    )
+                                    NavigationDrawerItem(
+                                        label = { Text(stringResource(R.string.settings)) },
+                                        icon = {
+                                            Icon(
+                                                painter = painterResource(R.drawable.settings),
+                                                contentDescription = null
+                                            )
+                                        },
+                                        selected = navBackStackEntry?.destination?.route == "settings",
+                                        onClick = {
+                                            coroutineScope.launch { drawerState.close() }
+                                            navController.navigate("settings") {
+                                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .padding(NavigationDrawerItemDefaults.ItemPadding)
+                                            .focusProperties { canFocus = drawerState.isOpen }
+                                    )
+                                    if (!playerBottomSheetState.isDismissed) {
+                                        NavigationDrawerItem(
+                                            label = { Text(stringResource(R.string.now_playing)) },
+                                            icon = {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.play),
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            selected = false,
+                                            onClick = {
+                                                coroutineScope.launch { drawerState.close() }
+                                                playerBottomSheetState.expandSoft()
+                                            },
+                                            modifier = Modifier
+                                                .padding(NavigationDrawerItemDefaults.ItemPadding)
+                                                .focusProperties { canFocus = drawerState.isOpen }
+                                        )
+                                    }
+                                }
+                            }
+                        ) {
+                            LaunchedEffect(drawerState.isOpen) {
+                                if (drawerState.isOpen) {
+                                    drawerFocusRequester.requestFocus()
+                                }
+                            }
+
+                            Scaffold(
                             topBar = {
                                 AnimatedVisibility(
                                     visible = shouldShowTopBar,
@@ -839,11 +961,66 @@ class MainActivity : ComponentActivity() {
                                                     style = MaterialTheme.typography.titleLarge,
                                                 )
                                             },
-                                            actions = {
-                                                IconButton(onClick = { navController.navigate("settings") }) {
+                                            navigationIcon = {
+                                                val isMainScreen =
+                                                    navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }
+                                                IconButton(
+                                                    onClick = {
+                                                        when {
+                                                            active -> onActiveChange(false)
+                                                            !isMainScreen -> navController.navigateUp()
+                                                            else -> coroutineScope.launch { drawerState.open() }
+                                                        }
+                                                    },
+                                                    onLongClick = {
+                                                        when {
+                                                            active -> {}
+                                                            !isMainScreen -> navController.backToMain()
+                                                            else -> {}
+                                                        }
+                                                    },
+                                                ) {
                                                     Icon(
-                                                        painter = painterResource(R.drawable.settings),
-                                                        contentDescription = stringResource(R.string.settings)
+                                                        painterResource(
+                                                            if (active || !isMainScreen) {
+                                                                R.drawable.arrow_back
+                                                            } else {
+                                                                R.drawable.menu
+                                                            },
+                                                        ),
+                                                        contentDescription = null,
+                                                    modifier = Modifier
+                                                        .focusRequester(burgerFocusRequester)
+                                                        .focusProperties {
+                                                            next = topPlayFocusRequester
+                                                            down = contentFocusRequester
+                                                            previous = miniHeartFocusRequester
+                                                        }
+                                                    )
+                                                }
+                                            },
+                                            actions = {
+                                                    IconButton(
+                                                        onClick = {
+                                                            coroutineScope.launch {
+                                                                playerBottomSheetState.expandSoft()
+                                                            }
+                                                    },
+                                                    colors = IconButtonDefaults.iconButtonColors(
+                                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                                    ),
+                                                    modifier = Modifier
+                                                        .clip(CircleShape)
+                                                        .focusRequester(topPlayFocusRequester)
+                                                        .focusProperties {
+                                                            next = miniPlayFocusRequester
+                                                            previous = burgerFocusRequester
+                                                            down = contentFocusRequester
+                                                        }
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.play),
+                                                        contentDescription = stringResource(R.string.now_playing)
                                                     )
                                                 }
                                             },
@@ -856,12 +1033,7 @@ class MainActivity : ComponentActivity() {
                                                 navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                                             ),
                                             modifier = Modifier.windowInsetsPadding(
-                                                if (showRail) {
-                                                    WindowInsets(left = NavigationBarHeight)
-                                                        .add(cutoutInsets.only(WindowInsetsSides.Start))
-                                                } else {
-                                                    cutoutInsets.only(WindowInsetsSides.Start + WindowInsetsSides.End)
-                                                }
+                                                cutoutInsets.only(WindowInsetsSides.Start + WindowInsetsSides.End)
                                             )
                                         )
                                     }
@@ -888,21 +1060,23 @@ class MainActivity : ComponentActivity() {
                                             )
                                         },
                                         leadingIcon = {
+                                            val isMainScreen =
+                                                navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }
                                             IconButton(
                                                 onClick = {
                                                     when {
                                                         active -> onActiveChange(false)
-                                                        !navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } -> {
+                                                        !isMainScreen -> {
                                                             navController.navigateUp()
                                                         }
 
-                                                        else -> onActiveChange(true)
+                                                        else -> coroutineScope.launch { drawerState.open() }
                                                     }
                                                 },
                                                 onLongClick = {
                                                     when {
                                                         active -> {}
-                                                        !navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } -> {
+                                                        !isMainScreen -> {
                                                             navController.backToMain()
                                                         }
                                                         else -> {}
@@ -911,12 +1085,10 @@ class MainActivity : ComponentActivity() {
                                             ) {
                                                 Icon(
                                                     painterResource(
-                                                        if (active ||
-                                                            !navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }
-                                                        ) {
+                                                        if (active || !isMainScreen) {
                                                             R.drawable.arrow_back
                                                         } else {
-                                                            R.drawable.search
+                                                            R.drawable.menu
                                                         },
                                                     ),
                                                     contentDescription = null,
@@ -964,13 +1136,7 @@ class MainActivity : ComponentActivity() {
                                         focusRequester = searchBarFocusRequester,
                                         modifier = Modifier
                                             .align(Alignment.TopCenter)
-                                            .windowInsetsPadding(
-                                                if (showRail) {
-                                                    WindowInsets(left = NavigationBarHeight)
-                                                } else {
-                                                    WindowInsets(0.dp)
-                                                }
-                                            ),
+                                            .windowInsetsPadding(WindowInsets(0.dp)),
                                         colors = if (pureBlack && active) {
                                             SearchBarDefaults.colors(
                                                 containerColor = Color.Black,
@@ -1037,159 +1203,39 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             bottomBar = {
-                                if (!showRail) {
-                                    Box {
-                                        BottomSheetPlayer(
-                                            state = playerBottomSheetState,
-                                            navController = navController,
-                                            pureBlack = pureBlack
-                                        )
-                                        NavigationBar(
-                                            modifier = Modifier
-                                                .align(Alignment.BottomCenter)
-                                                .height(bottomInset + getNavPadding())
-                                                .offset {
-                                                    if (navigationBarHeight == 0.dp) {
-                                                        IntOffset(
-                                                            x = 0,
-                                                            y = (bottomInset + NavigationBarHeight).roundToPx(),
-                                                        )
-                                                    } else {
-                                                        val slideOffset =
-                                                            (bottomInset + NavigationBarHeight) *
-                                                                    playerBottomSheetState.progress.coerceIn(
-                                                                        0f,
-                                                                        1f,
-                                                                    )
-                                                        val hideOffset =
-                                                            (bottomInset + NavigationBarHeight) * (1 - navigationBarHeight / NavigationBarHeight)
-                                                        IntOffset(
-                                                            x = 0,
-                                                            y = (slideOffset + hideOffset).roundToPx(),
-                                                        )
-                                                    }
-                                                },
-                                            containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                                            contentColor = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                        ) {
-                                            navigationItems.fastForEach { screen ->
-                                                val isSelected =
-                                                    navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true
-
-                                                NavigationBarItem(
-                                                    selected = isSelected,
-                                                    icon = {
-                                                        Icon(
-                                                            painter = painterResource(
-                                                                id = if (isSelected) screen.iconIdActive else screen.iconIdInactive
-                                                            ),
-                                                            contentDescription = null,
-                                                        )
-                                                    },
-                                                    label = {
-                                                        if (!slimNav) {
-                                                            Text(
-                                                                text = stringResource(screen.titleId),
-                                                                maxLines = 1,
-                                                                overflow = TextOverflow.Ellipsis
-                                                            )
-                                                        }
-                                                    },
-                                                    onClick = {
-                                                        if (screen.route == Screens.Search.route) {
-                                                            onActiveChange(true)
-                                                        } else if (isSelected) {
-                                                            navController.currentBackStackEntry?.savedStateHandle?.set("scrollToTop", true)
-                                                            coroutineScope.launch {
-                                                                searchBarScrollBehavior.state.resetHeightOffset()
-                                                            }
-                                                        } else {
-                                                            navController.navigate(screen.route) {
-                                                                popUpTo(navController.graph.startDestinationId) {
-                                                                    saveState = true
-                                                                }
-                                                                launchSingleTop = true
-                                                                restoreState = true
-                                                            }
-                                                        }
-                                                    },
-                                                )
-                                            }
-                                        }
-
-                                        Box(
-                                            modifier = Modifier
-                                                .background(insetBg)
-                                                .fillMaxWidth()
-                                                .align(Alignment.BottomCenter)
-                                                .height(bottomInsetDp)
-                                        )
-                                    }
-                                } else {
-                                    BottomSheetPlayer(
-                                        state = playerBottomSheetState,
-                                        navController = navController,
-                                        pureBlack = pureBlack
+                                BottomSheetPlayer(
+                                    state = playerBottomSheetState,
+                                    navController = navController,
+                                    pureBlack = pureBlack,
+                                    miniPlayerFocusTargets = MiniPlayerFocusTargets(
+                                        play = miniPlayFocusRequester,
+                                        account = miniAccountFocusRequester,
+                                        heart = miniHeartFocusRequester,
+                                        afterHeart = burgerFocusRequester,
+                                        down = contentFocusRequester
                                     )
+                                )
 
-                                    Box(
-                                        modifier = Modifier
-                                            .background(insetBg)
-                                            .fillMaxWidth()
-                                            .align(Alignment.BottomCenter)
-                                            .height(bottomInsetDp)
-                                    )
-                                }
+                                Box(
+                                    modifier = Modifier
+                                        .background(insetBg)
+                                        .fillMaxWidth()
+                                        .align(Alignment.BottomCenter)
+                                        .height(bottomInsetDp)
+                                )
                             },
                             modifier = Modifier
                                 .fillMaxSize()
                                 .nestedScroll(searchBarScrollBehavior.nestedScrollConnection)
                         ) {
                             Row(Modifier.fillMaxSize()) {
-                                if (showRail) {
-                                    NavigationRail(
-                                        containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
-                                    ) {
-                                        Spacer(modifier = Modifier.weight(1f))
-
-                                        navigationItems.fastForEach { screen ->
-                                            val isSelected =
-                                                navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true
-                                            NavigationRailItem(
-                                                selected = isSelected,
-                                                onClick = {
-                                                    if (screen.route == Screens.Search.route) {
-                                                        onActiveChange(true)
-                                                    } else if (isSelected) {
-                                                        navController.currentBackStackEntry?.savedStateHandle?.set("scrollToTop", true)
-                                                        coroutineScope.launch {
-                                                            searchBarScrollBehavior.state.resetHeightOffset()
-                                                        }
-                                                    } else {
-                                                        navController.navigate(screen.route) {
-                                                            popUpTo(navController.graph.startDestinationId) {
-                                                                inclusive = false
-                                                            }
-                                                            launchSingleTop = true
-                                                            restoreState = false
-                                                        }
-                                                    }
-                                                },
-                                                icon = {
-                                                    Icon(
-                                                        painter = painterResource(
-                                                            id = if (isSelected) screen.iconIdActive else screen.iconIdInactive
-                                                        ),
-                                                        contentDescription = null,
-                                                    )
-                                                },
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.weight(1f))
-                                    }
-                                }
-                                Box(Modifier.weight(1f)) {
+                                Box(
+                                    Modifier
+                                        .weight(1f)
+                                        .focusRequester(contentFocusRequester)
+                                        .focusProperties { up = topPlayFocusRequester }
+                                        .focusable()
+                                ) {
                                     // NavHost with animations
                                     NavHost(
                                         navController = navController,
@@ -1272,6 +1318,8 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             }
+                        }
+
                         }
 
                         BottomSheetMenu(
