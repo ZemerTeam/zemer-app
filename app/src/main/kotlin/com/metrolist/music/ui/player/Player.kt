@@ -507,6 +507,7 @@ fun BottomSheetPlayer(
                 position = position,
                 duration = duration,
                 pureBlack = pureBlack,
+                allowFocus = false,
                 focusTargets = miniPlayerFocusTargets
             )
         },

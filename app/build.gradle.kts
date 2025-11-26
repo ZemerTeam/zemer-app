@@ -154,6 +154,8 @@ dependencies {
     implementation(libs.compose.ui.tooling)
     implementation(libs.compose.animation)
     implementation(libs.compose.reorderable)
+    implementation(libs.tv.foundation)
+    implementation(libs.tv.material)
 
     implementation(libs.viewmodel)
     implementation(libs.viewmodel.compose)

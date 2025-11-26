@@ -55,7 +55,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.foundation.focusable
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -89,6 +88,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 
 data class MiniPlayerFocusTargets(
     val play: FocusRequester,
@@ -98,12 +98,16 @@ data class MiniPlayerFocusTargets(
     val down: FocusRequester?
 )
 
+private fun Modifier.disableTvFocus(): Modifier =
+    this.focusable(false).focusProperties { canFocus = false }
+
 @Composable
 fun MiniPlayer(
     position: Long,
     duration: Long,
     modifier: Modifier = Modifier,
     pureBlack: Boolean,
+    allowFocus: Boolean = true,
     focusTargets: MiniPlayerFocusTargets? = null,
 ) {
     val useNewMiniPlayerDesign by rememberPreference(UseNewMiniPlayerDesignKey, true)
@@ -114,6 +118,7 @@ fun MiniPlayer(
             duration = duration,
             modifier = modifier,
             pureBlack = pureBlack,
+            allowFocus = allowFocus,
             focusTargets = focusTargets
         )
     } else {
@@ -145,6 +150,7 @@ private fun NewMiniPlayer(
     duration: Long,
     modifier: Modifier = Modifier,
     pureBlack: Boolean,
+    allowFocus: Boolean,
     focusTargets: MiniPlayerFocusTargets? = null,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
