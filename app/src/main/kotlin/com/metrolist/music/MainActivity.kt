@@ -570,6 +570,8 @@ class MainActivity : ComponentActivity() {
                     var searchSource by rememberEnumPreference(SearchSourceKey, SearchSource.ONLINE)
 
                     val searchBarFocusRequester = remember { FocusRequester() }
+                    val searchResultsFocusRequester = remember { FocusRequester() }
+                    val searchSourceFocusRequester = remember { FocusRequester() }
 
                     val onSearch: (String) -> Unit = remember {
                         { searchQuery ->
@@ -1049,6 +1051,8 @@ class MainActivity : ComponentActivity() {
                                         onSearch = onSearch,
                                         active = active,
                                         onActiveChange = onActiveChange,
+                                        downFocusRequester = searchResultsFocusRequester,
+                                        trailingFocusRequester = searchSourceFocusRequester,
                                         placeholder = {
                                             Text(
                                                 text = stringResource(
@@ -1119,6 +1123,13 @@ class MainActivity : ComponentActivity() {
                                                             searchSource =
                                                                 if (searchSource == SearchSource.ONLINE) SearchSource.LOCAL else SearchSource.ONLINE
                                                         },
+                                                        modifier = Modifier
+                                                            .focusRequester(searchSourceFocusRequester)
+                                                            .focusProperties {
+                                                                left = searchBarFocusRequester
+                                                                up = searchBarFocusRequester
+                                                                down = searchResultsFocusRequester
+                                                            },
                                                     ) {
                                                         Icon(
                                                             painter = painterResource(
@@ -1175,6 +1186,7 @@ class MainActivity : ComponentActivity() {
                                                         navController = navController,
                                                         onDismiss = { onActiveChange(false) },
                                                         pureBlack = pureBlack,
+                                                        firstResultFocusRequester = searchResultsFocusRequester,
                                                     )
 
                                                 SearchSource.ONLINE ->
@@ -1195,7 +1207,8 @@ class MainActivity : ComponentActivity() {
                                                             }
                                                         },
                                                         onDismiss = { onActiveChange(false) },
-                                                        pureBlack = pureBlack
+                                                        pureBlack = pureBlack,
+                                                        firstResultFocusRequester = searchResultsFocusRequester
                                                     )
                                             }
                                         }

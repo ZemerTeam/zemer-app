@@ -1,6 +1,7 @@
 package com.metrolist.music.ui.screens.search
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -16,6 +17,10 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -54,6 +59,7 @@ fun OnlineSearchScreen(
     onSearch: (String) -> Unit,
     onDismiss: () -> Unit,
     pureBlack: Boolean,
+    firstResultFocusRequester: FocusRequester = remember { FocusRequester() },
     viewModel: OnlineSearchSuggestionViewModel = hiltViewModel(),
 ) {
     val database = LocalDatabase.current
@@ -71,6 +77,14 @@ fun OnlineSearchScreen(
     val viewState by viewModel.viewState.collectAsState()
 
     val lazyListState = rememberLazyListState()
+    val firstItemKey = remember(viewState) {
+        when {
+            viewState.history.isNotEmpty() -> "history_${viewState.history.first().query}"
+            viewState.suggestions.isNotEmpty() -> "suggestion_${viewState.suggestions.first()}"
+            viewState.items.isNotEmpty() -> "item_${viewState.items.first().id}"
+            else -> null
+        }
+    }
 
     LaunchedEffect(Unit) {
         snapshotFlow { lazyListState.firstVisibleItemScrollOffset }
@@ -109,7 +123,9 @@ fun OnlineSearchScreen(
                 onFillTextField = {
                     onQueryChange(TextFieldValue(history.query, TextRange(history.query.length)))
                 },
-                modifier = Modifier.animateItem(),
+                modifier = Modifier
+                    .then(if (firstItemKey == "history_${history.query}") Modifier.focusRequester(firstResultFocusRequester) else Modifier)
+                    .animateItem(),
                 pureBlack = pureBlack
             )
         }
@@ -125,7 +141,9 @@ fun OnlineSearchScreen(
                 onFillTextField = {
                     onQueryChange(TextFieldValue(query, TextRange(query.length)))
                 },
-                modifier = Modifier.animateItem(),
+                modifier = Modifier
+                    .then(if (firstItemKey == "suggestion_$query") Modifier.focusRequester(firstResultFocusRequester) else Modifier)
+                    .animateItem(),
                 pureBlack = pureBlack
             )
         }
@@ -261,6 +279,7 @@ fun OnlineSearchScreen(
                         }
                     )
                     .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface)
+                    .then(if (firstItemKey == "item_${item.id}") Modifier.focusRequester(firstResultFocusRequester) else Modifier)
                     .animateItem()
             )
         }
@@ -277,12 +296,22 @@ fun SuggestionItem(
     onFillTextField: () -> Unit,
     pureBlack: Boolean
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+    val backgroundColor by animateColorAsState(
+        targetValue = when {
+            isFocused -> MaterialTheme.colorScheme.surfaceVariant
+            else -> if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface
+        },
+        label = "suggestion_focus_bg"
+    )
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
             .height(SuggestionItemHeight)
-            .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface)
+            .focusable()
+            .onFocusChanged { isFocused = it.isFocused }
+            .background(backgroundColor)
             .clickable(onClick = onClick)
             .padding(end = SearchBarIconOffsetX)
             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),

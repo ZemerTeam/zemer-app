@@ -14,6 +14,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -48,6 +50,7 @@ fun LocalSearchScreen(
     onDismiss: () -> Unit,
     isFromCache: Boolean = false,
     pureBlack: Boolean,
+    firstResultFocusRequester: FocusRequester = remember { FocusRequester() },
     viewModel: LocalSearchViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -62,6 +65,9 @@ fun LocalSearchScreen(
     val result by viewModel.result.collectAsState()
 
     val lazyListState = rememberLazyListState()
+    val firstItemKey = remember(result) {
+        result.map.values.firstOrNull { it.isNotEmpty() }?.firstOrNull()?.id?.toString()
+    }
 
     LaunchedEffect(Unit) {
         snapshotFlow { lazyListState.firstVisibleItemScrollOffset }
@@ -100,6 +106,7 @@ fun LocalSearchScreen(
             ),
             currentValue = searchFilter,
             onValueUpdate = { viewModel.filter.value = it },
+            firstChipFocusRequester = firstResultFocusRequester,
         )
 
         LazyColumn(
@@ -177,6 +184,7 @@ fun LocalSearchScreen(
                                 }
                             },
                             modifier = Modifier
+                                .then(if (firstItemKey == item.id.toString()) Modifier.focusRequester(firstResultFocusRequester) else Modifier)
                                 .combinedClickable(
                                     onClick = {
                                         if (item.id == mediaMetadata?.id) {
@@ -217,6 +225,7 @@ fun LocalSearchScreen(
                             isActive = item.id == mediaMetadata?.album?.id,
                             isPlaying = isPlaying,
                             modifier = Modifier
+                                .then(if (firstItemKey == item.id.toString()) Modifier.focusRequester(firstResultFocusRequester) else Modifier)
                                 .clickable {
                                     onDismiss()
                                     navController.navigate("album/${item.id}")
@@ -227,6 +236,7 @@ fun LocalSearchScreen(
                         is Artist -> ArtistListItem(
                             artist = item,
                             modifier = Modifier
+                                .then(if (firstItemKey == item.id.toString()) Modifier.focusRequester(firstResultFocusRequester) else Modifier)
                                 .clickable {
                                     onDismiss()
                                     navController.navigate("artist/${item.id}")
@@ -237,6 +247,7 @@ fun LocalSearchScreen(
                         is Playlist -> PlaylistListItem(
                             playlist = item,
                             modifier = Modifier
+                                .then(if (firstItemKey == item.id.toString()) Modifier.focusRequester(firstResultFocusRequester) else Modifier)
                                 .clickable {
                                     onDismiss()
                                     navController.navigate("local_playlist/${item.id}")

@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
@@ -101,6 +102,8 @@ fun TopSearch(
     windowInsets: WindowInsets = WindowInsets.systemBars,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     focusRequester: FocusRequester = remember { FocusRequester() },
+    downFocusRequester: FocusRequester? = null,
+    trailingFocusRequester: FocusRequester? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val animationProgress: Float by animateFloatAsState(
@@ -215,6 +218,8 @@ fun TopSearch(
                     ),
                     interactionSource = interactionSource,
                     focusRequester = focusRequester,
+                    downFocusRequester = downFocusRequester,
+                    trailingFocusRequester = trailingFocusRequester,
                 )
 
                 if (animationProgress > 0) {
@@ -248,6 +253,8 @@ private fun SearchBarInputField(
     colors: TextFieldColors,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     focusRequester: FocusRequester = remember { FocusRequester() },
+    downFocusRequester: FocusRequester? = null,
+    trailingFocusRequester: FocusRequester? = null,
 ) {
     val focused = interactionSource.collectIsFocusedAsState().value
     val textColor = LocalTextStyle.current.color.takeOrElse {
@@ -271,6 +278,15 @@ private fun SearchBarInputField(
             modifier = Modifier
                 .weight(1f)
                 .focusRequester(focusRequester)
+                .focusProperties {
+                    if (downFocusRequester != null) {
+                        down = downFocusRequester
+                    }
+                    if (trailingFocusRequester != null) {
+                        next = trailingFocusRequester
+                        right = trailingFocusRequester
+                    }
+                }
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         awaitFirstDown(pass = PointerEventPass.Initial)
@@ -289,6 +305,12 @@ private fun SearchBarInputField(
                 .onKeyEvent {
                     if (it.key == Key.Enter) {
                         onSearch(query.text)
+                        return@onKeyEvent true
+                    } else if (it.key == Key.DirectionDown && downFocusRequester != null) {
+                        downFocusRequester.requestFocus()
+                        return@onKeyEvent true
+                    } else if (it.key == Key.DirectionRight && trailingFocusRequester != null) {
+                        trailingFocusRequester.requestFocus()
                         return@onKeyEvent true
                     }
                     false

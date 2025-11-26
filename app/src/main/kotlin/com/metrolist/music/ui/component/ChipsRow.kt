@@ -43,6 +43,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
@@ -58,6 +60,7 @@ fun <E> ChipsRow(
     onValueUpdate: (E) -> Unit,
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
+    firstChipFocusRequester: FocusRequester? = null,
 ) {
     Row(
         modifier =
@@ -68,7 +71,7 @@ fun <E> ChipsRow(
     ) {
         Spacer(Modifier.width(12.dp))
 
-        chips.forEach { (value, label) ->
+        chips.forEachIndexed { index, (value, label) ->
             FilterChip(
                 label = { Text(label) },
                 selected = currentValue == value,
@@ -77,7 +80,12 @@ fun <E> ChipsRow(
                 ),
                 onClick = { onValueUpdate(value) },
                 shape = RoundedCornerShape(16.dp),
-                border = null
+                border = null,
+                modifier = if (index == 0 && firstChipFocusRequester != null) {
+                    Modifier.focusRequester(firstChipFocusRequester)
+                } else {
+                    Modifier
+                }
             )
 
             Spacer(Modifier.width(8.dp))

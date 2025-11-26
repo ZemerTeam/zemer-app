@@ -192,10 +192,39 @@ fun OnlineSearchResult(
         state = lazyListState,
         contentPadding =
         LocalPlayerAwareWindowInsets.current
-            .add(WindowInsets(top = SearchFilterHeight))
             .add(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
             .asPaddingValues(),
     ) {
+        stickyHeader {
+            ChipsRow(
+                chips =
+                listOf(
+                    null to stringResource(R.string.filter_all),
+                    FILTER_SONG to stringResource(R.string.filter_songs),
+                    FILTER_ALBUM to stringResource(R.string.filter_albums),
+                    FILTER_ARTIST to stringResource(R.string.filter_artists),
+                    FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
+                    FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists),
+                ),
+                currentValue = searchFilter,
+                onValueUpdate = {
+                    if (viewModel.filter.value != it) {
+                        viewModel.filter.value = it
+                    }
+                    coroutineScope.launch {
+                        lazyListState.animateScrollToItem(0)
+                    }
+                },
+                modifier =
+                Modifier
+                    .background(MaterialTheme.colorScheme.surface)
+                    .windowInsetsPadding(
+                        WindowInsets.systemBars
+                            .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
+                    )
+                    .fillMaxWidth()
+            )
+        }
         if (searchFilter == null) {
             searchSummary?.summaries?.forEach { summary ->
                 if (summary.items.isNotEmpty()) {
@@ -271,34 +300,4 @@ fun OnlineSearchResult(
             }
         }
     }
-
-    ChipsRow(
-        chips =
-        listOf(
-            null to stringResource(R.string.filter_all),
-            FILTER_SONG to stringResource(R.string.filter_songs),
-            FILTER_ALBUM to stringResource(R.string.filter_albums),
-            FILTER_ARTIST to stringResource(R.string.filter_artists),
-            FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
-            FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists),
-        ),
-        currentValue = searchFilter,
-        onValueUpdate = {
-            if (viewModel.filter.value != it) {
-                viewModel.filter.value = it
-            }
-            coroutineScope.launch {
-                lazyListState.animateScrollToItem(0)
-            }
-        },
-        modifier =
-        Modifier
-            .background(MaterialTheme.colorScheme.surface)
-            .windowInsetsPadding(
-                WindowInsets.systemBars
-                    .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
-                    .add(WindowInsets(top = AppBarHeight))
-            )
-            .fillMaxWidth()
-    )
 }
