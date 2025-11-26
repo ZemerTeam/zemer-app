@@ -3,19 +3,22 @@ package com.metrolist.music.ui.menu
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,6 +42,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -195,15 +200,24 @@ fun YouTubeAlbumMenu(
                 items = album?.artists.orEmpty().distinctBy { it.id },
                 key = { it.id },
             ) { artist ->
+                var isFocused by remember { mutableStateOf(false) }
+                val backgroundColor by animateColorAsState(
+                    targetValue = if (isFocused) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+                    label = "artist_dialog_focus_bg"
+                )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .height(ListItemHeight)
+                        .fillMaxWidth()
+                        .onFocusChanged { isFocused = it.isFocused }
+                        .focusable()
                         .clickable {
                             navController.navigate("artist/${artist.id}")
                             showSelectArtistDialog = false
                             onDismiss()
                         }
+                        .background(backgroundColor)
                         .padding(horizontal = 12.dp),
                 ) {
                     Box(

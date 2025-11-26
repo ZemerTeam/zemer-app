@@ -570,6 +570,7 @@ class MainActivity : ComponentActivity() {
                     var searchSource by rememberEnumPreference(SearchSourceKey, SearchSource.ONLINE)
 
                     val searchBarFocusRequester = remember { FocusRequester() }
+                    val searchChipsFocusRequester = remember { FocusRequester() }
                     val searchResultsFocusRequester = remember { FocusRequester() }
                     val searchSourceFocusRequester = remember { FocusRequester() }
 
@@ -1051,7 +1052,7 @@ class MainActivity : ComponentActivity() {
                                         onSearch = onSearch,
                                         active = active,
                                         onActiveChange = onActiveChange,
-                                        downFocusRequester = searchResultsFocusRequester,
+                                        downFocusRequester = if (searchSource == SearchSource.LOCAL) searchChipsFocusRequester else searchResultsFocusRequester,
                                         trailingFocusRequester = searchSourceFocusRequester,
                                         placeholder = {
                                             Text(
@@ -1187,6 +1188,8 @@ class MainActivity : ComponentActivity() {
                                                         onDismiss = { onActiveChange(false) },
                                                         pureBlack = pureBlack,
                                                         firstResultFocusRequester = searchResultsFocusRequester,
+                                                        chipsFocusRequester = searchChipsFocusRequester,
+                                                        searchFocusRequester = searchBarFocusRequester,
                                                     )
 
                                                 SearchSource.ONLINE ->

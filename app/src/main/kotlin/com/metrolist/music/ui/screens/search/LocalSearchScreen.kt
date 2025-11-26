@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -51,6 +52,8 @@ fun LocalSearchScreen(
     isFromCache: Boolean = false,
     pureBlack: Boolean,
     firstResultFocusRequester: FocusRequester = remember { FocusRequester() },
+    chipsFocusRequester: FocusRequester = remember { FocusRequester() },
+    searchFocusRequester: FocusRequester? = null,
     viewModel: LocalSearchViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -65,8 +68,12 @@ fun LocalSearchScreen(
     val result by viewModel.result.collectAsState()
 
     val lazyListState = rememberLazyListState()
+    val chipsFocusRequester = remember { FocusRequester() }
     val firstItemKey = remember(result) {
         result.map.values.firstOrNull { it.isNotEmpty() }?.firstOrNull()?.id?.toString()
+    }
+    LaunchedEffect(searchFilter, result) {
+        chipsFocusRequester.requestFocus()
     }
 
     LaunchedEffect(Unit) {
@@ -106,7 +113,9 @@ fun LocalSearchScreen(
             ),
             currentValue = searchFilter,
             onValueUpdate = { viewModel.filter.value = it },
-            firstChipFocusRequester = firstResultFocusRequester,
+            firstChipFocusRequester = chipsFocusRequester,
+            upFocusRequester = searchFocusRequester,
+            downFocusRequester = firstResultFocusRequester,
         )
 
         LazyColumn(
@@ -185,6 +194,9 @@ fun LocalSearchScreen(
                             },
                             modifier = Modifier
                                 .then(if (firstItemKey == item.id.toString()) Modifier.focusRequester(firstResultFocusRequester) else Modifier)
+                                .focusProperties {
+                                    up = chipsFocusRequester
+                                }
                                 .combinedClickable(
                                     onClick = {
                                         if (item.id == mediaMetadata?.id) {
@@ -226,6 +238,9 @@ fun LocalSearchScreen(
                             isPlaying = isPlaying,
                             modifier = Modifier
                                 .then(if (firstItemKey == item.id.toString()) Modifier.focusRequester(firstResultFocusRequester) else Modifier)
+                                .focusProperties {
+                                    up = chipsFocusRequester
+                                }
                                 .clickable {
                                     onDismiss()
                                     navController.navigate("album/${item.id}")
@@ -237,6 +252,9 @@ fun LocalSearchScreen(
                             artist = item,
                             modifier = Modifier
                                 .then(if (firstItemKey == item.id.toString()) Modifier.focusRequester(firstResultFocusRequester) else Modifier)
+                                .focusProperties {
+                                    up = chipsFocusRequester
+                                }
                                 .clickable {
                                     onDismiss()
                                     navController.navigate("artist/${item.id}")
@@ -248,6 +266,9 @@ fun LocalSearchScreen(
                             playlist = item,
                             modifier = Modifier
                                 .then(if (firstItemKey == item.id.toString()) Modifier.focusRequester(firstResultFocusRequester) else Modifier)
+                                .focusProperties {
+                                    up = chipsFocusRequester
+                                }
                                 .clickable {
                                     onDismiss()
                                     navController.navigate("local_playlist/${item.id}")

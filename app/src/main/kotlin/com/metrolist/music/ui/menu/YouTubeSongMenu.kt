@@ -84,6 +84,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import java.time.LocalDateTime
 
 @SuppressLint("MutableCollectionMutableState")
@@ -139,16 +143,25 @@ fun YouTubeSongMenu(
             onDismiss = { showSelectArtistDialog = false },  
         ) {  
             items(artists) { artist ->  
+                var isFocused by remember { mutableStateOf(false) }
+                val backgroundColor by animateColorAsState(
+                    targetValue = if (isFocused) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+                    label = "artist_dialog_focus_bg"
+                )
                 Row(  
                     verticalAlignment = Alignment.CenterVertically,  
                     modifier =  
                     Modifier  
-                        .height(ListItemHeight)  
+                        .height(ListItemHeight)
+                        .fillMaxWidth()
+                        .onFocusChanged { isFocused = it.isFocused }
+                        .focusable()
                         .clickable {  
                             navController.navigate("artist/${artist.id}")  
                             showSelectArtistDialog = false  
                             onDismiss()  
-                        }  
+                        }
+                        .background(backgroundColor)
                         .padding(horizontal = 12.dp),  
                 ) {  
                     Box(  

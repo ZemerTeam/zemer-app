@@ -53,6 +53,12 @@ import androidx.compose.ui.unit.dp
 import com.metrolist.music.R
 import com.metrolist.music.ui.screens.OptionStats
 
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.border
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.ui.focus.focusProperties
+
 @Composable
 fun <E> ChipsRow(
     chips: List<Pair<E, String>>,
@@ -61,6 +67,8 @@ fun <E> ChipsRow(
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
     firstChipFocusRequester: FocusRequester? = null,
+    upFocusRequester: FocusRequester? = null,
+    downFocusRequester: FocusRequester? = null,
 ) {
     Row(
         modifier =
@@ -72,6 +80,11 @@ fun <E> ChipsRow(
         Spacer(Modifier.width(12.dp))
 
         chips.forEachIndexed { index, (value, label) ->
+            var isFocused by remember { mutableStateOf(false) }
+            val borderColor by animateColorAsState(
+                targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+                label = "chip_focus_border"
+            )
             FilterChip(
                 label = { Text(label) },
                 selected = currentValue == value,
@@ -81,11 +94,18 @@ fun <E> ChipsRow(
                 onClick = { onValueUpdate(value) },
                 shape = RoundedCornerShape(16.dp),
                 border = null,
-                modifier = if (index == 0 && firstChipFocusRequester != null) {
+                modifier = (if (index == 0 && firstChipFocusRequester != null) {
                     Modifier.focusRequester(firstChipFocusRequester)
+                        .focusProperties {
+                            if (upFocusRequester != null) up = upFocusRequester
+                            if (downFocusRequester != null) down = downFocusRequester
+                        }
                 } else {
                     Modifier
-                }
+                })
+                    .onFocusChanged { isFocused = it.isFocused }
+                    .focusable()
+                    .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(16.dp))
             )
 
             Spacer(Modifier.width(8.dp))
@@ -122,6 +142,11 @@ fun <Int> ChoiceChipsRow(
         var expanded by remember { mutableStateOf(false) }
 
         Column {
+            var isFocused by remember { mutableStateOf(false) }
+            val borderColor by animateColorAsState(
+                targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+                label = "chip_focus_border"
+            )
             AssistChip(
                 onClick = {
                     expanded = !expanded
@@ -150,7 +175,11 @@ fun <Int> ChoiceChipsRow(
                 colors = AssistChipDefaults.assistChipColors(
                     containerColor = containerColor,
                     labelColor = MaterialTheme.colorScheme.onSurface
-                )
+                ),
+                modifier = Modifier
+                    .onFocusChanged { isFocused = it.isFocused }
+                    .focusable()
+                    .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(16.dp))
             )
 
             AnimatedVisibility(
@@ -194,7 +223,11 @@ fun <Int> ChoiceChipsRow(
             ) {
                 chips.forEach { (value, label) ->
                     Spacer(Modifier.width(8.dp))
-
+                    var isFocused by remember { mutableStateOf(false) }
+                    val borderColor by animateColorAsState(
+                        targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+                        label = "chip_focus_border"
+                    )
                     FilterChip(
                         label = { Text(label) },
                         selected = currentValue == value,
@@ -203,7 +236,11 @@ fun <Int> ChoiceChipsRow(
                         ),
                         onClick = { onValueUpdate(value) },
                         shape = RoundedCornerShape(16.dp),
-                        border = null
+                        border = null,
+                        modifier = Modifier
+                            .onFocusChanged { isFocused = it.isFocused }
+                            .focusable()
+                            .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(16.dp))
                     )
                 }
             }
