@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.border
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LocalContentColor
@@ -145,6 +146,14 @@ inline fun ListItem(
         },
         label = "list_item_focus_bg"
     )
+    val borderColor by animateColorAsState(
+        targetValue = when {
+            isActive -> MaterialTheme.colorScheme.primary
+            isFocused -> MaterialTheme.colorScheme.outline
+            else -> Color.Transparent
+        },
+        label = "list_item_focus_border"
+    )
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
@@ -154,6 +163,7 @@ inline fun ListItem(
             .padding(horizontal = 8.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
+            .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(8.dp))
     ) {
         Box(Modifier.padding(6.dp), contentAlignment = Alignment.Center) { thumbnailContent() }
         Column(Modifier.weight(1f).padding(horizontal = 6.dp)) {
@@ -205,12 +215,17 @@ fun GridItem(
         targetValue = if (isFocused) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
         label = "grid_item_focus_bg"
     )
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+        label = "grid_item_focus_border"
+    )
     val baseModifier = modifier
         .padding(12.dp)
         .focusable()
         .onFocusChanged { isFocused = it.isFocused }
         .clip(RoundedCornerShape(12.dp))
         .background(backgroundColor)
+        .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(12.dp))
 
     Column(
         modifier = if (fillMaxWidth) {

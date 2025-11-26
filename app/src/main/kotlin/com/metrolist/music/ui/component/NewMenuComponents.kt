@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -25,14 +26,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 
 // Enhanced Action Button - Material 3 Expressive Design
 @Composable
@@ -45,20 +54,28 @@ fun NewActionButton(
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
+    var isFocused by remember { mutableStateOf(false) }
     val animatedBackground by animateColorAsState(
         targetValue = if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.5f),
         animationSpec = tween(200),
         label = "background"
     )
-    
+
     val animatedContent by animateColorAsState(
         targetValue = if (enabled) contentColor else contentColor.copy(alpha = 0.5f),
         animationSpec = tween(200),
         label = "content"
     )
 
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+        label = "button_focus_border"
+    )
+
     Card(
         modifier = modifier
+            .onFocusChanged { isFocused = it.isFocused }
+            .focusable()
             .clickable(enabled = enabled) { onClick() },
         colors = CardDefaults.cardColors(
             containerColor = animatedBackground
@@ -66,7 +83,8 @@ fun NewActionButton(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp
-        )
+        ),
+        border = BorderStroke(width = if (isFocused) 1.5.dp else 0.dp, color = borderColor)
     ) {
         Column(
             modifier = Modifier
@@ -81,9 +99,9 @@ fun NewActionButton(
             ) {
                 icon()
             }
-            
+
             Spacer(modifier = Modifier.height(6.dp))
-            
+
             Text(
                 text = text,
                 style = MaterialTheme.typography.labelMedium,
@@ -106,16 +124,40 @@ fun NewMenuItem(
     supportingContent: @Composable (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     enabled: Boolean = true,
+    isActive: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    androidx.compose.material3.ListItem(
+    var isFocused by remember { mutableStateOf(false) }
+    val backgroundColor by animateColorAsState(
+        targetValue = when {
+            isActive -> MaterialTheme.colorScheme.secondaryContainer
+            isFocused -> MaterialTheme.colorScheme.surfaceVariant
+            else -> Color.Transparent
+        },
+        label = "list_item_focus_bg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = when {
+            isActive -> MaterialTheme.colorScheme.primary
+            isFocused -> MaterialTheme.colorScheme.outline
+            else -> Color.Transparent
+        },
+        label = "list_item_focus_border"
+    )
+
+    ListItem(
         headlineContent = headlineContent,
         leadingContent = leadingContent,
         trailingContent = trailingContent,
         supportingContent = supportingContent,
         modifier = modifier
+            .padding(horizontal = 4.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .onFocusChanged { isFocused = it.isFocused }
+            .focusable()
             .clickable(enabled = enabled) { onClick?.invoke() }
-            .padding(horizontal = 4.dp),
+            .background(backgroundColor)
+            .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(8.dp)),
         tonalElevation = 0.dp
     )
 }
@@ -145,7 +187,7 @@ fun NewActionGrid(
     columns: Int = 3
 ) {
     val rows = actions.chunked(columns)
-    
+
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -165,7 +207,7 @@ fun NewActionGrid(
                         contentColor = if (action.contentColor != Color.Unspecified) action.contentColor else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                
+
                 // Fill remaining space if row is not full
                 repeat(columns - row.size) {
                     Spacer(modifier = Modifier.weight(1f))
@@ -199,10 +241,10 @@ fun NewMenuContent(
     ) {
         // Header
         headerContent?.invoke()
-        
+
         // Action Grid
         actionGrid?.invoke()
-        
+
         // Divider if both header and actions exist
         if (headerContent != null && actionGrid != null) {
             HorizontalDivider(
@@ -210,7 +252,7 @@ fun NewMenuContent(
                 color = MaterialTheme.colorScheme.outlineVariant
             )
         }
-        
+
         // Menu Items
         menuItems?.invoke()
     }
@@ -226,20 +268,28 @@ fun NewIconButton(
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
+    var isFocused by remember { mutableStateOf(false) }
     val animatedBackground by animateColorAsState(
         targetValue = if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.5f),
         animationSpec = tween(200),
         label = "background"
     )
-    
+
     val animatedContent by animateColorAsState(
         targetValue = if (enabled) contentColor else contentColor.copy(alpha = 0.5f),
         animationSpec = tween(200),
         label = "content"
     )
 
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+        label = "icon_button_focus_border"
+    )
+
     Card(
         modifier = modifier
+            .onFocusChanged { isFocused = it.isFocused }
+            .focusable()
             .clickable(enabled = enabled) { onClick() },
         colors = CardDefaults.cardColors(
             containerColor = animatedBackground
@@ -247,7 +297,8 @@ fun NewIconButton(
         shape = CircleShape,
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp
-        )
+        ),
+        border = BorderStroke(width = if (isFocused) 1.5.dp else 0.dp, color = borderColor)
     ) {
         Box(
             modifier = Modifier
@@ -265,8 +316,7 @@ fun NewIconButton(
 fun NewMenuContainer(
     content: @Composable () -> Unit,
     modifier: Modifier = Modifier
-) {
-    Column(
+) {    Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)

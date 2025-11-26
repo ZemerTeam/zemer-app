@@ -44,6 +44,14 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.metrolist.music.R
 import kotlin.math.roundToInt
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun PreferenceEntry(
@@ -56,15 +64,30 @@ fun PreferenceEntry(
     onClick: (() -> Unit)? = null,
     isEnabled: Boolean = true,
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isFocused) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+        label = "preference_entry_focus_bg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+        label = "preference_entry_focus_border"
+    )
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
         modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .onFocusChanged { isFocused = it.isFocused }
+            .focusable()
             .clickable(
                 enabled = isEnabled && onClick != null,
                 onClick = onClick ?: {},
-            ).alpha(if (isEnabled) 1f else 0.5f)
+            )
+            .alpha(if (isEnabled) 1f else 0.5f)
+            .background(backgroundColor)
+            .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(8.dp))
             .padding(horizontal = 16.dp, vertical = 16.dp),
     ) {
         if (icon != null) {
@@ -103,7 +126,8 @@ fun PreferenceEntry(
         }
     }
 }
-
+ 
+// ... rest of the file
 @Composable
 fun <T> ListPreference(
     modifier: Modifier = Modifier,

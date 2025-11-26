@@ -7,11 +7,21 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.animate
+import androidx.compose.foundation.border
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.graphics.Color
 
 /**
  * A Material 3 Expressive style settings group component
@@ -67,15 +77,28 @@ private fun Material3SettingsItemRow(
     item: Material3SettingsItem,
     showDivider: Boolean
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isFocused) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+        label = "settings_item_focus_bg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+        label = "settings_item_focus_border"
+    )
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
+                .onFocusChanged { isFocused = it.isFocused }
+                .focusable()
                 .clickable(
                     enabled = item.onClick != null,
                     onClick = { item.onClick?.invoke() }
                 )
+                .background(backgroundColor)
+                .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(12.dp))
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

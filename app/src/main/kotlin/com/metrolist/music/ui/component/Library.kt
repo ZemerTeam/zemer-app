@@ -62,7 +62,7 @@ fun LibraryArtistListItem(
     },
     modifier = modifier
         .fillMaxWidth()
-        .focusable()
+
         .clickable {
             navController.navigate("artist/${artist.id}")
         }
@@ -119,7 +119,7 @@ fun WhitelistedArtistListItem(
     },
     modifier = modifier
         .fillMaxWidth()
-        .focusable()
+
         .clickable {
             navController.navigate("artist/${artist.id}")
         }
@@ -138,7 +138,7 @@ fun LibraryArtistGridItem(
     fillMaxWidth = true,
     modifier = modifier
         .fillMaxWidth()
-        .focusable()
+
         .combinedClickable(
             onClick = {
                 navController.navigate("artist/${artist.id}")
@@ -185,7 +185,7 @@ fun WhitelistedArtistGridItem(
     fillMaxWidth = true,
     modifier = modifier
         .fillMaxWidth()
-        .focusable()
+
         .combinedClickable(
             onClick = {
                 navController.navigate("artist/${artist.id}")
