@@ -16,9 +16,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -34,11 +34,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -80,6 +89,9 @@ fun WhitelistedArtistsScreen(
     var viewType by rememberEnumPreference(ArtistViewTypeKey, LibraryViewType.GRID)
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
+    val firstFocus = remember { FocusRequester() }
+    val searchFocus = remember { FocusRequester() }
+    val firstArtistFocus = remember { FocusRequester() }
 
     // Sync moved to App.kt - now happens once at app startup instead of every tab visit
 
@@ -94,6 +106,10 @@ fun WhitelistedArtistsScreen(
     val scrollToTop =
         backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
 
+    LaunchedEffect(Unit) {
+        firstFocus.requestFocus()
+    }
+
     LaunchedEffect(scrollToTop?.value) {
         if (scrollToTop?.value == true) {
             when (viewType) {
@@ -105,12 +121,25 @@ fun WhitelistedArtistsScreen(
     }
 
     val searchContent = @Composable {
+        val downTarget = if (artists.isNotEmpty()) firstArtistFocus else firstFocus
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { viewModel.searchQuery.value = it },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .focusRequester(searchFocus)
+                .focusProperties {
+                    down = downTarget
+                }
+                .onPreviewKeyEvent { event ->
+                    if (event.key == Key.DirectionDown && event.type == KeyEventType.KeyDown) {
+                        downTarget.requestFocus()
+                        false
+                    } else {
+                        false
+                    }
+                },
             placeholder = { Text(stringResource(R.string.search_artists)) },
             leadingIcon = {
                 Icon(
@@ -171,7 +200,13 @@ fun WhitelistedArtistsScreen(
                 onClick = {
                     viewType = viewType.toggle()
                 },
-                modifier = Modifier.padding(start = 6.dp),
+                modifier = Modifier
+                    .padding(start = 6.dp)
+                    .focusRequester(firstFocus)
+                    .focusProperties {
+                        up = searchFocus
+                        down = if (artists.isNotEmpty()) firstArtistFocus else FocusRequester.Default
+                    },
             ) {
                 Icon(
                     painter =
@@ -224,16 +259,18 @@ fun WhitelistedArtistsScreen(
                         }
                     }
 
-                    items(
+                    itemsIndexed(
                         items = artists.distinctBy { it.artist.name },
-                        key = { it.id },
-                        contentType = { CONTENT_TYPE_ARTIST },
-                    ) { artist ->
+                        key = { _, item -> item.id },
+                        contentType = { _, _ -> CONTENT_TYPE_ARTIST },
+                    ) { index, artist ->
                         WhitelistedArtistListItem(
                             navController = navController,
                             menuState = menuState,
                             coroutineScope = coroutineScope,
-                            modifier = Modifier.animateItem(),
+                            modifier = Modifier
+                                .then(if (index == 0) Modifier.focusRequester(firstArtistFocus) else Modifier)
+                                .animateItem(),
                             artist = artist
                         )
                     }
@@ -278,16 +315,18 @@ fun WhitelistedArtistsScreen(
                         }
                     }
 
-                    items(
+                    itemsIndexed(
                         items = artists.distinctBy { it.artist.name },
-                        key = { it.id },
-                        contentType = { CONTENT_TYPE_ARTIST },
-                    ) { artist ->
+                        key = { _, item -> item.id },
+                        contentType = { _, _ -> CONTENT_TYPE_ARTIST },
+                    ) { index, artist ->
                         WhitelistedArtistGridItem(
                             navController = navController,
                             menuState = menuState,
                             coroutineScope = coroutineScope,
-                            modifier = Modifier.animateItem(),
+                            modifier = Modifier
+                                .then(if (index == 0) Modifier.focusRequester(firstArtistFocus) else Modifier)
+                                .animateItem(),
                             artist = artist
                         )
                     }

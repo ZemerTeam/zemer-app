@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.focusable
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LocalContentColor
@@ -63,6 +64,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -134,12 +136,24 @@ inline fun ListItem(
     trailingContent: @Composable RowScope.() -> Unit = {},
     isActive: Boolean = false
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+    val backgroundColor by animateColorAsState(
+        targetValue = when {
+            isActive -> MaterialTheme.colorScheme.secondaryContainer
+            isFocused -> MaterialTheme.colorScheme.surfaceVariant
+            else -> Color.Transparent
+        },
+        label = "list_item_focus_bg"
+    )
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
+            .focusable()
+            .onFocusChanged { isFocused = it.isFocused }
             .height(ListItemHeight)
             .padding(horizontal = 8.dp)
-            .then(if (isActive) Modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.secondaryContainer) else Modifier)
+            .clip(RoundedCornerShape(8.dp))
+            .background(backgroundColor)
     ) {
         Box(Modifier.padding(6.dp), contentAlignment = Alignment.Center) { thumbnailContent() }
         Column(Modifier.weight(1f).padding(horizontal = 6.dp)) {
@@ -186,15 +200,23 @@ fun GridItem(
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isFocused) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+        label = "grid_item_focus_bg"
+    )
+    val baseModifier = modifier
+        .padding(12.dp)
+        .focusable()
+        .onFocusChanged { isFocused = it.isFocused }
+        .clip(RoundedCornerShape(12.dp))
+        .background(backgroundColor)
+
     Column(
         modifier = if (fillMaxWidth) {
-            modifier
-                .padding(12.dp)
-                .fillMaxWidth()
+            baseModifier.fillMaxWidth()
         } else {
-            modifier
-                .padding(12.dp)
-                .width(GridThumbnailHeight * thumbnailRatio)
+            baseModifier.width(GridThumbnailHeight * thumbnailRatio)
         }
     ) {
         BoxWithConstraints(

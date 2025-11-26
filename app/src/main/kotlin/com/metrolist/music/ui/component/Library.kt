@@ -3,6 +3,7 @@ package com.metrolist.music.ui.component
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
@@ -61,6 +62,7 @@ fun LibraryArtistListItem(
     },
     modifier = modifier
         .fillMaxWidth()
+        .focusable()
         .clickable {
             navController.navigate("artist/${artist.id}")
         }
@@ -117,6 +119,7 @@ fun WhitelistedArtistListItem(
     },
     modifier = modifier
         .fillMaxWidth()
+        .focusable()
         .clickable {
             navController.navigate("artist/${artist.id}")
         }
@@ -135,6 +138,7 @@ fun LibraryArtistGridItem(
     fillMaxWidth = true,
     modifier = modifier
         .fillMaxWidth()
+        .focusable()
         .combinedClickable(
             onClick = {
                 navController.navigate("artist/${artist.id}")
@@ -181,6 +185,7 @@ fun WhitelistedArtistGridItem(
     fillMaxWidth = true,
     modifier = modifier
         .fillMaxWidth()
+        .focusable()
         .combinedClickable(
             onClick = {
                 navController.navigate("artist/${artist.id}")

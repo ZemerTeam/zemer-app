@@ -60,6 +60,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -145,6 +148,8 @@ fun ArtistScreen(
     val librarySongs by viewModel.librarySongs.collectAsState()
     val libraryAlbums by viewModel.libraryAlbums.collectAsState()
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
+    val backFocus = remember { FocusRequester() }
+    val firstFocus = remember { FocusRequester() }
 
     val lazyListState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -166,6 +171,12 @@ fun ArtistScreen(
     LaunchedEffect(libraryArtist) {
         // always show local page for local artists. Show local page remote artist when offline
         showLocal = libraryArtist?.artist?.isLocal == true
+    }
+
+    LaunchedEffect(artistPage, libraryArtist, showLocal) {
+        if (artistPage != null || libraryArtist != null || showLocal) {
+            firstFocus.requestFocus()
+        }
     }
 
     Box(
@@ -355,7 +366,9 @@ fun ArtistScreen(
                                                 Color.Transparent
                                         ),
                                         shape = RoundedCornerShape(50),
-                                        modifier = Modifier.height(40.dp)
+                                        modifier = Modifier
+                                            .height(40.dp)
+                                            .focusRequester(firstFocus)
                                     ) {
                                         val isSubscribed = libraryArtist?.artist?.bookmarkedAt != null
                                         Text(
@@ -790,6 +803,9 @@ fun ArtistScreen(
                 Icon(
                     painterResource(R.drawable.arrow_back),
                     contentDescription = null,
+                    modifier = Modifier
+                        .focusRequester(backFocus)
+                        .focusProperties { down = firstFocus }
                 )
             }
         },
