@@ -3,10 +3,8 @@ package com.metrolist.music.ui.screens.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -19,8 +17,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -44,25 +47,20 @@ fun UpdaterScreen(
     val (checkForUpdates, onCheckForUpdatesChange) = rememberPreference(CheckForUpdatesKey, false)
     val (updateNotifications, onUpdateNotificationsChange) = rememberPreference(UpdateNotificationsEnabledKey, false)
 
+    val backFocus = remember { FocusRequester() }
+    val firstFocus = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        firstFocus.requestFocus()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .windowInsetsPadding(
-                LocalPlayerAwareWindowInsets.current.only(
-                    WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
-                )
-            )
+            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(
-            Modifier.windowInsetsPadding(
-                LocalPlayerAwareWindowInsets.current.only(
-                    WindowInsetsSides.Top
-                )
-            )
-        )
-
         Spacer(Modifier.height(4.dp))
 
         Column(
@@ -77,7 +75,9 @@ fun UpdaterScreen(
                 icon = { Icon(painterResource(R.drawable.update), null) },
                 checked = checkForUpdates,
                 onCheckedChange = onCheckForUpdatesChange,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(firstFocus)
             )
 
             if (checkForUpdates) {
@@ -107,6 +107,9 @@ fun UpdaterScreen(
                 Icon(
                     painter = painterResource(R.drawable.arrow_back),
                     contentDescription = null,
+                    modifier = Modifier
+                        .focusRequester(backFocus)
+                        .focusProperties { down = firstFocus }
                 )
             }
         }

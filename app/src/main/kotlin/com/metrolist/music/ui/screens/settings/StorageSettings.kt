@@ -2,10 +2,7 @@ package com.metrolist.music.ui.screens.settings
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -26,6 +23,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -135,19 +135,18 @@ fun StorageSettings(
         }
     }
 
+    val backFocus = remember { FocusRequester() }
+    val firstFocus = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        firstFocus.requestFocus()
+    }
+
     Column(
         Modifier
-            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState()),
     ) {
-        Spacer(
-            Modifier.windowInsetsPadding(
-                LocalPlayerAwareWindowInsets.current.only(
-                    WindowInsetsSides.Top
-                )
-            )
-        )
-
         PreferenceGroupTitle(
             title = stringResource(R.string.downloaded_songs),
         )
@@ -162,6 +161,7 @@ fun StorageSettings(
             title = { Text(stringResource(R.string.clear_all_downloads)) },
             onClick = {clearDownloads = true
             },
+            modifier = Modifier.focusRequester(firstFocus),
         )
 
         if (clearDownloads) {
@@ -336,6 +336,9 @@ fun StorageSettings(
                 Icon(
                     painterResource(R.drawable.arrow_back),
                     contentDescription = null,
+                    modifier = Modifier
+                        .focusRequester(backFocus)
+                        .focusProperties { down = firstFocus }
                 )
             }
         }

@@ -3,48 +3,50 @@ package com.metrolist.music.ui.screens.settings
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.metrolist.music.BuildConfig
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
-import com.metrolist.music.ui.utils.backToMain
-import androidx.compose.foundation.layout.size
 import com.metrolist.music.ui.component.IconButton
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material3.HorizontalDivider
+import com.metrolist.music.ui.utils.backToMain
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -53,27 +55,21 @@ fun AboutScreen(
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     val uriHandler = LocalUriHandler.current
+    val backFocus = remember { FocusRequester() }
+    val firstFocus = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        firstFocus.requestFocus()
+    }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .windowInsetsPadding(
-                LocalPlayerAwareWindowInsets.current.only(
-                    WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
-                )
-            )
+            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(
-            Modifier.windowInsetsPadding(
-                LocalPlayerAwareWindowInsets.current.only(
-                    WindowInsetsSides.Top
-                )
-            )
-        )
-
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(24.dp))
 
         Surface(
             modifier = Modifier
@@ -87,7 +83,7 @@ fun AboutScreen(
                     .padding(horizontal = 24.dp, vertical = 32.dp)
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Surface(
                     modifier = Modifier.size(96.dp),
@@ -105,13 +101,15 @@ fun AboutScreen(
                     )
                 }
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Text(
                         text = "Zemer",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                     )
-                    Spacer(Modifier.height(6.dp))
                     Text(
                         text = "An audio-first YouTube Music experience",
                         style = MaterialTheme.typography.bodyMedium,
@@ -145,78 +143,45 @@ fun AboutScreen(
                     )
                 }
 
-                HorizontalDivider(modifier = Modifier.fillMaxWidth(0.8f))
+                HorizontalDivider(modifier = Modifier.fillMaxWidth(0.7f))
 
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        text = "Lead Maintainer",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = "Maintained by Ars18",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium,
                     )
                     Text(
-                        text = "Ars18",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = "Core Contributors",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = "TripleU · Chatzie · Zemer community collaborators",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-
-                HorizontalDivider(modifier = Modifier.fillMaxWidth(0.8f))
-
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = "Based on Metrolist",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = "Originally by MO AGAMY",
+                        text = "With TripleU, Chatzie & the community",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
                 }
 
+                Text(
+                    text = "Based on Metrolist by MO AGAMY",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+
                 FilledTonalButton(
                     onClick = { uriHandler.openUri("https://github.com/alltechdev") },
-                    modifier = Modifier.widthIn(min = 0.dp, max = 220.dp)
+                    modifier = Modifier
+                        .widthIn(min = 0.dp, max = 220.dp)
+                        .focusRequester(firstFocus)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.github),
                         contentDescription = null
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text("Visit Ars18 on GitHub")
+                    Text("GitHub")
                 }
-
-                Text(
-                    text = "Thank you to everyone translating, testing, and keeping Zemer vibrant.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
             }
         }
 
@@ -233,6 +198,9 @@ fun AboutScreen(
                 Icon(
                     painter = painterResource(R.drawable.arrow_back),
                     contentDescription = null,
+                    modifier = Modifier
+                        .focusRequester(backFocus)
+                        .focusProperties { down = firstFocus }
                 )
             }
         }

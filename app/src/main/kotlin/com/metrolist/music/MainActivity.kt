@@ -1203,26 +1203,26 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             bottomBar = {
-                                BottomSheetPlayer(
-                                    state = playerBottomSheetState,
-                                    navController = navController,
-                                    pureBlack = pureBlack,
-                                    miniPlayerFocusTargets = MiniPlayerFocusTargets(
-                                        play = miniPlayFocusRequester,
-                                        account = miniAccountFocusRequester,
-                                        heart = miniHeartFocusRequester,
-                                        afterHeart = burgerFocusRequester,
-                                        down = contentFocusRequester
-                                    )
-                                )
-
                                 Box(
                                     modifier = Modifier
-                                        .background(insetBg)
-                                        .fillMaxWidth()
-                                        .align(Alignment.BottomCenter)
-                                        .height(bottomInsetDp)
-                                )
+                                        .focusable(false)
+                                        .focusProperties { canFocus = false }
+                                ) {
+                                    BottomSheetPlayer(
+                                        state = playerBottomSheetState,
+                                        navController = navController,
+                                        pureBlack = pureBlack,
+                                        miniPlayerFocusTargets = null
+                                    )
+
+                                    Box(
+                                        modifier = Modifier
+                                            .background(insetBg)
+                                            .fillMaxWidth()
+                                            .align(Alignment.BottomCenter)
+                                            .height(bottomInsetDp)
+                                    )
+                                }
                             },
                             modifier = Modifier
                                 .fillMaxSize()

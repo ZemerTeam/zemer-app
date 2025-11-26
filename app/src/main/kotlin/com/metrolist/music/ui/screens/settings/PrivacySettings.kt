@@ -1,9 +1,6 @@
 package com.metrolist.music.ui.screens.settings
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -16,11 +13,15 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -98,6 +99,13 @@ fun PrivacySettings(
         mutableStateOf(false)
     }
 
+    val backFocus = remember { FocusRequester() }
+    val firstFocus = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        firstFocus.requestFocus()
+    }
+
     if (showClearSearchHistoryDialog) {
         DefaultDialog(
             onDismiss = { showClearSearchHistoryDialog = false },
@@ -131,17 +139,9 @@ fun PrivacySettings(
 
     Column(
         Modifier
-            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-            .verticalScroll(rememberScrollState())
+            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
+            .verticalScroll(rememberScrollState()),
     ) {
-        Spacer(
-            Modifier.windowInsetsPadding(
-                LocalPlayerAwareWindowInsets.current.only(
-                    WindowInsetsSides.Top
-                )
-            )
-        )
-
         PreferenceGroupTitle(
             title = stringResource(R.string.listen_history)
         )
@@ -151,6 +151,7 @@ fun PrivacySettings(
             icon = { Icon(painterResource(R.drawable.history), null) },
             checked = pauseListenHistory,
             onCheckedChange = onPauseListenHistoryChange,
+            modifier = Modifier.focusRequester(firstFocus),
         )
         PreferenceEntry(
             title = { Text(stringResource(R.string.clear_listen_history)) },
@@ -197,6 +198,9 @@ fun PrivacySettings(
                 Icon(
                     painterResource(R.drawable.arrow_back),
                     contentDescription = null,
+                    modifier = Modifier
+                        .focusRequester(backFocus)
+                        .focusProperties { down = firstFocus }
                 )
             }
         }
