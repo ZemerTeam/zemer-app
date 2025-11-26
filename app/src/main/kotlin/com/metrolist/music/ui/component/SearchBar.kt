@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
@@ -278,6 +279,7 @@ private fun SearchBarInputField(
             modifier = Modifier
                 .weight(1f)
                 .focusRequester(focusRequester)
+                .focusable()
                 .focusProperties {
                     if (downFocusRequester != null) {
                         down = downFocusRequester
@@ -285,6 +287,32 @@ private fun SearchBarInputField(
                     if (trailingFocusRequester != null) {
                         next = trailingFocusRequester
                         right = trailingFocusRequester
+                    }
+                }
+                .onKeyEvent { event ->
+                    // Log to help debug
+                    when {
+                        event.key == Key.Enter -> {
+                            onSearch(query.text)
+                            true
+                        }
+                        event.key == Key.DirectionDown -> {
+                            if (downFocusRequester != null) {
+                                downFocusRequester.requestFocus()
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        event.key == Key.DirectionRight -> {
+                            if (trailingFocusRequester != null) {
+                                trailingFocusRequester.requestFocus()
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        else -> false
                     }
                 }
                 .pointerInput(Unit) {
@@ -301,19 +329,6 @@ private fun SearchBarInputField(
                     if (active) {
                         stateDescription = "Suggestions available"
                     }
-                }
-                .onKeyEvent {
-                    if (it.key == Key.Enter) {
-                        onSearch(query.text)
-                        return@onKeyEvent true
-                    } else if (it.key == Key.DirectionDown && downFocusRequester != null) {
-                        downFocusRequester.requestFocus()
-                        return@onKeyEvent true
-                    } else if (it.key == Key.DirectionRight && trailingFocusRequester != null) {
-                        trailingFocusRequester.requestFocus()
-                        return@onKeyEvent true
-                    }
-                    false
                 },
             enabled = enabled,
             singleLine = true,

@@ -20,7 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -60,6 +64,7 @@ fun OnlineSearchScreen(
     onDismiss: () -> Unit,
     pureBlack: Boolean,
     firstResultFocusRequester: FocusRequester = remember { FocusRequester() },
+    searchFocusRequester: FocusRequester? = null,
     viewModel: OnlineSearchSuggestionViewModel = hiltViewModel(),
 ) {
     val database = LocalDatabase.current
@@ -125,6 +130,12 @@ fun OnlineSearchScreen(
                 },
                 modifier = Modifier
                     .then(if (firstItemKey == "history_${history.query}") Modifier.focusRequester(firstResultFocusRequester) else Modifier)
+                    .focusProperties {
+                        if (searchFocusRequester != null) {
+                            up = searchFocusRequester
+                        }
+                        down = FocusRequester.Default
+                    }
                     .animateItem(),
                 pureBlack = pureBlack
             )
@@ -143,6 +154,12 @@ fun OnlineSearchScreen(
                 },
                 modifier = Modifier
                     .then(if (firstItemKey == "suggestion_$query") Modifier.focusRequester(firstResultFocusRequester) else Modifier)
+                    .focusProperties {
+                        if (searchFocusRequester != null) {
+                            up = searchFocusRequester
+                        }
+                        down = FocusRequester.Default
+                    }
                     .animateItem(),
                 pureBlack = pureBlack
             )
@@ -280,6 +297,43 @@ fun OnlineSearchScreen(
                     )
                     .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface)
                     .then(if (firstItemKey == "item_${item.id}") Modifier.focusRequester(firstResultFocusRequester) else Modifier)
+                    .focusProperties {
+                        if (searchFocusRequester != null) {
+                            up = searchFocusRequester
+                        }
+                        down = FocusRequester.Default
+                    }
+                    .onKeyEvent { event ->
+                        if (event.key == Key.Enter || event.key == Key.DirectionCenter) {
+                            when (item) {
+                                is SongItem -> {
+                                    if (item.id == mediaMetadata?.id) {
+                                        playerConnection.player.togglePlayPause()
+                                    } else {
+                                        playerConnection.playQueue(
+                                            YouTubeQueue.radio(item.toMediaMetadata(), database)
+                                        )
+                                        onDismiss()
+                                    }
+                                }
+                                is AlbumItem -> {
+                                    navController.navigate("album/${item.id}")
+                                    onDismiss()
+                                }
+                                is ArtistItem -> {
+                                    navController.navigate("artist/${item.id}")
+                                    onDismiss()
+                                }
+                                is PlaylistItem -> {
+                                    navController.navigate("online_playlist/${item.id}")
+                                    onDismiss()
+                                }
+                            }
+                            true
+                        } else {
+                            false
+                        }
+                    }
                     .animateItem()
             )
         }
@@ -311,6 +365,14 @@ fun SuggestionItem(
             .height(SuggestionItemHeight)
             .focusable()
             .onFocusChanged { isFocused = it.isFocused }
+            .onKeyEvent { event ->
+                if (event.key == Key.Enter || event.key == Key.DirectionCenter) {
+                    onClick()
+                    true
+                } else {
+                    false
+                }
+            }
             .background(backgroundColor)
             .clickable(onClick = onClick)
             .padding(end = SearchBarIconOffsetX)

@@ -3,7 +3,13 @@ package com.metrolist.music.ui.screens.search
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
@@ -85,6 +91,8 @@ fun OnlineSearchResult(
 
     val coroutineScope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
+    val chipsFocusRequester = remember { FocusRequester() }
+    val firstResultFocusRequester = remember { FocusRequester() }
 
     val searchFilter by viewModel.filter.collectAsState()
     val searchSummary = viewModel.summaryPage
@@ -160,6 +168,36 @@ fun OnlineSearchResult(
             },
             modifier =
             Modifier
+                .focusProperties {
+                    up = chipsFocusRequester
+                    down = FocusRequester.Default
+                }
+                .onKeyEvent { event ->
+                    when {
+                        event.key == Key.Enter || event.key == Key.DirectionCenter -> {
+                            when (item) {
+                                is SongItem -> {
+                                    if (item.id == mediaMetadata?.id) {
+                                        playerConnection.player.togglePlayPause()
+                                    } else {
+                                        playerConnection.playQueue(
+                                            YouTubeQueue(
+                                                WatchEndpoint(videoId = item.id),
+                                                item.toMediaMetadata(),
+                                                database
+                                            )
+                                        )
+                                    }
+                                }
+                                is AlbumItem -> navController.navigate("album/${item.id}")
+                                is ArtistItem -> navController.navigate("artist/${item.id}")
+                                is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                            }
+                            true
+                        }
+                        else -> false
+                    }
+                }
                 .combinedClickable(
                     onClick = {
                         when (item) {
@@ -215,6 +253,8 @@ fun OnlineSearchResult(
                         lazyListState.animateScrollToItem(0)
                     }
                 },
+                firstChipFocusRequester = chipsFocusRequester,
+                downFocusRequester = firstResultFocusRequester,
                 modifier =
                 Modifier
                     .background(MaterialTheme.colorScheme.surface)

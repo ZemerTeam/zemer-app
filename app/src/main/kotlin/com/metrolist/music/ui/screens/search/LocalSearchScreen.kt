@@ -17,6 +17,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -68,13 +71,11 @@ fun LocalSearchScreen(
     val result by viewModel.result.collectAsState()
 
     val lazyListState = rememberLazyListState()
-    val chipsFocusRequester = remember { FocusRequester() }
+    // Use the chipsFocusRequester parameter directly - don't create a new one!
     val firstItemKey = remember(result) {
         result.map.values.firstOrNull { it.isNotEmpty() }?.firstOrNull()?.id?.toString()
     }
-    LaunchedEffect(searchFilter, result) {
-        chipsFocusRequester.requestFocus()
-    }
+    // Don't auto-request focus - let user navigate with D-pad down when they want
 
     LaunchedEffect(Unit) {
         snapshotFlow { lazyListState.firstVisibleItemScrollOffset }
@@ -196,6 +197,29 @@ fun LocalSearchScreen(
                                 .then(if (firstItemKey == item.id.toString()) Modifier.focusRequester(firstResultFocusRequester) else Modifier)
                                 .focusProperties {
                                     up = chipsFocusRequester
+                                    down = FocusRequester.Default
+                                }
+                                .onKeyEvent { event ->
+                                    if (event.key == Key.Enter || event.key == Key.DirectionCenter) {
+                                        if (item.id == mediaMetadata?.id) {
+                                            playerConnection.player.togglePlayPause()
+                                        } else {
+                                            val songs = result.map
+                                                .getOrDefault(LocalFilter.SONG, emptyList())
+                                                .filterIsInstance<Song>()
+                                                .map { it.toMediaItem() }
+                                            playerConnection.playQueue(
+                                                ListQueue(
+                                                    title = context.getString(R.string.queue_searched_songs),
+                                                    items = songs,
+                                                    startIndex = songs.indexOfFirst { it.mediaId == item.id },
+                                                )
+                                            )
+                                        }
+                                        true
+                                    } else {
+                                        false
+                                    }
                                 }
                                 .combinedClickable(
                                     onClick = {
@@ -240,6 +264,16 @@ fun LocalSearchScreen(
                                 .then(if (firstItemKey == item.id.toString()) Modifier.focusRequester(firstResultFocusRequester) else Modifier)
                                 .focusProperties {
                                     up = chipsFocusRequester
+                                    down = FocusRequester.Default
+                                }
+                                .onKeyEvent { event ->
+                                    if (event.key == Key.Enter || event.key == Key.DirectionCenter) {
+                                        onDismiss()
+                                        navController.navigate("album/${item.id}")
+                                        true
+                                    } else {
+                                        false
+                                    }
                                 }
                                 .clickable {
                                     onDismiss()
@@ -254,6 +288,16 @@ fun LocalSearchScreen(
                                 .then(if (firstItemKey == item.id.toString()) Modifier.focusRequester(firstResultFocusRequester) else Modifier)
                                 .focusProperties {
                                     up = chipsFocusRequester
+                                    down = FocusRequester.Default
+                                }
+                                .onKeyEvent { event ->
+                                    if (event.key == Key.Enter || event.key == Key.DirectionCenter) {
+                                        onDismiss()
+                                        navController.navigate("artist/${item.id}")
+                                        true
+                                    } else {
+                                        false
+                                    }
                                 }
                                 .clickable {
                                     onDismiss()
@@ -268,6 +312,16 @@ fun LocalSearchScreen(
                                 .then(if (firstItemKey == item.id.toString()) Modifier.focusRequester(firstResultFocusRequester) else Modifier)
                                 .focusProperties {
                                     up = chipsFocusRequester
+                                    down = FocusRequester.Default
+                                }
+                                .onKeyEvent { event ->
+                                    if (event.key == Key.Enter || event.key == Key.DirectionCenter) {
+                                        onDismiss()
+                                        navController.navigate("local_playlist/${item.id}")
+                                        true
+                                    } else {
+                                        false
+                                    }
                                 }
                                 .clickable {
                                     onDismiss()

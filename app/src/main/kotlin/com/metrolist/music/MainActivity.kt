@@ -1211,7 +1211,8 @@ class MainActivity : ComponentActivity() {
                                                         },
                                                         onDismiss = { onActiveChange(false) },
                                                         pureBlack = pureBlack,
-                                                        firstResultFocusRequester = searchResultsFocusRequester
+                                                        firstResultFocusRequester = searchResultsFocusRequester,
+                                                        searchFocusRequester = searchBarFocusRequester
                                                     )
                                             }
                                         }
