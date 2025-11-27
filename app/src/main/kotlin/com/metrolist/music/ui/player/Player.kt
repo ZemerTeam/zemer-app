@@ -78,6 +78,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -139,6 +142,7 @@ import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.ui.player.MiniPlayerFocusTargets
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -216,6 +220,9 @@ fun BottomSheetPlayer(
         mutableStateOf<List<Color>>(emptyList())
     }
     val gradientColorsCache = remember { mutableMapOf<String, List<Color>>() }
+
+    // Track if we're in control focus mode (showing outlines)
+    var isControlsFocusMode by remember { mutableStateOf(false) }
 
     if (!canSkipNext && automix.isNotEmpty()) {
         playerConnection.service.addToQueueAutomix(automix[0], 0)
@@ -845,73 +852,89 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(12.dp))
 
-            when (sliderStyle) {
-                SliderStyle.DEFAULT -> {
-                    Slider(
-                        value = (sliderPosition ?: position).toFloat(),
-                        valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
-                        onValueChange = {
-                            sliderPosition = it.toLong()
-                        },
-                        onValueChangeFinished = {
-                            sliderPosition?.let {
-                                playerConnection.player.seekTo(it)
-                                position = it
-                            }
-                            sliderPosition = null
-                        },
-                        colors = PlayerSliderColors.defaultSliderColors(textButtonColor, playerBackground, useDarkTheme),
-                        modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
-                    )
-                }
+            val sliderFocused = remember { mutableStateOf(false) }
+            val sliderBorderColor = animateColorAsState(
+                targetValue = if (sliderFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                label = "slider_focus"
+            )
 
-                SliderStyle.SQUIGGLY -> {
-                    SquigglySlider(
-                        value = (sliderPosition ?: position).toFloat(),
-                        valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
-                        onValueChange = {
-                            sliderPosition = it.toLong()
-                        },
-                        onValueChangeFinished = {
-                            sliderPosition?.let {
-                                playerConnection.player.seekTo(it)
-                                position = it
-                            }
-                            sliderPosition = null
-                        },
-                        colors = PlayerSliderColors.squigglySliderColors(textButtonColor, playerBackground, useDarkTheme),
-                        modifier = Modifier.padding(horizontal = PlayerHorizontalPadding),
-                        squigglesSpec =
-                        SquigglySlider.SquigglesSpec(
-                            amplitude = if (isPlaying) (2.dp).coerceAtLeast(2.dp) else 0.dp,
-                            strokeWidth = 3.dp,
-                        ),
-                    )
-                }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = PlayerHorizontalPadding - 8.dp)
+                    .border(2.dp, sliderBorderColor.value, RoundedCornerShape(8.dp))
+                    .padding(8.dp)
+                    .focusable()
+                    .onFocusChanged { sliderFocused.value = it.isFocused }
+            ) {
+                when (sliderStyle) {
+                    SliderStyle.DEFAULT -> {
+                        Slider(
+                            value = (sliderPosition ?: position).toFloat(),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                            onValueChange = {
+                                sliderPosition = it.toLong()
+                            },
+                            onValueChangeFinished = {
+                                sliderPosition?.let {
+                                    playerConnection.player.seekTo(it)
+                                    position = it
+                                }
+                                sliderPosition = null
+                            },
+                            colors = PlayerSliderColors.defaultSliderColors(textButtonColor, playerBackground, useDarkTheme),
+                            modifier = Modifier.padding(horizontal = PlayerHorizontalPadding - 8.dp),
+                        )
+                    }
 
-                SliderStyle.SLIM -> {
-                    Slider(
-                        value = (sliderPosition ?: position).toFloat(),
-                        valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
-                        onValueChange = {
-                            sliderPosition = it.toLong()
-                        },
-                        onValueChangeFinished = {
-                            sliderPosition?.let {
-                                playerConnection.player.seekTo(it)
-                                position = it
-                            }
-                            sliderPosition = null
-                        },
-                        thumb = { Spacer(modifier = Modifier.size(0.dp)) },
-                        track = { sliderState ->
-                            PlayerSliderTrack(
-                                sliderState = sliderState,
-                                colors = PlayerSliderColors.slimSliderColors(textButtonColor, playerBackground, useDarkTheme)
-                            )
-                        },
-                        modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
-                    )
+                    SliderStyle.SQUIGGLY -> {
+                        SquigglySlider(
+                            value = (sliderPosition ?: position).toFloat(),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                            onValueChange = {
+                                sliderPosition = it.toLong()
+                            },
+                            onValueChangeFinished = {
+                                sliderPosition?.let {
+                                    playerConnection.player.seekTo(it)
+                                    position = it
+                                }
+                                sliderPosition = null
+                            },
+                            colors = PlayerSliderColors.squigglySliderColors(textButtonColor, playerBackground, useDarkTheme),
+                            modifier = Modifier.padding(horizontal = PlayerHorizontalPadding - 8.dp),
+                            squigglesSpec =
+                            SquigglySlider.SquigglesSpec(
+                                amplitude = if (isPlaying) (2.dp).coerceAtLeast(2.dp) else 0.dp,
+                                strokeWidth = 3.dp,
+                            ),
+                        )
+                    }
+
+                    SliderStyle.SLIM -> {
+                        Slider(
+                            value = (sliderPosition ?: position).toFloat(),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                            onValueChange = {
+                                sliderPosition = it.toLong()
+                            },
+                            onValueChangeFinished = {
+                                sliderPosition?.let {
+                                    playerConnection.player.seekTo(it)
+                                    position = it
+                                }
+                                sliderPosition = null
+                            },
+                            thumb = { Spacer(modifier = Modifier.size(0.dp)) },
+                            track = { sliderState ->
+                                PlayerSliderTrack(
+                                    sliderState = sliderState,
+                                    colors = PlayerSliderColors.slimSliderColors(textButtonColor, playerBackground, useDarkTheme)
+                                )
+                            },
+                            modifier = Modifier.padding(horizontal = PlayerHorizontalPadding - 8.dp)
+                        )
+                    }
                 }
             }
 
