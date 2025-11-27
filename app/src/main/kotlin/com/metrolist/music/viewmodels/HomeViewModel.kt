@@ -67,6 +67,9 @@ class HomeViewModel @Inject constructor(
     val allLocalItems = MutableStateFlow<List<LocalItem>>(emptyList())
     val allYtItems = MutableStateFlow<List<YTItem>>(emptyList())
 
+    private suspend fun hasWhitelist(): Boolean =
+        database.getAllWhitelistedArtistIdsSync().isNotEmpty()
+
     private fun updateDerivedState() {
         val hasQuickPicks = quickPicks.value?.isNotEmpty() == true
         val hasKeepListening = keepListening.value?.isNotEmpty() == true
@@ -77,22 +80,43 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun getQuickPicks() {
+        val whitelistPresent = hasWhitelist()
         when (quickPicksEnum.first()) {
             QuickPicks.QUICK_PICKS -> {
-                val picks = database.quickPicks().first().shuffled().take(20)
+                val raw = runCatching { database.quickPicks().first() }.getOrDefault(emptyList())
+                val withFallback = raw.ifEmpty {
+                    // Fallback: recent unique songs from history when DB query yields nothing
+                    database.events().first().map { it.song }.distinctBy { it.id }.take(50)
+                }
+                val picks = withFallback
+                    .shuffled()
+                    .distinctBy { it.artists.firstOrNull()?.id ?: it.id }
+                    .take(20)
                 quickPicks.value = picks
-                Timber.d("HomeViewModel: Quick picks loaded - ${picks.size} songs")
+                Timber.d("HomeViewModel: Quick picks loaded - ${picks.size} songs (whitelistPresent=$whitelistPresent)")
             }
             QuickPicks.LAST_LISTEN -> {
-                val song = database.events().first().firstOrNull()?.song
-                if (song != null && database.hasRelatedSongs(song.id)) {
-                    val picks = database.getRelatedSongs(song.id).first().shuffled().take(20)
-                    quickPicks.value = picks
-                    Timber.d("HomeViewModel: Last listen quick picks loaded - ${picks.size} songs")
-                } else {
-                    Timber.d("HomeViewModel: Last listen quick picks - no related songs found for song: $song")
+                val events = database.events().first()
+                val song = events.firstOrNull()?.song
+                val raw = when {
+                    song != null && database.hasRelatedSongs(song.id) -> database.getRelatedSongs(song.id).first()
+                    else -> emptyList()
                 }
+                val withFallback = raw.ifEmpty {
+                    events.map { it.song }.distinctBy { it.id }.take(50)
+                }
+                val picks = withFallback
+                    .shuffled()
+                    .distinctBy { it.artists.firstOrNull()?.id ?: it.id }
+                    .take(20)
+                quickPicks.value = picks
+                Timber.d("HomeViewModel: Last listen quick picks loaded - ${picks.size} songs (whitelistPresent=$whitelistPresent)")
             }
+        }
+        if (quickPicks.value.isNullOrEmpty()) {
+            val historyFallback = database.events().first().map { it.song }.distinctBy { it.id }.take(20)
+            quickPicks.value = historyFallback
+            Timber.d("HomeViewModel: Quick picks fallback from history - ${historyFallback.size} songs")
         }
     }
 
@@ -113,46 +137,47 @@ class HomeViewModel @Inject constructor(
         val toTimeStamp = System.currentTimeMillis()
         val fromTimeStamp = toTimeStamp - 86400000 * 7 * 2
         try {
-            val keepListeningSongs = try {
+            val historySongs = database.events().first().map { it.song }.distinctBy { it.id }.take(40)
+
+            val keepListeningSongs = runCatching {
                 database.mostPlayedSongs(
                     fromTimeStamp = fromTimeStamp,
                     toTimeStamp = toTimeStamp,
-                    limit = 15,
+                    limit = 25,
                     offset = 0,
-                )
-                    .first()
-                    .shuffled()
-                    .take(10)
-            } catch (e: Exception) {
-                Timber.e(e, "HomeViewModel: Error loading keep listening songs")
-                emptyList()
-            }
+                ).first()
+            }.getOrDefault(emptyList()).ifEmpty { historySongs }
 
             val keepListeningAlbums = try {
                 database.mostPlayedAlbums(
                     fromTimeStamp = fromTimeStamp,
                     toTimeStamp = toTimeStamp,
-                    limit = 8,
+                    limit = 10,
                     offset = 0,
                 )
                     .first()
                     .filter { it.album.thumbnailUrl != null }
-                    .shuffled()
-                    .take(5)
             } catch (e: Exception) {
                 Timber.e(e, "HomeViewModel: Error loading keep listening albums")
                 emptyList()
             }
 
             val keepListeningArtists = try {
-                database.mostPlayedArtists(fromTimeStamp, limit = 8, offset = 0).first()
-                    .filter { it.artist.thumbnailUrl != null }.shuffled().take(5)
+                database.mostPlayedArtists(fromTimeStamp, limit = 10, offset = 0).first()
+                    .filter { it.artist.thumbnailUrl != null }
             } catch (e: Exception) {
                 Timber.e(e, "HomeViewModel: Error loading keep listening artists")
                 emptyList()
             }
 
-            val combined = (keepListeningSongs + keepListeningAlbums + keepListeningArtists).shuffled()
+            var combined = (keepListeningSongs.shuffled().take(12) +
+                    keepListeningAlbums.shuffled().take(6) +
+                    keepListeningArtists.shuffled().take(6)).shuffled()
+            if (combined.isEmpty()) {
+                // Fallback to recent history if nothing else
+                combined = historySongs.shuffled().take(20)
+                Timber.d("HomeViewModel: Keep listening fallback from history - ${combined.size} items")
+            }
             keepListening.value = combined
             Timber.d("HomeViewModel: Keep listening loaded - ${keepListeningSongs.size} songs, ${keepListeningAlbums.size} albums, ${keepListeningArtists.size} artists (total: ${combined.size})")
         } catch (e: Exception) {

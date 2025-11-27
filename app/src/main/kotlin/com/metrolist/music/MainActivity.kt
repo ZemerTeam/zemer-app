@@ -876,14 +876,37 @@ class MainActivity : ComponentActivity() {
                                                 .then(
                                                     if (index == 0) Modifier.focusRequester(drawerFocusRequester) else Modifier
                                                 )
+                                    )
+                                }
+                                NavigationDrawerItem(
+                                    label = { Text(stringResource(R.string.radio_mode)) },
+                                    icon = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.radio),
+                                            contentDescription = null
                                         )
-                                    }
-                                    NavigationDrawerItem(
-                                        label = { Text(stringResource(R.string.settings)) },
-                                        icon = {
-                                            Icon(
-                                                painter = painterResource(R.drawable.settings),
-                                                contentDescription = null
+                                    },
+                                    selected = false,
+                                    onClick = {
+                                        coroutineScope.launch { drawerState.close() }
+                                        navController.navigate(Screens.Home.route) {
+                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                        navController.getBackStackEntry(Screens.Home.route)
+                                            .savedStateHandle["shuffleNow"] = true
+                                    },
+                                    modifier = Modifier
+                                        .padding(NavigationDrawerItemDefaults.ItemPadding)
+                                        .focusProperties { canFocus = drawerState.isOpen }
+                                )
+                                NavigationDrawerItem(
+                                    label = { Text(stringResource(R.string.settings)) },
+                                    icon = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.settings),
+                                            contentDescription = null
                                             )
                                         },
                                         selected = navBackStackEntry?.destination?.route == "settings",

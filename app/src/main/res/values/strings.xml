@@ -360,6 +360,7 @@
     <string name="i_like_dj">I like DJ</string>
     <string name="i_am_chasidish">I am chasidish</string>
     <string name="coming_soon">Coming soon</string>
+    <string name="radio_mode">Radio mode</string>
 
     <!-- D-pad Button Mapper -->
     <string name="settings_button_setup">Set up your D-pad</string>
