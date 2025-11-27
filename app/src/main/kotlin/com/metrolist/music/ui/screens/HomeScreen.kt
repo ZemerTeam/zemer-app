@@ -1,5 +1,6 @@
 package com.metrolist.music.ui.screens
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -139,6 +140,7 @@ fun HomeScreen(
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
 
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
@@ -180,6 +182,10 @@ fun HomeScreen(
     }
 
     suspend fun performShuffle() {
+        if (allLocalItems.isEmpty() && allYtItems.isEmpty()) {
+            android.widget.Toast.makeText(context, R.string.radio_empty_message, android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
         val local = when {
             allLocalItems.isNotEmpty() && allYtItems.isNotEmpty() -> Random.nextFloat() < 0.5
             allLocalItems.isNotEmpty() -> true

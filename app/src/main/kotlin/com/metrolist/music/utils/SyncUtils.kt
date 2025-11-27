@@ -406,10 +406,32 @@ class SyncUtils @Inject constructor(
                     null
                 }
             }
+                .filter { (entry, _) ->
+                    val validId = entry.artistId.startsWith("UC")
+                    if (!validId) {
+                        Timber.d("Whitelist sync: Skipping metadata fetch for non-channel id ${entry.artistId}")
+                    }
+                    validId
+                }
+
+            val skippedTotal = whitelistEntries.size - artistsToFetch.size
+            if (skippedTotal > 0) {
+                Timber.d("Whitelist sync: Total metadata fetch skips (existing thumbs/invalid): $skippedTotal")
+            }
+
+            if (artistsToFetch.isEmpty()) {
+                Timber.d("Whitelist sync: No artists need metadata fetch")
+                _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
+                context.dataStore.edit { settings ->
+                    settings[LastWhitelistSyncTimeKey] = System.currentTimeMillis()
+                    remoteVersion?.let { settings[LastWhitelistVersionKey] = it }
+                }
+                return
+            }
 
             Timber.d("Whitelist sync: Need to fetch ${artistsToFetch.size} of ${whitelistEntries.size} artists")
 
-            val batchSize = 300
+            val batchSize = 50
             var successCount = 0
             var failureCount = 0
             var processedCount = 0
@@ -470,7 +492,7 @@ class SyncUtils @Inject constructor(
             }
 
             val skippedCount = whitelistEntries.size - artistsToFetch.size
-            Timber.d("Whitelist sync: Fetched metadata for $successCount artists, $failureCount failures, $skippedCount skipped (already had thumbnails)")
+            Timber.d("Whitelist sync: Fetched metadata for $successCount artists, $failureCount failures, $skippedCount skipped (no metadata fetch needed)")
 
             _whitelistSyncProgress.value = WhitelistSyncProgress(
                 current = artistsToFetch.size,
