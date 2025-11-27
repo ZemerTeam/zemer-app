@@ -71,11 +71,19 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun getQuickPicks() {
         when (quickPicksEnum.first()) {
-            QuickPicks.QUICK_PICKS -> quickPicks.value = database.quickPicks().first().shuffled().take(20)
+            QuickPicks.QUICK_PICKS -> {
+                val picks = database.quickPicks().first().shuffled().take(20)
+                quickPicks.value = picks
+                Timber.d("HomeViewModel: Quick picks loaded - ${picks.size} songs")
+            }
             QuickPicks.LAST_LISTEN -> {
                 val song = database.events().first().firstOrNull()?.song
                 if (song != null && database.hasRelatedSongs(song.id)) {
-                    quickPicks.value = database.getRelatedSongs(song.id).first().shuffled().take(20)
+                    val picks = database.getRelatedSongs(song.id).first().shuffled().take(20)
+                    quickPicks.value = picks
+                    Timber.d("HomeViewModel: Last listen quick picks loaded - ${picks.size} songs")
+                } else {
+                    Timber.d("HomeViewModel: Last listen quick picks - no related songs found for song: $song")
                 }
             }
         }
@@ -85,14 +93,48 @@ class HomeViewModel @Inject constructor(
         isLoading.value = true
         val hideExplicit = context.dataStore.get(HideExplicitKey, false)
 
+        // Debug: Check whitelist is populated before loading home content
+        val whitelistCount = database.getAllWhitelistedArtistIds().first().size
+        Timber.d("HomeViewModel: Whitelist has $whitelistCount artists at load time")
+
         getQuickPicks()
-        forgottenFavorites.value = database.forgottenFavorites().first().shuffled().take(20)
+
+        val forgotten = database.forgottenFavorites().first().shuffled().take(20)
+        forgottenFavorites.value = forgotten
+        Timber.d("HomeViewModel: Forgotten favorites loaded - ${forgotten.size} songs")
 
         val fromTimeStamp = System.currentTimeMillis() - 86400000 * 7 * 2
-        val keepListeningSongs = database.mostPlayedSongs(fromTimeStamp, limit = 15, offset = 5).first().shuffled().take(10)
-        val keepListeningAlbums = database.mostPlayedAlbums(fromTimeStamp, limit = 8, offset = 2).first().filter { it.album.thumbnailUrl != null }.shuffled().take(5)
-        val keepListeningArtists = database.mostPlayedArtists(fromTimeStamp).first().filter { it.artist.isYouTubeArtist && it.artist.thumbnailUrl != null }.shuffled().take(5)
-        keepListening.value = (keepListeningSongs + keepListeningAlbums + keepListeningArtists).shuffled()
+        try {
+            val keepListeningSongs = try {
+                database.mostPlayedSongs(fromTimeStamp, limit = 15, offset = 5).first().shuffled().take(10)
+            } catch (e: Exception) {
+                Timber.e(e, "HomeViewModel: Error loading keep listening songs")
+                emptyList()
+            }
+
+            val keepListeningAlbums = try {
+                database.mostPlayedAlbums(fromTimeStamp, limit = 8, offset = 2).first()
+                    .filter { it.album.thumbnailUrl != null }.shuffled().take(5)
+            } catch (e: Exception) {
+                Timber.e(e, "HomeViewModel: Error loading keep listening albums")
+                emptyList()
+            }
+
+            val keepListeningArtists = try {
+                database.mostPlayedArtists(fromTimeStamp, limit = 8, offset = 0).first()
+                    .filter { it.artist.thumbnailUrl != null }.shuffled().take(5)
+            } catch (e: Exception) {
+                Timber.e(e, "HomeViewModel: Error loading keep listening artists")
+                emptyList()
+            }
+
+            val combined = (keepListeningSongs + keepListeningAlbums + keepListeningArtists).shuffled()
+            keepListening.value = combined
+            Timber.d("HomeViewModel: Keep listening loaded - ${keepListeningSongs.size} songs, ${keepListeningAlbums.size} albums, ${keepListeningArtists.size} artists (total: ${combined.size})")
+        } catch (e: Exception) {
+            Timber.e(e, "HomeViewModel: Exception in keep listening section")
+            keepListening.value = emptyList()
+        }
 
         YouTube.home().onSuccess { page ->
             homePage.value = page.copy(

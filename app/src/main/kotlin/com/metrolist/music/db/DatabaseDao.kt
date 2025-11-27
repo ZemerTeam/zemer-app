@@ -246,7 +246,6 @@ interface DatabaseDao {
                                FROM song
                                ORDER BY totalPlayTime DESC
                                LIMIT 10))
-        AND song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist))
         ORDER BY referredCount DESC
         LIMIT 100
     """,
@@ -337,7 +336,6 @@ interface DatabaseDao {
                      ORDER BY SUM(playTime) DESC
                      LIMIT :limit)
         ON song.id = songId
-        WHERE song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist))
         LIMIT :limit
         OFFSET :offset
     """,
@@ -365,7 +363,6 @@ interface DatabaseDao {
                 WHERE song_artist_map.artistId = artist.id
                   AND timestamp > :fromTimeStamp AND timestamp <= :toTimeStamp) AS timeListened
         FROM artist
-                 INNER JOIN artist_whitelist ON artist.id = artist_whitelist.artistId
                  JOIN(SELECT song_artist_map.artistId AS aid, SUM(songTotalPlayTime) AS totalPlayTime
                       FROM song_artist_map
                                JOIN (SELECT songId, SUM(playTime) AS songTotalPlayTime
@@ -417,7 +414,6 @@ interface DatabaseDao {
         GROUP BY sam.albumId
         HAVING sam.albumId IS NOT NULL
     )
-    AND album.id IN (SELECT albumId FROM album_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist))
     GROUP BY album.id
     ORDER BY timeListened DESC
     LIMIT :limit OFFSET :offset
@@ -484,7 +480,6 @@ interface DatabaseDao {
               ORDER BY oldPlayTime) AS t
                  JOIN song on song.id = t.eid
         WHERE 0.2 * t.oldPlayTime > t.newPlayTime
-          AND song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist))
         LIMIT 100
     """
     )

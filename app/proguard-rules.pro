@@ -113,18 +113,66 @@
 -keep interface com.yalantis.ucrop** { *; }
 
 ## Home Screen - Quick Picks & Keep Listening
-# Keep LocalItem and all subclasses (Song, Album, Artist)
+# Keep all database entities completely (Room needs them for deserialization)
+-keep class com.metrolist.music.db.entities.** { *; }
+
+# Keep LocalItem and all subclasses for home screen keep listening section
 -keep class com.metrolist.music.db.entities.LocalItem { *; }
+-keep class com.metrolist.music.db.entities.LocalItem$* { *; }
+
+# Keep all relation and embedded classes
 -keep class com.metrolist.music.db.entities.Song { *; }
 -keep class com.metrolist.music.db.entities.Album { *; }
 -keep class com.metrolist.music.db.entities.Artist { *; }
+-keep class com.metrolist.music.db.entities.Playlist { *; }
 
-# Keep related database entities
+# Keep data models needed for keep listening
 -keep class com.metrolist.music.db.entities.SongEntity { *; }
 -keep class com.metrolist.music.db.entities.AlbumEntity { *; }
 -keep class com.metrolist.music.db.entities.ArtistEntity { *; }
--keep class com.metrolist.music.db.entities.AlbumArtistMap { *; }
--keep class com.metrolist.music.db.entities.FormatEntity { *; }
+-keep class com.metrolist.music.db.entities.PlaylistEntity { *; }
 
 # Keep HomeViewModel to prevent stripping of observable state flows
 -keep class com.metrolist.music.viewmodels.HomeViewModel { *; }
+
+# Keep SyncUtils and WhitelistFetcher for whitelist functionality
+-keep class com.metrolist.music.utils.SyncUtils { *; }
+-keep class com.metrolist.music.utils.WhitelistFetcher { *; }
+-keep class com.metrolist.music.utils.WhitelistFetcher$* { *; }
+
+# Keep JSON parsing classes needed for whitelist sync
+-keep class org.json.** { *; }
+-dontwarn org.json.**
+
+# Keep Ktor HTTP client classes and methods
+-keep class io.ktor.client.** { *; }
+-keep class io.ktor.** { *; }
+-dontwarn io.ktor.**
+
+# Keep DataStore and preferences for settings access
+-keep class androidx.datastore.** { *; }
+-keep class androidx.datastore.preferences.** { *; }
+
+# Keep ArtistWhitelistEntity for database operations
+-keep class com.metrolist.music.db.entities.ArtistWhitelistEntity { *; }
+-keep class com.metrolist.music.db.entities.ArtistWhitelistEntity$* { *; }
+
+# Keep Room generated classes and annotations
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao interface * { *; }
+-keep @androidx.room.Database class * { *; }
+-keepattributes *Annotation*
+
+# Keep Room relationship classes
+-keep class * extends androidx.room.DatabaseViewFtsOptions { *; }
+-keep @androidx.room.Embedded class * { *; }
+-keep @androidx.room.Relation class * { *; }
+
+# Preserve constructor parameter names and annotations for Room
+-keepclasseswithmembernames class * {
+    @androidx.room.Embedded <methods>;
+}
+-keepclasseswithmembernames class * {
+    @androidx.room.Relation <methods>;
+}
