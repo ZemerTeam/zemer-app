@@ -286,6 +286,12 @@
     <string name="new_version_available">גירסה חדשה זמינה</string>
     <string name="translation_models">מודלים של תרגום</string>
     <string name="clear_translation_models">ניקוי מודלי תרגום</string>
+    <string name="content_filters">סינון תוכן</string>
+    <string name="allow_female_singers">אפשר זמרות</string>
+    <string name="enable_personal_filters">הפעלת מסננים אישיים</string>
+    <string name="i_like_dj">אני אוהב DJ</string>
+    <string name="i_am_chasidish">אני חסידי</string>
+    <string name="coming_soon">בקרוב</string>
     <string name="onboarding_welcome_title">ברוכים הבאים ל-Zemer</string>
     <string name="onboarding_welcome_subtitle">מרכז המוזיקה שלך. הערה קצרה לפני שמתחילים.</string>
     <string name="onboarding_safe_line">המוזיקה שלך, הבחירה שלך</string>

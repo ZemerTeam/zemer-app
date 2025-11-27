@@ -26,6 +26,7 @@ import com.metrolist.music.utils.SyncUtils
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import com.metrolist.music.utils.reportException
+import com.metrolist.music.utils.WhitelistFetcher
 import com.metrolist.innertube.utils.ResilientDns
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope

@@ -354,6 +354,12 @@
     <string name="new_version_available">New version available</string>
     <string name="translation_models">Translation Models</string>
     <string name="clear_translation_models">Clear translation models</string>
+    <string name="content_filters">Content filters</string>
+    <string name="allow_female_singers">Allow female singers</string>
+    <string name="enable_personal_filters">Enable personal feed filters</string>
+    <string name="i_like_dj">I like DJ</string>
+    <string name="i_am_chasidish">I am chasidish</string>
+    <string name="coming_soon">Coming soon</string>
 
     <!-- D-pad Button Mapper -->
     <string name="settings_button_setup">Set up your D-pad</string>

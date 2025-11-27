@@ -90,7 +90,7 @@ class MusicDatabase(
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 26,
+    version = 27,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -131,7 +131,7 @@ abstract class InternalDatabase : RoomDatabase() {
                 delegate =
                 Room
                     .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27)
                     .build(),
             )
     }
@@ -341,6 +341,15 @@ val MIGRATION_1_2 =
                     ),
                 )
             }
+        }
+    }
+
+val MIGRATION_26_27 =
+    object : Migration(26, 27) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE artist_whitelist ADD COLUMN isFemale INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE artist_whitelist ADD COLUMN isChasid INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE artist_whitelist ADD COLUMN isGenZ INTEGER NOT NULL DEFAULT 0")
         }
     }
 

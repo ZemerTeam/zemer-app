@@ -397,11 +397,10 @@ class MainActivity : ComponentActivity() {
                             val updatesEnabled = dataStore.get(CheckForUpdatesKey, false)
                             val notifEnabled = dataStore.get(UpdateNotificationsEnabledKey, false)
                             if (!updatesEnabled) return@withContext
-                            Updater.getLatestVersionName().onSuccess {
-                                latestVersionName = it
-                                if (it != BuildConfig.VERSION_NAME && notifEnabled) {
-                                    val downloadUrl = Updater.getLatestDownloadUrl()
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl))
+                            Updater.getLatestUpdate().onSuccess { info ->
+                                latestVersionName = info.versionName
+                                if (info.versionName != BuildConfig.VERSION_NAME && notifEnabled) {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl))
 
                                     val flags = PendingIntent.FLAG_UPDATE_CURRENT or
                                         (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
@@ -410,7 +409,7 @@ class MainActivity : ComponentActivity() {
                                     val notif = NotificationCompat.Builder(this@MainActivity, "updates")
                                         .setSmallIcon(R.drawable.update)
                                         .setContentTitle(getString(R.string.update_available_title))
-                                        .setContentText(it)
+                                        .setContentText(info.versionName)
                                         .setContentIntent(pending)
                                         .setAutoCancel(true)
                                         .build()

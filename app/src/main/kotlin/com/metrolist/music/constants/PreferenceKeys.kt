@@ -60,9 +60,9 @@ val ProxyUsernameKey = stringPreferencesKey("proxyUsername")
 val ProxyPasswordKey = stringPreferencesKey("proxyPassword")
 val YtmSyncKey = booleanPreferencesKey("ytmSync")
 val LastWhitelistSyncTimeKey = longPreferencesKey("lastWhitelistSyncTime")  // Timestamp in milliseconds
-val LastWhitelistHashKey = stringPreferencesKey("lastWhitelistHash")  // SHA-256 hash of artist JSON
 val CheckForUpdatesKey = booleanPreferencesKey("checkForUpdates")
 val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
+val LastWhitelistVersionKey = longPreferencesKey("lastWhitelistVersion")
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")
 
@@ -126,6 +126,10 @@ val PlaylistEditLockKey = booleanPreferencesKey("playlistEditLock")
 val QuickPicksKey = stringPreferencesKey("discover")
 val PreferredLyricsProviderKey = stringPreferencesKey("lyricsProvider")
 val QueueEditLockKey = booleanPreferencesKey("queueEditLock")
+val AllowFemaleSingersKey = booleanPreferencesKey("allowFemaleSingers")
+val AllowChasidishKey = booleanPreferencesKey("allowChasidish")
+val AllowDjKey = booleanPreferencesKey("allowDj")
+val EnableContentFiltersKey = booleanPreferencesKey("enableContentFilters")
 
 val ShowLikedPlaylistKey = booleanPreferencesKey("show_liked_playlist")
 val ShowDownloadedPlaylistKey = booleanPreferencesKey("show_downloaded_playlist")

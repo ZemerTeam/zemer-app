@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public read, restricted writes for the artist whitelist
+    match /artistsWhitelist/{docId} {
+      allow read: if true;
+      // Require a signed-in user with an `admin` custom claim to write
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    // Deny all other writes by default; adjust as needed for other collections
+    match /{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
