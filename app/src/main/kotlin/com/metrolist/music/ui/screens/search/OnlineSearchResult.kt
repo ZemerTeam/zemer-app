@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
@@ -57,8 +56,6 @@ import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
-import com.metrolist.music.constants.AppBarHeight
-import com.metrolist.music.constants.SearchFilterHeight
 import com.metrolist.music.extensions.togglePlayPause
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.queues.YouTubeQueue
@@ -94,9 +91,9 @@ fun OnlineSearchResult(
     val chipsFocusRequester = remember { FocusRequester() }
     val firstResultFocusRequester = remember { FocusRequester() }
 
-    // Initialize first result with focus when available
+    // Initialize chips with focus
     LaunchedEffect(Unit) {
-        firstResultFocusRequester.requestFocus()
+        chipsFocusRequester.requestFocus()
     }
 
     val searchFilter by viewModel.filter.collectAsState()
@@ -335,7 +332,7 @@ fun OnlineSearchResult(
             }
         }
 
-        if (searchFilter == null && searchSummary == null || searchFilter != null && itemsPage == null) {
+        if (searchSummary == null && searchFilter == null || itemsPage == null && searchFilter != null) {
             item {
                 ShimmerHost {
                     repeat(8) {

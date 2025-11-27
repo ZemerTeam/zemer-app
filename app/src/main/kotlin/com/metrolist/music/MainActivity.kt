@@ -156,8 +156,6 @@ import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
 import com.metrolist.music.constants.PauseSearchHistoryKey
 import com.metrolist.music.constants.PureBlackKey
 import com.metrolist.music.constants.SYSTEM_DEFAULT
-import com.metrolist.music.constants.SearchSource
-import com.metrolist.music.constants.SearchSourceKey
 import com.metrolist.music.constants.SlimNavBarHeight
 import com.metrolist.music.constants.SlimNavBarKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
@@ -184,7 +182,6 @@ import com.metrolist.music.ui.player.BottomSheetPlayer
 import com.metrolist.music.ui.player.MiniPlayerFocusTargets
 import com.metrolist.music.ui.screens.Screens
 import com.metrolist.music.ui.screens.navigationBuilder
-import com.metrolist.music.ui.screens.search.LocalSearchScreen
 import com.metrolist.music.ui.screens.search.OnlineSearchScreen
 import com.metrolist.music.ui.screens.settings.DarkMode
 import com.metrolist.music.ui.screens.settings.NavigationTab
@@ -567,12 +564,9 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    var searchSource by rememberEnumPreference(SearchSourceKey, SearchSource.ONLINE)
 
                     val searchBarFocusRequester = remember { FocusRequester() }
-                    val searchChipsFocusRequester = remember { FocusRequester() }
                     val searchResultsFocusRequester = remember { FocusRequester() }
-                    val searchSourceFocusRequester = remember { FocusRequester() }
 
                     val onSearch: (String) -> Unit = remember {
                         { searchQuery ->
@@ -1052,16 +1046,10 @@ class MainActivity : ComponentActivity() {
                                         onSearch = onSearch,
                                         active = active,
                                         onActiveChange = onActiveChange,
-                                        downFocusRequester = if (searchSource == SearchSource.LOCAL) searchChipsFocusRequester else searchResultsFocusRequester,
-                                        trailingFocusRequester = searchSourceFocusRequester,
+                                        downFocusRequester = searchResultsFocusRequester,
                                         placeholder = {
                                             Text(
-                                                text = stringResource(
-                                                    when (searchSource) {
-                                                        SearchSource.LOCAL -> R.string.search_library
-                                                        SearchSource.ONLINE -> R.string.search_yt_music
-                                                    }
-                                                ),
+                                                text = stringResource(R.string.search_yt_music),
                                             )
                                         },
                                         leadingIcon = {
@@ -1119,29 +1107,6 @@ class MainActivity : ComponentActivity() {
                                                             )
                                                         }
                                                     }
-                                                    IconButton(
-                                                        onClick = {
-                                                            searchSource =
-                                                                if (searchSource == SearchSource.ONLINE) SearchSource.LOCAL else SearchSource.ONLINE
-                                                        },
-                                                        modifier = Modifier
-                                                            .focusRequester(searchSourceFocusRequester)
-                                                            .focusProperties {
-                                                                left = searchBarFocusRequester
-                                                                up = searchBarFocusRequester
-                                                                down = searchResultsFocusRequester
-                                                            },
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(
-                                                                when (searchSource) {
-                                                                    SearchSource.LOCAL -> R.drawable.library_music
-                                                                    SearchSource.ONLINE -> R.drawable.language
-                                                                },
-                                                            ),
-                                                            contentDescription = null,
-                                                        )
-                                                    }
                                                 }
                                             }
                                         },
@@ -1169,53 +1134,27 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
                                     ) {
-                                        // Disable crossfade transitions as requested
-                                        Crossfade(
-                                            targetState = searchSource,
-                                            label = "",
-                                            animationSpec = tween(150),
-                                            modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .padding(bottom = if (!playerBottomSheetState.isDismissed) MiniPlayerHeight else 0.dp)
-                                                .navigationBarsPadding(),
-                                        ) { searchSource ->
-                                            when (searchSource) {
-                                                SearchSource.LOCAL ->
-                                                    LocalSearchScreen(
-                                                        query = query.text,
-                                                        navController = navController,
-                                                        onDismiss = { onActiveChange(false) },
-                                                        pureBlack = pureBlack,
-                                                        firstResultFocusRequester = searchResultsFocusRequester,
-                                                        chipsFocusRequester = searchChipsFocusRequester,
-                                                        searchFocusRequester = searchBarFocusRequester,
-                                                    )
-
-                                                SearchSource.ONLINE ->
-                                                    OnlineSearchScreen(
-                                                        query = query.text,
-                                                        onQueryChange = onQueryChange,
-                                                        navController = navController,
-                                                        onSearch = { searchQuery ->
-                                                            navController.navigate(
-                                                                "search/${URLEncoder.encode(searchQuery, "UTF-8")}"
-                                                            )
-                                                            if (dataStore[PauseSearchHistoryKey] != true) {
-                                                                lifecycleScope.launch(Dispatchers.IO) {
-                                                                    database.query {
-                                                                        insert(SearchHistory(query = searchQuery))
-                                                                    }
-                                                                }
-                                                            }
-                                                        },
-                                                        onDismiss = { onActiveChange(false) },
-                                                        pureBlack = pureBlack,
-                                                        firstResultFocusRequester = searchResultsFocusRequester,
-                                                        searchFocusRequester = searchBarFocusRequester
-                                                    )
-                                            }
-                                        }
+                                        OnlineSearchScreen(
+                                            query = query.text,
+                                            onQueryChange = onQueryChange,
+                                            navController = navController,
+                                            onSearch = { searchQuery ->
+                                                navController.navigate(
+                                                    "search/${URLEncoder.encode(searchQuery, "UTF-8")}"
+                                                )
+                                                if (dataStore[PauseSearchHistoryKey] != true) {
+                                                    lifecycleScope.launch(Dispatchers.IO) {
+                                                        database.query {
+                                                            insert(SearchHistory(query = searchQuery))
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            onDismiss = { onActiveChange(false) },
+                                            pureBlack = pureBlack,
+                                            firstResultFocusRequester = searchResultsFocusRequester,
+                                            searchFocusRequester = searchBarFocusRequester
+                                        )
                                     }
                                 }
                             },

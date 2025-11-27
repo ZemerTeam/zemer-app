@@ -24,6 +24,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
@@ -352,16 +353,18 @@ fun SuggestionItem(
     onFillTextField: () -> Unit,
     pureBlack: Boolean
 ) {
-    var isFocused by remember { mutableStateOf(false) }
+    var focusState by remember { mutableStateOf<FocusState?>(null) }
+    val isFocused = focusState?.isFocused ?: false
+
     val backgroundColor by animateColorAsState(
         targetValue = when {
-            isFocused -> MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+            isFocused -> MaterialTheme.colorScheme.primary
             else -> if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface
         },
         label = "suggestion_focus_bg"
     )
     val borderColor by animateColorAsState(
-        targetValue = if (isFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
+        targetValue = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
         label = "suggestion_focus_border"
     )
     val iconAlpha by animateFloatAsState(
@@ -374,8 +377,12 @@ fun SuggestionItem(
         modifier = modifier
             .fillMaxWidth()
             .height(SuggestionItemHeight)
-            .focusable()
-            .onFocusChanged { isFocused = it.isFocused }
+            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+            .padding(end = SearchBarIconOffsetX)
+            .background(backgroundColor)
+            .border(width = 2.dp, color = borderColor)
+            .clickable(onClick = onClick)
+            .onFocusChanged { focusState = it }
             .onKeyEvent { event ->
                 if (event.key == Key.Enter || event.key == Key.DirectionCenter) {
                     onClick()
@@ -384,11 +391,7 @@ fun SuggestionItem(
                     false
                 }
             }
-            .background(backgroundColor)
-            .border(width = 2.dp, color = borderColor)
-            .clickable(onClick = onClick)
-            .padding(end = SearchBarIconOffsetX)
-            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
+            .focusable(),
     ) {
         Icon(
             painterResource(if (online) R.drawable.search else R.drawable.history),
