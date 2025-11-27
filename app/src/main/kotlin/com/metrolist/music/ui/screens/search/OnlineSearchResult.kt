@@ -232,7 +232,6 @@ fun OnlineSearchResult(
         state = lazyListState,
         contentPadding =
         LocalPlayerAwareWindowInsets.current
-            .add(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
             .asPaddingValues(),
     ) {
         stickyHeader {
@@ -262,7 +261,7 @@ fun OnlineSearchResult(
                     .background(MaterialTheme.colorScheme.surface)
                     .windowInsetsPadding(
                         WindowInsets.systemBars
-                            .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
+                            .only(WindowInsetsSides.Horizontal)
                     )
                     .fillMaxWidth()
             )
