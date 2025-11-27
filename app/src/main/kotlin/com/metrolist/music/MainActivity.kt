@@ -121,6 +121,7 @@ import androidx.core.net.toUri
 import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
@@ -149,6 +150,7 @@ import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.DefaultOpenTabKey
 import com.metrolist.music.constants.DisableScreenshotKey
 import com.metrolist.music.constants.DynamicThemeKey
+import com.metrolist.music.constants.OnboardingCompleteKey
 import com.metrolist.music.constants.MiniPlayerHeight
 import com.metrolist.music.constants.MiniPlayerBottomSpacing
 import com.metrolist.music.constants.UpdateNotificationsEnabledKey
@@ -180,6 +182,7 @@ import com.metrolist.music.ui.component.shimmer.ShimmerTheme
 import com.metrolist.music.ui.menu.YouTubeSongMenu
 import com.metrolist.music.ui.player.BottomSheetPlayer
 import com.metrolist.music.ui.player.MiniPlayerFocusTargets
+import com.metrolist.music.ui.screens.OnboardingFlow
 import com.metrolist.music.ui.screens.Screens
 import com.metrolist.music.ui.screens.navigationBuilder
 import com.metrolist.music.ui.screens.search.OnlineSearchScreen
@@ -286,12 +289,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // Request notification permission on Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1000)
-            }
-        }
+        // NOTE: Notification permission is now handled in the onboarding flow
         startService(Intent(this, MusicService::class.java))
         bindService(
             Intent(this, MusicService::class.java),
@@ -370,7 +368,8 @@ class MainActivity : ComponentActivity() {
         }
 
         // Request storage permissions at startup for MediaStore downloads
-        requestStoragePermissionsIfNeeded()
+        // NOTE: Files permission is now handled in the onboarding flow
+        // requestStoragePermissionsIfNeeded()
 
         lifecycleScope.launch {
             dataStore.data
@@ -502,11 +501,26 @@ class MainActivity : ComponentActivity() {
                     val bottomInset = with(density) { windowsInsets.getBottom(density).toDp() }
                     val bottomInsetDp = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
 
-                    // Check whitelist sync status
+                    // Check onboarding status first, then whitelist sync
+                    val onboardingComplete by rememberPreference(OnboardingCompleteKey, defaultValue = false)
+                    val onboardingScope = rememberCoroutineScope()
+
+                    // Show onboarding first (before splash screen)
+                    if (!onboardingComplete) {
+                        OnboardingFlow(
+                            onFinished = {
+                                onboardingScope.launch {
+                                    dataStore.edit { it[OnboardingCompleteKey] = true }
+                                }
+                            }
+                        )
+                        return@BoxWithConstraints
+                    }
+
+                    // After onboarding, show splash screen while syncing
                     val syncProgress by syncUtils.whitelistSyncProgress.collectAsState()
                     val (skipSplash, setSkipSplash) = remember { mutableStateOf(false) }
 
-                    // Show splash screen while syncing (unless user skipped)
                     if (!syncProgress.isComplete && !skipSplash) {
                         SplashScreen(
                             syncProgress = syncProgress,

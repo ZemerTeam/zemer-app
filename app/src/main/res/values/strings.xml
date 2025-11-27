@@ -384,4 +384,40 @@
     <string name="button_setup_accessibility_required">Accessibility service required</string>
     <string name="button_setup_enable_accessibility">Enable accessibility service</string>
     <string name="accessibility_service_description">D-pad button mapper for custom hardware controls</string>
+    <string name="onboarding_welcome_title">Welcome to Zemer</string>
+    <string name="onboarding_welcome_subtitle">Your music hub. Quick note before you hit play.</string>
+    <string name="onboarding_safe_line">Your music, your choice</string>
+    <string name="onboarding_disclaimer">You’re responsible for what you play. We don’t host or upload content, and you agree not to hold us liable.</string>
+    <string name="onboarding_agree_label">I’ve read and agree to the Terms of Service and Privacy Policy</string>
+    <string name="onboarding_view_tos">View Terms</string>
+    <string name="onboarding_view_privacy">View Privacy</string>
+    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_continue_anyway">Continue anyway</string>
+    <string name="onboarding_tos_title">Terms of Service</string>
+    <string name="onboarding_tos_body">By using Zemer you agree:
+• You won’t hold the developers liable for any damages or claims.
+• You’re responsible for following copyright laws for anything you play.
+• We only point to third-party content and do not host media.
+• The app is provided as-is with no warranties.</string>
+    <string name="onboarding_privacy_title">Privacy Policy</string>
+    <string name="onboarding_privacy_body">We don’t collect personal data, analytics, or logins. Preferences stay on your device. Network calls only fetch what you choose to play.</string>
+    <string name="onboarding_permissions_title">Quick permission check</string>
+    <string name="onboarding_permissions_subtitle">Give a couple permissions so playback and downloads stay smooth. You can skip if you prefer.</string>
+    <string name="onboarding_perm_audio_title">Media access</string>
+    <string name="onboarding_perm_audio_desc">Let Zemer read your offline music.</string>
+    <string name="onboarding_perm_notifications_title">Notifications</string>
+    <string name="onboarding_perm_notifications_desc">Show playback controls in notifications.</string>
+    <string name="onboarding_perm_background_title">Background run</string>
+    <string name="onboarding_perm_background_desc">Keep playback alive without battery kills.</string>
+    <string name="onboarding_perm_accessibility_title">Accessibility</string>
+    <string name="onboarding_perm_accessibility_desc">Enable hardware button mapping (optional).</string>
+    <string name="onboarding_perm_nearby_title">Nearby devices</string>
+    <string name="onboarding_perm_nearby_desc">For speakers or car systems that need it.</string>
+    <string name="onboarding_grant">Grant</string>
+    <string name="onboarding_open_settings">Open settings</string>
+    <string name="onboarding_back">Back</string>
+    <string name="onboarding_skip">Skip for now</string>
+    <string name="onboarding_status_done">Ready</string>
+    <string name="onboarding_status_needed">Needed</string>
+    <string name="ok">OK</string>
 </resources>

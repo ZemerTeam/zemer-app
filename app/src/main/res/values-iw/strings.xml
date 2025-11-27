@@ -286,4 +286,40 @@
     <string name="new_version_available">גירסה חדשה זמינה</string>
     <string name="translation_models">מודלים של תרגום</string>
     <string name="clear_translation_models">ניקוי מודלי תרגום</string>
+    <string name="onboarding_welcome_title">ברוכים הבאים ל-Zemer</string>
+    <string name="onboarding_welcome_subtitle">מרכז המוזיקה שלך. הערה קצרה לפני שמתחילים.</string>
+    <string name="onboarding_safe_line">המוזיקה שלך, הבחירה שלך</string>
+    <string name="onboarding_disclaimer">אתם אחראים למה שמנגנים. איננו מאחסנים או מעלים תוכן, ואתם מסכימים שלא להאשים אותנו.</string>
+    <string name="onboarding_agree_label">קראתי והסכמתי לתנאי השירות ומדיניות הפרטיות</string>
+    <string name="onboarding_view_tos">צפו בתנאים</string>
+    <string name="onboarding_view_privacy">צפו בפרטיות</string>
+    <string name="onboarding_continue">המשך</string>
+    <string name="onboarding_continue_anyway">המשך בכל זאת</string>
+    <string name="onboarding_tos_title">תנאי שימוש</string>
+    <string name="onboarding_tos_body">בשימוש ב-Zemer אתם מסכימים:
+• לא להטיל אחריות על המפתחים לנזקים או טענות.
+• לעמוד בחוקי זכויות יוצרים לגבי כל מה שתשמיעו.
+• להבין שהאפליקציה מקשרת לתוכן צד ג׳ ואינה מאחסנת מדיה.
+• להשתמש באפליקציה כפי שהיא, ללא אחריות או התחייבות.</string>
+    <string name="onboarding_privacy_title">מדיניות פרטיות</string>
+    <string name="onboarding_privacy_body">איננו אוספים נתונים, אנליטיקות או התחברויות. ההעדפות נשמרות מקומית. בקשות רשת רק מביאות מה שתבחרו לנגן.</string>
+    <string name="onboarding_permissions_title">בדיקת הרשאות קצרה</string>
+    <string name="onboarding_permissions_subtitle">כמה הרשאות כדי שהשמעה והורדה יישארו חלקות. אפשר גם לדלג.</string>
+    <string name="onboarding_perm_audio_title">גישה למדיה</string>
+    <string name="onboarding_perm_audio_desc">תנו ל-Zemer לקרוא את המוזיקה הלא מקוונת שלכם.</string>
+    <string name="onboarding_perm_notifications_title">התראות</string>
+    <string name="onboarding_perm_notifications_desc">בקרות השמעה בהתראות.</string>
+    <string name="onboarding_perm_background_title">עבודה ברקע</string>
+    <string name="onboarding_perm_background_desc">לשמור השמעה בלי שחוסך הסוללה יסגור.</string>
+    <string name="onboarding_perm_accessibility_title">נגישות</string>
+    <string name="onboarding_perm_accessibility_desc">מיפוי כפתורי חומרה (רשות).</string>
+    <string name="onboarding_perm_nearby_title">מכשירים בקרבת מקום</string>
+    <string name="onboarding_perm_nearby_desc">לחיבור לרמקולים או רכב שדורשים זאת.</string>
+    <string name="onboarding_grant">תן הרשאה</string>
+    <string name="onboarding_open_settings">פתח הגדרות</string>
+    <string name="onboarding_back">חזרה</string>
+    <string name="onboarding_skip">דלג לעת עתה</string>
+    <string name="onboarding_status_done">מוכן</string>
+    <string name="onboarding_status_needed">נדרש</string>
+    <string name="ok">אישור</string>
 </resources>
