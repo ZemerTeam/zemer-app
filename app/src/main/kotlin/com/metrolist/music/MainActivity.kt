@@ -866,29 +866,6 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                     NavigationDrawerItem(
-                                        label = { Text(stringResource(R.string.random_playlist)) },
-                                        icon = {
-                                            Icon(
-                                                painter = painterResource(R.drawable.shuffle),
-                                                contentDescription = null
-                                            )
-                                        },
-                                        selected = false,
-                                        onClick = {
-                                            coroutineScope.launch { drawerState.close() }
-                                            navController.navigate(Screens.Home.route) {
-                                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                            navController.getBackStackEntry(Screens.Home.route)
-                                                .savedStateHandle["shuffleNow"] = true
-                                        },
-                                        modifier = Modifier
-                                            .padding(NavigationDrawerItemDefaults.ItemPadding)
-                                            .focusProperties { canFocus = drawerState.isOpen }
-                                    )
-                                    NavigationDrawerItem(
                                         label = { Text(stringResource(R.string.settings)) },
                                         icon = {
                                             Icon(
@@ -909,25 +886,6 @@ class MainActivity : ComponentActivity() {
                                             .padding(NavigationDrawerItemDefaults.ItemPadding)
                                             .focusProperties { canFocus = drawerState.isOpen }
                                     )
-                                    if (!playerBottomSheetState.isDismissed) {
-                                        NavigationDrawerItem(
-                                            label = { Text(stringResource(R.string.now_playing)) },
-                                            icon = {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.play),
-                                                    contentDescription = null
-                                                )
-                                            },
-                                            selected = false,
-                                            onClick = {
-                                                coroutineScope.launch { drawerState.close() }
-                                                playerBottomSheetState.expandSoft()
-                                            },
-                                            modifier = Modifier
-                                                .padding(NavigationDrawerItemDefaults.ItemPadding)
-                                                .focusProperties { canFocus = drawerState.isOpen }
-                                        )
-                                    }
                                 }
                             }
                         ) {

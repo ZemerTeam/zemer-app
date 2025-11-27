@@ -176,3 +176,8 @@
 -keepclasseswithmembernames class * {
     @androidx.room.Relation <methods>;
 }
+
+# Keep Room DAO and converters used by keep listening queries
+-keep class com.metrolist.music.db.DatabaseDao { *; }
+-keep class com.metrolist.music.db.DatabaseDao_Impl { *; }
+-keep class com.metrolist.music.db.Converters { *; }

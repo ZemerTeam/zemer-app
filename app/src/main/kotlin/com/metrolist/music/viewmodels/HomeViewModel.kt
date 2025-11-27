@@ -36,11 +36,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import javax.inject.Inject
 
 @HiltViewModel
@@ -68,6 +66,15 @@ class HomeViewModel @Inject constructor(
 
     val allLocalItems = MutableStateFlow<List<LocalItem>>(emptyList())
     val allYtItems = MutableStateFlow<List<YTItem>>(emptyList())
+
+    private fun updateDerivedState() {
+        val hasQuickPicks = quickPicks.value?.isNotEmpty() == true
+        val hasKeepListening = keepListening.value?.isNotEmpty() == true
+        isNewUser.value = !hasQuickPicks && !hasKeepListening
+
+        allLocalItems.value = (quickPicks.value.orEmpty() + forgottenFavorites.value.orEmpty() + keepListening.value.orEmpty())
+            .filter { it is Song || it is Album }
+    }
 
     private suspend fun getQuickPicks() {
         when (quickPicksEnum.first()) {
@@ -103,18 +110,35 @@ class HomeViewModel @Inject constructor(
         forgottenFavorites.value = forgotten
         Timber.d("HomeViewModel: Forgotten favorites loaded - ${forgotten.size} songs")
 
-        val fromTimeStamp = System.currentTimeMillis() - 86400000 * 7 * 2
+        val toTimeStamp = System.currentTimeMillis()
+        val fromTimeStamp = toTimeStamp - 86400000 * 7 * 2
         try {
             val keepListeningSongs = try {
-                database.mostPlayedSongs(fromTimeStamp, limit = 15, offset = 5).first().shuffled().take(10)
+                database.mostPlayedSongs(
+                    fromTimeStamp = fromTimeStamp,
+                    toTimeStamp = toTimeStamp,
+                    limit = 15,
+                    offset = 0,
+                )
+                    .first()
+                    .shuffled()
+                    .take(10)
             } catch (e: Exception) {
                 Timber.e(e, "HomeViewModel: Error loading keep listening songs")
                 emptyList()
             }
 
             val keepListeningAlbums = try {
-                database.mostPlayedAlbums(fromTimeStamp, limit = 8, offset = 2).first()
-                    .filter { it.album.thumbnailUrl != null }.shuffled().take(5)
+                database.mostPlayedAlbums(
+                    fromTimeStamp = fromTimeStamp,
+                    toTimeStamp = toTimeStamp,
+                    limit = 8,
+                    offset = 0,
+                )
+                    .first()
+                    .filter { it.album.thumbnailUrl != null }
+                    .shuffled()
+                    .take(5)
             } catch (e: Exception) {
                 Timber.e(e, "HomeViewModel: Error loading keep listening albums")
                 emptyList()
@@ -166,11 +190,8 @@ class HomeViewModel @Inject constructor(
         }
 
         // Detect if user is new (no history-based content)
-        val hasQuickPicks = quickPicks.value?.isNotEmpty() == true
-        val hasKeepListening = keepListening.value?.isNotEmpty() == true
-        isNewUser.value = !hasQuickPicks && !hasKeepListening
-
-        Timber.d("HomeViewModel: New user detection - hasQuickPicks=$hasQuickPicks, hasKeepListening=$hasKeepListening, isNewUser=${isNewUser.value}")
+        updateDerivedState()
+        Timber.d("HomeViewModel: New user detection - hasQuickPicks=${quickPicks.value?.isNotEmpty() == true}, hasKeepListening=${keepListening.value?.isNotEmpty() == true}, isNewUser=${isNewUser.value}")
 
         // Load featured content from whitelisted artists (always, for all users)
         Timber.d("HomeViewModel: Loading featured content from whitelisted artists")
@@ -293,23 +314,11 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-        // Observe Quick Picks changes continuously
-        @OptIn(ExperimentalCoroutinesApi::class)
+        // Update quick picks only when the user changes the mode, not on every playback event
         viewModelScope.launch(Dispatchers.IO) {
-            quickPicksEnum.flatMapLatest { mode ->
-                when (mode) {
-                    QuickPicks.QUICK_PICKS -> database.quickPicks().map { it.shuffled().take(20) }
-                    QuickPicks.LAST_LISTEN -> database.events().flatMapLatest { events ->
-                        val song = events.firstOrNull()?.song
-                        if (song != null && database.hasRelatedSongs(song.id)) {
-                            database.getRelatedSongs(song.id).map { it.shuffled().take(20) }
-                        } else {
-                            flowOf(emptyList())
-                        }
-                    }
-                }
-            }.collect { songs ->
-                quickPicks.value = songs
+            quickPicksEnum.drop(1).collect {
+                getQuickPicks()
+                updateDerivedState()
             }
         }
     }
