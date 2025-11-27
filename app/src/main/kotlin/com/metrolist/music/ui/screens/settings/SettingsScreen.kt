@@ -11,16 +11,21 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -132,22 +137,33 @@ fun SettingsScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Normal view - grouped by section
+        TopAppBar(
+            title = { Text(stringResource(R.string.settings)) },
+            navigationIcon = {
+                IconButton(onClick = { navController.navigateUp() }) {
+                    Icon(
+                        painter = painterResource(R.drawable.arrow_back),
+                        contentDescription = null
+                    )
+                }
+            },
+            scrollBehavior = scrollBehavior
+        )
+        // Content with scroll
+        val paddingValues = LocalPlayerAwareWindowInsets.current.asPaddingValues()
         Column(
             Modifier
-                .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
+                .padding(bottom = paddingValues.calculateBottomPadding())
         ) {
+            Spacer(modifier = Modifier.height(8.dp))
             val sections = allSettings.groupBy { it.section }
-            var isFirstItem = true
             sections.forEach { (sectionTitle, items) ->
                 Material3SettingsGroup(
                     title = sectionTitle,
                     items = items.map { setting ->
-                        val thisIsFirstItem = isFirstItem
-                        if (isFirstItem) isFirstItem = false
-
                         Material3SettingsItem(
                             icon = painterResource(setting.icon),
                             title = { Text(setting.title) },
@@ -162,8 +178,6 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

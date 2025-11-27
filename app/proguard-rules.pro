@@ -111,3 +111,20 @@
 -dontwarn com.yalantis.ucrop**
 -keep class com.yalantis.ucrop** { *; }
 -keep interface com.yalantis.ucrop** { *; }
+
+## Home Screen - Quick Picks & Keep Listening
+# Keep LocalItem and all subclasses (Song, Album, Artist)
+-keep class com.metrolist.music.db.entities.LocalItem { *; }
+-keep class com.metrolist.music.db.entities.Song { *; }
+-keep class com.metrolist.music.db.entities.Album { *; }
+-keep class com.metrolist.music.db.entities.Artist { *; }
+
+# Keep related database entities
+-keep class com.metrolist.music.db.entities.SongEntity { *; }
+-keep class com.metrolist.music.db.entities.AlbumEntity { *; }
+-keep class com.metrolist.music.db.entities.ArtistEntity { *; }
+-keep class com.metrolist.music.db.entities.AlbumArtistMap { *; }
+-keep class com.metrolist.music.db.entities.FormatEntity { *; }
+
+# Keep HomeViewModel to prevent stripping of observable state flows
+-keep class com.metrolist.music.viewmodels.HomeViewModel { *; }
