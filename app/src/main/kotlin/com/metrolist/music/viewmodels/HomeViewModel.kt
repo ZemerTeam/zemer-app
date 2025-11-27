@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import kotlin.jvm.Volatile
 import javax.inject.Inject
 
 @HiltViewModel
@@ -47,6 +48,8 @@ class HomeViewModel @Inject constructor(
     val database: MusicDatabase,
     val syncUtils: SyncUtils,
 ) : ViewModel() {
+    @Volatile
+    private var hasLoadedOnce = false
     val isRefreshing = MutableStateFlow(false)
     val isLoading = MutableStateFlow(false)
 
@@ -120,159 +123,165 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private suspend fun load() {
+    private suspend fun load(force: Boolean = false) {
+        if (isLoading.value) return
+        if (!force && hasLoadedOnce) return
+
         isLoading.value = true
-        val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-
-        // Debug: Check whitelist is populated before loading home content
-        val whitelistCount = database.getAllWhitelistedArtistIds().first().size
-        Timber.d("HomeViewModel: Whitelist has $whitelistCount artists at load time")
-
-        getQuickPicks()
-
-        val forgotten = database.forgottenFavorites().first().shuffled().take(20)
-        forgottenFavorites.value = forgotten
-        Timber.d("HomeViewModel: Forgotten favorites loaded - ${forgotten.size} songs")
-
-        val toTimeStamp = System.currentTimeMillis()
-        val fromTimeStamp = toTimeStamp - 86400000 * 7 * 2
         try {
-            val historySongs = database.events().first().map { it.song }.distinctBy { it.id }.take(40)
+            val hideExplicit = context.dataStore.get(HideExplicitKey, false)
 
-            val keepListeningSongs = runCatching {
-                database.mostPlayedSongs(
-                    fromTimeStamp = fromTimeStamp,
-                    toTimeStamp = toTimeStamp,
-                    limit = 25,
-                    offset = 0,
-                ).first()
-            }.getOrDefault(emptyList()).ifEmpty { historySongs }
+            // Debug: Check whitelist is populated before loading home content
+            val whitelistCount = database.getAllWhitelistedArtistIds().first().size
+            Timber.d("HomeViewModel: Whitelist has $whitelistCount artists at load time")
 
-            val keepListeningAlbums = try {
-                database.mostPlayedAlbums(
-                    fromTimeStamp = fromTimeStamp,
-                    toTimeStamp = toTimeStamp,
-                    limit = 10,
-                    offset = 0,
-                )
-                    .first()
-                    .filter { it.album.thumbnailUrl != null }
-            } catch (e: Exception) {
-                Timber.e(e, "HomeViewModel: Error loading keep listening albums")
-                emptyList()
-            }
+            getQuickPicks()
 
-            val keepListeningArtists = try {
-                database.mostPlayedArtists(fromTimeStamp, limit = 10, offset = 0).first()
-                    .filter { it.artist.thumbnailUrl != null }
-            } catch (e: Exception) {
-                Timber.e(e, "HomeViewModel: Error loading keep listening artists")
-                emptyList()
-            }
+            val forgotten = database.forgottenFavorites().first().shuffled().take(20)
+            forgottenFavorites.value = forgotten
+            Timber.d("HomeViewModel: Forgotten favorites loaded - ${forgotten.size} songs")
 
-            var combined = (keepListeningSongs.shuffled().take(12) +
-                    keepListeningAlbums.shuffled().take(6) +
-                    keepListeningArtists.shuffled().take(6)).shuffled()
-            if (combined.isEmpty()) {
-                // Fallback to recent history if nothing else
-                combined = historySongs.shuffled().take(20)
-                Timber.d("HomeViewModel: Keep listening fallback from history - ${combined.size} items")
-            }
-            keepListening.value = combined
-            Timber.d("HomeViewModel: Keep listening loaded - ${keepListeningSongs.size} songs, ${keepListeningAlbums.size} albums, ${keepListeningArtists.size} artists (total: ${combined.size})")
-        } catch (e: Exception) {
-            Timber.e(e, "HomeViewModel: Exception in keep listening section")
-            keepListening.value = emptyList()
-        }
+            val toTimeStamp = System.currentTimeMillis()
+            val fromTimeStamp = toTimeStamp - 86400000 * 7 * 2
+            try {
+                val historySongs = database.events().first().map { it.song }.distinctBy { it.id }.take(40)
 
-        YouTube.home().onSuccess { page ->
-            homePage.value = page.copy(
-                sections = page.sections.mapNotNull { section ->
-                    val filteredItems = section.items
-                        .filterExplicit(hideExplicit)
-                        .filterWhitelisted(database)
-                    if (filteredItems.isEmpty()) null else section.copy(items = filteredItems)
+                val keepListeningSongs = runCatching {
+                    database.mostPlayedSongs(
+                        fromTimeStamp = fromTimeStamp,
+                        toTimeStamp = toTimeStamp,
+                        limit = 25,
+                        offset = 0,
+                    ).first()
+                }.getOrDefault(emptyList()).ifEmpty { historySongs }
+
+                val keepListeningAlbums = try {
+                    database.mostPlayedAlbums(
+                        fromTimeStamp = fromTimeStamp,
+                        toTimeStamp = toTimeStamp,
+                        limit = 10,
+                        offset = 0,
+                    )
+                        .first()
+                        .filter { it.album.thumbnailUrl != null }
+                } catch (e: Exception) {
+                    Timber.e(e, "HomeViewModel: Error loading keep listening albums")
+                    emptyList()
                 }
-            )
-        }.onFailure {
-            reportException(it)
-        }
 
-        YouTube.explore().onSuccess { page ->
-            val rawAlbums = page.newReleaseAlbums
-            val afterExplicit = rawAlbums.filterExplicit(hideExplicit)
-            val afterWhitelist = afterExplicit.filterWhitelisted(database)
-            val finalAlbums = afterWhitelist.filterIsInstance<com.metrolist.innertube.models.AlbumItem>()
+                val keepListeningArtists = try {
+                    database.mostPlayedArtists(fromTimeStamp, limit = 10, offset = 0).first()
+                        .filter { it.artist.thumbnailUrl != null }
+                } catch (e: Exception) {
+                    Timber.e(e, "HomeViewModel: Error loading keep listening artists")
+                    emptyList()
+                }
 
-            Timber.d("HomeViewModel: New Release Albums - raw=${rawAlbums.size}, afterExplicit=${afterExplicit.size}, afterWhitelist=${afterWhitelist.size}, final=${finalAlbums.size}")
+                var combined = (keepListeningSongs.shuffled().take(12) +
+                        keepListeningAlbums.shuffled().take(6) +
+                        keepListeningArtists.shuffled().take(6)).shuffled()
+                if (combined.isEmpty()) {
+                    // Fallback to recent history if nothing else
+                    combined = historySongs.shuffled().take(20)
+                    Timber.d("HomeViewModel: Keep listening fallback from history - ${combined.size} items")
+                }
+                keepListening.value = combined
+                Timber.d("HomeViewModel: Keep listening loaded - ${keepListeningSongs.size} songs, ${keepListeningAlbums.size} albums, ${keepListeningArtists.size} artists (total: ${combined.size})")
+            } catch (e: Exception) {
+                Timber.e(e, "HomeViewModel: Exception in keep listening section")
+                keepListening.value = emptyList()
+            }
 
-            explorePage.value = page.copy(
-                newReleaseAlbums = finalAlbums
-            )
-        }.onFailure {
-            Timber.e(it, "HomeViewModel: Failed to load explore page")
-            reportException(it)
-        }
+            YouTube.home().onSuccess { page ->
+                homePage.value = page.copy(
+                    sections = page.sections.mapNotNull { section ->
+                        val filteredItems = section.items
+                            .filterExplicit(hideExplicit)
+                            .filterWhitelisted(database)
+                        if (filteredItems.isEmpty()) null else section.copy(items = filteredItems)
+                    }
+                )
+            }.onFailure {
+                reportException(it)
+            }
 
-        // Detect if user is new (no history-based content)
-        updateDerivedState()
-        Timber.d("HomeViewModel: New user detection - hasQuickPicks=${quickPicks.value?.isNotEmpty() == true}, hasKeepListening=${keepListening.value?.isNotEmpty() == true}, isNewUser=${isNewUser.value}")
+            YouTube.explore().onSuccess { page ->
+                val rawAlbums = page.newReleaseAlbums
+                val afterExplicit = rawAlbums.filterExplicit(hideExplicit)
+                val afterWhitelist = afterExplicit.filterWhitelisted(database)
+                val finalAlbums = afterWhitelist.filterIsInstance<com.metrolist.innertube.models.AlbumItem>()
 
-        // Load featured content from whitelisted artists (always, for all users)
-        Timber.d("HomeViewModel: Loading featured content from whitelisted artists")
+                Timber.d("HomeViewModel: New Release Albums - raw=${rawAlbums.size}, afterExplicit=${afterExplicit.size}, afterWhitelist=${afterWhitelist.size}, final=${finalAlbums.size}")
 
-        // Get 15 random whitelisted artist IDs
-        val randomArtistIds = database.getRandomWhitelistedArtistIds(15)
-        Timber.d("HomeViewModel: Fetched ${randomArtistIds.size} random whitelisted artist IDs")
+                explorePage.value = page.copy(
+                    newReleaseAlbums = finalAlbums
+                )
+            }.onFailure {
+                Timber.e(it, "HomeViewModel: Failed to load explore page")
+                reportException(it)
+            }
 
-        if (randomArtistIds.isNotEmpty()) {
-            val albums = mutableListOf<com.metrolist.innertube.models.AlbumItem>()
-            val artists = mutableListOf<com.metrolist.innertube.models.ArtistItem>()
+            // Detect if user is new (no history-based content)
+            updateDerivedState()
+            Timber.d("HomeViewModel: New user detection - hasQuickPicks=${quickPicks.value?.isNotEmpty() == true}, hasKeepListening=${keepListening.value?.isNotEmpty() == true}, isNewUser=${isNewUser.value}")
 
-            // Fetch artist pages in parallel for better performance
-            coroutineScope {
-                val deferredArtistPages = randomArtistIds.take(15).map { artistId ->
-                    async {
-                        YouTube.artist(artistId).fold(
-                            onSuccess = { artistPage -> artistPage },
-                            onFailure = { error ->
-                                Timber.w(error, "HomeViewModel: Failed to fetch artist $artistId")
-                                null
-                            }
-                        )
+            // Load featured content from whitelisted artists (always, for all users)
+            Timber.d("HomeViewModel: Loading featured content from whitelisted artists")
+
+            // Get 15 random whitelisted artist IDs
+            val randomArtistIds = database.getRandomWhitelistedArtistIds(15)
+            Timber.d("HomeViewModel: Fetched ${randomArtistIds.size} random whitelisted artist IDs")
+
+            if (randomArtistIds.isNotEmpty()) {
+                val albums = mutableListOf<com.metrolist.innertube.models.AlbumItem>()
+                val artists = mutableListOf<com.metrolist.innertube.models.ArtistItem>()
+
+                // Fetch artist pages in parallel for better performance
+                coroutineScope {
+                    val deferredArtistPages = randomArtistIds.take(15).map { artistId ->
+                        async {
+                            YouTube.artist(artistId).fold(
+                                onSuccess = { artistPage -> artistPage },
+                                onFailure = { error ->
+                                    Timber.w(error, "HomeViewModel: Failed to fetch artist $artistId")
+                                    null
+                                }
+                            )
+                        }
+                    }
+
+                    // Wait for all parallel requests to complete
+                    val artistPages = deferredArtistPages.awaitAll().filterNotNull()
+
+                    // Extract content from fetched artist pages
+                    artistPages.forEach { artistPage ->
+                        // Add the artist themselves
+                        artists.add(artistPage.artist)
+
+                        // Extract albums from the artist page
+                        val artistAlbums = artistPage.sections
+                            .flatMap { it.items }
+                            .filterIsInstance<com.metrolist.innertube.models.AlbumItem>()
+                            .take(2) // Take top 2 albums per artist
+
+                        albums.addAll(artistAlbums)
+                        Timber.d("HomeViewModel: Artist ${artistPage.artist.title} - added ${artistAlbums.size} albums")
                     }
                 }
 
-                // Wait for all parallel requests to complete
-                val artistPages = deferredArtistPages.awaitAll().filterNotNull()
+                featuredAlbums.value = albums.shuffled().take(20)
+                featuredArtists.value = artists.shuffled().take(20)
 
-                // Extract content from fetched artist pages
-                artistPages.forEach { artistPage ->
-                    // Add the artist themselves
-                    artists.add(artistPage.artist)
-
-                    // Extract albums from the artist page
-                    val artistAlbums = artistPage.sections
-                        .flatMap { it.items }
-                        .filterIsInstance<com.metrolist.innertube.models.AlbumItem>()
-                        .take(2) // Take top 2 albums per artist
-
-                    albums.addAll(artistAlbums)
-                    Timber.d("HomeViewModel: Artist ${artistPage.artist.title} - added ${artistAlbums.size} albums")
-                }
+                Timber.d("HomeViewModel: Featured content - ${featuredAlbums.value.size} albums, ${featuredArtists.value.size} artists")
             }
 
-            featuredAlbums.value = albums.shuffled().take(20)
-            featuredArtists.value = artists.shuffled().take(20)
-
-            Timber.d("HomeViewModel: Featured content - ${featuredAlbums.value.size} albums, ${featuredArtists.value.size} artists")
+            allLocalItems.value = (quickPicks.value.orEmpty() + forgottenFavorites.value.orEmpty() + keepListening.value.orEmpty())
+                .filter { it is Song || it is Album }
+            allYtItems.value = homePage.value?.sections?.flatMap { it.items }.orEmpty()
+        } finally {
+            isLoading.value = false
+            hasLoadedOnce = true
         }
-
-        allLocalItems.value = (quickPicks.value.orEmpty() + forgottenFavorites.value.orEmpty() + keepListening.value.orEmpty())
-            .filter { it is Song || it is Album }
-        allYtItems.value = homePage.value?.sections?.flatMap { it.items }.orEmpty()
-
-        isLoading.value = false
     }
 
     private val _isLoadingMore = MutableStateFlow(false)
@@ -304,7 +313,7 @@ class HomeViewModel @Inject constructor(
         if (isRefreshing.value) return
         viewModelScope.launch(Dispatchers.IO) {
             isRefreshing.value = true
-            load()
+            load(force = true)
             isRefreshing.value = false
         }
     }
@@ -323,7 +332,7 @@ class HomeViewModel @Inject constructor(
                 syncUtils.syncArtistWhitelist()
             }
 
-            load()
+            load(force = true)
 
             // Run other syncs in background after load completes
             if (isSyncEnabled) {
