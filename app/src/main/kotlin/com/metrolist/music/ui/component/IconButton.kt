@@ -77,7 +77,7 @@ fun ResizableIconButton(
                     onClick = onClick,
                 )
                 .alpha(if (enabled) 1f else 0.5f)
-                .size(32.dp),
+                .size(32.dp)
         )
     }
 }

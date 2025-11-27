@@ -64,6 +64,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -78,9 +79,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -144,6 +142,7 @@ import com.metrolist.music.ui.player.MiniPlayerFocusTargets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import me.saket.squiggles.SquigglySlider
@@ -852,20 +851,10 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(12.dp))
 
-            val sliderFocused = remember { mutableStateOf(false) }
-            val sliderBorderColor = animateColorAsState(
-                targetValue = if (sliderFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
-                label = "slider_focus"
-            )
-
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = PlayerHorizontalPadding - 8.dp)
-                    .border(2.dp, sliderBorderColor.value, RoundedCornerShape(8.dp))
-                    .padding(8.dp)
-                    .focusable()
-                    .onFocusChanged { sliderFocused.value = it.isFocused }
             ) {
                 when (sliderStyle) {
                     SliderStyle.DEFAULT -> {
@@ -976,6 +965,7 @@ fun BottomSheetPlayer(
                     val playButtonWidth = playButtonHeight * 1.6f
                     val sideButtonHeight = playButtonHeight * 0.8f
                     val sideButtonWidth = sideButtonHeight * 1.3f
+                    val coroutineScope = rememberCoroutineScope()
 
                     Row(
                         horizontalArrangement = Arrangement.Center,
@@ -988,8 +978,13 @@ fun BottomSheetPlayer(
                             targetValue = if (skipPrevFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
                             label = "skip_prev_focus"
                         )
+                        var skipPrevJob by remember { mutableStateOf<Job?>(null) }
+
                         FilledTonalIconButton(
-                            onClick = playerConnection::seekToPrevious,
+                            onClick = {
+                                skipPrevJob?.cancel()
+                                playerConnection.seekToPrevious()
+                            },
                             enabled = canSkipPrevious,
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
                                 containerColor = textButtonColor,
@@ -1001,6 +996,22 @@ fun BottomSheetPlayer(
                                 .border(3.dp, skipPrevBorderColor.value, RoundedCornerShape(32.dp))
                                 .focusable()
                                 .onFocusChanged { skipPrevFocused.value = it.isFocused }
+                                .combinedClickable(
+                                    onClick = {
+                                        skipPrevJob?.cancel()
+                                        playerConnection.seekToPrevious()
+                                    },
+                                    onLongClick = {
+                                        if (canSkipPrevious) {
+                                            skipPrevJob = coroutineScope.launch {
+                                                while (isActive) {
+                                                    playerConnection.seekToPrevious()
+                                                    delay(200)
+                                                }
+                                            }
+                                        }
+                                    }
+                                )
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.skip_previous),
@@ -1056,8 +1067,13 @@ fun BottomSheetPlayer(
                             targetValue = if (skipNextFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
                             label = "skip_next_focus"
                         )
+                        var skipNextJob by remember { mutableStateOf<Job?>(null) }
+
                         FilledTonalIconButton(
-                            onClick = playerConnection::seekToNext,
+                            onClick = {
+                                skipNextJob?.cancel()
+                                playerConnection.seekToNext()
+                            },
                             enabled = canSkipNext,
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
                                 containerColor = textButtonColor,
@@ -1069,6 +1085,22 @@ fun BottomSheetPlayer(
                                 .border(3.dp, skipNextBorderColor.value, RoundedCornerShape(32.dp))
                                 .focusable()
                                 .onFocusChanged { skipNextFocused.value = it.isFocused }
+                                .combinedClickable(
+                                    onClick = {
+                                        skipNextJob?.cancel()
+                                        playerConnection.seekToNext()
+                                    },
+                                    onLongClick = {
+                                        if (canSkipNext) {
+                                            skipNextJob = coroutineScope.launch {
+                                                while (isActive) {
+                                                    playerConnection.seekToNext()
+                                                    delay(200)
+                                                }
+                                            }
+                                        }
+                                    }
+                                )
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.skip_next),
@@ -1114,7 +1146,9 @@ fun BottomSheetPlayer(
                             Modifier
                                 .size(32.dp)
                                 .align(Alignment.Center),
-                            onClick = playerConnection::seekToPrevious,
+                            onClick = {
+                                playerConnection.seekToPrevious()
+                            },
                         )
                     }
 
@@ -1176,7 +1210,9 @@ fun BottomSheetPlayer(
                             Modifier
                                 .size(32.dp)
                                 .align(Alignment.Center),
-                            onClick = playerConnection::seekToNext,
+                            onClick = {
+                                playerConnection.seekToNext()
+                            },
                         )
                     }
 
