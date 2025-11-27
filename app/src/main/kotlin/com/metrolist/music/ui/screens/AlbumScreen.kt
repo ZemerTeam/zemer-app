@@ -264,12 +264,17 @@ fun AlbumScreen(
                                 fontSizeRange = FontSizeRange(16.sp, 22.sp),
                             )
 
+                            val artistLinkFocused = remember { mutableStateOf(false) }
+                            val artistLinkBorderColor = animateColorAsState(
+                                targetValue = if (artistLinkFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                label = "artist_link_focus_border"
+                            )
                             Box(
                                 modifier = Modifier
                                     .focusRequester(firstHeaderItemFocusRequester)
                                     .border(3.dp, artistLinkBorderColor.value, RoundedCornerShape(8.dp))
                                     .focusable()
-                                    .onFocusChanged { isArtistLinkFocused.value = it.isFocused }
+                                    .onFocusChanged { artistLinkFocused.value = it.isFocused }
                                     .padding(4.dp)
                             ) {
                                 Text(buildAnnotatedString {
@@ -303,11 +308,16 @@ fun AlbumScreen(
                             }
 
                             Row {
+                                val heartButtonFocused = remember { mutableStateOf(false) }
+                                val heartButtonBorderColor = animateColorAsState(
+                                    targetValue = if (heartButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    label = "heart_button_focus_border"
+                                )
                                 Box(
                                     modifier = Modifier
                                         .border(3.dp, heartButtonBorderColor.value, RoundedCornerShape(8.dp))
                                         .focusable()
-                                        .onFocusChanged { isHeartButtonFocused.value = it.isFocused }
+                                        .onFocusChanged { heartButtonFocused.value = it.isFocused }
                                 ) {
                                     IconButton(
                                         onClick = {
@@ -340,13 +350,19 @@ fun AlbumScreen(
                                     }
                                 }
 
+                                val downloadButtonFocused = remember { mutableStateOf(false) }
+                                val downloadButtonBorderColor = animateColorAsState(
+                                    targetValue = if (downloadButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    label = "download_button_focus_border"
+                                )
+
                                 when (downloadState) {
                                     Download.STATE_COMPLETED -> {
                                         Box(
                                             modifier = Modifier
                                                 .border(3.dp, downloadButtonBorderColor.value, RoundedCornerShape(8.dp))
                                                 .focusable()
-                                                .onFocusChanged { isDownloadButtonFocused.value = it.isFocused }
+                                                .onFocusChanged { downloadButtonFocused.value = it.isFocused }
                                         ) {
                                             IconButton(
                                                 onClick = {
@@ -373,7 +389,7 @@ fun AlbumScreen(
                                             modifier = Modifier
                                                 .border(3.dp, downloadButtonBorderColor.value, RoundedCornerShape(8.dp))
                                                 .focusable()
-                                                .onFocusChanged { isDownloadButtonFocused.value = it.isFocused }
+                                                .onFocusChanged { downloadButtonFocused.value = it.isFocused }
                                         ) {
                                             IconButton(
                                                 onClick = {
@@ -400,7 +416,7 @@ fun AlbumScreen(
                                             modifier = Modifier
                                                 .border(3.dp, downloadButtonBorderColor.value, RoundedCornerShape(8.dp))
                                                 .focusable()
-                                                .onFocusChanged { isDownloadButtonFocused.value = it.isFocused }
+                                                .onFocusChanged { downloadButtonFocused.value = it.isFocused }
                                         ) {
                                             IconButton(
                                                 onClick = {
@@ -418,11 +434,16 @@ fun AlbumScreen(
                                     }
                                 }
 
+                                val headerMenuButtonFocused = remember { mutableStateOf(false) }
+                                val headerMenuButtonBorderColor = animateColorAsState(
+                                    targetValue = if (headerMenuButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    label = "header_menu_button_focus_border"
+                                )
                                 Box(
                                     modifier = Modifier
                                         .border(3.dp, headerMenuButtonBorderColor.value, RoundedCornerShape(8.dp))
                                         .focusable()
-                                        .onFocusChanged { isHeaderMenuButtonFocused.value = it.isFocused }
+                                        .onFocusChanged { headerMenuButtonFocused.value = it.isFocused }
                                 ) {
                                     IconButton(
                                         onClick = {
