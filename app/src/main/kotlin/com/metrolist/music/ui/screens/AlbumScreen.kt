@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,6 +38,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -50,6 +53,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.border
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -150,6 +159,57 @@ fun AlbumScreen(
         mutableStateOf(Download.STATE_STOPPED)
     }
 
+    // Focus state for TopAppBar buttons
+    val isBackButtonFocused = remember { mutableStateOf(false) }
+    val isSelectAllButtonFocused = remember { mutableStateOf(false) }
+    val isMoreButtonFocused = remember { mutableStateOf(false) }
+
+    // Focus state for header buttons
+    val isHeartButtonFocused = remember { mutableStateOf(false) }
+    val isDownloadButtonFocused = remember { mutableStateOf(false) }
+    val isHeaderMenuButtonFocused = remember { mutableStateOf(false) }
+    val isArtistLinkFocused = remember { mutableStateOf(false) }
+
+    // Focus state for track items
+    val trackFocusStates = remember { mutableMapOf<String, Boolean>() }
+
+    // Focus requesters to skip player
+    val backButtonFocusRequester = remember { FocusRequester() }
+    val firstHeaderItemFocusRequester = remember { FocusRequester() }
+
+    val backButtonBorderColor = animateColorAsState(
+        targetValue = if (isBackButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "back_button_focus_border"
+    )
+    val selectAllButtonBorderColor = animateColorAsState(
+        targetValue = if (isSelectAllButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "select_all_button_focus_border"
+    )
+    val moreButtonBorderColor = animateColorAsState(
+        targetValue = if (isMoreButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "more_button_focus_border"
+    )
+    val heartButtonBorderColor = animateColorAsState(
+        targetValue = if (isHeartButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "heart_button_focus_border"
+    )
+    val downloadButtonBorderColor = animateColorAsState(
+        targetValue = if (isDownloadButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "download_button_focus_border"
+    )
+    val headerMenuButtonBorderColor = animateColorAsState(
+        targetValue = if (isHeaderMenuButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "header_menu_button_focus_border"
+    )
+    val artistLinkBorderColor = animateColorAsState(
+        targetValue = if (isArtistLinkFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "artist_link_focus_border"
+    )
+
+    LaunchedEffect(Unit) {
+        firstHeaderItemFocusRequester.requestFocus()
+    }
+
     LaunchedEffect(albumWithSongs) {
         val songs = albumWithSongs?.songs?.map { it.id }
         if (songs.isNullOrEmpty()) return@LaunchedEffect
@@ -204,26 +264,35 @@ fun AlbumScreen(
                                 fontSizeRange = FontSizeRange(16.sp, 22.sp),
                             )
 
-                            Text(buildAnnotatedString {
-                                withStyle(
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Normal,
-                                        color = MaterialTheme.colorScheme.onBackground
-                                    ).toSpanStyle()
-                                ) {
-                                    albumWithSongs.artists.fastForEachIndexed { index, artist ->
-                                        val link = LinkAnnotation.Clickable(artist.id) {
-                                            navController.navigate("artist/${artist.id}")
-                                        }
-                                        withLink(link) {
-                                            append(artist.name)
-                                        }
-                                        if (index != albumWithSongs.artists.lastIndex) {
-                                            append(", ")
+                            Box(
+                                modifier = Modifier
+                                    .focusRequester(firstHeaderItemFocusRequester)
+                                    .border(3.dp, artistLinkBorderColor.value, RoundedCornerShape(8.dp))
+                                    .focusable()
+                                    .onFocusChanged { isArtistLinkFocused.value = it.isFocused }
+                                    .padding(4.dp)
+                            ) {
+                                Text(buildAnnotatedString {
+                                    withStyle(
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Normal,
+                                            color = MaterialTheme.colorScheme.onBackground
+                                        ).toSpanStyle()
+                                    ) {
+                                        albumWithSongs.artists.fastForEachIndexed { index, artist ->
+                                            val link = LinkAnnotation.Clickable(artist.id) {
+                                                navController.navigate("artist/${artist.id}")
+                                            }
+                                            withLink(link) {
+                                                append(artist.name)
+                                            }
+                                            if (index != albumWithSongs.artists.lastIndex) {
+                                                append(", ")
+                                            }
                                         }
                                     }
-                                }
-                            })
+                                })
+                            }
 
                             if (albumWithSongs.album.year != null) {
                                 Text(
@@ -234,111 +303,146 @@ fun AlbumScreen(
                             }
 
                             Row {
-                                IconButton(
-                                    onClick = {
-                                        database.query {
-                                            update(albumWithSongs.album.toggleLike())
-                                        }
-                                    },
+                                Box(
+                                    modifier = Modifier
+                                        .border(3.dp, heartButtonBorderColor.value, RoundedCornerShape(8.dp))
+                                        .focusable()
+                                        .onFocusChanged { isHeartButtonFocused.value = it.isFocused }
                                 ) {
-                                    Icon(
-                                        painter =
-                                        painterResource(
+                                    IconButton(
+                                        onClick = {
+                                            database.query {
+                                                update(albumWithSongs.album.toggleLike())
+                                            }
+                                        },
+                                    ) {
+                                        Icon(
+                                            painter =
+                                            painterResource(
+                                                if (albumWithSongs.album.bookmarkedAt !=
+                                                    null
+                                                ) {
+                                                    R.drawable.favorite
+                                                } else {
+                                                    R.drawable.favorite_border
+                                                },
+                                            ),
+                                            contentDescription = null,
+                                            tint =
                                             if (albumWithSongs.album.bookmarkedAt !=
                                                 null
                                             ) {
-                                                R.drawable.favorite
+                                                MaterialTheme.colorScheme.error
                                             } else {
-                                                R.drawable.favorite_border
+                                                LocalContentColor.current
                                             },
-                                        ),
-                                        contentDescription = null,
-                                        tint =
-                                        if (albumWithSongs.album.bookmarkedAt !=
-                                            null
-                                        ) {
-                                            MaterialTheme.colorScheme.error
-                                        } else {
-                                            LocalContentColor.current
-                                        },
-                                    )
+                                        )
+                                    }
                                 }
 
                                 when (downloadState) {
                                     Download.STATE_COMPLETED -> {
-                                        IconButton(
-                                            onClick = {
-                                                albumWithSongs.songs.forEach { song ->
-                                                    DownloadService.sendRemoveDownload(
-                                                        context,
-                                                        ExoDownloadService::class.java,
-                                                        song.id,
-                                                        false,
-                                                    )
-                                                }
-                                            },
+                                        Box(
+                                            modifier = Modifier
+                                                .border(3.dp, downloadButtonBorderColor.value, RoundedCornerShape(8.dp))
+                                                .focusable()
+                                                .onFocusChanged { isDownloadButtonFocused.value = it.isFocused }
                                         ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.offline),
-                                                contentDescription = null,
-                                            )
+                                            IconButton(
+                                                onClick = {
+                                                    albumWithSongs.songs.forEach { song ->
+                                                        DownloadService.sendRemoveDownload(
+                                                            context,
+                                                            ExoDownloadService::class.java,
+                                                            song.id,
+                                                            false,
+                                                        )
+                                                    }
+                                                },
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.offline),
+                                                    contentDescription = null,
+                                                )
+                                            }
                                         }
                                     }
 
                                     Download.STATE_DOWNLOADING -> {
-                                        IconButton(
-                                            onClick = {
-                                                albumWithSongs.songs.forEach { song ->
-                                                    DownloadService.sendRemoveDownload(
-                                                        context,
-                                                        ExoDownloadService::class.java,
-                                                        song.id,
-                                                        false,
-                                                    )
-                                                }
-                                            },
+                                        Box(
+                                            modifier = Modifier
+                                                .border(3.dp, downloadButtonBorderColor.value, RoundedCornerShape(8.dp))
+                                                .focusable()
+                                                .onFocusChanged { isDownloadButtonFocused.value = it.isFocused }
                                         ) {
-                                            CircularProgressIndicator(
-                                                strokeWidth = 2.dp,
-                                                modifier = Modifier.size(24.dp),
-                                            )
+                                            IconButton(
+                                                onClick = {
+                                                    albumWithSongs.songs.forEach { song ->
+                                                        DownloadService.sendRemoveDownload(
+                                                            context,
+                                                            ExoDownloadService::class.java,
+                                                            song.id,
+                                                            false,
+                                                        )
+                                                    }
+                                                },
+                                            ) {
+                                                CircularProgressIndicator(
+                                                    strokeWidth = 2.dp,
+                                                    modifier = Modifier.size(24.dp),
+                                                )
+                                            }
                                         }
                                     }
 
                                     else -> {
-                                        IconButton(
-                                            onClick = {
-                                                albumWithSongs.songs.forEach { song ->
-                                                    downloadUtil.downloadToMediaStore(song)
-                                                }
-                                            },
+                                        Box(
+                                            modifier = Modifier
+                                                .border(3.dp, downloadButtonBorderColor.value, RoundedCornerShape(8.dp))
+                                                .focusable()
+                                                .onFocusChanged { isDownloadButtonFocused.value = it.isFocused }
                                         ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.download),
-                                                contentDescription = null,
-                                            )
+                                            IconButton(
+                                                onClick = {
+                                                    albumWithSongs.songs.forEach { song ->
+                                                        downloadUtil.downloadToMediaStore(song)
+                                                    }
+                                                },
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.download),
+                                                    contentDescription = null,
+                                                )
+                                            }
                                         }
                                     }
                                 }
 
-                                IconButton(
-                                    onClick = {
-                                        menuState.show {
-                                            AlbumMenu(
-                                                originalAlbum = Album(
-                                                    albumWithSongs.album,
-                                                    albumWithSongs.artists
-                                                ),
-                                                navController = navController,
-                                                onDismiss = menuState::dismiss,
-                                            )
-                                        }
-                                    }
+                                Box(
+                                    modifier = Modifier
+                                        .border(3.dp, headerMenuButtonBorderColor.value, RoundedCornerShape(8.dp))
+                                        .focusable()
+                                        .onFocusChanged { isHeaderMenuButtonFocused.value = it.isFocused }
                                 ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.more_vert),
-                                        contentDescription = null,
-                                    )
+                                    IconButton(
+                                        onClick = {
+                                            menuState.show {
+                                                AlbumMenu(
+                                                    originalAlbum = Album(
+                                                        albumWithSongs.album,
+                                                        albumWithSongs.artists
+                                                    ),
+                                                    navController = navController,
+                                                    onDismiss = menuState::dismiss,
+                                                )
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.more_vert),
+                                            contentDescription = null,
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -395,63 +499,78 @@ fun AlbumScreen(
                     items = wrappedSongs,
                     key = { _, song -> song.item.id },
                 ) { index, songWrapper ->
-                    SongListItem(
-                        song = songWrapper.item,
-                        albumIndex = index + 1,
-                        isActive = songWrapper.item.id == mediaMetadata?.id,
-                        isPlaying = isPlaying,
-                        showInLibraryIcon = true,
+                    val trackId = songWrapper.item.id
+                    val isTrackFocused = trackFocusStates[trackId] ?: false
+                    val trackBorderColor = animateColorAsState(
+                        targetValue = if (isTrackFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        label = "track_${trackId}_focus_border"
+                    )
 
-                        trailingContent = {
-                            IconButton(
-                                onClick = {
-                                    menuState.show {
-                                        SongMenu(
-                                            originalSong = songWrapper.item,
-                                            navController = navController,
-                                            onDismiss = menuState::dismiss,
-                                        )
-                                    }
-                                },
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.more_vert),
-                                    contentDescription = null,
-                                )
-                            }
-                        },
-                        isSelected = songWrapper.isSelected && selection,
-                        modifier =
-                        Modifier
+                    Box(
+                        modifier = Modifier
                             .fillMaxWidth()
                             .animateItem()
-                            .combinedClickable(
-                                onClick = {
-                                    if (!selection) {
-                                        if (songWrapper.item.id == mediaMetadata?.id) {
-                                            playerConnection.player.togglePlayPause()
-                                        } else {
-                                            playerConnection.service.getAutomix(playlistId)
-                                            playerConnection.playQueue(
-                                                LocalAlbumRadio(albumWithSongs, startIndex = index, database = database),
+                            .border(3.dp, trackBorderColor.value, RoundedCornerShape(8.dp))
+                            .focusable()
+                            .onFocusChanged { trackFocusStates[trackId] = it.isFocused }
+                    ) {
+                        SongListItem(
+                            song = songWrapper.item,
+                            albumIndex = index + 1,
+                            isActive = songWrapper.item.id == mediaMetadata?.id,
+                            isPlaying = isPlaying,
+                            showInLibraryIcon = true,
+
+                            trailingContent = {
+                                IconButton(
+                                    onClick = {
+                                        menuState.show {
+                                            SongMenu(
+                                                originalSong = songWrapper.item,
+                                                navController = navController,
+                                                onDismiss = menuState::dismiss,
                                             )
                                         }
-                                    } else {
-                                        songWrapper.isSelected = !songWrapper.isSelected
-                                    }
-                                },
-                                onLongClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    if (!selection) {
-                                        selection = true
-                                    }
-                                    wrappedSongs.forEach {
-                                        it.isSelected = false
-                                    } // Clear previous selections
-                                    songWrapper.isSelected = true // Select the current item
-                                },
-                            ),
-                    )
+                                    },
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.more_vert),
+                                        contentDescription = null,
+                                    )
+                                }
+                            },
+                            isSelected = songWrapper.isSelected && selection,
+                            modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .combinedClickable(
+                                    onClick = {
+                                        if (!selection) {
+                                            if (songWrapper.item.id == mediaMetadata?.id) {
+                                                playerConnection.player.togglePlayPause()
+                                            } else {
+                                                playerConnection.service.getAutomix(playlistId)
+                                                playerConnection.playQueue(
+                                                    LocalAlbumRadio(albumWithSongs, startIndex = index, database = database),
+                                                )
+                                            }
+                                        } else {
+                                            songWrapper.isSelected = !songWrapper.isSelected
+                                        }
+                                    },
+                                    onLongClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        if (!selection) {
+                                            selection = true
+                                        }
+                                        wrappedSongs.forEach {
+                                            it.isSelected = false
+                                        } // Clear previous selections
+                                        songWrapper.isSelected = true // Select the current item
+                                    },
+                                ),
+                        )
+                    }
                 }
             }
         } else {
@@ -517,64 +636,87 @@ fun AlbumScreen(
             }
         },
         navigationIcon = {
-            IconButton(
-                onClick = {
-                    if (selection) {
-                        selection = false
-                    } else {
-                        navController.navigateUp()
-                    }
-                },
-                onLongClick = {
-                    if (!selection) {
-                        navController.backToMain()
-                    }
-                }
+            Box(
+                modifier = Modifier
+                    .focusRequester(backButtonFocusRequester)
+                    .border(3.dp, backButtonBorderColor.value, RoundedCornerShape(8.dp))
+                    .focusable()
+                    .onFocusChanged { isBackButtonFocused.value = it.isFocused }
+                    .focusProperties { down = firstHeaderItemFocusRequester }
             ) {
-                Icon(
-                    painter = painterResource(
-                        if (selection) R.drawable.close else R.drawable.arrow_back
-                    ),
-                    contentDescription = null
-                )
+                IconButton(
+                    onClick = {
+                        if (selection) {
+                            selection = false
+                        } else {
+                            navController.navigateUp()
+                        }
+                    },
+                    onLongClick = {
+                        if (!selection) {
+                            navController.backToMain()
+                        }
+                    }
+                ) {
+                    Icon(
+                        painter = painterResource(
+                            if (selection) R.drawable.close else R.drawable.arrow_back
+                        ),
+                        contentDescription = null
+                    )
+                }
             }
         },
         actions = {
             if (selection) {
                 val count = wrappedSongs?.count { it.isSelected } ?: 0
-                IconButton(
-                    onClick = {
-                        if (count == wrappedSongs?.size) {
-                            wrappedSongs.forEach { it.isSelected = false }
-                        } else {
-                            wrappedSongs?.forEach { it.isSelected = true }
-                        }
-                    },
+                Box(
+                    modifier = Modifier
+                        .border(3.dp, selectAllButtonBorderColor.value, RoundedCornerShape(8.dp))
+                        .focusable()
+                        .onFocusChanged { isSelectAllButtonFocused.value = it.isFocused }
                 ) {
-                    Icon(
-                        painter = painterResource(
-                            if (count == wrappedSongs?.size) R.drawable.deselect else R.drawable.select_all
-                        ),
-                        contentDescription = null
-                    )
+                    IconButton(
+                        onClick = {
+                            if (count == wrappedSongs?.size) {
+                                wrappedSongs.forEach { it.isSelected = false }
+                            } else {
+                                wrappedSongs?.forEach { it.isSelected = true }
+                            }
+                        },
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                if (count == wrappedSongs?.size) R.drawable.deselect else R.drawable.select_all
+                            ),
+                            contentDescription = null
+                        )
+                    }
                 }
 
-                IconButton(
-                    onClick = {
-                        menuState.show {
-                            SelectionSongMenu(
-                                songSelection = wrappedSongs?.filter { it.isSelected }!!
-                                    .map { it.item },
-                                onDismiss = menuState::dismiss,
-                                clearAction = { selection = false }
-                            )
-                        }
-                    },
+                Box(
+                    modifier = Modifier
+                        .border(3.dp, moreButtonBorderColor.value, RoundedCornerShape(8.dp))
+                        .focusable()
+                        .onFocusChanged { isMoreButtonFocused.value = it.isFocused }
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.more_vert),
-                        contentDescription = null
-                    )
+                    IconButton(
+                        onClick = {
+                            menuState.show {
+                                SelectionSongMenu(
+                                    songSelection = wrappedSongs?.filter { it.isSelected }!!
+                                        .map { it.item },
+                                    onDismiss = menuState::dismiss,
+                                    clearAction = { selection = false }
+                                )
+                            }
+                        },
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.more_vert),
+                            contentDescription = null
+                        )
+                    }
                 }
             }
         }
