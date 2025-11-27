@@ -8,6 +8,7 @@ import android.content.res.Configuration
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -17,7 +18,9 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -52,6 +55,7 @@ import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -67,6 +71,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -530,41 +535,56 @@ fun BottomSheetPlayer(
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
-                    AnimatedContent(
-                        targetState = mediaMetadata.title,
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        label = "",
-                    ) { title ->
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = TextBackgroundColor,
-                            modifier =
-                            Modifier
-                                .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
-                                .combinedClickable(
-                                    enabled = true,
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    onClick = {
-                                        if (mediaMetadata.album != null) {
-                                            navController.navigate("album/${mediaMetadata.album.id}")
-                                            state.collapseSoft()
+                    val titleFocused = remember { mutableStateOf(false) }
+                    val titleBorderColor = animateColorAsState(
+                        targetValue = if (titleFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        label = "title_focus"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(2.dp, titleBorderColor.value, RoundedCornerShape(4.dp))
+                            .padding(4.dp)
+                            .focusable()
+                            .onFocusChanged { titleFocused.value = it.isFocused }
+                    ) {
+                        AnimatedContent(
+                            targetState = mediaMetadata.title,
+                            transitionSpec = { fadeIn() togetherWith fadeOut() },
+                            label = "",
+                        ) { title ->
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = TextBackgroundColor,
+                                modifier =
+                                Modifier
+                                    .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
+                                    .combinedClickable(
+                                        enabled = true,
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        onClick = {
+                                            if (mediaMetadata.album != null) {
+                                                navController.navigate("album/${mediaMetadata.album.id}")
+                                                state.collapseSoft()
+                                            }
+                                        },
+                                        onLongClick = {
+                                            val clip = ClipData.newPlainText("Copied Title", title)
+                                            clipboardManager.setPrimaryClip(clip)
+                                            Toast
+                                                .makeText(context, "Copied Title", Toast.LENGTH_SHORT)
+                                                .show()
                                         }
-                                    },
-                                    onLongClick = {
-                                        val clip = ClipData.newPlainText("Copied Title", title)
-                                        clipboardManager.setPrimaryClip(clip)
-                                        Toast
-                                            .makeText(context, "Copied Title", Toast.LENGTH_SHORT)
-                                            .show()
-                                    }
-                                )
-                            ,
-                        )
+                                    )
+                                ,
+                            )
+                        }
                     }
 
                     Spacer(Modifier.height(6.dp))
@@ -582,11 +602,20 @@ fun BottomSheetPlayer(
                             }
                         }
 
+                        val artistFocused = remember { mutableStateOf(false) }
+                        val artistBorderColor = animateColorAsState(
+                            targetValue = if (artistFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            label = "artist_focus"
+                        )
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .border(2.dp, artistBorderColor.value, RoundedCornerShape(4.dp))
+                                .padding(4.dp)
                                 .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
-                                .padding(end = 12.dp)
+                                .focusable()
+                                .onFocusChanged { artistFocused.value = it.isFocused }
                         ) {
                             var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
                             var clickOffset by remember { mutableStateOf<Offset?>(null) }
@@ -660,6 +689,17 @@ fun BottomSheetPlayer(
                         topEnd = 50.dp, bottomEnd = 50.dp
                     )
 
+                    val shareFocused = remember { mutableStateOf(false) }
+                    val shareBorderColor = animateColorAsState(
+                        targetValue = if (shareFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        label = "share_focus"
+                    )
+                    val favFocused = remember { mutableStateOf(false) }
+                    val favBorderColor = animateColorAsState(
+                        targetValue = if (favFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        label = "fav_focus"
+                    )
+
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -669,6 +709,9 @@ fun BottomSheetPlayer(
                                 .size(42.dp)
                                 .clip(shareShape)
                                 .background(textButtonColor)
+                                .border(3.dp, shareBorderColor.value, shareShape)
+                                .focusable()
+                                .onFocusChanged { shareFocused.value = it.isFocused }
                                 .clickable {
                                     val intent = Intent().apply {
                                         action = Intent.ACTION_SEND
@@ -696,6 +739,9 @@ fun BottomSheetPlayer(
                                 .size(42.dp)
                                 .clip(favShape)
                                 .background(textButtonColor)
+                                .border(3.dp, favBorderColor.value, favShape)
+                                .focusable()
+                                .onFocusChanged { favFocused.value = it.isFocused }
                                 .clickable {
                                     playerConnection.toggleLike()
                                 }
@@ -715,12 +761,25 @@ fun BottomSheetPlayer(
                         }
                     }
                 } else {
+                    val oldShareFocused = remember { mutableStateOf(false) }
+                    val oldShareBorderColor = animateColorAsState(
+                        targetValue = if (oldShareFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        label = "old_share_focus"
+                    )
+                    val oldMenuFocused = remember { mutableStateOf(false) }
+                    val oldMenuBorderColor = animateColorAsState(
+                        targetValue = if (oldMenuFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        label = "old_menu_focus"
+                    )
                     Box(
                         modifier =
                         Modifier
                             .size(40.dp)
                             .clip(RoundedCornerShape(24.dp))
                             .background(textButtonColor)
+                            .border(3.dp, oldShareBorderColor.value, RoundedCornerShape(24.dp))
+                            .focusable()
+                            .onFocusChanged { oldShareFocused.value = it.isFocused }
                             .clickable {
                                 val intent =
                                     Intent().apply {
@@ -754,6 +813,9 @@ fun BottomSheetPlayer(
                             .size(40.dp)
                             .clip(RoundedCornerShape(24.dp))
                             .background(textButtonColor)
+                            .border(3.dp, oldMenuBorderColor.value, RoundedCornerShape(24.dp))
+                            .focusable()
+                            .onFocusChanged { oldMenuFocused.value = it.isFocused }
                             .clickable {
                                 menuState.show {
                                     PlayerMenu(
@@ -898,6 +960,11 @@ fun BottomSheetPlayer(
                         modifier = Modifier.fillMaxWidth()
                     ) {
 
+                        val skipPrevFocused = remember { mutableStateOf(false) }
+                        val skipPrevBorderColor = animateColorAsState(
+                            targetValue = if (skipPrevFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            label = "skip_prev_focus"
+                        )
                         FilledTonalIconButton(
                             onClick = playerConnection::seekToPrevious,
                             enabled = canSkipPrevious,
@@ -908,6 +975,9 @@ fun BottomSheetPlayer(
                             modifier = Modifier
                                 .size(width = sideButtonWidth, height = sideButtonHeight)
                                 .clip(RoundedCornerShape(32.dp))
+                                .border(3.dp, skipPrevBorderColor.value, RoundedCornerShape(32.dp))
+                                .focusable()
+                                .onFocusChanged { skipPrevFocused.value = it.isFocused }
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.skip_previous),
@@ -918,6 +988,11 @@ fun BottomSheetPlayer(
 
                         Spacer(modifier = Modifier.width(16.dp))
 
+                        val playButtonFocused = remember { mutableStateOf(false) }
+                        val playButtonBorderColor = animateColorAsState(
+                            targetValue = if (playButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            label = "play_button_focus"
+                        )
                         FilledIconButton(
                             onClick = {
                                 if (playbackState == STATE_ENDED) {
@@ -934,6 +1009,9 @@ fun BottomSheetPlayer(
                             modifier = Modifier
                                 .size(width = playButtonWidth, height = playButtonHeight)
                                 .clip(RoundedCornerShape(32.dp))
+                                .border(3.dp, playButtonBorderColor.value, RoundedCornerShape(32.dp))
+                                .focusable()
+                                .onFocusChanged { playButtonFocused.value = it.isFocused }
                         ) {
                             Icon(
                                 painter = painterResource(
@@ -950,6 +1028,11 @@ fun BottomSheetPlayer(
 
                         Spacer(modifier = Modifier.width(16.dp))
 
+                        val skipNextFocused = remember { mutableStateOf(false) }
+                        val skipNextBorderColor = animateColorAsState(
+                            targetValue = if (skipNextFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            label = "skip_next_focus"
+                        )
                         FilledTonalIconButton(
                             onClick = playerConnection::seekToNext,
                             enabled = canSkipNext,
@@ -960,6 +1043,9 @@ fun BottomSheetPlayer(
                             modifier = Modifier
                                 .size(width = sideButtonWidth, height = sideButtonHeight)
                                 .clip(RoundedCornerShape(32.dp))
+                                .border(3.dp, skipNextBorderColor.value, RoundedCornerShape(32.dp))
+                                .focusable()
+                                .onFocusChanged { skipNextFocused.value = it.isFocused }
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.skip_next),
@@ -1011,12 +1097,20 @@ fun BottomSheetPlayer(
 
                     Spacer(Modifier.width(8.dp))
 
+                    val landscapePlayFocused = remember { mutableStateOf(false) }
+                    val landscapePlayBorderColor = animateColorAsState(
+                        targetValue = if (landscapePlayFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        label = "landscape_play_focus"
+                    )
                     Box(
                         modifier =
                         Modifier
                             .size(72.dp)
                             .clip(RoundedCornerShape(playPauseRoundness))
                             .background(textButtonColor)
+                            .border(3.dp, landscapePlayBorderColor.value, RoundedCornerShape(playPauseRoundness))
+                            .focusable()
+                            .onFocusChanged { landscapePlayFocused.value = it.isFocused }
                             .clickable {
                                 if (playbackState == STATE_ENDED) {
                                     playerConnection.player.seekTo(0, 0)
@@ -1189,5 +1283,23 @@ fun BottomSheetPlayer(
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun BottomSheetPlayerPreview() {
+    val state = rememberBottomSheetState(
+        dismissedBound = 80.dp,
+        expandedBound = 500.dp,
+        collapsedBound = 80.dp + 1.dp,
+        initialAnchor = 1
+    )
+    Box(modifier = Modifier.fillMaxSize()) {
+        BottomSheetPlayer(
+            state = state,
+            navController = androidx.navigation.compose.rememberNavController(),
+            pureBlack = false
+        )
     }
 }
