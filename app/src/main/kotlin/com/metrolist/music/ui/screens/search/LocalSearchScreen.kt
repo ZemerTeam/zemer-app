@@ -75,7 +75,11 @@ fun LocalSearchScreen(
     val firstItemKey = remember(result) {
         result.map.values.firstOrNull { it.isNotEmpty() }?.firstOrNull()?.id?.toString()
     }
-    // Don't auto-request focus - let user navigate with D-pad down when they want
+    // Request focus on search bar when page becomes visible
+    // This ensures the D-pad Down navigation works from the search bar
+    LaunchedEffect(Unit) {
+        searchFocusRequester?.requestFocus()
+    }
 
     LaunchedEffect(Unit) {
         snapshotFlow { lazyListState.firstVisibleItemScrollOffset }

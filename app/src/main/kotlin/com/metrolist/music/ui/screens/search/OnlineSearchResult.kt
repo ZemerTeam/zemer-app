@@ -94,6 +94,11 @@ fun OnlineSearchResult(
     val chipsFocusRequester = remember { FocusRequester() }
     val firstResultFocusRequester = remember { FocusRequester() }
 
+    // Initialize first result with focus when available
+    LaunchedEffect(Unit) {
+        firstResultFocusRequester.requestFocus()
+    }
+
     val searchFilter by viewModel.filter.collectAsState()
     val searchSummary = viewModel.summaryPage
     val itemsPage by remember(searchFilter) {

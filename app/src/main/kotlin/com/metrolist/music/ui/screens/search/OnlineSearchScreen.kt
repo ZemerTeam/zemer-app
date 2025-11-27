@@ -2,7 +2,9 @@ package com.metrolist.music.ui.screens.search
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -353,11 +355,20 @@ fun SuggestionItem(
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
         targetValue = when {
-            isFocused -> MaterialTheme.colorScheme.surfaceVariant
+            isFocused -> MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
             else -> if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface
         },
         label = "suggestion_focus_bg"
     )
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "suggestion_focus_border"
+    )
+    val iconAlpha by animateFloatAsState(
+        targetValue = if (isFocused) 1f else 0.5f,
+        label = "suggestion_icon_alpha"
+    )
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
@@ -374,6 +385,7 @@ fun SuggestionItem(
                 }
             }
             .background(backgroundColor)
+            .border(width = 2.dp, color = borderColor)
             .clickable(onClick = onClick)
             .padding(end = SearchBarIconOffsetX)
             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
@@ -381,7 +393,7 @@ fun SuggestionItem(
         Icon(
             painterResource(if (online) R.drawable.search else R.drawable.history),
             contentDescription = null,
-            modifier = Modifier.padding(horizontal = 16.dp).alpha(0.5f)
+            modifier = Modifier.padding(horizontal = 16.dp).alpha(iconAlpha)
         )
 
         Text(
@@ -394,7 +406,7 @@ fun SuggestionItem(
         if (!online) {
             IconButton(
                 onClick = onDelete,
-                modifier = Modifier.alpha(0.5f),
+                modifier = Modifier.alpha(iconAlpha),
             ) {
                 Icon(
                     painter = painterResource(R.drawable.close),
@@ -405,7 +417,7 @@ fun SuggestionItem(
 
         IconButton(
             onClick = onFillTextField,
-            modifier = Modifier.alpha(0.5f),
+            modifier = Modifier.alpha(iconAlpha),
         ) {
             Icon(
                 painter = painterResource(R.drawable.arrow_top_left),
