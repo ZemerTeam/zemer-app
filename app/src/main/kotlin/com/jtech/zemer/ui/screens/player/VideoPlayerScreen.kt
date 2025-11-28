@@ -106,6 +106,13 @@ fun VideoPlayerScreen(
             android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
+
+    // Pause any currently playing music when video player is shown
+    val playerConnection = LocalPlayerConnection.current
+    LaunchedEffect(Unit) {
+        playerConnection.pause()
+    }
+
     val maxVideoBitrateKbps = remember(connectivityManager) {
         if (connectivityManager?.isActiveNetworkMetered == true) 1500 else 6000
     }
