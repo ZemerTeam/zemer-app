@@ -273,7 +273,9 @@
 
     <string name="content">Content</string>
     <string name="action_logout">Log out</string>
+    <string name="sign_out_description">Sign out of your account</string>
     <string name="action_login">Log in</string>
+    <string name="contribute_skip">Skip</string>
     <string name="login">Login</string>
     <string name="not_logged_in">Not logged in</string>
     <string name="login_failed">Login failed</string>
@@ -372,6 +374,7 @@
     <string name="contribute_banned">Your account is banned from contributions.</string>
     <string name="contribute_no_tasks">All artists are verified. Thank you!</string>
     <string name="contribute_progress">Verified %1$d / %2$d</string>
+    <string name="contribute_refresh">Refresh task</string>
     <string name="contribute_artist_prompt">Help verify this artist</string>
     <string name="contribute_is_female">Is this artist female?</string>
     <string name="contribute_is_chasid">Is this artist chasidish?</string>

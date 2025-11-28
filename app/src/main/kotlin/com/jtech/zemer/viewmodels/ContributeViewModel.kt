@@ -16,11 +16,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import javax.inject.Inject
+import kotlin.random.Random
 
 data class ContributeArtist(
     val docId: String,
     val artistId: String,
     val artistName: String,
+    val imageUrl: String?,
     val isFemale: Boolean,
     val isChasid: Boolean,
     val isGenZ: Boolean
@@ -222,13 +224,15 @@ class ContributeViewModel @Inject constructor() : ViewModel() {
         try {
             _uiState.update { it.copy(isLoading = true, currentArtist = null, error = null) }
             val baseQuery = firestore.collection("artistsWhitelist")
-            val snapshot = baseQuery.whereEqualTo("isVerified", false).limit(1).get().await()
+            val unverifiedSnapshot = baseQuery.whereEqualTo("isVerified", false).limit(50).get().await()
+            val random = Random(System.currentTimeMillis())
+            val shuffledUnverified = unverifiedSnapshot.documents.shuffled(random)
 
-            var doc = snapshot.documents.firstOrNull()
+            var doc = shuffledUnverified.firstOrNull()
             if (doc == null) {
                 // Fallback: pick any doc that is not explicitly verified
                 val anySnapshot = baseQuery.limit(50).get().await()
-                doc = anySnapshot.documents.firstOrNull { snap ->
+                doc = anySnapshot.documents.shuffled(random).firstOrNull { snap ->
                     snap.getBoolean("isVerified") != true
                 }
             }
@@ -242,6 +246,7 @@ class ContributeViewModel @Inject constructor() : ViewModel() {
                 docId = doc.id,
                 artistId = (fields["id"] ?: fields["artistId"] ?: doc.id).toString(),
                 artistName = (fields["name"] ?: fields["artistName"] ?: "Unknown") as String,
+                imageUrl = (fields["thumbnail"] ?: fields["image"] ?: fields["imageUrl"])?.toString(),
                 isFemale = (fields["isFemale"] as? Boolean) ?: false,
                 isChasid = (fields["isChasid"] as? Boolean) ?: false,
                 isGenZ = (fields["isGenZ"] as? Boolean) ?: false

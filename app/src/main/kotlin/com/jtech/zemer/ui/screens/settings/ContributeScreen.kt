@@ -6,19 +6,29 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.GetCredentialResponse
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -57,6 +67,7 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.viewmodels.ContributeViewModel
 import com.jtech.zemer.viewmodels.ContributeUiState
+import com.jtech.zemer.viewmodels.ContributeArtist
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,6 +80,7 @@ fun ContributeScreen(
     val context = LocalContext.current
     val credentialManager = remember { CredentialManager.create(context) }
     val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
 
     fun launchGoogleSignIn() {
         scope.launch {
@@ -127,7 +139,8 @@ fun ContributeScreen(
                         .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
                         .asPaddingValues()
                 )
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             when {
@@ -169,8 +182,7 @@ fun ContributeScreen(
 
                 uiState.requireProfile -> ProfilePrompt(
                     uiState,
-                    onSave = { name, phone -> viewModel.saveProfile(name, phone) },
-                    onSignOut = { viewModel.signOut() }
+                    onSave = { name, phone -> viewModel.saveProfile(name, phone) }
                 )
 
                 else -> {
@@ -204,9 +216,11 @@ fun ContributeScreen(
                     uiState.currentArtist?.let { artist ->
                         ArtistTaskCard(
                             artist = artist,
+                            onOpenArtist = { navController.navigate("artist/${'$'}{artist.artistId}") },
                             onSubmit = { isFemale, isChasid, isGenZ ->
                                 viewModel.submitContribution(isFemale, isChasid, isGenZ)
-                            }
+                            },
+                            onSkip = { viewModel.refreshTask() }
                         )
                     } ?: Text(
                         text = stringResource(R.string.contribute_no_tasks),
@@ -214,10 +228,10 @@ fun ContributeScreen(
                     )
 
                     OutlinedButton(
-                        onClick = { viewModel.signOut() },
+                        onClick = { viewModel.refreshTask() },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(R.string.contribute_sign_out))
+                        Text(stringResource(R.string.contribute_refresh))
                     }
                 }
             }
@@ -238,8 +252,7 @@ private fun ProgressRow(uiState: ContributeUiState) {
 @Composable
 private fun ProfilePrompt(
     uiState: ContributeUiState,
-    onSave: (String, String) -> Unit,
-    onSignOut: () -> Unit
+    onSave: (String, String) -> Unit
 ) {
     var name by rememberSaveable { mutableStateOf(uiState.nameInput) }
     var phone by rememberSaveable { mutableStateOf(uiState.phoneInput) }
@@ -270,19 +283,15 @@ private fun ProfilePrompt(
         ) {
             Text(stringResource(R.string.contribute_save_profile))
         }
-        OutlinedButton(
-            onClick = onSignOut,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.contribute_sign_out))
-        }
     }
 }
 
 @Composable
 private fun ArtistTaskCard(
-    artist: com.jtech.zemer.viewmodels.ContributeArtist,
-    onSubmit: (Boolean, Boolean, Boolean) -> Unit
+    artist: ContributeArtist,
+    onOpenArtist: (String) -> Unit,
+    onSubmit: (Boolean, Boolean, Boolean) -> Unit,
+    onSkip: () -> Unit
 ) {
     var isFemale by rememberSaveable(artist.docId) { mutableStateOf(artist.isFemale) }
     var isChasid by rememberSaveable(artist.docId) { mutableStateOf(artist.isChasid) }
@@ -298,15 +307,39 @@ private fun ArtistTaskCard(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = artist.artistName,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-        )
-        Text(
-            text = stringResource(R.string.contribute_artist_prompt),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onOpenArtist(artist.artistId) },
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(artist.imageUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = artist.artistName,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                            shape = MaterialTheme.shapes.small
+                        )
+                        .clip(MaterialTheme.shapes.small),
+                    contentScale = ContentScale.Crop
+                )
+                Text(
+                    text = artist.artistName,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+            Text(
+                text = stringResource(R.string.contribute_artist_prompt),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         ToggleRow(
             title = stringResource(R.string.contribute_is_chasid),
             checked = isChasid,
@@ -327,6 +360,12 @@ private fun ArtistTaskCard(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.contribute_submit))
+        }
+        OutlinedButton(
+            onClick = onSkip,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.contribute_skip))
         }
     }
 }

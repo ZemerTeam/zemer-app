@@ -293,6 +293,9 @@
     <string name="i_am_chasidish">אני חסידי</string>
     <string name="coming_soon">בקרוב</string>
     <string name="radio_mode">מצב רדיו</string>
+    <string name="contribute_refresh">רענון משימה</string>
+    <string name="sign_out_description">התנתק מהחשבון</string>
+    <string name="contribute_skip">דלג</string>
     <string name="onboarding_welcome_title">ברוכים הבאים ל-Zemer</string>
     <string name="onboarding_welcome_subtitle">מרכז המוזיקה שלך. הערה קצרה לפני שמתחילים.</string>
     <string name="onboarding_safe_line">המוזיקה שלך, הבחירה שלך</string>

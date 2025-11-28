@@ -37,6 +37,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.navigation.NavController
+import com.google.firebase.auth.FirebaseAuth
 import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
@@ -137,6 +138,14 @@ fun SettingsScreen(
             icon = R.drawable.info,
             section = "System & About",
             route = "settings/about"
+        ),
+        SettingItem(
+            id = "logout",
+            title = stringResource(R.string.action_logout),
+            description = stringResource(R.string.sign_out_description),
+            icon = R.drawable.person,
+            section = "System & About",
+            route = null
         )
     )
 
@@ -179,6 +188,9 @@ fun SettingsScreen(
                             onClick = {
                                 if (setting.route != null) {
                                     navController.navigate(setting.route)
+                                } else if (setting.id == "logout") {
+                                    FirebaseAuth.getInstance().signOut()
+                                    Toast.makeText(context, R.string.action_logout, Toast.LENGTH_SHORT).show()
                                 }
                             }
                         )
