@@ -264,6 +264,7 @@ class MainActivity : ComponentActivity() {
 
     private var dpadKeyMap: Map<Int, Int> by mutableStateOf(emptyMap())
     private val hatTracker = HatInputTracker()
+    private var pendingServiceStart: Boolean = false
 
     /**
      * Request storage permissions at startup if not already granted.
@@ -292,25 +293,35 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         // NOTE: Notification permission is now handled in the onboarding flow
-        androidx.core.content.ContextCompat.startForegroundService(
-            this,
-            Intent(this, MusicService::class.java)
-        )
-        bindService(
-            Intent(this, MusicService::class.java),
-            serviceConnection,
-            Context.BIND_AUTO_CREATE
-        )
+        val serviceIntent = Intent(this, MusicService::class.java)
+        try {
+            androidx.core.content.ContextCompat.startForegroundService(this, serviceIntent)
+            bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+        } catch (e: IllegalStateException) {
+            // In case the system still thinks we're background, retry once on resume
+            timber.log.Timber.w(e, "MusicService start blocked; will retry on resume")
+            pendingServiceStart = true
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (pendingServiceStart) {
+            val serviceIntent = Intent(this, MusicService::class.java)
+            try {
+                androidx.core.content.ContextCompat.startForegroundService(this, serviceIntent)
+                bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+                pendingServiceStart = false
+            } catch (e: IllegalStateException) {
+                timber.log.Timber.e(e, "MusicService start still blocked on resume")
+            }
+        }
+        ButtonMapperBridge.register(this)
     }
 
     override fun onStop() {
         unbindService(serviceConnection)
         super.onStop()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        ButtonMapperBridge.register(this)
     }
 
     override fun onPause() {

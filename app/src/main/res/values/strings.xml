@@ -241,6 +241,10 @@
     <string name="queue_all_songs">All songs</string>
     <string name="queue_searched_songs">Searched songs</string>
 
+    <string name="whitelist_loading">Loading whitelist…</string>
+    <string name="whitelist_loading_progress">Loading whitelist %1$d / %2$d</string>
+    <string name="whitelist_load_in_background">Load in background</string>
+
     <!-- Notification name -->
     <string name="music_player">Music Player</string>
 

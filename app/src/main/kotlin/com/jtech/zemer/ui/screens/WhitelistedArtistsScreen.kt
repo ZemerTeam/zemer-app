@@ -29,11 +29,13 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -99,6 +101,16 @@ fun WhitelistedArtistsScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val syncProgress by viewModel.syncProgress.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+    var showSyncOverlay by remember { mutableStateOf(true) }
+
+    LaunchedEffect(syncProgress.total, syncProgress.isComplete) {
+        if (syncProgress.total > 0 && !syncProgress.isComplete) {
+            showSyncOverlay = true
+        }
+        if (syncProgress.isComplete) {
+            showSyncOverlay = false
+        }
+    }
 
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
@@ -334,5 +346,56 @@ fun WhitelistedArtistsScreen(
         }
 
         // Sync now happens at app startup, no blocking overlay needed
+        if (showSyncOverlay && !syncProgress.isComplete) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.9f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .padding(20.dp)
+                ) {
+                    Text(
+                        text = if (syncProgress.total > 0) {
+                            stringResource(
+                                R.string.whitelist_loading_progress,
+                                syncProgress.current,
+                                syncProgress.total
+                            )
+                        } else {
+                            stringResource(R.string.whitelist_loading)
+                        },
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    LinearProgressIndicator(
+                        progress = if (syncProgress.total > 0) {
+                            syncProgress.current.toFloat() / syncProgress.total.toFloat()
+                        } else {
+                            0f
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                    )
+                    Text(
+                        text = syncProgress.currentArtistName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = { showSyncOverlay = false }) {
+                        Text(stringResource(R.string.whitelist_load_in_background))
+                    }
+                }
+            }
+        }
     }
 }

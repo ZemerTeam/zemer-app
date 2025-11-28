@@ -296,6 +296,9 @@
     <string name="contribute_refresh">רענון משימה</string>
     <string name="sign_out_description">התנתק מהחשבון</string>
     <string name="contribute_skip">דלג</string>
+    <string name="whitelist_loading">טוען רשימת אמנים…</string>
+    <string name="whitelist_loading_progress">טוען רשימת אמנים %1$d / %2$d</string>
+    <string name="whitelist_load_in_background">טען ברקע</string>
     <string name="onboarding_welcome_title">ברוכים הבאים ל-Zemer</string>
     <string name="onboarding_welcome_subtitle">מרכז המוזיקה שלך. הערה קצרה לפני שמתחילים.</string>
     <string name="onboarding_safe_line">המוזיקה שלך, הבחירה שלך</string>

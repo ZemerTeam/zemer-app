@@ -369,8 +369,12 @@ class SyncUtils @Inject constructor(
         try {
             val remoteVersion = WhitelistFetcher.fetchVersion().getOrNull()
             val localVersion = context.dataStore.get(LastWhitelistVersionKey, 0L)
-            if (!forceSync && remoteVersion != null && remoteVersion <= localVersion) {
-                Timber.d("Whitelist sync: Skipping, remote version ($remoteVersion) <= local ($localVersion)")
+            val existingWhitelistIds = database.getAllWhitelistedArtistIdsSync()
+            val localEmpty = existingWhitelistIds.isEmpty()
+
+            // Always fetch at least once per version (including version 1). Subsequent runs skip if already synced.
+            if (!forceSync && remoteVersion != null && remoteVersion <= localVersion && !localEmpty) {
+                Timber.d("Whitelist sync: Skipping, remote version ($remoteVersion) <= local ($localVersion) and local whitelist not empty")
                 _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
                 return
             }
@@ -380,7 +384,8 @@ class SyncUtils @Inject constructor(
                 runningCount = processed
                 _whitelistSyncProgress.value = WhitelistSyncProgress(
                     current = processed,
-                    total = maxOf(processed, _whitelistSyncProgress.value.total)
+                    total = maxOf(processed, _whitelistSyncProgress.value.total),
+                    currentArtistName = _whitelistSyncProgress.value.currentArtistName
                 )
             }.getOrThrow()
             Timber.d("Whitelist sync: Fetched ${whitelistEntries.size} artists from Firestore")
