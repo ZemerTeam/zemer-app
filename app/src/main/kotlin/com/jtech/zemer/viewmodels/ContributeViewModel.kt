@@ -37,6 +37,7 @@ data class ContributeUiState(
     val phoneInput: String = "",
     val currentArtist: ContributeArtist? = null,
     val progress: Pair<Int, Int>? = null,
+    val seenArtistIds: Set<String> = emptySet(),
     val message: String? = null,
     val error: String? = null
 )
@@ -185,7 +186,8 @@ class ContributeViewModel @Inject constructor() : ViewModel() {
                 _uiState.update {
                     it.copy(
                         message = "Submitted for ${artist.artistName}",
-                        currentArtist = null
+                        currentArtist = null,
+                        seenArtistIds = it.seenArtistIds + artist.artistId
                     )
                 }
                 loadProgress()
@@ -232,12 +234,18 @@ class ContributeViewModel @Inject constructor() : ViewModel() {
             val random = Random(System.currentTimeMillis())
             val shuffledUnverified = unverifiedSnapshot.documents.shuffled(random)
 
-            var doc = shuffledUnverified.firstOrNull()
+            val alreadySeen = _uiState.value.seenArtistIds
+
+            var doc = shuffledUnverified.firstOrNull { snap ->
+                val id = (snap.getString("id") ?: snap.getString("artistId") ?: snap.id)
+                id !in alreadySeen
+            }
             if (doc == null) {
                 // Fallback: pick any doc that is not explicitly verified
                 val anySnapshot = baseQuery.limit(50).get().await()
                 doc = anySnapshot.documents.shuffled(random).firstOrNull { snap ->
-                    snap.getBoolean("isVerified") != true
+                    val id = (snap.getString("id") ?: snap.getString("artistId") ?: snap.id)
+                    snap.getBoolean("isVerified") != true && id !in alreadySeen
                 }
             }
             if (doc == null) {
@@ -261,7 +269,14 @@ class ContributeViewModel @Inject constructor() : ViewModel() {
                 isChasid = (fields["isChasid"] as? Boolean) ?: false,
                 isGenZ = (fields["isGenZ"] as? Boolean) ?: false
             )
-            _uiState.update { it.copy(isLoading = false, currentArtist = artist, message = null) }
+            _uiState.update { state ->
+                state.copy(
+                    isLoading = false,
+                    currentArtist = artist,
+                    message = null,
+                    seenArtistIds = state.seenArtistIds + artist.artistId
+                )
+            }
         } catch (e: Exception) {
             Timber.e(e, "Contribute: load task failed")
             _uiState.update { it.copy(isLoading = false, error = e.localizedMessage ?: "Failed to load task") }
