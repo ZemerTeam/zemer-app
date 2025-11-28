@@ -361,6 +361,22 @@
     <string name="i_am_chasidish">I am chasidish</string>
     <string name="coming_soon">Coming soon</string>
     <string name="radio_mode">Radio mode</string>
+    <string name="contribute">Contribute</string>
+    <string name="contribute_description">Verify artist info and help the community</string>
+    <string name="contribute_sign_in">Sign in with Google</string>
+    <string name="contribute_sign_out">Sign out</string>
+    <string name="contribute_phone">Phone number</string>
+    <string name="contribute_name">Name</string>
+    <string name="contribute_save_profile">Save profile</string>
+    <string name="contribute_require_profile">Add your name and phone to continue</string>
+    <string name="contribute_banned">Your account is banned from contributions.</string>
+    <string name="contribute_no_tasks">All artists are verified. Thank you!</string>
+    <string name="contribute_progress">Verified %1$d / %2$d</string>
+    <string name="contribute_artist_prompt">Help verify this artist</string>
+    <string name="contribute_is_female">Is this artist female?</string>
+    <string name="contribute_is_chasid">Is this artist chasidish?</string>
+    <string name="contribute_is_genz">Is this artist Gen Z?</string>
+    <string name="contribute_submit">Submit</string>
 
     <!-- D-pad Button Mapper -->
     <string name="settings_button_setup">Set up your D-pad</string>

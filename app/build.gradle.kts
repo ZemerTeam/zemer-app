@@ -6,14 +6,15 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.kotlin.ksp)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.google.gms.google.services)
 }
 
 android {
-    namespace = "com.metrolist.music"
+    namespace = "com.jtech.zemer"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.metrolist.music"
+        applicationId = "com.jtech.zemer"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -63,7 +64,6 @@ android {
             )
         }
         debug {
-            applicationIdSuffix = ".debug"
             isDebuggable = true
             signingConfig = if (System.getenv("GITHUB_EVENT_NAME") == "pull_request") {
                 signingConfigs.getByName("debug")
@@ -129,6 +129,10 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+configurations.all {
+    exclude(group = "com.google.protobuf", module = "protobuf-java")
+}
+
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     compilerOptions {
         freeCompilerArgs.addAll(
@@ -159,6 +163,7 @@ dependencies {
 
     implementation(libs.viewmodel)
     implementation(libs.viewmodel.compose)
+    implementation(libs.lifecycle.runtime.compose)
 
     implementation(libs.material3)
     implementation(libs.palette)
@@ -179,6 +184,16 @@ dependencies {
     implementation(libs.squigglyslider)
 
     implementation(libs.room.runtime)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.play.services.auth)
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services.auth)
+    implementation(libs.googleid)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.google.firebase.auth)
+    implementation(libs.google.firebase.firestore)
     ksp(libs.room.compiler)
     implementation(libs.room.ktx)
 

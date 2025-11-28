@@ -7,12 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:406005787060:android:fe7f799fd79ca769f5aae1",
+        "mobilesdk_app_id": "1:406005787060:android:779781d7b7a68200f5aae1",
         "android_client_info": {
-          "package_name": "com.metrolist.music.debug"
+          "package_name": "com.jtech.zemer"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "406005787060-9su8f9n0tm2qi428r4s358atlqmp3b6v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDINfEqp0BYnxdclKKgy9vIMalW_z9PjRI"
@@ -20,7 +25,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "406005787060-9su8f9n0tm2qi428r4s358atlqmp3b6v.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

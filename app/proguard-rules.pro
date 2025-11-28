@@ -95,11 +95,11 @@
 
 ## Queue Persistence Rules
 # Keep queue-related classes to prevent serialization issues in release builds
--keep class com.metrolist.music.models.PersistQueue { *; }
--keep class com.metrolist.music.models.PersistPlayerState { *; }
--keep class com.metrolist.music.models.QueueData { *; }
--keep class com.metrolist.music.models.QueueType { *; }
--keep class com.metrolist.music.playback.queues.** { *; }
+-keep class com.jtech.zemer.models.PersistQueue { *; }
+-keep class com.jtech.zemer.models.PersistPlayerState { *; }
+-keep class com.jtech.zemer.models.QueueData { *; }
+-keep class com.jtech.zemer.models.QueueType { *; }
+-keep class com.jtech.zemer.playback.queues.** { *; }
 
 # Keep serialization methods for queue persistence
 -keepclassmembers class * implements java.io.Serializable {
@@ -114,31 +114,31 @@
 
 ## Home Screen - Quick Picks & Keep Listening
 # Keep all database entities completely (Room needs them for deserialization)
--keep class com.metrolist.music.db.entities.** { *; }
+-keep class com.jtech.zemer.db.entities.** { *; }
 
 # Keep LocalItem and all subclasses for home screen keep listening section
--keep class com.metrolist.music.db.entities.LocalItem { *; }
--keep class com.metrolist.music.db.entities.LocalItem$* { *; }
+-keep class com.jtech.zemer.db.entities.LocalItem { *; }
+-keep class com.jtech.zemer.db.entities.LocalItem$* { *; }
 
 # Keep all relation and embedded classes
--keep class com.metrolist.music.db.entities.Song { *; }
--keep class com.metrolist.music.db.entities.Album { *; }
--keep class com.metrolist.music.db.entities.Artist { *; }
--keep class com.metrolist.music.db.entities.Playlist { *; }
+-keep class com.jtech.zemer.db.entities.Song { *; }
+-keep class com.jtech.zemer.db.entities.Album { *; }
+-keep class com.jtech.zemer.db.entities.Artist { *; }
+-keep class com.jtech.zemer.db.entities.Playlist { *; }
 
 # Keep data models needed for keep listening
--keep class com.metrolist.music.db.entities.SongEntity { *; }
--keep class com.metrolist.music.db.entities.AlbumEntity { *; }
--keep class com.metrolist.music.db.entities.ArtistEntity { *; }
--keep class com.metrolist.music.db.entities.PlaylistEntity { *; }
+-keep class com.jtech.zemer.db.entities.SongEntity { *; }
+-keep class com.jtech.zemer.db.entities.AlbumEntity { *; }
+-keep class com.jtech.zemer.db.entities.ArtistEntity { *; }
+-keep class com.jtech.zemer.db.entities.PlaylistEntity { *; }
 
 # Keep HomeViewModel to prevent stripping of observable state flows
--keep class com.metrolist.music.viewmodels.HomeViewModel { *; }
+-keep class com.jtech.zemer.viewmodels.HomeViewModel { *; }
 
 # Keep SyncUtils and WhitelistFetcher for whitelist functionality
--keep class com.metrolist.music.utils.SyncUtils { *; }
--keep class com.metrolist.music.utils.WhitelistFetcher { *; }
--keep class com.metrolist.music.utils.WhitelistFetcher$* { *; }
+-keep class com.jtech.zemer.utils.SyncUtils { *; }
+-keep class com.jtech.zemer.utils.WhitelistFetcher { *; }
+-keep class com.jtech.zemer.utils.WhitelistFetcher$* { *; }
 
 # Keep JSON parsing classes needed for whitelist sync
 -keep class org.json.** { *; }
@@ -154,8 +154,8 @@
 -keep class androidx.datastore.preferences.** { *; }
 
 # Keep ArtistWhitelistEntity for database operations
--keep class com.metrolist.music.db.entities.ArtistWhitelistEntity { *; }
--keep class com.metrolist.music.db.entities.ArtistWhitelistEntity$* { *; }
+-keep class com.jtech.zemer.db.entities.ArtistWhitelistEntity { *; }
+-keep class com.jtech.zemer.db.entities.ArtistWhitelistEntity$* { *; }
 
 # Keep Room generated classes and annotations
 -keep class * extends androidx.room.RoomDatabase { *; }
@@ -178,6 +178,6 @@
 }
 
 # Keep Room DAO and converters used by keep listening queries
--keep class com.metrolist.music.db.DatabaseDao { *; }
--keep class com.metrolist.music.db.DatabaseDao_Impl { *; }
--keep class com.metrolist.music.db.Converters { *; }
+-keep class com.jtech.zemer.db.DatabaseDao { *; }
+-keep class com.jtech.zemer.db.DatabaseDao_Impl { *; }
+-keep class com.jtech.zemer.db.Converters { *; }
