@@ -1,16 +1,32 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Public read, restricted writes for the artist whitelist
-    match /artistsWhitelist/{docId} {
-      allow read: if true;
-      // Require a signed-in user with an `admin` custom claim to write
-      allow write: if request.auth != null && request.auth.token.admin == true;
-    }
-
-    // Deny all other writes by default; adjust as needed for other collections
+    // Public read everywhere
     match /{document=**} {
       allow read: if true;
+    }
+
+    // Contributors can write their own profile
+    match /users/{userId} {
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['name', 'phone', 'isBanned', 'updatedAt'])
+        && request.resource.data.name is string
+        && request.resource.data.phone is string
+        && request.resource.data.isBanned is bool
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    // Contributors can mark artist attributes; any other field changes are rejected
+    match /artistsWhitelist/{docId} {
+      allow write: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['isFemale', 'isChasid', 'isGenZ', 'isVerified', 'verifiedBy', 'verifiedAt'])
+        && request.resource.data.verifiedBy == request.auth.uid;
+    }
+
+    // Default: no writes elsewhere
+    match /{document=**} {
       allow write: if false;
     }
   }
