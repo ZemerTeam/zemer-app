@@ -717,6 +717,7 @@ fun ArtistScreen(
                                             },
                                             isPlaying = isPlaying,
                                             coroutineScope = coroutineScope,
+                                            thumbnailRatio = if (isVideoSection) 1f else if (item is SongItem) 16f / 9 else 1f,
                                             modifier = Modifier
                                                 .combinedClickable(
                                                     onClick = {

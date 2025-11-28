@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastRoundToInt
@@ -96,6 +97,7 @@ fun VideoPlayerScreen(
     val scope = rememberCoroutineScope()
     var showDownloadDialog by remember { mutableStateOf(false) }
     var forceLandscape by remember { mutableStateOf(false) }
+    var currentVideoId by remember { mutableStateOf(videoId) }
     LaunchedEffect(Unit) {
         activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
@@ -300,6 +302,19 @@ fun VideoPlayerScreen(
                         showControls = !showControls
                     }
                 )
+            }
+            .pointerInput(Unit) {
+                detectVerticalDragGestures { _, dragAmount ->
+                    // Swipe up = next video (negative drag)
+                    // Swipe down = previous video (positive drag)
+                    if (dragAmount < -100) {
+                        // Swipe up - go to next video
+                        Toast.makeText(context, "⬆ Swipe up for next video", Toast.LENGTH_SHORT).show()
+                    } else if (dragAmount > 100) {
+                        // Swipe down - go to previous video
+                        Toast.makeText(context, "⬇ Swipe down for previous video", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
     ) {
         Box(
