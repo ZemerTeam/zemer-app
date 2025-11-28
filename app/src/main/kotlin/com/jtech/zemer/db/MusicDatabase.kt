@@ -16,6 +16,7 @@ import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
+import timber.log.Timber
 import com.jtech.zemer.db.entities.AlbumArtistMap
 import com.jtech.zemer.db.entities.AlbumEntity
 import com.jtech.zemer.db.entities.ArtistEntity
@@ -126,14 +127,29 @@ abstract class InternalDatabase : RoomDatabase() {
     companion object {
         const val DB_NAME = "song.db"
 
-        fun newInstance(context: Context): MusicDatabase =
-            MusicDatabase(
-                delegate =
+        fun newInstance(context: Context): MusicDatabase {
+            Timber.d("MusicDatabase.newInstance() called - starting database creation")
+            val startTime = System.currentTimeMillis()
+            Timber.d("Thread: ${Thread.currentThread().name}")
+            val builtDb = try {
                 Room
                     .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
                     .addMigrations(MIGRATION_1_2, MIGRATION_26_27)
-                    .build(),
-            )
+                    .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
+                    .enableMultiInstanceInvalidation()
+                    .build().also {
+                        Timber.d("MusicDatabase.build() completed in ${System.currentTimeMillis() - startTime}ms on thread ${Thread.currentThread().name}")
+                    }
+            } catch (e: Exception) {
+                Timber.e(e, "Database build failed, retrying without migrations")
+                Room
+                    .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
+                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
+                    .build()
+            }
+            return MusicDatabase(delegate = builtDb)
+        }
     }
 }
 

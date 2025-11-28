@@ -159,7 +159,9 @@ class MusicService :
     Player.Listener,
     PlaybackStatsListener.Callback {
     @Inject
-    lateinit var database: MusicDatabase
+    lateinit var databaseLazy: dagger.Lazy<MusicDatabase>
+    val database: MusicDatabase
+        get() = databaseLazy.get()
 
     @Inject
     lateinit var lyricsHelper: LyricsHelper
@@ -291,11 +293,16 @@ class MusicService :
                 .build()
         player.repeatMode = dataStore.get(RepeatModeKey, REPEAT_MODE_OFF)
 
-        // Keep a connected controller so that notification works
+        // Keep a connected controller so that notification works (deferred to avoid blocking)
         val sessionToken = SessionToken(this, ComponentName(this, MusicService::class.java))
-        val controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
-        val directExecutor = Executor { runnable -> runnable.run() }
-        controllerFuture.addListener({ controllerFuture.get() }, directExecutor)
+        scope.launch(Dispatchers.Default) {
+            try {
+                val controller = MediaController.Builder(this@MusicService, sessionToken).buildAsync().get()
+                Timber.d("MediaController initialized")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to initialize MediaController")
+            }
+        }
 
         connectivityManager = getSystemService()!!
         connectivityObserver = NetworkConnectivityObserver(this)
@@ -435,9 +442,10 @@ class MusicService :
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Ensure foreground notification is shown immediately to prevent ANR
-        // Android requires startForeground() within ~10 seconds of startForegroundService()
-        ensureForegroundService()
+        Timber.d("MusicService.onStartCommand() called - ensuring foreground notification")
+        // CRITICAL: Must call startForeground() immediately to avoid ANR when startForegroundService() is used
+        runCatching { ensureForegroundService() }
+            .onFailure { Timber.e(it, "MusicService.onStartCommand() - failed to start foreground service") }
         return super.onStartCommand(intent, flags, startId)
     }
 

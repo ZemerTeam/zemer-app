@@ -51,8 +51,10 @@ class MediaStoreDownloadManager
 @Inject
 constructor(
     @ApplicationContext private val context: Context,
-    private val database: MusicDatabase,
+    private val databaseLazy: dagger.Lazy<MusicDatabase>,
 ) {
+    private val database: MusicDatabase
+        get() = databaseLazy.get()
     private val scope = CoroutineScope(Dispatchers.IO + Job())
     private val mediaStoreHelper = MediaStoreHelper(context)
     private val connectivityManager = context.getSystemService<ConnectivityManager>()!!

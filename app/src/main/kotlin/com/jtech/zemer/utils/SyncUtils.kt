@@ -43,9 +43,17 @@ data class WhitelistSyncProgress(
 
 @Singleton
 class SyncUtils @Inject constructor(
-    private val database: MusicDatabase,
+    private val databaseLazy: dagger.Lazy<MusicDatabase>,
     @ApplicationContext private val context: Context,
 ) {
+    private val database: MusicDatabase
+        get() {
+            Timber.d("SyncUtils.database accessor called - will invoke databaseLazy.get() now")
+            return databaseLazy.get().also {
+                Timber.d("SyncUtils.database.get() completed")
+            }
+        }
+
     private val syncScope = CoroutineScope(Dispatchers.IO)
 
     private val isSyncingLikedSongs = MutableStateFlow(false)

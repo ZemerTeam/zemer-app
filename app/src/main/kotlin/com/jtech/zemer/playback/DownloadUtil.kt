@@ -37,12 +37,14 @@ class DownloadUtil
 @Inject
 constructor(
     @ApplicationContext context: Context,
-    val database: MusicDatabase,
+    private val databaseLazy: dagger.Lazy<MusicDatabase>,
     val databaseProvider: DatabaseProvider,
     @DownloadCache val downloadCache: SimpleCache,
     @PlayerCache val playerCache: SimpleCache,
     val mediaStoreDownloadManager: MediaStoreDownloadManager,
 ) {
+    val database: MusicDatabase
+        get() = databaseLazy.get()
     private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
     private val songUrlCache = HashMap<String, Pair<String, Long>>()

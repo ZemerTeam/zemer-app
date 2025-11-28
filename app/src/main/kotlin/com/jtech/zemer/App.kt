@@ -55,15 +55,28 @@ class App : Application(), SingletonImageLoader.Factory {
     @Inject
     lateinit var syncUtils: SyncUtils
 
+    init {
+        Timber.d("App.init block called - Hilt injection about to happen")
+    }
+
     override fun onCreate() {
-        super.onCreate()
+        val startTime = System.currentTimeMillis()
         Timber.plant(Timber.DebugTree())
+        Timber.d("App.onCreate() started - before super.onCreate() - ${System.currentTimeMillis() - startTime}ms")
+        super.onCreate()
+        Timber.d("super.onCreate() completed - ${System.currentTimeMillis() - startTime}ms")
 
         // تهيئة إعدادات التطبيق عند الإقلاع
+        // TEMPORARILY DISABLED FOR ANR DEBUGGING
+        Timber.d("About to launch app initialization coroutine - ${System.currentTimeMillis() - startTime}ms")
         applicationScope.launch {
+            Timber.d("App initialization starting in coroutine - ${System.currentTimeMillis() - startTime}ms from process start")
             initializeSettings()
             observeSettingsChanges()
+            Timber.d("App initialization complete - ${System.currentTimeMillis() - startTime}ms from process start")
         }
+
+        Timber.d("App.onCreate() completed - ${System.currentTimeMillis() - startTime}ms from process start")
     }
 
     private suspend fun initializeSettings() {

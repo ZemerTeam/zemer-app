@@ -377,11 +377,13 @@ class MainActivity : ComponentActivity() {
         }
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            val locale = dataStore[AppLanguageKey]
-                ?.takeUnless { it == SYSTEM_DEFAULT }
-                ?.let { Locale.forLanguageTag(it) }
-                ?: Locale.getDefault()
-            setAppLocale(this, locale)
+            lifecycleScope.launch {
+                val locale = dataStore.data.first()[AppLanguageKey]
+                    ?.takeUnless { it == SYSTEM_DEFAULT }
+                    ?.let { Locale.forLanguageTag(it) }
+                    ?: Locale.getDefault()
+                setAppLocale(this@MainActivity, locale)
+            }
         }
 
         // Request storage permissions at startup for MediaStore downloads
@@ -585,9 +587,7 @@ class MainActivity : ComponentActivity() {
                     val navigationItems = remember { Screens.MainScreens }
                     val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
                     val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
-                    val defaultOpenTab = remember {
-                        dataStore[DefaultOpenTabKey].toEnum(defaultValue = NavigationTab.HOME)
-                    }
+                    val (defaultOpenTab) = rememberEnumPreference(DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
                     val tabOpenedFromShortcut = remember {
                         when (intent?.action) {
                             ACTION_LIBRARY -> NavigationTab.LIBRARY

@@ -19,6 +19,7 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import timber.log.Timber
 import javax.inject.Singleton
 
 @Module
@@ -36,7 +37,11 @@ object AppModule {
     @Provides
     fun provideDatabase(
         @ApplicationContext context: Context,
-    ): MusicDatabase = InternalDatabase.newInstance(context)
+    ): MusicDatabase {
+        // Delay database initialization to avoid blocking on app startup
+        // Database will be created on first access instead
+        return InternalDatabase.newInstance(context)
+    }
 
     @Singleton
     @Provides
@@ -49,8 +54,9 @@ object AppModule {
     @PlayerCache
     fun providePlayerCache(
         @ApplicationContext context: Context,
-        databaseProvider: DatabaseProvider,
+        databaseProvider: dagger.Lazy<DatabaseProvider>,
     ): SimpleCache {
+        Timber.d("PlayerCache being created")
         val cacheSize = context.dataStore[MaxSongCacheSizeKey] ?: 1024
         return SimpleCache(
             context.filesDir.resolve("exoplayer"),
@@ -58,7 +64,7 @@ object AppModule {
                 -1 -> NoOpCacheEvictor()
                 else -> LeastRecentlyUsedCacheEvictor(cacheSize * 1024 * 1024L)
             },
-            databaseProvider,
+            databaseProvider.get(),
         )
     }
 
@@ -67,12 +73,13 @@ object AppModule {
     @DownloadCache
     fun provideDownloadCache(
         @ApplicationContext context: Context,
-        databaseProvider: DatabaseProvider,
+        databaseProvider: dagger.Lazy<DatabaseProvider>,
     ): SimpleCache {
+        Timber.d("DownloadCache being created")
         return SimpleCache(
             context.filesDir.resolve("download"),
             NoOpCacheEvictor(),
-            databaseProvider
+            databaseProvider.get()
         )
     }
 }

@@ -58,9 +58,12 @@ class MediaLibrarySessionCallback
 @Inject
 constructor(
     @ApplicationContext val context: Context,
-    val database: MusicDatabase,
+    private val databaseLazy: dagger.Lazy<MusicDatabase>,
     val downloadUtil: DownloadUtil,
 ) : MediaLibrarySession.Callback {
+    val database: MusicDatabase
+        get() = databaseLazy.get()
+
     private val scope = CoroutineScope(Dispatchers.Main) + Job()
     lateinit var service: MusicService
     var toggleLike: () -> Unit = {}
