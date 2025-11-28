@@ -99,3 +99,5 @@ core.*
 *.bin
 /AGENTS.md
 /ytmusicjson/
+/CLAUDE.md
+/GEMINI.md
