@@ -75,6 +75,8 @@ object YTPlayerUtils {
         playlistId: String? = null,
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
+        preferVideo: Boolean = false,
+        maxVideoBitrateKbps: Int? = null,
     ): Result<PlaybackData> = runCatching {
         val defaultStreamTtlSeconds = 6 * 60 * 60 // 6 hours
         Timber.tag(logTag).d("Fetching player response for videoId: $videoId, playlistId: $playlistId")
@@ -147,6 +149,8 @@ object YTPlayerUtils {
                         streamPlayerResponse,
                         audioQuality,
                         connectivityManager,
+                        preferVideo,
+                        maxVideoBitrateKbps,
                     )
 
                 if (format == null) {
@@ -250,10 +254,32 @@ object YTPlayerUtils {
         playerResponse: PlayerResponse,
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
+        preferVideo: Boolean,
+        maxVideoBitrateKbps: Int?,
     ): PlayerResponse.StreamingData.Format? {
-        Timber.tag(logTag).d("Finding format with audioQuality: $audioQuality, network metered: ${connectivityManager.isActiveNetworkMetered}")
+        Timber.tag(logTag).d("Finding format with audioQuality: $audioQuality, network metered: ${connectivityManager.isActiveNetworkMetered}, preferVideo=$preferVideo, maxVideoBitrateKbps=$maxVideoBitrateKbps")
 
-        val format = playerResponse.streamingData?.adaptiveFormats
+        if (preferVideo) {
+            val progressive = playerResponse.streamingData?.formats.orEmpty()
+                .filter { it.mimeType.startsWith("video") && (it.audioQuality != null || it.audioChannels != null) }
+            val progressiveMp4 = progressive.filter { it.mimeType.contains("mp4") }
+            val ordered = (progressiveMp4.ifEmpty { progressive }).sortedBy { it.bitrate }
+            val capped = maxVideoBitrateKbps?.let { cap ->
+                ordered.filter { (it.bitrate / 1000) <= cap }
+            }.orEmpty()
+            val chosen = when {
+                capped.isNotEmpty() -> capped.maxByOrNull { it.bitrate }
+                else -> ordered.maxByOrNull { it.bitrate }
+            }
+            if (chosen != null) {
+                Timber.tag(logTag).d("Selected progressive video format: ${chosen.mimeType}, bitrate: ${chosen.bitrate}")
+                return chosen
+            }
+            Timber.tag(logTag).d("No progressive video format with audio found")
+            return null
+        }
+
+        val audioFormat = playerResponse.streamingData?.adaptiveFormats
             ?.filter { it.isAudio && it.isOriginal }
             ?.maxByOrNull {
                 it.bitrate * when (audioQuality) {
@@ -263,13 +289,13 @@ object YTPlayerUtils {
                 } + (if (it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus stream
             }
 
-        if (format != null) {
-            Timber.tag(logTag).d("Selected format: ${format.mimeType}, bitrate: ${format.bitrate}")
+        if (audioFormat != null) {
+            Timber.tag(logTag).d("Selected audio format: ${audioFormat.mimeType}, bitrate: ${audioFormat.bitrate}")
         } else {
             Timber.tag(logTag).d("No suitable audio format found")
         }
 
-        return format
+        return audioFormat
     }
     /**
      * Checks if the stream url returns a successful status.

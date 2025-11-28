@@ -279,6 +279,18 @@ private fun PermissionsScreen(
 
     var backgroundGranted by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
     var accessibilityGranted by remember { mutableStateOf(isAccessibilityEnabled(context)) }
+    var systemAlertGranted by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                android.provider.Settings.canDrawOverlays(context)
+            } else {
+                true
+            }
+        )
+    }
+    // PiP permission is declared in manifest but doesn't require runtime permission grant
+    // Mark as true by default since it's available on Android 8.0+
+    var pipGranted by remember { mutableStateOf(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) }
 
     val notificationLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -295,6 +307,9 @@ private fun PermissionsScreen(
     DisposableLifecycle(onEvent = {
         backgroundGranted = isIgnoringBatteryOptimizations(context)
         accessibilityGranted = isAccessibilityEnabled(context)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            systemAlertGranted = Settings.canDrawOverlays(context)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationsGranted = NotificationManagerCompat.from(context).areNotificationsEnabled()
             nearbyGranted = ContextCompat.checkSelfPermission(
@@ -308,7 +323,9 @@ private fun PermissionsScreen(
         notificationsGranted,
         nearbyGranted,
         backgroundGranted,
-        accessibilityGranted
+        accessibilityGranted,
+        systemAlertGranted,
+        pipGranted
     ).all { it }
 
     Box(
@@ -379,6 +396,15 @@ private fun PermissionsScreen(
                 ) {
                     openAccessibilitySettings(context)
                 }
+            } else if (!systemAlertGranted) {
+                PermissionCard(
+                    title = stringResource(R.string.onboarding_perm_system_alert_title),
+                    description = stringResource(R.string.onboarding_perm_system_alert_desc),
+                    granted = systemAlertGranted,
+                    actionLabel = stringResource(R.string.onboarding_open_settings),
+                ) {
+                    openSystemAlertSettings(context)
+                }
             } else if (!nearbyGranted) {
                 PermissionCard(
                     title = stringResource(R.string.onboarding_perm_nearby_title),
@@ -391,6 +417,17 @@ private fun PermissionsScreen(
                     } else {
                         openAppSettings(context)
                     }
+                }
+            } else if (!pipGranted) {
+                PermissionCard(
+                    title = stringResource(R.string.onboarding_perm_pip_title),
+                    description = stringResource(R.string.onboarding_perm_pip_desc),
+                    granted = pipGranted,
+                    actionLabel = stringResource(R.string.onboarding_grant),
+                ) {
+                    // PiP permission doesn't require explicit grant on most devices
+                    // Just mark as granted and continue
+                    pipGranted = true
                 }
             }
 
@@ -461,8 +498,6 @@ private fun PermissionCard(
         label = "perm_indicator"
     )
 
-    val isOpenSettings = actionLabel.contains("Settings", ignoreCase = true)
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -521,37 +556,23 @@ private fun PermissionCard(
 
             Spacer(Modifier.height(10.dp))
 
-            if (isOpenSettings) {
-                OutlinedButton(
-                    onClick = onAction,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(38.dp),
-                    shape = RoundedCornerShape(9.dp),
-                    border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-                ) {
-                    Text(
-                        text = actionLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            } else {
-                Button(
-                    onClick = onAction,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(38.dp),
-                    shape = RoundedCornerShape(9.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text(
-                        text = actionLabel,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
+            OutlinedButton(
+                onClick = onAction,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(38.dp),
+                shape = RoundedCornerShape(9.dp),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.White,
+                    contentColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Text(
+                    text = actionLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
@@ -728,6 +749,16 @@ private fun openAccessibilitySettings(context: Context) {
         context.startActivity(
             Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
+    }
+}
+
+private fun openSystemAlertSettings(context: Context) {
+    runCatching {
+        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+            data = Uri.parse("package:${context.packageName}")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
     }
 }
 

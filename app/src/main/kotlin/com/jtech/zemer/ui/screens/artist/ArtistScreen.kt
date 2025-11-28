@@ -5,6 +5,9 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -53,7 +56,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -68,6 +73,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -150,6 +156,7 @@ fun ArtistScreen(
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
+    val visibleCounts = remember { mutableStateMapOf<String, Int>() }
 
     val lazyListState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -217,7 +224,6 @@ fun ArtistScreen(
                                 .fillMaxWidth()
                                 .padding(16.dp)
                         ) {
-                            // Artist Name Placeholder
                             TextPlaceholder(
                                 height = 36.dp,
                                 modifier = Modifier
@@ -225,12 +231,10 @@ fun ArtistScreen(
                                     .padding(bottom = 16.dp)
                             )
 
-                            // Buttons Row Placeholder
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Subscribe Button Placeholder
                                 ButtonPlaceholder(
                                     modifier = Modifier
                                         .width(120.dp)
@@ -239,19 +243,16 @@ fun ArtistScreen(
 
                                 Spacer(modifier = Modifier.weight(1f))
 
-                                // Right side buttons
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // Radio Button Placeholder
                                     ButtonPlaceholder(
                                         modifier = Modifier
                                             .width(100.dp)
                                             .height(40.dp)
                                     )
 
-                                    // Shuffle Button Placeholder
                                     Box(
                                         modifier = Modifier
                                             .size(48.dp)
@@ -263,10 +264,10 @@ fun ArtistScreen(
                                     )
                                 }
                             }
-                        }
-                        // Songs List Placeholder
-                        repeat(6) {
-                            ListItemPlaceHolder()
+
+                            repeat(6) {
+                                ListItemPlaceHolder()
+                            }
                         }
                     }
                 }
@@ -330,7 +331,7 @@ fun ArtistScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     fontSize = 32.sp,
-                                    modifier = Modifier.padding(bottom = 16.dp)
+                                    modifier = Modifier.padding(bottom = 8.dp)
                                 )
 
                                 // Buttons Row
@@ -461,7 +462,7 @@ fun ArtistScreen(
                                     }
                                 }
                             }
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
                         }
                     }
                 }
@@ -597,6 +598,14 @@ fun ArtistScreen(
                     }
                 } else {
                     artistPage?.sections?.fastForEach { section ->
+                        val distinctItems = section.items.distinctBy { it.id }
+                        val isVideoSection = section.title.contains("video", ignoreCase = true) ||
+                            section.title.contains("short", ignoreCase = true)
+                        val visibleCount = visibleCounts.getOrPut(section.title) {
+                            if (isVideoSection) minOf(8, distinctItems.size) else distinctItems.size
+                        }
+                        val displayItems = distinctItems.take(visibleCount)
+
                         if (section.items.isNotEmpty()) {
                             item(key = "section_${section.title}") {
                                 val artistName = artistPage?.artist?.title ?: libraryArtist?.artist?.name ?: ""
@@ -632,7 +641,7 @@ fun ArtistScreen(
 
                         if ((section.items.firstOrNull() as? SongItem)?.album != null) {
                             items(
-                                items = section.items.distinctBy { it.id },
+                                items = displayItems,
                                 key = { "youtube_song_${it.id}" },
                             ) { song ->
                                 YouTubeListItem(
@@ -691,16 +700,20 @@ fun ArtistScreen(
                                 LazyRow(
                                     contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
                                 ) {
-                                    items(
-                                        items = section.items.distinctBy { it.id },
-                                        key = { "youtube_album_${it.id}" },
-                                    ) { item ->
+                                    itemsIndexed(
+                                        items = displayItems,
+                                        key = { index, item -> "youtube_album_${item.id}_$index" },
+                                    ) { index, item ->
+                                        if (isVideoSection && index >= displayItems.size - 3 && visibleCount < distinctItems.size) {
+                                            visibleCounts[section.title] = minOf(visibleCount + 6, distinctItems.size)
+                                        }
                                         YouTubeGridItem(
                                             item = item,
                                             isActive = when (item) {
                                                 is SongItem -> mediaMetadata?.id == item.id
                                                 is AlbumItem -> mediaMetadata?.album?.id == item.id
-                                                else -> false
+                                                is ArtistItem -> false
+                                                is PlaylistItem -> false
                                             },
                                             isPlaying = isPlaying,
                                             coroutineScope = coroutineScope,
@@ -708,15 +721,19 @@ fun ArtistScreen(
                                                 .combinedClickable(
                                                     onClick = {
                                                         when (item) {
-                                                            is SongItem ->
-                                                                playerConnection.playQueue(
-                                                                    YouTubeQueue(
-                                                                        WatchEndpoint(videoId = item.id),
-                                                                        item.toMediaMetadata(),
-                                                                        database
-                                                                    ),
-                                                                )
-
+                                                            is SongItem -> {
+                                                                if (isVideoSection) {
+                                                                    navController.navigate("video/${item.id}")
+                                                                } else {
+                                                                    playerConnection.playQueue(
+                                                                        YouTubeQueue(
+                                                                            WatchEndpoint(videoId = item.id),
+                                                                            item.toMediaMetadata(),
+                                                                            database
+                                                                        ),
+                                                                    )
+                                                                }
+                                                            }
                                                             is AlbumItem -> navController.navigate("album/${item.id}")
                                                             is ArtistItem -> navController.navigate("artist/${item.id}")
                                                             is PlaylistItem -> navController.navigate("online_playlist/${item.id}")

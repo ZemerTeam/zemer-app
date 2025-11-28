@@ -439,8 +439,12 @@
     <string name="onboarding_perm_background_desc">Keep playback alive without battery kills.</string>
     <string name="onboarding_perm_accessibility_title">Accessibility</string>
     <string name="onboarding_perm_accessibility_desc">Enable hardware button mapping (optional).</string>
+    <string name="onboarding_perm_system_alert_title">Display over other apps</string>
+    <string name="onboarding_perm_system_alert_desc">Required for Picture in Picture video mode.</string>
     <string name="onboarding_perm_nearby_title">Nearby devices</string>
     <string name="onboarding_perm_nearby_desc">For speakers or car systems that need it.</string>
+    <string name="onboarding_perm_pip_title">Picture in Picture</string>
+    <string name="onboarding_perm_pip_desc">Minimize videos to continue watching while using other apps.</string>
     <string name="onboarding_grant">Grant</string>
     <string name="onboarding_open_settings">Open settings</string>
     <string name="onboarding_back">Back</string>

@@ -107,12 +107,6 @@ class ArtistViewModel @Inject constructor(
                             hasSimilarBrowseId || (hasSimilarTitle && isOnlyArtists)
                         }
                         .filterNot { section ->
-                            // Filter Videos sections
-                            section.title.contains("video", ignoreCase = true) ||
-                            section.title.contains("vidéo", ignoreCase = true) || // French
-                            section.title.contains("vídeo", ignoreCase = true)    // Spanish/Portuguese
-                        }
-                        .filterNot { section ->
                             // Filter "Playlists by [Artist]" sections
                             section.items.any { it is com.metrolist.innertube.models.PlaylistItem } &&
                             (section.title.contains("playlist", ignoreCase = true) ||

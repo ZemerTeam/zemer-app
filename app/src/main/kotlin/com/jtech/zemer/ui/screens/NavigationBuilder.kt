@@ -71,6 +71,7 @@ import com.jtech.zemer.ui.screens.settings.UpdaterScreen
 import com.jtech.zemer.ui.utils.ShowMediaInfo
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.ui.screens.player.VideoPlayerScreen
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -216,6 +217,17 @@ fun NavGraphBuilder.navigationBuilder(
         ),
     ) {
         ArtistItemsScreen(navController, scrollBehavior)
+    }
+    composable(
+        route = "video/{videoId}",
+        arguments = listOf(
+            navArgument("videoId") {
+                type = NavType.StringType
+            }
+        )
+    ) { backStackEntry ->
+        val videoId = backStackEntry.arguments?.getString("videoId") ?: return@composable
+        VideoPlayerScreen(navController, videoId)
     }
     composable(
         route = "online_playlist/{playlistId}",

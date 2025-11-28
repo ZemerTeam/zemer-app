@@ -324,8 +324,12 @@
     <string name="onboarding_perm_background_desc">לשמור השמעה בלי שחוסך הסוללה יסגור.</string>
     <string name="onboarding_perm_accessibility_title">נגישות</string>
     <string name="onboarding_perm_accessibility_desc">מיפוי כפתורי חומרה (רשות).</string>
+    <string name="onboarding_perm_system_alert_title">הצגה על אפליקציות אחרות</string>
+    <string name="onboarding_perm_system_alert_desc">נדרש למצב תמונה בתמונה של סרטונים.</string>
     <string name="onboarding_perm_nearby_title">מכשירים בקרבת מקום</string>
     <string name="onboarding_perm_nearby_desc">לחיבור לרמקולים או רכב שדורשים זאת.</string>
+    <string name="onboarding_perm_pip_title">תמונה בתמונה</string>
+    <string name="onboarding_perm_pip_desc">צפייה בסרטונים במסך קטן בזמן שימוש באפליקציות אחרות.</string>
     <string name="onboarding_grant">תן הרשאה</string>
     <string name="onboarding_open_settings">פתח הגדרות</string>
     <string name="onboarding_back">חזרה</string>

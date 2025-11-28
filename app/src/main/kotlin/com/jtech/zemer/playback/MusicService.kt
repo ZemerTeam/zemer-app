@@ -1319,7 +1319,7 @@ class MusicService :
         )
 
     private fun createRenderersFactory() =
-        object : AudioOnlyRenderersFactory(this) {
+        object : DefaultRenderersFactory(this) {
             override fun buildAudioSink(
                 context: Context,
                 enableFloatOutput: Boolean,

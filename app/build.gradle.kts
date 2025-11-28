@@ -181,6 +181,7 @@ dependencies {
     implementation(libs.media3)
     implementation(libs.media3.session)
     implementation(libs.media3.okhttp)
+    implementation(libs.media3.ui)
     implementation(libs.squigglyslider)
 
     implementation(libs.room.runtime)
@@ -194,6 +195,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.google.firebase.auth)
     implementation(libs.google.firebase.firestore)
+    implementation(libs.ui)
     ksp(libs.room.compiler)
     implementation(libs.room.ktx)
 

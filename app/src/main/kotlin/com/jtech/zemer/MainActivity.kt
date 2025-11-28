@@ -521,7 +521,7 @@ class MainActivity : ComponentActivity() {
                     val bottomInsetDp = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
 
                     // Check onboarding status first, then whitelist sync
-                    val onboardingComplete by rememberPreference(OnboardingCompleteKey, defaultValue = false)
+                    val onboardingComplete by dataStore.data.map { it[OnboardingCompleteKey] ?: false }.collectAsState(initial = false)
                     val onboardingScope = rememberCoroutineScope()
                     val syncScope = rememberCoroutineScope()
 
@@ -790,14 +790,8 @@ class MainActivity : ComponentActivity() {
 
                     LaunchedEffect(playerConnection, floatingMiniPlayerEnabled) {
                         val player = playerConnection?.player ?: return@LaunchedEffect
-                        if (player.currentMediaItem == null) {
-                            if (!playerBottomSheetState.isDismissed) {
-                                playerBottomSheetState.dismiss()
-                            }
-                        } else {
-                            if (!floatingMiniPlayerEnabled && !playerBottomSheetState.isDismissed) {
-                                playerBottomSheetState.dismiss()
-                            } else if (floatingMiniPlayerEnabled && playerBottomSheetState.isDismissed) {
+                        if (floatingMiniPlayerEnabled) {
+                            if (player.currentMediaItem != null && playerBottomSheetState.isDismissed) {
                                 playerBottomSheetState.collapseSoft()
                             }
                         }
