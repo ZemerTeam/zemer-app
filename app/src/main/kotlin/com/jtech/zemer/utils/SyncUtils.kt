@@ -419,7 +419,9 @@ class SyncUtils @Inject constructor(
                 Timber.d("Whitelist sync: Total metadata fetch skips (existing thumbs/invalid): $skippedTotal")
             }
 
-            if (artistsToFetch.isEmpty()) {
+            // Limit metadata fetch to keep memory/network in check
+            val cappedArtistsToFetch = artistsToFetch.take(50)
+            if (cappedArtistsToFetch.isEmpty()) {
                 Timber.d("Whitelist sync: No artists need metadata fetch")
                 _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
                 context.dataStore.edit { settings ->
@@ -429,14 +431,18 @@ class SyncUtils @Inject constructor(
                 return
             }
 
-            Timber.d("Whitelist sync: Need to fetch ${artistsToFetch.size} of ${whitelistEntries.size} artists")
+            if (artistsToFetch.size > cappedArtistsToFetch.size) {
+                Timber.d("Whitelist sync: Fetching ${cappedArtistsToFetch.size} artists (capped) out of ${artistsToFetch.size}")
+            } else {
+                Timber.d("Whitelist sync: Need to fetch ${artistsToFetch.size} of ${whitelistEntries.size} artists")
+            }
 
-            val batchSize = 50
+            val batchSize = 10
             var successCount = 0
             var failureCount = 0
             var processedCount = 0
 
-            artistsToFetch.chunked(batchSize).forEach { batch ->
+            cappedArtistsToFetch.chunked(batchSize).forEach { batch ->
                 supervisorScope {
                     val results = batch.map { (whitelistEntry, existingArtist) ->
                         async {
@@ -444,7 +450,7 @@ class SyncUtils @Inject constructor(
                                 processedCount++
                                 _whitelistSyncProgress.value = WhitelistSyncProgress(
                                     current = processedCount,
-                                    total = artistsToFetch.size,
+                                    total = cappedArtistsToFetch.size,
                                     currentArtistName = whitelistEntry.artistName
                                 )
 

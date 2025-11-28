@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "406005787060",
+    "project_id": "zemer-7f5f1",
+    "storage_bucket": "zemer-7f5f1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:406005787060:android:779781d7b7a68200f5aae1",
+        "android_client_info": {
+          "package_name": "com.jtech.zemer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "406005787060-912e1ubqd50571i2r94okdft976ki9b1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jtech.zemer",
+            "certificate_hash": "cf3beb03a147c817f9b1f25e5b10ace9db3a90bc"
+          }
+        },
+        {
+          "client_id": "406005787060-9su8f9n0tm2qi428r4s358atlqmp3b6v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDINfEqp0BYnxdclKKgy9vIMalW_z9PjRI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "406005787060-9su8f9n0tm2qi428r4s358atlqmp3b6v.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
