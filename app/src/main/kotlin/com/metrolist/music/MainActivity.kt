@@ -519,8 +519,13 @@ class MainActivity : ComponentActivity() {
                     // After onboarding, show splash screen while syncing
                     val syncProgress by syncUtils.whitelistSyncProgress.collectAsState()
                     val (skipSplash, setSkipSplash) = remember { mutableStateOf(false) }
+                    val (initialSyncHandled, setInitialSyncHandled) = rememberSaveable { mutableStateOf(false) }
 
-                    if (!syncProgress.isComplete && !skipSplash) {
+                    if (syncProgress.isComplete && !initialSyncHandled) {
+                        setInitialSyncHandled(true)
+                    }
+
+                    if (!initialSyncHandled && !syncProgress.isComplete && !skipSplash) {
                         SplashScreen(
                             syncProgress = syncProgress,
                             onSkip = { setSkipSplash(true) }
