@@ -58,6 +58,8 @@ class SyncUtils @Inject constructor(
     private val isSyncingWhitelist = MutableStateFlow(false)
     private val isBackfillingThumbs = MutableStateFlow(false)
 
+    val isWhitelistSyncing: StateFlow<Boolean> = isSyncingWhitelist.asStateFlow()
+
     private val _whitelistSyncProgress = MutableStateFlow(WhitelistSyncProgress())
     val whitelistSyncProgress: StateFlow<WhitelistSyncProgress> = _whitelistSyncProgress.asStateFlow()
 

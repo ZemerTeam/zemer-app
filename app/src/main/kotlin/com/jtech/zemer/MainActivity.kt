@@ -159,6 +159,7 @@ import com.jtech.zemer.constants.UpdateNotificationsEnabledKey
 import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
 import com.jtech.zemer.constants.PauseSearchHistoryKey
 import com.jtech.zemer.constants.PureBlackKey
+import com.jtech.zemer.constants.LastWhitelistVersionKey
 import com.jtech.zemer.constants.SYSTEM_DEFAULT
 import com.jtech.zemer.constants.SlimNavBarHeight
 import com.jtech.zemer.constants.SlimNavBarKey
@@ -519,6 +520,7 @@ class MainActivity : ComponentActivity() {
                     // Check onboarding status first, then whitelist sync
                     val onboardingComplete by rememberPreference(OnboardingCompleteKey, defaultValue = false)
                     val onboardingScope = rememberCoroutineScope()
+                    val syncScope = rememberCoroutineScope()
 
                     // Show onboarding first (before splash screen)
                     if (!onboardingComplete) {
@@ -536,6 +538,20 @@ class MainActivity : ComponentActivity() {
                     val syncProgress by syncUtils.whitelistSyncProgress.collectAsState()
                     val (skipSplash, setSkipSplash) = remember { mutableStateOf(false) }
                     val (initialSyncHandled, setInitialSyncHandled) = rememberSaveable { mutableStateOf(false) }
+                    val (launchSyncOnce, setLaunchSyncOnce) = rememberSaveable { mutableStateOf(false) }
+                    val isWhitelistSyncing by syncUtils.isWhitelistSyncing.collectAsState(initial = false)
+                    val (localWhitelistVersion) = rememberPreference(LastWhitelistVersionKey, 0L)
+                    val alreadySyncedLocally = localWhitelistVersion > 0L && !isWhitelistSyncing && syncProgress.total == 0 && syncProgress.current == 0 && !syncProgress.isComplete
+
+                    LaunchedEffect(syncProgress.isComplete, isWhitelistSyncing) {
+                        if (!syncProgress.isComplete && !isWhitelistSyncing && !launchSyncOnce) {
+                            setLaunchSyncOnce(true)
+                            syncScope.launch { syncUtils.syncArtistWhitelist() }
+                        }
+                        if (alreadySyncedLocally && !initialSyncHandled) {
+                            setInitialSyncHandled(true)
+                        }
+                    }
 
                     if (syncProgress.isComplete && !initialSyncHandled) {
                         setInitialSyncHandled(true)
