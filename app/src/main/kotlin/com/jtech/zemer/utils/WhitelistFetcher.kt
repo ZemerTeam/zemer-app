@@ -22,10 +22,11 @@ object WhitelistFetcher {
             value
         }
 
-    suspend fun fetchWhitelist(): Result<List<ArtistWhitelistEntity>> =
+    suspend fun fetchWhitelist(onProgress: (Int) -> Unit = {}): Result<List<ArtistWhitelistEntity>> =
         runCatching {
             val now = LocalDateTime.now()
             val whitelistEntities = mutableListOf<ArtistWhitelistEntity>()
+            var processed = 0
 
             var snapshot: QuerySnapshot? = firestore.collection("artistsWhitelist")
                 .limit(500)
@@ -52,6 +53,8 @@ object WhitelistFetcher {
                             isGenZ = isGenZ
                         )
                     )
+                    processed++
+                    onProgress(processed)
                 }
 
                 val last = snapshot.documents.lastOrNull()
