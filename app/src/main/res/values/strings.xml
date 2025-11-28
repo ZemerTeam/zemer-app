@@ -368,7 +368,7 @@
     <string name="coming_soon">Coming soon</string>
     <string name="radio_mode">Radio mode</string>
     <string name="contribute">Contribute</string>
-    <string name="contribute_description">Verify artist info and help the community</string>
+    <string name="contribute_description">Verify artist info</string>
     <string name="contribute_sign_in">Sign in with Google</string>
     <string name="contribute_sign_out">Sign out</string>
     <string name="contribute_phone">Phone number</string>
