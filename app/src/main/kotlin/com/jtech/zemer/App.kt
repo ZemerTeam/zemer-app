@@ -34,9 +34,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.Credentials
@@ -58,8 +55,6 @@ class App : Application(), SingletonImageLoader.Factory {
     @Inject
     lateinit var syncUtils: SyncUtils
 
-    private var whitelistSyncJob: Job? = null
-
     override fun onCreate() {
         super.onCreate()
         Timber.plant(Timber.DebugTree())
@@ -68,20 +63,6 @@ class App : Application(), SingletonImageLoader.Factory {
         applicationScope.launch {
             initializeSettings()
             observeSettingsChanges()
-            startWhitelistSync()
-        }
-    }
-
-    private suspend fun startWhitelistSync() {
-        // Initial blocking sync on app launch - ensures whitelist loads before app UI becomes interactive
-        syncUtils.syncArtistWhitelist()
-
-        // Periodic hourly sync while app is running
-        whitelistSyncJob = applicationScope.launch {
-            while (isActive) {
-                delay(60 * 60 * 1000L) // 1 hour in milliseconds
-                syncUtils.syncArtistWhitelist()
-            }
         }
     }
 

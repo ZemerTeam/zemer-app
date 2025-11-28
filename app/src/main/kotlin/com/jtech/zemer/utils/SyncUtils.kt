@@ -379,13 +379,10 @@ class SyncUtils @Inject constructor(
                 return
             }
 
-            var runningCount = 0
-            val whitelistEntries = WhitelistFetcher.fetchWhitelist { processed ->
-                runningCount = processed
+            val whitelistEntries = WhitelistFetcher.fetchWhitelist { processed, total ->
                 _whitelistSyncProgress.value = WhitelistSyncProgress(
                     current = processed,
-                    total = maxOf(processed, _whitelistSyncProgress.value.total),
-                    currentArtistName = _whitelistSyncProgress.value.currentArtistName
+                    total = total
                 )
             }.getOrThrow()
             Timber.d("Whitelist sync: Fetched ${whitelistEntries.size} artists from Firestore")
@@ -409,6 +406,13 @@ class SyncUtils @Inject constructor(
             database.transaction {
                 clearWhitelist()
                 insertWhitelist(whitelistEntries)
+                val existingArtistIds = getAllArtistIdsSync().toSet()
+                val missingArtists = whitelistEntries
+                    .filter { it.artistId !in existingArtistIds }
+                    .map { ArtistEntity(id = it.artistId, name = it.artistName) }
+                if (missingArtists.isNotEmpty()) {
+                    insertArtists(missingArtists)
+                }
             }
             Timber.d("Whitelist sync: Successfully synced ${whitelistEntries.size} artists to whitelist table")
 

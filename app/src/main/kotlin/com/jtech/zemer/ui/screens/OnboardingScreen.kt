@@ -43,10 +43,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,7 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -254,14 +254,6 @@ private fun PermissionsScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val audioPermission =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_AUDIO
-        else Manifest.permission.READ_EXTERNAL_STORAGE
-
-    var fileAccessGranted by remember {
-        mutableStateOf(ContextCompat.checkSelfPermission(context, audioPermission) == android.content.pm.PackageManager.PERMISSION_GRANTED)
-    }
-
     var notificationsGranted by remember {
         mutableStateOf(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -310,14 +302,9 @@ private fun PermissionsScreen(
                 Manifest.permission.NEARBY_WIFI_DEVICES
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         }
-        fileAccessGranted = ContextCompat.checkSelfPermission(
-            context,
-            audioPermission
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
     }, lifecycleOwner = lifecycleOwner)
 
     val allGranted = listOf(
-        fileAccessGranted,
         notificationsGranted,
         nearbyGranted,
         backgroundGranted,
@@ -361,16 +348,7 @@ private fun PermissionsScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // Show only the first needed permission
-            if (!fileAccessGranted) {
-                PermissionCard(
-                    title = stringResource(R.string.onboarding_perm_audio_title),
-                    description = stringResource(R.string.onboarding_perm_audio_desc),
-                    granted = fileAccessGranted,
-                    actionLabel = stringResource(R.string.onboarding_open_settings),
-                ) {
-                    openAppSettings(context)
-                }
-            } else if (!notificationsGranted) {
+            if (!notificationsGranted) {
                 PermissionCard(
                     title = stringResource(R.string.onboarding_perm_notifications_title),
                     description = stringResource(R.string.onboarding_perm_notifications_desc),
@@ -637,9 +615,12 @@ private fun LegalOverlay(
 private fun LoadingScreen(
     onFinished: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val syncUtils = remember { (context.applicationContext as com.jtech.zemer.App).syncUtils }
+    val progress by syncUtils.whitelistSyncProgress.collectAsState()
+
     LaunchedEffect(Unit) {
-        // Simulate loading data (JSON sync, etc.)
-        kotlinx.coroutines.delay(2000)
+        syncUtils.syncArtistWhitelist(forceSync = true)
         onFinished()
     }
 
@@ -653,15 +634,32 @@ private fun LoadingScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(64.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                strokeWidth = 5.dp
-            )
+            if (progress.total > 0) {
+                CircularProgressIndicator(
+                    progress = { progress.current.toFloat() / progress.total.coerceAtLeast(1) },
+                    modifier = Modifier.size(64.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                    strokeWidth = 5.dp
+                )
+            } else {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(64.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                    strokeWidth = 5.dp
+                )
+            }
+
+            val pct = if (progress.total > 0) {
+                (progress.current * 100f / progress.total.coerceAtLeast(1)).toInt()
+            } else null
 
             Text(
-                text = "Setting up your library...",
+                text = when {
+                    pct != null -> "Setting up your library... $pct%"
+                    else -> "Setting up your library..."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )

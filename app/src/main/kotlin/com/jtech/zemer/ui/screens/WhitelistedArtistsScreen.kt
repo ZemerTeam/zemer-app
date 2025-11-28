@@ -101,13 +101,12 @@ fun WhitelistedArtistsScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val syncProgress by viewModel.syncProgress.collectAsState()
     val coroutineScope = rememberCoroutineScope()
-    var showSyncOverlay by remember { mutableStateOf(true) }
+    var showSyncOverlay by remember { mutableStateOf(false) }
 
-    LaunchedEffect(syncProgress.total, syncProgress.isComplete) {
+    LaunchedEffect(syncProgress.total, syncProgress.isComplete, syncProgress.current) {
         if (syncProgress.total > 0 && !syncProgress.isComplete) {
             showSyncOverlay = true
-        }
-        if (syncProgress.isComplete) {
+        } else if (syncProgress.isComplete || syncProgress.total == 0) {
             showSyncOverlay = false
         }
     }
@@ -377,10 +376,12 @@ fun WhitelistedArtistsScreen(
                         style = MaterialTheme.typography.titleMedium
                     )
                     LinearProgressIndicator(
-                        progress = if (syncProgress.total > 0) {
-                            syncProgress.current.toFloat() / syncProgress.total.toFloat()
-                        } else {
-                            0f
+                        progress = {
+                            if (syncProgress.total > 0) {
+                                syncProgress.current.toFloat() / syncProgress.total.toFloat()
+                            } else {
+                                0f
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()

@@ -5,6 +5,7 @@ import com.google.firebase.firestore.QuerySnapshot
 import com.jtech.zemer.db.entities.ArtistWhitelistEntity
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDateTime
+import timber.log.Timber
 
 object WhitelistFetcher {
     private val firestore: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
@@ -22,52 +23,46 @@ object WhitelistFetcher {
             value
         }
 
-    suspend fun fetchWhitelist(onProgress: (Int) -> Unit = {}): Result<List<ArtistWhitelistEntity>> =
+    suspend fun fetchWhitelist(onProgress: (current: Int, total: Int) -> Unit = { _, _ -> }): Result<List<ArtistWhitelistEntity>> =
         runCatching {
             val now = LocalDateTime.now()
             val whitelistEntities = mutableListOf<ArtistWhitelistEntity>()
-            var processed = 0
+            Timber.d("WhitelistFetcher: starting full fetch of artistsWhitelist...")
 
-            var snapshot: QuerySnapshot? = firestore.collection("artistsWhitelist")
-                .limit(500)
+            val snapshot: QuerySnapshot = firestore.collection("artistsWhitelist")
                 .get()
                 .await()
+            val total = snapshot.size()
 
-            while (snapshot != null && !snapshot.isEmpty) {
-                snapshot.documents.forEach { doc ->
-                    val artistId = (doc.getString("id") ?: doc.getString("artistId")) ?: return@forEach
-                    val artistName = (doc.getString("name") ?: doc.getString("artistName")) ?: return@forEach
-                    val isFemale = doc.getBoolean("isFemale") ?: false
-                    val isChasid = doc.getBoolean("isChasid") ?: false
-                    val isGenZ = doc.getBoolean("isGenZ") ?: false
+            var processed = 0
+            snapshot.documents.forEach { doc ->
+                val artistId = (doc.getString("id") ?: doc.getString("artistId")) ?: return@forEach
+                val artistName = (doc.getString("name") ?: doc.getString("artistName")) ?: return@forEach
+                val isFemale = doc.getBoolean("isFemale") ?: false
+                val isChasid = doc.getBoolean("isChasid") ?: false
+                val isGenZ = doc.getBoolean("isGenZ") ?: false
 
-                    whitelistEntities.add(
-                        ArtistWhitelistEntity(
-                            artistId = artistId,
-                            artistName = artistName,
-                            addedAt = now,
-                            source = "firestore",
-                            lastSyncedAt = now,
-                            isFemale = isFemale,
-                            isChasid = isChasid,
-                            isGenZ = isGenZ
-                        )
+                whitelistEntities.add(
+                    ArtistWhitelistEntity(
+                        artistId = artistId,
+                        artistName = artistName,
+                        addedAt = now,
+                        source = "firestore",
+                        lastSyncedAt = now,
+                        isFemale = isFemale,
+                        isChasid = isChasid,
+                        isGenZ = isGenZ
                     )
-                    processed++
-                    onProgress(processed)
+                )
+                processed++
+                onProgress(processed, total)
+                if (processed % 200 == 0) {
+                    Timber.d("WhitelistFetcher: fetched $processed/$total artists so far")
                 }
-
-                val last = snapshot.documents.lastOrNull()
-                snapshot = if (last != null) {
-                    firestore.collection("artistsWhitelist")
-                        .startAfter(last)
-                        .limit(500)
-                        .get()
-                        .await()
-                } else null
             }
 
             lastFetchTime = System.currentTimeMillis()
+            Timber.d("WhitelistFetcher: completed fetch with $processed artists")
             whitelistEntities
         }
 }

@@ -433,8 +433,6 @@
     <string name="onboarding_privacy_body">We don’t collect personal data, analytics, or logins. Preferences stay on your device. Network calls only fetch what you choose to play.</string>
     <string name="onboarding_permissions_title">Quick permission check</string>
     <string name="onboarding_permissions_subtitle">Give a couple permissions so playback and downloads stay smooth. You can skip if you prefer.</string>
-    <string name="onboarding_perm_audio_title">Media access</string>
-    <string name="onboarding_perm_audio_desc">Let Zemer read your offline music.</string>
     <string name="onboarding_perm_notifications_title">Notifications</string>
     <string name="onboarding_perm_notifications_desc">Show playback controls in notifications.</string>
     <string name="onboarding_perm_background_title">Background run</string>

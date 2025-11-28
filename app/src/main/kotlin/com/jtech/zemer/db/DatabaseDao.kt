@@ -1203,11 +1203,17 @@ interface DatabaseDao {
     @Query("SELECT * FROM artist WHERE artist.id = :id LIMIT 1")
     fun getArtistById(id: String): ArtistEntity?
 
+    @Query("SELECT id FROM artist")
+    fun getAllArtistIdsSync(): List<String>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insert(song: SongEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insert(artist: ArtistEntity)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    fun insertArtists(artists: List<ArtistEntity>)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insert(album: AlbumEntity): Long

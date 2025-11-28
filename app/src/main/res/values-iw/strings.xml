@@ -318,8 +318,6 @@
     <string name="onboarding_privacy_body">איננו אוספים נתונים, אנליטיקות או התחברויות. ההעדפות נשמרות מקומית. בקשות רשת רק מביאות מה שתבחרו לנגן.</string>
     <string name="onboarding_permissions_title">בדיקת הרשאות קצרה</string>
     <string name="onboarding_permissions_subtitle">כמה הרשאות כדי שהשמעה והורדה יישארו חלקות. אפשר גם לדלג.</string>
-    <string name="onboarding_perm_audio_title">גישה למדיה</string>
-    <string name="onboarding_perm_audio_desc">תנו ל-Zemer לקרוא את המוזיקה הלא מקוונת שלכם.</string>
     <string name="onboarding_perm_notifications_title">התראות</string>
     <string name="onboarding_perm_notifications_desc">בקרות השמעה בהתראות.</string>
     <string name="onboarding_perm_background_title">עבודה ברקע</string>

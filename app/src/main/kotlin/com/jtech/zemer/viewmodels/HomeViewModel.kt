@@ -13,6 +13,7 @@ import com.metrolist.innertube.pages.HomePage
 import com.metrolist.innertube.utils.completed
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.InnerTubeCookieKey
+import com.jtech.zemer.constants.OnboardingCompleteKey
 import com.jtech.zemer.constants.QuickPicks
 import com.jtech.zemer.constants.QuickPicksKey
 import com.jtech.zemer.constants.YtmSyncKey
@@ -325,12 +326,16 @@ class HomeViewModel @Inject constructor(
                 .distinctUntilChanged()
                 .first()
 
-            val isSyncEnabled = context.dataStore.get(YtmSyncKey, true)
-            if (isSyncEnabled) {
-                // Sync artist whitelist FIRST before loading home content
-                // This ensures whitelist filtering works correctly for new users
-                syncUtils.syncArtistWhitelist()
+            // Avoid kicking off sync until onboarding is completed
+            val onboardingComplete = context.dataStore.get(OnboardingCompleteKey, false)
+            if (!onboardingComplete) {
+                context.dataStore.data
+                    .map { it[OnboardingCompleteKey] == true }
+                    .distinctUntilChanged()
+                    .first { it }
             }
+
+            val isSyncEnabled = context.dataStore.get(YtmSyncKey, true)
 
             load(force = true)
 
