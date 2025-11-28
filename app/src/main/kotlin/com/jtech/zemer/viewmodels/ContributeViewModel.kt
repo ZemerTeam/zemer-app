@@ -224,14 +224,23 @@ class ContributeViewModel @Inject constructor() : ViewModel() {
         try {
             _uiState.update { it.copy(isLoading = true, currentArtist = null, error = null) }
             val baseQuery = firestore.collection("artistsWhitelist")
-            val unverifiedSnapshot = baseQuery.whereEqualTo("isVerified", false).limit(50).get().await()
+            val unverifiedSnapshot = baseQuery
+                .whereEqualTo("isVerified", false)
+                .whereEqualTo("whitelisted", true)
+                .limit(50)
+                .get()
+                .await()
             val random = Random(System.currentTimeMillis())
             val shuffledUnverified = unverifiedSnapshot.documents.shuffled(random)
 
             var doc = shuffledUnverified.firstOrNull()
             if (doc == null) {
                 // Fallback: pick any doc that is not explicitly verified
-                val anySnapshot = baseQuery.limit(50).get().await()
+                val anySnapshot = baseQuery
+                    .whereEqualTo("whitelisted", true)
+                    .limit(50)
+                    .get()
+                    .await()
                 doc = anySnapshot.documents.shuffled(random).firstOrNull { snap ->
                     snap.getBoolean("isVerified") != true
                 }
@@ -242,6 +251,7 @@ class ContributeViewModel @Inject constructor() : ViewModel() {
             }
 
             val fields = doc.data.orEmpty()
+            val isVerified = (fields["isVerified"] as? Boolean) ?: false
             val artist = ContributeArtist(
                 docId = doc.id,
                 artistId = (fields["id"] ?: fields["artistId"] ?: doc.id).toString(),
@@ -251,6 +261,10 @@ class ContributeViewModel @Inject constructor() : ViewModel() {
                 isChasid = (fields["isChasid"] as? Boolean) ?: false,
                 isGenZ = (fields["isGenZ"] as? Boolean) ?: false
             )
+            if (isVerified) {
+                _uiState.update { it.copy(isLoading = false, currentArtist = null, message = "All artists are verified") }
+                return
+            }
             _uiState.update { it.copy(isLoading = false, currentArtist = artist, message = null) }
         } catch (e: Exception) {
             Timber.e(e, "Contribute: load task failed")
