@@ -2,6 +2,7 @@ package com.jtech.zemer.ui.screens.settings
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -118,24 +119,13 @@ fun AboutScreen(
                     )
                 }
 
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                Box(
                     modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
                 ) {
                     AssistChip(
                         onClick = {},
                         label = { Text("Version ${BuildConfig.VERSION_NAME}") },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        ),
-                    )
-                    val buildLabel =
-                        if (BuildConfig.DEBUG) "Debug build" else "${BuildConfig.ARCHITECTURE.uppercase()} build"
-                    AssistChip(
-                        onClick = {},
-                        label = { Text(buildLabel) },
                         colors = AssistChipDefaults.assistChipColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
                             labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -150,15 +140,9 @@ fun AboutScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        text = "Maintained by Ars18",
+                        text = "Created by Ars18 and TripleU",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Medium,
-                    )
-                    Text(
-                        text = "With TripleU, Chatzie & the community",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
                     )
                 }
 
