@@ -62,6 +62,7 @@ import com.jtech.zemer.constants.LyricsScrollKey
 import com.jtech.zemer.constants.LyricsTextPositionKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
+import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.PureBlackKey
@@ -115,6 +116,10 @@ fun AppearanceSettings(
     )
     val (useNewMiniPlayerDesign, onUseNewMiniPlayerDesignChange) = rememberPreference(
         UseNewMiniPlayerDesignKey,
+        defaultValue = true
+    )
+    val (floatingMiniPlayerEnabled, onFloatingMiniPlayerEnabledChange) = rememberPreference(
+        FloatingMiniPlayerKey,
         defaultValue = true
     )
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) = rememberPreference(
@@ -444,6 +449,14 @@ fun AppearanceSettings(
             icon = { Icon(painterResource(R.drawable.nav_bar), null) },
             checked = useNewMiniPlayerDesign,
             onCheckedChange = onUseNewMiniPlayerDesignChange,
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.floating_mini_player)) },
+            description = stringResource(R.string.floating_mini_player_desc),
+            icon = { Icon(painterResource(R.drawable.nav_bar), null) },
+            checked = floatingMiniPlayerEnabled,
+            onCheckedChange = onFloatingMiniPlayerEnabledChange,
         )
 
         EnumListPreference(

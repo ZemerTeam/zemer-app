@@ -122,7 +122,7 @@ import androidx.core.net.toUri
 import androidx.core.util.Consumer
 import com.google.firebase.auth.FirebaseAuth
 import androidx.core.view.WindowCompat
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -157,6 +157,7 @@ import com.jtech.zemer.constants.MiniPlayerHeight
 import com.jtech.zemer.constants.MiniPlayerBottomSpacing
 import com.jtech.zemer.constants.UpdateNotificationsEnabledKey
 import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
+import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.constants.PauseSearchHistoryKey
 import com.jtech.zemer.constants.PureBlackKey
 import com.jtech.zemer.constants.LastWhitelistVersionKey
@@ -587,6 +588,7 @@ class MainActivity : ComponentActivity() {
                     val navigationItems = remember { Screens.MainScreens }
                     val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
                     val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
+                    val (floatingMiniPlayerEnabled) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
                     val (defaultOpenTab) = rememberEnumPreference(DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
                     val tabOpenedFromShortcut = remember {
                         when (intent?.action) {
@@ -668,13 +670,27 @@ class MainActivity : ComponentActivity() {
 
                     val navigationBarHeight = 0.dp
 
+                    val collapsedBound = remember(
+                        bottomInset,
+                        shouldShowNavigationBar,
+                        showRail,
+                        useNewMiniPlayerDesign,
+                        floatingMiniPlayerEnabled
+                    ) {
+                        if (floatingMiniPlayerEnabled) {
+                            bottomInset +
+                                (if (!showRail && shouldShowNavigationBar) getNavPadding() else 0.dp) +
+                                (if (useNewMiniPlayerDesign) MiniPlayerBottomSpacing else 0.dp) +
+                                MiniPlayerHeight
+                        } else {
+                            0.dp
+                        }
+                    }
+
                     val playerBottomSheetState =
                         rememberBottomSheetState(
                             dismissedBound = 0.dp,
-                            collapsedBound = bottomInset +
-                                (if (!showRail && shouldShowNavigationBar) getNavPadding() else 0.dp) +
-                                (if (useNewMiniPlayerDesign) MiniPlayerBottomSpacing else 0.dp) +
-                                MiniPlayerHeight,
+                            collapsedBound = collapsedBound,
                             expandedBound = maxHeight,
                         )
 
@@ -683,9 +699,10 @@ class MainActivity : ComponentActivity() {
                         shouldShowNavigationBar,
                         playerBottomSheetState.isDismissed,
                         showRail,
+                        floatingMiniPlayerEnabled
                     ) {
                         var bottom = bottomInset
-                        if (!playerBottomSheetState.isDismissed) bottom += MiniPlayerHeight
+                        if (floatingMiniPlayerEnabled && !playerBottomSheetState.isDismissed) bottom += MiniPlayerHeight
                         windowsInsets
                             .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
                             .add(WindowInsets(top = AppBarHeight, bottom = bottom))
@@ -771,20 +788,22 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    LaunchedEffect(playerConnection) {
+                    LaunchedEffect(playerConnection, floatingMiniPlayerEnabled) {
                         val player = playerConnection?.player ?: return@LaunchedEffect
                         if (player.currentMediaItem == null) {
                             if (!playerBottomSheetState.isDismissed) {
                                 playerBottomSheetState.dismiss()
                             }
                         } else {
-                            if (playerBottomSheetState.isDismissed) {
+                            if (!floatingMiniPlayerEnabled && !playerBottomSheetState.isDismissed) {
+                                playerBottomSheetState.dismiss()
+                            } else if (floatingMiniPlayerEnabled && playerBottomSheetState.isDismissed) {
                                 playerBottomSheetState.collapseSoft()
                             }
                         }
                     }
 
-                    DisposableEffect(playerConnection, playerBottomSheetState) {
+                    DisposableEffect(playerConnection, playerBottomSheetState, floatingMiniPlayerEnabled) {
                         val player =
                             playerConnection?.player ?: return@DisposableEffect onDispose { }
                         val listener =
@@ -795,6 +814,7 @@ class MainActivity : ComponentActivity() {
                                 ) {
                                     if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED &&
                                         mediaItem != null &&
+                                        floatingMiniPlayerEnabled &&
                                         playerBottomSheetState.isDismissed
                                     ) {
                                         playerBottomSheetState.collapseSoft()

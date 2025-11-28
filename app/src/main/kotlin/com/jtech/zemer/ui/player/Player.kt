@@ -112,6 +112,7 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
+import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.PlayerButtonsStyle
@@ -165,6 +166,10 @@ fun BottomSheetPlayer(
 
     val (useNewPlayerDesign, onUseNewPlayerDesignChange) = rememberPreference(
         UseNewPlayerDesignKey,
+        defaultValue = true
+    )
+    val (floatingMiniPlayerEnabled) = rememberPreference(
+        FloatingMiniPlayerKey,
         defaultValue = true
     )
     val playerBackground by rememberEnumPreference(
@@ -514,13 +519,15 @@ fun BottomSheetPlayer(
             playerConnection.player.clearMediaItems()
         },
         collapsedContent = {
-            MiniPlayer(
-                position = position,
-                duration = duration,
-                pureBlack = pureBlack,
-                allowFocus = false,
-                focusTargets = miniPlayerFocusTargets
-            )
+            if (floatingMiniPlayerEnabled) {
+                MiniPlayer(
+                    position = position,
+                    duration = duration,
+                    pureBlack = pureBlack,
+                    allowFocus = false,
+                    focusTargets = miniPlayerFocusTargets
+                )
+            }
         },
     ) {
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
