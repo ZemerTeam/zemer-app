@@ -282,7 +282,8 @@ fun WhitelistedArtistsScreen(
                             modifier = Modifier
                                 .then(if (index == 0) Modifier.focusRequester(firstArtistFocus) else Modifier)
                                 .animateItem(),
-                            artist = artist
+                            artist = artist,
+                            onRequestThumb = { viewModel.requestThumb(artist.id) }
                         )
                     }
                 }
@@ -338,7 +339,8 @@ fun WhitelistedArtistsScreen(
                             modifier = Modifier
                                 .then(if (index == 0) Modifier.focusRequester(firstArtistFocus) else Modifier)
                                 .animateItem(),
-                            artist = artist
+                            artist = artist,
+                            onRequestThumb = { viewModel.requestThumb(artist.id) }
                         )
                     }
                 }

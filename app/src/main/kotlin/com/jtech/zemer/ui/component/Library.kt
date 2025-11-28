@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -74,12 +75,16 @@ fun WhitelistedArtistListItem(
     menuState: MenuState,
     coroutineScope: CoroutineScope,
     artist: Artist,
+    onRequestThumb: () -> Unit = {},
     modifier: Modifier = Modifier
 ) = ListItem(
     title = artist.artist.name,
     subtitle = "", // No song count for whitelisted artists
     badges = {}, // No badges for whitelisted artists
     thumbnailContent = {
+        if (artist.artist.thumbnailUrl.isNullOrBlank()) {
+            LaunchedEffect(artist.id) { onRequestThumb() }
+        }
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(artist.artist.thumbnailUrl)
@@ -162,12 +167,16 @@ fun WhitelistedArtistGridItem(
     menuState: MenuState,
     coroutineScope: CoroutineScope,
     artist: Artist,
+    onRequestThumb: () -> Unit = {},
     modifier: Modifier = Modifier
 ) = GridItem(
     title = artist.artist.name,
     subtitle = "", // No song count for whitelisted artists
     badges = {}, // No badges for whitelisted artists
     thumbnailContent = {
+        if (artist.artist.thumbnailUrl.isNullOrBlank()) {
+            LaunchedEffect(artist.id) { onRequestThumb() }
+        }
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(artist.artist.thumbnailUrl)

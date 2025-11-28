@@ -1547,6 +1547,16 @@ interface DatabaseDao {
     @Query("SELECT artistId FROM artist_whitelist ORDER BY RANDOM() LIMIT :limit")
     suspend fun getRandomWhitelistedArtistIds(limit: Int): List<String>
 
+    @Query(
+        """
+        SELECT artist.id FROM artist
+        INNER JOIN artist_whitelist ON artist.id = artist_whitelist.artistId
+        WHERE (artist.thumbnailUrl IS NULL OR artist.thumbnailUrl = '')
+        LIMIT :limit
+        """
+    )
+    suspend fun getWhitelistedArtistIdsMissingThumb(limit: Int): List<String>
+
     @Query("DELETE FROM artist_whitelist")
     fun clearWhitelist()
 

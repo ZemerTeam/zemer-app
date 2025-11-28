@@ -56,6 +56,7 @@ class SyncUtils @Inject constructor(
     private val isSyncingArtists = MutableStateFlow(false)
     private val isSyncingPlaylists = MutableStateFlow(false)
     private val isSyncingWhitelist = MutableStateFlow(false)
+    private val isBackfillingThumbs = MutableStateFlow(false)
 
     private val _whitelistSyncProgress = MutableStateFlow(WhitelistSyncProgress())
     val whitelistSyncProgress: StateFlow<WhitelistSyncProgress> = _whitelistSyncProgress.asStateFlow()
@@ -407,11 +408,11 @@ class SyncUtils @Inject constructor(
                 clearWhitelist()
                 insertWhitelist(whitelistEntries)
                 val existingArtistIds = getAllArtistIdsSync().toSet()
-                val missingArtists = whitelistEntries
-                    .filter { it.artistId !in existingArtistIds }
-                    .map { ArtistEntity(id = it.artistId, name = it.artistName) }
-                if (missingArtists.isNotEmpty()) {
-                    insertArtists(missingArtists)
+            val missingArtists = whitelistEntries
+                .filter { it.artistId !in existingArtistIds }
+                .map { ArtistEntity(id = it.artistId, name = it.artistName) }
+            if (missingArtists.isNotEmpty()) {
+                insertArtists(missingArtists)
                 }
             }
             Timber.d("Whitelist sync: Successfully synced ${whitelistEntries.size} artists to whitelist table")
@@ -426,6 +427,9 @@ class SyncUtils @Inject constructor(
                 settings[LastWhitelistSyncTimeKey] = System.currentTimeMillis()
                 remoteVersion?.let { settings[LastWhitelistVersionKey] = it }
             }
+
+            // Backfill artist thumbnails for whitelisted artists missing thumbs (limited to reduce load)
+            backfillMissingArtistThumbs(limit = 150)
         } catch (e: Exception) {
             Timber.e(e, "Whitelist sync exception: ${e.message}")
             e.printStackTrace()
@@ -433,6 +437,43 @@ class SyncUtils @Inject constructor(
         } finally {
             isSyncingWhitelist.value = false
             Timber.d("Whitelist sync finished")
+        }
+    }
+
+    fun backfillMissingArtistThumbs(limit: Int = 150) {
+        if (isBackfillingThumbs.value) return
+        isBackfillingThumbs.value = true
+        syncScope.launch {
+            performBackfillMissingArtistThumbs(limit)
+            isBackfillingThumbs.value = false
+        }
+    }
+
+    private suspend fun performBackfillMissingArtistThumbs(limit: Int) {
+        try {
+            val missingIds = database.getWhitelistedArtistIdsMissingThumb(limit)
+            if (missingIds.isEmpty()) return
+
+            Timber.d("Whitelist sync: backfilling thumbnails for ${missingIds.size} artists")
+            missingIds.forEachIndexed { index, artistId ->
+                runCatching {
+                    YouTube.artist(artistId).onSuccess { artistPage ->
+                        val thumb = artistPage.artist.thumbnail
+                        if (!thumb.isNullOrBlank()) {
+                            database.getArtistById(artistId)?.let { existing ->
+                                database.update(existing.copy(thumbnailUrl = thumb))
+                            }
+                        }
+                    }
+                }.onFailure {
+                    Timber.d("Thumb backfill failed for $artistId: ${it.message}")
+                }
+                if ((index + 1) % 25 == 0) {
+                    Timber.d("Thumb backfill progress: ${index + 1}/${missingIds.size}")
+                }
+            }
+        } catch (e: Exception) {
+            Timber.d("Thumb backfill error: ${e.message}")
         }
     }
 

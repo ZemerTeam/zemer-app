@@ -19,7 +19,7 @@ import javax.inject.Inject
 class WhitelistedArtistsViewModel
 @Inject
 constructor(
-    database: MusicDatabase,
+    private val database: MusicDatabase,
     private val syncUtils: SyncUtils,
 ) : ViewModel() {
     val searchQuery = MutableStateFlow("")
@@ -52,6 +52,29 @@ constructor(
     fun sync() {
         viewModelScope.launch(Dispatchers.IO) {
             syncUtils.syncArtistWhitelist()  // Fixed: was calling syncArtistsSubscriptions() by mistake
+        }
+    }
+
+    private val thumbRequests = mutableSetOf<String>()
+
+    fun requestThumb(artistId: String) {
+        synchronized(thumbRequests) {
+            if (!thumbRequests.add(artistId)) return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val pageResult = com.metrolist.innertube.YouTube.artist(artistId)
+                pageResult.onSuccess { artistPage ->
+                    val thumb = artistPage.artist.thumbnail
+                    if (!thumb.isNullOrBlank()) {
+                        database.getArtistById(artistId)?.let { existing ->
+                            database.update(existing.copy(thumbnailUrl = thumb))
+                        }
+                    }
+                }
+            }.onFailure {
+                thumbRequests.remove(artistId)
+            }
         }
     }
 }
