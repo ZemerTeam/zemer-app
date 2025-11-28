@@ -69,6 +69,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.contentColorFor
@@ -842,6 +843,8 @@ class MainActivity : ComponentActivity() {
                             drawerState = drawerState,
                             drawerContent = {
                                 ModalDrawerSheet(
+                                    drawerContainerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp),
+                                    drawerContentColor = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.focusProperties {
                                         canFocus = drawerState.isOpen
                                     }
