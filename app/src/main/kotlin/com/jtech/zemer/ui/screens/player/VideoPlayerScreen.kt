@@ -77,6 +77,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.LocalDownloadUtil
+import com.jtech.zemer.LocalPlayerConnection
 import java.io.File
 import android.os.Environment
 
@@ -110,7 +111,7 @@ fun VideoPlayerScreen(
     // Pause any currently playing music when video player is shown
     val playerConnection = LocalPlayerConnection.current
     LaunchedEffect(Unit) {
-        playerConnection.pause()
+        playerConnection?.player?.pause()
     }
 
     val maxVideoBitrateKbps = remember(connectivityManager) {
