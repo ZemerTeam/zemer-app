@@ -22,6 +22,22 @@
           }
         },
         {
+          "client_id": "406005787060-l1lud8gs1vaatefbdn29mbcf9vmap7cn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jtech.zemer",
+            "certificate_hash": "c6d80d532dba97b1bcf105aea1d444ec63d100a0"
+          }
+        },
+        {
+          "client_id": "406005787060-o77b5tb7g7r0jld1b6q6cnc3e0rcev8o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jtech.zemer",
+            "certificate_hash": "ae90340cfc9c47bd6870047b3923b67fc70109a1"
+          }
+        },
+        {
           "client_id": "406005787060-9su8f9n0tm2qi428r4s358atlqmp3b6v.apps.googleusercontent.com",
           "client_type": 3
         }
