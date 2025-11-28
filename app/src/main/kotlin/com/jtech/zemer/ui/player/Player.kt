@@ -513,11 +513,7 @@ fun BottomSheetPlayer(
                 }
             }
         },
-        onDismiss = {
-            playerConnection.service.clearAutomix()
-            playerConnection.player.stop()
-            playerConnection.player.clearMediaItems()
-        },
+        onDismiss = { /* keep playback running when sheet is dismissed */ },
         collapsedContent = {
             if (floatingMiniPlayerEnabled) {
                 MiniPlayer(
