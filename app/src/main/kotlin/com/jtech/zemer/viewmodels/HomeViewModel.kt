@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.YTItem
 import com.metrolist.innertube.models.filterExplicit
@@ -22,6 +23,7 @@ import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toEnum
+import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.get
@@ -83,12 +85,32 @@ class HomeViewModel @Inject constructor(
             .filter { it is Song || it is Album }
     }
 
+    private suspend fun artistBasedQuickPicks(): List<Song> {
+        val events = database.events().first()
+        val listenedArtistIds = events
+            .flatMap { it.song.artists }
+            .mapNotNull { it.id }
+            .toSet()
+
+        val whitelistedSongs = runCatching { database.allSongs().first() }.getOrDefault(emptyList())
+        val artistMatches = whitelistedSongs
+            .filter { song -> song.artists.any { it.id in listenedArtistIds } }
+            .distinctBy { it.id }
+
+        return when {
+            artistMatches.isNotEmpty() -> artistMatches.shuffled().take(20)
+            whitelistedSongs.isNotEmpty() -> whitelistedSongs.shuffled().take(20)
+            else -> emptyList()
+        }
+    }
+
     private suspend fun getQuickPicks() {
         val whitelistPresent = hasWhitelist()
         when (quickPicksEnum.first()) {
             QuickPicks.QUICK_PICKS -> {
                 val raw = runCatching { database.quickPicks().first() }.getOrDefault(emptyList())
-                val withFallback = raw.ifEmpty {
+                val seeded = raw.ifEmpty { artistBasedQuickPicks() }
+                val withFallback = seeded.ifEmpty {
                     // Fallback: recent unique songs from history when DB query yields nothing
                     database.events().first().map { it.song }.distinctBy { it.id }.take(50)
                 }
@@ -121,6 +143,33 @@ class HomeViewModel @Inject constructor(
             val historyFallback = database.events().first().map { it.song }.distinctBy { it.id }.take(20)
             quickPicks.value = historyFallback
             Timber.d("HomeViewModel: Quick picks fallback from history - ${historyFallback.size} songs")
+        }
+    }
+
+    private suspend fun seedQuickPicksFromHomePage(page: HomePage, hideExplicit: Boolean) {
+        if (quickPicks.value?.isNotEmpty() == true) return
+
+        val candidateSongs = page.sections
+            .flatMap { it.items }
+            .filterExplicit(hideExplicit)
+            .filterWhitelisted(database)
+            .filterIsInstance<SongItem>()
+            .distinctBy { it.id }
+            .take(40)
+
+        if (candidateSongs.isEmpty()) {
+            Timber.d("HomeViewModel: No candidate quick picks from home page fallback")
+            return
+        }
+
+        candidateSongs.forEach { song ->
+            database.insert(song.toMediaMetadata())
+        }
+
+        val seeded = database.getSongsByIds(candidateSongs.map { it.id })
+        if (seeded.isNotEmpty()) {
+            quickPicks.value = seeded.take(20)
+            Timber.d("HomeViewModel: Quick picks seeded from home page - ${seeded.size} songs")
         }
     }
 
@@ -186,15 +235,17 @@ class HomeViewModel @Inject constructor(
                     combined = historySongs.shuffled().take(20)
                     Timber.d("HomeViewModel: Keep listening fallback from history - ${combined.size} items")
                 }
-                keepListening.value = combined
+                keepListening.value = combined.distinctBy { it.id }
                 Timber.d("HomeViewModel: Keep listening loaded - ${keepListeningSongs.size} songs, ${keepListeningAlbums.size} albums, ${keepListeningArtists.size} artists (total: ${combined.size})")
             } catch (e: Exception) {
                 Timber.e(e, "HomeViewModel: Exception in keep listening section")
                 keepListening.value = emptyList()
             }
 
-            YouTube.home().onSuccess { page ->
-                homePage.value = page.copy(
+            val homeResult = YouTube.home()
+            if (homeResult.isSuccess) {
+                val page = homeResult.getOrNull()!!
+                val filteredPage = page.copy(
                     sections = page.sections.mapNotNull { section ->
                         val filteredItems = section.items
                             .filterExplicit(hideExplicit)
@@ -202,8 +253,15 @@ class HomeViewModel @Inject constructor(
                         if (filteredItems.isEmpty()) null else section.copy(items = filteredItems)
                     }
                 )
-            }.onFailure {
-                reportException(it)
+                homePage.value = filteredPage
+
+                try {
+                    seedQuickPicksFromHomePage(filteredPage, hideExplicit)
+                } catch (e: Exception) {
+                    Timber.w(e, "HomeViewModel: Failed to seed quick picks from home page fallback")
+                }
+            } else {
+                homeResult.exceptionOrNull()?.let { reportException(it) }
             }
 
             YouTube.explore().onSuccess { page ->

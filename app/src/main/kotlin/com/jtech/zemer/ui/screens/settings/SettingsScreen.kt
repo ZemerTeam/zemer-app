@@ -28,6 +28,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -64,9 +69,19 @@ fun SettingsScreen(
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val isAndroid12OrLater = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val firebaseAuth = remember { FirebaseAuth.getInstance() }
+    var isLoggedIn by remember { mutableStateOf(firebaseAuth.currentUser != null) }
+
+    DisposableEffect(firebaseAuth) {
+        val listener = FirebaseAuth.AuthStateListener { auth ->
+            isLoggedIn = auth.currentUser != null
+        }
+        firebaseAuth.addAuthStateListener(listener)
+        onDispose { firebaseAuth.removeAuthStateListener(listener) }
+    }
 
     // Define all settings items without stringResource (use string literals)
-    val allSettings = listOf(
+    val baseSettings = listOf(
         SettingItem(
             id = "appearance",
             title = stringResource(R.string.appearance),
@@ -138,16 +153,22 @@ fun SettingsScreen(
             icon = R.drawable.info,
             section = "System & About",
             route = "settings/about"
-        ),
-        SettingItem(
-            id = "logout",
-            title = stringResource(R.string.action_logout),
-            description = stringResource(R.string.sign_out_description),
-            icon = R.drawable.person,
-            section = "System & About",
-            route = null
         )
     )
+    val allSettings = baseSettings + if (isLoggedIn) {
+        listOf(
+            SettingItem(
+                id = "logout",
+                title = stringResource(R.string.action_logout),
+                description = stringResource(R.string.sign_out_description),
+                icon = R.drawable.person,
+                section = "System & About",
+                route = null
+            )
+        )
+    } else {
+        emptyList()
+    }
 
     Column(
         Modifier
