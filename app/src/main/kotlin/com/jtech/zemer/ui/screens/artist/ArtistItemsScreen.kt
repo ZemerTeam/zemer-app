@@ -78,6 +78,7 @@ fun ArtistItemsScreen(
 
     val title by viewModel.title.collectAsState()
     val itemsPage by viewModel.itemsPage.collectAsState()
+    val isVideoSection = title.contains("video", ignoreCase = true) || title.contains("short", ignoreCase = true)
 
     LaunchedEffect(lazyListState) {
         snapshotFlow {
@@ -169,24 +170,28 @@ fun ArtistItemsScreen(
                     modifier =
                     Modifier
                         .clickable {
-                            when (item) {
-                                is SongItem -> {
-                                    if (item.id == mediaMetadata?.id) {
-                                        playerConnection.player.togglePlayPause()
-                                    } else {
-                                        playerConnection.playQueue(
-                                            YouTubeQueue(
-                                                item.endpoint ?: WatchEndpoint(videoId = item.id),
-                                                item.toMediaMetadata(),
-                                                database
-                                            ),
-                                        )
+                            if (isVideoSection && item is SongItem) {
+                                navController.navigate("video/${item.id}")
+                            } else {
+                                when (item) {
+                                    is SongItem -> {
+                                        if (item.id == mediaMetadata?.id) {
+                                            playerConnection.player.togglePlayPause()
+                                        } else {
+                                            playerConnection.playQueue(
+                                                YouTubeQueue(
+                                                    item.endpoint ?: WatchEndpoint(videoId = item.id),
+                                                    item.toMediaMetadata(),
+                                                    database
+                                                ),
+                                            )
+                                        }
                                     }
-                                }
 
-                                is AlbumItem -> navController.navigate("album/${item.id}")
-                                is ArtistItem -> navController.navigate("artist/${item.id}")
-                                is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                                    is AlbumItem -> navController.navigate("album/${item.id}")
+                                    is ArtistItem -> navController.navigate("artist/${item.id}")
+                                    is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                                }
                             }
                         },
                 )
@@ -225,18 +230,22 @@ fun ArtistItemsScreen(
                     modifier = Modifier
                         .combinedClickable(
                             onClick = {
-                                when (item) {
-                                    is SongItem -> playerConnection.playQueue(
-                                        YouTubeQueue(
-                                            item.endpoint ?: WatchEndpoint(videoId = item.id),
-                                            item.toMediaMetadata(),
-                                            database
+                                if (isVideoSection && item is SongItem) {
+                                    navController.navigate("video/${item.id}")
+                                } else {
+                                    when (item) {
+                                        is SongItem -> playerConnection.playQueue(
+                                            YouTubeQueue(
+                                                item.endpoint ?: WatchEndpoint(videoId = item.id),
+                                                item.toMediaMetadata(),
+                                                database
+                                            )
                                         )
-                                    )
 
-                                    is AlbumItem -> navController.navigate("album/${item.id}")
-                                    is ArtistItem -> navController.navigate("artist/${item.id}")
-                                    is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                                        is AlbumItem -> navController.navigate("album/${item.id}")
+                                        is ArtistItem -> navController.navigate("artist/${item.id}")
+                                        is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                                    }
                                 }
                             },
                             onLongClick = {

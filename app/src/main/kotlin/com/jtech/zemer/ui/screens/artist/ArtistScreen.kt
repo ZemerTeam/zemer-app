@@ -669,16 +669,20 @@ fun ArtistScreen(
                                     modifier = Modifier
                                         .combinedClickable(
                                             onClick = {
-                                                if (song.id == mediaMetadata?.id) {
-                                                    playerConnection.player.togglePlayPause()
+                                                if (isVideoSection) {
+                                                    navController.navigate("video/${song.id}")
                                                 } else {
-                                                    playerConnection.playQueue(
-                                                        YouTubeQueue(
-                                                            WatchEndpoint(videoId = song.id),
-                                                            song.toMediaMetadata(),
-                                                            database
-                                                        ),
-                                                    )
+                                                    if (song.id == mediaMetadata?.id) {
+                                                        playerConnection.player.togglePlayPause()
+                                                    } else {
+                                                        playerConnection.playQueue(
+                                                            YouTubeQueue(
+                                                                WatchEndpoint(videoId = song.id),
+                                                                song.toMediaMetadata(),
+                                                                database
+                                                            ),
+                                                        )
+                                                    }
                                                 }
                                             },
                                             onLongClick = {
@@ -721,11 +725,11 @@ fun ArtistScreen(
                                             modifier = Modifier
                                                 .combinedClickable(
                                                     onClick = {
-                                                        when (item) {
-                                                            is SongItem -> {
-                                                                if (isVideoSection) {
-                                                                    navController.navigate("video/${item.id}")
-                                                                } else {
+                                                        if (isVideoSection && item is SongItem) {
+                                                            navController.navigate("video/${item.id}")
+                                                        } else {
+                                                            when (item) {
+                                                                is SongItem -> {
                                                                     playerConnection.playQueue(
                                                                         YouTubeQueue(
                                                                             WatchEndpoint(videoId = item.id),
@@ -734,10 +738,10 @@ fun ArtistScreen(
                                                                         ),
                                                                     )
                                                                 }
+                                                                is AlbumItem -> navController.navigate("album/${item.id}")
+                                                                is ArtistItem -> navController.navigate("artist/${item.id}")
+                                                                is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
                                                             }
-                                                            is AlbumItem -> navController.navigate("album/${item.id}")
-                                                            is ArtistItem -> navController.navigate("artist/${item.id}")
-                                                            is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
                                                         }
                                                     },
                                                     onLongClick = {
