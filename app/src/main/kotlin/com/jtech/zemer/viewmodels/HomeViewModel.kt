@@ -175,8 +175,12 @@ class HomeViewModel @Inject constructor(
             keepListeningArtists.shuffled().take(6)).shuffled()
 
         if (combined.isEmpty()) {
-            combined = historySongs.shuffled().take(20)
-            Timber.d("HomeViewModel: Keep listening fallback from history - ${combined.size} items")
+            // Fallback to whitelisted songs if no history
+            combined = runCatching { database.allSongs().first() }
+                .getOrDefault(emptyList())
+                .shuffled()
+                .take(20)
+            Timber.d("HomeViewModel: Keep listening fallback from whitelisted - ${combined.size} items")
         }
         Timber.d("HomeViewModel: Keep listening loaded - ${keepListeningSongs.size} songs, ${keepListeningAlbums.size} albums, ${keepListeningArtists.size} artists (total: ${combined.size})")
         return combined.distinctBy { it.id }
@@ -302,7 +306,16 @@ class HomeViewModel @Inject constructor(
         try {
             val hideExplicit = context.dataStore.get(HideExplicitKey, false)
             val quick = loadQuickPicks()
-            val forgotten = database.forgottenFavorites().first().shuffled().take(20)
+            val forgottenList = database.forgottenFavorites().first().shuffled().take(20)
+            val forgotten = if (forgottenList.isNotEmpty()) {
+                forgottenList
+            } else {
+                // Fallback: show liked songs if no forgotten favorites
+                runCatching { database.allSongs().first().filter { it.song.liked } }
+                    .getOrDefault(emptyList())
+                    .shuffled()
+                    .take(20)
+            }
             val keepListening = loadKeepListening()
             val home = loadHomePage(hideExplicit)
             val explore = loadExplorePage(hideExplicit)

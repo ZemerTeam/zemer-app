@@ -537,7 +537,7 @@ fun HomeScreen(
                     }
                 }
 
-                keepListening?.takeIf { it.isNotEmpty() }?.let { keepListening ->
+                keepListening.takeIf { it.isNotEmpty() }?.let { keepListening ->
                     item(key = "keep_listening_title") {
                         NavigationTitle(
                             title = stringResource(R.string.keep_listening),
@@ -567,7 +567,7 @@ fun HomeScreen(
                     }
                 }
 
-                forgottenFavorites?.takeIf { it.isNotEmpty() }?.let { forgottenFavorites ->
+                forgottenFavorites.takeIf { it.isNotEmpty() }?.let { forgottenFavorites ->
                     item(key = "forgotten_favorites_title") {
                         NavigationTitle(
                             title = stringResource(R.string.forgotten_favorites),
