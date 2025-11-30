@@ -9,6 +9,8 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -64,6 +67,19 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.graphics.toArgb
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieClipSpec
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
+import com.airbnb.lottie.compose.rememberLottieDynamicProperties
+import com.airbnb.lottie.compose.rememberLottieDynamicProperty
+import com.airbnb.lottie.LottieProperty
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
+import androidx.compose.foundation.layout.heightIn
 import com.jtech.zemer.R
 
 private enum class OnboardingStep { Welcome, Permissions, Loading }
@@ -103,6 +119,20 @@ private fun WelcomeScreen(
     )
     var legal by remember { mutableStateOf<LegalKind?>(null) }
     var agreed by rememberSaveable { mutableStateOf(false) }
+    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.welcome))
+    val animationState = animateLottieCompositionAsState(
+        composition = composition,
+        iterations = 1,
+        clipSpec = LottieClipSpec.Progress(0f, 0.5f),
+        restartOnPlay = false
+    )
+    val lottieColors = rememberLottieDynamicProperties(
+        rememberLottieDynamicProperty(
+            property = LottieProperty.COLOR_FILTER,
+            value = PorterDuffColorFilter(MaterialTheme.colorScheme.primary.toArgb(), PorterDuff.Mode.SRC_ATOP),
+            keyPath = arrayOf("**")
+        )
+    )
 
     Box(
         modifier = Modifier
@@ -112,123 +142,96 @@ private fun WelcomeScreen(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+                .fillMaxWidth(0.9f)
+                .fillMaxHeight()
+                .padding(top = 64.dp),
+            verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = stringResource(R.string.onboarding_welcome_title),
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center
-            )
-
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                tonalElevation = 0.dp
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = stringResource(R.string.onboarding_safe_line),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = stringResource(R.string.onboarding_disclaimer),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        textAlign = TextAlign.Center
-                    )
-                }
+                LottieAnimation(
+                    composition = composition,
+                    progress = { animationState.progress },
+                    dynamicProperties = lottieColors,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+                Text(
+                    text = stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center
+                )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.weight(1f))
 
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 0.dp,
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(
-                        width = 1.5.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                    .padding(bottom = 12.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier
+                        .fillMaxWidth()
                         .clickable { agreed = !agreed }
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Checkbox(
-                        checked = agreed,
-                        onCheckedChange = { agreed = it }
-                    )
+                    Checkbox(checked = agreed, onCheckedChange = { agreed = it })
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.onboarding_agree_label),
                             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                            tonalElevation = 0.dp
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.padding(top = 2.dp)
                         ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.onboarding_view_tos),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.clickable { legal = LegalKind.TOS },
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                                Text(
-                                    text = "•",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                                Text(
-                                    text = stringResource(R.string.onboarding_view_privacy),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.clickable { legal = LegalKind.PRIVACY },
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
+                            Text(
+                                text = stringResource(R.string.onboarding_view_tos),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.clickable { legal = LegalKind.TOS }
+                            )
+                            Text(
+                                text = "•",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                            Text(
+                                text = stringResource(R.string.onboarding_view_privacy),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.clickable { legal = LegalKind.PRIVACY }
+                            )
                         }
                     }
                 }
-            }
 
-            Button(
-                onClick = onContinue,
-                enabled = agreed,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.onboarding_continue),
-                    style = MaterialTheme.typography.labelMedium
-                )
+                Button(
+                    onClick = onContinue,
+                    enabled = agreed,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.onboarding_continue),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
             }
         }
 
@@ -633,16 +636,40 @@ private fun LegalOverlay(
 }
 
 @Composable
-private fun LoadingScreen(
+fun LoadingScreen(
     onFinished: () -> Unit,
+    shouldStartSync: Boolean = true,
 ) {
     val context = LocalContext.current
     val syncUtils = remember { (context.applicationContext as com.jtech.zemer.App).syncUtils }
     val progress by syncUtils.whitelistSyncProgress.collectAsState()
+    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.loading_dots_blue))
+    val lottieColors = rememberLottieDynamicProperties(
+        rememberLottieDynamicProperty(
+            property = LottieProperty.COLOR_FILTER,
+            value = PorterDuffColorFilter(MaterialTheme.colorScheme.primary.toArgb(), PorterDuff.Mode.SRC_ATOP),
+            keyPath = arrayOf("**")
+        )
+    )
+
+    val loopingState = animateLottieCompositionAsState(
+        composition = composition,
+        iterations = LottieConstants.IterateForever,
+        restartOnPlay = true
+    )
+
 
     LaunchedEffect(Unit) {
-        syncUtils.syncArtistWhitelist(forceSync = true)
-        onFinished()
+        if (shouldStartSync) {
+            syncUtils.syncArtistWhitelist(forceSync = true)
+        }
+    }
+
+    LaunchedEffect(progress.isComplete) {
+        // Wait for sync to complete before finishing
+        if (progress.isComplete) {
+            onFinished()
+        }
     }
 
     Box(
@@ -653,36 +680,27 @@ private fun LoadingScreen(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .padding(horizontal = 24.dp, vertical = 24.dp)
+                .fillMaxWidth()
         ) {
-            if (progress.total > 0) {
-                CircularProgressIndicator(
-                    progress = { progress.current.toFloat() / progress.total.coerceAtLeast(1) },
-                    modifier = Modifier.size(64.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                    strokeWidth = 5.dp
-                )
-            } else {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(64.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                    strokeWidth = 5.dp
-                )
-            }
+            LottieAnimation(
+                composition = composition,
+                progress = { loopingState.progress },
+                dynamicProperties = lottieColors,
+                modifier = Modifier
+                    .size(320.dp)
+            )
 
-            val pct = if (progress.total > 0) {
-                (progress.current * 100f / progress.total.coerceAtLeast(1)).toInt()
-            } else null
+            Spacer(modifier = Modifier.height(48.dp))
 
             Text(
-                text = when {
-                    pct != null -> "Setting up your library... $pct%"
-                    else -> "Setting up your library..."
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                text = stringResource(R.string.setting_up_library_title),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }

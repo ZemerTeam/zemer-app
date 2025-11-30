@@ -6,21 +6,32 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.rememberLottieComposition
 import com.jtech.zemer.utils.WhitelistSyncProgress
-import kotlin.math.roundToInt
+import com.jtech.zemer.R
 
 @Composable
 fun SplashScreen(
@@ -28,60 +39,61 @@ fun SplashScreen(
     onSkip: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var hasTappedSkip by remember { mutableStateOf(false) }
+    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.loading_dots_blue))
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp),
+                        MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp),
+                    )
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(32.dp)
+            modifier = Modifier
+                .padding(32.dp)
+                .fillMaxWidth()
         ) {
-            // App name
             Text(
-                text = "Zemer",
+                text = stringResource(R.string.app_name),
                 fontSize = 48.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
-
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Progress indicator
-            if (syncProgress.total > 0) {
-                val progressFraction =
-                    (syncProgress.current.toFloat() / syncProgress.total.toFloat())
-                        .coerceIn(0f, 1f)
-                val progressPercent = (progressFraction * 100).roundToInt().coerceIn(0, 100)
-                LinearProgressIndicator(
-                    progress = { progressFraction },
-                    modifier = Modifier.size(width = 200.dp, height = 4.dp),
-                )
+            LottieAnimation(
+                composition = composition,
+                iterations = LottieConstants.IterateForever,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 48.dp)
+            )
 
-                Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-                // Progress text
+            TextButton(
+                onClick = {
+                    hasTappedSkip = true
+                    onSkip()
+                }
+            ) {
                 Text(
-                    text = if (progressPercent <= 0) "Loading" else "$progressPercent%",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    text = if (hasTappedSkip) stringResource(R.string.splash_syncing_background_waiting) else stringResource(
+                        R.string.splash_syncing_background_action
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
                 )
-            } else {
-                // Indeterminate progress for initial fetch
-                LinearProgressIndicator(
-                    modifier = Modifier.size(width = 200.dp, height = 4.dp),
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Skip button
-            Button(onClick = onSkip) {
-                Text(text = "Load in background")
             }
         }
     }

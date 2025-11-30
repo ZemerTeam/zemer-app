@@ -33,6 +33,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
@@ -51,11 +52,13 @@ fun MoodAndGenresScreen(
     val itemsPerRow = if (localConfiguration.orientation == ORIENTATION_LANDSCAPE) 3 else 2
 
     val moodAndGenresList by viewModel.moodAndGenres.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
 
     LazyColumn(
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) {
-        if (moodAndGenresList == null) {
+        if (isLoading) {
             item(key = "mood_and_genres_shimmer") {
                 ShimmerHost(
                     modifier = Modifier.animateItem()
@@ -64,6 +67,28 @@ fun MoodAndGenresScreen(
                         ListItemPlaceHolder()
                     }
                 }
+            }
+        } else if (error != null) {
+            item(key = "mood_and_genres_error") {
+                AppStateView(
+                    title = stringResource(R.string.mood_and_genres_error_title),
+                    subtitle = error ?: "",
+                    icon = R.drawable.explore_outlined,
+                    actionLabel = stringResource(R.string.mood_and_genres_retry),
+                    onAction = viewModel::refresh,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                )
+            }
+        } else if (moodAndGenresList.isNullOrEmpty()) {
+            item(key = "mood_and_genres_empty") {
+                AppStateView(
+                    title = stringResource(R.string.mood_and_genres_empty_title),
+                    subtitle = stringResource(R.string.mood_and_genres_empty_subtitle),
+                    icon = R.drawable.explore_outlined,
+                    actionLabel = stringResource(R.string.mood_and_genres_retry),
+                    onAction = viewModel::refresh,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                )
             }
         }
 

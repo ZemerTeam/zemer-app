@@ -39,6 +39,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_ALBUM
@@ -60,7 +61,7 @@ import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.ui.component.ChipsRow
-import com.jtech.zemer.ui.component.EmptyPlaceholder
+import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.YouTubeListItem
@@ -98,6 +99,8 @@ fun OnlineSearchResult(
 
     val searchFilter by viewModel.filter.collectAsState()
     val searchSummary = viewModel.summaryPage
+    val isSummaryLoading by viewModel.isSummaryLoading.collectAsState()
+    val summaryError by viewModel.summaryError.collectAsState()
     val itemsPage by remember(searchFilter) {
         derivedStateOf {
             searchFilter?.value?.let {
@@ -105,13 +108,16 @@ fun OnlineSearchResult(
             }
         }
     }
+    val filterLoading = searchFilter?.value?.let { viewModel.filterLoading[it] } ?: false
+    val filterError = searchFilter?.value?.let { viewModel.filterError[it] }
 
     LaunchedEffect(lazyListState) {
         snapshotFlow {
             lazyListState.layoutInfo.visibleItemsInfo.any { it.key == "loading" }
         }.collect { shouldLoadMore ->
-            if (!shouldLoadMore) return@collect
-            viewModel.loadMore()
+            if (shouldLoadMore && !filterLoading) {
+                viewModel.loadMore()
+            }
         }
     }
 
@@ -268,75 +274,135 @@ fun OnlineSearchResult(
             )
         }
         if (searchFilter == null) {
-            searchSummary?.summaries?.forEach { summary ->
-                if (summary.items.isNotEmpty()) {
+            when {
+                summaryError != null -> {
                     item {
-                        NavigationTitle(
-                            title = summary.title,
-                            onClick = {
-                                val filter = when (summary.title) {
-                                    "Albums" -> FILTER_ALBUM
-                                    "Songs" -> FILTER_SONG
-                                    else -> null
-                                }
-                                filter?.let {
-                                    viewModel.filter.value = it
-                                    coroutineScope.launch {
-                                        lazyListState.animateScrollToItem(0)
-                                    }
-                                }
-                            }
+                        AppStateView(
+                            title = stringResource(R.string.search_error_title),
+                            subtitle = summaryError ?: "",
+                            icon = R.drawable.search,
+                            actionLabel = stringResource(R.string.search_retry),
+                            onAction = viewModel::refresh,
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .animateItem(),
                         )
                     }
-
-                    items(
-                        items = summary.items,
-                        key = { "${summary.title}/${it.id}/${summary.items.indexOf(it)}" },
-                        itemContent = ytItemContent,
-                    )
                 }
-            }
 
-            if (searchSummary?.summaries?.isEmpty() == true) {
-                item {
-                    EmptyPlaceholder(
-                        icon = R.drawable.search,
-                        text = stringResource(R.string.no_results_found),
-                    )
+                searchSummary == null && isSummaryLoading -> {
+                    item {
+                        ShimmerHost {
+                            repeat(8) {
+                                ListItemPlaceHolder()
+                            }
+                        }
+                    }
                 }
-            }
-        } else {
-            items(
-                items = itemsPage?.items.orEmpty().distinctBy { it.id },
-                key = { "filtered_${it.id}" },
-                itemContent = ytItemContent,
-            )
 
-            if (itemsPage?.continuation != null) {
-                item(key = "loading") {
-                    ShimmerHost {
-                        repeat(3) {
-                            ListItemPlaceHolder()
+                searchSummary?.summaries?.isNullOrEmpty() == true -> {
+                    item {
+                        AppStateView(
+                            title = stringResource(R.string.search_empty_title),
+                            subtitle = stringResource(R.string.no_results_found),
+                            icon = R.drawable.search,
+                            actionLabel = stringResource(R.string.search_retry),
+                            onAction = viewModel::refresh,
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .animateItem(),
+                        )
+                    }
+                }
+
+                else -> {
+                    searchSummary?.summaries?.forEach { summary ->
+                        if (summary.items.isNotEmpty()) {
+                            item {
+                                NavigationTitle(
+                                    title = summary.title,
+                                    onClick = {
+                                        val filter = when (summary.title) {
+                                            "Albums" -> FILTER_ALBUM
+                                            "Songs" -> FILTER_SONG
+                                            else -> null
+                                        }
+                                        filter?.let {
+                                            viewModel.filter.value = it
+                                            coroutineScope.launch {
+                                                lazyListState.animateScrollToItem(0)
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+
+                            items(
+                                items = summary.items,
+                                key = { "${summary.title}/${it.id}/${summary.items.indexOf(it)}" },
+                                itemContent = ytItemContent,
+                            )
                         }
                     }
                 }
             }
-
-            if (itemsPage?.items?.isEmpty() == true) {
-                item {
-                    EmptyPlaceholder(
-                        icon = R.drawable.search,
-                        text = stringResource(R.string.no_results_found),
-                    )
+        } else {
+            when {
+                filterError != null -> {
+                    item {
+                        AppStateView(
+                            title = stringResource(R.string.search_error_title),
+                            subtitle = filterError ?: "",
+                            icon = R.drawable.search,
+                            actionLabel = stringResource(R.string.search_retry),
+                            onAction = viewModel::refresh,
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .animateItem(),
+                        )
+                    }
                 }
-            }
-        }
 
-        if (searchSummary == null && searchFilter == null || itemsPage == null && searchFilter != null) {
-            item {
-                ShimmerHost {
-                    repeat(8) {
-                        ListItemPlaceHolder()
+                itemsPage == null && filterLoading -> {
+                    item {
+                        ShimmerHost {
+                            repeat(8) {
+                                ListItemPlaceHolder()
+                            }
+                        }
+                    }
+                }
+
+                itemsPage?.items?.isEmpty() == true -> {
+                    item {
+                        AppStateView(
+                            title = stringResource(R.string.search_empty_title),
+                            subtitle = stringResource(R.string.no_results_found),
+                            icon = R.drawable.search,
+                            actionLabel = stringResource(R.string.search_retry),
+                            onAction = viewModel::refresh,
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .animateItem(),
+                        )
+                    }
+                }
+
+                else -> {
+                    items(
+                        items = itemsPage?.items.orEmpty().distinctBy { it.id },
+                        key = { "filtered_${it.id}" },
+                        itemContent = ytItemContent,
+                    )
+
+                    if (itemsPage?.continuation != null) {
+                        item(key = "loading") {
+                            ShimmerHost {
+                                repeat(3) {
+                                    ListItemPlaceHolder()
+                                }
+                            }
+                        }
                     }
                 }
             }

@@ -15,16 +15,30 @@ class MoodAndGenresViewModel
 @Inject
 constructor() : ViewModel() {
     val moodAndGenres = MutableStateFlow<List<MoodAndGenres>?>(null)
+    val isLoading = MutableStateFlow(false)
+    val error = MutableStateFlow<String?>(null)
+
+    private suspend fun loadInternal() {
+        isLoading.value = true
+        error.value = null
+        YouTube
+            .moodAndGenres()
+            .onSuccess {
+                moodAndGenres.value = it
+            }.onFailure {
+                error.value = it.message ?: "Failed to load moods & genres"
+                reportException(it)
+            }
+        isLoading.value = false
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            loadInternal()
+        }
+    }
 
     init {
-        viewModelScope.launch {
-            YouTube
-                .moodAndGenres()
-                .onSuccess {
-                    moodAndGenres.value = it
-                }.onFailure {
-                    reportException(it)
-                }
-        }
+        refresh()
     }
 }

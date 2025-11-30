@@ -453,4 +453,27 @@
     <string name="onboarding_status_needed">Needed</string>
     <string name="ok">OK</string>
     <string name="radio_empty_message">Nothing to play yet. Try adding or playing something first.</string>
+    <string name="splash_syncing_title">Setting up your music</string>
+    <string name="splash_syncing_progress_named">Syncing %1$d/%2$d: %3$s</string>
+    <string name="splash_syncing_progress">Syncing %1$d/%2$d artists</string>
+    <string name="splash_syncing_indeterminate">Syncing your whitelist…</string>
+    <string name="splash_syncing_background_action">Continue while we sync</string>
+    <string name="splash_syncing_background_waiting">Syncing in background…</string>
+    <string name="splash_syncing_footer">You can browse while we finish downloading your artists.</string>
+    <string name="new_release_error_title">New releases unavailable</string>
+    <string name="new_release_empty_title">No new releases</string>
+    <string name="new_release_empty_subtitle">We could not find new releases right now. Try again in a bit.</string>
+    <string name="new_release_retry">Try again</string>
+    <string name="new_release_title">Recent releases</string>
+    <string name="new_release_songs_title">Latest singles</string>
+    <string name="new_release_albums_title">Latest albums</string>
+    <string name="mood_and_genres_error_title">Could not load moods &amp; genres</string>
+    <string name="mood_and_genres_empty_title">No moods &amp; genres found</string>
+    <string name="mood_and_genres_empty_subtitle">Try refreshing to pull fresh categories.</string>
+    <string name="mood_and_genres_retry">Retry</string>
+    <string name="search_error_title">Search is having trouble</string>
+    <string name="search_empty_title">No results</string>
+    <string name="search_retry">Search again</string>
+    <string name="setting_up_library_title">Setting up your library…</string>
+    <string name="setting_up_library_progress">Setting up your library… %1$d%%</string>
 </resources>

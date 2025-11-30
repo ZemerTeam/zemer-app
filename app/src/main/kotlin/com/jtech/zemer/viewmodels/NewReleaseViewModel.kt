@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.filterExplicit
 import com.jtech.zemer.constants.HideExplicitKey
@@ -29,9 +30,34 @@ constructor(
 ) : ViewModel() {
     private val _newReleaseAlbums = MutableStateFlow<List<AlbumItem>>(emptyList())
     val newReleaseAlbums = _newReleaseAlbums.asStateFlow()
+    private val _newReleaseSongs = MutableStateFlow<List<SongItem>>(emptyList())
+    val newReleaseSongs = _newReleaseSongs.asStateFlow()
+    val isLoading = MutableStateFlow(false)
+    val error = MutableStateFlow<String?>(null)
 
-    init {
-        viewModelScope.launch {
+    private suspend fun loadInternal() {
+        isLoading.value = true
+        error.value = null
+        val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+        runCatching {
+            YouTube.browse(browseId = "FEmusic_new_releases", params = null).getOrNull()
+        }.onSuccess { browseResult ->
+            if (browseResult != null) {
+                val filtered = browseResult.filterExplicit(hideExplicit)
+                val allItems = filtered.items.flatMap { it.items }.filterWhitelisted(database)
+                _newReleaseAlbums.value = allItems.filterIsInstance<AlbumItem>()
+                _newReleaseSongs.value = allItems.filterIsInstance<SongItem>()
+            } else {
+                _newReleaseAlbums.value = emptyList()
+                _newReleaseSongs.value = emptyList()
+            }
+        }.onFailure {
+            error.value = it.message ?: "Failed to load new releases"
+            reportException(it)
+        }
+
+        // Fallback to albums endpoint if mixed feed is empty
+        if (_newReleaseAlbums.value.isEmpty()) {
             YouTube
                 .newReleaseAlbums()
                 .onSuccess { albums ->
@@ -61,12 +87,24 @@ constructor(
                                     } ?: Int.MAX_VALUE
                                 firstArtistKey
                             }
-                            .filterExplicit(context.dataStore.get(HideExplicitKey, false))
+                            .filterExplicit(hideExplicit)
                             .filterWhitelisted(database)
                             .filterIsInstance<AlbumItem>()
                 }.onFailure {
+                    error.value = it.message ?: "Failed to load new releases"
                     reportException(it)
                 }
         }
+        isLoading.value = false
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            loadInternal()
+        }
+    }
+
+    init {
+        refresh()
     }
 }

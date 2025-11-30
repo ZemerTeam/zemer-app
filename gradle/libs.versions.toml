@@ -37,6 +37,7 @@ kuromojiIpadic = "0.9.0"
 extractor = "8773f0d"
 okhttp = "4.12.0"
 tv = "1.0.0-alpha10"
+lottie = "6.5.0"
 googleGmsGoogleServices = "4.4.4"
 firebaseBom = "33.6.0"
 playServicesAuth = "21.2.0"
@@ -83,6 +84,7 @@ coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version
 ucrop = { module = "com.github.yalantis:ucrop", version.ref = "ucrop" }
 
 shimmer = { module = "com.valentinilk.shimmer:compose-shimmer", version.ref = "shimmer" }
+lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
 
 palette = { module = "androidx.palette:palette-ktx", version.ref = "palette" }
 

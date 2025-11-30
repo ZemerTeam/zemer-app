@@ -9,6 +9,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.models.filterExplicit
 import com.metrolist.innertube.pages.SearchSummaryPage
 import com.jtech.zemer.constants.HideExplicitKey
@@ -37,66 +38,85 @@ constructor(
     }
     private val initialFilter = savedStateHandle.get<String>("filter")?.let { filterParam ->
         when (filterParam) {
-            "albums" -> YouTube.SearchFilter.FILTER_ALBUM
-            "songs" -> YouTube.SearchFilter.FILTER_SONG
-            "artists" -> YouTube.SearchFilter.FILTER_ARTIST
-            "playlists" -> YouTube.SearchFilter.FILTER_COMMUNITY_PLAYLIST
+            "albums" -> SearchFilter.FILTER_ALBUM
+            "songs" -> SearchFilter.FILTER_SONG
+            "artists" -> SearchFilter.FILTER_ARTIST
+            "playlists" -> SearchFilter.FILTER_COMMUNITY_PLAYLIST
             else -> null
         }
     }
-    val filter = MutableStateFlow<YouTube.SearchFilter?>(initialFilter)
+    val filter = MutableStateFlow<SearchFilter?>(initialFilter)
     var summaryPage by mutableStateOf<SearchSummaryPage?>(null)
     val viewStateMap = mutableStateMapOf<String, ItemsPage?>()
+    val isSummaryLoading = MutableStateFlow(true)
+    val summaryError = MutableStateFlow<String?>(null)
+    val filterLoading = mutableStateMapOf<String, Boolean>()
+    val filterError = mutableStateMapOf<String, String?>()
 
     init {
         viewModelScope.launch {
             filter.collect { filter ->
                 if (filter == null) {
-                    if (summaryPage == null) {
-                        YouTube
-                            .searchSummary(query)
-                            .onSuccess { page ->
-                                val filteredPage = page.filterExplicit(
-                                    context.dataStore.get(
-                                        HideExplicitKey,
-                                        false,
-                                    ),
-                                )
-                                summaryPage = SearchSummaryPage(
-                                    summaries = filteredPage.summaries.map { summary ->
-                                        val filteredItems = summary.items.filterWhitelisted(database)
-                                        summary.copy(items = filteredItems)
-                                    }
-                                )
-                            }.onFailure {
-                                reportException(it)
-                            }
-                    }
+                    loadSummary(force = summaryPage == null)
                 } else {
-                    if (viewStateMap[filter.value] == null) {
-                        YouTube
-                            .search(query, filter)
-                            .onSuccess { result ->
-                                viewStateMap[filter.value] =
-                                    ItemsPage(
-                                        result.items
-                                            .distinctBy { it.id }
-                                            .filterExplicit(
-                                                context.dataStore.get(
-                                                    HideExplicitKey,
-                                                    false
-                                                )
-                                            )
-                                            .filterWhitelisted(database),
-                                        result.continuation,
-                                    )
-                            }.onFailure {
-                                reportException(it)
-                            }
-                    }
+                    loadFiltered(filter, force = viewStateMap[filter.value] == null)
                 }
             }
         }
+    }
+
+    private suspend fun loadSummary(force: Boolean = false) {
+        if (!force && summaryPage != null) return
+        isSummaryLoading.value = true
+        summaryError.value = null
+        YouTube
+            .searchSummary(query)
+            .onSuccess { page ->
+                val filteredPage = page.filterExplicit(
+                    context.dataStore.get(
+                        HideExplicitKey,
+                        false,
+                    ),
+                )
+                summaryPage = SearchSummaryPage(
+                    summaries = filteredPage.summaries.map { summary ->
+                        val filteredItems = summary.items.filterWhitelisted(database)
+                        summary.copy(items = filteredItems)
+                    }
+                )
+            }.onFailure {
+                summaryError.value = it.message ?: "Failed to load search results"
+                reportException(it)
+            }
+        isSummaryLoading.value = false
+    }
+
+    private suspend fun loadFiltered(filter: SearchFilter, force: Boolean = false) {
+        val key = filter.value
+        if (!force && viewStateMap[key] != null) return
+        filterLoading[key] = true
+        filterError[key] = null
+        YouTube
+            .search(query, filter)
+            .onSuccess { result ->
+                viewStateMap[key] =
+                    ItemsPage(
+                        result.items
+                            .distinctBy { it.id }
+                            .filterExplicit(
+                                context.dataStore.get(
+                                    HideExplicitKey,
+                                    false
+                                )
+                            )
+                            .filterWhitelisted(database),
+                        result.continuation,
+                    )
+            }.onFailure {
+                filterError[key] = it.message ?: "Failed to load results"
+                reportException(it)
+            }
+        filterLoading[key] = false
     }
 
     fun loadMore() {
@@ -106,8 +126,13 @@ constructor(
             val viewState = viewStateMap[filter] ?: return@launch
             val continuation = viewState.continuation
             if (continuation != null) {
+                filterLoading[filter] = true
+                filterError[filter] = null
                 val searchResult =
-                    YouTube.searchContinuation(continuation).getOrNull() ?: return@launch
+                    YouTube.searchContinuation(continuation).getOrNull() ?: run {
+                        filterLoading[filter] = false
+                        return@launch
+                    }
                 val hideExplicit = context.dataStore.get(HideExplicitKey, false)
                 viewStateMap[filter] = ItemsPage(
                     (viewState.items + searchResult.items)
@@ -116,6 +141,24 @@ constructor(
                         .filterWhitelisted(database),
                     searchResult.continuation
                 )
+                filterLoading[filter] = false
+            }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            val currentFilter = filter.value
+            summaryPage = null
+            viewStateMap.clear()
+            filterLoading.clear()
+            filterError.clear()
+            summaryError.value = null
+            isSummaryLoading.value = true
+            if (currentFilter == null) {
+                loadSummary(force = true)
+            } else {
+                loadFiltered(currentFilter, force = true)
             }
         }
     }

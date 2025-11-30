@@ -337,4 +337,27 @@
     <string name="onboarding_status_done">מוכן</string>
     <string name="onboarding_status_needed">נדרש</string>
     <string name="ok">אישור</string>
+    <string name="splash_syncing_title">מכין את המוזיקה שלך</string>
+    <string name="splash_syncing_progress_named">מסנכרן %1$d/%2$d: %3$s</string>
+    <string name="splash_syncing_progress">מסנכרן %1$d/%2$d אמנים</string>
+    <string name="splash_syncing_indeterminate">מסנכרן את רשימת ההיתרים…</string>
+    <string name="splash_syncing_background_action">המשך בזמן שאנחנו מסתנכרנים</string>
+    <string name="splash_syncing_background_waiting">מסנכרן ברקע…</string>
+    <string name="splash_syncing_footer">אפשר כבר לדפדף בזמן שאנחנו מסיימים להוריד את האמנים.</string>
+    <string name="new_release_error_title">לא ניתן לטעון יציאות חדשות</string>
+    <string name="new_release_empty_title">אין יציאות חדשות</string>
+    <string name="new_release_empty_subtitle">לא מצאנו יציאות חדשות כרגע. נסו שוב מאוחר יותר.</string>
+    <string name="new_release_retry">נסו שוב</string>
+    <string name="new_release_title">יציאות אחרונות</string>
+    <string name="new_release_songs_title">סינגלים אחרונים</string>
+    <string name="new_release_albums_title">אלבומים אחרונים</string>
+    <string name="mood_and_genres_error_title">לא ניתן לטעון מצבי רוח וז׳אנרים</string>
+    <string name="mood_and_genres_empty_title">לא נמצאו מצבי רוח או ז׳אנרים</string>
+    <string name="mood_and_genres_empty_subtitle">נסו לרענן כדי למשוך קטגוריות חדשות.</string>
+    <string name="mood_and_genres_retry">רענון</string>
+    <string name="search_error_title">החיפוש נתקל בבעיה</string>
+    <string name="search_empty_title">לא נמצאו תוצאות</string>
+    <string name="search_retry">חיפוש מחדש</string>
+    <string name="setting_up_library_title">מכין את הספרייה…</string>
+    <string name="setting_up_library_progress">מכין את הספרייה… %1$d%%</string>
 </resources>

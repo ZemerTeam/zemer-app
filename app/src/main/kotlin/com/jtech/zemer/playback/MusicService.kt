@@ -232,6 +232,7 @@ class MusicService :
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
 
     private var consecutivePlaybackErr = 0
+    private var hasStartedForeground = false
 
     override fun onCreate() {
         super.onCreate()
@@ -451,6 +452,8 @@ class MusicService :
     }
 
     private fun ensureForegroundService() {
+        if (hasStartedForeground) return
+
         // Check POST_NOTIFICATIONS permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (androidx.core.content.ContextCompat.checkSelfPermission(
@@ -491,10 +494,20 @@ class MusicService :
             .build()
 
         // Start foreground with appropriate service type for media playback
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            hasStartedForeground = true
+        }.onFailure {
+            Timber.e(it, "[ServiceLifecycle] Failed to start foreground notification")
+            hasStartedForeground = false
         }
     }
 
@@ -1464,6 +1477,10 @@ class MusicService :
         player.removeListener(this)
         player.removeListener(sleepTimer)
         player.release()
+        if (hasStartedForeground) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            hasStartedForeground = false
+        }
         super.onDestroy()
     }
 

@@ -5,8 +5,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -36,6 +38,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.pullToRefresh
@@ -99,6 +102,7 @@ import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.ArtistGridItem
+import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -149,24 +153,27 @@ fun HomeScreen(
 
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val homeUiState by viewModel.uiState.collectAsState()
 
-    val quickPicks by viewModel.quickPicks.collectAsState()
-    val forgottenFavorites by viewModel.forgottenFavorites.collectAsState()
-    val keepListening by viewModel.keepListening.collectAsState()
-    val homePage by viewModel.homePage.collectAsState()
-    val explorePage by viewModel.explorePage.collectAsState()
-    val trendingSongs by viewModel.trendingSongs.collectAsState()
-    val featuredAlbums by viewModel.featuredAlbums.collectAsState()
-    val featuredArtists by viewModel.featuredArtists.collectAsState()
-    val featuredVideos by viewModel.featuredVideos.collectAsState()
-    val isNewUser by viewModel.isNewUser.collectAsState()
+    val quickPicks = homeUiState.quickPicks
+    val forgottenFavorites = homeUiState.forgottenFavorites
+    val keepListening = homeUiState.keepListening
+    val homePage = homeUiState.homePage
+    val featuredAlbums = homeUiState.featuredAlbums
+    val featuredArtists = homeUiState.featuredArtists
+    val featuredVideos = homeUiState.featuredVideos
+    val recentReleaseAlbums = homeUiState.recentReleaseAlbums
+    val recentReleaseSongs = homeUiState.recentReleaseSongs
+    val isNewUser = homeUiState.isNewUser
 
-    val allLocalItems by viewModel.allLocalItems.collectAsState()
-    val allYtItems by viewModel.allYtItems.collectAsState()
+    val allLocalItems =
+        remember(quickPicks, forgottenFavorites, keepListening) {
+            (quickPicks + forgottenFavorites + keepListening).filter { it is Song || it is Album }
+        }
+    val allYtItems = remember(homePage) { homePage?.sections?.flatMap { it.items } ?: emptyList() }
 
-    val isLoading: Boolean by viewModel.isLoading.collectAsState()
-    val isMoodAndGenresLoading = isLoading && explorePage?.moodAndGenres == null
-    val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val isLoading: Boolean = homeUiState.isLoading
+    val isRefreshing = homeUiState.isRefreshing
     val pullRefreshState = rememberPullToRefreshState()
 
     val quickPicksLazyGridState = rememberLazyGridState()
@@ -432,11 +439,22 @@ fun HomeScreen(
             )
         }
 
+        val hasLocalHomeContent =
+            quickPicks.isNotEmpty() ||
+                forgottenFavorites.isNotEmpty() ||
+                keepListening.isNotEmpty()
+        val hasRemoteHomeContent =
+            featuredArtists.isNotEmpty() ||
+                featuredAlbums.isNotEmpty() ||
+                featuredVideos.isNotEmpty() ||
+                homePage?.sections?.any { it.items.isNotEmpty() } == true
+        val shouldShowShimmer = isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent)
+
         LazyColumn(
             state = lazylistState,
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
         ) {
-                quickPicks?.takeIf { it.isNotEmpty() }?.let { quickPicks ->
+                quickPicks.takeIf { it.isNotEmpty() }?.let { quickPicks ->
                     item(key = "quick_picks_title") {
                         NavigationTitle(
                             title = stringResource(R.string.quick_picks),
@@ -633,8 +651,138 @@ fun HomeScreen(
                                 )
                             }
                         }
+                }
+            }
+
+            if (recentReleaseSongs.isNotEmpty() || recentReleaseAlbums.isNotEmpty()) {
+                item(key = "recent_releases_title") {
+                    NavigationTitle(
+                        title = stringResource(R.string.new_release_title),
+                        modifier = Modifier.animateItem()
+                    )
+                }
+
+                if (recentReleaseSongs.isNotEmpty()) {
+                    item(key = "recent_releases_songs_title") {
+                        Text(
+                            text = stringResource(R.string.new_release_songs_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .animateItem()
+                        )
+                    }
+                    item(key = "recent_releases_songs_list") {
+                        LazyRow(
+                            modifier = Modifier.animateItem(),
+                            contentPadding = WindowInsets.systemBars
+                                .only(WindowInsetsSides.Horizontal)
+                                .asPaddingValues()
+                        ) {
+                            items(
+                                items = recentReleaseSongs.distinctBy { it.id },
+                                key = { "recent_song_${it.id}" }
+                            ) { song ->
+                                YouTubeListItem(
+                                    item = song,
+                                    isActive = mediaMetadata?.id == song.id,
+                                    isPlaying = isPlaying,
+                                    trailingContent = {
+                                        IconButton(
+                                            onClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    YouTubeSongMenu(
+                                                        song = song,
+                                                        navController = navController,
+                                                        onDismiss = menuState::dismiss,
+                                                    )
+                                                }
+                                            }
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.more_vert),
+                                                contentDescription = null,
+                                            )
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .width(horizontalLazyGridItemWidth)
+                                        .padding(horizontal = 8.dp)
+                                        .combinedClickable(
+                                            onClick = {
+                                                playerConnection.playQueue(
+                                                    YouTubeQueue(
+                                                        song.endpoint ?: WatchEndpoint(videoId = song.id),
+                                                        song.toMediaMetadata(),
+                                                        database = database
+                                                    )
+                                                )
+                                            },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    YouTubeSongMenu(
+                                                        song = song,
+                                                        navController = navController,
+                                                        onDismiss = menuState::dismiss,
+                                                    )
+                                                }
+                                            }
+                                        )
+                                )
+                            }
+                        }
                     }
                 }
+
+                if (recentReleaseAlbums.isNotEmpty()) {
+                    item(key = "recent_releases_albums_title") {
+                        Text(
+                            text = stringResource(R.string.new_release_albums_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .animateItem()
+                        )
+                    }
+                    item(key = "recent_releases_albums_list") {
+                        LazyRow(
+                            modifier = Modifier.animateItem(),
+                            contentPadding = WindowInsets.systemBars
+                                .only(WindowInsetsSides.Horizontal)
+                                .asPaddingValues()
+                        ) {
+                            items(
+                                items = recentReleaseAlbums.distinctBy { it.id },
+                                key = { "recent_album_${it.id}" }
+                            ) { album ->
+                                YouTubeGridItem(
+                                    item = album,
+                                    isActive = mediaMetadata?.album?.id == album.id,
+                                    isPlaying = isPlaying,
+                                    coroutineScope = scope,
+                                    modifier = Modifier
+                                        .padding(horizontal = 8.dp)
+                                        .combinedClickable(
+                                            onClick = { navController.navigate("album/${album.id}") },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    YouTubeAlbumMenu(
+                                                        albumItem = album,
+                                                        navController = navController,
+                                                        onDismiss = menuState::dismiss
+                                                    )
+                                                }
+                                            }
+                                        )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             // Show featured artists
             if (featuredArtists.isNotEmpty()) {
@@ -782,7 +930,7 @@ fun HomeScreen(
                 }
             }
 
-            if (isLoading || homePage?.continuation != null && homePage?.sections?.isNotEmpty() == true) {
+            if (shouldShowShimmer || homePage?.continuation != null && homePage?.sections?.isNotEmpty() == true) {
                 item(key = "loading_shimmer") {
                     ShimmerHost(
                         modifier = Modifier.animateItem()

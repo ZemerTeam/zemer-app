@@ -177,6 +177,7 @@ dependencies {
     implementation(libs.ucrop)
 
     implementation(libs.shimmer)
+    implementation(libs.lottie.compose)
 
     implementation(libs.media3)
     implementation(libs.media3.session)

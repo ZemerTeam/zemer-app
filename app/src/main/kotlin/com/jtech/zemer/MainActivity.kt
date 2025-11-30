@@ -197,7 +197,7 @@ import com.jtech.zemer.ui.screens.settings.NavigationTab
 import com.jtech.zemer.ui.theme.ColorSaver
 import com.jtech.zemer.ui.theme.DefaultThemeColor
 import com.jtech.zemer.ui.theme.ZemerTheme
-import com.jtech.zemer.ui.screens.SplashScreen
+import com.jtech.zemer.ui.screens.LoadingScreen
 import com.jtech.zemer.ui.theme.extractThemeColor
 import com.jtech.zemer.ui.utils.appBarScrollBehavior
 import com.jtech.zemer.ui.utils.backToMain
@@ -575,9 +575,12 @@ class MainActivity : ComponentActivity() {
                     }
 
                     if (!initialSyncHandled && !syncProgress.isComplete && !skipSplash) {
-                        SplashScreen(
-                            syncProgress = syncProgress,
-                            onSkip = { setSkipSplash(true) }
+                        LoadingScreen(
+                            onFinished = {
+                                setSkipSplash(true)
+                                setInitialSyncHandled(true)
+                            },
+                            shouldStartSync = false
                         )
                         return@BoxWithConstraints
                     }
