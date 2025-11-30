@@ -26,6 +26,7 @@ fun LibraryScreen(navController: NavController) {
                 listOf(
                     LibraryFilter.PLAYLISTS to stringResource(R.string.filter_playlists),
                     LibraryFilter.SONGS to stringResource(R.string.filter_songs),
+                    LibraryFilter.VIDEOS to stringResource(R.string.videos),
                     LibraryFilter.ALBUMS to stringResource(R.string.filter_albums),
                     LibraryFilter.ARTISTS to stringResource(R.string.filter_artists),
                 ),
@@ -58,6 +59,10 @@ fun LibraryScreen(navController: NavController) {
                 { filterType = LibraryFilter.LIBRARY })
 
             LibraryFilter.ARTISTS -> LibraryArtistsScreen(
+                navController,
+                { filterType = LibraryFilter.LIBRARY })
+
+            LibraryFilter.VIDEOS -> LibraryVideosScreen(
                 navController,
                 { filterType = LibraryFilter.LIBRARY })
         }

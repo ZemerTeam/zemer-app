@@ -78,6 +78,9 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.LocalDownloadUtil
+import com.jtech.zemer.LocalDatabase
+import com.jtech.zemer.db.entities.SongEntity
+import java.time.LocalDateTime
 import com.jtech.zemer.LocalPlayerConnection
 import java.io.File
 import android.os.Environment
@@ -94,6 +97,7 @@ fun VideoPlayerScreen(
     }
     val (_, setFloatingMiniPlayerEnabled) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
     val downloadUtil = LocalDownloadUtil.current
+    val database = LocalDatabase.current
     val scope = rememberCoroutineScope()
     var showDownloadDialog by remember { mutableStateOf(false) }
     var forceLandscape by remember { mutableStateOf(false) }
@@ -190,6 +194,20 @@ fun VideoPlayerScreen(
                         input.copyTo(output)
                     }
                 }
+            }
+            database.query {
+                upsert(
+                    SongEntity(
+                        id = videoId,
+                        title = playback.videoDetails?.title ?: "Video",
+                        duration = playback.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0,
+                        thumbnailUrl = playback.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url,
+                        explicit = false,
+                        dateDownload = LocalDateTime.now(),
+                        isDownloaded = true,
+                        isVideo = true
+                    )
+                )
             }
             withContext(Dispatchers.Main) {
                 Toast.makeText(context, "Downloaded to ${targetFile.absolutePath}", Toast.LENGTH_LONG).show()

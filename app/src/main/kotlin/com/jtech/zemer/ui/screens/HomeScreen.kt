@@ -665,7 +665,7 @@ fun HomeScreen(
             if (featuredVideos.isNotEmpty()) {
                 item(key = "featured_videos_title") {
                     NavigationTitle(
-                        title = "Featured videos",
+                        title = stringResource(R.string.featured_videos),
                         modifier = Modifier.animateItem()
                     )
                 }

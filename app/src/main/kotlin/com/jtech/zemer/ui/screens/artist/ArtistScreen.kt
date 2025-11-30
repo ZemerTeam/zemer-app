@@ -150,6 +150,7 @@ fun ArtistScreen(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val artistPage = viewModel.artistPage
+    val isLoadingArtist = viewModel.isLoading
     val libraryArtist by viewModel.libraryArtist.collectAsState()
     val librarySongs by viewModel.librarySongs.collectAsState()
     val libraryAlbums by viewModel.libraryAlbums.collectAsState()
@@ -193,7 +194,7 @@ fun ArtistScreen(
             state = lazyListState,
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) {
-            if (artistPage == null && !showLocal) {
+            if ((artistPage == null || isLoadingArtist) && !showLocal) {
                 item(key = "shimmer") {
                     ShimmerHost (
                         modifier = Modifier

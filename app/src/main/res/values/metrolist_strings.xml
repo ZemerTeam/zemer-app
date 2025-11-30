@@ -94,6 +94,7 @@
     <string name="floating_mini_player">Floating mini player</string>
     <string name="floating_mini_player_desc">Show the mini player overlay above screens</string>
     <string name="featured_videos">Featured videos</string>
+    <string name="videos">Videos</string>
     <string name="player_background_blur">Blur</string>
     <string name="player_buttons_style">Player button colors</string>
     <string name="default_style">Default</string>

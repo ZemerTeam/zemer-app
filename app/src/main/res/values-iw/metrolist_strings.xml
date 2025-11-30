@@ -41,4 +41,5 @@
     <string name="floating_mini_player">נגן מיני צף</string>
     <string name="floating_mini_player_desc">הצג את נגן המיני הצף מעל המסכים</string>
     <string name="featured_videos">סרטונים מומלצים</string>
+    <string name="videos">סרטונים</string>
 </resources>

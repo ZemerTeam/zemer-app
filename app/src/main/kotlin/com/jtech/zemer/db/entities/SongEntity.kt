@@ -49,7 +49,9 @@ data class SongEntity(
     @ColumnInfo(name = "mediaStoreUri", defaultValue = "NULL")
     val mediaStoreUri: String? = null,
     @ColumnInfo(name = "isUploaded", defaultValue = false.toString())
-    val isUploaded: Boolean = false
+    val isUploaded: Boolean = false,
+    @ColumnInfo(name = "isVideo", defaultValue = "0")
+    val isVideo: Boolean = false
 ) {
     fun localToggleLike() = copy(
         liked = !liked,

@@ -244,6 +244,7 @@ fun OnlineSearchResult(
                     FILTER_ARTIST to stringResource(R.string.filter_artists),
                     FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
                     FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists),
+                    FILTER_SONG to stringResource(R.string.videos),
                 ),
                 currentValue = searchFilter,
                 onValueUpdate = {
