@@ -100,6 +100,11 @@ class App : Application(), SingletonImageLoader.Factory {
         val locale = Locale.getDefault()
         val languageTag = locale.toLanguageTag().replace("-Hant", "")
 
+        // Ensure floating mini player defaults to ON if unset
+        if (!settings.contains(FloatingMiniPlayerKey)) {
+            dataStore.edit { it[FloatingMiniPlayerKey] = true }
+        }
+
         YouTube.locale = YouTubeLocale(
             gl = settings[ContentCountryKey]?.takeIf { it != SYSTEM_DEFAULT }
                 ?: locale.country.takeIf { it in CountryCodeToName }

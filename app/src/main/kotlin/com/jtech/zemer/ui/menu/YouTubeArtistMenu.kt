@@ -28,6 +28,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,6 +44,9 @@ import androidx.compose.ui.unit.dp
 import com.metrolist.innertube.models.ArtistItem
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
+import com.jtech.zemer.viewmodels.ContributeArtist
+import com.jtech.zemer.viewmodels.ContributeViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.playback.queues.YouTubeQueue
@@ -55,6 +59,7 @@ import com.jtech.zemer.ui.component.YouTubeListItem
 fun YouTubeArtistMenu(
     artist: ArtistItem,
     onDismiss: () -> Unit,
+    contributeViewModel: ContributeViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val database = LocalDatabase.current
@@ -185,6 +190,35 @@ fun YouTubeArtistMenu(
                             )
                         }
                     }
+                }
+            )
+        }
+
+        item {
+            val contributeState by contributeViewModel.uiState.collectAsState()
+            val canContribute = contributeState.isSignedIn && !contributeState.isBanned
+            ListItem(
+                headlineContent = { Text("Contribute info") },
+                supportingContent = { Text(if (canContribute) "Stage this artist for verification" else "Sign in to contribute") },
+                leadingContent = {
+                    Icon(
+                        painter = painterResource(R.drawable.palette),
+                        contentDescription = null,
+                    )
+                },
+                modifier = Modifier.clickable(enabled = canContribute) {
+                    contributeViewModel.stageArtist(
+                        ContributeArtist(
+                            docId = artist.id,
+                            artistId = artist.id,
+                            artistName = artist.title,
+                            imageUrl = artist.thumbnail,
+                            isFemale = false,
+                            isChasid = false,
+                            isGenZ = false
+                        )
+                    )
+                    onDismiss()
                 }
             )
         }

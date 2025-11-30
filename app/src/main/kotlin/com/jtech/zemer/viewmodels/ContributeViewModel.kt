@@ -208,6 +208,17 @@ class ContributeViewModel @Inject constructor() : ViewModel() {
         }
     }
 
+    fun stageArtist(artist: ContributeArtist) {
+        _uiState.update {
+            it.copy(
+                currentArtist = artist,
+                message = "Staged ${artist.artistName} for contribution",
+                error = null,
+                isLoading = false
+            )
+        }
+    }
+
     private suspend fun loadProgress() {
         try {
             val total = firestore.collection("artistsWhitelist").get().await().size()

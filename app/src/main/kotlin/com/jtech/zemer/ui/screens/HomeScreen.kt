@@ -158,6 +158,7 @@ fun HomeScreen(
     val trendingSongs by viewModel.trendingSongs.collectAsState()
     val featuredAlbums by viewModel.featuredAlbums.collectAsState()
     val featuredArtists by viewModel.featuredArtists.collectAsState()
+    val featuredVideos by viewModel.featuredVideos.collectAsState()
     val isNewUser by viewModel.isNewUser.collectAsState()
 
     val allLocalItems by viewModel.allLocalItems.collectAsState()
@@ -656,6 +657,54 @@ fun HomeScreen(
                             key = { "featured_artist_${it.id}" }
                         ) { artist ->
                             ytGridItem(artist)
+                        }
+                    }
+                }
+            }
+
+            if (featuredVideos.isNotEmpty()) {
+                item(key = "featured_videos_title") {
+                    NavigationTitle(
+                        title = "Featured videos",
+                        modifier = Modifier.animateItem()
+                    )
+                }
+
+                item(key = "featured_videos_list") {
+                    LazyRow(
+                        contentPadding = WindowInsets.systemBars
+                            .only(WindowInsetsSides.Horizontal)
+                            .asPaddingValues(),
+                        modifier = Modifier.animateItem()
+                    ) {
+                        items(
+                            items = featuredVideos.distinctBy { it.id },
+                            key = { "featured_video_${it.id}" }
+                        ) { video ->
+                            YouTubeGridItem(
+                                item = video,
+                                isActive = mediaMetadata?.id == video.id,
+                                isPlaying = isPlaying,
+                                coroutineScope = scope,
+                                thumbnailRatio = 16f / 9f,
+                                modifier = Modifier
+                                    .combinedClickable(
+                                        onClick = {
+                                            navController.navigate("video/${video.id}")
+                                        },
+                                        onLongClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            menuState.show {
+                                                YouTubeSongMenu(
+                                                    song = video,
+                                                    navController = navController,
+                                                    onDismiss = menuState::dismiss,
+                                                )
+                                            }
+                                        }
+                                    )
+                                    .animateItem()
+                            )
                         }
                     }
                 }

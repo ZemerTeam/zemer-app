@@ -68,6 +68,7 @@ class HomeViewModel @Inject constructor(
     val trendingSongs = MutableStateFlow<List<YTItem>>(emptyList())
     val featuredAlbums = MutableStateFlow<List<com.metrolist.innertube.models.AlbumItem>>(emptyList())
     val featuredArtists = MutableStateFlow<List<com.metrolist.innertube.models.ArtistItem>>(emptyList())
+    val featuredVideos = MutableStateFlow<List<com.metrolist.innertube.models.SongItem>>(emptyList())
     val isNewUser = MutableStateFlow(true)
 
     val allLocalItems = MutableStateFlow<List<LocalItem>>(emptyList())
@@ -294,6 +295,7 @@ class HomeViewModel @Inject constructor(
             if (randomArtistIds.isNotEmpty()) {
                 val albums = mutableListOf<com.metrolist.innertube.models.AlbumItem>()
                 val artists = mutableListOf<com.metrolist.innertube.models.ArtistItem>()
+                val videos = mutableListOf<com.metrolist.innertube.models.SongItem>()
 
                 // Fetch artist pages in parallel for better performance
                 coroutineScope {
@@ -325,13 +327,24 @@ class HomeViewModel @Inject constructor(
 
                         albums.addAll(artistAlbums)
                         Timber.d("HomeViewModel: Artist ${artistPage.artist.title} - added ${artistAlbums.size} albums")
+
+                        val artistVideos = artistPage.sections
+                            .filter { section ->
+                                section.title.contains("video", ignoreCase = true) ||
+                                    section.title.contains("short", ignoreCase = true)
+                            }
+                            .flatMap { section ->
+                                section.items.filterIsInstance<com.metrolist.innertube.models.SongItem>()
+                            }
+                        videos.addAll(artistVideos)
                     }
                 }
 
                 featuredAlbums.value = albums.shuffled().take(20)
                 featuredArtists.value = artists.shuffled().take(20)
+                featuredVideos.value = videos.distinctBy { it.id }.shuffled().take(20)
 
-                Timber.d("HomeViewModel: Featured content - ${featuredAlbums.value.size} albums, ${featuredArtists.value.size} artists")
+                Timber.d("HomeViewModel: Featured content - ${featuredAlbums.value.size} albums, ${featuredArtists.value.size} artists, ${featuredVideos.value.size} videos")
             }
 
             allLocalItems.value = (quickPicks.value.orEmpty() + forgottenFavorites.value.orEmpty() + keepListening.value.orEmpty())
