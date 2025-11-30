@@ -2,9 +2,23 @@ package com.jtech.zemer.utils
 
 import android.content.Context
 import android.content.res.Configuration
+import timber.log.Timber
 import java.util.Locale
 
-fun reportException(throwable: Throwable) {
+/**
+ * Reports an exception for debugging/crash reporting.
+ * Logs the exception with Timber and prints stack trace.
+ *
+ * @param throwable The exception to report
+ * @param context Optional context message for debugging
+ */
+fun reportException(throwable: Throwable, context: String? = null) {
+    val message = if (context != null) {
+        "[Exception] $context - ${throwable.javaClass.simpleName}: ${throwable.message} - thread: ${Thread.currentThread().name}"
+    } else {
+        "[Exception] ${throwable.javaClass.simpleName}: ${throwable.message} - thread: ${Thread.currentThread().name}"
+    }
+    Timber.e(throwable, message)
     throwable.printStackTrace()
 }
 

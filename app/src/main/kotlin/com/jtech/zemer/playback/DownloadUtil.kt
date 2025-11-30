@@ -45,7 +45,8 @@ constructor(
 ) {
     val database: MusicDatabase
         get() = databaseLazy.get()
-    private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
+    private val connectivityManager = context.getSystemService<ConnectivityManager>()
+        ?: throw IllegalStateException("ConnectivityManager not available on this device")
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
     private val songUrlCache = HashMap<String, Pair<String, Long>>()
 
@@ -98,6 +99,10 @@ constructor(
             }.getOrThrow()
             val format = playbackData.format
 
+            val contentLength = format.contentLength ?: run {
+                timber.log.Timber.w("Content length unavailable for mediaId=$mediaId download, using -1")
+                -1L
+            }
             database.query {
                 upsert(
                     FormatEntity(
@@ -107,7 +112,7 @@ constructor(
                         codecs = format.mimeType.split("codecs=")[1].removeSurrounding("\""),
                         bitrate = format.bitrate,
                         sampleRate = format.audioSampleRate,
-                        contentLength = format.contentLength!!,
+                        contentLength = contentLength,
                         loudnessDb = playbackData.audioConfig?.loudnessDb,
                         playbackUrl = playbackData.playbackTracking?.videostatsPlaybackUrl?.baseUrl
                     ),

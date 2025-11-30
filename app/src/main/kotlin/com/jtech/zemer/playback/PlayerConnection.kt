@@ -112,15 +112,27 @@ class PlayerConnection(
     }
 
     fun seekToNext() {
-        player.seekToNext()
-        player.prepare()
-        player.playWhenReady = true
+        if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)) {
+            try {
+                player.seekToNext()
+                player.prepare()
+                player.playWhenReady = true
+            } catch (e: Exception) {
+                timber.log.Timber.e(e, "[Playback] Error seeking to next track - player state: ${player.playbackState}, timeline size: ${player.currentTimeline.windowCount} - thread: ${Thread.currentThread().name}")
+            }
+        }
     }
 
     fun seekToPrevious() {
-        player.seekToPrevious()
-        player.prepare()
-        player.playWhenReady = true
+        if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) {
+            try {
+                player.seekToPrevious()
+                player.prepare()
+                player.playWhenReady = true
+            } catch (e: Exception) {
+                timber.log.Timber.e(e, "[Playback] Error seeking to previous track - player state: ${player.playbackState}, timeline size: ${player.currentTimeline.windowCount} - thread: ${Thread.currentThread().name}")
+            }
+        }
     }
 
     override fun onPlaybackStateChanged(state: Int) {

@@ -298,13 +298,14 @@ class MusicService :
         scope.launch(Dispatchers.Default) {
             try {
                 val controller = MediaController.Builder(this@MusicService, sessionToken).buildAsync().get()
-                Timber.d("MediaController initialized")
+                Timber.d("[MediaSession] MediaController initialized - thread: ${Thread.currentThread().name}")
             } catch (e: Exception) {
-                Timber.e(e, "Failed to initialize MediaController")
+                Timber.e(e, "[MediaSession] Failed to initialize MediaController - notification controls may not work - thread: ${Thread.currentThread().name}")
             }
         }
 
-        connectivityManager = getSystemService()!!
+        connectivityManager = getSystemService<ConnectivityManager>()
+            ?: throw IllegalStateException("ConnectivityManager not available on this device")
         connectivityObserver = NetworkConnectivityObserver(this)
 
         scope.launch {
@@ -442,14 +443,25 @@ class MusicService :
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Timber.d("MusicService.onStartCommand() called - ensuring foreground notification")
+        Timber.d("[ServiceLifecycle] MusicService.onStartCommand() called - ensuring foreground notification - intent: ${intent?.action} - thread: ${Thread.currentThread().name}")
         // CRITICAL: Must call startForeground() immediately to avoid ANR when startForegroundService() is used
         runCatching { ensureForegroundService() }
-            .onFailure { Timber.e(it, "MusicService.onStartCommand() - failed to start foreground service") }
+            .onFailure { Timber.e(it, "[ServiceLifecycle] MusicService.onStartCommand() - failed to start foreground service - may cause ANR/crash - thread: ${Thread.currentThread().name}") }
         return super.onStartCommand(intent, flags, startId)
     }
 
     private fun ensureForegroundService() {
+        // Check POST_NOTIFICATIONS permission on Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                Timber.w("POST_NOTIFICATIONS permission not granted - notification may not show")
+            }
+        }
+
         // Create notification channel if needed
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (notificationManager.getNotificationChannel(CHANNEL_ID) == null) {
@@ -732,8 +744,8 @@ class MusicService :
         currentQueue = queue
         queueTitle = null
         player.shuffleModeEnabled = false
-        if (queue.preloadItem != null) {
-            player.setMediaItem(queue.preloadItem!!.toMediaItem())
+        queue.preloadItem?.let { preloadItem ->
+            player.setMediaItem(preloadItem.toMediaItem())
             player.prepare()
             player.playWhenReady = playWhenReady
         }
@@ -1284,6 +1296,10 @@ class MusicService :
             run {
                 val format = nonNullPlayback.format
 
+                val contentLength = format.contentLength ?: run {
+                    Timber.w("Content length unavailable for mediaId=$mediaId, using -1")
+                    -1L
+                }
                 database.query {
                     upsert(
                         FormatEntity(
@@ -1293,7 +1309,7 @@ class MusicService :
                             codecs = format.mimeType.split("codecs=")[1].removeSurrounding("\""),
                             bitrate = format.bitrate,
                             sampleRate = format.audioSampleRate,
-                            contentLength = format.contentLength!!,
+                            contentLength = contentLength,
                             loudnessDb = nonNullPlayback.audioConfig?.loudnessDb,
                             playbackUrl = nonNullPlayback.playbackTracking?.videostatsPlaybackUrl?.baseUrl
                         )

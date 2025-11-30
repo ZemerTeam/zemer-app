@@ -211,11 +211,11 @@ fun HomeScreen(
             when (val luckyItem = allLocalItems.random()) {
                 is Song -> playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata(), database))
                 is Album -> {
-                    val albumWithSongs = withContext(Dispatchers.IO) {
-                        database.albumWithSongs(luckyItem.id).first()
-                    }
-                    albumWithSongs?.let {
-                        playerConnection.playQueue(LocalAlbumRadio(it, database = database))
+                    scope.launch {
+                        val albumWithSongs = database.albumWithSongs(luckyItem.id).first()
+                        albumWithSongs?.let {
+                            playerConnection.playQueue(LocalAlbumRadio(it, database = database))
+                        }
                     }
                 }
 

@@ -145,7 +145,7 @@ fun LibrarySongsScreen(
                         leadingIcon = {
                             Icon(
                                 painter = painterResource(R.drawable.close),
-                                contentDescription = ""
+                                contentDescription = stringResource(R.string.close)
                             )
                         },
                     )

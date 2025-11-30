@@ -97,7 +97,7 @@ fun LibraryArtistsScreen(
                 onClick = onDeselect,
                 shape = RoundedCornerShape(16.dp),
                 leadingIcon = {
-                    Icon(painter = painterResource(R.drawable.close), contentDescription = "")
+                    Icon(painter = painterResource(R.drawable.close), contentDescription = stringResource(R.string.close))
                 },
             )
             ChipsRow(

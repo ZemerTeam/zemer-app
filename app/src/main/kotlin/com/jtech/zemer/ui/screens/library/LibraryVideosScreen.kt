@@ -26,7 +26,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
@@ -81,7 +81,7 @@ fun LibraryVideosScreen(
                     leadingIcon = {
                         Icon(
                             painter = painterResource(R.drawable.close),
-                            contentDescription = ""
+                            contentDescription = stringResource(R.string.close)
                         )
                     },
                     modifier = Modifier
@@ -140,8 +140,7 @@ fun LibraryVideosScreen(
             lazyListState = lazyListState,
             icon = R.drawable.playlist_play,
             onClick = {
-                if (videos.isNotEmpty()) {
-                    val first = videos.first()
+                videos.firstOrNull()?.let { first ->
                     playerConnection.playQueue(
                         YouTubeQueue(
                             WatchEndpoint(videoId = first.id),

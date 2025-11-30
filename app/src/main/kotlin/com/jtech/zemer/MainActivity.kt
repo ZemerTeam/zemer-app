@@ -76,6 +76,8 @@ import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -222,6 +224,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.Locale
@@ -301,7 +304,7 @@ class MainActivity : ComponentActivity() {
             bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
         } catch (e: IllegalStateException) {
             // In case the system still thinks we're background, retry once on resume
-            timber.log.Timber.w(e, "MusicService start blocked; will retry on resume")
+            timber.log.Timber.w(e, "[ServiceLifecycle] MusicService start blocked (app may be in background); will retry on resume - thread: ${Thread.currentThread().name}")
             pendingServiceStart = true
         }
     }
@@ -315,14 +318,18 @@ class MainActivity : ComponentActivity() {
                 bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
                 pendingServiceStart = false
             } catch (e: IllegalStateException) {
-                timber.log.Timber.e(e, "MusicService start still blocked on resume")
+                timber.log.Timber.e(e, "[ServiceLifecycle] MusicService start still blocked on resume - background restrictions may be active - thread: ${Thread.currentThread().name}")
             }
         }
         ButtonMapperBridge.register(this)
     }
 
     override fun onStop() {
-        unbindService(serviceConnection)
+        try {
+            unbindService(serviceConnection)
+        } catch (e: IllegalArgumentException) {
+            timber.log.Timber.w(e, "[ServiceLifecycle] Service was not bound during onStop - service may have crashed or not started - thread: ${Thread.currentThread().name}")
+        }
         super.onStop()
     }
 
@@ -333,13 +340,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (dataStore.get(
-                StopMusicOnTaskClearKey,
-                false
-            ) && playerConnection?.isPlaying?.value == true && isFinishing
-        ) {
-            stopService(Intent(this, MusicService::class.java))
+        try {
+            if (dataStore.get(
+                    StopMusicOnTaskClearKey,
+                    false
+                ) && playerConnection?.isPlaying?.value == true && isFinishing
+            ) {
+                stopService(Intent(this, MusicService::class.java))
+            }
             unbindService(serviceConnection)
+        } catch (e: IllegalArgumentException) {
+            timber.log.Timber.w(e, "[ServiceLifecycle] Service cleanup error during onDestroy - service may have already been unbound - isFinishing: $isFinishing - thread: ${Thread.currentThread().name}")
+        } finally {
             playerConnection = null
         }
     }
@@ -476,17 +488,19 @@ class MainActivity : ComponentActivity() {
                     if (song?.thumbnailUrl != null) {
                         withContext(Dispatchers.IO) {
                             try {
-                                val result = imageLoader.execute(
-                                    ImageRequest.Builder(this@MainActivity)
-                                        .data(song.thumbnailUrl)
-                                        .allowHardware(false)
-                                        .memoryCachePolicy(CachePolicy.ENABLED)
-                                        .diskCachePolicy(CachePolicy.ENABLED)
-                                        .networkCachePolicy(CachePolicy.ENABLED)
-                                        .crossfade(false)
-                                        .build()
-                                )
-                                themeColor = result.image?.toBitmap()?.extractThemeColor()
+                                val result = withTimeoutOrNull(5000) {
+                                    imageLoader.execute(
+                                        ImageRequest.Builder(this@MainActivity)
+                                            .data(song.thumbnailUrl)
+                                            .allowHardware(false)
+                                            .memoryCachePolicy(CachePolicy.ENABLED)
+                                            .diskCachePolicy(CachePolicy.ENABLED)
+                                            .networkCachePolicy(CachePolicy.ENABLED)
+                                            .crossfade(false)
+                                            .build()
+                                    )
+                                }
+                                themeColor = result?.image?.toBitmap()?.extractThemeColor()
                                     ?: DefaultThemeColor
                             } catch (e: Exception) {
                                 // Fallback to default on error
@@ -870,6 +884,19 @@ class MainActivity : ComponentActivity() {
                     val miniHeartFocusRequester = remember { FocusRequester() }
                     val burgerFocusRequester = remember { FocusRequester() }
                     val contentFocusRequester = remember { FocusRequester() }
+                    val snackbarHostState = remember { SnackbarHostState() }
+
+                    // Observe playback errors and show snackbar
+                    LaunchedEffect(playerConnection) {
+                        playerConnection?.error?.collect { error ->
+                            error?.let {
+                                snackbarHostState.showSnackbar(
+                                    message = it.message ?: "Playback error occurred",
+                                    withDismissAction = true
+                                )
+                            }
+                        }
+                    }
 
                     CompositionLocalProvider(
                         LocalDatabase provides database,
@@ -1014,6 +1041,9 @@ class MainActivity : ComponentActivity() {
                             }
 
                             Scaffold(
+                            snackbarHost = {
+                                SnackbarHost(hostState = snackbarHostState)
+                            },
                             topBar = {
                                 AnimatedVisibility(
                                     visible = shouldShowTopBar,

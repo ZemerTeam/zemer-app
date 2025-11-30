@@ -32,7 +32,9 @@ constructor(
     val database: MusicDatabase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    val query = savedStateHandle.get<String>("query")!!
+    val query = requireNotNull(savedStateHandle.get<String>("query")) {
+        "query is required but was not provided in navigation arguments"
+    }
     private val initialFilter = savedStateHandle.get<String>("filter")?.let { filterParam ->
         when (filterParam) {
             "albums" -> YouTube.SearchFilter.FILTER_ALBUM

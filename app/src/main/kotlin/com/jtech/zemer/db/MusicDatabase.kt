@@ -141,12 +141,19 @@ abstract class InternalDatabase : RoomDatabase() {
                         Timber.d("MusicDatabase.build() completed in ${System.currentTimeMillis() - startTime}ms on thread ${Thread.currentThread().name}")
                     }
             } catch (e: Exception) {
-                Timber.e(e, "Database build failed, retrying without migrations")
-                Room
-                    .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
-                    .fallbackToDestructiveMigration(dropAllTables = true)
-                    .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
-                    .build()
+                Timber.e(e, "Database build failed: ${e.message}, retrying with destructive migration")
+                try {
+                    Room
+                        .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
+                        .fallbackToDestructiveMigration(dropAllTables = true)
+                        .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
+                        .build().also {
+                            Timber.w("Database recovered using destructive migration")
+                        }
+                } catch (fallbackError: Exception) {
+                    Timber.e(fallbackError, "Destructive migration also failed, database may be corrupted")
+                    throw fallbackError
+                }
             }
             return MusicDatabase(delegate = builtDb)
         }

@@ -413,6 +413,8 @@ constructor(
                         try {
                             database.query { insert(songItem.toMediaMetadata()) }
                         } catch (e: Exception) {
+                            // Silently ignore database insert failures during search - item may already exist
+                            timber.log.Timber.d("[MediaSession] Ignoring database insert error for search result: ${songItem.id}")
                         }
                         
                         searchResults.add(

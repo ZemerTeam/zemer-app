@@ -22,11 +22,41 @@ import kotlin.properties.ReadOnlyProperty
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
+/**
+ * Synchronously reads a preference value from DataStore.
+ *
+ * WARNING: This uses runBlocking which can block the calling thread. Use this ONLY in:
+ * - Service initialization (onCreate, onStartCommand)
+ * - One-time app initialization
+ * - Background coroutine contexts
+ *
+ * AVOID using in:
+ * - UI/Main thread without careful consideration
+ * - Composable functions (use rememberPreference instead)
+ * - Hot paths or frequently called code
+ *
+ * Consider using Flow-based access (dataStore.data.map { it[key] }) for reactive updates.
+ */
 operator fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>): T? =
     runBlocking(Dispatchers.IO) {
         data.first()[key]
     }
 
+/**
+ * Synchronously reads a preference value from DataStore with a default value.
+ *
+ * WARNING: This uses runBlocking which can block the calling thread. Use this ONLY in:
+ * - Service initialization (onCreate, onStartCommand)
+ * - One-time app initialization
+ * - Background coroutine contexts
+ *
+ * AVOID using in:
+ * - UI/Main thread without careful consideration
+ * - Composable functions (use rememberPreference instead)
+ * - Hot paths or frequently called code
+ *
+ * Consider using Flow-based access (dataStore.data.map { it[key] ?: defaultValue }) for reactive updates.
+ */
 fun <T> DataStore<Preferences>.get(
     key: Preferences.Key<T>,
     defaultValue: T,

@@ -193,7 +193,7 @@ class App : Application(), SingletonImageLoader.Factory {
                     try {
                         YouTube.cookie = cookie
                     } catch (e: Exception) {
-                        Timber.e(e, "Could not parse cookie. Clearing existing cookie.")
+                        Timber.e(e, "[Auth] Could not parse cookie - invalid format or corrupted data - clearing account - thread: ${Thread.currentThread().name}")
                         forgetAccount(this@App)
                     }
                 }
@@ -201,7 +201,7 @@ class App : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        val cacheSize = dataStore.get(MaxImageCacheSizeKey, 512)
+        val cacheSize = dataStore.get(MaxImageCacheSizeKey, 256).coerceIn(0, 512)
         val okHttpClient = OkHttpClient.Builder()
             .dns(ResilientDns())
             .proxy(YouTube.proxy)

@@ -46,7 +46,7 @@ import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.viewmodels.ContributeArtist
 import com.jtech.zemer.viewmodels.ContributeViewModel
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.playback.queues.YouTubeQueue

@@ -72,7 +72,9 @@ object ComposeToImage {
                     .build()
                 val result = imageLoader.execute(request)
                 coverArtBitmap = result.image?.toBitmap()
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                timber.log.Timber.w(e, "Failed to load cover art bitmap for card image")
+            }
         }
 
         val padding = 32f

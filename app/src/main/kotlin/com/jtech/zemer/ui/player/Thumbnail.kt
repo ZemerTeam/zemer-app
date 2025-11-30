@@ -130,7 +130,10 @@ fun Thumbnail(
         if (previousIndex != C.INDEX_UNSET) {
             try {
                 playerConnection.player.getMediaItemAt(previousIndex)
-            } catch (e: Exception) { null }
+            } catch (e: Exception) {
+                timber.log.Timber.w(e, "Failed to get previous media item at index $previousIndex")
+                null
+            }
         } else null
     } else null
 
@@ -143,13 +146,19 @@ fun Thumbnail(
         if (nextIndex != C.INDEX_UNSET) {
             try {
                 playerConnection.player.getMediaItemAt(nextIndex)
-            } catch (e: Exception) { null }
+            } catch (e: Exception) {
+                timber.log.Timber.w(e, "Failed to get next media item at index $nextIndex")
+                null
+            }
         } else null
     } else null
 
     val currentMediaItem = try {
         playerConnection.player.currentMediaItem
-    } catch (e: Exception) { null }
+    } catch (e: Exception) {
+        timber.log.Timber.w(e, "Failed to get current media item from player")
+        null
+    }
 
     val mediaItems = listOfNotNull(previousMediaMetadata, currentMediaItem, nextMediaMetadata)
     val currentMediaIndex = mediaItems.indexOf(currentMediaItem)

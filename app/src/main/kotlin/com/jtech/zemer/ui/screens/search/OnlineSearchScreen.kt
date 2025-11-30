@@ -87,9 +87,9 @@ fun OnlineSearchScreen(
     val lazyListState = rememberLazyListState()
     val firstItemKey = remember(viewState) {
         when {
-            viewState.history.isNotEmpty() -> "history_${viewState.history.first().query}"
-            viewState.suggestions.isNotEmpty() -> "suggestion_${viewState.suggestions.first()}"
-            viewState.items.isNotEmpty() -> "item_${viewState.items.first().id}"
+            viewState.history.firstOrNull() != null -> "history_${viewState.history.firstOrNull()?.query}"
+            viewState.suggestions.firstOrNull() != null -> "suggestion_${viewState.suggestions.firstOrNull()}"
+            viewState.items.firstOrNull() != null -> "item_${viewState.items.firstOrNull()?.id}"
             else -> null
         }
     }

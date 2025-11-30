@@ -37,7 +37,9 @@ class ArtistViewModel @Inject constructor(
     private val database: MusicDatabase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    val artistId = savedStateHandle.get<String>("artistId")!!
+    val artistId = requireNotNull(savedStateHandle.get<String>("artistId")) {
+        "artistId is required but was not provided in navigation arguments"
+    }
     var artistPage by mutableStateOf<ArtistPage?>(null)
     var isLoading by mutableStateOf(true)
     val libraryArtist = database.artist(artistId)

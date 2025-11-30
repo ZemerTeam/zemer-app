@@ -251,7 +251,9 @@ constructor(
     database: MusicDatabase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    private val artistId = savedStateHandle.get<String>("artistId")!!
+    private val artistId = requireNotNull(savedStateHandle.get<String>("artistId")) {
+        "artistId is required but was not provided in navigation arguments"
+    }
     val artist =
         database
             .artist(artistId)

@@ -26,7 +26,9 @@ constructor(
     val database: MusicDatabase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    private val browseId = savedStateHandle.get<String>("browseId")!!
+    private val browseId = requireNotNull(savedStateHandle.get<String>("browseId")) {
+        "browseId is required but was not provided in navigation arguments"
+    }
     private val params = savedStateHandle.get<String>("params")
 
     val result = MutableStateFlow<BrowseResult?>(null)

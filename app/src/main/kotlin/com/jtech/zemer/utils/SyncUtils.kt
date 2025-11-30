@@ -102,7 +102,7 @@ class SyncUtils @Inject constructor(
                 localSongs.filterNot { it.id in remoteIds }.forEach {
                     try {
                         database.transaction { update(it.song.localToggleLike()) }
-                    } catch (e: Exception) { e.printStackTrace() }
+                    } catch (e: Exception) { Timber.e(e, "Failed to toggle like for removed song ${it.id}") }
                 }
 
                 remoteSongs.forEachIndexed { index, song ->
@@ -116,11 +116,11 @@ class SyncUtils @Inject constructor(
                                 update(dbSong.song.copy(liked = true, likedDate = timestamp))
                             }
                         }
-                    } catch (e: Exception) { e.printStackTrace() }
+                    } catch (e: Exception) { Timber.e(e, "Failed to sync liked song ${song.id} (index=$index)") }
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Timber.e(e, "Failed to sync liked songs: ${e.message}")
         } finally {
             isSyncingLikedSongs.value = false
         }
@@ -142,7 +142,7 @@ class SyncUtils @Inject constructor(
                     } else {
                         try {
                             database.transaction { update(it.song.toggleLibrary()) }
-                        } catch (e: Exception) { e.printStackTrace() }
+                        } catch (e: Exception) { Timber.e(e, "Failed to toggle library for removed song ${it.id}") }
                     }
                 }
                 feedbackTokens.chunked(20).forEach { YouTube.feedback(it) }
@@ -160,11 +160,11 @@ class SyncUtils @Inject constructor(
                                 addLibraryTokens(song.id, song.libraryAddToken, song.libraryRemoveToken)
                             }
                         }
-                    } catch (e: Exception) { e.printStackTrace() }
+                    } catch (e: Exception) { Timber.e(e, "Failed to sync library song ${song.id}") }
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Timber.e(e, "Failed to sync library songs: ${e.message}")
         } finally {
             isSyncingLibrarySongs.value = false
         }
@@ -193,7 +193,7 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Timber.e(e, "Failed to sync uploaded songs: ${e.message}")
         } finally {
             isSyncingUploadedSongs.value = false
         }
@@ -225,7 +225,7 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Timber.e(e, "Failed to sync liked albums: ${e.message}")
         } finally {
             isSyncingLikedAlbums.value = false
         }
@@ -257,7 +257,7 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Timber.e(e, "Failed to sync uploaded albums: ${e.message}")
         } finally {
             isSyncingUploadedAlbums.value = false
         }
@@ -294,7 +294,7 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Timber.e(e, "Failed to sync artists subscriptions: ${e.message}")
         } finally {
             isSyncingArtists.value = false
         }
@@ -335,7 +335,7 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Timber.e(e, "Failed to sync saved playlists: ${e.message}")
         } finally {
             isSyncingPlaylists.value = false
         }
@@ -365,7 +365,7 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Timber.e(e, "Failed to sync playlist $browseId: ${e.message}")
         }
     }
 
@@ -442,7 +442,6 @@ class SyncUtils @Inject constructor(
             backfillMissingArtistThumbs(limit = 150)
         } catch (e: Exception) {
             Timber.e(e, "Whitelist sync exception: ${e.message}")
-            e.printStackTrace()
             _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
         } finally {
             isSyncingWhitelist.value = false
@@ -496,26 +495,26 @@ class SyncUtils @Inject constructor(
             val savedPlaylists = database.playlistsByNameAsc().first()
 
             likedSongs.forEach {
-                try { database.transaction { update(it.song.copy(liked = false, likedDate = null)) } } catch (e: Exception) { e.printStackTrace() }
+                try { database.transaction { update(it.song.copy(liked = false, likedDate = null)) } } catch (e: Exception) { Timber.e(e, "Failed to clear like status for ${it.id}") }
             }
             librarySongs.forEach {
                 if (it.song.inLibrary != null) {
-                    try { database.transaction { update(it.song.copy(inLibrary = null)) } } catch (e: Exception) { e.printStackTrace() }
+                    try { database.transaction { update(it.song.copy(inLibrary = null)) } } catch (e: Exception) { Timber.e(e, "Failed to clear library status for ${it.id}") }
                 }
             }
             likedAlbums.forEach {
-                try { database.transaction { update(it.album.copy(bookmarkedAt = null)) } } catch (e: Exception) { e.printStackTrace() }
+                try { database.transaction { update(it.album.copy(bookmarkedAt = null)) } } catch (e: Exception) { Timber.e(e, "Failed to clear bookmark for album ${it.id}") }
             }
             subscribedArtists.forEach {
-                try { database.transaction { update(it.artist.copy(bookmarkedAt = null)) } } catch (e: Exception) { e.printStackTrace() }
+                try { database.transaction { update(it.artist.copy(bookmarkedAt = null)) } } catch (e: Exception) { Timber.e(e, "Failed to clear bookmark for artist ${it.id}") }
             }
             savedPlaylists.forEach {
                 if (it.playlist.browseId != null) {
-                    try { database.transaction { delete(it.playlist) } } catch (e: Exception) { e.printStackTrace() }
+                    try { database.transaction { delete(it.playlist) } } catch (e: Exception) { Timber.e(e, "Failed to delete playlist ${it.id}") }
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Timber.e(e, "Failed to clear all synced content: ${e.message}")
         }
     }
 
@@ -577,15 +576,13 @@ class SyncUtils @Inject constructor(
 
                     Timber.d("Artist deletion: Successfully deleted artist $artistId and all associated content")
                 } catch (e: Exception) {
-                    Timber.e(e, "Artist deletion: Failed to delete artist $artistId")
-                    e.printStackTrace()
+                    Timber.e(e, "Artist deletion: Failed to delete artist $artistId - ${e.message}")
                 }
             }
 
             Timber.d("Artist deletion: Completed deletion of ${removedArtistIds.size} artists")
         } catch (e: Exception) {
-            Timber.e(e, "Artist deletion: Exception during batch deletion")
-            e.printStackTrace()
+            Timber.e(e, "Artist deletion: Exception during batch deletion - ${e.message}")
         }
     }
 }

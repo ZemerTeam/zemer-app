@@ -57,7 +57,8 @@ constructor(
         get() = databaseLazy.get()
     private val scope = CoroutineScope(Dispatchers.IO + Job())
     private val mediaStoreHelper = MediaStoreHelper(context)
-    private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
+    private val connectivityManager = context.getSystemService<ConnectivityManager>()
+        ?: throw IllegalStateException("ConnectivityManager not available on this device")
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
     private val httpClient = OkHttpClient.Builder()
         .dns(ResilientDns())
@@ -334,8 +335,8 @@ constructor(
             }
 
         } catch (e: Exception) {
-            Timber.e(e, "Download failed for ${song.song.title} (attempt ${retryAttempt + 1}): ${e.message}")
-            Timber.e("Error type: ${e.javaClass.simpleName}")
+            Timber.e(e, "[Download] Download failed for ${song.song.title} (attempt ${retryAttempt + 1}/${MAX_RETRY_ATTEMPTS}) - error: ${e.message} - type: ${e.javaClass.simpleName} - thread: ${Thread.currentThread().name}")
+            Timber.e("[Download] Error details: ${e.javaClass.simpleName}")
 
             // Retry logic with exponential backoff
             if (retryAttempt < MAX_RETRY_ATTEMPTS) {

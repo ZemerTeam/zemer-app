@@ -32,7 +32,9 @@ class OnlinePlaylistViewModel @Inject constructor(
     val database: MusicDatabase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
-    private val playlistId = savedStateHandle.get<String>("playlistId")!!
+    private val playlistId = requireNotNull(savedStateHandle.get<String>("playlistId")) {
+        "playlistId is required but was not provided in navigation arguments"
+    }
 
     val playlist = MutableStateFlow<PlaylistItem?>(null)
     val playlistSongs = MutableStateFlow<List<SongItem>>(emptyList())
