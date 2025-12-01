@@ -48,18 +48,6 @@
 # @Serializable and @Polymorphic are used at runtime for polymorphic serialization.
 -keepattributes RuntimeVisibleAnnotations,AnnotationDefault
 
--dontwarn javax.servlet.ServletContainerInitializer
--dontwarn org.bouncycastle.jsse.BCSSLParameters
--dontwarn org.bouncycastle.jsse.BCSSLSocket
--dontwarn org.bouncycastle.jsse.provider.BouncyCastleJsseProvider
--dontwarn org.conscrypt.Conscrypt$Version
--dontwarn org.conscrypt.Conscrypt
--dontwarn org.conscrypt.ConscryptHostnameVerifier
--dontwarn org.openjsse.javax.net.ssl.SSLParameters
--dontwarn org.openjsse.javax.net.ssl.SSLSocket
--dontwarn org.openjsse.net.ssl.OpenJSSE
--dontwarn org.slf4j.impl.StaticLoggerBinder
-
 ## Rules for NewPipeExtractor
 -keep class org.schabi.newpipe.extractor.services.youtube.protos.** { *; }
 -keep class org.schabi.newpipe.extractor.timeago.patterns.** { *; }
@@ -83,16 +71,6 @@
     #public static int e(...);
 }
 
-# Generated automatically by the Android Gradle plugin.
--dontwarn java.beans.BeanDescriptor
--dontwarn java.beans.BeanInfo
--dontwarn java.beans.IntrospectionException
--dontwarn java.beans.Introspector
--dontwarn java.beans.PropertyDescriptor
-
-# Keep all classes within the kuromoji package
--keep class com.atilika.kuromoji.** { *; }
-
 ## Queue Persistence Rules
 # Keep queue-related classes to prevent serialization issues in release builds
 -keep class com.jtech.zemer.models.PersistQueue { *; }
@@ -101,83 +79,7 @@
 -keep class com.jtech.zemer.models.QueueType { *; }
 -keep class com.jtech.zemer.playback.queues.** { *; }
 
-# Keep serialization methods for queue persistence
--keepclassmembers class * implements java.io.Serializable {
-    private void writeObject(java.io.ObjectOutputStream);
-    private void readObject(java.io.ObjectInputStream);
-}
-
 ## UCrop Rules
 -dontwarn com.yalantis.ucrop**
 -keep class com.yalantis.ucrop** { *; }
 -keep interface com.yalantis.ucrop** { *; }
-
-## Home Screen - Quick Picks & Keep Listening
-# Keep all database entities completely (Room needs them for deserialization)
--keep class com.jtech.zemer.db.entities.** { *; }
-
-# Keep LocalItem and all subclasses for home screen keep listening section
--keep class com.jtech.zemer.db.entities.LocalItem { *; }
--keep class com.jtech.zemer.db.entities.LocalItem$* { *; }
-
-# Keep all relation and embedded classes
--keep class com.jtech.zemer.db.entities.Song { *; }
--keep class com.jtech.zemer.db.entities.Album { *; }
--keep class com.jtech.zemer.db.entities.Artist { *; }
--keep class com.jtech.zemer.db.entities.Playlist { *; }
-
-# Keep data models needed for keep listening
--keep class com.jtech.zemer.db.entities.SongEntity { *; }
--keep class com.jtech.zemer.db.entities.AlbumEntity { *; }
--keep class com.jtech.zemer.db.entities.ArtistEntity { *; }
--keep class com.jtech.zemer.db.entities.PlaylistEntity { *; }
-
-# Keep HomeViewModel to prevent stripping of observable state flows
--keep class com.jtech.zemer.viewmodels.HomeViewModel { *; }
-
-# Keep SyncUtils and WhitelistFetcher for whitelist functionality
--keep class com.jtech.zemer.utils.SyncUtils { *; }
--keep class com.jtech.zemer.utils.WhitelistFetcher { *; }
--keep class com.jtech.zemer.utils.WhitelistFetcher$* { *; }
-
-# Keep JSON parsing classes needed for whitelist sync
--keep class org.json.** { *; }
--dontwarn org.json.**
-
-# Keep Ktor HTTP client classes and methods
--keep class io.ktor.client.** { *; }
--keep class io.ktor.** { *; }
--dontwarn io.ktor.**
-
-# Keep DataStore and preferences for settings access
--keep class androidx.datastore.** { *; }
--keep class androidx.datastore.preferences.** { *; }
-
-# Keep ArtistWhitelistEntity for database operations
--keep class com.jtech.zemer.db.entities.ArtistWhitelistEntity { *; }
--keep class com.jtech.zemer.db.entities.ArtistWhitelistEntity$* { *; }
-
-# Keep Room generated classes and annotations
--keep class * extends androidx.room.RoomDatabase { *; }
--keep @androidx.room.Entity class * { *; }
--keep @androidx.room.Dao interface * { *; }
--keep @androidx.room.Database class * { *; }
--keepattributes *Annotation*
-
-# Keep Room relationship classes
--keep class * extends androidx.room.DatabaseViewFtsOptions { *; }
--keep @androidx.room.Embedded class * { *; }
--keep @androidx.room.Relation class * { *; }
-
-# Preserve constructor parameter names and annotations for Room
--keepclasseswithmembernames class * {
-    @androidx.room.Embedded <methods>;
-}
--keepclasseswithmembernames class * {
-    @androidx.room.Relation <methods>;
-}
-
-# Keep Room DAO and converters used by keep listening queries
--keep class com.jtech.zemer.db.DatabaseDao { *; }
--keep class com.jtech.zemer.db.DatabaseDao_Impl { *; }
--keep class com.jtech.zemer.db.Converters { *; }
