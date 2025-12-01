@@ -71,6 +71,7 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.YTItem
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -91,8 +92,9 @@ fun OnlineSearchResult(
     val chipsFocusRequester = remember { FocusRequester() }
     val firstResultFocusRequester = remember { FocusRequester() }
 
-    // Initialize chips with focus
+    // Initialize chips focus after a short delay to prioritize content on TV remotes
     LaunchedEffect(Unit) {
+        delay(900)
         chipsFocusRequester.requestFocus()
     }
 
