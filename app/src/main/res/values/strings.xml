@@ -463,7 +463,7 @@
     <string name="splash_syncing_progress">Syncing %1$d/%2$d artists</string>
     <string name="splash_syncing_indeterminate">Syncing your whitelist…</string>
     <string name="splash_preparing_app">Warming up your experience…</string>
-    <string name="splash_continue">Let&apos;s go</string>
+    <string name="splash_continue">Let's go</string>
     <string name="splash_syncing_background_action">Continue while we sync</string>
     <string name="splash_syncing_background_waiting">Syncing in background…</string>
     <string name="splash_syncing_footer">You can browse while we finish downloading your artists.</string>
