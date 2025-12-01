@@ -3,15 +3,8 @@ package com.jtech.zemer.ui.screens.search
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
@@ -35,13 +28,37 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.jtech.zemer.LocalDatabase
+import com.jtech.zemer.LocalPlayerAwareWindowInsets
+import com.jtech.zemer.LocalPlayerConnection
+import com.jtech.zemer.R
+import com.jtech.zemer.extensions.togglePlayPause
+import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.ui.component.AppStateView
+import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.NavigationTitle
+import com.jtech.zemer.ui.component.YouTubeListItem
+import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
+import com.jtech.zemer.ui.component.shimmer.ShimmerHost
+import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
+import com.jtech.zemer.ui.menu.YouTubeArtistMenu
+import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
+import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.viewmodels.OnlineSearchViewModel
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_ALBUM
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_ARTIST
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_COMMUNITY_PLAYLIST
@@ -53,25 +70,6 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.YTItem
-import com.jtech.zemer.LocalDatabase
-import com.jtech.zemer.LocalPlayerAwareWindowInsets
-import com.jtech.zemer.LocalPlayerConnection
-import com.jtech.zemer.R
-import com.jtech.zemer.extensions.togglePlayPause
-import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.playback.queues.YouTubeQueue
-import com.jtech.zemer.ui.component.ChipsRow
-import com.jtech.zemer.ui.component.AppStateView
-import com.jtech.zemer.ui.component.LocalMenuState
-import com.jtech.zemer.ui.component.NavigationTitle
-import com.jtech.zemer.ui.component.YouTubeListItem
-import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
-import com.jtech.zemer.ui.component.shimmer.ShimmerHost
-import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
-import com.jtech.zemer.ui.menu.YouTubeArtistMenu
-import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
-import com.jtech.zemer.ui.menu.YouTubeSongMenu
-import com.jtech.zemer.viewmodels.OnlineSearchViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -300,7 +298,7 @@ fun OnlineSearchResult(
                     }
                 }
 
-                searchSummary?.summaries?.isNullOrEmpty() == true -> {
+                searchSummary?.summaries?.isEmpty() == true -> {
                     item {
                         AppStateView(
                             title = stringResource(R.string.search_empty_title),
@@ -352,7 +350,7 @@ fun OnlineSearchResult(
                     item {
                         AppStateView(
                             title = stringResource(R.string.search_error_title),
-                            subtitle = filterError ?: "",
+                            subtitle = filterError,
                             icon = R.drawable.search,
                             actionLabel = stringResource(R.string.search_retry),
                             onAction = viewModel::refresh,

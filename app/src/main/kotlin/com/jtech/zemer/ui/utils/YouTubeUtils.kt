@@ -1,3 +1,5 @@
+@file:Suppress("LocalVariableName")
+
 package com.jtech.zemer.ui.utils
 
 fun String.resize(

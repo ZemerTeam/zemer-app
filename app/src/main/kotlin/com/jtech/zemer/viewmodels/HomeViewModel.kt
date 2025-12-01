@@ -3,15 +3,6 @@ package com.jtech.zemer.viewmodels
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.AlbumItem
-import com.metrolist.innertube.models.ArtistItem
-import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.YTItem
-import com.metrolist.innertube.models.filterExplicit
-import com.metrolist.innertube.pages.ExplorePage
-import com.metrolist.innertube.pages.HomePage
-import com.metrolist.innertube.utils.completed
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.OnboardingCompleteKey
@@ -19,22 +10,26 @@ import com.jtech.zemer.constants.QuickPicks
 import com.jtech.zemer.constants.QuickPicksKey
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.db.MusicDatabase
-import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
+import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
-import com.jtech.zemer.utils.ContentFilterState
-import com.jtech.zemer.utils.WhitelistCache
+import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.AlbumItem
+import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.SongItem
+import com.metrolist.innertube.models.filterExplicit
+import com.metrolist.innertube.pages.ExplorePage
+import com.metrolist.innertube.pages.HomePage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
-import kotlin.jvm.Volatile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -47,6 +42,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -87,7 +83,7 @@ class HomeViewModel @Inject constructor(
         val events = database.events().first()
         val listenedArtistIds = events
             .flatMap { it.song.artists }
-            .mapNotNull { it.id }
+            .map { it.id }
             .toSet()
 
         val whitelistedSongs = runCatching { database.allSongs().first() }.getOrDefault(emptyList())
@@ -438,9 +434,7 @@ class HomeViewModel @Inject constructor(
             val hideExplicit = context.dataStore.get(HideExplicitKey, false)
             val quick = loadQuickPicks()
             val forgottenList = database.forgottenFavorites().first().shuffled().take(20)
-            val forgotten = if (forgottenList.isNotEmpty()) {
-                forgottenList
-            } else {
+            val forgotten = forgottenList.ifEmpty {
                 // Fallback: show liked songs if no forgotten favorites
                 runCatching { database.allSongs().first().filter { it.song.liked } }
                     .getOrDefault(emptyList())

@@ -1,3 +1,5 @@
+@file:Suppress("SameReturnValue")
+
 package com.jtech.zemer.ui.utils
 
 import androidx.compose.animation.core.AnimationSpec

@@ -13,12 +13,12 @@ import java.util.Locale
  * @param context Optional context message for debugging
  */
 fun reportException(throwable: Throwable, context: String? = null) {
-    val message = if (context != null) {
+    if (context != null) {
         "[Exception] $context - ${throwable.javaClass.simpleName}: ${throwable.message} - thread: ${Thread.currentThread().name}"
     } else {
         "[Exception] ${throwable.javaClass.simpleName}: ${throwable.message} - thread: ${Thread.currentThread().name}"
     }
-    Timber.e(throwable, message)
+    Timber.e(throwable)
     throwable.printStackTrace()
 }
 

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -21,8 +20,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -63,22 +60,15 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.ArtistViewTypeKey
 import com.jtech.zemer.constants.CONTENT_TYPE_ARTIST
 import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
-import com.jtech.zemer.constants.GridItemSize
-import com.jtech.zemer.constants.GridItemsSizeKey
-import com.jtech.zemer.constants.GridThumbnailHeight
 import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.ui.component.EmptyPlaceholder
-import com.jtech.zemer.ui.component.LibraryArtistGridItem
-import com.jtech.zemer.ui.component.LibraryArtistListItem
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.WhitelistedArtistGridItem
 import com.jtech.zemer.ui.component.WhitelistedArtistListItem
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.WhitelistedArtistsViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -87,10 +77,9 @@ fun WhitelistedArtistsScreen(
     viewModel: WhitelistedArtistsViewModel = hiltViewModel(),
 ) {
     val menuState = LocalMenuState.current
-    val haptic = LocalHapticFeedback.current
+    LocalHapticFeedback.current
     var viewType by rememberEnumPreference(ArtistViewTypeKey, LibraryViewType.GRID)
-    val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
-    val (ytmSync) = rememberPreference(YtmSyncKey, true)
+    val (_) = rememberPreference(YtmSyncKey, true)
     val firstFocus = remember { FocusRequester() }
     val searchFocus = remember { FocusRequester() }
     val firstArtistFocus = remember { FocusRequester() }

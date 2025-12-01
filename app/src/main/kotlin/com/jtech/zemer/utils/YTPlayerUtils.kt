@@ -86,14 +86,13 @@ object YTPlayerUtils {
         val signatureTimestamp = getSignatureTimestampOrNull(videoId)
 
         val isLoggedIn = YouTube.cookie != null
-        val sessionId =
-            if (isLoggedIn) {
-                // signed in sessions use dataSyncId as identifier
-                YouTube.dataSyncId
-            } else {
-                // signed out sessions use visitorData as identifier
-                YouTube.visitorData
-            }
+        if (isLoggedIn) {
+            // signed in sessions use dataSyncId as identifier
+            YouTube.dataSyncId
+        } else {
+            // signed out sessions use visitorData as identifier
+            YouTube.visitorData
+        }
 
         val mainPlayerResponse =
             YouTube.player(videoId, playlistId, MAIN_CLIENT, signatureTimestamp).getOrThrow()
@@ -115,7 +114,6 @@ object YTPlayerUtils {
             val client: YouTubeClient
             if (clientIndex == -1) {
                 // try with streams from main client first
-                client = MAIN_CLIENT
                 streamPlayerResponse = mainPlayerResponse
             } else {
                 // after main client use fallback clients
@@ -152,7 +150,7 @@ object YTPlayerUtils {
 
                 streamExpiresInSeconds =
                     streamPlayerResponse.streamingData?.expiresInSeconds
-                        ?: streamUrl?.let(::deriveExpireSecondsFromUrl)
+                        ?: streamUrl.let(::deriveExpireSecondsFromUrl)
                         ?: defaultStreamTtlSeconds
 
                 if (streamExpiresInSeconds <= 0) {
@@ -260,9 +258,13 @@ object YTPlayerUtils {
      */
     private fun validateStatus(url: String): Boolean {
         try {
+            // Validate URL before attempting to build request
+            val validatedUrl = UrlValidator.validateAndParseUrl(url)
+                ?: return false.also { reportException(Exception("Invalid stream URL: $url")) }
+
             val requestBuilder = okhttp3.Request.Builder()
                 .head()
-                .url(url)
+                .url(validatedUrl)
             val response = httpClient.newCall(requestBuilder.build()).execute()
             val isSuccessful = response.isSuccessful
             return isSuccessful

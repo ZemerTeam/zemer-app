@@ -8,6 +8,7 @@ import com.jtech.zemer.constants.AudioQualityKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.utils.MediaStoreHelper
+import com.jtech.zemer.utils.UrlValidator
 import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.enumPreference
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -360,8 +361,12 @@ constructor(
      * Download a file from a URL to a temp file with progress tracking
      */
     private suspend fun downloadFile(url: String, outputFile: File, songId: String) = withContext(Dispatchers.IO) {
+        // Validate URL before attempting to build request
+        val validatedUrl = UrlValidator.validateAndParseUrl(url)
+            ?: throw Exception("Invalid download URL: $url")
+
         val request = Request.Builder()
-            .url(url)
+            .url(validatedUrl)
             .get()
             .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             .header("Accept", "*/*")

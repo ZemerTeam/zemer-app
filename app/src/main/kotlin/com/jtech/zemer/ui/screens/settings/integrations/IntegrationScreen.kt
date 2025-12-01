@@ -11,13 +11,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
-import com.jtech.zemer.ui.component.*
+import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.utils.backToMain
 
 @OptIn(ExperimentalMaterial3Api::class)

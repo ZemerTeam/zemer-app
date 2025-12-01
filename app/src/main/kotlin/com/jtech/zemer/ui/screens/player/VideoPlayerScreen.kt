@@ -62,6 +62,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.navigation.NavController
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AudioQuality
+import com.jtech.zemer.utils.UrlValidator
 import com.jtech.zemer.utils.YTPlayerUtils
 import com.metrolist.innertube.utils.ResilientDns
 import kotlinx.coroutines.Dispatchers
@@ -181,7 +182,9 @@ fun VideoPlayerScreen(
                 return@withContext
             }
             val playback = playbackResult.getOrThrow()
-            val request = Request.Builder().url(playback.streamUrl).build()
+            val validatedUrl = UrlValidator.validateAndParseUrl(playback.streamUrl)
+                ?: throw Exception("Invalid stream URL: ${playback.streamUrl}")
+            val request = Request.Builder().url(validatedUrl).build()
             videoHttpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     withContext(Dispatchers.Main) {
@@ -245,6 +248,12 @@ fun VideoPlayerScreen(
             )
         }
         result.onSuccess { playback ->
+            // Validate stream URL before creating media item
+            if (!UrlValidator.isValidStreamUrl(playback.streamUrl)) {
+                loadError = "Invalid stream URL"
+                isLoading = false
+                return@onSuccess
+            }
             val mediaItem = MediaItem.Builder()
                 .setUri(playback.streamUrl)
                 .setMimeType(playback.format.mimeType)

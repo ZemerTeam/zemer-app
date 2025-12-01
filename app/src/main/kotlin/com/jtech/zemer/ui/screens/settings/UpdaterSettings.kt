@@ -21,10 +21,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -88,7 +88,7 @@ fun UpdaterScreen(
                     icon = { Icon(painterResource(R.drawable.notification), null) },
                     checked = updateNotifications,
                     onCheckedChange = onUpdateNotificationsChange,
-                    isEnabled = checkForUpdates,
+                    isEnabled = true,
                     modifier = Modifier.fillMaxWidth()
                 )
             }

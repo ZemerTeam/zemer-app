@@ -1,8 +1,18 @@
+@file:Suppress("SameParameterValue", "FunctionName")
+
 package com.jtech.zemer.utils
 
+import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
-import android.graphics.*
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
+import android.graphics.RectF
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -10,7 +20,6 @@ import android.provider.MediaStore
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
-import androidx.annotation.RequiresApi
 import androidx.core.content.FileProvider
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.toBitmap
@@ -28,7 +37,6 @@ import java.io.FileOutputStream
 
 object ComposeToImage {
 
-    @RequiresApi(Build.VERSION_CODES.M)
     suspend fun createLyricsImage(
         context: Context,
         coverArtUrl: String?,
@@ -168,6 +176,7 @@ object ComposeToImage {
         return@withContext bitmap
     }
 
+    @SuppressLint("UseCompatLoadingForDrawables")
     private fun AppLogo(
         context: Context,
         canvas: Canvas,

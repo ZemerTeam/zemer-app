@@ -8,8 +8,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.exoplayer.offline.Download
-import com.metrolist.innertube.YouTube
 import com.jtech.zemer.constants.AlbumFilter
 import com.jtech.zemer.constants.AlbumFilterKey
 import com.jtech.zemer.constants.AlbumSortDescendingKey
@@ -37,15 +35,14 @@ import com.jtech.zemer.constants.TopSize
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.extensions.filterExplicit
 import com.jtech.zemer.extensions.filterExplicitAlbums
-import com.jtech.zemer.extensions.reversed
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.playback.DownloadUtil
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
+import com.metrolist.innertube.YouTube
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -53,14 +50,11 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.text.Collator
 import java.time.Duration
 import java.time.LocalDateTime
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel

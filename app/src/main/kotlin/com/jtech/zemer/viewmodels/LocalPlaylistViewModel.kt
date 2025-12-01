@@ -68,7 +68,7 @@ constructor(
                             songsByAlbum.sortedBy {
                                 it.song.artists.joinToString(
                                     ""
-                                ) { it.name }
+                                ) { it -> it.name }
                             }
                         }
                 }

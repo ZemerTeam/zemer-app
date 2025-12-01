@@ -1,14 +1,10 @@
 package com.jtech.zemer
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -20,21 +16,19 @@ import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
@@ -43,41 +37,36 @@ import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialogDefaults
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.surfaceColorAtElevation
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.contentColorFor
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.rememberDrawerState
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -94,9 +83,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
-import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -109,25 +97,19 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastAny
-import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.util.Consumer
-import com.google.firebase.auth.FirebaseAuth
 import androidx.core.view.WindowCompat
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.MediaItem
@@ -137,16 +119,13 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import coil3.compose.AsyncImage
 import coil3.imageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.request.crossfade
 import coil3.toBitmap
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.WatchEndpoint
+import com.google.firebase.auth.FirebaseAuth
 import com.jtech.zemer.constants.AppBarHeight
 import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.CheckForUpdatesKey
@@ -154,22 +133,20 @@ import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.DefaultOpenTabKey
 import com.jtech.zemer.constants.DisableScreenshotKey
 import com.jtech.zemer.constants.DynamicThemeKey
-import com.jtech.zemer.constants.OnboardingCompleteKey
-import com.jtech.zemer.constants.MiniPlayerHeight
-import com.jtech.zemer.constants.MiniPlayerBottomSpacing
-import com.jtech.zemer.constants.UpdateNotificationsEnabledKey
-import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
+import com.jtech.zemer.constants.LastWhitelistVersionKey
+import com.jtech.zemer.constants.MiniPlayerBottomSpacing
+import com.jtech.zemer.constants.MiniPlayerHeight
+import com.jtech.zemer.constants.OnboardingCompleteKey
 import com.jtech.zemer.constants.PauseSearchHistoryKey
 import com.jtech.zemer.constants.PureBlackKey
-import com.jtech.zemer.constants.LastWhitelistVersionKey
 import com.jtech.zemer.constants.SYSTEM_DEFAULT
-import com.jtech.zemer.constants.SlimNavBarHeight
 import com.jtech.zemer.constants.SlimNavBarKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
+import com.jtech.zemer.constants.UpdateNotificationsEnabledKey
+import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.SearchHistory
-import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.models.DpadDirection
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.DownloadUtil
@@ -187,7 +164,7 @@ import com.jtech.zemer.ui.component.rememberBottomSheetState
 import com.jtech.zemer.ui.component.shimmer.ShimmerTheme
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.player.BottomSheetPlayer
-import com.jtech.zemer.ui.player.MiniPlayerFocusTargets
+import com.jtech.zemer.ui.screens.LoadingScreen
 import com.jtech.zemer.ui.screens.OnboardingFlow
 import com.jtech.zemer.ui.screens.Screens
 import com.jtech.zemer.ui.screens.navigationBuilder
@@ -197,7 +174,6 @@ import com.jtech.zemer.ui.screens.settings.NavigationTab
 import com.jtech.zemer.ui.theme.ColorSaver
 import com.jtech.zemer.ui.theme.DefaultThemeColor
 import com.jtech.zemer.ui.theme.ZemerTheme
-import com.jtech.zemer.ui.screens.LoadingScreen
 import com.jtech.zemer.ui.theme.extractThemeColor
 import com.jtech.zemer.ui.utils.appBarScrollBehavior
 import com.jtech.zemer.ui.utils.backToMain
@@ -210,16 +186,17 @@ import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.hasNotificationPermission
-import com.jtech.zemer.utils.tryStartForegroundService
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.setAppLocale
-import com.jtech.zemer.viewmodels.HomeViewModel
+import com.jtech.zemer.utils.tryStartForegroundService
+import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.SongItem
+import com.metrolist.innertube.models.WatchEndpoint
 import com.valentinilk.shimmer.LocalShimmerTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -301,7 +278,7 @@ class MainActivity : ComponentActivity() {
         try {
             if (hasNotificationPermission(this)) {
                 if (tryStartForegroundService<MusicService>(serviceIntent)) {
-                    bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+                    bindService(serviceIntent, serviceConnection, BIND_AUTO_CREATE)
                 }
             }
         } catch (e: IllegalStateException) {
@@ -317,7 +294,7 @@ class MainActivity : ComponentActivity() {
             try {
                 if (hasNotificationPermission(this)) {
                     if (tryStartForegroundService<MusicService>(serviceIntent)) {
-                        bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+                        bindService(serviceIntent, serviceConnection, BIND_AUTO_CREATE)
                     }
                 }
                 pendingServiceStart = false
@@ -434,10 +411,10 @@ class MainActivity : ComponentActivity() {
                                 latestVersionName = info.versionName
                                 if (info.versionName != BuildConfig.VERSION_NAME && notifEnabled) {
                                     if (!hasNotificationPermission(this@MainActivity)) return@onSuccess
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl))
+                                    val intent = Intent(Intent.ACTION_VIEW, info.downloadUrl.toUri())
 
                                     val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-                                        (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+                                        (PendingIntent.FLAG_IMMUTABLE)
                                     val pending = PendingIntent.getActivity(this@MainActivity, 1001, intent, flags)
 
                                     @SuppressLint("MissingPermission")
@@ -543,7 +520,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         val focusManager = LocalFocusManager.current
                         val density = LocalDensity.current
-                        val configuration = LocalConfiguration.current
+                        LocalConfiguration.current
                         val cutoutInsets = WindowInsets.displayCutout
                         val windowsInsets = WindowInsets.systemBars
                         val bottomInset = with(density) { windowsInsets.getBottom(density).toDp() }
@@ -601,7 +578,6 @@ class MainActivity : ComponentActivity() {
                     }
 
                     val navController = rememberNavController()
-                    val homeViewModel: HomeViewModel = hiltViewModel()
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
                     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -618,7 +594,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     val navigationItems = remember { Screens.MainScreens }
-                    val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
+                    val (_) = rememberPreference(SlimNavBarKey, defaultValue = false)
                     val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
                     val (floatingMiniPlayerEnabled, _) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
                     val (defaultOpenTab) = rememberEnumPreference(DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
@@ -699,8 +675,6 @@ class MainActivity : ComponentActivity() {
                     val showRail = false
 
                     val getNavPadding: () -> Dp = remember { { 0.dp } }
-
-                    val navigationBarHeight = 0.dp
 
                     val collapsedBound = remember(
                         bottomInset,
@@ -898,7 +872,7 @@ class MainActivity : ComponentActivity() {
                     val drawerFocusRequester = remember { FocusRequester() }
                     val topPlayFocusRequester = remember { FocusRequester() }
                     val miniPlayFocusRequester = remember { FocusRequester() }
-                    val miniAccountFocusRequester = remember { FocusRequester() }
+                        remember { FocusRequester() }
                     val miniHeartFocusRequester = remember { FocusRequester() }
                     val burgerFocusRequester = remember { FocusRequester() }
                     val contentFocusRequester = remember { FocusRequester() }
@@ -1541,7 +1515,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                 )
                             }
-                        }.onFailure {
+                        }.onFailure { it ->
                             reportException(it)
                         }
                     }
@@ -1573,6 +1547,7 @@ class MainActivity : ComponentActivity() {
         return handleMappedKeyEvent(event)
     }
 
+    @SuppressLint("RestrictedApi")
     private fun handleMappedKeyEvent(event: KeyEvent): Boolean {
         val mapped = dpadKeyMap[event.keyCode] ?: return false
         val target = if (mapped == event.keyCode) {

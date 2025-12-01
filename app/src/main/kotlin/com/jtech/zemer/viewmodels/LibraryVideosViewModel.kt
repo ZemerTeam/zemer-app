@@ -3,15 +3,15 @@ package com.jtech.zemer.viewmodels
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.extensions.filterExplicit
+import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.get
 import dagger.hilt.android.lifecycle.HiltViewModel
-import com.jtech.zemer.utils.ContentFilterState
-import com.jtech.zemer.utils.WhitelistCache
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -33,7 +33,7 @@ class LibraryVideosViewModel @Inject constructor(
                 list
                     .filterExplicit(hideExplicit)
                     .filter { video ->
-                        val artistIds = video.artists.mapNotNull { artist -> artist.id }
+                        val artistIds = video.artists.map { artist -> artist.id }
                         allowed.isEmpty() || artistIds.any { id -> id in allowed }
                     }
             }

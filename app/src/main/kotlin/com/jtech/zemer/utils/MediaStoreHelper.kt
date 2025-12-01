@@ -1,3 +1,5 @@
+@file:Suppress("VariableNeverRead")
+
 package com.jtech.zemer.utils
 
 import android.content.ContentValues
@@ -9,7 +11,6 @@ import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
 import java.io.InputStream
 
 /**
@@ -105,9 +106,7 @@ class MediaStoreHelper(private val context: Context) {
             }
 
             // Write the actual file content
-            var bytesWritten = 0L
             contentResolver.openOutputStream(audioUri)?.use { outputStream ->
-                bytesWritten = inputStream.copyTo(outputStream)
             } ?: run {
                 contentResolver.delete(audioUri, null, null)
                 return@withContext null

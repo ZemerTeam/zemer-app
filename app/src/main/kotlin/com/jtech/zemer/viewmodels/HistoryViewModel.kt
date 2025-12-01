@@ -1,13 +1,12 @@
 package com.jtech.zemer.viewmodels
 
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jtech.zemer.constants.HistorySource
+import com.jtech.zemer.db.MusicDatabase
+import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.pages.HistoryPage
-import com.jtech.zemer.constants.HistorySource
-import com.jtech.zemer.utils.reportException
-import com.jtech.zemer.db.MusicDatabase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

@@ -17,7 +17,6 @@ package com.jtech.zemer.ui.screens
  import androidx.compose.runtime.rememberCoroutineScope
  import androidx.compose.ui.Modifier
  import androidx.compose.ui.res.painterResource
- import androidx.compose.ui.res.stringResource
  import androidx.compose.ui.unit.dp
  import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
  import androidx.navigation.NavController
@@ -38,8 +37,8 @@ package com.jtech.zemer.ui.screens
  import com.metrolist.innertube.models.AlbumItem
  import com.metrolist.innertube.models.ArtistItem
  import com.metrolist.innertube.models.PlaylistItem
- 
- @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
  @Composable
  fun BrowseScreen(
     navController: NavController,
@@ -50,9 +49,8 @@ package com.jtech.zemer.ui.screens
      val menuState = LocalMenuState.current
      val playerConnection = LocalPlayerConnection.current ?: return
      val isPlaying by playerConnection.isPlaying.collectAsState()
-     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
- 
-     val title by viewModel.title.collectAsState()
+
+    val title by viewModel.title.collectAsState()
      val items by viewModel.items.collectAsState()
  
      val coroutineScope = rememberCoroutineScope()

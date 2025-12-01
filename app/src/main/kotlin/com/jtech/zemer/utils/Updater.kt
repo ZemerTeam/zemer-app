@@ -1,3 +1,5 @@
+@file:Suppress("KotlinConstantConditions")
+
 package com.jtech.zemer.utils
 
 import com.jtech.zemer.BuildConfig

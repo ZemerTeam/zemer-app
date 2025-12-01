@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.jtech.zemer.ui.screens.artist
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -24,7 +26,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -40,7 +41,6 @@ import com.jtech.zemer.constants.ArtistSongSortDescendingKey
 import com.jtech.zemer.constants.ArtistSongSortType
 import com.jtech.zemer.constants.ArtistSongSortTypeKey
 import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
@@ -77,7 +77,6 @@ fun ArtistSongsScreen(
         ArtistSongSortDescendingKey,
         true
     )
-    val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
     val artist by viewModel.artist.collectAsState()
     val songs by viewModel.songs.collectAsState()
     val lazyListState = rememberLazyListState()

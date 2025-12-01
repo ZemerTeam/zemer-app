@@ -1,9 +1,12 @@
 package com.jtech.zemer.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,20 +15,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,12 +33,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -51,14 +45,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.focusable
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.foundation.border
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -74,10 +66,8 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEachIndexed
-import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
@@ -97,9 +87,7 @@ import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
-import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.SongListItem
-import com.jtech.zemer.ui.component.YouTubeGridItem
 import com.jtech.zemer.ui.component.shimmer.ButtonPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
@@ -107,9 +95,8 @@ import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
 import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
-import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
-import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.ItemWrapper
+import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.AlbumViewModel
 
@@ -124,10 +111,10 @@ fun AlbumScreen(
     val menuState = LocalMenuState.current
     val database = LocalDatabase.current
     val haptic = LocalHapticFeedback.current
-    val coroutineScope = rememberCoroutineScope()
+    rememberCoroutineScope()
     val playerConnection = LocalPlayerConnection.current ?: return
 
-    val scope = rememberCoroutineScope()
+    rememberCoroutineScope()
 
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
@@ -156,7 +143,7 @@ fun AlbumScreen(
 
     val downloadUtil = LocalDownloadUtil.current
     var downloadState by remember {
-        mutableStateOf(Download.STATE_STOPPED)
+        mutableIntStateOf(Download.STATE_STOPPED)
     }
 
     // Focus state for TopAppBar buttons
@@ -189,19 +176,19 @@ fun AlbumScreen(
         targetValue = if (isMoreButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
         label = "more_button_focus_border"
     )
-    val heartButtonBorderColor = animateColorAsState(
+    animateColorAsState(
         targetValue = if (isHeartButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
         label = "heart_button_focus_border"
     )
-    val downloadButtonBorderColor = animateColorAsState(
+    animateColorAsState(
         targetValue = if (isDownloadButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
         label = "download_button_focus_border"
     )
-    val headerMenuButtonBorderColor = animateColorAsState(
+    animateColorAsState(
         targetValue = if (isHeaderMenuButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
         label = "header_menu_button_focus_border"
     )
-    val artistLinkBorderColor = animateColorAsState(
+    animateColorAsState(
         targetValue = if (isArtistLinkFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
         label = "artist_link_focus_border"
     )
@@ -515,7 +502,7 @@ fun AlbumScreen(
                 }
             }
 
-            if (!wrappedSongs.isNullOrEmpty()) {
+            if (!wrappedSongs.isEmpty()) {
                 itemsIndexed(
                     items = wrappedSongs,
                     key = { _, song -> song.item.id },
@@ -642,7 +629,7 @@ fun AlbumScreen(
     TopAppBar(
         title = {
             if (selection) {
-                val count = wrappedSongs?.count { it.isSelected } ?: 0
+                val count = wrappedSongs.count { it.isSelected }
                 Text(
                     text = pluralStringResource(R.plurals.n_song, count, count),
                     style = MaterialTheme.typography.titleLarge
@@ -690,7 +677,7 @@ fun AlbumScreen(
         },
         actions = {
             if (selection) {
-                val count = wrappedSongs?.count { it.isSelected } ?: 0
+                val count = wrappedSongs.count { it.isSelected }
                 Box(
                     modifier = Modifier
                         .border(3.dp, selectAllButtonBorderColor.value, RoundedCornerShape(8.dp))
@@ -699,16 +686,16 @@ fun AlbumScreen(
                 ) {
                     IconButton(
                         onClick = {
-                            if (count == wrappedSongs?.size) {
+                            if (count == wrappedSongs.size) {
                                 wrappedSongs.forEach { it.isSelected = false }
                             } else {
-                                wrappedSongs?.forEach { it.isSelected = true }
+                                wrappedSongs.forEach { it.isSelected = true }
                             }
                         },
                     ) {
                         Icon(
                             painter = painterResource(
-                                if (count == wrappedSongs?.size) R.drawable.deselect else R.drawable.select_all
+                                if (count == wrappedSongs.size) R.drawable.deselect else R.drawable.select_all
                             ),
                             contentDescription = null
                         )
@@ -725,7 +712,7 @@ fun AlbumScreen(
                         onClick = {
                             menuState.show {
                                 SelectionSongMenu(
-                                    songSelection = wrappedSongs?.filter { it.isSelected }!!
+                                    songSelection = wrappedSongs.filter { it.isSelected }
                                         .map { it.item },
                                     onDismiss = menuState::dismiss,
                                     clearAction = { selection = false }

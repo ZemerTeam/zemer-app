@@ -1,5 +1,6 @@
 package com.jtech.zemer.ui.screens.settings
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,13 +12,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,7 +42,6 @@ import com.jtech.zemer.constants.MaxImageCacheSizeKey
 import com.jtech.zemer.constants.MaxSongCacheSizeKey
 import com.jtech.zemer.extensions.tryOrNull
 import com.jtech.zemer.ui.component.ActionPromptDialog
-import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
@@ -54,6 +54,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+@SuppressLint("AutoboxingStateCreation")
 @OptIn(ExperimentalCoilApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun StorageSettings(
@@ -79,10 +80,10 @@ fun StorageSettings(
     var clearImageCacheDialog by remember { mutableStateOf(false) }
 
     var imageCacheSize by remember {
-        mutableStateOf(imageDiskCache.size)
+        mutableLongStateOf(imageDiskCache.size)
     }
     var playerCacheSize by remember {
-        mutableStateOf(tryOrNull { playerCache.cacheSpace } ?: 0)
+        mutableLongStateOf(tryOrNull { playerCache.cacheSpace } ?: 0)
     }
     var downloadCacheSize by remember {
         mutableStateOf(tryOrNull { downloadCache.cacheSpace } ?: 0)

@@ -37,15 +37,10 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.metrolist.innertube.utils.parseCookieString
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
@@ -59,10 +54,10 @@ import com.jtech.zemer.constants.PlaylistSortDescendingKey
 import com.jtech.zemer.constants.PlaylistSortType
 import com.jtech.zemer.constants.PlaylistSortTypeKey
 import com.jtech.zemer.constants.PlaylistViewTypeKey
-import com.jtech.zemer.constants.ShowLikedPlaylistKey
-import com.jtech.zemer.constants.ShowDownloadedPlaylistKey
-import com.jtech.zemer.constants.ShowTopPlaylistKey
 import com.jtech.zemer.constants.ShowCachedPlaylistKey
+import com.jtech.zemer.constants.ShowDownloadedPlaylistKey
+import com.jtech.zemer.constants.ShowLikedPlaylistKey
+import com.jtech.zemer.constants.ShowTopPlaylistKey
 import com.jtech.zemer.constants.ShowUploadedPlaylistKey
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.db.entities.Playlist
@@ -78,6 +73,7 @@ import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.LibraryPlaylistsViewModel
+import com.metrolist.innertube.utils.parseCookieString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -92,7 +88,7 @@ fun LibraryPlaylistsScreen(
     allowSyncing: Boolean = true,
 ) {
     val menuState = LocalMenuState.current
-    val haptic = LocalHapticFeedback.current
+    LocalHapticFeedback.current
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -154,7 +150,7 @@ fun LibraryPlaylistsScreen(
     val (showDownloaded) = rememberPreference(ShowDownloadedPlaylistKey, true)
     val (showTop) = rememberPreference(ShowTopPlaylistKey, true)
     val (showCached) = rememberPreference(ShowCachedPlaylistKey, true)
-    val (showUploaded) = rememberPreference(ShowUploadedPlaylistKey, false)
+    val (_) = rememberPreference(ShowUploadedPlaylistKey, false)
 
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
@@ -164,7 +160,7 @@ fun LibraryPlaylistsScreen(
         backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
 
     val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, "")
-    val isLoggedIn = remember(innerTubeCookie) {
+    remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
     }
 

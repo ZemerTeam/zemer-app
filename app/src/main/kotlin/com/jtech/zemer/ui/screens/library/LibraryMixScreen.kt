@@ -49,11 +49,10 @@ import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.constants.MixSortDescendingKey
 import com.jtech.zemer.constants.MixSortType
 import com.jtech.zemer.constants.MixSortTypeKey
-import com.jtech.zemer.constants.ShowLikedPlaylistKey
-import com.jtech.zemer.constants.ShowDownloadedPlaylistKey
-import com.jtech.zemer.constants.ShowTopPlaylistKey
 import com.jtech.zemer.constants.ShowCachedPlaylistKey
-import com.jtech.zemer.constants.ShowUploadedPlaylistKey
+import com.jtech.zemer.constants.ShowDownloadedPlaylistKey
+import com.jtech.zemer.constants.ShowLikedPlaylistKey
+import com.jtech.zemer.constants.ShowTopPlaylistKey
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.db.entities.Artist

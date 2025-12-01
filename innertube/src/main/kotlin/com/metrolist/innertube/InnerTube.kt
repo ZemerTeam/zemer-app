@@ -593,7 +593,8 @@ class InnerTube {
     }
 
     private suspend fun returnYouTubeDislike(videoId: String) =
-        httpClient.get("https://returnyoutubedislikeapi.com/Votes?videoId=$videoId") {
+        httpClient.get("https://returnyoutubedislikeapi.com/Votes") {
+            parameter("videoId", videoId)
             contentType(ContentType.Application.Json)
         }
 

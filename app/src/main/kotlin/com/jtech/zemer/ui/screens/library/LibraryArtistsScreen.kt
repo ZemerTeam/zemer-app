@@ -74,7 +74,7 @@ fun LibraryArtistsScreen(
     viewModel: LibraryArtistsViewModel = hiltViewModel(),
 ) {
     val menuState = LocalMenuState.current
-    val haptic = LocalHapticFeedback.current
+    LocalHapticFeedback.current
     var viewType by rememberEnumPreference(ArtistViewTypeKey, LibraryViewType.GRID)
 
     var filter by rememberEnumPreference(ArtistFilterKey, ArtistFilter.LIKED)
@@ -164,7 +164,7 @@ fun LibraryArtistsScreen(
 
             Spacer(Modifier.weight(1f))
 
-            artists?.let { artists ->
+            artists.let { artists ->
                 Text(
                     text = pluralStringResource(
                         R.plurals.n_artist,

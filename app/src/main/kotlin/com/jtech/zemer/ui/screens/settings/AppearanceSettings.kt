@@ -1,5 +1,6 @@
 package com.jtech.zemer.ui.screens.settings
 
+import android.annotation.SuppressLint
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.border
@@ -18,8 +19,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,59 +42,62 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ChipSortTypeKey
+import com.jtech.zemer.constants.CustomDensityScaleKey
 import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.DefaultOpenTabKey
-import com.jtech.zemer.constants.CustomDensityScaleKey
 import com.jtech.zemer.constants.DensityScale
 import com.jtech.zemer.constants.DensityScaleKey
 import com.jtech.zemer.constants.DynamicThemeKey
+import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.constants.GridItemSize
 import com.jtech.zemer.constants.GridItemsSizeKey
+import com.jtech.zemer.constants.HidePlayerThumbnailKey
 import com.jtech.zemer.constants.LibraryFilter
 import com.jtech.zemer.constants.LyricsClickKey
 import com.jtech.zemer.constants.LyricsScrollKey
 import com.jtech.zemer.constants.LyricsTextPositionKey
-import com.jtech.zemer.constants.UseNewPlayerDesignKey
-import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
-import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
-import com.jtech.zemer.constants.PureBlackKey
 import com.jtech.zemer.constants.PlayerButtonsStyle
 import com.jtech.zemer.constants.PlayerButtonsStyleKey
+import com.jtech.zemer.constants.PureBlackKey
+import com.jtech.zemer.constants.ShowCachedPlaylistKey
+import com.jtech.zemer.constants.ShowDownloadedPlaylistKey
+import com.jtech.zemer.constants.ShowLikedPlaylistKey
+import com.jtech.zemer.constants.ShowTopPlaylistKey
+import com.jtech.zemer.constants.ShowUploadedPlaylistKey
 import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.constants.SlimNavBarKey
-import com.jtech.zemer.constants.ShowLikedPlaylistKey
-import com.jtech.zemer.constants.ShowDownloadedPlaylistKey
-import com.jtech.zemer.constants.ShowTopPlaylistKey
-import com.jtech.zemer.constants.ShowCachedPlaylistKey
-import com.jtech.zemer.constants.ShowUploadedPlaylistKey
-import com.jtech.zemer.constants.SwipeThumbnailKey
 import com.jtech.zemer.constants.SwipeSensitivityKey
-import com.jtech.zemer.constants.SwipeToSongKey
-import com.jtech.zemer.constants.HidePlayerThumbnailKey
+import com.jtech.zemer.constants.SwipeThumbnailKey
 import com.jtech.zemer.constants.SwipeToRemoveSongKey
+import com.jtech.zemer.constants.SwipeToSongKey
+import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
+import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.EnumListPreference
 import com.jtech.zemer.ui.component.IconButton
-import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PlayerSliderTrack
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SwitchPreference
+import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import me.saket.squiggles.SquigglySlider
 import kotlin.math.roundToInt
 
+@SuppressLint("UseKtx")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppearanceSettings(
@@ -147,9 +149,9 @@ fun AppearanceSettings(
             setDensityScale(newScale)
             // Also write to SharedPreferences for DensityScaler to read on next startup
             context.getSharedPreferences("metrolist_settings", android.content.Context.MODE_PRIVATE)
-                .edit()
-                .putFloat("density_scale_factor", newScale)
-                .apply()
+                .edit {
+                    putFloat("density_scale_factor", newScale)
+                }
             showRestartDialog = true
         }
     }
@@ -222,7 +224,7 @@ fun AppearanceSettings(
         defaultValue = true
     )
 
-    val availableBackgroundStyles = PlayerBackgroundStyle.entries.filter {
+    PlayerBackgroundStyle.entries.filter {
         it != PlayerBackgroundStyle.BLUR || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     }
 
@@ -755,9 +757,9 @@ fun AppearanceSettings(
 
                     // Write to SharedPreferences
                     context.getSharedPreferences("metrolist_settings", android.content.Context.MODE_PRIVATE)
-                        .edit()
-                        .putFloat("density_scale_factor", value)
-                        .apply()
+                        .edit {
+                            putFloat("density_scale_factor", value)
+                        }
 
                     showCustomDensityDialog = false
                     showRestartDialog = true

@@ -1,16 +1,14 @@
 package com.jtech.zemer.utils
 
+import com.jtech.zemer.db.MusicDatabase
+import com.jtech.zemer.db.entities.ArtistWhitelistEntity
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
-import com.jtech.zemer.db.MusicDatabase
-import com.jtech.zemer.db.entities.ArtistWhitelistEntity
-import com.jtech.zemer.utils.ContentFilterConfig
-import com.jtech.zemer.utils.ContentFilterState
-import java.util.concurrent.ConcurrentHashMap
 import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Extension functions to filter YouTube API content by artist whitelist.
@@ -44,7 +42,7 @@ private suspend fun SongItem.isWhitelisted(
     artistCache: MutableMap<String, ArtistWhitelistEntity?>,
     config: ContentFilterConfig,
 ): ArtistFilterDecision {
-    if (this.artists.isEmpty()) return ArtistFilterDecision(false, false)
+    if (this.artists.isEmpty()) return ArtistFilterDecision(allowed = false, isChasidish = false)
 
     var anyAllowed = false
     var isChasidish = false
@@ -72,8 +70,11 @@ private suspend fun AlbumItem.isWhitelisted(
     artistCache: MutableMap<String, ArtistWhitelistEntity?>,
     config: ContentFilterConfig,
 ): ArtistFilterDecision {
-    val albumArtists = this.artists ?: return ArtistFilterDecision(false, false)
-    if (albumArtists.isEmpty()) return ArtistFilterDecision(false, false)
+    val albumArtists = this.artists ?: return ArtistFilterDecision(
+        allowed = false,
+        isChasidish = false
+    )
+    if (albumArtists.isEmpty()) return ArtistFilterDecision(allowed = false, isChasidish = false)
 
     var anyAllowed = false
     var isChasidish = false
@@ -115,7 +116,7 @@ private suspend fun PlaylistItem.isWhitelisted(
     artistCache: MutableMap<String, ArtistWhitelistEntity?>,
     config: ContentFilterConfig,
 ): ArtistFilterDecision {
-    val authorId = this.author?.id ?: return ArtistFilterDecision(false, false)
+    val authorId = this.author?.id ?: return ArtistFilterDecision(false, isChasidish = false)
     return database.artistMatchesFilters(authorId, allowedIds, artistCache, config)
 }
 
@@ -140,10 +141,10 @@ suspend fun List<YTItem>.filterWhitelisted(
     this.forEach { item ->
         val decision = when (item) {
             is SongItem -> item.isWhitelisted(database, allowedIds, artistCache, config).also {
-                Timber.d("WhitelistFilter: SongItem '${item.title}' by ${item.artists.joinToString { it.name }} - allowed=${it.allowed}")
+                Timber.d("WhitelistFilter: SongItem '${item.title}' by ${item.artists.joinToString { it -> it.name }} - allowed=${it.allowed}")
             }
             is AlbumItem -> item.isWhitelisted(database, allowedIds, artistCache, config).also {
-                Timber.d("WhitelistFilter: AlbumItem '${item.title}' by ${item.artists?.joinToString { it.name }} - allowed=${it.allowed}")
+                Timber.d("WhitelistFilter: AlbumItem '${item.title}' by ${item.artists?.joinToString { it -> it.name }} - allowed=${it.allowed}")
             }
             is ArtistItem -> item.isWhitelisted(database, allowedIds, artistCache, config).also {
                 Timber.d("WhitelistFilter: ArtistItem '${item.title}' (${item.id}) - allowed=${it.allowed}")
@@ -188,10 +189,7 @@ private suspend fun MusicDatabase.artistMatchesFilters(
     }
 
     val needsRemoteCheck =
-        entry == null ||
-            (config.filtersEnabled && !config.allowFemaleSingers && entry?.isFemale != true) ||
-            (config.filtersEnabled && config.hideOldStuff && entry?.isGenZ != true) ||
-            (config.promoteChasidish && entry?.isChasid != true)
+        entry == null || (config.filtersEnabled && !config.allowFemaleSingers && !entry.isFemale) || (config.filtersEnabled && config.hideOldStuff && !entry.isGenZ) || (config.promoteChasidish && !entry.isChasid)
 
     if (needsRemoteCheck) {
         // Fall back to DB once before giving up
@@ -202,7 +200,7 @@ private suspend fun MusicDatabase.artistMatchesFilters(
         }
     }
 
-    entry ?: return ArtistFilterDecision(false, false)
+    entry ?: return ArtistFilterDecision(allowed = false, isChasidish = false)
 
     if (config.filtersEnabled) {
         if (!config.allowFemaleSingers && entry.isFemale) {

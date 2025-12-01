@@ -1,72 +1,52 @@
 package com.jtech.zemer.ui.screens.settings
 
-import android.annotation.TargetApi
-import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import android.os.Build
 import android.provider.Settings
-import android.os.LocaleList
-import android.util.Log
-import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.core.net.toUri
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.capitalize
-import androidx.compose.ui.text.toLowerCase
-import androidx.compose.ui.unit.dp
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.floatPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.core.net.toUri
 import androidx.navigation.NavController
-import com.metrolist.innertube.YouTube
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
-import com.jtech.zemer.constants.*
-import com.jtech.zemer.ui.component.*
+import com.jtech.zemer.constants.AllowChasidishKey
+import com.jtech.zemer.constants.AllowDjKey
+import com.jtech.zemer.constants.AllowFemaleSingersKey
+import com.jtech.zemer.constants.AppLanguageKey
+import com.jtech.zemer.constants.ContentCountryKey
+import com.jtech.zemer.constants.ContentLanguageKey
+import com.jtech.zemer.constants.CountryCodeToName
+import com.jtech.zemer.constants.EnableContentFiltersKey
+import com.jtech.zemer.constants.EnableLrcLibKey
+import com.jtech.zemer.constants.LanguageCodeToName
+import com.jtech.zemer.constants.QuickPicks
+import com.jtech.zemer.constants.QuickPicksKey
+import com.jtech.zemer.constants.SYSTEM_DEFAULT
+import com.jtech.zemer.constants.TopSize
+import com.jtech.zemer.ui.component.EditTextPreference
+import com.jtech.zemer.ui.component.IconButton
+import com.jtech.zemer.ui.component.ListPreference
+import com.jtech.zemer.ui.component.PreferenceEntry
+import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.setAppLocale
-import com.jtech.zemer.constants.AllowFemaleSingersKey
-import com.jtech.zemer.constants.AllowChasidishKey
-import com.jtech.zemer.constants.AllowDjKey
-import com.jtech.zemer.constants.EnableContentFiltersKey
-import java.net.Proxy
+import com.metrolist.innertube.YouTube
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,7 +56,7 @@ fun ContentSettings(
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    rememberCoroutineScope()
 
     // Used only before Android 13
     val (appLanguage, onAppLanguageChange) = rememberPreference(key = AppLanguageKey, defaultValue = SYSTEM_DEFAULT)
