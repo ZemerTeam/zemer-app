@@ -22,6 +22,15 @@ jobs:
           java-version: 21
           cache: gradle
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 36
+          build-tools: 36.1.0
+
+      - name: Configure Android SDK path
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+
       - name: Generate temporary release keystore
         run: |
           mkdir -p app/keystore
