@@ -335,10 +335,15 @@ class SyncUtils @Inject constructor(
                 if (remoteIds == localIds) return@onSuccess
                 if (database.playlist(playlistId).firstOrNull() == null) return@onSuccess
 
+                // Pre-load existing songs to avoid blocking inside transaction
+                val existingSongIds = songs.mapNotNull { song ->
+                    database.song(song.id).firstOrNull()?.song?.id
+                }.toSet()
+
                 database.transaction {
                     clearPlaylist(playlistId)
                     val songEntities = songs.onEach { song ->
-                        if (runBlocking { database.song(song.id).firstOrNull() } == null) {
+                        if (song.id !in existingSongIds) {
                             insert(song)
                         }
                     }

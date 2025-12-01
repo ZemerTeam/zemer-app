@@ -120,6 +120,7 @@ import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.hasNotificationPermission
 import com.jtech.zemer.utils.enumPreference
+import com.jtech.zemer.utils.enumPreferenceFlow
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.AndroidEntryPoint
@@ -190,11 +191,12 @@ class MusicService :
     val waitingForNetworkConnection = MutableStateFlow(false)
     private val isNetworkConnected = MutableStateFlow(false)
 
-    private val audioQuality by enumPreference(
+    private val audioQualityFlow = enumPreferenceFlow(
         this,
         AudioQualityKey,
         com.jtech.zemer.constants.AudioQuality.AUTO
     )
+    private var audioQuality = com.jtech.zemer.constants.AudioQuality.AUTO
 
     private var currentQueue: Queue = EmptyQueue
     var queueTitle: String? = null
@@ -317,6 +319,13 @@ class MusicService :
         connectivityManager = getSystemService<ConnectivityManager>()
             ?: throw IllegalStateException("ConnectivityManager not available on this device")
         connectivityObserver = NetworkConnectivityObserver(this)
+
+        // Initialize audioQuality from preference
+        scope.launch {
+            audioQualityFlow.collect { quality ->
+                audioQuality = quality
+            }
+        }
 
         scope.launch {
             connectivityObserver.networkStatus.collect { isConnected ->
@@ -1236,6 +1245,8 @@ class MusicService :
             val mediaId = dataSpec.key ?: error("No media id")
 
             // Check for MediaStore URI first (local playback)
+            // Use a blocking call here because ResolvingDataSource.Factory requires synchronous code
+            // This is unavoidable for this factory, but we minimize blocking time by using cache first
             val song = runBlocking(Dispatchers.IO) {
                 database.song(mediaId).first()
             }
@@ -1328,9 +1339,13 @@ class MusicService :
         }
     }
 
+    private val dataSourceFactory: DataSource.Factory by lazy {
+        createDataSourceFactory()
+    }
+
     private fun createMediaSourceFactory() =
         DefaultMediaSourceFactory(
-            createDataSourceFactory(),
+            dataSourceFactory,
             ExtractorsFactory {
                 arrayOf(MatroskaExtractor(), FragmentedMp4Extractor())
             },

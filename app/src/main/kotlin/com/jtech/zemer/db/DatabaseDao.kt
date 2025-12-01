@@ -1124,12 +1124,9 @@ interface DatabaseDao {
     /**
      * Increment by one the play count with today's year and month.
      */
-    fun incrementPlayCount(songId: String) {
+    suspend fun incrementPlayCount(songId: String) {
         val time = LocalDateTime.now().atOffset(ZoneOffset.UTC)
-        var oldCount: Int
-        runBlocking {
-            oldCount = getPlayCountByMonth(songId, time.year, time.monthValue).first()
-        }
+        val oldCount = getPlayCountByMonth(songId, time.year, time.monthValue).first()
 
         // add new
         if (oldCount <= 0) {
@@ -1297,12 +1294,9 @@ interface DatabaseDao {
         }
         albumPage.songs
             .map(SongItem::toMediaMetadata)
-            .onEach(::insert)
-            .onEach {
-                val existingSong = getSongByIdBlocking(it.id)
-                if (existingSong != null) {
-                    update(existingSong, it)
-                }
+            .onEach { song ->
+                // Insert the song (IGNORE conflict strategy means it won't update if already exists)
+                insert(song)
             }.mapIndexed { index, song ->
                 SongAlbumMap(
                     songId = song.id,
@@ -1416,12 +1410,9 @@ interface DatabaseDao {
         }
         albumPage.songs
             .map(SongItem::toMediaMetadata)
-            .onEach(::insert)
-            .onEach {
-                val existingSong = getSongByIdBlocking(it.id)
-                if (existingSong != null) {
-                    update(existingSong, it)
-                }
+            .onEach { song ->
+                // Insert the song (IGNORE conflict strategy means it won't update if already exists)
+                insert(song)
             }.mapIndexed { index, song ->
                 SongAlbumMap(
                     songId = song.id,

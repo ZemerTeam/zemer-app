@@ -13,6 +13,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import com.jtech.zemer.extensions.toEnum
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -76,6 +77,32 @@ inline fun <reified T : Enum<T>> enumPreference(
     key: Preferences.Key<String>,
     defaultValue: T,
 ) = ReadOnlyProperty<Any?, T> { _, _ -> context.dataStore[key].toEnum(defaultValue) }
+
+/**
+ * Non-blocking Flow-based access to enum preferences.
+ * Use this instead of enumPreference in hot paths or initialization code.
+ */
+inline fun <reified T : Enum<T>> enumPreferenceFlow(
+    context: Context,
+    key: Preferences.Key<String>,
+    defaultValue: T,
+): Flow<T> =
+    context.dataStore.data
+        .map { it[key].toEnum(defaultValue = defaultValue) }
+        .distinctUntilChanged()
+
+/**
+ * Non-blocking Flow-based access to preferences.
+ * Use this instead of preference in hot paths or initialization code.
+ */
+fun <T> preferenceFlow(
+    context: Context,
+    key: Preferences.Key<T>,
+    defaultValue: T,
+): Flow<T> =
+    context.dataStore.data
+        .map { it[key] ?: defaultValue }
+        .distinctUntilChanged()
 
 @Composable
 fun <T> rememberPreference(

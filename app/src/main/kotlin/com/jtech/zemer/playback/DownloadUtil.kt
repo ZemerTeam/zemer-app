@@ -48,7 +48,8 @@ constructor(
         get() = databaseLazy.get()
     private val connectivityManager = context.getSystemService<ConnectivityManager>()
         ?: throw IllegalStateException("ConnectivityManager not available on this device")
-    private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
+    private val audioQualityFlow = com.jtech.zemer.utils.enumPreferenceFlow(context, AudioQualityKey, AudioQuality.AUTO)
+    private var audioQuality = AudioQuality.AUTO
     private val songUrlCache = ConcurrentHashMap<String, Pair<String, Long>>()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -59,7 +60,7 @@ constructor(
     // Unified downloads combining cache and MediaStore
     val downloads = MutableStateFlow<Map<String, Download>>(emptyMap())
 
-    private val dataSourceFactory =
+    private val dataSourceFactory: ResolvingDataSource.Factory by lazy {
         ResolvingDataSource.Factory(
             CacheDataSource
                 .Factory()
@@ -91,10 +92,12 @@ constructor(
                 return@Factory dataSpec.withUri(it.first.toUri())
             }
 
+            // Use currently loaded audioQuality (initialized in init block)
+            val currentQuality = audioQuality.takeIf { it != AudioQuality.AUTO } ?: AudioQuality.AUTO
             val playbackData = runBlocking(Dispatchers.IO) {
                 YTPlayerUtils.playerResponseForPlayback(
                     mediaId,
-                    audioQuality = audioQuality,
+                    audioQuality = currentQuality,
                     connectivityManager = connectivityManager,
                 )
             }.getOrThrow()
@@ -103,6 +106,15 @@ constructor(
             val contentLength = format.contentLength ?: run {
                 -1L
             }
+            val now = LocalDateTime.now()
+            val updatedSong = SongEntity(
+                id = mediaId,
+                title = playbackData.videoDetails?.title ?: "Unknown",
+                duration = playbackData.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0,
+                thumbnailUrl = playbackData.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url,
+                dateDownload = now,
+                isDownloaded = false
+            )
             database.query {
                 upsert(
                     FormatEntity(
@@ -117,27 +129,6 @@ constructor(
                         playbackUrl = playbackData.playbackTracking?.videostatsPlaybackUrl?.baseUrl
                     ),
                 )
-
-                val now = LocalDateTime.now()
-                val existing = getSongByIdBlocking(mediaId)?.song
-
-                val updatedSong = if (existing != null) {
-                    if (existing.dateDownload == null) {
-                        existing.copy(dateDownload = now)
-                    } else {
-                        existing
-                    }
-                } else {
-                    SongEntity(
-                        id = mediaId,
-                        title = playbackData.videoDetails?.title ?: "Unknown",
-                        duration = playbackData.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0,
-                        thumbnailUrl = playbackData.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url,
-                        dateDownload = now,
-                        isDownloaded = false
-                    )
-                }
-
                 upsert(updatedSong)
             }
 
@@ -148,6 +139,7 @@ constructor(
             songUrlCache[mediaId] = streamUrl to playbackData.streamExpiresInSeconds * 1000L
             dataSpec.withUri(streamUrl.toUri())
         }
+    }
 
     val downloadNotificationHelper =
         DownloadNotificationHelper(context, ExoDownloadService.CHANNEL_ID)
@@ -202,6 +194,13 @@ constructor(
             result[cursor.download.request.id] = cursor.download
         }
         cacheDownloads.value = result
+
+        // Initialize audioQuality from preference
+        scope.launch {
+            audioQualityFlow.collect { quality ->
+                audioQuality = quality
+            }
+        }
 
         // Merge cache downloads and MediaStore downloads into unified flow
         scope.launch {
