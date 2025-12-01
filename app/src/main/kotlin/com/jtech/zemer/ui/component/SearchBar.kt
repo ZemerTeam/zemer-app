@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -26,7 +27,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,10 +37,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarColors
 import androidx.compose.material3.SearchBarDefaults
-import androidx.compose.material3.SearchBarDefaults.TonalElevation
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextFieldDefaults
@@ -53,13 +51,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.takeOrElse
-import androidx.compose.foundation.focusable
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
@@ -291,12 +288,12 @@ private fun SearchBarInputField(
                 }
                 .onKeyEvent { event ->
                     // Log to help debug
-                    when {
-                        event.key == Key.Enter -> {
+                    when (event.key) {
+                        Key.Enter -> {
                             onSearch(query.text)
                             true
                         }
-                        event.key == Key.DirectionDown -> {
+                        Key.DirectionDown -> {
                             if (downFocusRequester != null) {
                                 downFocusRequester.requestFocus()
                                 true
@@ -304,7 +301,7 @@ private fun SearchBarInputField(
                                 false
                             }
                         }
-                        event.key == Key.DirectionRight -> {
+                        Key.DirectionRight -> {
                             if (trailingFocusRequester != null) {
                                 trailingFocusRequester.requestFocus()
                                 true

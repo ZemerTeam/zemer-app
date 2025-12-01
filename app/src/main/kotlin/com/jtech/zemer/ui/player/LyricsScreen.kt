@@ -1,14 +1,17 @@
 package com.jtech.zemer.ui.player
 
+import android.app.Activity
+import android.content.res.Configuration
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,9 +19,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,16 +26,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.material3.ripple
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -54,25 +53,22 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import android.app.Activity
-import android.content.res.Configuration
-import android.view.WindowManager
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Player.STATE_READY
+import androidx.navigation.NavController
 import androidx.palette.graphics.Palette
 import coil3.compose.AsyncImage
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
-import coil3.size.Size
 import coil3.toBitmap
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
@@ -85,15 +81,13 @@ import com.jtech.zemer.db.entities.LyricsEntity
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.models.MediaMetadata
-import com.jtech.zemer.ui.component.Lyrics
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.Lyrics
 import com.jtech.zemer.ui.component.PlayerSliderTrack
-import com.jtech.zemer.ui.component.BigSeekBar
-import androidx.navigation.NavController
-import me.saket.squiggles.SquigglySlider
 import com.jtech.zemer.ui.menu.LyricsMenu
 import com.jtech.zemer.ui.theme.PlayerColorExtractor
 import com.jtech.zemer.ui.theme.PlayerSliderColors
+import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.utils.rememberEnumPreference
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
@@ -101,8 +95,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.jtech.zemer.utils.makeTimeString
+import me.saket.squiggles.SquigglySlider
 
+@Suppress("unused")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LyricsScreen(
@@ -131,10 +126,9 @@ fun LyricsScreen(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val repeatMode by playerConnection.repeatMode.collectAsState()
     val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
-    val playerVolume = playerConnection.service.playerVolume.collectAsState()
+    playerConnection.service.playerVolume.collectAsState()
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
     val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
-    val currentSong by playerConnection.currentSong.collectAsState(initial = null)
 
     LaunchedEffect(mediaMetadata.id, currentLyrics) {
         if (currentLyrics == null) {
@@ -167,7 +161,7 @@ fun LyricsScreen(
 
     var gradientColors by remember { mutableStateOf<List<Color>>(emptyList()) }
     val gradientColorsCache = remember { mutableMapOf<String, List<Color>>() }
-    val defaultGradientColors = listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant)
+    listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant)
     val fallbackColor = MaterialTheme.colorScheme.surface.toArgb()
 
     LaunchedEffect(mediaMetadata.id, playerBackground) {
@@ -237,7 +231,7 @@ fun LyricsScreen(
             when (playerBackground) {
                 PlayerBackgroundStyle.BLUR -> {
                     AnimatedContent(
-                        targetState = mediaMetadata?.thumbnailUrl,
+                        targetState = mediaMetadata.thumbnailUrl,
                         transitionSpec = {
                             fadeIn(tween(800)).togetherWith(fadeOut(tween(800)))
                         },
@@ -363,7 +357,6 @@ fun LyricsScreen(
                                     menuState.show {
                                         LyricsMenu(
                                             lyricsProvider = { currentLyrics },
-                                            songProvider = { currentSong?.song },
                                             mediaMetadataProvider = { mediaMetadata },
                                             onDismiss = menuState::dismiss
                                         )
@@ -612,7 +605,6 @@ fun LyricsScreen(
                                     menuState.show {
                                         LyricsMenu(
                                             lyricsProvider = { currentLyrics },
-                                            songProvider = { currentSong?.song },
                                             mediaMetadataProvider = { mediaMetadata },
                                             onDismiss = menuState::dismiss
                                         )

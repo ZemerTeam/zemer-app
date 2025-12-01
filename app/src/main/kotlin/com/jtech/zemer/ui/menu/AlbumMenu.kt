@@ -1,3 +1,5 @@
+@file:Suppress("VariableNeverRead")
+
 package com.jtech.zemer.ui.menu
 
 import android.annotation.SuppressLint
@@ -17,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -25,10 +26,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.ListItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -52,16 +53,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
-import androidx.media3.exoplayer.offline.Download.STATE_COMPLETED
-import androidx.media3.exoplayer.offline.Download.STATE_DOWNLOADING
-import androidx.media3.exoplayer.offline.Download.STATE_QUEUED
-import androidx.media3.exoplayer.offline.Download.STATE_STOPPED
-import androidx.media3.exoplayer.offline.DownloadRequest
-import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
-import com.metrolist.innertube.YouTube
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
@@ -71,15 +64,14 @@ import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
-import com.jtech.zemer.playback.ExoDownloadService
 import com.jtech.zemer.playback.queues.ListQueue
-import com.jtech.zemer.playback.queues.LocalAlbumRadio
 import com.jtech.zemer.ui.component.AlbumListItem
 import com.jtech.zemer.ui.component.ListDialog
 import com.jtech.zemer.ui.component.ListItem
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.SongListItem
+import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -109,26 +101,9 @@ fun AlbumMenu(
         }
     }
 
-    var downloadState by remember {
-        mutableStateOf(STATE_STOPPED)
-    }
-
     LaunchedEffect(songs) {
         if (songs.isEmpty()) return@LaunchedEffect
         downloadUtil.downloads.collect { downloads ->
-            downloadState =
-                if (songs.all { downloads[it.id]?.state == STATE_COMPLETED }) {
-                    STATE_COMPLETED
-                } else if (songs.all {
-                        downloads[it.id]?.state == STATE_QUEUED ||
-                                downloads[it.id]?.state == STATE_DOWNLOADING ||
-                                downloads[it.id]?.state == STATE_COMPLETED
-                    }
-                ) {
-                    STATE_DOWNLOADING
-                } else {
-                    STATE_STOPPED
-                }
         }
     }
 

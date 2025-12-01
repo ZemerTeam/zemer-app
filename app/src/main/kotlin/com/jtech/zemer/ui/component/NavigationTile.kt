@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.jtech.zemer.ui.component
 
 import androidx.annotation.DrawableRes

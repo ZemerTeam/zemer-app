@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.jtech.zemer.ui.player
 
 import androidx.compose.animation.AnimatedVisibility
@@ -10,7 +12,6 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -29,15 +30,14 @@ import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -53,8 +53,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -64,33 +64,31 @@ import androidx.compose.ui.util.fastForEach
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import coil3.compose.AsyncImage
-import androidx.compose.material3.Icon
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.HidePlayerThumbnailKey
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.PlayerHorizontalPadding
 import com.jtech.zemer.constants.SeekExtraSeconds
 import com.jtech.zemer.constants.SwipeThumbnailKey
 import com.jtech.zemer.constants.ThumbnailCornerRadius
-import com.jtech.zemer.constants.HidePlayerThumbnailKey
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Thumbnail(
-    sliderPositionProvider: () -> Long?,
+    @Suppress("unused") sliderPositionProvider: () -> Long?,
     modifier: Modifier = Modifier,
     isPlayerExpanded: Boolean = true, // Add parameter to control swipe based on player state
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
-    val currentView = LocalView.current
-    val coroutineScope = rememberCoroutineScope()
+    LocalView.current
+    rememberCoroutineScope()
 
     // States
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()

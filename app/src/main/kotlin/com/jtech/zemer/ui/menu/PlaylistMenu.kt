@@ -1,35 +1,34 @@
+@file:Suppress("VariableNeverRead")
+
 package com.jtech.zemer.ui.menu
 
 import android.content.Intent
 import android.content.res.Configuration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ListItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -39,11 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
-import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
-import com.metrolist.innertube.YouTube
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
@@ -60,6 +55,7 @@ import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.PlaylistListItem
 import com.jtech.zemer.ui.component.TextFieldDialog
+import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -96,28 +92,11 @@ fun PlaylistMenu(
         }
     }
 
-    var downloadState by remember {
-        mutableIntStateOf(Download.STATE_STOPPED)
-    }
-
-    val editable: Boolean = playlist.playlist.isEditable == true
+    val editable: Boolean = playlist.playlist.isEditable
 
     LaunchedEffect(songs) {
         if (songs.isEmpty()) return@LaunchedEffect
         downloadUtil.downloads.collect { downloads ->
-            downloadState =
-                if (songs.all { downloads[it.id]?.state == Download.STATE_COMPLETED }) {
-                    Download.STATE_COMPLETED
-                } else if (songs.all {
-                        downloads[it.id]?.state == Download.STATE_QUEUED ||
-                                downloads[it.id]?.state == Download.STATE_DOWNLOADING ||
-                                downloads[it.id]?.state == Download.STATE_COMPLETED
-                    }
-                ) {
-                    Download.STATE_DOWNLOADING
-                } else {
-                    Download.STATE_STOPPED
-                }
         }
     }
 
@@ -274,7 +253,7 @@ fun PlaylistMenu(
     PlaylistListItem(
         playlist = playlist,
         trailingContent = {
-            if (playlist.playlist.isEditable != true) {
+            if (!playlist.playlist.isEditable) {
                 IconButton(
                     onClick = {
                         database.query {

@@ -26,10 +26,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.ListItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -53,13 +53,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.AlbumItem
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
@@ -76,6 +72,8 @@ import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.utils.reportException
+import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.AlbumItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 

@@ -3,22 +3,22 @@ package com.jtech.zemer.ui.menu
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,10 +26,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.ListItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,6 +41,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -49,14 +51,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.SongItem
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
@@ -72,7 +70,6 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.ExoDownloadService
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.ui.component.ListDialog
-import com.jtech.zemer.ui.component.ListItem
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
@@ -80,14 +77,12 @@ import com.jtech.zemer.ui.utils.ShowMediaInfo
 import com.jtech.zemer.ui.utils.resize
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.utils.makeTimeString
+import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.SongItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.focusable
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import java.time.LocalDateTime
 
 @SuppressLint("MutableCollectionMutableState")

@@ -1,9 +1,7 @@
 package com.jtech.zemer.ui.player
 
-import androidx.activity.compose.BackHandler
 import android.annotation.SuppressLint
-import android.text.format.Formatter
-import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -19,7 +17,6 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,16 +32,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
@@ -67,16 +60,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -90,13 +81,10 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.util.fastForEachReversed
-import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
@@ -104,10 +92,8 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListItemHeight
-import com.jtech.zemer.constants.UseNewPlayerDesignKey
-import com.jtech.zemer.constants.PlayerButtonsStyle
-import com.jtech.zemer.constants.PlayerButtonsStyleKey
 import com.jtech.zemer.constants.QueueEditLockKey
+import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.extensions.metadata
 import com.jtech.zemer.extensions.move
 import com.jtech.zemer.extensions.togglePlayPause
@@ -132,6 +118,7 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.math.roundToInt
 
+@Suppress("unused")
 @SuppressLint("UnrememberedMutableState")
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -142,7 +129,7 @@ fun Queue(
     modifier: Modifier = Modifier,
     background: Color,
     onBackgroundColor: Color,
-    TextBackgroundColor: Color,
+    @Suppress("LocalVariableName") TextBackgroundColor: Color,
     textButtonColor: Color,
     iconButtonColor: Color,
     onShowLyrics: () -> Unit = {},
@@ -150,7 +137,7 @@ fun Queue(
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
-    val clipboardManager = LocalClipboard.current
+    LocalClipboard.current
     val menuState = LocalMenuState.current
     val bottomSheetPageState = LocalBottomSheetPageState.current
 
@@ -160,8 +147,6 @@ fun Queue(
 
     val currentWindowIndex by playerConnection.currentWindowIndex.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
-
-    val currentFormat by playerConnection.currentFormat.collectAsState(initial = null)
 
     val selectedSongs = remember { mutableStateListOf<MediaMetadata>() }
     val selectedItems = remember { mutableStateListOf<Timeline.Window>() }
@@ -175,7 +160,7 @@ fun Queue(
 
     var locked by rememberPreference(QueueEditLockKey, defaultValue = true)
 
-    val (useNewPlayerDesign, onUseNewPlayerDesignChange) = rememberPreference(
+    val (useNewPlayerDesign, _) = rememberPreference(
         UseNewPlayerDesignKey,
         defaultValue = true
     )

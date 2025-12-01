@@ -24,7 +24,7 @@ fun LoadingScreen(
             ) {
 
                 Text(
-                    text = "Progress ${value.toString()}%",
+                    text = "Progress $value%",
                     color = Color.White,
                     fontSize = 26.sp,
                 )

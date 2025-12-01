@@ -1,5 +1,6 @@
 package com.jtech.zemer.ui.player
 
+import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -7,7 +8,6 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
@@ -20,8 +20,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -55,7 +55,6 @@ import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -77,7 +76,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
@@ -93,6 +91,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
@@ -100,29 +99,26 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Player.STATE_READY
-import androidx.palette.graphics.Palette
 import androidx.navigation.NavController
+import androidx.palette.graphics.Palette
 import coil3.compose.AsyncImage
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
-import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.DarkModeKey
-import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.PlayerButtonsStyle
 import com.jtech.zemer.constants.PlayerButtonsStyleKey
-import com.jtech.zemer.ui.theme.PlayerColorExtractor
-import com.jtech.zemer.ui.theme.PlayerSliderColors
 import com.jtech.zemer.constants.PlayerHorizontalPadding
 import com.jtech.zemer.constants.QueuePeekHeight
 import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
+import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.models.MediaMetadata
@@ -135,20 +131,23 @@ import com.jtech.zemer.ui.component.ResizableIconButton
 import com.jtech.zemer.ui.component.rememberBottomSheetState
 import com.jtech.zemer.ui.menu.PlayerMenu
 import com.jtech.zemer.ui.screens.settings.DarkMode
+import com.jtech.zemer.ui.theme.PlayerColorExtractor
+import com.jtech.zemer.ui.theme.PlayerSliderColors
 import com.jtech.zemer.ui.utils.ShowMediaInfo
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
-import com.jtech.zemer.ui.player.MiniPlayerFocusTargets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.saket.squiggles.SquigglySlider
 import kotlin.math.roundToInt
 
+@Suppress("LocalVariableName")
+@SuppressLint("ConfigurationScreenWidthHeight")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BottomSheetPlayer(
@@ -164,7 +163,7 @@ fun BottomSheetPlayer(
     val bottomSheetPageState = LocalBottomSheetPageState.current
     val playerConnection = LocalPlayerConnection.current ?: return
 
-    val (useNewPlayerDesign, onUseNewPlayerDesignChange) = rememberPreference(
+    val (useNewPlayerDesign, _) = rememberPreference(
         UseNewPlayerDesignKey,
         defaultValue = true
     )
@@ -226,13 +225,12 @@ fun BottomSheetPlayer(
     val gradientColorsCache = remember { mutableMapOf<String, List<Color>>() }
 
     // Track if we're in control focus mode (showing outlines)
-    var isControlsFocusMode by remember { mutableStateOf(false) }
 
     if (!canSkipNext && automix.isNotEmpty()) {
         playerConnection.service.addToQueueAutomix(automix[0], 0)
     }
 
-    val defaultGradientColors = listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant)
+    listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant)
     val fallbackColor = MaterialTheme.colorScheme.surface.toArgb()
 
     LaunchedEffect(mediaMetadata?.id, playerBackground) {
@@ -299,9 +297,6 @@ fun BottomSheetPlayer(
         )
     }
 
-    val download by LocalDownloadUtil.current.getDownload(mediaMetadata?.id ?: "")
-        .collectAsState(initial = null)
-
     val sleepTimerEnabled =
         remember(
             playerConnection.service.sleepTimer.triggerTime,
@@ -310,19 +305,9 @@ fun BottomSheetPlayer(
             playerConnection.service.sleepTimer.isActive
         }
 
-    var sleepTimerTimeLeft by remember {
-        mutableLongStateOf(0L)
-    }
-
     LaunchedEffect(sleepTimerEnabled) {
         if (sleepTimerEnabled) {
             while (isActive) {
-                sleepTimerTimeLeft =
-                    if (playerConnection.service.sleepTimer.pauseWhenSongEnd) {
-                        playerConnection.player.duration - playerConnection.player.currentPosition
-                    } else {
-                        playerConnection.service.sleepTimer.triggerTime - System.currentTimeMillis()
-                    }
                 delay(1000L)
             }
         }
@@ -392,10 +377,6 @@ fun BottomSheetPlayer(
                 }
             },
         )
-    }
-
-    var showChoosePlaylistDialog by rememberSaveable {
-        mutableStateOf(false)
     }
 
     LaunchedEffect(playbackState) {

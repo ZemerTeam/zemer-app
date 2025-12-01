@@ -1,18 +1,22 @@
+@file:Suppress("unused")
+
 package com.jtech.zemer.ui.player
 
+import android.annotation.SuppressLint
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,33 +42,27 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -89,8 +87,6 @@ import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 
 data class MiniPlayerFocusTargets(
     val play: FocusRequester,
@@ -103,6 +99,7 @@ data class MiniPlayerFocusTargets(
 private fun Modifier.disableTvFocus(): Modifier =
     this.focusable(false).focusProperties { canFocus = false }
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun MiniPlayer(
     position: Long,
@@ -146,6 +143,7 @@ fun MiniPlayer(
     }
 }
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 private fun NewMiniPlayer(
     position: Long,
@@ -164,7 +162,7 @@ private fun NewMiniPlayer(
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
 
-    val currentView = LocalView.current
+    LocalView.current
     val layoutDirection = LocalLayoutDirection.current
     val coroutineScope = rememberCoroutineScope()
     val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)
@@ -591,6 +589,7 @@ private fun NewMiniPlayer(
     }
 }
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 private fun LegacyMiniPlayer(
     position: Long,
@@ -606,7 +605,7 @@ private fun LegacyMiniPlayer(
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
 
-    val currentView = LocalView.current
+    LocalView.current
     val layoutDirection = LocalLayoutDirection.current
     val coroutineScope = rememberCoroutineScope()
     val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)

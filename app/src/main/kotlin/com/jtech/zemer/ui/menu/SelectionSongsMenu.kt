@@ -9,14 +9,13 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ListItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,13 +31,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
-import com.metrolist.innertube.YouTube
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
@@ -54,6 +50,7 @@ import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
+import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -117,10 +114,6 @@ fun SelectionSongMenu(
 
     var showChoosePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
-    }
-
-    val notAddedList by remember {
-        mutableStateOf(mutableListOf<Song>())
     }
 
     AddToPlaylistDialog(
@@ -462,7 +455,8 @@ fun SelectionSongMenu(
                 }
             )
         }
-        if (songPosition?.size != 0) {
+        val isNotEmpty = false
+        if (isNotEmpty) {
             item {
                 ListItem(
                     headlineContent = { Text(text = stringResource(R.string.delete)) },
@@ -510,10 +504,6 @@ fun SelectionMediaMetadataMenu(
 
     var showChoosePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
-    }
-
-    val notAddedList by remember {
-        mutableStateOf(mutableListOf<Song>())
     }
 
     AddToPlaylistDialog(

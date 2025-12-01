@@ -1,54 +1,49 @@
+@file:Suppress("LocalVariableName")
+
 package com.jtech.zemer.ui.menu
 
 import android.content.Intent
 import android.content.res.Configuration
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.ListItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
@@ -61,14 +56,9 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
-import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
-import com.metrolist.innertube.YouTube
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
@@ -76,15 +66,11 @@ import com.jtech.zemer.LocalSyncUtils
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.constants.ListThumbnailSize
-import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.db.entities.Event
 import com.jtech.zemer.db.entities.PlaylistSong
 import com.jtech.zemer.db.entities.Song
-import com.jtech.zemer.db.entities.SongArtistMap
-import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.playback.ExoDownloadService
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.ui.component.ListDialog
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
@@ -95,11 +81,11 @@ import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.utils.ShowMediaInfo
 import com.jtech.zemer.utils.PermissionHelper
 import com.jtech.zemer.viewmodels.CachePlaylistViewModel
-import kotlinx.coroutines.CoroutineScope
+import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
+@Suppress("unused")
 @Composable
 fun SongMenu(
     originalSong: Song,
@@ -116,8 +102,6 @@ fun SongMenu(
     val songState = database.song(originalSong.id).collectAsState(initial = originalSong)
     val song = songState.value ?: originalSong
     val downloadUtil = LocalDownloadUtil.current
-    val download by downloadUtil.getDownload(originalSong.id)
-        .collectAsState(initial = null)
     val mediaStoreDownload by downloadUtil.getMediaStoreDownload(originalSong.id)
         .collectAsState(initial = null)
     val coroutineScope = rememberCoroutineScope()
@@ -150,16 +134,6 @@ fun SongMenu(
         animationSpec = tween(durationMillis = 800),
         label = "",
     )
-
-    val orderedArtists by produceState(initialValue = emptyList<ArtistEntity>(), song) {
-        withContext(Dispatchers.IO) {
-            val artistMaps = database.songArtistMap(song.id).sortedBy { it.position }
-            val sorted = artistMaps.mapNotNull { map ->
-                song.artists.firstOrNull { it.id == map.artistId }
-            }
-            value = sorted
-        }
-    }
 
     var showEditDialog by rememberSaveable {
         mutableStateOf(false)

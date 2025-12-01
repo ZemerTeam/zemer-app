@@ -21,7 +21,6 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import com.metrolist.innertube.utils.parseCookieString
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.InnerTubeCookieKey
@@ -50,10 +49,7 @@ fun AddToPlaylistDialog(
     var playlists by remember {
         mutableStateOf(emptyList<Playlist>())
     }
-    val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, "")
-    val isLoggedIn = remember(innerTubeCookie) {
-        "SAPISID" in parseCookieString(innerTubeCookie)
-    }
+    val (_) = rememberPreference(InnerTubeCookieKey, "")
     var showCreatePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
     }
