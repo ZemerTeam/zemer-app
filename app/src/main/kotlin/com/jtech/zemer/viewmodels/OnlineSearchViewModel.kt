@@ -15,6 +15,8 @@ import com.metrolist.innertube.pages.SearchSummaryPage
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.models.ItemsPage
+import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.get
@@ -69,6 +71,20 @@ constructor(
         if (!force && summaryPage != null) return
         isSummaryLoading.value = true
         summaryError.value = null
+        val filters = ContentFilterState.state.value
+        if (filters.filtersEnabled) {
+            val matches = getAllowedMatches(query, limit = 30)
+            summaryPage = SearchSummaryPage(
+                summaries = listOf(
+                    com.metrolist.innertube.pages.SearchSummary(
+                        title = "Artists",
+                        items = matches
+                    )
+                )
+            )
+            isSummaryLoading.value = false
+            return
+        }
         YouTube
             .searchSummary(query)
             .onSuccess { page ->
@@ -96,6 +112,16 @@ constructor(
         if (!force && viewStateMap[key] != null) return
         filterLoading[key] = true
         filterError[key] = null
+        val filters = ContentFilterState.state.value
+        if (filters.filtersEnabled) {
+            val items = when (filter) {
+                SearchFilter.FILTER_ARTIST -> getAllowedMatches(query, limit = 50)
+                else -> emptyList()
+            }
+            viewStateMap[key] = ItemsPage(items = items, continuation = null)
+            filterLoading[key] = false
+            return
+        }
         YouTube
             .search(query, filter)
             .onSuccess { result ->
@@ -123,6 +149,7 @@ constructor(
         val filter = filter.value?.value
         viewModelScope.launch {
             if (filter == null) return@launch
+            if (ContentFilterState.state.value.filtersEnabled) return@launch
             val viewState = viewStateMap[filter] ?: return@launch
             val continuation = viewState.continuation
             if (continuation != null) {
@@ -161,5 +188,24 @@ constructor(
                 loadFiltered(currentFilter, force = true)
             }
         }
+    }
+
+    private suspend fun getAllowedMatches(query: String, limit: Int): List<com.metrolist.innertube.models.YTItem> {
+        val filters = ContentFilterState.state.value
+        return WhitelistCache.allowedEntries(database, filters)
+            .filter { it.artistName.contains(query, ignoreCase = true) }
+            .shuffled()
+            .take(limit)
+            .map { entry ->
+                com.metrolist.innertube.models.ArtistItem(
+                    id = entry.artistId,
+                    title = entry.artistName,
+                    thumbnail = null,
+                    channelId = null,
+                    playEndpoint = null,
+                    shuffleEndpoint = null,
+                    radioEndpoint = null
+                )
+            }
     }
 }

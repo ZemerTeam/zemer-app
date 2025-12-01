@@ -204,6 +204,22 @@ class App : Application(), SingletonImageLoader.Factory {
 
         applicationScope.launch(Dispatchers.IO) {
             dataStore.data
+                .map { prefs ->
+                    ContentFilterConfig(
+                        filtersEnabled = prefs[EnableContentFiltersKey] ?: true,
+                        allowFemaleSingers = prefs[AllowFemaleSingersKey] ?: false,
+                        promoteChasidish = prefs[AllowChasidishKey] ?: false,
+                        hideOldStuff = prefs[AllowDjKey] ?: false,
+                    )
+                }
+                .distinctUntilChanged()
+                .collect { filters ->
+                    ContentFilterState.current = filters
+                }
+        }
+
+        applicationScope.launch(Dispatchers.IO) {
+            dataStore.data
                 .map { it[DataSyncIdKey] }
                 .distinctUntilChanged()
                 .collect { dataSyncId ->

@@ -29,6 +29,8 @@ import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
+import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.WhitelistCache
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -236,7 +238,13 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadFeaturedContent(hideExplicit: Boolean): Triple<List<AlbumItem>, List<ArtistItem>, List<SongItem>> {
-        val randomArtistIds = database.getRandomWhitelistedArtistIds(15)
+        val filters = ContentFilterState.state.value
+        val allowedEntries = WhitelistCache.allowedEntries(database, filters)
+        val randomArtistIds = if (allowedEntries.isNotEmpty()) {
+            allowedEntries.shuffled().take(15).map { it.artistId }
+        } else {
+            database.getRandomWhitelistedArtistIds(15)
+        }
         if (randomArtistIds.isEmpty()) return Triple(emptyList(), emptyList(), emptyList())
 
         val albums = mutableListOf<AlbumItem>()
@@ -278,6 +286,125 @@ class HomeViewModel @Inject constructor(
         )
     }
 
+    private suspend fun loadWhitelistHome(hideExplicit: Boolean): HomePage? {
+        val filters = ContentFilterState.state.value
+        val allowed = WhitelistCache.allowedEntries(database, filters)
+        if (allowed.isEmpty()) return null
+
+        val selected = allowed.shuffled().take(10)
+        val sections = mutableListOf<HomePage.Section>()
+        val allSongs = mutableListOf<SongItem>()
+        val allAlbums = mutableListOf<AlbumItem>()
+        val allVideos = mutableListOf<SongItem>()
+
+        coroutineScope {
+            val pages = selected.map { entry ->
+                async { YouTube.artist(entry.artistId).getOrNull() }
+            }.awaitAll().filterNotNull()
+
+            pages.forEach { artistPage ->
+                val songs = artistPage.sections.flatMap { it.items }
+                    .filterExplicit(hideExplicit)
+                    .filterWhitelisted(database)
+                    .filterIsInstance<SongItem>()
+                    .distinctBy { it.id }
+                    .take(10)
+                allSongs.addAll(songs)
+
+                val albums = artistPage.sections.flatMap { it.items }
+                    .filterExplicit(hideExplicit)
+                    .filterIsInstance<AlbumItem>()
+                    .distinctBy { it.id }
+                    .take(5)
+                allAlbums.addAll(albums)
+
+                val videos = artistPage.sections
+                    .filter { section ->
+                        section.title.contains("video", ignoreCase = true) ||
+                            section.title.contains("short", ignoreCase = true)
+                    }
+                    .flatMap { section ->
+                        section.items.filterIsInstance<SongItem>()
+                    }
+                allVideos.addAll(videos)
+            }
+        }
+
+        allSongs.distinctBy { it.id }.take(30).also { songs ->
+            if (songs.isNotEmpty()) {
+                sections.add(
+                    HomePage.Section(
+                        title = "Songs",
+                        label = null,
+                        thumbnail = songs.firstOrNull()?.thumbnail,
+                        items = songs,
+                        endpoint = null,
+                    )
+                )
+            }
+        }
+
+        allAlbums.distinctBy { it.id }.take(20).also { albums ->
+            if (albums.isNotEmpty()) {
+                sections.add(
+                    HomePage.Section(
+                        title = "Albums",
+                        label = null,
+                        thumbnail = albums.firstOrNull()?.thumbnail,
+                        items = albums,
+                        endpoint = null,
+                    )
+                )
+            }
+        }
+
+        allVideos.distinctBy { it.id }.take(20).also { videos ->
+            if (videos.isNotEmpty()) {
+                sections.add(
+                    HomePage.Section(
+                        title = "Videos",
+                        label = null,
+                        thumbnail = videos.firstOrNull()?.thumbnail,
+                        items = videos,
+                        endpoint = null,
+                    )
+                )
+            }
+        }
+
+        return HomePage(
+            chips = null,
+            sections = sections,
+            continuation = null
+        )
+    }
+
+    private suspend fun loadWhitelistExplore(hideExplicit: Boolean): ExplorePage? {
+        val filters = ContentFilterState.state.value
+        val allowed = WhitelistCache.allowedEntries(database, filters)
+        if (allowed.isEmpty()) return null
+
+        val selected = allowed.shuffled().take(12)
+        val albums = mutableListOf<AlbumItem>()
+
+        coroutineScope {
+            val pages = selected.map { entry ->
+                async { YouTube.artist(entry.artistId).getOrNull() }
+            }.awaitAll().filterNotNull()
+
+            pages.forEach { artistPage ->
+                albums += artistPage.sections.flatMap { it.items }
+                    .filterExplicit(hideExplicit)
+                    .filterIsInstance<AlbumItem>()
+            }
+        }
+
+        return ExplorePage(
+            newReleaseAlbums = albums.distinctBy { it.id },
+            moodAndGenres = emptyList()
+        )
+    }
+
     private suspend fun seedQuickPicksFromHomePage(page: HomePage, hideExplicit: Boolean, existing: List<Song>): List<Song> {
         if (existing.isNotEmpty()) return existing
         val candidateSongs = page.sections
@@ -304,6 +431,10 @@ class HomeViewModel @Inject constructor(
 
         uiState.update { it.copy(isLoading = true) }
         try {
+            if (WhitelistCache.snapshot().isEmpty()) {
+                runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
+            }
+            val filters = ContentFilterState.state.value
             val hideExplicit = context.dataStore.get(HideExplicitKey, false)
             val quick = loadQuickPicks()
             val forgottenList = database.forgottenFavorites().first().shuffled().take(20)
@@ -317,9 +448,9 @@ class HomeViewModel @Inject constructor(
                     .take(20)
             }
             val keepListening = loadKeepListening()
-            val home = loadHomePage(hideExplicit)
-            val explore = loadExplorePage(hideExplicit)
-            val (recentAlbums, recentSongs) = loadRecentReleases(hideExplicit)
+        val home = if (filters.filtersEnabled) loadWhitelistHome(hideExplicit) else loadHomePage(hideExplicit)
+        val explore = if (filters.filtersEnabled) loadWhitelistExplore(hideExplicit) else loadExplorePage(hideExplicit)
+        val (recentAlbums, recentSongs) = loadRecentReleases(hideExplicit)
 
             val quickSeeded = if (home != null) seedQuickPicksFromHomePage(home, hideExplicit, quick) else quick
 
@@ -351,6 +482,7 @@ class HomeViewModel @Inject constructor(
 
     fun loadMoreYouTubeItems(continuation: String?) {
         if (continuation == null || isLoadingMore.value) return
+        if (ContentFilterState.state.value.filtersEnabled) return
         val hideExplicit = context.dataStore.get(HideExplicitKey, false)
 
         viewModelScope.launch(Dispatchers.IO) {

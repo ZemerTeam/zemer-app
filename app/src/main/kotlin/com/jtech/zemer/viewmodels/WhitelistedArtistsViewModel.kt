@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.jtech.zemer.constants.ArtistSortType
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.utils.SyncUtils
+import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.WhitelistCache
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,23 +32,20 @@ constructor(
     val allArtists =
         combine(
             database.allWhitelistedArtistsByName(),
+            ContentFilterState.state,
             searchQuery
-        ) { artists, query ->
+        ) { artists: List<com.jtech.zemer.db.entities.Artist>, filters, query ->
             Timber.d("WhitelistedArtistsVM: Total whitelisted artists from DB: ${artists.size}, Search query: '$query'")
-            artists.forEach { artist ->
-                Timber.d("WhitelistedArtistsVM: Artist in DB: '${artist.artist.name}' (ID: ${artist.id})")
+            val filteredByToggle = artists.filter { artist ->
+                val entry = WhitelistCache.get(artist.id)
+                entry == null || WhitelistCache.isAllowed(entry, filters)
             }
-            val filtered = if (query.isBlank()) {
-                artists
-            } else {
-                artists.filter { artist ->
-                    val matches = artist.artist.name.contains(query, ignoreCase = true)
-                    Timber.d("WhitelistedArtistsVM: Artist '${artist.artist.name}' matches query '$query': $matches")
-                    matches
-                }
-            }
-            Timber.d("WhitelistedArtistsVM: Filtered result: ${filtered.size} artists")
-            filtered
+            val filteredByQuery =
+                if (query.isBlank()) filteredByToggle
+                else filteredByToggle.filter { artist -> artist.artist.name.contains(query, ignoreCase = true) }
+
+            Timber.d("WhitelistedArtistsVM: Filtered result: ${filteredByQuery.size} artists")
+            filteredByQuery
         }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun sync() {

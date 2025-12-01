@@ -40,7 +40,9 @@ import com.jtech.zemer.extensions.filterExplicitAlbums
 import com.jtech.zemer.extensions.reversed
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.playback.DownloadUtil
+import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
+import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
@@ -110,7 +112,7 @@ class LibraryArtistsViewModel
 @Inject
 constructor(
     @ApplicationContext context: Context,
-    database: MusicDatabase,
+    private val database: MusicDatabase,
     private val syncUtils: SyncUtils,
 ) : ViewModel() {
     val allArtists =
@@ -127,7 +129,13 @@ constructor(
                     ArtistFilter.LIBRARY -> database.artists(sortType, descending)
                     ArtistFilter.LIKED -> database.artistsBookmarked(sortType, descending)
                 }
-            }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+            }.flatMapLatest { artists: List<com.jtech.zemer.db.entities.Artist> ->
+                ContentFilterState.state.map { filters ->
+                    val allowed = WhitelistCache.allowedEntries(database, filters).map { entry -> entry.artistId }.toSet()
+                    if (allowed.isEmpty()) artists else artists.filter { it.id in allowed }
+                }
+            }
+            .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun sync() {
         viewModelScope.launch(Dispatchers.IO) { syncUtils.syncArtistsSubscriptions() }

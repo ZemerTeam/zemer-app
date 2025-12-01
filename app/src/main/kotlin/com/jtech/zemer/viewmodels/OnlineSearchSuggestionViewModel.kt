@@ -9,6 +9,8 @@ import com.metrolist.innertube.models.filterExplicit
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.SearchHistory
+import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.get
@@ -45,46 +47,73 @@ constructor(
                             )
                         }
                     } else {
-                        val result = YouTube.searchSuggestions(query).getOrNull()
-                        val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                        val filters = ContentFilterState.state.value
+                        val whitelist = WhitelistCache.allowedEntries(database, filters)
 
-                        // Filter items with whitelist (suspend function)
-                        val filteredItems = result
-                            ?.recommendedItems
-                            ?.distinctBy { it.id }
-                            ?.filterExplicit(hideExplicit)
-                            ?.filterWhitelisted(database)
-                            .orEmpty()
-
-                        // Get whitelisted artist names for filtering query suggestions
-                        val whitelistedArtists = database.getAllWhitelistedArtists().map { entries ->
-                            entries.map { it.artistName.lowercase() }
-                        }
-
-                        database
-                            .searchHistory(query)
-                            .map { it.take(3) }
-                            .flatMapLatest { history ->
-                                whitelistedArtists.map { artistNames ->
-                                    SearchSuggestionViewState(
-                                        history = history,
-                                        suggestions =
-                                        result
-                                            ?.queries
-                                            ?.filter { suggestionQuery ->
-                                                // Only show suggestions that contain a whitelisted artist name
-                                                val lowerQuery = suggestionQuery.lowercase()
-                                                artistNames.any { artistName ->
-                                                    lowerQuery.contains(artistName)
-                                                }
-                                            }
-                                            ?.filter { suggestionQuery ->
-                                                history.none { it.query == suggestionQuery }
-                                            }.orEmpty(),
-                                        items = filteredItems,
+                        if (filters.filtersEnabled) {
+                            val matchingArtists = whitelist
+                                .filter { it.artistName.contains(query, ignoreCase = true) }
+                                .take(10)
+                                .map { entry ->
+                                    com.metrolist.innertube.models.ArtistItem(
+                                        id = entry.artistId,
+                                        title = entry.artistName,
+                                        thumbnail = null,
+                                        channelId = null,
+                                        playEndpoint = null,
+                                        shuffleEndpoint = null,
+                                        radioEndpoint = null
                                     )
                                 }
+                            database
+                                .searchHistory(query)
+                                .map { it.take(3) }
+                                .map { history ->
+                                    SearchSuggestionViewState(
+                                        history = history,
+                                        suggestions = history.map { it.query },
+                                        items = matchingArtists
+                                    )
+                                }
+                        } else {
+                            val result = YouTube.searchSuggestions(query).getOrNull()
+                            val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+
+                            val filteredItems = result
+                                ?.recommendedItems
+                                ?.distinctBy { it.id }
+                                ?.filterExplicit(hideExplicit)
+                                ?.filterWhitelisted(database)
+                                .orEmpty()
+
+                            val whitelistedArtists = database.getAllWhitelistedArtists().map { entries ->
+                                entries.map { it.artistName.lowercase() }
                             }
+
+                            database
+                                .searchHistory(query)
+                                .map { it.take(3) }
+                                .flatMapLatest { history ->
+                                    whitelistedArtists.map { artistNames ->
+                                        SearchSuggestionViewState(
+                                            history = history,
+                                            suggestions =
+                                            result
+                                                ?.queries
+                                                ?.filter { suggestionQuery ->
+                                                    val lowerQuery = suggestionQuery.lowercase()
+                                                    artistNames.any { artistName ->
+                                                        lowerQuery.contains(artistName)
+                                                    }
+                                                }
+                                                ?.filter { suggestionQuery ->
+                                                    history.none { it.query == suggestionQuery }
+                                                }.orEmpty(),
+                                            items = filteredItems,
+                                        )
+                                    }
+                                }
+                        }
                     }
                 }.collect {
                     _viewState.value = it

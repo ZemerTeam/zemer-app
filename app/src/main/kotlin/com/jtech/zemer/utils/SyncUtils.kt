@@ -16,6 +16,7 @@ import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.utils.WhitelistCache
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -386,6 +387,7 @@ class SyncUtils @Inject constructor(
             // Always fetch at least once per version (including version 1). Subsequent runs skip if already synced.
             if (!forceSync && remoteVersion != null && remoteVersion <= localVersion && !localEmpty) {
                 Timber.d("Whitelist sync: Skipping, remote version ($remoteVersion) <= local ($localVersion) and local whitelist not empty")
+                runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
                 _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
                 return
             }
@@ -425,6 +427,7 @@ class SyncUtils @Inject constructor(
                 insertArtists(missingArtists)
                 }
             }
+            WhitelistCache.updateAll(whitelistEntries)
             Timber.d("Whitelist sync: Successfully synced ${whitelistEntries.size} artists to whitelist table")
 
             _whitelistSyncProgress.value = WhitelistSyncProgress(
