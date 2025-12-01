@@ -51,7 +51,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,12 +72,10 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
-import com.metrolist.innertube.models.BrowseEndpoint
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.YTItem
-import com.metrolist.innertube.pages.HomePage
 import com.metrolist.innertube.utils.parseCookieString
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
@@ -96,7 +93,6 @@ import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.LocalAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeQueue
@@ -158,7 +154,6 @@ fun HomeScreen(
     val quickPicks = homeUiState.quickPicks
     val forgottenFavorites = homeUiState.forgottenFavorites
     val keepListening = homeUiState.keepListening
-    val homePage = homeUiState.homePage
     val featuredAlbums = homeUiState.featuredAlbums
     val featuredArtists = homeUiState.featuredArtists
     val featuredVideos = homeUiState.featuredVideos
@@ -170,7 +165,14 @@ fun HomeScreen(
         remember(quickPicks, forgottenFavorites, keepListening) {
             (quickPicks + forgottenFavorites + keepListening).filter { it is Song || it is Album }
         }
-    val allYtItems = remember(homePage) { homePage?.sections?.flatMap { it.items } ?: emptyList() }
+    val allYtItems =
+        remember(featuredVideos, featuredAlbums, featuredArtists) {
+            buildList<YTItem> {
+                addAll(featuredVideos)
+                addAll(featuredAlbums)
+                addAll(featuredArtists)
+            }
+        }
 
     val isLoading: Boolean = homeUiState.isLoading
     val isRefreshing = homeUiState.isRefreshing
@@ -249,16 +251,6 @@ fun HomeScreen(
             performShuffle()
             backStackEntry?.savedStateHandle?.set("shuffleNow", false)
         }
-    }
-
-    LaunchedEffect(Unit) {
-        snapshotFlow { lazylistState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-            .collect { lastVisibleIndex ->
-                val len = lazylistState.layoutInfo.totalItemsCount
-                if (lastVisibleIndex != null && lastVisibleIndex >= len - 3) {
-                    viewModel.loadMoreYouTubeItems(homePage?.continuation)
-                }
-            }
     }
 
     val localGridItem: @Composable (LocalItem) -> Unit = {
@@ -446,8 +438,7 @@ fun HomeScreen(
         val hasRemoteHomeContent =
             featuredArtists.isNotEmpty() ||
                 featuredAlbums.isNotEmpty() ||
-                featuredVideos.isNotEmpty() ||
-                homePage?.sections?.any { it.items.isNotEmpty() } == true
+                featuredVideos.isNotEmpty()
         val shouldShowShimmer = isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent)
 
         LazyColumn(
@@ -884,53 +875,7 @@ fun HomeScreen(
                 }
             }
 
-            homePage?.sections?.forEachIndexed { index, section ->
-                item(key = "home_section_title_$index") {
-                    NavigationTitle(
-                        title = section.title,
-                        label = section.label,
-                        thumbnail = section.thumbnail?.let { thumbnailUrl ->
-                            {
-                                val shape =
-                                    if (section.endpoint?.isArtistEndpoint == true) CircleShape else RoundedCornerShape(
-                                        ThumbnailCornerRadius
-                                    )
-                                AsyncImage(
-                                    model = thumbnailUrl,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(ListThumbnailSize)
-                                        .clip(shape)
-                                )
-                            }
-                        },
-                        onClick = section.endpoint?.browseId?.let { browseId ->
-                            {
-                                if (browseId == "FEmusic_moods_and_genres")
-                                    navController.navigate("mood_and_genres")
-                                else
-                                    navController.navigate("browse/$browseId")
-                            }
-                        },
-                        modifier = Modifier.animateItem()
-                    )
-                }
-
-                item(key = "home_section_list_$index") {
-                    LazyRow(
-                        contentPadding = WindowInsets.systemBars
-                            .only(WindowInsetsSides.Horizontal)
-                            .asPaddingValues(),
-                        modifier = Modifier.animateItem()
-                    ) {
-                        items(section.items) { item ->
-                            ytGridItem(item)
-                        }
-                    }
-                }
-            }
-
-            if (shouldShowShimmer || homePage?.continuation != null && homePage?.sections?.isNotEmpty() == true) {
+            if (shouldShowShimmer) {
                 item(key = "loading_shimmer") {
                     ShimmerHost(
                         modifier = Modifier.animateItem()

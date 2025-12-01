@@ -144,7 +144,6 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 
 dependencies {
     implementation(libs.guava)
-    implementation(libs.coroutines.guava)
     implementation(libs.concurrent.futures)
 
     implementation(libs.activity)
@@ -158,8 +157,6 @@ dependencies {
     implementation(libs.compose.ui.tooling)
     implementation(libs.compose.animation)
     implementation(libs.compose.reorderable)
-    implementation(libs.tv.foundation)
-    implementation(libs.tv.material)
 
     implementation(libs.viewmodel)
     implementation(libs.viewmodel.compose)
@@ -168,8 +165,6 @@ dependencies {
     implementation(libs.material3)
     implementation(libs.palette)
     implementation(libs.materialKolor)
-
-    implementation(libs.appcompat)
 
     implementation(libs.coil)
     implementation(libs.coil.network.okhttp)
@@ -194,9 +189,6 @@ dependencies {
     implementation(libs.credentials.play.services.auth)
     implementation(libs.googleid)
     implementation(libs.kotlinx.coroutines.play.services)
-    implementation(libs.google.firebase.auth)
-    implementation(libs.google.firebase.firestore)
-    implementation(libs.ui)
     ksp(libs.room.compiler)
     implementation(libs.room.ktx)
 
