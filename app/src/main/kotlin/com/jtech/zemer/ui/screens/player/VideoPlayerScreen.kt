@@ -184,7 +184,11 @@ fun VideoPlayerScreen(
             val playback = playbackResult.getOrThrow()
             val validatedUrl = UrlValidator.validateAndParseUrl(playback.streamUrl)
                 ?: throw Exception("Invalid stream URL: ${playback.streamUrl}")
-            val request = Request.Builder().url(validatedUrl).build()
+            val request = try {
+                Request.Builder().url(validatedUrl).build()
+            } catch (e: Exception) {
+                throw Exception("Failed to build video request: ${e.message}", e)
+            }
             videoHttpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     withContext(Dispatchers.Main) {

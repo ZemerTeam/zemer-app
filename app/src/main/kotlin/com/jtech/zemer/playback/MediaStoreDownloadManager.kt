@@ -365,14 +365,18 @@ constructor(
         val validatedUrl = UrlValidator.validateAndParseUrl(url)
             ?: throw Exception("Invalid download URL: $url")
 
-        val request = Request.Builder()
-            .url(validatedUrl)
-            .get()
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            .header("Accept", "*/*")
-            .header("Accept-Language", "en-US,en;q=0.9")
-            .header("Range", "bytes=0-")
-            .build()
+        val request = try {
+            Request.Builder()
+                .url(validatedUrl)
+                .get()
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .header("Accept", "*/*")
+                .header("Accept-Language", "en-US,en;q=0.9")
+                .header("Range", "bytes=0-")
+                .build()
+        } catch (e: Exception) {
+            throw Exception("Failed to build download request for URL: $url", e)
+        }
 
         val response = httpClient.newCall(request).execute()
         val responseCode = response.code

@@ -265,7 +265,13 @@ object YTPlayerUtils {
             val requestBuilder = okhttp3.Request.Builder()
                 .head()
                 .url(validatedUrl)
-            val response = httpClient.newCall(requestBuilder.build()).execute()
+            val request = try {
+                requestBuilder.build()
+            } catch (e: Exception) {
+                reportException(Exception("Failed to build request for URL: $url", e))
+                return false
+            }
+            val response = httpClient.newCall(request).execute()
             val isSuccessful = response.isSuccessful
             return isSuccessful
         } catch (e: Exception) {
@@ -292,11 +298,19 @@ object YTPlayerUtils {
         format: PlayerResponse.StreamingData.Format,
         videoId: String
     ): String? {
-        return NewPipeUtils.getStreamUrl(format, videoId)
+        val url = NewPipeUtils.getStreamUrl(format, videoId)
             .onFailure {
                 reportException(it)
             }
-            .getOrNull()
+            .getOrNull() ?: return null
+
+        // Validate the URL before returning it to prevent OkHttp crashes
+        return if (UrlValidator.isValidUrl(url)) {
+            url
+        } else {
+            reportException(Exception("Stream URL from NewPipe validation failed: $url"))
+            null
+        }
     }
 }
 

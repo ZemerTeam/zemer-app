@@ -17,6 +17,17 @@ object UrlValidator {
         return try {
             val trimmedUrl = urlString.trim()
 
+            // Basic validation checks before parsing
+            if (trimmedUrl.length > 2048) {
+                // URLs should not be excessively long
+                return null
+            }
+
+            // Check for illegal characters
+            if (trimmedUrl.contains('\n') || trimmedUrl.contains('\r') || trimmedUrl.contains('\u0000')) {
+                return null
+            }
+
             // Ensure URL has a scheme
             val urlWithScheme = if (!trimmedUrl.startsWith("http://") &&
                 !trimmedUrl.startsWith("https://")) {
@@ -26,10 +37,18 @@ object UrlValidator {
             }
 
             // Parse and validate with HttpUrl
-            val httpUrl = urlWithScheme.toHttpUrl()
+            val httpUrl = try {
+                urlWithScheme.toHttpUrl()
+            } catch (e: Exception) {
+                // If OkHttp fails to parse, return null
+                e.printStackTrace()
+                return null
+            }
 
             // Verify it's a valid HTTPS or HTTP URL with non-empty host
-            if ((httpUrl.scheme == "https" || httpUrl.scheme == "http") && httpUrl.host.isNotEmpty()) {
+            if ((httpUrl.scheme == "https" || httpUrl.scheme == "http") &&
+                httpUrl.host.isNotEmpty() &&
+                !httpUrl.host.contains('\u0000')) {
                 httpUrl
             } else {
                 null
