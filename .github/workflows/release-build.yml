@@ -24,7 +24,7 @@ jobs:
 
       - name: Generate temporary release keystore
         run: |
-          mkdir -p keystore
+          mkdir -p app/keystore
           STORE_PASSWORD=$(uuidgen)
           KEY_PASSWORD=$(uuidgen)
           KEY_ALIAS="ci-temp-key"
@@ -35,7 +35,7 @@ jobs:
 
           keytool -genkeypair -v \
             -storetype PKCS12 \
-            -keystore keystore/release.keystore \
+            -keystore app/keystore/release.keystore \
             -storepass "$STORE_PASSWORD" \
             -keypass "$KEY_PASSWORD" \
             -alias "$KEY_ALIAS" \
