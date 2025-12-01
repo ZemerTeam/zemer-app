@@ -1,3 +1,5 @@
+@file:OptIn(FlowPreview::class)
+
 package com.jtech.zemer.playback
 
 import android.app.Notification
@@ -7,7 +9,6 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.jtech.zemer.R
@@ -15,6 +16,7 @@ import com.jtech.zemer.utils.hasNotificationPermission
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
@@ -22,7 +24,6 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import javax.inject.Inject
 
 /**
@@ -52,11 +53,7 @@ class MediaStoreDownloadService : Service() {
 
         fun start(context: Context) {
             val intent = Intent(context, MediaStoreDownloadService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                kotlin.runCatching { context.startForegroundService(intent) }
-            } else {
-                context.startService(intent)
-            }
+            kotlin.runCatching { context.startForegroundService(intent) }
         }
 
         fun stop(context: Context) {
@@ -72,7 +69,7 @@ class MediaStoreDownloadService : Service() {
             return
         }
 
-        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
         // Create notification channel for downloads
         createNotificationChannel()
@@ -133,17 +130,15 @@ class MediaStoreDownloadService : Service() {
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                NOTIFICATION_CHANNEL_ID,
-                NOTIFICATION_CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Notifications for music download progress"
-                setShowBadge(false)
-            }
-            notificationManager.createNotificationChannel(channel)
+        val channel = NotificationChannel(
+            NOTIFICATION_CHANNEL_ID,
+            NOTIFICATION_CHANNEL_NAME,
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Notifications for music download progress"
+            setShowBadge(false)
         }
+        notificationManager.createNotificationChannel(channel)
     }
 
     private fun createInitialNotification(): Notification {
