@@ -54,6 +54,7 @@ import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
 import androidx.media3.extractor.mp4.FragmentedMp4Extractor
+import timber.log.Timber
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaController
@@ -237,7 +238,13 @@ class MusicService :
         super.onCreate()
         // CRITICAL: Must call startForeground() immediately to avoid ANR when startForegroundService() is used
         // This MUST happen before any other heavy initialization
-        runCatching { ensureForegroundService() }
+        try {
+            ensureForegroundService()
+        } catch (e: Exception) {
+            Timber.e(e, "MusicService: failed to start foreground onCreate")
+            stopSelf()
+            return
+        }
 
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider(
@@ -446,7 +453,13 @@ class MusicService :
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // CRITICAL: Must call startForeground() immediately to avoid ANR when startForegroundService() is used
-        runCatching { ensureForegroundService() }
+        try {
+            ensureForegroundService()
+        } catch (e: Exception) {
+            Timber.e(e, "MusicService: failed to start foreground onStartCommand")
+            stopSelf()
+            return START_NOT_STICKY
+        }
         return super.onStartCommand(intent, flags, startId)
     }
 
@@ -490,20 +503,16 @@ class MusicService :
             .build()
 
         // Start foreground with appropriate service type for media playback
-        runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(
-                    NOTIFICATION_ID,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-                )
-            } else {
-                startForeground(NOTIFICATION_ID, notification)
-            }
-            hasStartedForeground = true
-        }.onFailure {
-            hasStartedForeground = false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
         }
+        hasStartedForeground = true
     }
 
     private fun setupAudioFocusRequest() {

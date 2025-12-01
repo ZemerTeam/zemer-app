@@ -144,8 +144,8 @@ private fun WelcomeScreen(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
                 .fillMaxHeight()
-                .padding(top = 64.dp),
-            verticalArrangement = Arrangement.Top,
+                .padding(vertical = 48.dp),
+            verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Column(
@@ -565,9 +565,9 @@ private fun PermissionCard(
                     .fillMaxWidth()
                     .height(38.dp),
                 shape = RoundedCornerShape(9.dp),
-                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
                     contentColor = MaterialTheme.colorScheme.primary
                 )
             ) {
