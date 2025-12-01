@@ -30,7 +30,6 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
-import timber.log.Timber
 import java.time.LocalDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -48,12 +47,7 @@ class SyncUtils @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     private val database: MusicDatabase
-        get() {
-            Timber.d("SyncUtils.database accessor called - will invoke databaseLazy.get() now")
-            return databaseLazy.get().also {
-                Timber.d("SyncUtils.database.get() completed")
-            }
-        }
+        get() = databaseLazy.get()
 
     private val syncScope = CoroutineScope(Dispatchers.IO)
 
@@ -103,7 +97,7 @@ class SyncUtils @Inject constructor(
                 localSongs.filterNot { it.id in remoteIds }.forEach {
                     try {
                         database.transaction { update(it.song.localToggleLike()) }
-                    } catch (e: Exception) { Timber.e(e, "Failed to toggle like for removed song ${it.id}") }
+                    } catch (e: Exception) { }
                 }
 
                 remoteSongs.forEachIndexed { index, song ->
@@ -117,11 +111,10 @@ class SyncUtils @Inject constructor(
                                 update(dbSong.song.copy(liked = true, likedDate = timestamp))
                             }
                         }
-                    } catch (e: Exception) { Timber.e(e, "Failed to sync liked song ${song.id} (index=$index)") }
+                    } catch (e: Exception) { }
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to sync liked songs: ${e.message}")
         } finally {
             isSyncingLikedSongs.value = false
         }
@@ -143,7 +136,7 @@ class SyncUtils @Inject constructor(
                     } else {
                         try {
                             database.transaction { update(it.song.toggleLibrary()) }
-                        } catch (e: Exception) { Timber.e(e, "Failed to toggle library for removed song ${it.id}") }
+                        } catch (e: Exception) { }
                     }
                 }
                 feedbackTokens.chunked(20).forEach { YouTube.feedback(it) }
@@ -161,11 +154,10 @@ class SyncUtils @Inject constructor(
                                 addLibraryTokens(song.id, song.libraryAddToken, song.libraryRemoveToken)
                             }
                         }
-                    } catch (e: Exception) { Timber.e(e, "Failed to sync library song ${song.id}") }
+                    } catch (e: Exception) { }
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to sync library songs: ${e.message}")
         } finally {
             isSyncingLibrarySongs.value = false
         }
@@ -194,7 +186,6 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to sync uploaded songs: ${e.message}")
         } finally {
             isSyncingUploadedSongs.value = false
         }
@@ -226,7 +217,6 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to sync liked albums: ${e.message}")
         } finally {
             isSyncingLikedAlbums.value = false
         }
@@ -258,7 +248,6 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to sync uploaded albums: ${e.message}")
         } finally {
             isSyncingUploadedAlbums.value = false
         }
@@ -295,7 +284,6 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to sync artists subscriptions: ${e.message}")
         } finally {
             isSyncingArtists.value = false
         }
@@ -336,7 +324,6 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to sync saved playlists: ${e.message}")
         } finally {
             isSyncingPlaylists.value = false
         }
@@ -366,14 +353,12 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to sync playlist $browseId: ${e.message}")
         }
     }
 
     suspend fun syncArtistWhitelist(forceSync: Boolean = false) {
         if (isSyncingWhitelist.value) return
 
-        Timber.d("Whitelist sync: Starting (force=$forceSync)...")
         isSyncingWhitelist.value = true
 
         _whitelistSyncProgress.value = WhitelistSyncProgress()
@@ -386,7 +371,6 @@ class SyncUtils @Inject constructor(
 
             // Always fetch at least once per version (including version 1). Subsequent runs skip if already synced.
             if (!forceSync && remoteVersion != null && remoteVersion <= localVersion && !localEmpty) {
-                Timber.d("Whitelist sync: Skipping, remote version ($remoteVersion) <= local ($localVersion) and local whitelist not empty")
                 runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
                 _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
                 return
@@ -398,7 +382,6 @@ class SyncUtils @Inject constructor(
                     total = total
                 )
             }.getOrThrow()
-            Timber.d("Whitelist sync: Fetched ${whitelistEntries.size} artists from Firestore")
 
             _whitelistSyncProgress.value = WhitelistSyncProgress(
                 current = whitelistEntries.size,
@@ -410,10 +393,7 @@ class SyncUtils @Inject constructor(
             val removedArtistIds = currentWhitelistIds.filterNot { it in newWhitelistIds }
 
             if (removedArtistIds.isNotEmpty()) {
-                Timber.d("Whitelist sync: Detected ${removedArtistIds.size} removed artists, deleting their content")
                 deleteRemovedArtists(removedArtistIds)
-            } else {
-                Timber.d("Whitelist sync: No artists removed from whitelist")
             }
 
             database.transaction {
@@ -428,7 +408,6 @@ class SyncUtils @Inject constructor(
                 }
             }
             WhitelistCache.updateAll(whitelistEntries)
-            Timber.d("Whitelist sync: Successfully synced ${whitelistEntries.size} artists to whitelist table")
 
             _whitelistSyncProgress.value = WhitelistSyncProgress(
                 current = whitelistEntries.size,
@@ -444,11 +423,9 @@ class SyncUtils @Inject constructor(
             // Backfill artist thumbnails for whitelisted artists missing thumbs (limited to reduce load)
             backfillMissingArtistThumbs(limit = 150)
         } catch (e: Exception) {
-            Timber.e(e, "Whitelist sync exception: ${e.message}")
             _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
         } finally {
             isSyncingWhitelist.value = false
-            Timber.d("Whitelist sync finished")
         }
     }
 
@@ -466,7 +443,6 @@ class SyncUtils @Inject constructor(
             val missingIds = database.getWhitelistedArtistIdsMissingThumb(limit)
             if (missingIds.isEmpty()) return
 
-            Timber.d("Whitelist sync: backfilling thumbnails for ${missingIds.size} artists")
             missingIds.forEachIndexed { index, artistId ->
                 runCatching {
                     YouTube.artist(artistId).onSuccess { artistPage ->
@@ -477,15 +453,9 @@ class SyncUtils @Inject constructor(
                             }
                         }
                     }
-                }.onFailure {
-                    Timber.d("Thumb backfill failed for $artistId: ${it.message}")
-                }
-                if ((index + 1) % 25 == 0) {
-                    Timber.d("Thumb backfill progress: ${index + 1}/${missingIds.size}")
                 }
             }
         } catch (e: Exception) {
-            Timber.d("Thumb backfill error: ${e.message}")
         }
     }
 
@@ -498,26 +468,25 @@ class SyncUtils @Inject constructor(
             val savedPlaylists = database.playlistsByNameAsc().first()
 
             likedSongs.forEach {
-                try { database.transaction { update(it.song.copy(liked = false, likedDate = null)) } } catch (e: Exception) { Timber.e(e, "Failed to clear like status for ${it.id}") }
+                try { database.transaction { update(it.song.copy(liked = false, likedDate = null)) } } catch (e: Exception) { }
             }
             librarySongs.forEach {
                 if (it.song.inLibrary != null) {
-                    try { database.transaction { update(it.song.copy(inLibrary = null)) } } catch (e: Exception) { Timber.e(e, "Failed to clear library status for ${it.id}") }
+                    try { database.transaction { update(it.song.copy(inLibrary = null)) } } catch (e: Exception) { }
                 }
             }
             likedAlbums.forEach {
-                try { database.transaction { update(it.album.copy(bookmarkedAt = null)) } } catch (e: Exception) { Timber.e(e, "Failed to clear bookmark for album ${it.id}") }
+                try { database.transaction { update(it.album.copy(bookmarkedAt = null)) } } catch (e: Exception) { }
             }
             subscribedArtists.forEach {
-                try { database.transaction { update(it.artist.copy(bookmarkedAt = null)) } } catch (e: Exception) { Timber.e(e, "Failed to clear bookmark for artist ${it.id}") }
+                try { database.transaction { update(it.artist.copy(bookmarkedAt = null)) } } catch (e: Exception) { }
             }
             savedPlaylists.forEach {
                 if (it.playlist.browseId != null) {
-                    try { database.transaction { delete(it.playlist) } } catch (e: Exception) { Timber.e(e, "Failed to delete playlist ${it.id}") }
+                    try { database.transaction { delete(it.playlist) } } catch (e: Exception) { }
                 }
             }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to clear all synced content: ${e.message}")
         }
     }
 
@@ -530,24 +499,17 @@ class SyncUtils @Inject constructor(
         if (removedArtistIds.isEmpty()) return
 
         try {
-            Timber.d("Artist deletion: Deleting ${removedArtistIds.size} removed artists and their content")
-
             // Process each removed artist
             for (artistId in removedArtistIds) {
                 try {
-                    Timber.d("Artist deletion: Processing artist $artistId")
-
                     // Step 1: Get all song IDs for this artist
                     val songIds = database.getSongIdsByArtist(artistId)
-                    Timber.d("Artist deletion: Found ${songIds.size} songs for artist $artistId")
 
                     // Step 2: Get all album IDs for this artist
                     val albumIds = database.getAlbumIdsByArtist(artistId)
-                    Timber.d("Artist deletion: Found ${albumIds.size} albums for artist $artistId")
 
                     // Step 3: Delete song-related data without foreign keys (must be done first)
                     if (songIds.isNotEmpty()) {
-                        Timber.d("Artist deletion: Deleting play counts, formats, and lyrics for ${songIds.size} songs")
                         database.deletePlayCountBySongs(songIds)
                         database.deleteFormatBySongs(songIds)
                         database.deleteLyricsBySongs(songIds)
@@ -556,7 +518,6 @@ class SyncUtils @Inject constructor(
                     // Step 4: Delete songs (this will CASCADE DELETE to related tables)
                     // Cascades: song_artist_map, song_album_map, playlist_song_map, related_song_map, event
                     if (songIds.isNotEmpty()) {
-                        Timber.d("Artist deletion: Deleting ${songIds.size} songs")
                         database.deleteSongsByIds(songIds)
                     }
 
@@ -569,23 +530,17 @@ class SyncUtils @Inject constructor(
                         }
                     }
                     if (albumsToDelete.isNotEmpty()) {
-                        Timber.d("Artist deletion: Deleting ${albumsToDelete.size} orphaned albums")
                         database.deleteAlbumsByIds(albumsToDelete)
                     }
 
                     // Step 6: Delete the artist (this will CASCADE DELETE remaining mappings)
-                    Timber.d("Artist deletion: Deleting artist $artistId")
                     database.deleteArtistById(artistId)
 
-                    Timber.d("Artist deletion: Successfully deleted artist $artistId and all associated content")
                 } catch (e: Exception) {
-                    Timber.e(e, "Artist deletion: Failed to delete artist $artistId - ${e.message}")
                 }
             }
 
-            Timber.d("Artist deletion: Completed deletion of ${removedArtistIds.size} artists")
         } catch (e: Exception) {
-            Timber.e(e, "Artist deletion: Exception during batch deletion - ${e.message}")
         }
     }
 }

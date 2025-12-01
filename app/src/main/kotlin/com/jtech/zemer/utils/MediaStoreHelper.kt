@@ -8,7 +8,6 @@ import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import timber.log.Timber
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -67,17 +66,6 @@ class MediaStoreHelper(private val context: Context) {
             val sanitizedFileName = sanitizeFileName(fileName)
             val contentResolver = context.contentResolver
 
-            Timber.d("=== MediaStore Save Starting ===")
-            Timber.d("File: $sanitizedFileName")
-            Timber.d("MIME: $mimeType")
-            Timber.d("Title: $title")
-            Timber.d("Artist: $artist")
-            Timber.d("Android SDK: ${Build.VERSION.SDK_INT}")
-
-            // Log permission status for debugging
-            val hasPermission = PermissionHelper.hasMediaStoreWritePermission(context)
-            Timber.d("Permission status: ${if (hasPermission) "GRANTED" else "DENIED"}")
-
             // Prepare ContentValues with metadata
             // Organize files: Music/Zemer/{Artist}/{Album}/Song.mp3 or Music/Zemer/{Artist}/Song.mp3
             val sanitizedArtist = sanitizeFolderName(artist)
@@ -87,7 +75,6 @@ class MediaStoreHelper(private val context: Context) {
             } else {
                 "${Environment.DIRECTORY_MUSIC}/$ZEMER_FOLDER/$sanitizedArtist"
             }
-            Timber.d("RELATIVE_PATH: $relativePath")
 
             val contentValues = ContentValues().apply {
                 put(MediaStore.Audio.Media.DISPLAY_NAME, sanitizedFileName)
@@ -99,11 +86,8 @@ class MediaStoreHelper(private val context: Context) {
 
                 // Set relative path for Android 10+ (API 29+)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    Timber.d("Using scoped storage (Android 10+)")
                     put(MediaStore.Audio.Media.RELATIVE_PATH, relativePath)
                     put(MediaStore.Audio.Media.IS_PENDING, 1)
-                } else {
-                    Timber.d("Using legacy storage (Android <10)")
                 }
             }
 
@@ -114,25 +98,17 @@ class MediaStoreHelper(private val context: Context) {
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
             }
 
-            Timber.d("Audio collection URI: $audioCollection")
-
             val audioUri = contentResolver.insert(audioCollection, contentValues)
 
             if (audioUri == null) {
-                Timber.e("❌ Failed to create MediaStore entry for: $sanitizedFileName")
-                Timber.e("This usually means permission denied or invalid path")
                 return@withContext null
             }
-
-            Timber.d("✓ MediaStore entry created: $audioUri")
 
             // Write the actual file content
             var bytesWritten = 0L
             contentResolver.openOutputStream(audioUri)?.use { outputStream ->
                 bytesWritten = inputStream.copyTo(outputStream)
-                Timber.d("✓ Wrote $bytesWritten bytes to MediaStore")
             } ?: run {
-                Timber.e("❌ Failed to open output stream for: $audioUri")
                 contentResolver.delete(audioUri, null, null)
                 return@withContext null
             }
@@ -141,17 +117,12 @@ class MediaStoreHelper(private val context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 contentValues.clear()
                 contentValues.put(MediaStore.Audio.Media.IS_PENDING, 0)
-                val updateCount = contentResolver.update(audioUri, contentValues, null, null)
-                Timber.d("✓ Marked as ready (IS_PENDING=0), updated $updateCount row(s)")
+                contentResolver.update(audioUri, contentValues, null, null)
             }
 
-            Timber.d("=== MediaStore Save Complete ===")
-            Timber.d("✓ Successfully saved to MediaStore: $audioUri")
-            Timber.d("✓ Location: $relativePath/$sanitizedFileName")
             audioUri
 
         } catch (e: Exception) {
-            Timber.e(e, "Error saving to MediaStore: ${e.message}")
             null
         }
     }
@@ -179,15 +150,12 @@ class MediaStoreHelper(private val context: Context) {
     ): Uri? = withContext(Dispatchers.IO) {
         try {
             if (!tempFile.exists()) {
-                Timber.e("Temp file does not exist: ${tempFile.absolutePath}")
                 return@withContext null
             }
 
             val fileSize = tempFile.length()
-            Timber.d("Saving temp file to MediaStore: $fileName, size: $fileSize bytes, path: ${tempFile.absolutePath}")
 
             if (fileSize == 0L) {
-                Timber.e("Temp file is empty: ${tempFile.absolutePath}")
                 return@withContext null
             }
 
@@ -203,7 +171,6 @@ class MediaStoreHelper(private val context: Context) {
                 )
             }
         } catch (e: Exception) {
-            Timber.e(e, "Error saving file to MediaStore: ${e.message}")
             null
         }
     }
@@ -250,7 +217,6 @@ class MediaStoreHelper(private val context: Context) {
                     }
                 }
             } catch (e: Exception) {
-                Timber.e(e, "Error finding existing file: ${e.message}")
                 null
             }
         }
@@ -264,15 +230,8 @@ class MediaStoreHelper(private val context: Context) {
     suspend fun deleteFromMediaStore(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
             val deleted = context.contentResolver.delete(uri, null, null)
-            if (deleted > 0) {
-                Timber.d("Deleted from MediaStore: $uri")
-                true
-            } else {
-                Timber.w("Failed to delete from MediaStore: $uri")
-                false
-            }
+            deleted > 0
         } catch (e: Exception) {
-            Timber.e(e, "Error deleting from MediaStore: ${e.message}")
             false
         }
     }

@@ -278,7 +278,6 @@ class MainActivity : ComponentActivity() {
     private fun requestStoragePermissionsIfNeeded() {
         // Check if permissions are already granted
         if (com.jtech.zemer.utils.PermissionHelper.hasMediaStoreWritePermission(this)) {
-            timber.log.Timber.d("Storage permissions already granted")
             return
         }
 
@@ -286,12 +285,10 @@ class MainActivity : ComponentActivity() {
         val permissions = com.jtech.zemer.utils.PermissionHelper.getRequiredWritePermissions()
         if (permissions.isEmpty()) {
             // Android 10+ with no permissions needed (shouldn't happen with our fixed code)
-            timber.log.Timber.d("No storage permissions required")
             return
         }
 
         // Request permissions
-        timber.log.Timber.d("Requesting storage permissions at startup: ${permissions.joinToString()}")
         ActivityCompat.requestPermissions(this, permissions, 2000)
     }
 
@@ -304,7 +301,6 @@ class MainActivity : ComponentActivity() {
             bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
         } catch (e: IllegalStateException) {
             // In case the system still thinks we're background, retry once on resume
-            timber.log.Timber.w(e, "[ServiceLifecycle] MusicService start blocked (app may be in background); will retry on resume - thread: ${Thread.currentThread().name}")
             pendingServiceStart = true
         }
     }
@@ -318,7 +314,6 @@ class MainActivity : ComponentActivity() {
                 bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
                 pendingServiceStart = false
             } catch (e: IllegalStateException) {
-                timber.log.Timber.e(e, "[ServiceLifecycle] MusicService start still blocked on resume - background restrictions may be active - thread: ${Thread.currentThread().name}")
             }
         }
         ButtonMapperBridge.register(this)
@@ -328,7 +323,6 @@ class MainActivity : ComponentActivity() {
         try {
             unbindService(serviceConnection)
         } catch (e: IllegalArgumentException) {
-            timber.log.Timber.w(e, "[ServiceLifecycle] Service was not bound during onStop - service may have crashed or not started - thread: ${Thread.currentThread().name}")
         }
         super.onStop()
     }
@@ -350,7 +344,6 @@ class MainActivity : ComponentActivity() {
             }
             unbindService(serviceConnection)
         } catch (e: IllegalArgumentException) {
-            timber.log.Timber.w(e, "[ServiceLifecycle] Service cleanup error during onDestroy - service may have already been unbound - isFinishing: $isFinishing - thread: ${Thread.currentThread().name}")
         } finally {
             playerConnection = null
         }

@@ -101,7 +101,6 @@ constructor(
             val format = playbackData.format
 
             val contentLength = format.contentLength ?: run {
-                timber.log.Timber.w("Content length unavailable for mediaId=$mediaId download, using -1")
                 -1L
             }
             database.query {

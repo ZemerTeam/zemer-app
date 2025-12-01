@@ -131,7 +131,6 @@ fun Thumbnail(
             try {
                 playerConnection.player.getMediaItemAt(previousIndex)
             } catch (e: Exception) {
-                timber.log.Timber.w(e, "Failed to get previous media item at index $previousIndex")
                 null
             }
         } else null
@@ -147,7 +146,6 @@ fun Thumbnail(
             try {
                 playerConnection.player.getMediaItemAt(nextIndex)
             } catch (e: Exception) {
-                timber.log.Timber.w(e, "Failed to get next media item at index $nextIndex")
                 null
             }
         } else null
@@ -156,7 +154,6 @@ fun Thumbnail(
     val currentMediaItem = try {
         playerConnection.player.currentMediaItem
     } catch (e: Exception) {
-        timber.log.Timber.w(e, "Failed to get current media item from player")
         null
     }
 

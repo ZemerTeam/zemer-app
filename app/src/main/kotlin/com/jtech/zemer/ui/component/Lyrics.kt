@@ -856,7 +856,6 @@ fun Lyrics(
                             paletteColors.addAll(colors.take(5))
                         }
                     } catch (e: Exception) {
-                        timber.log.Timber.w(e, "Failed to extract colors from cover art for lyrics customization")
                     }
                 }
             }

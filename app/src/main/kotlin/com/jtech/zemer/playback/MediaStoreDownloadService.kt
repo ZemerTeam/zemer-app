@@ -63,7 +63,6 @@ class MediaStoreDownloadService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        Timber.d("MediaStoreDownloadService created")
 
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -82,7 +81,6 @@ class MediaStoreDownloadService : Service() {
                     // Stop service if no active downloads
                     if (states.values.none { it.status == MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING ||
                                 it.status == MediaStoreDownloadManager.DownloadState.Status.QUEUED }) {
-                        Timber.d("No active downloads, stopping service")
                         stopSelf()
                     }
                 }
@@ -91,14 +89,12 @@ class MediaStoreDownloadService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Timber.d("MediaStoreDownloadService onStartCommand: ${intent?.action}")
 
         // Handle cancel action from notification
         when (intent?.action) {
             ACTION_CANCEL_DOWNLOAD -> {
                 val songId = intent.getStringExtra(EXTRA_SONG_ID)
                 if (songId != null) {
-                    Timber.d("Cancelling download for song: $songId")
                     downloadManager.cancelDownload(songId)
                 }
             }
@@ -111,7 +107,6 @@ class MediaStoreDownloadService : Service() {
 
     override fun onDestroy() {
         scope.cancel()
-        Timber.d("MediaStoreDownloadService destroyed")
         super.onDestroy()
     }
 
@@ -126,7 +121,6 @@ class MediaStoreDownloadService : Service() {
                 setShowBadge(false)
             }
             notificationManager.createNotificationChannel(channel)
-            Timber.d("Created notification channel: $NOTIFICATION_CHANNEL_ID")
         }
     }
 

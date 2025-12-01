@@ -118,7 +118,6 @@ class PlayerConnection(
                 player.prepare()
                 player.playWhenReady = true
             } catch (e: Exception) {
-                timber.log.Timber.e(e, "[Playback] Error seeking to next track - player state: ${player.playbackState}, timeline size: ${player.currentTimeline.windowCount} - thread: ${Thread.currentThread().name}")
             }
         }
     }
@@ -130,7 +129,6 @@ class PlayerConnection(
                 player.prepare()
                 player.playWhenReady = true
             } catch (e: Exception) {
-                timber.log.Timber.e(e, "[Playback] Error seeking to previous track - player state: ${player.playbackState}, timeline size: ${player.currentTimeline.windowCount} - thread: ${Thread.currentThread().name}")
             }
         }
     }

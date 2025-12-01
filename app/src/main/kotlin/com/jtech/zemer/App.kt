@@ -40,7 +40,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.Credentials
 import okhttp3.OkHttpClient
-import timber.log.Timber
 import java.net.Authenticator
 import java.net.PasswordAuthentication
 import java.net.Proxy
@@ -57,43 +56,13 @@ class App : Application(), SingletonImageLoader.Factory {
     @Inject
     lateinit var syncUtils: SyncUtils
 
-    init {
-        if (BuildConfig.DEBUG) {
-            Timber.d("App.init block called - Hilt injection about to happen")
-        }
-    }
-
     override fun onCreate() {
-        val startTime = System.currentTimeMillis()
-        if (BuildConfig.DEBUG) {
-            Timber.plant(Timber.DebugTree())
-            Timber.d("App.onCreate() started - before super.onCreate() - ${System.currentTimeMillis() - startTime}ms")
-        } else {
-            Timber.uprootAll()
-        }
         super.onCreate()
-        if (BuildConfig.DEBUG) {
-            Timber.d("super.onCreate() completed - ${System.currentTimeMillis() - startTime}ms")
-        }
 
         // تهيئة إعدادات التطبيق عند الإقلاع
-        // TEMPORARILY DISABLED FOR ANR DEBUGGING
-        if (BuildConfig.DEBUG) {
-            Timber.d("About to launch app initialization coroutine - ${System.currentTimeMillis() - startTime}ms")
-        }
         applicationScope.launch {
-            if (BuildConfig.DEBUG) {
-                Timber.d("App initialization starting in coroutine - ${System.currentTimeMillis() - startTime}ms from process start")
-            }
             initializeSettings()
             observeSettingsChanges()
-            if (BuildConfig.DEBUG) {
-                Timber.d("App initialization complete - ${System.currentTimeMillis() - startTime}ms from process start")
-            }
-        }
-
-        if (BuildConfig.DEBUG) {
-            Timber.d("App.onCreate() completed - ${System.currentTimeMillis() - startTime}ms from process start")
         }
     }
 
@@ -239,7 +208,6 @@ class App : Application(), SingletonImageLoader.Factory {
                     try {
                         YouTube.cookie = cookie
                     } catch (e: Exception) {
-                        Timber.e(e, "[Auth] Could not parse cookie - invalid format or corrupted data - clearing account - thread: ${Thread.currentThread().name}")
                         forgetAccount(this@App)
                     }
                 }

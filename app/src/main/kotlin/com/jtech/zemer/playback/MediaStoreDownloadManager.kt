@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
-import timber.log.Timber
 import java.io.File
 import java.time.LocalDateTime
 import javax.inject.Inject
@@ -126,7 +125,6 @@ constructor(
             if (currentState?.status == DownloadState.Status.DOWNLOADING ||
                 currentState?.status == DownloadState.Status.COMPLETED
             ) {
-                Timber.d("Song ${song.song.title} is already downloading or completed")
                 return@launch
             }
 
@@ -136,7 +134,6 @@ constructor(
                 artist = song.artists.firstOrNull()?.name ?: "Unknown"
             )
             if (existingFile != null) {
-                Timber.d("Song ${song.song.title} already exists in MediaStore")
                 updateDownloadState(
                     song.id,
                     DownloadState(
@@ -202,10 +199,7 @@ constructor(
      */
     fun retryDownload(songId: String) {
         scope.launch {
-            val song = database.song(songId).first() ?: run {
-                Timber.e("Song not found in database: $songId")
-                return@launch
-            }
+            val song = database.song(songId).first() ?: return@launch
 
             // Reset download state
             updateDownloadState(
@@ -262,8 +256,6 @@ constructor(
                 )
             )
 
-            Timber.d("Starting download for: ${song.song.title} (attempt ${retryAttempt + 1})")
-
             // Get playback URL from YouTube using YTPlayerUtils
             val playbackData = YTPlayerUtils.playerResponseForPlayback(
                 videoId = song.id,
@@ -280,9 +272,6 @@ constructor(
             try {
                 // Download to temp file
                 downloadFile(downloadUrl, tempFile, song.id)
-
-                // Verify temp file was created
-                Timber.d("Temp file created: ${tempFile.exists()}, size: ${tempFile.length()} bytes, path: ${tempFile.absolutePath}")
 
                 if (!tempFile.exists() || tempFile.length() == 0L) {
                     throw Exception("Download failed - temp file not created or empty")
@@ -322,8 +311,6 @@ constructor(
 
                     // Update database with MediaStore URI
                     markSongAsDownloaded(song.id, uri.toString())
-
-                    Timber.d("Download completed: ${song.song.title} -> $uri")
                 } else {
                     throw Exception("Failed to save file to MediaStore")
                 }
@@ -335,13 +322,9 @@ constructor(
             }
 
         } catch (e: Exception) {
-            Timber.e(e, "[Download] Download failed for ${song.song.title} (attempt ${retryAttempt + 1}/${MAX_RETRY_ATTEMPTS}) - error: ${e.message} - type: ${e.javaClass.simpleName} - thread: ${Thread.currentThread().name}")
-            Timber.e("[Download] Error details: ${e.javaClass.simpleName}")
-
             // Retry logic with exponential backoff
             if (retryAttempt < MAX_RETRY_ATTEMPTS) {
                 val delayMs: Long = (INITIAL_RETRY_DELAY_MS * RETRY_BACKOFF_MULTIPLIER.pow(retryAttempt)).toLong()
-                Timber.d("Retrying download in ${delayMs}ms...")
 
                 updateDownloadState(
                     song.id,
@@ -385,7 +368,6 @@ constructor(
 
         val response = httpClient.newCall(request).execute()
         val responseCode = response.code
-        Timber.d("Download HTTP response: $responseCode for songId: $songId")
 
         if (!response.isSuccessful) {
             response.close()
@@ -394,7 +376,6 @@ constructor(
 
         val body = response.body ?: throw Exception("Empty response body")
         val contentLength = body.contentLength().coerceAtLeast(0)
-        Timber.d("Download content length: $contentLength bytes")
         var totalBytesRead = 0L
 
         body.byteStream().use { input ->
@@ -423,8 +404,6 @@ constructor(
                 }
             }
         }
-
-        Timber.d("Download completed: $totalBytesRead bytes written to ${outputFile.absolutePath}")
     }
 
     /**

@@ -18,7 +18,6 @@ import android.media.audiofx.AudioEffect
 import android.media.audiofx.LoudnessEnhancer
 import android.net.ConnectivityManager
 import android.os.Binder
-import android.util.Log
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import androidx.datastore.preferences.core.edit
@@ -145,7 +144,6 @@ import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
-import timber.log.Timber
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.util.concurrent.Executor
@@ -240,7 +238,6 @@ class MusicService :
         // CRITICAL: Must call startForeground() immediately to avoid ANR when startForegroundService() is used
         // This MUST happen before any other heavy initialization
         runCatching { ensureForegroundService() }
-            .onFailure { Timber.e(it, "[ServiceLifecycle] MusicService.onCreate() - failed to start foreground service immediately - may cause ANR - thread: ${Thread.currentThread().name}") }
 
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider(
@@ -304,10 +301,8 @@ class MusicService :
         val sessionToken = SessionToken(this, ComponentName(this, MusicService::class.java))
         scope.launch(Dispatchers.Default) {
             try {
-                val controller = MediaController.Builder(this@MusicService, sessionToken).buildAsync().get()
-                Timber.d("[MediaSession] MediaController initialized - thread: ${Thread.currentThread().name}")
+                MediaController.Builder(this@MusicService, sessionToken).buildAsync().get()
             } catch (e: Exception) {
-                Timber.e(e, "[MediaSession] Failed to initialize MediaController - notification controls may not work - thread: ${Thread.currentThread().name}")
             }
         }
 
@@ -450,10 +445,8 @@ class MusicService :
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Timber.d("[ServiceLifecycle] MusicService.onStartCommand() called - ensuring foreground notification - intent: ${intent?.action} - thread: ${Thread.currentThread().name}")
         // CRITICAL: Must call startForeground() immediately to avoid ANR when startForegroundService() is used
         runCatching { ensureForegroundService() }
-            .onFailure { Timber.e(it, "[ServiceLifecycle] MusicService.onStartCommand() - failed to start foreground service - may cause ANR/crash - thread: ${Thread.currentThread().name}") }
         return super.onStartCommand(intent, flags, startId)
     }
 
@@ -462,13 +455,10 @@ class MusicService :
 
         // Check POST_NOTIFICATIONS permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (androidx.core.content.ContextCompat.checkSelfPermission(
+            androidx.core.content.ContextCompat.checkSelfPermission(
                     this,
                     android.Manifest.permission.POST_NOTIFICATIONS
-                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
-            ) {
-                Timber.w("POST_NOTIFICATIONS permission not granted - notification may not show")
-            }
+                )
         }
 
         // Create notification channel if needed
@@ -512,7 +502,6 @@ class MusicService :
             }
             hasStartedForeground = true
         }.onFailure {
-            Timber.e(it, "[ServiceLifecycle] Failed to start foreground notification")
             hasStartedForeground = false
         }
     }
@@ -984,7 +973,6 @@ class MusicService :
         val audioSessionId = player.audioSessionId
 
         if (audioSessionId == C.AUDIO_SESSION_ID_UNSET || audioSessionId <= 0) {
-            Log.w(TAG, "setupLoudnessEnhancer: invalid audioSessionId ($audioSessionId), cannot create effect yet")
             return
         }
 
@@ -992,7 +980,6 @@ class MusicService :
         if (loudnessEnhancer == null) {
             try {
                 loudnessEnhancer = LoudnessEnhancer(audioSessionId)
-                Log.d(TAG, "LoudnessEnhancer created for sessionId=$audioSessionId")
             } catch (e: Exception) {
                 reportException(e)
                 loudnessEnhancer = null
@@ -1024,20 +1011,17 @@ class MusicService :
                             try {
                                 loudnessEnhancer?.setTargetGain(clampedGain)
                                 loudnessEnhancer?.enabled = true
-                                Log.d(TAG, "LoudnessEnhancer gain applied: $clampedGain mB")
                             } catch (e: Exception) {
                                 reportException(e)
                                 releaseLoudnessEnhancer()
                             }
                         } else {
                             loudnessEnhancer?.enabled = false
-                            Log.w(TAG, "setupLoudnessEnhancer: loudnessDb is null, enhancer disabled")
                         }
                     }
                 } else {
                     withContext(Dispatchers.Main) {
                         loudnessEnhancer?.enabled = false
-                        Log.d(TAG, "setupLoudnessEnhancer: normalization disabled or mediaId unavailable")
                     }
                 }
             } catch (e: Exception) {
@@ -1051,10 +1035,8 @@ class MusicService :
     private fun releaseLoudnessEnhancer() {
         try {
             loudnessEnhancer?.release()
-            Log.d(TAG, "LoudnessEnhancer released")
         } catch (e: Exception) {
             reportException(e)
-            Log.e(TAG, "Error releasing LoudnessEnhancer: ${e.message}")
         } finally {
             loudnessEnhancer = null
         }
@@ -1253,7 +1235,6 @@ class MusicService :
             }
 
             if (song?.song?.mediaStoreUri != null) {
-                Timber.d("Playing from MediaStore: ${song.song.mediaStoreUri}")
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                 return@Factory dataSpec.withUri(song.song.mediaStoreUri.toUri())
             }
@@ -1314,10 +1295,7 @@ class MusicService :
             run {
                 val format = nonNullPlayback.format
 
-                val contentLength = format.contentLength ?: run {
-                    Timber.w("Content length unavailable for mediaId=$mediaId, using -1")
-                    -1L
-                }
+                val contentLength = format.contentLength ?: -1L
                 database.query {
                     upsert(
                         FormatEntity(
