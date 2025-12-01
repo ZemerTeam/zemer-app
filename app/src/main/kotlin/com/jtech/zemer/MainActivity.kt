@@ -164,9 +164,9 @@ import com.jtech.zemer.ui.component.rememberBottomSheetState
 import com.jtech.zemer.ui.component.shimmer.ShimmerTheme
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.player.BottomSheetPlayer
-import com.jtech.zemer.ui.screens.LoadingScreen
 import com.jtech.zemer.ui.screens.OnboardingFlow
 import com.jtech.zemer.ui.screens.Screens
+import com.jtech.zemer.ui.screens.SplashScreen
 import com.jtech.zemer.ui.screens.navigationBuilder
 import com.jtech.zemer.ui.screens.search.OnlineSearchScreen
 import com.jtech.zemer.ui.screens.settings.DarkMode
@@ -567,12 +567,12 @@ class MainActivity : ComponentActivity() {
                     }
 
                     if (!initialSyncHandled && !syncProgress.isComplete && !skipSplash) {
-                        LoadingScreen(
-                            onFinished = {
+                        SplashScreen(
+                            syncProgress = syncProgress,
+                            onSkip = {
                                 setSkipSplash(true)
                                 setInitialSyncHandled(true)
-                            },
-                            shouldStartSync = false
+                            }
                         )
                         return@BoxWithConstraints
                     }
