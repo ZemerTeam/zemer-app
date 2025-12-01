@@ -48,7 +48,7 @@ private fun List<Track>.findBestMatch(trackName: String, artistName: String): Tr
     val normalizedArtistName = artistName.trim().lowercase()
     
     return maxByOrNull { track ->
-        var score = 0.0
+        var score: Double
 
         val trackNameSimilarity = calculateSimilarity(
             normalizedTrackName, 

@@ -1,24 +1,22 @@
 package com.metrolist.innertube
 
 import com.metrolist.innertube.models.AccountInfo
-import com.metrolist.innertube.models.YTItem
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.BrowseEndpoint
 import com.metrolist.innertube.models.GridRenderer
 import com.metrolist.innertube.models.MediaInfo
-import com.metrolist.innertube.models.MusicResponsiveListItemRenderer
-import com.metrolist.innertube.models.MusicTwoRowItemRenderer
 import com.metrolist.innertube.models.MusicCarouselShelfRenderer
+import com.metrolist.innertube.models.MusicResponsiveListItemRenderer
 import com.metrolist.innertube.models.MusicShelfRenderer
+import com.metrolist.innertube.models.MusicTwoRowItemRenderer
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SearchSuggestions
-import com.metrolist.innertube.models.Run
-import com.metrolist.innertube.models.Runs
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
+import com.metrolist.innertube.models.YTItem
 import com.metrolist.innertube.models.YouTubeClient
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
@@ -42,8 +40,8 @@ import com.metrolist.innertube.pages.AlbumPage
 import com.metrolist.innertube.pages.ArtistItemsContinuationPage
 import com.metrolist.innertube.pages.ArtistItemsPage
 import com.metrolist.innertube.pages.ArtistPage
-import com.metrolist.innertube.pages.ChartsPage
 import com.metrolist.innertube.pages.BrowseResult
+import com.metrolist.innertube.pages.ChartsPage
 import com.metrolist.innertube.pages.ExplorePage
 import com.metrolist.innertube.pages.HistoryPage
 import com.metrolist.innertube.pages.HomePage
@@ -64,12 +62,7 @@ import com.metrolist.innertube.pages.SearchSummaryPage
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonPrimitive
 import java.net.Proxy
 import kotlin.random.Random
 
@@ -435,7 +428,7 @@ object YouTube {
                 songCountText = header.secondSubtitle?.runs?.firstOrNull()?.text,
                 thumbnail = header.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.lastOrNull()?.url!!,
                 playEndpoint = null,
-                shuffleEndpoint = header.buttons?.lastOrNull()?.menuRenderer?.items?.firstOrNull()?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint!!,
+                shuffleEndpoint = header.buttons.lastOrNull()?.menuRenderer?.items?.firstOrNull()?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint!!,
                 radioEndpoint = header.buttons.getOrNull(2)?.menuRenderer?.items?.find {
                     it.menuNavigationItemRenderer?.icon?.iconType == "MIX"
                 }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint,
@@ -515,7 +508,7 @@ object YouTube {
             .mapNotNull {
                 HomePage.Section.fromMusicCarouselShelfRenderer(it)
             }.toMutableList()
-        val chips = sectionListRender?.header?.chipCloudRenderer?.chips?.mapNotNull { HomePage.Chip.fromChipCloudChipRenderer(it) }
+        val chips = sectionListRender.header?.chipCloudRenderer?.chips?.mapNotNull { HomePage.Chip.fromChipCloudChipRenderer(it) }
         HomePage(chips, sections, continuation)
     }
 
@@ -722,7 +715,7 @@ object YouTube {
                                 convertMusicTwoRowItem(item.musicTwoRowItemRenderer)
                             else -> null
                         }
-                    }.filterNotNull()
+                    }
                 
                     if (items.isNotEmpty()) {
                         sections.add(
@@ -743,7 +736,7 @@ object YouTube {
                         item.musicTwoRowItemRenderer?.let { renderer ->
                             convertMusicTwoRowItem(renderer)
                         }
-                    }.filterNotNull()
+                    }
                 
                     if (items.isNotEmpty()) {
                         sections.add(
@@ -1081,17 +1074,19 @@ object YouTube {
         }!!
     }
 
-    suspend fun visitorData(): Result<String> = runCatching {
-        Json.parseToJsonElement(innerTube.getSwJsData().bodyAsText().substring(5))
-            .jsonArray[0]
-            .jsonArray[2]
-            .jsonArray.first {
-                (it as? JsonPrimitive)?.contentOrNull?.let { candidate ->
-                    VISITOR_DATA_REGEX.containsMatchIn(candidate)
-                } ?: false
-            }
-            .jsonPrimitive.content
-    }
+// --Commented out by Inspection START (12/1/25, 12:23 PM):
+//    suspend fun visitorData(): Result<String> = runCatching {
+//        Json.parseToJsonElement(innerTube.getSwJsData().bodyAsText().substring(5))
+//            .jsonArray[0]
+//            .jsonArray[2]
+//            .jsonArray.first {
+//                (it as? JsonPrimitive)?.contentOrNull?.let { candidate ->
+//                    VISITOR_DATA_REGEX.containsMatchIn(candidate)
+//                } ?: false
+//            }
+//            .jsonPrimitive.content
+//    }
+// --Commented out by Inspection STOP (12/1/25, 12:23 PM)
 
     suspend fun accountInfo(): Result<AccountInfo> = runCatching {
         innerTube.accountMenu(WEB_REMIX).body<AccountMenuResponse>()
