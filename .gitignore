@@ -104,3 +104,17 @@ core.*
 /ANR_FIX_SUMMARY.md
 /ANR_ROOT_CAUSE.md
 /POLISH_PLAN.md
+/tmp/artists_whitelist_after.json
+/tmp/artists_whitelist_after_chasid.json
+/tmp/artists_whitelist_after_genz.json
+/tmp/artists_whitelist_after_verify.json
+/tmp/artists_whitelist_dump.json
+/tmp/chassidish_candidates.txt
+/tmp/chassidish_candidates_high_conf.txt
+/tmp/chassidish_candidates_trimmed.txt
+/app/src/main/kotlin/com/jtech/zemer/utils/ContentFilterConfig.kt
+/tmp/female_candidates.txt
+/tmp/first_tokens.txt
+/tmp/genz_false_candidates.txt
+/tmp/genz_true_candidates.txt
+/tmp/names_sorted.txt
