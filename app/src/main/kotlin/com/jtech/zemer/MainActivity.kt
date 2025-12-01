@@ -433,20 +433,26 @@ class MainActivity : ComponentActivity() {
                             Updater.getLatestUpdate().onSuccess { info ->
                                 latestVersionName = info.versionName
                                 if (info.versionName != BuildConfig.VERSION_NAME && notifEnabled) {
+                                    if (!hasNotificationPermission(this@MainActivity)) return@onSuccess
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl))
 
                                     val flags = PendingIntent.FLAG_UPDATE_CURRENT or
                                         (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
                                     val pending = PendingIntent.getActivity(this@MainActivity, 1001, intent, flags)
 
-                                    val notif = NotificationCompat.Builder(this@MainActivity, "updates")
-                                        .setSmallIcon(R.drawable.update)
-                                        .setContentTitle(getString(R.string.update_available_title))
-                                        .setContentText(info.versionName)
-                                        .setContentIntent(pending)
-                                        .setAutoCancel(true)
-                                        .build()
-                                    NotificationManagerCompat.from(this@MainActivity).notify(1001, notif)
+                                    @SuppressLint("MissingPermission")
+                                    run {
+                                        val notif = NotificationCompat.Builder(this@MainActivity, "updates")
+                                            .setSmallIcon(R.drawable.update)
+                                            .setContentTitle(getString(R.string.update_available_title))
+                                            .setContentText(info.versionName)
+                                            .setContentIntent(pending)
+                                            .setAutoCancel(true)
+                                            .build()
+                                        runCatching {
+                                            NotificationManagerCompat.from(this@MainActivity).notify(1001, notif)
+                                        }
+                                    }
                                 }
                             }
                         }

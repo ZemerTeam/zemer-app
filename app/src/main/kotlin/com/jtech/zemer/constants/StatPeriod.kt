@@ -4,6 +4,7 @@ import com.jtech.zemer.ui.screens.OptionStats
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
+@Suppress("REDUNDANT_ELSE_IN_WHEN")
 enum class StatPeriod {
     WEEK_1,
     MONTH_1,
@@ -50,10 +51,11 @@ enum class StatPeriod {
                     .toInstant(ZoneOffset.UTC)
                     .toEpochMilli()
 
-            ALL -> 0
+            ALL -> 0L
         }
 }
 
+@Suppress("unused")
 fun statToPeriod(
     selection: OptionStats,
     test: Int,

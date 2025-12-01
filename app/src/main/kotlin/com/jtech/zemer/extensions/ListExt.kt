@@ -1,7 +1,7 @@
 package com.jtech.zemer.extensions
 
-import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.db.entities.Album
+import com.jtech.zemer.db.entities.Song
 
 fun <T> List<T>.reversed(reversed: Boolean) = if (reversed) asReversed() else this
 
@@ -13,6 +13,7 @@ fun <T> MutableList<T>.move(
     return this
 }
 
+@Suppress("unused")
 fun <T : Any> List<T>.mergeNearbyElements(
     key: (T) -> Any = { it },
     merge: (first: T, second: T) -> T = { first, _ -> first },

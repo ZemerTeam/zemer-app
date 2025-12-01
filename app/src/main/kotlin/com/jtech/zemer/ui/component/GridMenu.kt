@@ -1,3 +1,5 @@
+@file:Suppress("unused", "FunctionName")
+
 package com.jtech.zemer.ui.component
 
 import androidx.annotation.DrawableRes
@@ -37,6 +39,7 @@ import com.jtech.zemer.utils.makeTimeString
 
 val GridMenuItemHeight = 108.dp
 
+@Suppress("unused")
 @Composable
 fun GridMenu(
     modifier: Modifier = Modifier,

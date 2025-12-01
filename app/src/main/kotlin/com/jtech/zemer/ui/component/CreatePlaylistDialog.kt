@@ -22,16 +22,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import com.metrolist.innertube.YouTube
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.R
-import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.constants.InnerTubeCookieKey
+import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.extensions.isSyncEnabled
 import com.jtech.zemer.utils.rememberPreference
+import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 import java.util.logging.Logger
 

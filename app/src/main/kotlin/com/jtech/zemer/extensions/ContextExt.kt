@@ -8,9 +8,9 @@ import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.get
 import com.metrolist.innertube.utils.parseCookieString
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 
 /**
  * WARNING: This function uses runBlocking() which blocks the calling thread.
@@ -36,6 +36,7 @@ fun Context.isSyncEnabled(): Boolean {
  * Emit true when sync is enabled and user is logged in.
  * Safe to use in Composables and Flows.
  */
+@Suppress("unused")
 fun Context.isSyncEnabledFlow(): Flow<Boolean> {
     return dataStore.data.map { prefs ->
         try {

@@ -1,6 +1,7 @@
 package com.dpi
 
 import android.app.Activity
+import android.annotation.SuppressLint
 import android.app.Application
 import android.os.Bundle
 import android.os.Handler
@@ -96,6 +97,7 @@ abstract class ActivityLifecycleManager : BaseLifecycleContentProvider() {
     companion object {
         private val TAG = ActivityLifecycleManager::class.java.simpleName
 
+        @SuppressLint("PrivateApi")
         private fun getApplication(): Application? {
             return try {
                 val activityThreadClass = Class.forName("android.app.ActivityThread")

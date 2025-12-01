@@ -1,6 +1,7 @@
 package com.jtech.zemer.ui.screens
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -743,6 +744,7 @@ private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
     return pm.isIgnoringBatteryOptimizations(context.packageName)
 }
 
+@SuppressLint("BatteryLife")
 private fun openBatterySettings(context: Context) {
     runCatching {
         val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {

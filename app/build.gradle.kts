@@ -102,6 +102,10 @@ android {
         warningsAsErrors = false
         abortOnError = false
         checkDependencies = false
+        disable += setOf(
+            "GradleDependency",
+            "NewerVersionAvailable"
+        )
     }
 
     androidResources {

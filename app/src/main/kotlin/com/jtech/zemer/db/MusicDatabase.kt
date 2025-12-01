@@ -16,7 +16,6 @@ import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
-import timber.log.Timber
 import com.jtech.zemer.db.entities.AlbumArtistMap
 import com.jtech.zemer.db.entities.AlbumEntity
 import com.jtech.zemer.db.entities.ArtistEntity
@@ -24,8 +23,8 @@ import com.jtech.zemer.db.entities.ArtistWhitelistEntity
 import com.jtech.zemer.db.entities.Event
 import com.jtech.zemer.db.entities.FormatEntity
 import com.jtech.zemer.db.entities.LyricsEntity
-import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.db.entities.PlayCountEntity
+import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.db.entities.PlaylistSongMapPreview
 import com.jtech.zemer.db.entities.RelatedSongMap
@@ -37,6 +36,7 @@ import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.db.entities.SortedSongAlbumMap
 import com.jtech.zemer.db.entities.SortedSongArtistMap
 import com.jtech.zemer.extensions.toSQLiteQuery
+import timber.log.Timber
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -135,7 +135,7 @@ abstract class InternalDatabase : RoomDatabase() {
                 Room
                     .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
                     .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28)
-                    .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
+                    .setJournalMode(JournalMode.TRUNCATE)
                     .enableMultiInstanceInvalidation()
                     .build().also {
                         Timber.d("MusicDatabase.build() completed in ${System.currentTimeMillis() - startTime}ms on thread ${Thread.currentThread().name}")
@@ -146,7 +146,7 @@ abstract class InternalDatabase : RoomDatabase() {
                     Room
                         .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
                         .fallbackToDestructiveMigration(dropAllTables = true)
-                        .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
+                        .setJournalMode(JournalMode.TRUNCATE)
                         .build().also {
                             Timber.w("Database recovered using destructive migration")
                         }

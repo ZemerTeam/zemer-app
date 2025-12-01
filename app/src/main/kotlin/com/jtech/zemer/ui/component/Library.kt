@@ -1,9 +1,9 @@
 package com.jtech.zemer.ui.component
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
@@ -11,18 +11,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.size.Scale
-import com.metrolist.innertube.models.PlaylistItem
-import com.metrolist.innertube.models.WatchEndpoint
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.db.entities.Album
@@ -32,6 +30,8 @@ import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.ArtistMenu
 import com.jtech.zemer.ui.menu.PlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
+import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.WatchEndpoint
 import kotlinx.coroutines.CoroutineScope
 
 @Composable
@@ -76,7 +76,7 @@ fun WhitelistedArtistListItem(
     coroutineScope: CoroutineScope,
     artist: Artist,
     onRequestThumb: () -> Unit = {},
-    modifier: Modifier = Modifier
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = ListItem(
     title = artist.artist.name,
     subtitle = "", // No song count for whitelisted artists
@@ -168,7 +168,7 @@ fun WhitelistedArtistGridItem(
     coroutineScope: CoroutineScope,
     artist: Artist,
     onRequestThumb: () -> Unit = {},
-    modifier: Modifier = Modifier
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = GridItem(
     title = artist.artist.name,
     subtitle = "", // No song count for whitelisted artists

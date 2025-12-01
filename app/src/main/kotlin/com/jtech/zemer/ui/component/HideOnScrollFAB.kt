@@ -84,6 +84,7 @@ fun BoxScope.HideOnScrollFAB(
     }
 }
 
+@Suppress("unused")
 @Composable
 fun BoxScope.HideOnScrollFAB(
     visible: Boolean = true,

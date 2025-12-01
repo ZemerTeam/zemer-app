@@ -1,3 +1,5 @@
+@file:Suppress("unused", "KDocUnresolvedReference")
+
 package com.jtech.zemer.lyrics
 
 import android.text.format.DateUtils
@@ -468,18 +470,23 @@ object LyricsUtils {
 
                     if (charIndex > 0 && word[charIndex - 1].isLetter() && !isCyrillicVowel(word[charIndex - 1])) {
                         // Check if the current character is Ю or Я and is preceded by a consonant
-                        if (charStr == "Ю") {
-                            romajiBuilder.append("Iu")
-                            processed = true
-                        } else if (charStr == "ю") {
-                            romajiBuilder.append("iu")
-                            processed = true
-                        } else if (charStr == "Я") {
-                            romajiBuilder.append("Ia")
-                            processed = true
-                        } else if (charStr == "я") {
-                            romajiBuilder.append("ia")
-                            processed = true
+                        when (charStr) {
+                            "Ю" -> {
+                                romajiBuilder.append("Iu")
+                                processed = true
+                            }
+                            "ю" -> {
+                                romajiBuilder.append("iu")
+                                processed = true
+                            }
+                            "Я" -> {
+                                romajiBuilder.append("Ia")
+                                processed = true
+                            }
+                            "я" -> {
+                                romajiBuilder.append("ia")
+                                processed = true
+                            }
                         }
                     }
 

@@ -4,8 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import android.app.ForegroundServiceStartNotAllowedException
-import android.content.Intent
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 
@@ -26,12 +24,12 @@ fun hasNotificationPermission(context: Context): Boolean {
 /**
  * Safely start a foreground service; returns false if system rejects it.
  */
-inline fun <reified T> Context.tryStartForegroundService(intent: Intent = Intent(this, T::class.java)): Boolean =
+inline fun <reified T> Context.tryStartForegroundService(intent: android.content.Intent = android.content.Intent(this, T::class.java)): Boolean =
     try {
         ContextCompat.startForegroundService(this, intent)
         true
-    } catch (e: ForegroundServiceStartNotAllowedException) {
-        false
     } catch (_: SecurityException) {
+        false
+    } catch (_: IllegalStateException) {
         false
     }

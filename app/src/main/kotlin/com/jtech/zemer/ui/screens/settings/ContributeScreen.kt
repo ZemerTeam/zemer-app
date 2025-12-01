@@ -104,6 +104,8 @@ fun ContributeScreen(
             } catch (e: GetCredentialCancellationException) {
                 // User cancelled; don't show an error, just stay idle
                 viewModel.setError(null)
+            } catch (e: androidx.credentials.exceptions.NoCredentialException) {
+                viewModel.setError(null)
             } catch (e: GetCredentialException) {
                 viewModel.setError(e.localizedMessage ?: "Google sign-in failed.")
             } catch (e: Exception) {

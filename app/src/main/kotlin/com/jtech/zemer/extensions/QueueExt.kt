@@ -1,11 +1,14 @@
 package com.jtech.zemer.extensions
 
+import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.PersistQueue
 import com.jtech.zemer.models.QueueData
 import com.jtech.zemer.models.QueueType
-import com.jtech.zemer.models.MediaMetadata
-import com.jtech.zemer.playback.queues.*
-import com.jtech.zemer.db.entities.AlbumEntity
+import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.playback.queues.LocalAlbumRadio
+import com.jtech.zemer.playback.queues.Queue
+import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
+import com.jtech.zemer.playback.queues.YouTubeQueue
 
 fun Queue.toPersistQueue(
     title: String?,

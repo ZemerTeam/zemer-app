@@ -2,11 +2,13 @@ package com.jtech.zemer.accessibility
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.annotation.SuppressLint
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import com.jtech.zemer.utils.ButtonInputCapture
 import com.jtech.zemer.utils.ButtonMapperBridge
 
+@SuppressLint("AccessibilityPolicy")
 class ButtonMapperAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()

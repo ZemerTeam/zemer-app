@@ -1,28 +1,21 @@
+@file:Suppress("unused")
+
 package com.jtech.zemer.lyrics
 
 import android.content.Context
 import android.util.LruCache
-import com.jtech.zemer.constants.PreferredLyricsProvider
-import com.jtech.zemer.constants.PreferredLyricsProviderKey
 import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
-import com.jtech.zemer.extensions.toEnum
-import com.jtech.zemer.models.MediaMetadata
-import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.reportException
-import com.jtech.zemer.utils.NetworkConnectivityObserver
 import com.jtech.zemer.lyrics.model.LyricsUnavailableException
+import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.utils.NetworkConnectivityObserver
+import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class LyricsHelper
@@ -53,7 +46,7 @@ constructor(
         // Use synchronous check as fallback if flow doesn't emit
         val isNetworkAvailable = try {
             networkConnectivity.isCurrentlyConnected()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // If network check fails, try to proceed anyway
             true
         }
@@ -117,7 +110,7 @@ constructor(
         // Use synchronous check as fallback if flow doesn't emit
         val isNetworkAvailable = try {
             networkConnectivity.isCurrentlyConnected()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // If network check fails, try to proceed anyway
             true
         }

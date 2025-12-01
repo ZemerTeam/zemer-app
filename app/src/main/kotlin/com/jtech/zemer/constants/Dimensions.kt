@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.jtech.zemer.constants
 
 import androidx.compose.animation.core.Spring
@@ -33,4 +35,5 @@ val PlayerHorizontalPadding = 32.dp
 
 val NavigationBarAnimationSpec = spring<Dp>(stiffness = Spring.StiffnessMediumLow)
 val BottomSheetAnimationSpec = spring<Dp>(stiffness = Spring.StiffnessMediumLow)
+@Suppress("unused")
 val BottomSheetSoftAnimationSpec = spring<Dp>(stiffness = Spring.StiffnessLow)

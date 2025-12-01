@@ -22,7 +22,7 @@ fun reportException(throwable: Throwable, context: String? = null) {
     throwable.printStackTrace()
 }
 
-@Suppress("DEPRECATION")
+@Suppress("DEPRECATION", "AppBundleLocaleChanges")
 fun setAppLocale(context: Context, locale: Locale) {
     val config = Configuration(context.resources.configuration)
     config.setLocale(locale)

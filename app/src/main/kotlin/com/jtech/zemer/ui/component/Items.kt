@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.jtech.zemer.ui.component
 
 import android.annotation.SuppressLint
@@ -12,7 +14,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -34,25 +38,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.border
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.rememberSwipeToDismissBoxState
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -60,12 +59,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -78,52 +76,46 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.zIndex
-import androidx.core.graphics.drawable.toBitmapOrNull
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.Download.STATE_COMPLETED
 import androidx.media3.exoplayer.offline.Download.STATE_DOWNLOADING
 import androidx.media3.exoplayer.offline.Download.STATE_QUEUED
 import coil3.compose.AsyncImage
-import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.AlbumItem
-import com.metrolist.innertube.models.ArtistItem
-import com.metrolist.innertube.models.PlaylistItem
-import com.metrolist.innertube.models.YTItem
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
-import com.jtech.zemer.constants.HideExplicitKey
-import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.constants.GridThumbnailHeight
+import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.constants.ListThumbnailSize
-import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.constants.SwipeToSongKey
-import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.Album
-import com.jtech.zemer.db.entities.AlbumEntity
 import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.db.entities.Playlist
+import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.queues.LocalAlbumRadio
-import com.jtech.zemer.ui.theme.extractThemeColor
 import com.jtech.zemer.ui.utils.resize
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.reportException
+import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.AlbumItem
+import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.SongItem
+import com.metrolist.innertube.models.YTItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.logging.Logger
 import kotlin.math.roundToInt
 
 const val ActiveBoxAlpha = 0.6f
@@ -504,11 +496,11 @@ fun AlbumListItem(
     album: Album,
     modifier: Modifier = Modifier,
     showLikedIcon: Boolean = true,
-    badges: @Composable RowScope.() -> Unit = {
+    @SuppressLint("AutoboxingStateCreation") badges: @Composable RowScope.() -> Unit = {
         val downloadUtil = LocalDownloadUtil.current
         val database = LocalDatabase.current
 
-        val songs by produceState<List<Song>>(initialValue = emptyList(), album.id) {
+        val songs by produceState(initialValue = emptyList(), album.id) {
             withContext(Dispatchers.IO) {
                 value = database.albumSongs(album.id).first()
             }
@@ -571,7 +563,7 @@ fun AlbumGridItem(
         val downloadUtil = LocalDownloadUtil.current
         val database = LocalDatabase.current
 
-        val songs by produceState<List<Song>>(initialValue = emptyList(), album.id) {
+        val songs by produceState(initialValue = emptyList(), album.id) {
             withContext(Dispatchers.IO) {
                 value = database.albumSongs(album.id).first()
             }
@@ -580,7 +572,7 @@ fun AlbumGridItem(
         val allDownloads by downloadUtil.downloads.collectAsState()
 
         val downloadState by remember(songs, allDownloads) {
-            mutableStateOf(
+            mutableIntStateOf(
                 if (songs.isEmpty()) {
                     Download.STATE_STOPPED
                 } else {
@@ -1007,7 +999,7 @@ fun LocalSongsGrid(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
-    modifier: Modifier = Modifier
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = GridItem(
     title = title,
     subtitle = subtitle,
@@ -1036,7 +1028,7 @@ fun LocalArtistsGrid(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
-    modifier: Modifier = Modifier
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = GridItem(
     title = title,
     subtitle = subtitle,
@@ -1065,7 +1057,7 @@ fun LocalAlbumsGrid(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
-    modifier: Modifier = Modifier
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = GridItem(
     title = title,
     subtitle = subtitle,
@@ -1441,7 +1433,7 @@ fun SwipeToSongBox(
     val threshold = 300f
 
     val dragState = rememberDraggableState { delta ->
-        offset.value = (offset.value + delta).coerceIn(-threshold, threshold)
+        offset.floatValue = (offset.floatValue + delta).coerceIn(-threshold, threshold)
     }
 
     Box(
@@ -1452,13 +1444,13 @@ fun SwipeToSongBox(
                 state = dragState,
                 onDragStopped = {
                     when {
-                        offset.value >= threshold -> {
+                        offset.floatValue >= threshold -> {
                             player?.playNext(listOf(mediaItem))
                             Toast.makeText(ctx, R.string.play_next, Toast.LENGTH_SHORT).show()
                             reset(offset, scope)
                         }
 
-                        offset.value <= -threshold -> {
+                        offset.floatValue <= -threshold -> {
                             player?.addToQueue(listOf(mediaItem))
                             Toast.makeText(ctx, R.string.add_to_queue, Toast.LENGTH_SHORT).show()
                             reset(offset, scope)
@@ -1469,8 +1461,8 @@ fun SwipeToSongBox(
                 }
             )
     ) {
-        if (offset.value != 0f) {
-            val (iconRes, bg, tint, align) = if (offset.value > 0)
+        if (offset.floatValue != 0f) {
+            val (iconRes, bg, tint, align) = if (offset.floatValue > 0)
                 Quadruple(
                     R.drawable.playlist_play,
                     MaterialTheme.colorScheme.secondary,
@@ -1506,7 +1498,7 @@ fun SwipeToSongBox(
 
         Box(
             modifier = Modifier
-                .offset { IntOffset(offset.value.roundToInt(), 0) }
+                .offset { IntOffset(offset.floatValue.roundToInt(), 0) }
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface),
             content = content

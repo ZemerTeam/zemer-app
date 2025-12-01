@@ -10,7 +10,7 @@ inline fun <reified T : Enum<T>> String?.toEnum(defaultValue: T): T =
     } else {
         try {
             enumValueOf(this)
-        } catch (e: IllegalArgumentException) {
+        } catch (_: IllegalArgumentException) {
             defaultValue
         }
     }

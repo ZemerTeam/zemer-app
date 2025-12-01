@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.jtech.zemer.constants
 
 import androidx.datastore.preferences.core.booleanPreferencesKey

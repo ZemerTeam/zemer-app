@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.jtech.zemer.db.entities
 
 import androidx.compose.runtime.Immutable
@@ -10,7 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
-import kotlin.random.Random
 
 @Immutable
 @Entity(tableName = "artist")
