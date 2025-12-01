@@ -64,6 +64,7 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.playback.MediaStoreDownloadManager
 import com.jtech.zemer.ui.component.BigSeekBar
 import com.jtech.zemer.ui.component.BottomSheetState
 import com.jtech.zemer.ui.component.ListDialog
@@ -95,6 +96,9 @@ fun PlayerMenu(
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
     val coroutineScope = rememberCoroutineScope()
     val downloadUtil = LocalDownloadUtil.current
+
+    val mediaStoreDownload by downloadUtil.getMediaStoreDownload(mediaMetadata.id)
+        .collectAsState(initial = null)
 
     val download by downloadUtil.getDownload(mediaMetadata.id)
         .collectAsState(initial = null)
@@ -308,8 +312,8 @@ fun PlayerMenu(
             }
         }
         item {
-            when (download?.state) {
-                Download.STATE_COMPLETED -> {
+            when (mediaStoreDownload?.status) {
+                MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> {
                     ListItem(
                         headlineContent = {
                             Text(
@@ -319,54 +323,105 @@ fun PlayerMenu(
                         },
                         leadingContent = {
                             Icon(
-                        painter = painterResource(R.drawable.offline),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    coroutineScope.launch {
-                        downloadUtil.removeDownload(mediaMetadata.id)
-                    }
-                }
-            )
-        }
-        Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.downloading)) },
-                leadingContent = {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp
-                    )
-                },
-                modifier = Modifier.clickable {
-                    coroutineScope.launch {
-                        downloadUtil.removeDownload(mediaMetadata.id)
-                    }
-                }
-            )
-        }
-        else -> {
-            ListItem(
-                        headlineContent = { Text(text = stringResource(R.string.action_download)) },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.download),
+                                painter = painterResource(R.drawable.offline),
                                 contentDescription = null,
                             )
                         },
                         modifier = Modifier.clickable {
-                            coroutineScope.launch(Dispatchers.IO) {
-                                database.transaction {
-                                    insert(mediaMetadata)
-                                }
-                                val song = database.song(mediaMetadata.id).first()
-                                song?.let {
-                                    downloadUtil.downloadToMediaStore(it)
-                                }
+                            coroutineScope.launch {
+                                downloadUtil.removeDownload(mediaMetadata.id)
                             }
                         }
                     )
+                }
+
+                MediaStoreDownloadManager.DownloadState.Status.QUEUED,
+                MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING -> {
+                    val progress = mediaStoreDownload?.progress ?: 0f
+                    ListItem(
+                        headlineContent = { Text(text = stringResource(R.string.downloading)) },
+                        supportingContent = { Text(text = "${(progress * 100).toInt()}%") },
+                        leadingContent = {
+                            CircularProgressIndicator(
+                                progress = { progress.coerceIn(0f, 1f) },
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        },
+                        modifier = Modifier.clickable {
+                            coroutineScope.launch {
+                                downloadUtil.cancelMediaStoreDownload(mediaMetadata.id)
+                            }
+                        }
+                    )
+                }
+
+                MediaStoreDownloadManager.DownloadState.Status.FAILED,
+                MediaStoreDownloadManager.DownloadState.Status.CANCELLED,
+                null -> {
+                    when (download?.state) {
+                        Download.STATE_COMPLETED -> {
+                            ListItem(
+                                headlineContent = {
+                                    Text(
+                                        text = stringResource(R.string.remove_download),
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                leadingContent = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.offline),
+                                        contentDescription = null,
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    coroutineScope.launch {
+                                        downloadUtil.removeDownload(mediaMetadata.id)
+                                    }
+                                }
+                            )
+                        }
+
+                        Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
+                            ListItem(
+                                headlineContent = { Text(text = stringResource(R.string.downloading)) },
+                                leadingContent = {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    coroutineScope.launch {
+                                        downloadUtil.removeDownload(mediaMetadata.id)
+                                    }
+                                }
+                            )
+                        }
+
+                        else -> {
+                            ListItem(
+                                headlineContent = { Text(text = stringResource(R.string.action_download)) },
+                                leadingContent = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.download),
+                                        contentDescription = null,
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        database.transaction {
+                                            insert(mediaMetadata)
+                                        }
+                                        val song = database.song(mediaMetadata.id).first()
+                                        song?.let {
+                                            downloadUtil.downloadToMediaStore(it)
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
