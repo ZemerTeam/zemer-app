@@ -604,21 +604,21 @@ fun SongMenu(
                         headlineContent = { Text(text = stringResource(R.string.download_to_device)) },
                         leadingContent = {
                             Icon(
-                                painter = painterResource(R.drawable.download),
-                                contentDescription = null,
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            if (PermissionHelper.hasMediaStoreWritePermission(context)) {
-                                downloadUtil.downloadToMediaStore(song)
-                                onDismiss()
-                            } else {
-                                val permissions = PermissionHelper.getRequiredWritePermissions()
-                                permissionLauncher.launch(permissions)
-                            }
-                        }
+                        painter = painterResource(R.drawable.download),
+                        contentDescription = null,
                     )
+                },
+                modifier = Modifier.clickable {
+                    if (PermissionHelper.hasMediaStoreWritePermission(context)) {
+                        downloadUtil.downloadToMediaStore(song)
+                        onDismiss()
+                    } else {
+                        val permissions = PermissionHelper.getRequiredWritePermissions()
+                        permissionLauncher.launch(permissions)
+                    }
                 }
+            )
+        }
             }
         }
         item {

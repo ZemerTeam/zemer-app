@@ -1,11 +1,13 @@
 package com.jtech.zemer.utils
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import timber.log.Timber
 
@@ -239,5 +241,16 @@ object PermissionHelper {
                 "This app needs storage permissions to download and save music to your device."
             }
         }
+    }
+
+    /**
+     * Request storage permission directly from an Activity context.
+     * Returns true if already granted; false if a permission request was started or not possible.
+     */
+    fun requestMediaStorePermissionIfNeeded(context: Context): Boolean {
+        if (hasMediaStoreWritePermission(context)) return true
+        val activity = context as? Activity ?: return false
+        ActivityCompat.requestPermissions(activity, getRequiredWritePermissions(), 2001)
+        return false
     }
 }

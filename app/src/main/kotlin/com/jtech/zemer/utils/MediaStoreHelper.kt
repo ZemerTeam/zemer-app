@@ -107,6 +107,8 @@ class MediaStoreHelper(private val context: Context) {
 
             // Write the actual file content
             contentResolver.openOutputStream(audioUri)?.use { outputStream ->
+                inputStream.copyTo(outputStream)
+                outputStream.flush()
             } ?: run {
                 contentResolver.delete(audioUri, null, null)
                 return@withContext null

@@ -17,7 +17,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.debounce
@@ -39,9 +39,10 @@ class MediaStoreDownloadService : Service() {
     @Inject
     lateinit var database: com.jtech.zemer.db.MusicDatabase
 
-    private val scope = CoroutineScope(Dispatchers.Main + Job())
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var notificationManager: NotificationManager
     private var hasStartedForeground = false
+    private var lastCompletedCount = 0
 
     companion object {
         private const val NOTIFICATION_CHANNEL_ID = "mediastore_download"
@@ -156,7 +157,23 @@ class MediaStoreDownloadService : Service() {
             it.status == MediaStoreDownloadManager.DownloadState.Status.QUEUED
         }
 
+        val completedCount = states.values.count { it.status == MediaStoreDownloadManager.DownloadState.Status.COMPLETED }
+
         if (activeDownloads.isEmpty()) {
+            if (completedCount > lastCompletedCount) {
+                notificationManager.notify(
+                    NOTIFICATION_ID,
+                    NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+                        .setContentTitle(getString(R.string.downloaded_songs))
+                        .setContentText(getString(R.string.download_complete))
+                        .setSmallIcon(R.drawable.download)
+                        .setAutoCancel(true)
+                        .setPriority(NotificationCompat.PRIORITY_LOW)
+                        .build()
+                )
+            }
+            lastCompletedCount = completedCount
+            stopSelf()
             return
         }
 

@@ -2,6 +2,7 @@ package com.jtech.zemer.playback
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.Uri
 import androidx.core.content.getSystemService
 import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.AudioQualityKey
@@ -218,6 +219,50 @@ constructor(
         }
     }
 
+    fun markPermissionMissing(songId: String) {
+        updateDownloadState(
+            songId,
+            DownloadState(
+                songId = songId,
+                status = DownloadState.Status.FAILED,
+                error = "Storage permission required"
+            )
+        )
+    }
+
+    /**
+     * Delete a downloaded song (or cancel and clear pending state) and remove it from MediaStore/DB.
+     */
+    suspend fun deleteDownloaded(songId: String) {
+        // Cancel active work and purge queue
+        activeDownloads[songId]?.cancel()
+        activeDownloads.remove(songId)
+        synchronized(downloadQueue) {
+            downloadQueue.removeAll { it.id == songId }
+        }
+
+        val song = database.song(songId).first()
+        val uriString = song?.song?.mediaStoreUri
+        if (uriString != null) {
+            runCatching { mediaStoreHelper.deleteFromMediaStore(Uri.parse(uriString)) }
+        }
+
+        song?.let {
+            database.query {
+                upsert(
+                    it.song.copy(
+                        isDownloaded = false,
+                        dateDownload = null,
+                        mediaStoreUri = null
+                    )
+                )
+            }
+        }
+
+        // Clear state entry
+        _downloadStates.value = _downloadStates.value - songId
+    }
+
     /**
      * Process the download queue
      */
@@ -271,7 +316,16 @@ constructor(
             val downloadUrl = playbackData.streamUrl
 
             // Create temporary file for download
-            val tempFile = File(context.cacheDir, "temp_${song.id}.${format.mimeType.substringAfter("/")}")
+            val mimeTypeRaw = format.mimeType.substringBefore(";").trim()
+            val extension = when {
+                mimeTypeRaw.contains("webm") -> "webm"
+                mimeTypeRaw.contains("mp4") -> "m4a"
+                mimeTypeRaw.contains("ogg") -> "ogg"
+                mimeTypeRaw.contains("opus") -> "opus"
+                mimeTypeRaw.contains("mpeg") -> "mp3"
+                else -> mimeTypeRaw.substringAfterLast("/")
+            }
+            val tempFile = File(context.cacheDir, "temp_${song.id}.$extension")
 
             try {
                 // Download to temp file
@@ -285,9 +339,7 @@ constructor(
                 val title = song.song.title
                 val artist = song.artists.firstOrNull()?.name ?: "Unknown Artist"
                 val album = song.album?.title
-                val duration = song.song.duration?.times(1000L) // Convert to milliseconds
-                // Force MP3 extension for MediaStore compatibility (Android doesn't support audio/webm)
-                val extension = "mp3"
+                val duration = song.song.duration.takeIf { it > 0 }?.times(1000L) // Convert to milliseconds
                 val mimeType = mediaStoreHelper.getMimeType(extension)
 
                 // Save to MediaStore
@@ -403,26 +455,29 @@ constructor(
 
                     // Throttle progress updates to avoid notification rate limiting
                     // Update at most every 250ms OR when progress changes by 2%+
-                    if (contentLength > 0) {
-                        val progress = totalBytesRead.toFloat() / contentLength.toFloat()
-                        val currentTime = System.currentTimeMillis()
-                        val timeSinceLastUpdate = currentTime - lastProgressUpdate
-                        val progressDelta = progress - lastReportedProgress
+                    val currentTime = System.currentTimeMillis()
+                    val timeSinceLastUpdate = currentTime - lastProgressUpdate
 
-                        if (timeSinceLastUpdate >= PROGRESS_UPDATE_INTERVAL_MS || progressDelta >= PROGRESS_UPDATE_THRESHOLD) {
-                            lastProgressUpdate = currentTime
-                            lastReportedProgress = progress
-                            updateDownloadState(
-                                songId,
-                                DownloadState(
-                                    songId = songId,
-                                    status = DownloadState.Status.DOWNLOADING,
-                                    progress = progress,
-                                    bytesDownloaded = totalBytesRead,
-                                    totalBytes = contentLength.toLong()
-                                )
+                    val progress = if (contentLength > 0) {
+                        totalBytesRead.toFloat() / contentLength.toFloat()
+                    } else 0f
+                    val progressDelta = progress - lastReportedProgress
+
+                    if (timeSinceLastUpdate >= PROGRESS_UPDATE_INTERVAL_MS ||
+                        (contentLength > 0 && progressDelta >= PROGRESS_UPDATE_THRESHOLD)
+                    ) {
+                        lastProgressUpdate = currentTime
+                        lastReportedProgress = progress
+                        updateDownloadState(
+                            songId,
+                            DownloadState(
+                                songId = songId,
+                                status = DownloadState.Status.DOWNLOADING,
+                                progress = progress,
+                                bytesDownloaded = totalBytesRead,
+                                totalBytes = if (contentLength > 0) contentLength else totalBytesRead
                             )
-                        }
+                        )
                     }
                 }
             }

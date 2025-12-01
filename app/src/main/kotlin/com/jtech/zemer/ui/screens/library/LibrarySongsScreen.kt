@@ -1,5 +1,7 @@
 package com.jtech.zemer.ui.screens.library
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
@@ -62,6 +64,7 @@ import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.utils.ItemWrapper
+import com.jtech.zemer.utils.PermissionHelper
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.LibrarySongsViewModel
@@ -107,6 +110,16 @@ fun LibrarySongsScreen(
     val wrappedSongs = songs.map { item -> ItemWrapper(item) }.toMutableList()
     var selection by remember {
         mutableStateOf(false)
+    }
+
+    // Request storage permission when entering the Downloaded tab
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { }
+    LaunchedEffect(filter) {
+        if (filter == SongFilter.DOWNLOADED && !PermissionHelper.hasMediaStoreWritePermission(context)) {
+            permissionLauncher.launch(PermissionHelper.getRequiredWritePermissions())
+        }
     }
 
     val lazyListState = rememberLazyListState()

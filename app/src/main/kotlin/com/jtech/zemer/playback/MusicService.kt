@@ -476,11 +476,6 @@ class MusicService :
     private fun ensureForegroundService() {
         if (hasStartedForeground) return
 
-        if (!hasNotificationPermission(this)) {
-            // Cannot show notification -> avoid ANR by stopping service early
-            throw IllegalStateException("Notification permission missing for MusicService")
-        }
-
         // Create notification channel if needed
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (notificationManager.getNotificationChannel(CHANNEL_ID) == null) {

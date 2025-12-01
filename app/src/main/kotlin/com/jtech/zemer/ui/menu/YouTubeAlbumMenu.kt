@@ -54,7 +54,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
@@ -64,7 +63,6 @@ import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
-import com.jtech.zemer.playback.ExoDownloadService
 import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.ui.component.ListDialog
 import com.jtech.zemer.ui.component.NewAction
@@ -413,12 +411,9 @@ fun YouTubeAlbumMenu(
                         },
                         modifier = Modifier.clickable {
                             album?.songs?.forEach { song ->
-                                DownloadService.sendRemoveDownload(
-                                    context,
-                                    ExoDownloadService::class.java,
-                                    song.id,
-                                    false,
-                                )
+                                coroutineScope.launch {
+                                    downloadUtil.removeDownload(song.id)
+                                }
                             }
                         }
                     )
@@ -434,12 +429,9 @@ fun YouTubeAlbumMenu(
                         },
                         modifier = Modifier.clickable {
                             album?.songs?.forEach { song ->
-                                DownloadService.sendRemoveDownload(
-                                    context,
-                                    ExoDownloadService::class.java,
-                                    song.id,
-                                    false,
-                                )
+                                coroutineScope.launch {
+                                    downloadUtil.removeDownload(song.id)
+                                }
                             }
                         }
                     )

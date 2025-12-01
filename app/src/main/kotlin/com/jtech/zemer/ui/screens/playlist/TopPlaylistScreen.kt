@@ -43,6 +43,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
@@ -67,7 +68,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastSumBy
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.jtech.zemer.LocalDownloadUtil
@@ -80,7 +80,6 @@ import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
-import com.jtech.zemer.playback.ExoDownloadService
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.DefaultDialog
@@ -97,6 +96,7 @@ import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.viewmodels.TopPlaylistViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -105,6 +105,7 @@ fun TopPlaylistScreen(
     scrollBehavior: TopAppBarScrollBehavior,
     viewModel: TopPlaylistViewModel = hiltViewModel(),
 ) {
+    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
@@ -200,12 +201,9 @@ fun TopPlaylistScreen(
                     onClick = {
                         showRemoveDownloadDialog = false
                         songs!!.forEach { song ->
-                            DownloadService.sendRemoveDownload(
-                                context,
-                                ExoDownloadService::class.java,
-                                song.song.id,
-                                false,
-                            )
+                            coroutineScope.launch {
+                                downloadUtil.removeDownload(song.song.id)
+                            }
                         }
                     },
                 ) {
@@ -313,12 +311,9 @@ fun TopPlaylistScreen(
                                                     IconButton(
                                                         onClick = {
                                                             songs!!.forEach { song ->
-                                                                DownloadService.sendRemoveDownload(
-                                                                    context,
-                                                                    ExoDownloadService::class.java,
-                                                                    song.song.id,
-                                                                    false,
-                                                                )
+                                                                coroutineScope.launch {
+                                                                    downloadUtil.removeDownload(song.song.id)
+                                                                }
                                                             }
                                                         },
                                                     ) {

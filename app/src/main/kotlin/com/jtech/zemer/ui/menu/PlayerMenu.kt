@@ -57,7 +57,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
@@ -65,7 +64,6 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.models.MediaMetadata
-import com.jtech.zemer.playback.ExoDownloadService
 import com.jtech.zemer.ui.component.BigSeekBar
 import com.jtech.zemer.ui.component.BottomSheetState
 import com.jtech.zemer.ui.component.ListDialog
@@ -321,41 +319,35 @@ fun PlayerMenu(
                         },
                         leadingContent = {
                             Icon(
-                                painter = painterResource(R.drawable.offline),
-                                contentDescription = null,
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            DownloadService.sendRemoveDownload(
-                                context,
-                                ExoDownloadService::class.java,
-                                mediaMetadata.id,
-                                false,
-                            )
-                        }
+                        painter = painterResource(R.drawable.offline),
+                        contentDescription = null,
                     )
+                },
+                modifier = Modifier.clickable {
+                    coroutineScope.launch {
+                        downloadUtil.removeDownload(mediaMetadata.id)
+                    }
                 }
-                Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
-                    ListItem(
-                        headlineContent = { Text(text = stringResource(R.string.downloading)) },
-                        leadingContent = {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            DownloadService.sendRemoveDownload(
-                                context,
-                                ExoDownloadService::class.java,
-                                mediaMetadata.id,
-                                false,
-                            )
-                        }
+            )
+        }
+        Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
+            ListItem(
+                headlineContent = { Text(text = stringResource(R.string.downloading)) },
+                leadingContent = {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
                     )
+                },
+                modifier = Modifier.clickable {
+                    coroutineScope.launch {
+                        downloadUtil.removeDownload(mediaMetadata.id)
+                    }
                 }
-                else -> {
-                    ListItem(
+            )
+        }
+        else -> {
+            ListItem(
                         headlineContent = { Text(text = stringResource(R.string.action_download)) },
                         leadingContent = {
                             Icon(

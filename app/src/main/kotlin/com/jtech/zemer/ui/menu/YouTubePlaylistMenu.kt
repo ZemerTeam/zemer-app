@@ -45,7 +45,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadService
 import coil3.compose.AsyncImage
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
@@ -58,7 +57,6 @@ import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.playback.ExoDownloadService
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.ListDialog
@@ -228,12 +226,9 @@ fun YouTubePlaylistMenu(
                     onClick = {
                         showRemoveDownloadDialog = false
                         songs.forEach { song ->
-                            DownloadService.sendRemoveDownload(
-                                context,
-                                ExoDownloadService::class.java,
-                                song.id,
-                                false
-                            )
+                            coroutineScope.launch {
+                                downloadUtil.removeDownload(song.id)
+                            }
                         }
                     }
                 ) {

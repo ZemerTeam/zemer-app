@@ -995,15 +995,15 @@ interface DatabaseDao {
     }.map { it.reversed(descending) }
 
     @Transaction
-    @Query("SELECT * FROM song WHERE isDownloaded = 1 AND song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist)) ORDER BY dateDownload")
+    @Query("SELECT * FROM song WHERE isDownloaded = 1 ORDER BY dateDownload")
     fun downloadedSongsByCreateDateAsc(): Flow<List<Song>>
 
     @Transaction
-    @Query("SELECT * FROM song WHERE isDownloaded = 1 AND song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist)) ORDER BY title")
+    @Query("SELECT * FROM song WHERE isDownloaded = 1 ORDER BY title")
     fun downloadedSongsByNameAsc(): Flow<List<Song>>
 
     @Transaction
-    @Query("SELECT * FROM song WHERE isDownloaded = 1 AND song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist)) ORDER BY totalPlayTime")
+    @Query("SELECT * FROM song WHERE isDownloaded = 1 ORDER BY totalPlayTime")
     fun downloadedSongsByPlayTimeAsc(): Flow<List<Song>>
 
     @Query("UPDATE song SET isDownloaded = :downloaded, dateDownload = :date WHERE id = :songId")

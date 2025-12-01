@@ -97,7 +97,6 @@ import androidx.core.content.FileProvider
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -122,7 +121,6 @@ import com.jtech.zemer.extensions.move
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.playback.ExoDownloadService
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.ActionPromptDialog
 import com.jtech.zemer.ui.component.AutoResizeText
@@ -323,12 +321,9 @@ fun LocalPlaylistScreen(
                             }
                         }
                         songs.forEach { song ->
-                            DownloadService.sendRemoveDownload(
-                                context,
-                                ExoDownloadService::class.java,
-                                song.song.id,
-                                false
-                            )
+                            coroutineScope.launch {
+                                downloadUtil.removeDownload(song.song.id)
+                            }
                         }
                     }
                 ) {
@@ -1395,12 +1390,9 @@ fun LocalPlaylistHeader(
                             IconButton(
                                 onClick = {
                                     songs.forEach { song ->
-                                        DownloadService.sendRemoveDownload(
-                                            context,
-                                            ExoDownloadService::class.java,
-                                            song.song.id,
-                                            false,
-                                        )
+                                        scope.launch {
+                                            downloadUtil.removeDownload(song.song.id)
+                                        }
                                     }
                                 },
                                 modifier = Modifier.size(40.dp)

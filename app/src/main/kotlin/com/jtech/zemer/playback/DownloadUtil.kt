@@ -22,6 +22,7 @@ import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.di.DownloadCache
 import com.jtech.zemer.di.PlayerCache
 import com.jtech.zemer.utils.YTPlayerUtils
+import com.jtech.zemer.utils.PermissionHelper
 import com.jtech.zemer.utils.enumPreference
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
@@ -37,7 +38,7 @@ import javax.inject.Singleton
 class DownloadUtil
 @Inject
 constructor(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val appContext: Context,
     private val databaseLazy: dagger.Lazy<MusicDatabase>,
     val databaseProvider: DatabaseProvider,
     @DownloadCache val downloadCache: SimpleCache,
@@ -46,9 +47,9 @@ constructor(
 ) {
     val database: MusicDatabase
         get() = databaseLazy.get()
-    private val connectivityManager = context.getSystemService<ConnectivityManager>()
+    private val connectivityManager = appContext.getSystemService<ConnectivityManager>()
         ?: throw IllegalStateException("ConnectivityManager not available on this device")
-    private val audioQualityFlow = com.jtech.zemer.utils.enumPreferenceFlow(context, AudioQualityKey, AudioQuality.AUTO)
+    private val audioQualityFlow = com.jtech.zemer.utils.enumPreferenceFlow(appContext, AudioQualityKey, AudioQuality.AUTO)
     private var audioQuality = AudioQuality.AUTO
     private val songUrlCache = ConcurrentHashMap<String, Pair<String, Long>>()
 
@@ -142,12 +143,12 @@ constructor(
     }
 
     val downloadNotificationHelper =
-        DownloadNotificationHelper(context, ExoDownloadService.CHANNEL_ID)
+        DownloadNotificationHelper(appContext, ExoDownloadService.CHANNEL_ID)
 
     @OptIn(DelicateCoroutinesApi::class)
     val downloadManager: DownloadManager =
         DownloadManager(
-            context,
+            appContext,
             databaseProvider,
             downloadCache,
             dataSourceFactory,
@@ -258,6 +259,13 @@ constructor(
         mediaStoreDownloadManager.downloadStates
 
     fun downloadToMediaStore(song: com.jtech.zemer.db.entities.Song) {
+        if (!com.jtech.zemer.utils.PermissionHelper.hasMediaStoreWritePermission(appContext)) {
+            mediaStoreDownloadManager.markPermissionMissing(song.id)
+            android.widget.Toast
+                .makeText(appContext, appContext.getString(com.jtech.zemer.R.string.storage_permission_required), android.widget.Toast.LENGTH_LONG)
+                .show()
+            return
+        }
         mediaStoreDownloadManager.downloadSong(song)
     }
 
@@ -271,6 +279,34 @@ constructor(
 
     suspend fun isDownloadedInMediaStore(songId: String): Boolean {
         return mediaStoreDownloadManager.isDownloaded(songId)
+    }
+
+    /**
+     * Remove a download regardless of backend (MediaStore or legacy cache) and clean DB flags.
+     */
+    suspend fun removeDownload(songId: String) = withContext(Dispatchers.IO) {
+        // Cancel queued/active MediaStore download and delete file/flags
+        mediaStoreDownloadManager.deleteDownloaded(songId)
+
+        // Remove legacy ExoPlayer cache download if present
+        runCatching { downloadManager.removeDownload(songId) }
+
+        cacheDownloads.update { it - songId }
+        downloads.update { it - songId }
+
+        runCatching {
+            database.song(songId).firstOrNull()?.let { song ->
+                database.query {
+                    upsert(
+                        song.song.copy(
+                            isDownloaded = false,
+                            dateDownload = null,
+                            mediaStoreUri = null
+                        )
+                    )
+                }
+            }
+        }
     }
 
     fun release() {

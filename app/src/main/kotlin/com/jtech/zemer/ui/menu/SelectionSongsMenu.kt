@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadService
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
@@ -45,7 +44,6 @@ import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.playback.ExoDownloadService
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.NewAction
@@ -160,12 +158,9 @@ fun SelectionSongMenu(
                     onClick = {
                         showRemoveDownloadDialog = false
                         songSelection.forEach { song ->
-                            DownloadService.sendRemoveDownload(
-                                context,
-                                ExoDownloadService::class.java,
-                                song.song.id,
-                                false,
-                            )
+                            coroutineScope.launch {
+                                downloadUtil.removeDownload(song.song.id)
+                            }
                         }
                     },
                 ) {
@@ -569,12 +564,9 @@ fun SelectionMediaMetadataMenu(
                     onClick = {
                         showRemoveDownloadDialog = false
                         songSelection.forEach { song ->
-                            DownloadService.sendRemoveDownload(
-                                context,
-                                ExoDownloadService::class.java,
-                                song.id,
-                                false,
-                            )
+                            coroutineScope.launch {
+                                downloadUtil.removeDownload(song.id)
+                            }
                         }
                     },
                 ) {

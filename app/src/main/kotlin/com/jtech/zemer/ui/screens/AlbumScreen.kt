@@ -68,7 +68,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.jtech.zemer.LocalDatabase
@@ -81,7 +80,6 @@ import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.extensions.togglePlayPause
-import com.jtech.zemer.playback.ExoDownloadService
 import com.jtech.zemer.playback.queues.LocalAlbumRadio
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.FontSizeRange
@@ -99,6 +97,7 @@ import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.AlbumViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -111,10 +110,8 @@ fun AlbumScreen(
     val menuState = LocalMenuState.current
     val database = LocalDatabase.current
     val haptic = LocalHapticFeedback.current
-    rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
     val playerConnection = LocalPlayerConnection.current ?: return
-
-    rememberCoroutineScope()
 
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
@@ -354,12 +351,9 @@ fun AlbumScreen(
                                             IconButton(
                                                 onClick = {
                                                     albumWithSongs.songs.forEach { song ->
-                                                        DownloadService.sendRemoveDownload(
-                                                            context,
-                                                            ExoDownloadService::class.java,
-                                                            song.id,
-                                                            false,
-                                                        )
+                                                        coroutineScope.launch {
+                                                            downloadUtil.removeDownload(song.id)
+                                                        }
                                                     }
                                                 },
                                             ) {
@@ -381,12 +375,9 @@ fun AlbumScreen(
                                             IconButton(
                                                 onClick = {
                                                     albumWithSongs.songs.forEach { song ->
-                                                        DownloadService.sendRemoveDownload(
-                                                            context,
-                                                            ExoDownloadService::class.java,
-                                                            song.id,
-                                                            false,
-                                                        )
+                                                        coroutineScope.launch {
+                                                            downloadUtil.removeDownload(song.id)
+                                                        }
                                                     }
                                                 },
                                             ) {
