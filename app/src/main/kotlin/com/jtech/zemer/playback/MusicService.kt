@@ -1150,7 +1150,6 @@ class MusicService :
             // If queue is empty, don't shuffle
             if (player.mediaItemCount == 0) return
 
-            // Always put current playing item at first
             val shuffledIndices = IntArray(player.mediaItemCount) { it }
             shuffledIndices.shuffle()
             shuffledIndices[shuffledIndices.indexOf(player.currentMediaItemIndex)] =
