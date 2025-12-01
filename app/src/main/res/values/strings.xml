@@ -438,7 +438,7 @@
     <string name="onboarding_perm_notifications_title">Notifications</string>
     <string name="onboarding_perm_notifications_desc">Show playback controls in notifications.</string>
     <string name="onboarding_perm_storage_title">Download access</string>
-    <string name="onboarding_perm_storage_desc">Allow saving music to your device so downloads show up offline.</string>
+    <string name="onboarding_perm_storage_desc">Allow saving music and cover art to your device so downloads show up offline with full artwork.</string>
     <string name="onboarding_perm_background_title">Background run</string>
     <string name="onboarding_perm_background_desc">Keep playback alive without battery kills.</string>
     <string name="onboarding_perm_accessibility_title">Accessibility</string>

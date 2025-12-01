@@ -15,7 +15,8 @@ import timber.log.Timber
  * Helper class for managing storage permissions required for MediaStore downloads.
  *
  * Android storage permissions vary by API level:
- * - Android 13+ (API 33+): READ_MEDIA_AUDIO
+ * - Android 13+ (API 33+): READ_MEDIA_AUDIO + READ_MEDIA_IMAGES (covers audio downloads and
+ *   generated cover art)
  * - Android 10-12 (API 29-32): READ_EXTERNAL_STORAGE
  * - Android 9 and below (API ≤28): READ_EXTERNAL_STORAGE + WRITE_EXTERNAL_STORAGE
  * - Android 10+ (API 29+): WRITE_EXTERNAL_STORAGE not needed for MediaStore
@@ -33,14 +34,18 @@ object PermissionHelper {
      */
     fun hasMediaStoreWritePermission(context: Context): Boolean {
         return when {
-            // Android 13+ (API 33+) - Check READ_MEDIA_AUDIO
+            // Android 13+ (API 33+) - Check READ_MEDIA_AUDIO + READ_MEDIA_IMAGES
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                val hasPermission = ContextCompat.checkSelfPermission(
+                val hasAudio = ContextCompat.checkSelfPermission(
                     context,
                     Manifest.permission.READ_MEDIA_AUDIO
                 ) == PackageManager.PERMISSION_GRANTED
-                Timber.d("Android 13+: READ_MEDIA_AUDIO ${if (hasPermission) "granted" else "denied"}")
-                hasPermission
+                val hasImages = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.READ_MEDIA_IMAGES
+                ) == PackageManager.PERMISSION_GRANTED
+                Timber.d("Android 13+: READ_MEDIA permissions audio=${hasAudio}, images=${hasImages}")
+                hasAudio && hasImages
             }
 
             // Android 10-12 (API 29-32) - Check READ_EXTERNAL_STORAGE
@@ -53,14 +58,18 @@ object PermissionHelper {
                 hasPermission
             }
 
-            // Android 9 and below (API ≤28) - Requires WRITE_EXTERNAL_STORAGE
+            // Android 9 and below (API ≤28) - Requires READ + WRITE
             else -> {
-                val hasPermission = ContextCompat.checkSelfPermission(
+                val hasRead = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED
+                val hasWrite = ContextCompat.checkSelfPermission(
                     context,
                     Manifest.permission.WRITE_EXTERNAL_STORAGE
                 ) == PackageManager.PERMISSION_GRANTED
-                Timber.d("Android 9 or below: WRITE_EXTERNAL_STORAGE ${if (hasPermission) "granted" else "denied"}")
-                hasPermission
+                Timber.d("Android 9 or below: READ=${hasRead}, WRITE=${hasWrite}")
+                hasRead && hasWrite
             }
         }
     }
@@ -73,12 +82,17 @@ object PermissionHelper {
      */
     fun hasStoragePermission(context: Context): Boolean {
         return when {
-            // Android 13+ (API 33+) - Requires READ_MEDIA_AUDIO
+            // Android 13+ (API 33+) - Requires READ_MEDIA_AUDIO and READ_MEDIA_IMAGES
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                ContextCompat.checkSelfPermission(
+                val hasAudio = ContextCompat.checkSelfPermission(
                     context,
                     Manifest.permission.READ_MEDIA_AUDIO
                 ) == PackageManager.PERMISSION_GRANTED
+                val hasImages = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.READ_MEDIA_IMAGES
+                ) == PackageManager.PERMISSION_GRANTED
+                hasAudio && hasImages
             }
 
             // Android 10-12 (API 29-32) - Requires READ_EXTERNAL_STORAGE
@@ -91,14 +105,15 @@ object PermissionHelper {
 
             // Android 9 and below (API ≤28) - Requires both READ and WRITE
             else -> {
-                ContextCompat.checkSelfPermission(
+                val hasRead = ContextCompat.checkSelfPermission(
                     context,
                     Manifest.permission.READ_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(
+                ) == PackageManager.PERMISSION_GRANTED
+                val hasWrite = ContextCompat.checkSelfPermission(
                     context,
                     Manifest.permission.WRITE_EXTERNAL_STORAGE
                 ) == PackageManager.PERMISSION_GRANTED
+                hasRead && hasWrite
             }
         }
     }
@@ -110,9 +125,12 @@ object PermissionHelper {
      */
     fun getRequiredWritePermissions(): Array<String> {
         return when {
-            // Android 13+ (API 33+) - Request READ_MEDIA_AUDIO
+            // Android 13+ (API 33+) - Request READ_MEDIA_AUDIO + READ_MEDIA_IMAGES for cover art
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                arrayOf(Manifest.permission.READ_MEDIA_AUDIO)
+                arrayOf(
+                    Manifest.permission.READ_MEDIA_AUDIO,
+                    Manifest.permission.READ_MEDIA_IMAGES
+                )
             }
 
             // Android 10-12 (API 29-32) - Request READ_EXTERNAL_STORAGE
@@ -120,9 +138,12 @@ object PermissionHelper {
                 arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
 
-            // Android 9 and below (API ≤28) - Request WRITE_EXTERNAL_STORAGE
+            // Android 9 and below (API ≤28) - Request READ + WRITE
             else -> {
-                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                arrayOf(
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                )
             }
         }
     }
@@ -136,7 +157,10 @@ object PermissionHelper {
         return when {
             // Android 13+ (API 33+)
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                arrayOf(Manifest.permission.READ_MEDIA_AUDIO)
+                arrayOf(
+                    Manifest.permission.READ_MEDIA_AUDIO,
+                    Manifest.permission.READ_MEDIA_IMAGES
+                )
             }
 
             // Android 10-12 (API 29-32)
@@ -232,7 +256,7 @@ object PermissionHelper {
     fun getPermissionRationale(): String {
         return when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                "This app needs access to your audio files to download and play music from your device's Music folder."
+                "This app needs access to your audio files and cover art so downloads save correctly to your device's Music and Pictures folders."
             }
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
                 "This app needs storage permission to download and save music to your device's Music folder."
