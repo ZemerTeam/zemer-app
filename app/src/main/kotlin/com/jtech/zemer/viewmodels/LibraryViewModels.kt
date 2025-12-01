@@ -31,12 +31,17 @@ import com.jtech.zemer.constants.SongFilterKey
 import com.jtech.zemer.constants.SongSortDescendingKey
 import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.SongSortTypeKey
+import com.jtech.zemer.constants.MyTopFilter
 import com.jtech.zemer.constants.TopSize
 import com.jtech.zemer.db.MusicDatabase
+import com.jtech.zemer.db.entities.Playlist
+import com.jtech.zemer.db.entities.PlaylistEntity
+import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.filterExplicit
 import com.jtech.zemer.extensions.filterExplicitAlbums
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.playback.DownloadUtil
+import com.jtech.zemer.repositories.CachedSongsRepository
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.WhitelistCache
@@ -56,6 +61,7 @@ import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDateTime
 import javax.inject.Inject
+import kotlinx.coroutines.flow.combine
 
 @HiltViewModel
 class LibrarySongsViewModel
@@ -355,6 +361,90 @@ constructor(
                     }
             }
         }
+    }
+}
+
+@HiltViewModel
+class LibraryAutoPlaylistViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val database: MusicDatabase,
+    private val cachedSongsRepository: CachedSongsRepository,
+) : ViewModel() {
+
+    data class AutoPlaylistsState(
+        val liked: Playlist? = null,
+        val downloaded: Playlist? = null,
+        val cached: Playlist? = null,
+        val top: Playlist? = null,
+    )
+
+    private val topSize =
+        context.dataStore.data
+            .map { it[TopSize] ?: "50" }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.Lazily, "50")
+
+    private val likedSongs = database.likedSongs(SongSortType.CREATE_DATE, true)
+    private val downloadedSongs = database.downloadedSongs(SongSortType.CREATE_DATE, true)
+    private val topSongs =
+        topSize
+            .flatMapLatest { top ->
+                val topCount = top.toIntOrNull() ?: 50
+                database.mostPlayedSongs(MyTopFilter.ALL_TIME.toTimeMillis(), topCount).map { songs ->
+                    songs to topCount
+                }
+            }
+
+    private fun List<Song>.toAutoPlaylist(id: String, name: String): Playlist? {
+        if (isEmpty()) return null
+
+        val thumbnails = mapNotNull { it.song.thumbnailUrl }.distinct().take(4)
+
+        return Playlist(
+            playlist = PlaylistEntity(
+                id = id,
+                name = name,
+                isEditable = false,
+                bookmarkedAt = LocalDateTime.now(),
+            ),
+            songCount = size,
+            songThumbnails = thumbnails,
+        )
+    }
+
+    val autoPlaylists =
+        combine(
+            likedSongs,
+            downloadedSongs,
+            cachedSongsRepository.cachedSongs,
+            topSongs,
+        ) { liked, downloaded, cached, top ->
+            val (topList, topCount) = top
+
+            AutoPlaylistsState(
+                liked =
+                    liked.toAutoPlaylist(
+                        PlaylistEntity.LIKED_PLAYLIST_ID,
+                        context.getString(R.string.liked)
+                    ),
+                downloaded =
+                    downloaded.toAutoPlaylist(
+                        PlaylistEntity.DOWNLOADED_PLAYLIST_ID,
+                        context.getString(R.string.offline)
+                    ),
+                cached = cached.toAutoPlaylist(CACHED_PLAYLIST_ID, context.getString(R.string.cached_playlist)),
+                top =
+                    topList.toAutoPlaylist(
+                        TOP_PLAYLIST_ID,
+                        context.getString(R.string.my_top) + " $topCount"
+                    ),
+            )
+        }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AutoPlaylistsState())
+
+    companion object {
+        const val CACHED_PLAYLIST_ID = "LP_CACHED"
+        const val TOP_PLAYLIST_ID = "LP_TOP"
     }
 }
 

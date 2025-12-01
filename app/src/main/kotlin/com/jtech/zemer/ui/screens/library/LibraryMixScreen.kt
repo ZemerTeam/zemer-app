@@ -72,13 +72,13 @@ import com.jtech.zemer.ui.menu.ArtistMenu
 import com.jtech.zemer.ui.menu.PlaylistMenu
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.viewmodels.LibraryAutoPlaylistViewModel
 import com.jtech.zemer.viewmodels.LibraryMixViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.Collator
 import java.time.LocalDateTime
 import java.util.Locale
-import java.util.UUID
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -86,6 +86,7 @@ fun LibraryMixScreen(
     navController: NavController,
     filterContent: @Composable () -> Unit,
     viewModel: LibraryMixViewModel = hiltViewModel(),
+    autoPlaylistsViewModel: LibraryAutoPlaylistViewModel = hiltViewModel(),
 ) {
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
@@ -104,45 +105,59 @@ fun LibraryMixScreen(
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
 
     val topSize by viewModel.topValue.collectAsState(initial = 50)
+    val autoPlaylistsState by autoPlaylistsViewModel.autoPlaylists.collectAsState()
+
     val likedPlaylist =
-        Playlist(
-            playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
-                name = stringResource(R.string.liked)
-            ),
-            songCount = 0,
-            songThumbnails = emptyList(),
-        )
+        autoPlaylistsState.liked
+            ?: Playlist(
+                playlist =
+                PlaylistEntity(
+                    id = PlaylistEntity.LIKED_PLAYLIST_ID,
+                    name = stringResource(R.string.liked),
+                    isEditable = false,
+                ),
+                songCount = 0,
+                songThumbnails = emptyList(),
+            )
 
     val downloadPlaylist =
-        Playlist(
-            playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
-                name = stringResource(R.string.offline)
-            ),
-            songCount = 0,
-            songThumbnails = emptyList(),
-        )
+        autoPlaylistsState.downloaded
+            ?: Playlist(
+                playlist =
+                PlaylistEntity(
+                    id = PlaylistEntity.DOWNLOADED_PLAYLIST_ID,
+                    name = stringResource(R.string.offline),
+                    isEditable = false,
+                ),
+                songCount = 0,
+                songThumbnails = emptyList(),
+            )
 
     val topPlaylist =
-        Playlist(
-            playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
-                name = stringResource(R.string.my_top) + " $topSize"
-            ),
-            songCount = 0,
-            songThumbnails = emptyList(),
-        )
+        autoPlaylistsState.top
+            ?: Playlist(
+                playlist =
+                PlaylistEntity(
+                    id = LibraryAutoPlaylistViewModel.TOP_PLAYLIST_ID,
+                    name = stringResource(R.string.my_top) + " $topSize",
+                    isEditable = false,
+                ),
+                songCount = 0,
+                songThumbnails = emptyList(),
+            )
 
     val cachePlaylist =
-        Playlist(
-            playlist = PlaylistEntity(
-                id = UUID.randomUUID().toString(),
-                name = stringResource(R.string.cached_playlist)
-            ),
-            songCount = 0,
-            songThumbnails = emptyList(),
-        )
+        autoPlaylistsState.cached
+            ?: Playlist(
+                playlist =
+                PlaylistEntity(
+                    id = LibraryAutoPlaylistViewModel.CACHED_PLAYLIST_ID,
+                    name = stringResource(R.string.cached_playlist),
+                    isEditable = false,
+                ),
+                songCount = 0,
+                songThumbnails = emptyList(),
+            )
 
     val (showLiked) = rememberPreference(ShowLikedPlaylistKey, true)
     val (showDownloaded) = rememberPreference(ShowDownloadedPlaylistKey, true)
