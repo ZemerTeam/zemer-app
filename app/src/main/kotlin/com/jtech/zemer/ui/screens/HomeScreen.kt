@@ -810,6 +810,32 @@ fun HomeScreen(
                 }
             }
 
+            // Show featured albums
+            if (featuredAlbums.isNotEmpty()) {
+                item(key = "featured_albums_title") {
+                    NavigationTitle(
+                        title = stringResource(R.string.featured_albums),
+                        modifier = Modifier.animateItem()
+                    )
+                }
+
+                item(key = "featured_albums_list") {
+                    LazyRow(
+                        contentPadding = WindowInsets.systemBars
+                            .only(WindowInsetsSides.Horizontal)
+                            .asPaddingValues(),
+                        modifier = Modifier.animateItem()
+                    ) {
+                        items(
+                            items = featuredAlbums.distinctBy { it.id },
+                            key = { "featured_album_${it.id}" }
+                        ) { album ->
+                            ytGridItem(album)
+                        }
+                    }
+                }
+            }
+
             if (featuredVideos.isNotEmpty()) {
                 item(key = "featured_videos_title") {
                     NavigationTitle(
@@ -853,32 +879,6 @@ fun HomeScreen(
                                     )
                                     .animateItem()
                             )
-                        }
-                    }
-                }
-            }
-
-            // Show featured albums
-            if (featuredAlbums.isNotEmpty()) {
-                item(key = "featured_albums_title") {
-                    NavigationTitle(
-                        title = stringResource(R.string.featured_albums),
-                        modifier = Modifier.animateItem()
-                    )
-                }
-
-                item(key = "featured_albums_list") {
-                    LazyRow(
-                        contentPadding = WindowInsets.systemBars
-                            .only(WindowInsetsSides.Horizontal)
-                            .asPaddingValues(),
-                        modifier = Modifier.animateItem()
-                    ) {
-                        items(
-                            items = featuredAlbums.distinctBy { it.id },
-                            key = { "featured_album_${it.id}" }
-                        ) { album ->
-                            ytGridItem(album)
                         }
                     }
                 }

@@ -22,6 +22,8 @@ import com.jtech.zemer.constants.*
 import com.jtech.zemer.di.ApplicationScope
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.extensions.toInetSocketAddress
+import com.jtech.zemer.utils.ContentFilterConfig
+import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.get
@@ -104,6 +106,18 @@ class App : Application(), SingletonImageLoader.Factory {
         if (!settings.contains(FloatingMiniPlayerKey)) {
             dataStore.edit { it[FloatingMiniPlayerKey] = true }
         }
+        if (!settings.contains(EnableContentFiltersKey)) {
+            dataStore.edit { it[EnableContentFiltersKey] = true }
+        }
+        if (!settings.contains(AllowFemaleSingersKey)) {
+            dataStore.edit { it[AllowFemaleSingersKey] = false }
+        }
+        if (!settings.contains(AllowChasidishKey)) {
+            dataStore.edit { it[AllowChasidishKey] = false }
+        }
+        if (!settings.contains(AllowDjKey)) {
+            dataStore.edit { it[AllowDjKey] = false }
+        }
 
         YouTube.locale = YouTubeLocale(
             gl = settings[ContentCountryKey]?.takeIf { it != SYSTEM_DEFAULT }
@@ -169,6 +183,22 @@ class App : Application(), SingletonImageLoader.Factory {
                                 settings[VisitorDataKey] = newVisitorData
                             }
                         }
+                }
+        }
+
+        applicationScope.launch(Dispatchers.IO) {
+            dataStore.data
+                .map { prefs ->
+                    ContentFilterConfig(
+                        filtersEnabled = prefs[EnableContentFiltersKey] ?: true,
+                        allowFemaleSingers = prefs[AllowFemaleSingersKey] ?: false,
+                        promoteChasidish = prefs[AllowChasidishKey] ?: false,
+                        hideOldStuff = prefs[AllowDjKey] ?: false,
+                    )
+                }
+                .distinctUntilChanged()
+                .collect { filters ->
+                    ContentFilterState.current = filters
                 }
         }
 

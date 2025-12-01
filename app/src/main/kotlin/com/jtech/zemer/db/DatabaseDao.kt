@@ -1549,6 +1549,9 @@ interface DatabaseDao {
     @Query("SELECT * FROM artist_whitelist")
     fun getAllWhitelistedArtists(): Flow<List<ArtistWhitelistEntity>>
 
+    @Query("SELECT * FROM artist_whitelist WHERE artistId = :artistId LIMIT 1")
+    suspend fun getWhitelistEntry(artistId: String): ArtistWhitelistEntity?
+
     @Query("SELECT EXISTS(SELECT 1 FROM artist_whitelist WHERE artistId = :artistId)")
     suspend fun isArtistWhitelisted(artistId: String): Boolean
 

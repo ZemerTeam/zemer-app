@@ -363,8 +363,8 @@
     <string name="content_filters">Content filters</string>
     <string name="allow_female_singers">Allow female singers</string>
     <string name="enable_personal_filters">Enable personal feed filters</string>
-    <string name="i_like_dj">I like DJ</string>
-    <string name="i_am_chasidish">I am chasidish</string>
+    <string name="i_like_dj">Hide old stuff</string>
+    <string name="i_am_chasidish">Promote chassidish content</string>
     <string name="coming_soon">Coming soon</string>
     <string name="radio_mode">Radio mode</string>
     <string name="contribute">Contribute</string>

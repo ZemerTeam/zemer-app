@@ -86,8 +86,8 @@ fun ContentSettings(
     val (enableLrclib, onEnableLrclibChange) = rememberPreference(key = EnableLrcLibKey, defaultValue = true)
     val (lengthTop, onLengthTopChange) = rememberPreference(key = TopSize, defaultValue = "50")
     val (quickPicks, onQuickPicksChange) = rememberEnumPreference(key = QuickPicksKey, defaultValue = QuickPicks.QUICK_PICKS)
-    val (enableContentFilters, onEnableContentFiltersChange) = rememberPreference(key = EnableContentFiltersKey, defaultValue = false)
-    val (allowFemaleSingers, onAllowFemaleSingersChange) = rememberPreference(key = AllowFemaleSingersKey, defaultValue = true)
+    val (enableContentFilters, onEnableContentFiltersChange) = rememberPreference(key = EnableContentFiltersKey, defaultValue = true)
+    val (allowFemaleSingers, onAllowFemaleSingersChange) = rememberPreference(key = AllowFemaleSingersKey, defaultValue = false)
     val (allowChasidish, onAllowChasidishChange) = rememberPreference(key = AllowChasidishKey, defaultValue = false)
     val (allowDj, onAllowDjChange) = rememberPreference(key = AllowDjKey, defaultValue = false)
 
@@ -189,35 +189,31 @@ fun ContentSettings(
         PreferenceGroupTitle(title = stringResource(R.string.content_filters))
         SwitchPreference(
             title = { Text(stringResource(R.string.enable_personal_filters)) },
-            description = stringResource(R.string.coming_soon),
             icon = { Icon(painterResource(R.drawable.settings), null) },
             checked = enableContentFilters,
             onCheckedChange = onEnableContentFiltersChange,
-            isEnabled = false
+            isEnabled = true
         )
         SwitchPreference(
             title = { Text(stringResource(R.string.allow_female_singers)) },
-            description = stringResource(R.string.coming_soon),
             icon = { Icon(painterResource(R.drawable.person), null) },
             checked = allowFemaleSingers,
             onCheckedChange = onAllowFemaleSingersChange,
-            isEnabled = false
+            isEnabled = enableContentFilters
         )
         SwitchPreference(
             title = { Text(stringResource(R.string.i_am_chasidish)) },
-            description = stringResource(R.string.coming_soon),
             icon = { Icon(painterResource(R.drawable.person), null) },
             checked = allowChasidish,
             onCheckedChange = onAllowChasidishChange,
-            isEnabled = false
+            isEnabled = enableContentFilters
         )
         SwitchPreference(
             title = { Text(stringResource(R.string.i_like_dj)) },
-            description = stringResource(R.string.coming_soon),
             icon = { Icon(painterResource(R.drawable.music_note), null) },
             checked = allowDj,
             onCheckedChange = onAllowDjChange,
-            isEnabled = false
+            isEnabled = enableContentFilters
         )
 
         PreferenceGroupTitle(title = stringResource(R.string.misc))
