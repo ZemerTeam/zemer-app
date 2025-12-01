@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -38,6 +39,7 @@ class MediaStoreDownloadService : Service() {
 
     private val scope = CoroutineScope(Dispatchers.Main + Job())
     private lateinit var notificationManager: NotificationManager
+    private var hasStartedForeground = false
 
     companion object {
         private const val NOTIFICATION_CHANNEL_ID = "mediastore_download"
@@ -69,12 +71,14 @@ class MediaStoreDownloadService : Service() {
         // Create notification channel for downloads
         createNotificationChannel()
 
-        // Start as foreground service with initial notification
-        startForeground(NOTIFICATION_ID, createInitialNotification())
+        // CRITICAL: Start foreground immediately to avoid ANR
+        ensureForegroundService()
 
         // Observe download states and update notifications
+        // Debounce to avoid notification rate limiting (max ~5/sec allowed by Android)
         scope.launch {
             downloadManager.downloadStates
+                .debounce(250) // Update at most 4 times per second
                 .onEach { states ->
                     updateNotification(states)
 
@@ -88,7 +92,19 @@ class MediaStoreDownloadService : Service() {
         }
     }
 
+    /**
+     * Ensures the service is running in foreground mode.
+     * MUST be called immediately in onCreate and onStartCommand to avoid ANR.
+     */
+    private fun ensureForegroundService() {
+        if (hasStartedForeground) return
+        startForeground(NOTIFICATION_ID, createInitialNotification())
+        hasStartedForeground = true
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // CRITICAL: Must call startForeground immediately to avoid ANR
+        ensureForegroundService()
 
         // Handle cancel action from notification
         when (intent?.action) {
