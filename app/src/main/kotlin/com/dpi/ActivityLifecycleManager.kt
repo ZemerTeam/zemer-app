@@ -1,12 +1,12 @@
 package com.dpi
 
-import android.app.Activity
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
+import timber.log.Timber
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
@@ -28,12 +28,12 @@ abstract class ActivityLifecycleManager : BaseLifecycleContentProvider() {
                     try {
                         onActivityTimer(activity)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Error in activity timer", e)
+                        Timber.tag(TAG).w(e, "Error in activity timer")
                     }
                 }
                 handler.postDelayed(this, activityTimerDelayMillis.toLong())
             } catch (e: Exception) {
-                Log.w(TAG, "Error in activity timer runnable", e)
+                Timber.tag(TAG).w(e, "Error in activity timer runnable")
             }
         }
     }
@@ -108,7 +108,7 @@ abstract class ActivityLifecycleManager : BaseLifecycleContentProvider() {
                     .getMethod("getApplication")
                     .invoke(activityThread) as? Application
             } catch (e: Exception) {
-                Log.w("AppUtils", "Failed to get Application instance", e)
+                Timber.tag("AppUtils").w(e, "Failed to get Application instance")
                 null
             }
         }

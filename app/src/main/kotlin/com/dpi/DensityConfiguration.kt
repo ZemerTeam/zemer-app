@@ -1,10 +1,12 @@
 package com.dpi
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.util.Log
+import timber.log.Timber
 import kotlin.math.roundToInt
 
 /**
@@ -21,6 +23,7 @@ internal class DensityConfiguration(
      * Applies the density scaling to the application context.
      * This method should be called once during initialization.
      */
+    @SuppressLint("LogNotTimber")
     fun applyDensityScaling(context: Context) {
         if (densityScale == 1.0f) return
 
@@ -41,7 +44,7 @@ internal class DensityConfiguration(
     private fun updateDensityDpi(config: Configuration, resources: Resources) {
         val newDensityDpi = (originalDensityDpi * densityScale).roundToInt()
         config.densityDpi = newDensityDpi
-        Log.i(TAG, "Updated densityDpi to: $newDensityDpi")
+        Timber.tag(TAG).i("Updated densityDpi to: $newDensityDpi")
         @Suppress("DEPRECATION")
         resources.updateConfiguration(config, resources.displayMetrics)
     }
@@ -74,7 +77,7 @@ internal class DensityConfiguration(
         try {
             updateDensityDpi(activity.resources.configuration, activity.resources)
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to update density for activity", e)
+            Timber.tag(TAG).w(e, "Failed to update density for activity")
         }
     }
 
