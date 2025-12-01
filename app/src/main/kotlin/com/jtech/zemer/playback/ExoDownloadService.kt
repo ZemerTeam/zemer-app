@@ -14,6 +14,7 @@ import androidx.media3.exoplayer.offline.DownloadService
 import androidx.media3.exoplayer.scheduler.PlatformScheduler
 import androidx.media3.exoplayer.scheduler.Scheduler
 import com.jtech.zemer.R
+import com.jtech.zemer.utils.hasNotificationPermission
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -30,6 +31,10 @@ class ExoDownloadService : DownloadService(
     lateinit var downloadUtil: DownloadUtil
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!hasNotificationPermission(this)) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (intent?.action == REMOVE_ALL_PENDING_DOWNLOADS) {
             downloadManager.currentDownloads.forEach { download ->
                 downloadManager.removeDownload(download.request.id)

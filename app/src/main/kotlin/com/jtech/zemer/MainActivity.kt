@@ -209,6 +209,8 @@ import com.jtech.zemer.utils.Updater
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.get
+import com.jtech.zemer.utils.hasNotificationPermission
+import com.jtech.zemer.utils.tryStartForegroundService
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.reportException
@@ -297,8 +299,11 @@ class MainActivity : ComponentActivity() {
         // NOTE: Notification permission is now handled in the onboarding flow
         val serviceIntent = Intent(this, MusicService::class.java)
         try {
-            androidx.core.content.ContextCompat.startForegroundService(this, serviceIntent)
-            bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+            if (hasNotificationPermission(this)) {
+                if (tryStartForegroundService<MusicService>(serviceIntent)) {
+                    bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+                }
+            }
         } catch (e: IllegalStateException) {
             // In case the system still thinks we're background, retry once on resume
             pendingServiceStart = true
@@ -310,8 +315,11 @@ class MainActivity : ComponentActivity() {
         if (pendingServiceStart) {
             val serviceIntent = Intent(this, MusicService::class.java)
             try {
-                androidx.core.content.ContextCompat.startForegroundService(this, serviceIntent)
-                bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+                if (hasNotificationPermission(this)) {
+                    if (tryStartForegroundService<MusicService>(serviceIntent)) {
+                        bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
+                    }
+                }
                 pendingServiceStart = false
             } catch (e: IllegalStateException) {
             }
@@ -421,7 +429,7 @@ class MainActivity : ComponentActivity() {
                         if (System.currentTimeMillis() - Updater.lastCheckTime > 1.days.inWholeMilliseconds) {
                             val updatesEnabled = dataStore.get(CheckForUpdatesKey, false)
                             val notifEnabled = dataStore.get(UpdateNotificationsEnabledKey, false)
-                            if (!updatesEnabled) return@withContext
+                            if (!updatesEnabled || !hasNotificationPermission(this@MainActivity)) return@withContext
                             Updater.getLatestUpdate().onSuccess { info ->
                                 latestVersionName = info.versionName
                                 if (info.versionName != BuildConfig.VERSION_NAME && notifEnabled) {

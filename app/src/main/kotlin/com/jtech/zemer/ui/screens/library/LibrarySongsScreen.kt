@@ -311,21 +311,21 @@ fun LibrarySongsScreen(
                                     songWrapper.isSelected = !songWrapper.isSelected
                                 }
                             },
-                            onLongClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                if (!selection) {
-                                    selection = true
-                                }
-                                wrappedSongs.forEach {
-                                    it.isSelected = false
-                                } // Clear previous selections
-                                songWrapper.isSelected = true // Select current item
-                            },
-                        )
-                        .animateItem(),
-                )
-            }
+                        onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            if (!selection) {
+                                selection = true
+                            }
+                            wrappedSongs.forEach {
+                                it.isSelected = false
+                            } // Clear previous selections
+                            songWrapper.isSelected = true // Select current item
+                        },
+                    )
+                    .animateItem(),
+            )
         }
+    }
 
         HideOnScrollFAB(
             visible = songs.isNotEmpty() == true,

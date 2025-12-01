@@ -71,29 +71,11 @@ constructor(
         if (!force && summaryPage != null) return
         isSummaryLoading.value = true
         summaryError.value = null
-        val filters = ContentFilterState.state.value
-        if (filters.filtersEnabled) {
-            val matches = getAllowedMatches(query, limit = 30)
-            summaryPage = SearchSummaryPage(
-                summaries = listOf(
-                    com.metrolist.innertube.pages.SearchSummary(
-                        title = "Artists",
-                        items = matches
-                    )
-                )
-            )
-            isSummaryLoading.value = false
-            return
-        }
         YouTube
             .searchSummary(query)
             .onSuccess { page ->
-                val filteredPage = page.filterExplicit(
-                    context.dataStore.get(
-                        HideExplicitKey,
-                        false,
-                    ),
-                )
+                val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                val filteredPage = page.filterExplicit(hideExplicit)
                 summaryPage = SearchSummaryPage(
                     summaries = filteredPage.summaries.map { summary ->
                         val filteredItems = summary.items.filterWhitelisted(database)
@@ -112,16 +94,7 @@ constructor(
         if (!force && viewStateMap[key] != null) return
         filterLoading[key] = true
         filterError[key] = null
-        val filters = ContentFilterState.state.value
-        if (filters.filtersEnabled) {
-            val items = when (filter) {
-                SearchFilter.FILTER_ARTIST -> getAllowedMatches(query, limit = 50)
-                else -> emptyList()
-            }
-            viewStateMap[key] = ItemsPage(items = items, continuation = null)
-            filterLoading[key] = false
-            return
-        }
+        val hideExplicit = context.dataStore.get(HideExplicitKey, false)
         YouTube
             .search(query, filter)
             .onSuccess { result ->
@@ -129,12 +102,7 @@ constructor(
                     ItemsPage(
                         result.items
                             .distinctBy { it.id }
-                            .filterExplicit(
-                                context.dataStore.get(
-                                    HideExplicitKey,
-                                    false
-                                )
-                            )
+                            .filterExplicit(hideExplicit)
                             .filterWhitelisted(database),
                         result.continuation,
                     )
@@ -149,7 +117,6 @@ constructor(
         val filter = filter.value?.value
         viewModelScope.launch {
             if (filter == null) return@launch
-            if (ContentFilterState.state.value.filtersEnabled) return@launch
             val viewState = viewStateMap[filter] ?: return@launch
             val continuation = viewState.continuation
             if (continuation != null) {

@@ -11,7 +11,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
-import android.database.SQLException
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
@@ -49,6 +48,7 @@ import androidx.media3.exoplayer.analytics.PlaybackStats
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
+import java.sql.SQLException
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.extractor.ExtractorsFactory
@@ -118,6 +118,7 @@ import com.jtech.zemer.utils.NetworkConnectivityObserver
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.hasNotificationPermission
 import com.jtech.zemer.utils.enumPreference
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
@@ -466,12 +467,9 @@ class MusicService :
     private fun ensureForegroundService() {
         if (hasStartedForeground) return
 
-        // Check POST_NOTIFICATIONS permission on Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            androidx.core.content.ContextCompat.checkSelfPermission(
-                    this,
-                    android.Manifest.permission.POST_NOTIFICATIONS
-                )
+        if (!hasNotificationPermission(this)) {
+            // Cannot show notification -> avoid ANR by stopping service early
+            throw IllegalStateException("Notification permission missing for MusicService")
         }
 
         // Create notification channel if needed

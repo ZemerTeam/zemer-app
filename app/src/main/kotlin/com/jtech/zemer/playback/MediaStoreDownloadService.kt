@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.jtech.zemer.R
+import com.jtech.zemer.utils.hasNotificationPermission
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -50,7 +51,7 @@ class MediaStoreDownloadService : Service() {
         fun start(context: Context) {
             val intent = Intent(context, MediaStoreDownloadService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
+                kotlin.runCatching { context.startForegroundService(intent) }
             } else {
                 context.startService(intent)
             }
@@ -63,6 +64,11 @@ class MediaStoreDownloadService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+
+        if (!hasNotificationPermission(this)) {
+            stopSelf()
+            return
+        }
 
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
