@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.pow
 
 /**
  * Foreground service for MediaStore downloads that shows persistent notifications
@@ -197,6 +198,15 @@ class MediaStoreDownloadService : Service() {
         val artist = song?.artists?.firstOrNull()?.name ?: "Unknown Artist"
 
         val progress = (state.progress * 100).toInt()
+        val progressLabel = when {
+            state.totalBytes > 0 -> {
+                val downloaded = formatBytes(state.bytesDownloaded)
+                val total = formatBytes(state.totalBytes)
+                "$downloaded / $total"
+            }
+            state.bytesDownloaded > 0 -> formatBytes(state.bytesDownloaded)
+            else -> null
+        }
 
         // Create cancel intent
         val cancelIntent = Intent(this, MediaStoreDownloadService::class.java).apply {
@@ -218,7 +228,7 @@ class MediaStoreDownloadService : Service() {
 
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle(title)
-            .setContentText("$artist • $statusText")
+            .setContentText(listOfNotNull("$artist • $statusText".takeIf { statusText.isNotEmpty() }, progressLabel).joinToString("  ·  "))
             .setSmallIcon(R.drawable.download)
             .setProgress(100, progress, state.progress == 0f && state.status == MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING)
             .setOngoing(true)
@@ -262,5 +272,14 @@ class MediaStoreDownloadService : Service() {
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
+    }
+
+    private fun formatBytes(bytes: Long): String {
+        if (bytes <= 0) return "0 B"
+        val units = arrayOf("B", "KB", "MB", "GB", "TB")
+        val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt().coerceIn(units.indices)
+        val value = bytes / 1024.0.pow(digitGroups.toDouble())
+        val formatted = if (value >= 100) "${value.toInt()}" else String.format("%.1f", value)
+        return "$formatted ${units[digitGroups]}"
     }
 }
