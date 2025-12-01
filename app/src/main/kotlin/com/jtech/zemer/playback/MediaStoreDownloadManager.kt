@@ -88,6 +88,9 @@ constructor(
         private const val INITIAL_RETRY_DELAY_MS = 1000L
         private const val RETRY_BACKOFF_MULTIPLIER = 2.0
         private const val DEFAULT_AUDIO_FORMAT = "opus"
+        // Throttle progress updates to avoid notification rate limiting (Android allows ~5/sec)
+        private const val PROGRESS_UPDATE_INTERVAL_MS = 250L
+        private const val PROGRESS_UPDATE_THRESHOLD = 0.02f // 2% change
     }
 
     /**
@@ -377,6 +380,8 @@ constructor(
         val body = response.body ?: throw Exception("Empty response body")
         val contentLength = body.contentLength().coerceAtLeast(0)
         var totalBytesRead = 0L
+        var lastProgressUpdate = 0L
+        var lastReportedProgress = 0f
 
         body.byteStream().use { input ->
             outputFile.outputStream().use { output ->
@@ -387,19 +392,28 @@ constructor(
                     output.write(buffer, 0, bytesRead)
                     totalBytesRead += bytesRead
 
-                    // Update progress
+                    // Throttle progress updates to avoid notification rate limiting
+                    // Update at most every 250ms OR when progress changes by 2%+
                     if (contentLength > 0) {
                         val progress = totalBytesRead.toFloat() / contentLength.toFloat()
-                        updateDownloadState(
-                            songId,
-                            DownloadState(
-                                songId = songId,
-                                status = DownloadState.Status.DOWNLOADING,
-                                progress = progress,
-                                bytesDownloaded = totalBytesRead,
-                                totalBytes = contentLength.toLong()
+                        val currentTime = System.currentTimeMillis()
+                        val timeSinceLastUpdate = currentTime - lastProgressUpdate
+                        val progressDelta = progress - lastReportedProgress
+
+                        if (timeSinceLastUpdate >= PROGRESS_UPDATE_INTERVAL_MS || progressDelta >= PROGRESS_UPDATE_THRESHOLD) {
+                            lastProgressUpdate = currentTime
+                            lastReportedProgress = progress
+                            updateDownloadState(
+                                songId,
+                                DownloadState(
+                                    songId = songId,
+                                    status = DownloadState.Status.DOWNLOADING,
+                                    progress = progress,
+                                    bytesDownloaded = totalBytesRead,
+                                    totalBytes = contentLength.toLong()
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }
