@@ -112,7 +112,6 @@ core.*
 /tmp/chassidish_candidates.txt
 /tmp/chassidish_candidates_high_conf.txt
 /tmp/chassidish_candidates_trimmed.txt
-/app/src/main/kotlin/com/jtech/zemer/utils/ContentFilterConfig.kt
 /tmp/female_candidates.txt
 /tmp/first_tokens.txt
 /tmp/genz_false_candidates.txt
