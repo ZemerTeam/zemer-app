@@ -1,6 +1,7 @@
 package com.jtech.zemer.viewmodels
 
 import android.content.Context
+import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -39,15 +40,19 @@ constructor(
     val database: MusicDatabase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    val query = requireNotNull(savedStateHandle.get<String>("query")) {
-        "query is required but was not provided in navigation arguments"
-    }
+    val query =
+        requireNotNull(savedStateHandle.get<String>("query")) {
+            "query is required but was not provided in navigation arguments"
+        }.let(Uri::decode)
     private val initialFilter = savedStateHandle.get<String>("filter")?.let { filterParam ->
         when (filterParam) {
             "albums" -> SearchFilter.FILTER_ALBUM
             "songs" -> SearchFilter.FILTER_SONG
             "artists" -> SearchFilter.FILTER_ARTIST
+            "videos" -> SearchFilter.FILTER_VIDEO
             "playlists" -> SearchFilter.FILTER_COMMUNITY_PLAYLIST
+            "community_playlists" -> SearchFilter.FILTER_COMMUNITY_PLAYLIST
+            "featured_playlists" -> SearchFilter.FILTER_FEATURED_PLAYLIST
             else -> null
         }
     }

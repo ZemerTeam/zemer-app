@@ -64,6 +64,7 @@ import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_ARTIST
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_COMMUNITY_PLAYLIST
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_FEATURED_PLAYLIST
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_SONG
+import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_VIDEO
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
@@ -244,11 +245,11 @@ fun OnlineSearchResult(
                 listOf(
                     null to stringResource(R.string.filter_all),
                     FILTER_SONG to stringResource(R.string.filter_songs),
+                    FILTER_VIDEO to stringResource(R.string.filter_videos),
                     FILTER_ALBUM to stringResource(R.string.filter_albums),
                     FILTER_ARTIST to stringResource(R.string.filter_artists),
                     FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
                     FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists),
-                    FILTER_SONG to stringResource(R.string.videos),
                 ),
                 currentValue = searchFilter,
                 onValueUpdate = {
@@ -317,16 +318,22 @@ fun OnlineSearchResult(
                     searchSummary?.summaries?.forEach { summary ->
                         if (summary.items.isNotEmpty()) {
                             item {
+                                val summaryFilter =
+                                    summary.items.firstOrNull()?.let(::mapItemToFilter)
+                                        ?: when (summary.title.lowercase()) {
+                                            "albums" -> FILTER_ALBUM
+                                            "songs" -> FILTER_SONG
+                                            "artists" -> FILTER_ARTIST
+                                            "videos" -> FILTER_VIDEO
+                                            "community playlists" -> FILTER_COMMUNITY_PLAYLIST
+                                            "featured playlists" -> FILTER_FEATURED_PLAYLIST
+                                            else -> null
+                                        }
                                 NavigationTitle(
                                     title = summary.title,
                                     onClick = {
-                                        val filter = when (summary.title) {
-                                            "Albums" -> FILTER_ALBUM
-                                            "Songs" -> FILTER_SONG
-                                            else -> null
-                                        }
-                                        filter?.let {
-                                            viewModel.filter.value = it
+                                        summaryFilter?.let {
+                                            viewModel.filter.value = summaryFilter
                                             coroutineScope.launch {
                                                 lazyListState.animateScrollToItem(0)
                                             }
@@ -407,3 +414,12 @@ fun OnlineSearchResult(
         }
     }
 }
+
+private fun mapItemToFilter(item: YTItem): com.metrolist.innertube.YouTube.SearchFilter? =
+    when (item) {
+        is SongItem -> FILTER_SONG
+        is AlbumItem -> FILTER_ALBUM
+        is ArtistItem -> FILTER_ARTIST
+        is PlaylistItem -> FILTER_COMMUNITY_PLAYLIST
+        else -> null
+    }

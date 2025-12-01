@@ -11,7 +11,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -34,7 +33,6 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
-import com.jtech.zemer.models.ItemsPage
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.ui.component.CreatePlaylistDialog
 import com.jtech.zemer.ui.component.DefaultDialog
@@ -61,7 +59,6 @@ fun AddToPlaylistDialogOnline(
 ) {
     val database = LocalDatabase.current
     val coroutineScope = rememberCoroutineScope()
-    val viewStateMap = remember { mutableStateMapOf<String, ItemsPage?>() }
     var playlists by remember {
         mutableStateOf(emptyList<Playlist>())
     }
@@ -84,6 +81,49 @@ fun AddToPlaylistDialogOnline(
         mutableStateOf(emptyList<String>())
     }
 
+    suspend fun findFirstSong(song: Song): SongItem? {
+        val allArtists = song.artists.joinToString(" ") { artist ->
+            URLDecoder.decode(artist.name, StandardCharsets.UTF_8.toString())
+        }.trim()
+        val query = if (allArtists.isBlank()) song.title else "${song.title} - $allArtists"
+
+        return runCatching {
+            YouTube.search(query, YouTube.SearchFilter.FILTER_SONG)
+                .getOrNull()
+                ?.items
+                ?.firstOrNull() as? SongItem
+        }.onFailure { reportException(it) }
+            .getOrNull()
+    }
+
+    suspend fun processSongs(onSongFound: suspend (SongItem) -> Unit) {
+        val songList = songs.toList()
+        if (songList.isEmpty()) return
+
+        withContext(Dispatchers.Main) {
+            onProgressStart(true)
+            onPercentageChange(0)
+        }
+
+        try {
+            withContext(Dispatchers.IO) {
+                songList.asReversed().forEachIndexed { index, song ->
+                    val firstSong = findFirstSong(song)
+                    if (firstSong != null) {
+                        runCatching { onSongFound(firstSong) }
+                            .onFailure {
+                                Timber.e(it, "Failed to process song %s", firstSong.id)
+                            }
+                    }
+
+                    val progress = (((index + 1) * 100) / songList.size).coerceIn(0, 100)
+                    withContext(Dispatchers.Main) { onPercentageChange(progress) }
+                }
+            }
+        } finally {
+            withContext(Dispatchers.Main) { onProgressStart(false) }
+        }
+    }
 
     LaunchedEffect(Unit) {
         database.editablePlaylistsByCreateDateAsc().collect {
@@ -117,60 +157,17 @@ fun AddToPlaylistDialogOnline(
                     playlist = playlist,
                     modifier = Modifier.clickable {
                         selectedPlaylist = playlist
-                        coroutineScope.launch(Dispatchers.IO) {
+                        coroutineScope.launch {
                             onDismiss()
-                            val songsTot = songs.count().toDouble()
-                            var  songsIdx = 0.toDouble()
-                            onProgressStart(true)
-                            songs.reversed().forEach{
-                                    song ->
-                                var allArtists = ""
-                                song.artists.forEach {
-                                        artist ->
-                                    allArtists += " ${URLDecoder.decode(artist.name, StandardCharsets.UTF_8.toString())}"
+                            processSongs { firstSong ->
+                                val firstSongMedia = firstSong.toMediaMetadata()
+                                try {
+                                    database.insert(firstSongMedia)
+                                } catch (e: Exception) {
+                                    Timber.tag("Exception inserting song in database:").e(e.toString())
                                 }
-                                val query = "${song.title} - $allArtists"
-
-                                coroutineScope.launch {
-                                    try {
-                                        YouTube.search(query, YouTube.SearchFilter.FILTER_SONG)
-                                            .onSuccess { result ->
-                                                viewStateMap[YouTube.SearchFilter.FILTER_SONG.value] =
-                                                    ItemsPage(result.items.distinctBy { it.id }, result.continuation)
-                                                val itemsPage = viewStateMap.entries.first().value!!
-                                                val firstSong = itemsPage.items[0] as SongItem
-                                                val firstSongMedia = firstSong.toMediaMetadata()
-                                                val ids = List(1) {firstSong.id}
-                                                withContext(Dispatchers.IO) {
-                                                    try {
-                                                        database.insert(firstSongMedia)
-                                                    } catch (e: Exception) {
-                                                        Timber.tag("Exception inserting song in database:")
-                                                            .e(e.toString())
-                                                    }
-                                                    database.addSongToPlaylist(playlist, ids)
-                                                }
-                                                viewStateMap.clear()
-                                                songsIdx += 1
-                                            }
-                                            .onFailure {
-                                                reportException(it)
-                                                songsIdx += 1
-                                            }
-
-                                        if (songsIdx.toInt() == songsTot.toInt() - 1) {
-                                            onProgressStart(false)
-                                        }
-                                        onPercentageChange(((songsIdx / songsTot) * 100).toInt())
-
-                                    } catch (e: Exception){
-                                        Timber.tag("ERROR").v(e.toString())
-                                    }
-
-                                }
-
+                                database.addSongToPlaylist(playlist, listOf(firstSong.id))
                             }
-
                         }
                     }
                 )
@@ -179,62 +176,20 @@ fun AddToPlaylistDialogOnline(
             item {
                 ListItem(
                     modifier = Modifier.clickable {
-                        coroutineScope.launch(Dispatchers.IO) {
+                        coroutineScope.launch {
                             onDismiss()
-                            val songsTot = songs.count().toDouble()
-                            var  songsIdx = 0.toDouble()
-                            onProgressStart(true)
-                            songs.reversed().forEach{
-                                    song ->
-                                var allArtists = ""
-                                song.artists.forEach {
-                                        artist ->
-                                    allArtists += " ${URLDecoder.decode(artist.name, StandardCharsets.UTF_8.toString())}"
-                                }
-                                val query = "${song.title} - $allArtists"
-
-                                coroutineScope.launch {
-                                    try {
-                                        YouTube.search(query, YouTube.SearchFilter.FILTER_SONG)
-                                            .onSuccess { result ->
-                                                viewStateMap[YouTube.SearchFilter.FILTER_SONG.value] =
-                                                    ItemsPage(result.items.distinctBy { it.id }, result.continuation)
-                                                val itemsPage = viewStateMap.entries.first().value!!
-                                                val firstSong = itemsPage.items[0] as SongItem
-                                                val firstSongMedia = firstSong.toMediaMetadata()
-                                                val firstSongEnt = firstSong.toMediaMetadata().toSongEntity()
-                                                withContext(Dispatchers.IO) {
-                                                    try {
-                                                        database.insert(firstSongMedia)
-                                                        database.query {
-                                                            update(firstSongEnt.toggleLike())
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        Timber.tag("Exception inserting song in database:")
-                                                            .e(e.toString())
-                                                    }
-                                                }
-                                                viewStateMap.clear()
-                                                songsIdx += 1
-                                            }
-                                            .onFailure {
-                                                reportException(it)
-                                                songsIdx += 1
-                                            }
-
-                                        if (songsIdx.toInt() == songsTot.toInt() - 1) {
-                                            onProgressStart(false)
-                                        }
-                                        onPercentageChange(((songsIdx / songsTot) * 100).toInt())
-
-                                    } catch (e: Exception){
-                                        Timber.tag("ERROR").v(e.toString())
+                            processSongs { firstSong ->
+                                val firstSongMedia = firstSong.toMediaMetadata()
+                                val firstSongEnt = firstSong.toMediaMetadata().toSongEntity()
+                                try {
+                                    database.insert(firstSongMedia)
+                                    database.query {
+                                        update(firstSongEnt.toggleLike())
                                     }
-
+                                } catch (e: Exception) {
+                                    Timber.tag("Exception inserting song in database:").e(e.toString())
                                 }
-
                             }
-
                         }
                     },
                     title = stringResource(R.string.liked_songs),
