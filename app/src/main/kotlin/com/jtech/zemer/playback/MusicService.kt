@@ -236,6 +236,11 @@ class MusicService :
 
     override fun onCreate() {
         super.onCreate()
+        // CRITICAL: Must call startForeground() immediately to avoid ANR when startForegroundService() is used
+        // This MUST happen before any other heavy initialization
+        runCatching { ensureForegroundService() }
+            .onFailure { Timber.e(it, "[ServiceLifecycle] MusicService.onCreate() - failed to start foreground service immediately - may cause ANR - thread: ${Thread.currentThread().name}") }
+
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider(
                 this,

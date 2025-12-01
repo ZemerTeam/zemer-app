@@ -518,38 +518,46 @@ class MainActivity : ComponentActivity() {
                 pureBlack = pureBlack,
                 themeColor = themeColor,
             ) {
-                BoxWithConstraints(
-                    modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface
-                        )
+                CompositionLocalProvider(
+                    LocalDatabase provides database,
+                    LocalContentColor provides if (pureBlack) Color.White else contentColorFor(MaterialTheme.colorScheme.surface),
+                    LocalPlayerConnection provides playerConnection,
+                    LocalDownloadUtil provides downloadUtil,
+                    LocalShimmerTheme provides ShimmerTheme,
+                    LocalSyncUtils provides syncUtils,
                 ) {
-                    val focusManager = LocalFocusManager.current
-                    val density = LocalDensity.current
-                    val configuration = LocalConfiguration.current
-                    val cutoutInsets = WindowInsets.displayCutout
-                    val windowsInsets = WindowInsets.systemBars
-                    val bottomInset = with(density) { windowsInsets.getBottom(density).toDp() }
-                    val bottomInsetDp = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
+                    BoxWithConstraints(
+                        modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(
+                                if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface
+                            )
+                    ) {
+                        val focusManager = LocalFocusManager.current
+                        val density = LocalDensity.current
+                        val configuration = LocalConfiguration.current
+                        val cutoutInsets = WindowInsets.displayCutout
+                        val windowsInsets = WindowInsets.systemBars
+                        val bottomInset = with(density) { windowsInsets.getBottom(density).toDp() }
+                        val bottomInsetDp = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
 
-                    // Check onboarding status first, then whitelist sync
-                    val onboardingComplete by dataStore.data.map { it[OnboardingCompleteKey] ?: false }.collectAsState(initial = false)
-                    val onboardingScope = rememberCoroutineScope()
-                    val syncScope = rememberCoroutineScope()
+                        // Check onboarding status first, then whitelist sync
+                        val onboardingComplete by dataStore.data.map { it[OnboardingCompleteKey] ?: false }.collectAsState(initial = false)
+                        val onboardingScope = rememberCoroutineScope()
+                        val syncScope = rememberCoroutineScope()
 
-                    // Show onboarding first (before splash screen)
-                    if (!onboardingComplete) {
-                        OnboardingFlow(
-                            onFinished = {
-                                onboardingScope.launch {
-                                    dataStore.edit { it[OnboardingCompleteKey] = true }
+                        // Show onboarding first (before splash screen)
+                        if (!onboardingComplete) {
+                            OnboardingFlow(
+                                onFinished = {
+                                    onboardingScope.launch {
+                                        dataStore.edit { it[OnboardingCompleteKey] = true }
+                                    }
                                 }
-                            }
-                        )
-                        return@BoxWithConstraints
-                    }
+                            )
+                            return@BoxWithConstraints
+                        }
 
                     // After onboarding, show splash screen while syncing
                     val syncProgress by syncUtils.whitelistSyncProgress.collectAsState()
@@ -901,16 +909,10 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    CompositionLocalProvider(
-                        LocalDatabase provides database,
-                        LocalContentColor provides if (pureBlack) Color.White else contentColorFor(MaterialTheme.colorScheme.surface),
-                        LocalPlayerConnection provides playerConnection,
-                        LocalPlayerAwareWindowInsets provides playerAwareWindowInsets,
-                        LocalDownloadUtil provides downloadUtil,
-                        LocalShimmerTheme provides ShimmerTheme,
-                        LocalSyncUtils provides syncUtils,
-                    ) {
-                        ModalNavigationDrawer(
+                        CompositionLocalProvider(
+                            LocalPlayerAwareWindowInsets provides playerAwareWindowInsets,
+                        ) {
+                            ModalNavigationDrawer(
                             drawerState = drawerState,
                             drawerContent = {
                                 ModalDrawerSheet(
@@ -1424,16 +1426,17 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    LaunchedEffect(shouldShowSearchBar, openSearchImmediately) {
-                        if (shouldShowSearchBar && openSearchImmediately) {
-                            onActiveChange(true)
-                            searchBarFocusRequester.requestFocus()
-                            openSearchImmediately = false
+                            LaunchedEffect(shouldShowSearchBar, openSearchImmediately) {
+                                if (shouldShowSearchBar && openSearchImmediately) {
+                                    onActiveChange(true)
+                                    searchBarFocusRequester.requestFocus()
+                                    openSearchImmediately = false
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
     }
 
     private fun handleDeepLinkIntent(intent: Intent, navController: NavHostController) {

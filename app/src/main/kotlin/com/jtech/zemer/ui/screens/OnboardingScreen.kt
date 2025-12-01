@@ -640,8 +640,7 @@ fun LoadingScreen(
     onFinished: () -> Unit,
     shouldStartSync: Boolean = true,
 ) {
-    val context = LocalContext.current
-    val syncUtils = remember { (context.applicationContext as com.jtech.zemer.App).syncUtils }
+    val syncUtils = com.jtech.zemer.LocalSyncUtils.current
     val progress by syncUtils.whitelistSyncProgress.collectAsState()
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.loading_dots_blue))
     val lottieColors = rememberLottieDynamicProperties(
