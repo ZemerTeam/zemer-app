@@ -14,6 +14,9 @@
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
     <uses-permission android:name="android.permission.PICTURE_IN_PICTURE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:targetApi="tiramisu" />
 
     <!-- Storage permissions for MediaStore downloads -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
