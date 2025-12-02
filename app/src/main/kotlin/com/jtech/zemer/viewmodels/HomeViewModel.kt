@@ -538,9 +538,9 @@ class HomeViewModel @Inject constructor(
     fun loadMoreYouTubeItems(continuation: String?) {
         if (continuation == null || isLoadingMore.value) return
         if (ContentFilterState.state.value.filtersEnabled) return
-        val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
 
         viewModelScope.launch(Dispatchers.IO) {
+            val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
             isLoadingMore.value = true
             val nextSections = YouTube.home(continuation).getOrNull()
             if (nextSections != null) {
