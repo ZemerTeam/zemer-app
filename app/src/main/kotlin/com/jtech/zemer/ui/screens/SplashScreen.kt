@@ -9,9 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.surfaceColorAtElevation
@@ -29,9 +29,9 @@ import android.graphics.PorterDuffColorFilter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.toArgb
 import com.airbnb.lottie.LottieProperty
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
@@ -90,33 +90,27 @@ fun SplashScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
             modifier = Modifier
-                .padding(32.dp)
                 .fillMaxWidth()
+                .padding(horizontal = 32.dp)
         ) {
             Text(
                 text = stringResource(R.string.app_name),
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = 44.sp,
+                fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.primary
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(48.dp))
 
-            Surface(
-                tonalElevation = 6.dp,
-                shape = MaterialTheme.shapes.extraLarge
-            ) {
-                LottieAnimation(
-                    composition = composition,
-                    progress = { loopingState.progress },
-                    dynamicProperties = lottieColors,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 48.dp)
-                )
-            }
+            LottieAnimation(
+                composition = composition,
+                progress = { loopingState.progress },
+                dynamicProperties = lottieColors,
+                modifier = Modifier
+                    .size(240.dp)
+            )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Text(
                 text = if (syncProgress.total > 0) {
@@ -135,11 +129,12 @@ fun SplashScreen(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             Button(
                 onClick = onSkip,
                 enabled = syncProgress.isComplete,
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = stringResource(R.string.splash_continue),
@@ -153,14 +148,16 @@ fun SplashScreen(
                 onClick = {
                     hasTappedSkip = true
                     onSkip()
-                }
+                },
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = if (hasTappedSkip) stringResource(R.string.splash_syncing_background_waiting) else stringResource(
                         R.string.splash_syncing_background_action
                     ),
                     style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
