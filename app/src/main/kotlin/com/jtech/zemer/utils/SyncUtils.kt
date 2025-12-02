@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -358,75 +359,77 @@ class SyncUtils @Inject constructor(
     }
 
     suspend fun syncArtistWhitelist(forceSync: Boolean = false) {
-        if (isSyncingWhitelist.value) return
+        withContext(Dispatchers.IO) {
+            if (isSyncingWhitelist.value) return@withContext
 
-        isSyncingWhitelist.value = true
+            isSyncingWhitelist.value = true
 
-        _whitelistSyncProgress.value = WhitelistSyncProgress()
+            _whitelistSyncProgress.value = WhitelistSyncProgress()
 
-        try {
-            val remoteVersion = WhitelistFetcher.fetchVersion().getOrNull()
-            val localVersion = context.dataStore.get(LastWhitelistVersionKey, 0L)
-            val existingWhitelistIds = database.getAllWhitelistedArtistIdsSync()
-            val localEmpty = existingWhitelistIds.isEmpty()
+            try {
+                val remoteVersion = WhitelistFetcher.fetchVersion().getOrNull()
+                val localVersion = context.dataStore.get(LastWhitelistVersionKey, 0L)
+                val existingWhitelistIds = database.getAllWhitelistedArtistIdsSync()
+                val localEmpty = existingWhitelistIds.isEmpty()
 
-            // Always fetch at least once per version (including version 1). Subsequent runs skip if already synced.
-            if (!forceSync && remoteVersion != null && remoteVersion <= localVersion && !localEmpty) {
-                runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
-                _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
-                return
-            }
-
-            val whitelistEntries = WhitelistFetcher.fetchWhitelist { processed, total ->
-                _whitelistSyncProgress.value = WhitelistSyncProgress(
-                    current = processed,
-                    total = total
-                )
-            }.getOrThrow()
-
-            _whitelistSyncProgress.value = WhitelistSyncProgress(
-                current = whitelistEntries.size,
-                total = whitelistEntries.size
-            )
-
-            val currentWhitelistIds = database.getAllWhitelistedArtistIdsSync()
-            val newWhitelistIds = whitelistEntries.map { it.artistId }.toSet()
-            val removedArtistIds = currentWhitelistIds.filterNot { it in newWhitelistIds }
-
-            if (removedArtistIds.isNotEmpty()) {
-                deleteRemovedArtists(removedArtistIds)
-            }
-
-            database.transaction {
-                clearWhitelist()
-                insertWhitelist(whitelistEntries)
-                val existingArtistIds = getAllArtistIdsSync().toSet()
-            val missingArtists = whitelistEntries
-                .filter { it.artistId !in existingArtistIds }
-                .map { ArtistEntity(id = it.artistId, name = it.artistName) }
-            if (missingArtists.isNotEmpty()) {
-                insertArtists(missingArtists)
+                // Always fetch at least once per version (including version 1). Subsequent runs skip if already synced.
+                if (!forceSync && remoteVersion != null && remoteVersion <= localVersion && !localEmpty) {
+                    runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
+                    _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
+                    return@withContext
                 }
+
+                val whitelistEntries = WhitelistFetcher.fetchWhitelist { processed, total ->
+                    _whitelistSyncProgress.value = WhitelistSyncProgress(
+                        current = processed,
+                        total = total
+                    )
+                }.getOrThrow()
+
+                _whitelistSyncProgress.value = WhitelistSyncProgress(
+                    current = whitelistEntries.size,
+                    total = whitelistEntries.size
+                )
+
+                val currentWhitelistIds = database.getAllWhitelistedArtistIdsSync()
+                val newWhitelistIds = whitelistEntries.map { it.artistId }.toSet()
+                val removedArtistIds = currentWhitelistIds.filterNot { it in newWhitelistIds }
+
+                if (removedArtistIds.isNotEmpty()) {
+                    deleteRemovedArtists(removedArtistIds)
+                }
+
+                database.transaction {
+                    clearWhitelist()
+                    insertWhitelist(whitelistEntries)
+                    val existingArtistIds = getAllArtistIdsSync().toSet()
+                    val missingArtists = whitelistEntries
+                        .filter { it.artistId !in existingArtistIds }
+                        .map { ArtistEntity(id = it.artistId, name = it.artistName) }
+                    if (missingArtists.isNotEmpty()) {
+                        insertArtists(missingArtists)
+                    }
+                }
+                WhitelistCache.updateAll(whitelistEntries)
+
+                _whitelistSyncProgress.value = WhitelistSyncProgress(
+                    current = whitelistEntries.size,
+                    total = whitelistEntries.size,
+                    isComplete = true
+                )
+
+                context.dataStore.edit { settings ->
+                    settings[LastWhitelistSyncTimeKey] = System.currentTimeMillis()
+                    remoteVersion?.let { settings[LastWhitelistVersionKey] = it }
+                }
+
+                // Backfill artist thumbnails for whitelisted artists missing thumbs (limited to reduce load)
+                backfillMissingArtistThumbs(limit = 150)
+            } catch (e: Exception) {
+                _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
+            } finally {
+                isSyncingWhitelist.value = false
             }
-            WhitelistCache.updateAll(whitelistEntries)
-
-            _whitelistSyncProgress.value = WhitelistSyncProgress(
-                current = whitelistEntries.size,
-                total = whitelistEntries.size,
-                isComplete = true
-            )
-
-            context.dataStore.edit { settings ->
-                settings[LastWhitelistSyncTimeKey] = System.currentTimeMillis()
-                remoteVersion?.let { settings[LastWhitelistVersionKey] = it }
-            }
-
-            // Backfill artist thumbnails for whitelisted artists missing thumbs (limited to reduce load)
-            backfillMissingArtistThumbs(limit = 150)
-        } catch (e: Exception) {
-            _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
-        } finally {
-            isSyncingWhitelist.value = false
         }
     }
 
