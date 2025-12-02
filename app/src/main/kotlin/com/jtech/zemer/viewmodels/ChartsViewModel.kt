@@ -9,8 +9,8 @@ import com.metrolist.innertube.pages.ChartsPage
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.filterWhitelisted
-import com.jtech.zemer.utils.get
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,7 +39,7 @@ class ChartsViewModel @Inject constructor(
 
             YouTube.getChartsPage()
                 .onSuccess { page ->
-                    val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                    val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                     _chartsPage.value = page.copy(
                         sections = page.sections.map { section ->
                             section.copy(
@@ -62,7 +62,7 @@ class ChartsViewModel @Inject constructor(
         viewModelScope.launch {
             _chartsPage.value?.continuation?.let { continuation ->
                 _isLoading.value = true
-                val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                 YouTube.getChartsPage(continuation)
                     .onSuccess { newPage ->
                         val filteredSections = newPage.sections.map { section ->

@@ -9,8 +9,8 @@ import com.metrolist.innertube.pages.BrowseResult
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.filterWhitelisted
-import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -38,7 +38,7 @@ constructor(
             YouTube
                 .browse(browseId, params)
                 .onSuccess { browseResult ->
-                    val explicitFiltered = browseResult.filterExplicit(context.dataStore.get(HideExplicitKey, false))
+                    val explicitFiltered = browseResult.filterExplicit(context.dataStore.getSuspend(HideExplicitKey, false))
                     result.value = explicitFiltered.copy(
                         items = explicitFiltered.items.map { section ->
                             section.copy(items = section.items.filterWhitelisted(database))
