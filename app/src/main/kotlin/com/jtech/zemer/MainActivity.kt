@@ -581,6 +581,9 @@ class MainActivity : ComponentActivity() {
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
                     val drawerState = rememberDrawerState(DrawerValue.Closed)
+                    val isVideoScreen = remember(navBackStackEntry) {
+                        navBackStackEntry?.destination?.route?.startsWith("video/") == true
+                    }
 
                     // Contribution auth state
                     val firebaseAuth = remember { FirebaseAuth.getInstance() }
@@ -596,7 +599,7 @@ class MainActivity : ComponentActivity() {
                     val navigationItems = remember { Screens.MainScreens }
                     val (_) = rememberPreference(SlimNavBarKey, defaultValue = false)
                     val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
-                    val (floatingMiniPlayerEnabled, _) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
+                    val (floatingMiniPlayerEnabled) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
                     val (defaultOpenTab) = rememberEnumPreference(DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
                     val tabOpenedFromShortcut = remember {
                         when (intent?.action) {
@@ -676,14 +679,16 @@ class MainActivity : ComponentActivity() {
 
                     val getNavPadding: () -> Dp = remember { { 0.dp } }
 
+                    val floatingMiniPlayerAllowed = floatingMiniPlayerEnabled && !isVideoScreen
+
                     val collapsedBound = remember(
                         bottomInset,
                         shouldShowNavigationBar,
                         showRail,
                         useNewMiniPlayerDesign,
-                        floatingMiniPlayerEnabled
+                        floatingMiniPlayerAllowed
                     ) {
-                        if (floatingMiniPlayerEnabled) {
+                        if (floatingMiniPlayerAllowed) {
                             bottomInset +
                                 (if (!showRail && shouldShowNavigationBar) getNavPadding() else 0.dp) +
                                 (if (useNewMiniPlayerDesign) MiniPlayerBottomSpacing else 0.dp) +
@@ -705,10 +710,10 @@ class MainActivity : ComponentActivity() {
                         shouldShowNavigationBar,
                         playerBottomSheetState.isDismissed,
                         showRail,
-                        floatingMiniPlayerEnabled
+                        floatingMiniPlayerAllowed
                     ) {
                         var bottom = bottomInset
-                        if (floatingMiniPlayerEnabled && !playerBottomSheetState.isDismissed) bottom += MiniPlayerHeight
+                        if (floatingMiniPlayerAllowed && !playerBottomSheetState.isDismissed) bottom += MiniPlayerHeight
                         windowsInsets
                             .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
                             .add(WindowInsets(top = AppBarHeight, bottom = bottom))
@@ -794,16 +799,16 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    LaunchedEffect(playerConnection, floatingMiniPlayerEnabled) {
+                    LaunchedEffect(playerConnection, floatingMiniPlayerAllowed) {
                         val player = playerConnection?.player ?: return@LaunchedEffect
-                        if (floatingMiniPlayerEnabled) {
+                        if (floatingMiniPlayerAllowed) {
                             if (player.currentMediaItem != null && playerBottomSheetState.isDismissed) {
                                 playerBottomSheetState.collapseSoft()
                             }
                         }
                     }
 
-                    DisposableEffect(playerConnection, playerBottomSheetState, floatingMiniPlayerEnabled) {
+                    DisposableEffect(playerConnection, playerBottomSheetState, floatingMiniPlayerAllowed) {
                         val player =
                             playerConnection?.player ?: return@DisposableEffect onDispose { }
                         val listener =
@@ -814,7 +819,7 @@ class MainActivity : ComponentActivity() {
                                 ) {
                                     if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED &&
                                         mediaItem != null &&
-                                        floatingMiniPlayerEnabled &&
+                                        floatingMiniPlayerAllowed &&
                                         playerBottomSheetState.isDismissed
                                     ) {
                                         playerBottomSheetState.collapseSoft()
@@ -1260,6 +1265,7 @@ class MainActivity : ComponentActivity() {
                                         state = playerBottomSheetState,
                                         navController = navController,
                                         pureBlack = pureBlack,
+                                        floatingMiniPlayerEnabledOverride = floatingMiniPlayerAllowed,
                                         miniPlayerFocusTargets = null
                                     )
 

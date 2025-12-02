@@ -55,7 +55,6 @@ import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -156,6 +155,7 @@ fun BottomSheetPlayer(
     navController: NavController,
     modifier: Modifier = Modifier,
     pureBlack: Boolean,
+    floatingMiniPlayerEnabledOverride: Boolean? = null,
     miniPlayerFocusTargets: MiniPlayerFocusTargets? = null,
 ) {
     val context = LocalContext.current
@@ -168,10 +168,12 @@ fun BottomSheetPlayer(
         UseNewPlayerDesignKey,
         defaultValue = true
     )
-    val (floatingMiniPlayerEnabled) = rememberPreference(
+    val (floatingMiniPlayerPref, _) = rememberPreference(
         FloatingMiniPlayerKey,
         defaultValue = true
     )
+    val floatingMiniPlayerEnabled =
+        floatingMiniPlayerEnabledOverride ?: floatingMiniPlayerPref
     val playerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
         defaultValue = PlayerBackgroundStyle.DEFAULT

@@ -110,12 +110,6 @@ class ArtistViewModel @Inject constructor(
                             // Filter if it matches browseId OR (has similar title AND is only artists)
                             hasSimilarBrowseId || (hasSimilarTitle && isOnlyArtists)
                         }
-                        .filterNot { section ->
-                            // Filter "Playlists by [Artist]" sections
-                            section.items.any { it is com.metrolist.innertube.models.PlaylistItem } &&
-                            (section.title.contains("playlist", ignoreCase = true) ||
-                             section.title.contains("liste", ignoreCase = true))  // French variations
-                        }
                         .map { section ->
                             val originalCount = section.items.size
                             // Only filter explicit content, not by whitelist (we're already on a whitelisted artist's page)

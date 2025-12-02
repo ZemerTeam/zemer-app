@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
+import androidx.media3.common.C
 import androidx.media3.database.DatabaseProvider
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.cache.CacheDataSource
@@ -12,6 +13,8 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadNotificationHelper
+import androidx.media3.exoplayer.offline.DownloadRequest
+import androidx.media3.exoplayer.offline.DownloadService
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.utils.ResilientDns
 import com.jtech.zemer.constants.AudioQuality
@@ -22,11 +25,24 @@ import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.di.DownloadCache
 import com.jtech.zemer.di.PlayerCache
 import com.jtech.zemer.utils.YTPlayerUtils
-import com.jtech.zemer.utils.PermissionHelper
-import com.jtech.zemer.utils.enumPreference
+import com.jtech.zemer.utils.enumPreferenceFlow
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
@@ -49,17 +65,21 @@ constructor(
         get() = databaseLazy.get()
     private val connectivityManager = appContext.getSystemService<ConnectivityManager>()
         ?: throw IllegalStateException("ConnectivityManager not available on this device")
-    private val audioQualityFlow = com.jtech.zemer.utils.enumPreferenceFlow(appContext, AudioQualityKey, AudioQuality.AUTO)
+    private val audioQualityFlow = enumPreferenceFlow(appContext, AudioQualityKey, AudioQuality.AUTO)
     private var audioQuality = AudioQuality.AUTO
     private val songUrlCache = ConcurrentHashMap<String, Pair<String, Long>>()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    // Legacy cache downloads (for compatibility)
-    private val cacheDownloads = MutableStateFlow<Map<String, Download>>(emptyMap())
-
-    // Unified downloads combining cache and MediaStore
     val downloads = MutableStateFlow<Map<String, Download>>(emptyMap())
+    private val exoDownloadStates: StateFlow<Map<String, MediaStoreDownloadManager.DownloadState>> =
+        downloads
+            .map { downloadMap ->
+                downloadMap.mapValues { (_, download) ->
+                    download.toDownloadState()
+                }
+            }
+            .stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
     private val dataSourceFactory: ResolvingDataSource.Factory by lazy {
         ResolvingDataSource.Factory(
@@ -104,18 +124,24 @@ constructor(
             }.getOrThrow()
             val format = playbackData.format
 
-            val contentLength = format.contentLength ?: run {
-                -1L
-            }
+            val contentLength = format.contentLength ?: -1L
             val now = LocalDateTime.now()
-            val updatedSong = SongEntity(
-                id = mediaId,
-                title = playbackData.videoDetails?.title ?: "Unknown",
-                duration = playbackData.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0,
-                thumbnailUrl = playbackData.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url,
-                dateDownload = now,
-                isDownloaded = false
-            )
+            val existing = database.getSongByIdBlocking(mediaId)?.song
+
+            val updatedSong =
+                if (existing != null) {
+                    // Preserve existing metadata and only stamp download time once
+                    if (existing.dateDownload == null) existing.copy(dateDownload = now) else existing
+                } else {
+                    SongEntity(
+                        id = mediaId,
+                        title = playbackData.videoDetails?.title ?: "Unknown",
+                        duration = playbackData.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0,
+                        thumbnailUrl = playbackData.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url,
+                        dateDownload = now,
+                        isDownloaded = false
+                    )
+                }
             database.query {
                 upsert(
                     FormatEntity(
@@ -162,7 +188,7 @@ constructor(
                         download: Download,
                         finalException: Exception?,
                     ) {
-                        cacheDownloads.update { map ->
+                        downloads.update { map ->
                             map.toMutableMap().apply {
                                 set(download.request.id, download)
                             }
@@ -188,13 +214,13 @@ constructor(
         }
 
     init {
-        // Initialize cache downloads
+        // Initialize downloads snapshot
         val result = mutableMapOf<String, Download>()
         val cursor = downloadManager.downloadIndex.getDownloads()
         while (cursor.moveToNext()) {
             result[cursor.download.request.id] = cursor.download
         }
-        cacheDownloads.value = result
+        downloads.value = result
 
         // Initialize audioQuality from preference
         scope.launch {
@@ -202,96 +228,102 @@ constructor(
                 audioQuality = quality
             }
         }
-
-        // Merge cache downloads and MediaStore downloads into unified flow
-        scope.launch {
-            combine(
-                cacheDownloads,
-                mediaStoreDownloadManager.downloadStates
-            ) { cache, mediaStore ->
-                // Start with cache downloads
-                val merged = cache.toMutableMap()
-
-                // Add MediaStore downloads as fake Download objects
-                mediaStore.forEach { (songId, downloadState) ->
-                    merged[songId] = downloadState.toDownload()
-                }
-
-                merged.toMap()
-            }.collect { mergedDownloads ->
-                downloads.value = mergedDownloads
-            }
-        }
     }
 
-    // Convert MediaStore DownloadState to Media3 Download (for UI compatibility)
-    private fun MediaStoreDownloadManager.DownloadState.toDownload(): Download {
-        val state = when (this.status) {
-            MediaStoreDownloadManager.DownloadState.Status.QUEUED -> Download.STATE_QUEUED
-            MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING -> Download.STATE_DOWNLOADING
-            MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> Download.STATE_COMPLETED
-            MediaStoreDownloadManager.DownloadState.Status.FAILED -> Download.STATE_FAILED
-            MediaStoreDownloadManager.DownloadState.Status.CANCELLED -> Download.STATE_STOPPED
-        }
+    private fun Download.toDownloadState(): MediaStoreDownloadManager.DownloadState {
+        val status =
+            when (state) {
+                Download.STATE_COMPLETED -> MediaStoreDownloadManager.DownloadState.Status.COMPLETED
+                Download.STATE_DOWNLOADING, Download.STATE_RESTARTING -> MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING
+                Download.STATE_QUEUED -> MediaStoreDownloadManager.DownloadState.Status.QUEUED
+                Download.STATE_FAILED -> MediaStoreDownloadManager.DownloadState.Status.FAILED
+                Download.STATE_REMOVING,
+                Download.STATE_STOPPED -> MediaStoreDownloadManager.DownloadState.Status.CANCELLED
+                else -> MediaStoreDownloadManager.DownloadState.Status.CANCELLED
+            }
 
-        val downloadRequest = androidx.media3.exoplayer.offline.DownloadRequest.Builder(songId, songId.toUri())
-            .setCustomCacheKey(songId)
-            .build()
+        val totalBytes = contentLength.takeIf { it != C.LENGTH_UNSET.toLong() } ?: 0L
+        val downloadedBytes = bytesDownloaded
+        val progress =
+            when {
+                totalBytes > 0 -> downloadedBytes.toFloat() / totalBytes
+                percentDownloaded != C.PERCENTAGE_UNSET.toFloat() -> percentDownloaded / 100f
+                else -> 0f
+            }.coerceIn(0f, 1f)
 
-        return Download(
-            downloadRequest,
-            state,
-            /* startTimeMs = */ 0,
-            /* updateTimeMs = */ System.currentTimeMillis(),
-            /* contentLength = */ totalBytes,
-            /* stopReason = */ 0,
-            /* failureReason = */ if (state == Download.STATE_FAILED) Download.FAILURE_REASON_UNKNOWN else Download.FAILURE_REASON_NONE
+        val error =
+            if (status == MediaStoreDownloadManager.DownloadState.Status.FAILED &&
+                failureReason != Download.FAILURE_REASON_NONE
+            ) {
+                "Error code $failureReason"
+            } else {
+                null
+            }
+
+        return MediaStoreDownloadManager.DownloadState(
+            songId = request.id,
+            status = status,
+            progress = progress,
+            bytesDownloaded = downloadedBytes,
+            totalBytes = if (totalBytes > 0) totalBytes else downloadedBytes,
+            error = error,
         )
     }
 
     fun getDownload(songId: String): Flow<Download?> = downloads.map { it[songId] }
 
-    // MediaStore download methods
+    // MediaStore download methods (backed by ExoPlayer DownloadManager for compatibility)
     fun getMediaStoreDownload(songId: String): Flow<MediaStoreDownloadManager.DownloadState?> =
-        mediaStoreDownloadManager.downloadStates.map { it[songId] }
+        exoDownloadStates.map { it[songId] }
 
     fun getAllMediaStoreDownloads(): StateFlow<Map<String, MediaStoreDownloadManager.DownloadState>> =
-        mediaStoreDownloadManager.downloadStates
+        exoDownloadStates
 
     fun downloadToMediaStore(song: com.jtech.zemer.db.entities.Song) {
-        if (!com.jtech.zemer.utils.PermissionHelper.hasMediaStoreWritePermission(appContext)) {
-            mediaStoreDownloadManager.markPermissionMissing(song.id)
-            android.widget.Toast
-                .makeText(appContext, appContext.getString(com.jtech.zemer.R.string.storage_permission_required), android.widget.Toast.LENGTH_LONG)
-                .show()
-            return
-        }
-        mediaStoreDownloadManager.downloadSong(song)
+        val downloadRequest =
+            DownloadRequest
+                .Builder(song.id, song.id.toUri())
+                .setCustomCacheKey(song.id)
+                .setData(song.song.title.toByteArray())
+                .build()
+        DownloadService.sendAddDownload(
+            appContext,
+            ExoDownloadService::class.java,
+            downloadRequest,
+            false,
+        )
     }
 
     fun cancelMediaStoreDownload(songId: String) {
-        mediaStoreDownloadManager.cancelDownload(songId)
+        DownloadService.sendRemoveDownload(
+            appContext,
+            ExoDownloadService::class.java,
+            songId,
+            false,
+        )
     }
 
     fun retryMediaStoreDownload(songId: String) {
-        mediaStoreDownloadManager.retryDownload(songId)
+        scope.launch {
+            val song = database.song(songId).firstOrNull() ?: return@launch
+            downloadToMediaStore(song)
+        }
     }
 
     suspend fun isDownloadedInMediaStore(songId: String): Boolean {
-        return mediaStoreDownloadManager.isDownloaded(songId)
+        return database.song(songId).firstOrNull()?.song?.isDownloaded == true
     }
 
     /**
-     * Remove a download regardless of backend (MediaStore or legacy cache) and clean DB flags.
+     * Remove a download and clean DB flags.
      */
     suspend fun removeDownload(songId: String) = withContext(Dispatchers.IO) {
         // Cancel queued/active MediaStore download and delete file/flags
-        mediaStoreDownloadManager.deleteDownloaded(songId)
+        runCatching { mediaStoreDownloadManager.deleteDownloaded(songId) }
 
         // Remove legacy ExoPlayer cache download if present
         runCatching { downloadManager.removeDownload(songId) }
 
-        cacheDownloads.update { it - songId }
         downloads.update { it - songId }
 
         runCatching {

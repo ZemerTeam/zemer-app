@@ -76,8 +76,6 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import com.jtech.zemer.constants.FloatingMiniPlayerKey
-import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.db.entities.SongEntity
@@ -96,7 +94,6 @@ fun VideoPlayerScreen(
     val connectivityManager = remember {
         context.getSystemService(ConnectivityManager::class.java)
     }
-    val (_, setFloatingMiniPlayerEnabled) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
     val downloadUtil = LocalDownloadUtil.current
     val database = LocalDatabase.current
     val scope = rememberCoroutineScope()
@@ -141,8 +138,6 @@ fun VideoPlayerScreen(
     }
 
     DisposableEffect(Unit) {
-        // Disable floating mini player while video screen is visible
-        setFloatingMiniPlayerEnabled(false)
         onDispose {
             exoPlayer.stop()
             exoPlayer.clearMediaItems()
@@ -151,7 +146,6 @@ fun VideoPlayerScreen(
                 WindowCompat.getInsetsController(it, it.decorView)?.show(WindowInsetsCompat.Type.systemBars())
                 it.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
-            setFloatingMiniPlayerEnabled(true)
         }
     }
 

@@ -51,7 +51,9 @@ class CachedSongsRepository @Inject constructor(
 
                 val completeSongs = songs.filter { song ->
                     val contentLength = song.format?.contentLength
-                    contentLength != null && playerCache.isCached(song.song.id, 0, contentLength)
+                    contentLength != null &&
+                        playerCache.isCached(song.song.id, 0, contentLength) &&
+                        !song.song.isDownloaded
                 }
 
                 if (completeSongs.isNotEmpty()) {
