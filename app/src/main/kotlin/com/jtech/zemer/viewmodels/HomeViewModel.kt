@@ -57,6 +57,7 @@ class HomeViewModel @Inject constructor(
         val isNewUser: Boolean = true,
         val quickPicks: List<Song> = emptyList(),
         val featuredPlaylists: List<PlaylistItem> = emptyList(),
+        val trendingSongs: List<SongItem> = emptyList(),
         val keepListening: List<LocalItem> = emptyList(),
         val forgottenFavorites: List<Song> = emptyList(),
         val recentReleaseAlbums: List<AlbumItem> = emptyList(),
@@ -169,6 +170,24 @@ class HomeViewModel @Inject constructor(
             .take(8)
     }
 
+    private suspend fun loadTrendingSongs(filters: ContentFilterConfig, hideExplicit: Boolean): List<SongItem> {
+        val allowedIds = WhitelistCache.allowedEntries(database, filters).map { it.artistId }.toSet()
+        val charts = YouTube.getChartsPage().getOrNull() ?: return emptyList()
+        val allSongs = charts.sections
+            .flatMap { it.items }
+            .filterIsInstance<SongItem>()
+            .filterExplicit(hideExplicit)
+        val whitelisted =
+            if (allowedIds.isEmpty()) allSongs
+            else allSongs.filter { item -> item.artists?.any { it.id in allowedIds } == true }
+
+        val chosen = when {
+            whitelisted.isNotEmpty() -> whitelisted
+            else -> allSongs
+        }
+        return chosen.distinctBy { it.id }.take(30)
+    }
+
     private suspend fun loadKeepListening(): List<LocalItem> {
         val toTimeStamp = System.currentTimeMillis()
         val fromTimeStamp = toTimeStamp - 86400000 * 7 * 2
@@ -244,14 +263,28 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun loadRecentReleases(hideExplicit: Boolean): Pair<List<AlbumItem>, List<SongItem>> {
         return runCatching {
+            val filters = ContentFilterState.state.value
+            val allowedIds = WhitelistCache.allowedEntries(database, filters).map { it.artistId }.toSet()
+            val whitelistActive = filters.filtersEnabled && allowedIds.isNotEmpty()
+
+            fun isAllowed(artists: List<com.metrolist.innertube.models.Artist>?): Boolean {
+                if (!whitelistActive) return true
+                return artists?.any { it.id in allowedIds } == true
+            }
+
             val browse = YouTube.browse(browseId = "FEmusic_new_releases", params = null).getOrNull()
             val items = browse
                 ?.filterExplicit(hideExplicit)
                 ?.items
                 ?.flatMap { it.items }
                 .orEmpty()
-            val albums = items.filterIsInstance<AlbumItem>()
-            val songs = items.filterIsInstance<SongItem>()
+            val albums = items
+                .filterIsInstance<AlbumItem>()
+                .filter { isAllowed(it.artists) }
+            val songs = items
+                .filterIsInstance<SongItem>()
+                .filter { isAllowed(it.artists) }
+
             albums to songs
         }.getOrElse {
             Timber.w(it, "HomeViewModel: Failed to load recent releases")
@@ -458,6 +491,7 @@ class HomeViewModel @Inject constructor(
             val hideExplicit = context.dataStore.get(HideExplicitKey, false)
             val quick = loadQuickPicks()
             val featuredPlaylists = loadFeaturedPlaylists(filters, hideExplicit)
+            val trendingSongs = loadTrendingSongs(filters, hideExplicit)
             val forgottenList = database.forgottenFavorites().first().shuffled().take(20)
             val forgotten = forgottenList.ifEmpty {
                 // Fallback: show liked songs if no forgotten favorites
@@ -482,6 +516,7 @@ class HomeViewModel @Inject constructor(
                     isRefreshing = false,
                     isNewUser = isNewUser,
                     quickPicks = quickSeeded,
+                    trendingSongs = trendingSongs,
                     featuredPlaylists = featuredPlaylists,
                     keepListening = keepListening,
                     forgottenFavorites = forgotten,

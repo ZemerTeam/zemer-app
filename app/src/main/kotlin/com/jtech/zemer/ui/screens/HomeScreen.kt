@@ -122,6 +122,7 @@ fun HomeScreen(
 
     val quickPicks = homeUiState.quickPicks
     val featuredPlaylists = homeUiState.featuredPlaylists
+    val trendingSongs = homeUiState.trendingSongs
     val forgottenFavorites = homeUiState.forgottenFavorites
     val keepListening = homeUiState.keepListening
     val featuredAlbums = homeUiState.featuredAlbums
@@ -136,11 +137,12 @@ fun HomeScreen(
             (quickPicks + forgottenFavorites + keepListening).filter { it is Song || it is Album }
         }
     val allYtItems =
-        remember(featuredVideos, featuredAlbums, featuredArtists) {
+        remember(featuredVideos, featuredAlbums, featuredArtists, trendingSongs) {
             buildList {
                 addAll(featuredVideos)
                 addAll(featuredAlbums)
                 addAll(featuredArtists)
+                addAll(trendingSongs)
             }
         }
 
@@ -409,7 +411,8 @@ fun HomeScreen(
         val hasRemoteHomeContent =
             featuredArtists.isNotEmpty() ||
                 featuredAlbums.isNotEmpty() ||
-                featuredVideos.isNotEmpty()
+                featuredVideos.isNotEmpty() ||
+                trendingSongs.isNotEmpty()
         val shouldShowShimmer = isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent)
 
         LazyColumn(
@@ -719,6 +722,81 @@ fun HomeScreen(
                                     modifier = Modifier
                                         .width(horizontalLazyGridItemWidth)
                                         .padding(horizontal = 8.dp)
+                                        .combinedClickable(
+                                            onClick = {
+                                                playerConnection.playQueue(
+                                                    YouTubeQueue(
+                                                        song.endpoint ?: WatchEndpoint(videoId = song.id),
+                                                        song.toMediaMetadata(),
+                                                        database = database
+                                                    )
+                                                )
+                                            },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    YouTubeSongMenu(
+                                                        song = song,
+                                                        navController = navController,
+                                                        onDismiss = menuState::dismiss,
+                                                    )
+                                                }
+                                            }
+                                        )
+                                )
+                            }
+                        }
+                    }
+                }
+
+                trendingSongs.takeIf { it.isNotEmpty() }?.let { songs ->
+                    item(key = "trending_title") {
+                        NavigationTitle(
+                            title = stringResource(R.string.trending),
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+
+                    item(key = "trending_list") {
+                        LazyHorizontalGrid(
+                            rows = GridCells.Fixed(2),
+                            contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(ListItemHeight * 2.5f)
+                                .animateItem()
+                        ) {
+                            items(
+                                items = songs.distinctBy { it.id },
+                                key = { it.id }
+                            ) { song ->
+                                YouTubeListItem(
+                                    item = song,
+                                    isActive = mediaMetadata?.id == song.id,
+                                    isPlaying = isPlaying,
+                                    trailingContent = {
+                                        IconButton(
+                                            onClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    YouTubeSongMenu(
+                                                        song = song,
+                                                        navController = navController,
+                                                        onDismiss = menuState::dismiss,
+                                                    )
+                                                }
+                                            }
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.more_vert),
+                                                contentDescription = null,
+                                            )
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .width(horizontalLazyGridItemWidth)
                                         .combinedClickable(
                                             onClick = {
                                                 playerConnection.playQueue(
