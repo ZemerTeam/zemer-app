@@ -15,7 +15,6 @@ import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -240,28 +239,17 @@ fun Thumbnail(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Now Playing header
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp)
-                ) {
+                val playingFrom = queueTitle ?: mediaMetadata?.album?.title
+                if (!playingFrom.isNullOrBlank()) {
                     Text(
-                        text = stringResource(R.string.now_playing),
+                        text = playingFrom,
                         style = MaterialTheme.typography.titleMedium,
-                        color = textBackgroundColor
+                        color = textBackgroundColor,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .basicMarquee()
+                            .padding(horizontal = 32.dp, vertical = 16.dp)
                     )
-                    // Show album title or queue title
-                    val playingFrom = queueTitle ?: mediaMetadata?.album?.title
-                    if (!playingFrom.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = playingFrom,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = textBackgroundColor.copy(alpha = 0.8f),
-                            maxLines = 1,
-                            modifier = Modifier.basicMarquee()
-                        )
-                    }
                 }
                 
                 // Thumbnail content
