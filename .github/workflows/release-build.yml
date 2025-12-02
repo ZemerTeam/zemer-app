@@ -67,5 +67,6 @@ jobs:
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           name: Release ${{ env.RELEASE_TAG }}
-          generate_release_notes: true
+          body: |
+            Automated release build. Download the attached APK from the assets below.
           files: app/build/outputs/apk/release/*.apk
