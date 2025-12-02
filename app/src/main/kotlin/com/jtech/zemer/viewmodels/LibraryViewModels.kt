@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jtech.zemer.R
 import com.jtech.zemer.constants.AlbumFilter
 import com.jtech.zemer.constants.AlbumFilterKey
 import com.jtech.zemer.constants.AlbumSortDescendingKey
@@ -23,6 +24,7 @@ import com.jtech.zemer.constants.ArtistSortType
 import com.jtech.zemer.constants.ArtistSortTypeKey
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.LibraryFilter
+import com.jtech.zemer.constants.MyTopFilter
 import com.jtech.zemer.constants.PlaylistSortDescendingKey
 import com.jtech.zemer.constants.PlaylistSortType
 import com.jtech.zemer.constants.PlaylistSortTypeKey
@@ -31,7 +33,6 @@ import com.jtech.zemer.constants.SongFilterKey
 import com.jtech.zemer.constants.SongSortDescendingKey
 import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.SongSortTypeKey
-import com.jtech.zemer.constants.MyTopFilter
 import com.jtech.zemer.constants.TopSize
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Playlist
@@ -53,6 +54,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -61,7 +63,6 @@ import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDateTime
 import javax.inject.Inject
-import kotlinx.coroutines.flow.combine
 
 @HiltViewModel
 class LibrarySongsViewModel

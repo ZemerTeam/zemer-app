@@ -120,14 +120,15 @@ fun LibraryPlaylistsScreen(
             songThumbnails = emptyList(),
         )
 
+    val offlineName = stringResource(R.string.offline)
     val downloadPlaylist =
         autoPlaylistsState.downloaded
-            ?: remember {
+            ?: remember(offlineName) {
                 Playlist(
                     playlist =
                     PlaylistEntity(
                         id = PlaylistEntity.DOWNLOADED_PLAYLIST_ID,
-                        name = stringResource(R.string.offline),
+                        name = offlineName,
                         isEditable = false,
                     ),
                     songCount = 0,
@@ -135,14 +136,15 @@ fun LibraryPlaylistsScreen(
                 )
             }
 
+    val myTopName = stringResource(R.string.my_top)
     val topPlaylist =
         autoPlaylistsState.top
-            ?: remember(topSize) {
+            ?: remember(topSize, myTopName) {
                 Playlist(
                     playlist =
                     PlaylistEntity(
                         id = LibraryAutoPlaylistViewModel.TOP_PLAYLIST_ID,
-                        name = stringResource(R.string.my_top) + " $topSize",
+                        name = myTopName + " $topSize",
                         isEditable = false,
                     ),
                     songCount = 0,
@@ -150,14 +152,15 @@ fun LibraryPlaylistsScreen(
                 )
             }
 
+    val cachedName = stringResource(R.string.cached_playlist)
     val cachePlaylist =
         autoPlaylistsState.cached
-            ?: remember {
+            ?: remember(cachedName) {
                 Playlist(
                     playlist =
                     PlaylistEntity(
                         id = LibraryAutoPlaylistViewModel.CACHED_PLAYLIST_ID,
-                        name = stringResource(R.string.cached_playlist),
+                        name = cachedName,
                         isEditable = false,
                     ),
                     songCount = 0,
