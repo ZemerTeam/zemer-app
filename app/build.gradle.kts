@@ -42,6 +42,7 @@ android {
             storePassword = System.getenv("STORE_PASSWORD")
             keyAlias = System.getenv("KEY_ALIAS")
             keyPassword = System.getenv("KEY_PASSWORD")
+            storeType = "PKCS12"
         }
         getByName("debug") {
             keyAlias = "androiddebugkey"

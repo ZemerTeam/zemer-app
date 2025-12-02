@@ -66,6 +66,7 @@ import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.playback.MediaStoreDownloadManager
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.ui.component.ListDialog
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
@@ -96,6 +97,7 @@ fun YouTubeSongMenu(
     val playerConnection = LocalPlayerConnection.current ?: return
     val downloadUtil = LocalDownloadUtil.current
     val librarySong by database.song(song.id).collectAsState(initial = null)
+    val mediaStoreDownload by downloadUtil.getMediaStoreDownload(song.id).collectAsState(initial = null)
     val download by downloadUtil.getDownload(song.id).collectAsState(initial = null)
     val coroutineScope = rememberCoroutineScope()
     val syncUtils = LocalSyncUtils.current
@@ -407,10 +409,10 @@ fun YouTubeSongMenu(
             )
         }
         item {
-            when (download?.state) {
-                Download.STATE_COMPLETED -> {
+            when (mediaStoreDownload?.status) {
+                MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> {
                     ListItem(
-                        headlineContent = { 
+                        headlineContent = {
                             Text(
                                 text = stringResource(R.string.remove_download),
                                 color = MaterialTheme.colorScheme.error
@@ -429,43 +431,98 @@ fun YouTubeSongMenu(
                         }
                     )
                 }
-                Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
+
+                MediaStoreDownloadManager.DownloadState.Status.QUEUED,
+                MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING -> {
+                    val progress = mediaStoreDownload?.progress ?: 0f
                     ListItem(
-                        headlineContent = { Text(text = stringResource(R.string.downloading)) },
+                        headlineContent = {
+                            Text(
+                                text = stringResource(R.string.downloading)
+                            )
+                        },
+                        supportingContent = {
+                            Text(text = "${(progress * 100).toInt()}%")
+                        },
                         leadingContent = {
                             CircularProgressIndicator(
+                                progress = { progress.coerceIn(0f, 1f) },
                                 modifier = Modifier.size(24.dp),
                                 strokeWidth = 2.dp
                             )
                         },
                         modifier = Modifier.clickable {
                             coroutineScope.launch {
-                                downloadUtil.removeDownload(song.id)
+                                downloadUtil.cancelMediaStoreDownload(song.id)
                             }
                         }
                     )
                 }
-                else -> {
-                    ListItem(
-                        headlineContent = { Text(text = stringResource(R.string.action_download)) },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.download),
-                                contentDescription = null,
+
+                MediaStoreDownloadManager.DownloadState.Status.FAILED,
+                MediaStoreDownloadManager.DownloadState.Status.CANCELLED,
+                null -> {
+                    when (download?.state) {
+                        Download.STATE_COMPLETED -> {
+                            ListItem(
+                                headlineContent = {
+                                    Text(
+                                        text = stringResource(R.string.remove_download),
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                leadingContent = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.offline),
+                                        contentDescription = null,
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    coroutineScope.launch {
+                                        downloadUtil.removeDownload(song.id)
+                                    }
+                                }
                             )
-                        },
-                        modifier = Modifier.clickable {
-                            coroutineScope.launch(Dispatchers.IO) {
-                                database.transaction {
-                                    insert(song.toMediaMetadata())
-                                }
-                                val dbSong = database.song(song.id).first()
-                                dbSong?.let {
-                                    downloadUtil.downloadToMediaStore(it)
-                                }
-                            }
                         }
-                    )
+                        Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
+                            ListItem(
+                                headlineContent = { Text(text = stringResource(R.string.downloading)) },
+                                leadingContent = {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    coroutineScope.launch {
+                                        downloadUtil.removeDownload(song.id)
+                                    }
+                                }
+                            )
+                        }
+                        else -> {
+                            ListItem(
+                                headlineContent = { Text(text = stringResource(R.string.action_download)) },
+                                leadingContent = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.download),
+                                        contentDescription = null,
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        database.transaction {
+                                            insert(song.toMediaMetadata())
+                                        }
+                                        val dbSong = database.song(song.id).first()
+                                        dbSong?.let {
+                                            downloadUtil.downloadToMediaStore(it)
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

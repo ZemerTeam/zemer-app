@@ -520,11 +520,34 @@ fun BottomSheetPlayer(
                 modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = PlayerHorizontalPadding),
+                    .padding(horizontal = PlayerHorizontalPadding)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp).copy(alpha = 0.94f),
+                                MaterialTheme.colorScheme.surfaceColorAtElevation(12.dp).copy(alpha = 0.85f)
+                            )
+                        )
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
             ) {
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
+                    Text(
+                        text = stringResource(R.string.now_playing_label),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+
                     val titleFocused = remember { mutableStateOf(false) }
                     val titleBorderColor = animateColorAsState(
                         targetValue = if (titleFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,

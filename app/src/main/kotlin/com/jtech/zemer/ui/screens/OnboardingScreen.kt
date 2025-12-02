@@ -77,6 +77,7 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import com.airbnb.lottie.compose.rememberLottieDynamicProperties
 import com.airbnb.lottie.compose.rememberLottieDynamicProperty
 import com.jtech.zemer.R
+import com.jtech.zemer.utils.PermissionHelper
 
 private enum class OnboardingStep { Welcome, Permissions, Loading }
 private enum class LegalKind { TOS, PRIVACY }
@@ -253,6 +254,10 @@ private fun PermissionsScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    var storageGranted by remember {
+        mutableStateOf(PermissionHelper.hasMediaStoreWritePermission(context))
+    }
+
     var notificationsGranted by remember {
         mutableStateOf(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -287,6 +292,12 @@ private fun PermissionsScreen(
     // Mark as true by default since it's available on Android 8.0+
     var pipGranted by remember { mutableStateOf(true) }
 
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        storageGranted = permissions.values.all { it }
+    }
+
     val notificationLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -310,9 +321,11 @@ private fun PermissionsScreen(
                 Manifest.permission.NEARBY_WIFI_DEVICES
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         }
+        storageGranted = PermissionHelper.hasMediaStoreWritePermission(context)
     }, lifecycleOwner = lifecycleOwner)
 
     val allGranted = listOf(
+        storageGranted,
         notificationsGranted,
         nearbyGranted,
         backgroundGranted,
@@ -358,7 +371,16 @@ private fun PermissionsScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // Show only the first needed permission
-            if (!notificationsGranted) {
+            if (!storageGranted) {
+                PermissionCard(
+                    title = stringResource(R.string.onboarding_perm_storage_title),
+                    description = stringResource(R.string.onboarding_perm_storage_desc),
+                    granted = storageGranted,
+                    actionLabel = stringResource(R.string.onboarding_grant),
+                ) {
+                    storagePermissionLauncher.launch(PermissionHelper.getRequiredWritePermissions())
+                }
+            } else if (!notificationsGranted) {
                 PermissionCard(
                     title = stringResource(R.string.onboarding_perm_notifications_title),
                     description = stringResource(R.string.onboarding_perm_notifications_desc),

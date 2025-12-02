@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,12 +25,12 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.R
-import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.db.entities.PlaylistEntity
-import com.jtech.zemer.extensions.isSyncEnabled
-import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.extensions.isSyncEnabledFlow
+import com.jtech.zemer.extensions.isUserLoggedInFlow
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.util.logging.Logger
@@ -45,8 +46,14 @@ fun CreatePlaylistDialog(
     var syncedPlaylist by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
-    val isSignedIn = innerTubeCookie.isNotEmpty()
+    val isSignedIn by remember { context.isUserLoggedInFlow() }.collectAsState(false)
+    val isSyncEnabled by
+        remember {
+            combine(
+                context.isSyncEnabledFlow(),
+                context.isUserLoggedInFlow()
+            ) { syncEnabled, loggedIn -> syncEnabled && loggedIn }
+        }.collectAsState(false)
 
     TextFieldDialog(
         icon = { Icon(painter = painterResource(R.drawable.add), contentDescription = null) },
@@ -97,14 +104,13 @@ fun CreatePlaylistDialog(
                         Switch(
                             checked = syncedPlaylist,
                             onCheckedChange = {
-                                val isYtmSyncEnabled = context.isSyncEnabled()
                                 if (!isSignedIn && !syncedPlaylist) {
                                     Toast.makeText(
                                         context,
                                         context.getString(R.string.not_logged_in_youtube),
                                         Toast.LENGTH_SHORT
                                     ).show()
-                                } else if (!isYtmSyncEnabled) {
+                                } else if (!isSyncEnabled) {
                                     Toast.makeText(
                                         context,
                                         context.getString(R.string.sync_disabled),
