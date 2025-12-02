@@ -22,8 +22,8 @@ import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.extensions.filterExplicit
 import com.jtech.zemer.extensions.filterExplicitAlbums
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.filterWhitelisted
-import com.jtech.zemer.utils.get
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -80,7 +80,7 @@ class ArtistViewModel @Inject constructor(
     fun fetchArtistsFromYTM() {
         viewModelScope.launch {
             isLoading = true
-            val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+            val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
             YouTube.artist(artistId)
                 .onSuccess { page ->
                     timber.log.Timber.d("ArtistViewModel: Fetched YouTube page with ${page.sections.size} sections")

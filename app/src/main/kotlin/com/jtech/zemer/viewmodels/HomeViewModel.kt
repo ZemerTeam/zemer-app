@@ -19,7 +19,7 @@ import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.get
+import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
@@ -488,7 +488,7 @@ class HomeViewModel @Inject constructor(
                 runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
             }
             val filters = ContentFilterState.state.value
-            val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+            val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
             val quick = loadQuickPicks()
             val featuredPlaylists = loadFeaturedPlaylists(filters, hideExplicit)
             val trendingSongs = loadTrendingSongs(filters, hideExplicit)
@@ -538,9 +538,9 @@ class HomeViewModel @Inject constructor(
     fun loadMoreYouTubeItems(continuation: String?) {
         if (continuation == null || isLoadingMore.value) return
         if (ContentFilterState.state.value.filtersEnabled) return
-        val hideExplicit = context.dataStore.get(HideExplicitKey, false)
 
         viewModelScope.launch(Dispatchers.IO) {
+            val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
             isLoadingMore.value = true
             val nextSections = YouTube.home(continuation).getOrNull()
             if (nextSections != null) {
@@ -579,7 +579,7 @@ class HomeViewModel @Inject constructor(
                 .distinctUntilChanged()
                 .first()
 
-            val onboardingComplete = context.dataStore.get(OnboardingCompleteKey, false)
+            val onboardingComplete = context.dataStore.getSuspend(OnboardingCompleteKey, false)
             if (!onboardingComplete) {
                 context.dataStore.data
                     .map { it[OnboardingCompleteKey] == true }
@@ -587,7 +587,7 @@ class HomeViewModel @Inject constructor(
                     .first { it }
             }
 
-            val isSyncEnabled = context.dataStore.get(YtmSyncKey, true)
+            val isSyncEnabled = context.dataStore.getSuspend(YtmSyncKey, true)
 
             load(force = true)
 

@@ -9,7 +9,7 @@ import com.jtech.zemer.extensions.filterExplicit
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.get
+import com.jtech.zemer.utils.getSuspend
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,7 +27,7 @@ class LibraryVideosViewModel @Inject constructor(
         database
             .videos()
             .map { list ->
-                val hideExplicit = appContext.dataStore.get(HideExplicitKey, false)
+                val hideExplicit = appContext.dataStore.getSuspend(HideExplicitKey, false)
                 val filters = ContentFilterState.state.value
                 val allowed = WhitelistCache.allowedEntries(database, filters).map { it.artistId }.toSet()
                 list

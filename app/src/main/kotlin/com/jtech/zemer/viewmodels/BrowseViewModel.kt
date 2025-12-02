@@ -13,8 +13,8 @@ import com.metrolist.innertube.utils.completed
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.filterWhitelisted
-import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -44,7 +44,7 @@ class BrowseViewModel @Inject constructor(
                     // Flatten the nested structure to get all YTItems
                     val allItems = result.items.flatMap { it.items }
                     items.value = allItems
-                        .filterExplicit(context.dataStore.get(HideExplicitKey, false))
+                        .filterExplicit(context.dataStore.getSuspend(HideExplicitKey, false))
                         .filterWhitelisted(database)
                 }.onFailure {
                     reportException(it)

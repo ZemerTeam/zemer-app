@@ -10,8 +10,8 @@ import com.metrolist.innertube.models.filterExplicit
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.filterWhitelisted
-import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -38,7 +38,7 @@ constructor(
     private suspend fun loadInternal() {
         isLoading.value = true
         error.value = null
-        val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+        val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
         runCatching {
             YouTube.browse(browseId = "FEmusic_new_releases", params = null).getOrNull()
         }.onSuccess { browseResult ->
