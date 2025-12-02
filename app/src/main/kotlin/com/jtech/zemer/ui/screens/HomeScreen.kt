@@ -3,6 +3,7 @@ package com.jtech.zemer.ui.screens
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -18,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
@@ -119,6 +121,7 @@ fun HomeScreen(
     val homeUiState by viewModel.uiState.collectAsState()
 
     val quickPicks = homeUiState.quickPicks
+    val featuredPlaylists = homeUiState.featuredPlaylists
     val forgottenFavorites = homeUiState.forgottenFavorites
     val keepListening = homeUiState.keepListening
     val featuredAlbums = homeUiState.featuredAlbums
@@ -400,6 +403,7 @@ fun HomeScreen(
 
         val hasLocalHomeContent =
             quickPicks.isNotEmpty() ||
+                featuredPlaylists.isNotEmpty() ||
                 forgottenFavorites.isNotEmpty() ||
                 keepListening.isNotEmpty()
         val hasRemoteHomeContent =
@@ -484,6 +488,54 @@ fun HomeScreen(
                                                     SongMenu(
                                                         originalSong = song!!,
                                                         navController = navController,
+                                                        onDismiss = menuState::dismiss
+                                                    )
+                                                }
+                                            }
+                                        )
+                                )
+                            }
+                        }
+                    }
+                }
+
+                featuredPlaylists.takeIf { it.isNotEmpty() }?.let { playlists ->
+                    item(key = "featured_playlists_title") {
+                        NavigationTitle(
+                            title = stringResource(R.string.featured_playlists),
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+
+                    item(key = "featured_playlists_list") {
+                        LazyHorizontalGrid(
+                            rows = GridCells.Fixed(2),
+                            contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(ListItemHeight * 2.5f)
+                                .animateItem()
+                        ) {
+                            items(
+                                items = playlists.distinctBy { it.id },
+                                key = { it.id }
+                            ) { playlist ->
+                                YouTubeListItem(
+                                    item = playlist,
+                                    modifier = Modifier
+                                        .width(horizontalLazyGridItemWidth)
+                                        .combinedClickable(
+                                            onClick = {
+                                                navController.navigate("online_playlist/${playlist.id}")
+                                            },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    YouTubePlaylistMenu(
+                                                        playlist = playlist,
+                                                        coroutineScope = scope,
                                                         onDismiss = menuState::dismiss
                                                     )
                                                 }

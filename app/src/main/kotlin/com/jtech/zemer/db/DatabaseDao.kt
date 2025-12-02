@@ -919,6 +919,24 @@ interface DatabaseDao {
     @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE bookmarkedAt IS NOT NULL ORDER BY songCount")
     fun playlistsBySongCountAsc(): Flow<List<Playlist>>
 
+    @Transaction
+    @Query(
+        """
+        SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount
+        FROM playlist
+        WHERE bookmarkedAt IS NOT NULL
+          AND id IN (
+            SELECT DISTINCT psm.playlistId
+            FROM playlist_song_map psm
+            JOIN song_artist_map sam ON sam.songId = psm.songId
+            WHERE sam.artistId IN (:artistIds)
+          )
+        ORDER BY RANDOM()
+        LIMIT :limit
+        """
+    )
+    suspend fun randomPlaylistsByArtists(artistIds: List<String>, limit: Int = 6): List<Playlist>
+
     fun playlists(
         sortType: PlaylistSortType,
         descending: Boolean,

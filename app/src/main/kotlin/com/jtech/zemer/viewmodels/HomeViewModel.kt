@@ -14,16 +14,17 @@ import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.filterExplicit
 import com.metrolist.innertube.pages.ExplorePage
@@ -55,6 +56,7 @@ class HomeViewModel @Inject constructor(
         val isRefreshing: Boolean = false,
         val isNewUser: Boolean = true,
         val quickPicks: List<Song> = emptyList(),
+        val featuredPlaylists: List<PlaylistItem> = emptyList(),
         val keepListening: List<LocalItem> = emptyList(),
         val forgottenFavorites: List<Song> = emptyList(),
         val recentReleaseAlbums: List<AlbumItem> = emptyList(),
@@ -138,6 +140,35 @@ class HomeViewModel @Inject constructor(
         return distinct
     }
 
+    private suspend fun loadFeaturedPlaylists(filters: ContentFilterConfig, hideExplicit: Boolean): List<PlaylistItem> {
+        val allowedIds = WhitelistCache.allowedEntries(database, filters).map { it.artistId }
+        if (allowedIds.isEmpty()) return emptyList()
+
+        val selectedArtists = allowedIds.shuffled().take(8)
+
+        val playlistItems = coroutineScope {
+            selectedArtists.map { artistId ->
+                async {
+                    YouTube.artist(artistId).getOrNull()?.sections
+                        ?.flatMap { it.items }
+                        ?.filterExplicit(hideExplicit)
+                        ?.filterIsInstance<PlaylistItem>()
+                        ?.filter { item ->
+                            item.title.contains("playlist", ignoreCase = true) ||
+                                item.title.contains("by", ignoreCase = true) ||
+                                item.title.contains("mix", ignoreCase = true) ||
+                                item.author?.name?.isNotBlank() == true
+                        }
+                }
+            }.awaitAll().filterNotNull().flatten()
+        }
+
+        return playlistItems
+            .shuffled()
+            .distinctBy { it.id }
+            .take(8)
+    }
+
     private suspend fun loadKeepListening(): List<LocalItem> {
         val toTimeStamp = System.currentTimeMillis()
         val fromTimeStamp = toTimeStamp - 86400000 * 7 * 2
@@ -190,9 +221,7 @@ class HomeViewModel @Inject constructor(
             val page = homeResult.getOrNull()!!
             return page.copy(
                 sections = page.sections.mapNotNull { section ->
-                    val filteredItems = section.items
-                        .filterExplicit(hideExplicit)
-                        .filterWhitelisted(database)
+                    val filteredItems = section.items.filterExplicit(hideExplicit)
                     if (filteredItems.isEmpty()) null else section.copy(items = filteredItems)
                 }
             )
@@ -205,9 +234,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun loadExplorePage(hideExplicit: Boolean): ExplorePage? {
         return YouTube.explore().mapCatching { page ->
             val rawAlbums = page.newReleaseAlbums
-            val afterExplicit = rawAlbums.filterExplicit(hideExplicit)
-            val afterWhitelist = afterExplicit.filterWhitelisted(database)
-            val finalAlbums = afterWhitelist.filterIsInstance<AlbumItem>()
+            val finalAlbums = rawAlbums.filterExplicit(hideExplicit).filterIsInstance<AlbumItem>()
             page.copy(newReleaseAlbums = finalAlbums)
         }.getOrElse {
             reportException(it)
@@ -222,7 +249,6 @@ class HomeViewModel @Inject constructor(
                 ?.filterExplicit(hideExplicit)
                 ?.items
                 ?.flatMap { it.items }
-                ?.filterWhitelisted(database)
                 .orEmpty()
             val albums = items.filterIsInstance<AlbumItem>()
             val songs = items.filterIsInstance<SongItem>()
@@ -301,7 +327,6 @@ class HomeViewModel @Inject constructor(
             pages.forEach { artistPage ->
                 val songs = artistPage.sections.flatMap { it.items }
                     .filterExplicit(hideExplicit)
-                    .filterWhitelisted(database)
                     .filterIsInstance<SongItem>()
                     .distinctBy { it.id }
                     .take(10)
@@ -406,7 +431,6 @@ class HomeViewModel @Inject constructor(
         val candidateSongs = page.sections
             .flatMap { it.items }
             .filterExplicit(hideExplicit)
-            .filterWhitelisted(database)
             .filterIsInstance<SongItem>()
             .distinctBy { it.id }
             .take(40)
@@ -433,6 +457,7 @@ class HomeViewModel @Inject constructor(
             val filters = ContentFilterState.state.value
             val hideExplicit = context.dataStore.get(HideExplicitKey, false)
             val quick = loadQuickPicks()
+            val featuredPlaylists = loadFeaturedPlaylists(filters, hideExplicit)
             val forgottenList = database.forgottenFavorites().first().shuffled().take(20)
             val forgotten = forgottenList.ifEmpty {
                 // Fallback: show liked songs if no forgotten favorites
@@ -457,6 +482,7 @@ class HomeViewModel @Inject constructor(
                     isRefreshing = false,
                     isNewUser = isNewUser,
                     quickPicks = quickSeeded,
+                    featuredPlaylists = featuredPlaylists,
                     keepListening = keepListening,
                     forgottenFavorites = forgotten,
                     recentReleaseAlbums = recentAlbums,
@@ -488,7 +514,6 @@ class HomeViewModel @Inject constructor(
                     val mergedSections = (existingSections + nextSections.sections).mapNotNull { section ->
                         val filteredItems = section.items
                             .filterExplicit(hideExplicit)
-                            .filterWhitelisted(database)
                         if (filteredItems.isEmpty()) null else section.copy(items = filteredItems)
                     }
                     val updatedHome = (state.homePage ?: HomePage(null, emptyList(), null)).copy(
