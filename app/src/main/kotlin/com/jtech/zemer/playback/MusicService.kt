@@ -26,6 +26,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.Player.EVENT_MEDIA_ITEM_TRANSITION
+import androidx.media3.common.Player.EVENT_MEDIA_METADATA_CHANGED
 import androidx.media3.common.Player.EVENT_POSITION_DISCONTINUITY
 import androidx.media3.common.Player.EVENT_TIMELINE_CHANGED
 import androidx.media3.common.Player.REPEAT_MODE_ALL
@@ -1143,7 +1145,14 @@ class MusicService :
                 closeAudioEffectSession()
             }
         }
-        if (events.containsAny(EVENT_TIMELINE_CHANGED, EVENT_POSITION_DISCONTINUITY)) {
+        if (
+            events.containsAny(
+                EVENT_MEDIA_METADATA_CHANGED,
+                EVENT_MEDIA_ITEM_TRANSITION,
+                EVENT_TIMELINE_CHANGED,
+                EVENT_POSITION_DISCONTINUITY
+            )
+        ) {
             currentMediaMetadata.value = player.currentMetadata
         }
     }
