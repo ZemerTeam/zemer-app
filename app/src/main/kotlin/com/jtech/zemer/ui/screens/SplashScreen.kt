@@ -24,12 +24,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.ColorFilter
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.toArgb
 import com.airbnb.lottie.LottieProperty
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
@@ -52,7 +54,10 @@ fun SplashScreen(
     val lottieColors = rememberLottieDynamicProperties(
         rememberLottieDynamicProperty(
             property = LottieProperty.COLOR_FILTER,
-            value = ColorFilter.tint(MaterialTheme.colorScheme.primary),
+            value = PorterDuffColorFilter(
+                MaterialTheme.colorScheme.primary.toArgb(),
+                PorterDuff.Mode.SRC_ATOP
+            ),
             keyPath = arrayOf("**")
         )
     )
