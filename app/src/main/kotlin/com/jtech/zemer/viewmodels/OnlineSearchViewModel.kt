@@ -22,8 +22,8 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.filterWhitelisted
-import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -94,7 +94,7 @@ constructor(
         val result =
             withContext(Dispatchers.IO) {
                 runCatching {
-                    val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                    val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                     val ytResults = YouTube.searchSummary(query).getOrNull()
                     val ytFilteredPage = ytResults?.filterExplicit(hideExplicit)
 
@@ -143,7 +143,7 @@ constructor(
         val result =
             withContext(Dispatchers.IO) {
                 runCatching {
-                    val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                    val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                     val items = mutableListOf<com.metrolist.innertube.models.YTItem>()
 
                     // Search both local database and online
@@ -235,7 +235,7 @@ constructor(
                         filterLoading[filter] = false
                         return@launch
                     }
-                val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                 viewStateMap[filter] = ItemsPage(
                     (viewState.items + searchResult.items)
                         .distinctBy { it.id }

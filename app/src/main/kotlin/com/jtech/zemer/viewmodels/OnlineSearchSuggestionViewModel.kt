@@ -12,8 +12,8 @@ import com.jtech.zemer.db.entities.SearchHistory
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.filterWhitelisted
-import com.jtech.zemer.utils.get
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -77,7 +77,7 @@ constructor(
                                 }
                         } else {
                             val result = YouTube.searchSuggestions(query).getOrNull()
-                            val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                            val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
 
                             val filteredItems = result
                                 ?.recommendedItems

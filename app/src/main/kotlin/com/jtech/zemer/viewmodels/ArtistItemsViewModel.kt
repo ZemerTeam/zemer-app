@@ -11,8 +11,8 @@ import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.models.ItemsPage
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.filterWhitelisted
-import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -46,7 +46,7 @@ constructor(
                         params = params,
                     ),
                 ).onSuccess { artistItemsPage ->
-                    val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                    val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                     title.value = artistItemsPage.title
                     itemsPage.value =
                         ItemsPage(
@@ -73,7 +73,7 @@ constructor(
                             items =
                             (oldItemsPage.items + artistItemsContinuationPage.items)
                                 .distinctBy { it.id }
-                                .filterExplicit(context.dataStore.get(HideExplicitKey, false)),
+                                .filterExplicit(context.dataStore.getSuspend(HideExplicitKey, false)),
                             continuation = artistItemsContinuationPage.continuation,
                         )
                     }
