@@ -73,6 +73,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -460,36 +461,44 @@ class MainActivity : ComponentActivity() {
             var themeColor by rememberSaveable(stateSaver = ColorSaver) {
                 mutableStateOf(DefaultThemeColor)
             }
+            val themeColorCache = remember { mutableStateMapOf<String, Color>() }
 
             LaunchedEffect(playerConnection, enableDynamicTheme) {
                 val playerConnection = playerConnection
                 if (!enableDynamicTheme || playerConnection == null) {
+                    themeColorCache.clear()
                     themeColor = DefaultThemeColor
                     return@LaunchedEffect
                 }
 
                 playerConnection.service.currentMediaMetadata.collectLatest { song ->
-                    if (song?.thumbnailUrl != null) {
-                        withContext(Dispatchers.IO) {
-                            try {
-                                val result = withTimeoutOrNull(5000) {
-                                    imageLoader.execute(
-                                        ImageRequest.Builder(this@MainActivity)
-                                            .data(song.thumbnailUrl)
-                                            .allowHardware(false)
-                                            .memoryCachePolicy(CachePolicy.ENABLED)
-                                            .diskCachePolicy(CachePolicy.ENABLED)
-                                            .networkCachePolicy(CachePolicy.ENABLED)
-                                            .crossfade(false)
-                                            .build()
-                                    )
-                                }
-                                themeColor = result?.image?.toBitmap()?.extractThemeColor()
-                                    ?: DefaultThemeColor
-                            } catch (e: Exception) {
-                                // Fallback to default on error
-                                themeColor = DefaultThemeColor
-                            }
+                    val thumbnailUrl = song?.thumbnailUrl
+                    if (thumbnailUrl != null) {
+                        val cachedColor = themeColorCache[thumbnailUrl]
+                        if (cachedColor != null) {
+                            themeColor = cachedColor
+                        } else {
+                            val resolvedColor = withContext(Dispatchers.IO) {
+                                runCatching {
+                                    val result = withTimeoutOrNull(5000) {
+                                        imageLoader.execute(
+                                            ImageRequest.Builder(this@MainActivity)
+                                                .data(thumbnailUrl)
+                                                .allowHardware(false)
+                                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                                .diskCachePolicy(CachePolicy.ENABLED)
+                                                .networkCachePolicy(CachePolicy.ENABLED)
+                                                .crossfade(false)
+                                                .size(512)
+                                                .build()
+                                        )
+                                    }
+                                    result?.image?.toBitmap()?.extractThemeColor()
+                                }.getOrNull()
+                            } ?: DefaultThemeColor
+
+                            themeColorCache[thumbnailUrl] = resolvedColor
+                            themeColor = resolvedColor
                         }
                     } else {
                         themeColor = DefaultThemeColor
