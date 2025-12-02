@@ -27,9 +27,11 @@ import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -89,25 +91,27 @@ constructor(
         isSummaryLoading.value = true
         summaryError.value = null
 
-        try {
-            // Try to fetch from InnerTube for online results
-            val ytResults = YouTube.searchSummary(query).getOrNull()
-            val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-            val ytFilteredPage = ytResults?.let { page ->
-                page.filterExplicit(hideExplicit)
-            }
+        val result =
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                    val ytResults = YouTube.searchSummary(query).getOrNull()
+                    val ytFilteredPage = ytResults?.filterExplicit(hideExplicit)
 
-            // Build summary page with online results
-            val summaries = mutableListOf<SearchSummary>()
-
-            // Add online results if InnerTube search succeeded
-            ytFilteredPage?.summaries?.forEach { summary ->
-                val filteredItems = summary.items.filterWhitelisted(database)
-                if (filteredItems.isNotEmpty()) {
-                    summaries.add(summary.copy(items = filteredItems))
+                    ytFilteredPage?.summaries
+                        ?.mapNotNull { summary ->
+                            val filteredItems = summary.items.filterWhitelisted(database)
+                            if (filteredItems.isEmpty()) {
+                                null
+                            } else {
+                                summary.copy(items = filteredItems)
+                            }
+                        }
+                        .orEmpty()
                 }
             }
 
+        result.onSuccess { summaries ->
             summaryPage = SearchSummaryPage(
                 summaries = summaries
             )
@@ -115,9 +119,9 @@ constructor(
             if (summaries.isEmpty()) {
                 summaryError.value = "No results found for \"$query\""
             }
-        } catch (e: Exception) {
-            summaryError.value = "Search error: ${e.message ?: "Unknown error"}"
-            reportException(e)
+        }.onFailure { error ->
+            summaryError.value = "Search error: ${error.message ?: "Unknown error"}"
+            reportException(error)
         }
         isSummaryLoading.value = false
     }
@@ -136,73 +140,83 @@ constructor(
         filterLoading[key] = true
         filterError[key] = null
 
-        try {
-            val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-            val items = mutableListOf<com.metrolist.innertube.models.YTItem>()
+        val result =
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                    val items = mutableListOf<com.metrolist.innertube.models.YTItem>()
 
-            // Search both local database and online
-            when (filter) {
-                SearchFilter.FILTER_SONG -> {
-                    // For songs, only search online as local songs are covered by local search
-                }
-                SearchFilter.FILTER_ARTIST -> {
-                    // Search local artists first
-                    val localArtists = database.searchArtists(query).first()
-                        .filter { if (hideExplicit) !it.artist.isLocal else true }
-                    items.addAll(
-                        localArtists.map { artist ->
-                            com.metrolist.innertube.models.ArtistItem(
-                                id = artist.id,
-                                title = artist.title,
-                                thumbnail = artist.thumbnailUrl,
-                                shuffleEndpoint = null,
-                                radioEndpoint = null,
-                            )
+                    // Search both local database and online
+                    when (filter) {
+                        SearchFilter.FILTER_SONG -> {
+                            // For songs, only search online as local songs are covered by local search
                         }
-                    )
-                }
-                SearchFilter.FILTER_ALBUM -> {
-                    // Search local albums first
-                    val localAlbums = database.searchAlbums(query).first()
-                        .filter { if (hideExplicit) !it.album.explicit else true }
-                    items.addAll(
-                        localAlbums.map { album ->
-                            com.metrolist.innertube.models.AlbumItem(
-                                browseId = album.id,
-                                playlistId = album.album.playlistId ?: album.id,
-                                title = album.title,
-                                artists = album.artists.map { artist ->
-                                    com.metrolist.innertube.models.Artist(
-                                        name = artist.name,
+                        SearchFilter.FILTER_ARTIST -> {
+                            // Search local artists first
+                            val localArtists = database.searchArtists(query).first()
+                                .filter { if (hideExplicit) !it.artist.isLocal else true }
+                            items.addAll(
+                                localArtists.map { artist ->
+                                    com.metrolist.innertube.models.ArtistItem(
                                         id = artist.id,
+                                        title = artist.title,
+                                        thumbnail = artist.thumbnailUrl,
+                                        shuffleEndpoint = null,
+                                        radioEndpoint = null,
                                     )
-                                },
-                                year = album.album.year,
-                                thumbnail = album.thumbnailUrl ?: "",
+                                }
                             )
                         }
+                        SearchFilter.FILTER_ALBUM -> {
+                            // Search local albums first
+                            val localAlbums = database.searchAlbums(query).first()
+                                .filter { if (hideExplicit) !it.album.explicit else true }
+                            items.addAll(
+                                localAlbums.map { album ->
+                                    com.metrolist.innertube.models.AlbumItem(
+                                        browseId = album.id,
+                                        playlistId = album.album.playlistId ?: album.id,
+                                        title = album.title,
+                                        artists = album.artists.map { artist ->
+                                            com.metrolist.innertube.models.Artist(
+                                                name = artist.name,
+                                                id = artist.id,
+                                            )
+                                        },
+                                        year = album.album.year,
+                                        thumbnail = album.thumbnailUrl ?: "",
+                                    )
+                                }
+                            )
+                        }
+                        else -> {} // Other filter types only search online
+                    }
+
+                    // Also search online
+                    val ytResult = YouTube.search(query, filter).getOrNull()
+                    if (ytResult != null) {
+                        items.addAll(
+                            ytResult.items
+                                .filterExplicit(hideExplicit)
+                                .filterWhitelisted(database)
+                        )
+                    }
+
+                    ItemsPage(
+                        items.distinctBy { it.id },
+                        ytResult?.continuation
                     )
                 }
-                else -> {} // Other filter types only search online
             }
 
-            // Also search online
-            val ytResult = YouTube.search(query, filter).getOrNull()
-            if (ytResult != null) {
-                items.addAll(
-                    ytResult.items
-                        .filterExplicit(hideExplicit)
-                        .filterWhitelisted(database)
-                )
+        result.onSuccess { itemsPage ->
+            viewStateMap[key] = itemsPage
+            if (itemsPage.items.isEmpty()) {
+                filterError[key] = "No results found for \"$query\""
             }
-
-            viewStateMap[key] = ItemsPage(
-                items.distinctBy { it.id },
-                ytResult?.continuation
-            )
-        } catch (e: Exception) {
-            filterError[key] = "Search error: ${e.message ?: "Unknown error"}"
-            reportException(e)
+        }.onFailure { error ->
+            filterError[key] = "Search error: ${error.message ?: "Unknown error"}"
+            reportException(error)
         }
         filterLoading[key] = false
     }
