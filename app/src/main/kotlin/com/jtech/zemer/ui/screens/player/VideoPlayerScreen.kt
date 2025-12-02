@@ -355,9 +355,6 @@ fun VideoPlayerScreen(
             AndroidView(
                 factory = { viewContext ->
                     PlayerView(viewContext).apply {
-                        // Using a TextureView avoids BLAST/BufferQueue spam while composing
-                        // because it stays inside the main surface instead of creating a
-                        // separate SurfaceView pipeline that often disconnects mid-frame.
                         useController = false
                         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                         player = exoPlayer
