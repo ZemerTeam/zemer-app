@@ -31,27 +31,16 @@ jobs:
       - name: Configure Android SDK path
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 
-      - name: Generate temporary release keystore
+      - name: Configure release keystore
         run: |
           mkdir -p app/keystore
-          STORE_PASSWORD=$(uuidgen)
-          KEY_PASSWORD=$(uuidgen)
-          KEY_ALIAS="ci-temp-key"
+          cp ZemerKey app/keystore/release.keystore
 
-          echo "STORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
-          echo "KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
-          echo "KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
-
-          keytool -genkeypair -v \
-            -storetype PKCS12 \
-            -keystore app/keystore/release.keystore \
-            -storepass "$STORE_PASSWORD" \
-            -keypass "$KEY_PASSWORD" \
-            -alias "$KEY_ALIAS" \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=CI,O=Zemer,OU=CI,L=Remote,S=Remote,C=US"
+          {
+            echo "STORE_PASSWORD=zemerzemer"
+            echo "KEY_PASSWORD=zemerzemer"
+            echo "KEY_ALIAS=zemerzemer"
+          } >> "$GITHUB_ENV"
 
       - name: Make Gradle executable
         run: chmod +x gradlew
