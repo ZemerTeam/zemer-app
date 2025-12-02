@@ -8,6 +8,8 @@ import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.AudioQualityKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.db.entities.SongAlbumMap
+import com.jtech.zemer.db.entities.SongArtistMap
 import com.jtech.zemer.utils.MediaStoreHelper
 import com.jtech.zemer.utils.UrlValidator
 import com.jtech.zemer.utils.YTPlayerUtils
@@ -134,6 +136,10 @@ constructor(
             }
 
             // Check if already exists in MediaStore
+            // Make sure the song and its relations exist in the database so we can flag it
+            // as downloaded later (needed for the Library > Downloaded view).
+            ensureSongPersisted(song)
+
             val existingFile = mediaStoreHelper.findExistingFile(
                 title = song.song.title,
                 artist = song.artists.firstOrNull()?.name ?: "Unknown"
@@ -147,7 +153,7 @@ constructor(
                         progress = 1f
                     )
                 )
-                markSongAsDownloaded(song.id, existingFile.toString())
+                markSongAsDownloaded(song, existingFile.toString())
                 return@launch
             }
 
@@ -366,7 +372,7 @@ constructor(
                     )
 
                     // Update database with MediaStore URI
-                    markSongAsDownloaded(song.id, uri.toString())
+                    markSongAsDownloaded(song, uri.toString())
                 } else {
                     throw Exception("Failed to save file to MediaStore")
                 }
@@ -494,15 +500,54 @@ constructor(
     /**
      * Mark a song as downloaded in the database with MediaStore URI
      */
-    private suspend fun markSongAsDownloaded(songId: String, mediaStoreUri: String) {
-        val song = database.song(songId).first()
-        if (song != null) {
-            database.query {
-                database.upsert(
-                    song.song.copy(
-                        isDownloaded = true,
-                        dateDownload = LocalDateTime.now(),
-                        mediaStoreUri = mediaStoreUri
+    private suspend fun markSongAsDownloaded(song: Song, mediaStoreUri: String) {
+        ensureSongPersisted(song)
+
+        database.query {
+            database.upsert(
+                song.song.copy(
+                    isDownloaded = true,
+                    dateDownload = LocalDateTime.now(),
+                    mediaStoreUri = mediaStoreUri
+                )
+            )
+        }
+    }
+
+    /**
+     * Ensure the song and its basic relations are present in the database so download flags
+     * can be stored and surfaced in the Library.
+     */
+    private suspend fun ensureSongPersisted(song: Song) {
+        val existing = database.song(song.id).first()
+
+        database.query {
+            val mergedSong = song.song.copy(
+                isDownloaded = existing?.song?.isDownloaded ?: song.song.isDownloaded,
+                dateDownload = existing?.song?.dateDownload ?: song.song.dateDownload,
+                mediaStoreUri = existing?.song?.mediaStoreUri ?: song.song.mediaStoreUri,
+            )
+
+            upsert(mergedSong)
+
+            song.artists.forEachIndexed { index, artist ->
+                insert(artist)
+                insert(
+                    SongArtistMap(
+                        songId = song.id,
+                        artistId = artist.id,
+                        position = index,
+                    )
+                )
+            }
+
+            song.album?.let { album ->
+                insert(album)
+                insert(
+                    SongAlbumMap(
+                        songId = song.id,
+                        albumId = album.id,
+                        index = 0,
                     )
                 )
             }
