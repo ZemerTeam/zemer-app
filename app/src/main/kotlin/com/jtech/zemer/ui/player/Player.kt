@@ -522,20 +522,6 @@ fun BottomSheetPlayer(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = PlayerHorizontalPadding)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp).copy(alpha = 0.94f),
-                                MaterialTheme.colorScheme.surfaceColorAtElevation(12.dp).copy(alpha = 0.85f)
-                            )
-                        )
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                        shape = RoundedCornerShape(20.dp)
-                    )
                     .padding(horizontal = 16.dp, vertical = 14.dp),
             ) {
                 Column(
