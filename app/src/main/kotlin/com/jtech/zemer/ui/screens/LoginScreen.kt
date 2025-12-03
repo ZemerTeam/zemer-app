@@ -14,6 +14,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -49,6 +51,7 @@ fun LoginScreen(
     var accountName by rememberPreference(AccountNameKey, "")
     var accountEmail by rememberPreference(AccountEmailKey, "")
     var accountChannelHandle by rememberPreference(AccountChannelHandleKey, "")
+    var hasCompletedLogin by remember { mutableStateOf(false) }
 
     var webView: WebView? = null
 
@@ -65,14 +68,18 @@ fun LoginScreen(
 
                         if (url?.startsWith("https://music.youtube.com") == true) {
                             innerTubeCookie = CookieManager.getInstance().getCookie(url)
-                            coroutineScope.launch {
-                                YouTube.accountInfo().onSuccess {
-                                    accountName = it.name
-                                    accountEmail = it.email.orEmpty()
-                                    accountChannelHandle = it.channelHandle.orEmpty()
-                                }.onFailure {
-                                    reportException(it)
+                            if (!hasCompletedLogin) {
+                                hasCompletedLogin = true
+                                coroutineScope.launch {
+                                    YouTube.accountInfo().onSuccess {
+                                        accountName = it.name
+                                        accountEmail = it.email.orEmpty()
+                                        accountChannelHandle = it.channelHandle.orEmpty()
+                                    }.onFailure {
+                                        reportException(it)
+                                    }
                                 }
+                                navController.navigateUp()
                             }
                         }
                     }
