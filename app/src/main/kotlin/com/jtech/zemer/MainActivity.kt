@@ -93,6 +93,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
@@ -113,6 +114,7 @@ import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.MediaItem
@@ -548,6 +550,7 @@ class MainActivity : ComponentActivity() {
                         val onboardingComplete by dataStore.data.map { it[OnboardingCompleteKey] ?: false }.collectAsState(initial = false)
                         val onboardingScope = rememberCoroutineScope()
                         val syncScope = rememberCoroutineScope()
+                        val lifecycleOwner = LocalLifecycleOwner.current
 
                         // Show onboarding first (before splash screen)
                         if (!onboardingComplete) {
@@ -561,65 +564,80 @@ class MainActivity : ComponentActivity() {
                             return@BoxWithConstraints
                         }
 
-                    // After onboarding, show splash screen while syncing
-                    val syncProgress by syncUtils.whitelistSyncProgress.collectAsState()
-                    val (skipSplash, setSkipSplash) = remember { mutableStateOf(false) }
-                    val (initialSyncHandled, setInitialSyncHandled) = rememberSaveable { mutableStateOf(false) }
-                    val (launchSyncOnce, setLaunchSyncOnce) = rememberSaveable { mutableStateOf(false) }
-                    val isWhitelistSyncing by syncUtils.isWhitelistSyncing.collectAsState(initial = false)
-                    val (localWhitelistVersion) = rememberPreference(LastWhitelistVersionKey, 0L)
-                    val alreadySyncedLocally = localWhitelistVersion > 0L && !isWhitelistSyncing && syncProgress.total == 0 && syncProgress.current == 0 && !syncProgress.isComplete
+                        // After onboarding, show splash screen while syncing
+                        val syncProgress by syncUtils.whitelistSyncProgress.collectAsState()
+                        val (skipSplash, setSkipSplash) = remember { mutableStateOf(false) }
+                        val (initialSyncHandled, setInitialSyncHandled) = rememberSaveable { mutableStateOf(false) }
+                        val (launchSyncOnce, setLaunchSyncOnce) = rememberSaveable { mutableStateOf(false) }
+                        val isWhitelistSyncing by syncUtils.isWhitelistSyncing.collectAsState(initial = false)
+                        val (localWhitelistVersion) = rememberPreference(LastWhitelistVersionKey, 0L)
+                        val alreadySyncedLocally = localWhitelistVersion > 0L && !isWhitelistSyncing && syncProgress.total == 0 && syncProgress.current == 0 && !syncProgress.isComplete
 
-                    LaunchedEffect(syncProgress.isComplete, isWhitelistSyncing) {
-                        if (!syncProgress.isComplete && !isWhitelistSyncing && !launchSyncOnce) {
-                            setLaunchSyncOnce(true)
+                        DisposableEffect(lifecycleOwner, onboardingComplete) {
+                            if (!onboardingComplete) return@DisposableEffect onDispose {}
+
                             syncScope.launch { syncUtils.syncArtistWhitelist() }
-                        }
-                        if (alreadySyncedLocally && !initialSyncHandled) {
-                            setInitialSyncHandled(true)
-                        }
-                    }
 
-                    if (syncProgress.isComplete && !initialSyncHandled) {
-                        setInitialSyncHandled(true)
-                    }
+                            val observer = LifecycleEventObserver { _, event ->
+                                if (event == Lifecycle.Event.ON_START) {
+                                    syncScope.launch { syncUtils.syncArtistWhitelist() }
+                                }
+                            }
+                            lifecycleOwner.lifecycle.addObserver(observer)
 
-                    if (!initialSyncHandled && !syncProgress.isComplete && !skipSplash) {
-                        SplashScreen(
-                            syncProgress = syncProgress,
-                            onSkip = {
-                                setSkipSplash(true)
+                            onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                        }
+
+                        LaunchedEffect(syncProgress.isComplete, isWhitelistSyncing) {
+                            if (!syncProgress.isComplete && !isWhitelistSyncing && !launchSyncOnce) {
+                                setLaunchSyncOnce(true)
+                                syncScope.launch { syncUtils.syncArtistWhitelist() }
+                            }
+                            if (alreadySyncedLocally && !initialSyncHandled) {
                                 setInitialSyncHandled(true)
                             }
-                        )
-                        return@BoxWithConstraints
-                    }
-
-                    val navController = rememberNavController()
-                    val navBackStackEntry by navController.currentBackStackEntryAsState()
-                    val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
-                    val drawerState = rememberDrawerState(DrawerValue.Closed)
-                    val isVideoScreen = remember(navBackStackEntry) {
-                        navBackStackEntry?.destination?.route?.startsWith("video/") == true
-                    }
-                    val homeViewModel: HomeViewModel = hiltViewModel()
-                    val accountImageUrl by homeViewModel.accountImageUrl.collectAsState()
-
-                    // Contribution auth state
-                    val firebaseAuth = remember { FirebaseAuth.getInstance() }
-                    var isContributorSignedIn by rememberSaveable { mutableStateOf(firebaseAuth.currentUser != null) }
-                    DisposableEffect(firebaseAuth) {
-                        val listener = FirebaseAuth.AuthStateListener { auth ->
-                            isContributorSignedIn = auth.currentUser != null
                         }
-                        firebaseAuth.addAuthStateListener(listener)
-                        onDispose { firebaseAuth.removeAuthStateListener(listener) }
-                    }
 
-                    val navigationItems = remember { Screens.MainScreens }
-                    val (_) = rememberPreference(SlimNavBarKey, defaultValue = false)
-                    val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
-                    val (floatingMiniPlayerEnabled) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
+                        if (syncProgress.isComplete && !initialSyncHandled) {
+                            setInitialSyncHandled(true)
+                        }
+
+                        if (!initialSyncHandled && !syncProgress.isComplete && !skipSplash) {
+                            SplashScreen(
+                                syncProgress = syncProgress,
+                                onSkip = {
+                                    setSkipSplash(true)
+                                    setInitialSyncHandled(true)
+                                }
+                            )
+                            return@BoxWithConstraints
+                        }
+
+                        val navController = rememberNavController()
+                        val navBackStackEntry by navController.currentBackStackEntryAsState()
+                        val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
+                        val drawerState = rememberDrawerState(DrawerValue.Closed)
+                        val isVideoScreen = remember(navBackStackEntry) {
+                            navBackStackEntry?.destination?.route?.startsWith("video/") == true
+                        }
+                        val homeViewModel: HomeViewModel = hiltViewModel()
+                        val accountImageUrl by homeViewModel.accountImageUrl.collectAsState()
+
+                        // Contribution auth state
+                        val firebaseAuth = remember { FirebaseAuth.getInstance() }
+                        var isContributorSignedIn by rememberSaveable { mutableStateOf(firebaseAuth.currentUser != null) }
+                        DisposableEffect(firebaseAuth) {
+                            val listener = FirebaseAuth.AuthStateListener { auth ->
+                                isContributorSignedIn = auth.currentUser != null
+                            }
+                            firebaseAuth.addAuthStateListener(listener)
+                            onDispose { firebaseAuth.removeAuthStateListener(listener) }
+                        }
+
+                        val navigationItems = remember { Screens.MainScreens }
+                        val (_) = rememberPreference(SlimNavBarKey, defaultValue = false)
+                        val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
+                        val (floatingMiniPlayerEnabled) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
                     val (defaultOpenTab) = rememberEnumPreference(DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
                     val tabOpenedFromShortcut = remember {
                         when (intent?.action) {
