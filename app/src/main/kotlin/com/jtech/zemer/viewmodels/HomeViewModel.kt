@@ -535,6 +535,10 @@ class HomeViewModel @Inject constructor(
                 )
             }
             hasLoadedOnce = true
+        } catch (e: java.util.concurrent.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            reportException(e)
         } finally {
             uiState.update { it.copy(isLoading = false) }
         }
@@ -572,8 +576,15 @@ class HomeViewModel @Inject constructor(
         if (uiState.value.isRefreshing) return
         viewModelScope.launch(Dispatchers.IO) {
             uiState.update { it.copy(isRefreshing = true) }
-            load(force = true)
-            uiState.update { it.copy(isRefreshing = false) }
+            try {
+                load(force = true)
+            } catch (e: java.util.concurrent.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                reportException(e)
+            } finally {
+                uiState.update { it.copy(isRefreshing = false) }
+            }
         }
     }
 
@@ -594,7 +605,7 @@ class HomeViewModel @Inject constructor(
 
             val isSyncEnabled = context.dataStore.getSuspend(YtmSyncKey, true)
 
-            load(force = true)
+            runCatching { load(force = true) }.onFailure { reportException(it) }
 
             if (isSyncEnabled) {
                 viewModelScope.launch(Dispatchers.IO) {
