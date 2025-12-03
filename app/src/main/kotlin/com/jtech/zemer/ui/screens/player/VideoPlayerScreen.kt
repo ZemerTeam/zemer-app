@@ -1,89 +1,113 @@
 package com.jtech.zemer.ui.screens.player
 
 import android.app.Activity
+import android.app.PictureInPictureParams
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
+import android.net.Uri
 import android.os.Build
+import android.os.Environment
+import android.util.Rational
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Surface
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastRoundToInt
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.DefaultRenderersFactory
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.ui.PlayerView
-import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.navigation.NavController
+import androidx.media3.common.C
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.TrackGroup
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.TrackSelectionParameters
+import androidx.media3.common.Tracks
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.media3.exoplayer.ExoPlayer
+import com.jtech.zemer.LocalDatabase
+import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AudioQuality
+import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.utils.UrlValidator
 import com.jtech.zemer.utils.YTPlayerUtils
 import com.metrolist.innertube.utils.ResilientDns
+import io.sanghun.compose.video.RepeatMode
+import io.sanghun.compose.video.VideoPlayer
+import io.sanghun.compose.video.controller.VideoPlayerControllerConfig
+import io.sanghun.compose.video.uri.VideoPlayerMediaItem
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import androidx.media3.datasource.okhttp.OkHttpDataSource
-import androidx.media3.datasource.DefaultDataSource
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
-import com.jtech.zemer.LocalDownloadUtil
-import com.jtech.zemer.LocalDatabase
-import com.jtech.zemer.db.entities.SongEntity
-import java.time.LocalDateTime
-import com.jtech.zemer.LocalPlayerConnection
 import java.io.File
-import android.os.Environment
+import java.time.LocalDateTime
+import java.util.concurrent.TimeUnit
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoPlayerScreen(
     navController: NavController,
@@ -91,484 +115,898 @@ fun VideoPlayerScreen(
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
-    val connectivityManager = remember {
-        context.getSystemService(ConnectivityManager::class.java)
-    }
-    val downloadUtil = LocalDownloadUtil.current
+    val clipboard = remember { context.getSystemService(ClipboardManager::class.java) }
+    val connectivityManager = remember { context.getSystemService(ConnectivityManager::class.java) }
     val database = LocalDatabase.current
     val scope = rememberCoroutineScope()
-    var showDownloadDialog by remember { mutableStateOf(false) }
-    var forceLandscape by remember { mutableStateOf(false) }
-    var currentVideoId by remember { mutableStateOf(videoId) }
-    LaunchedEffect(Unit) {
-        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-    }
+    val playerConnection = LocalPlayerConnection.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(forceLandscape) {
-        activity?.requestedOrientation = if (forceLandscape) {
-            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        } else {
-            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+    var videoItem by remember { mutableStateOf<VideoPlayerMediaItem.NetworkMediaItem?>(null) }
+    var playerInstance by remember { mutableStateOf<ExoPlayer?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var loadError by remember { mutableStateOf<String?>(null) }
+    var showDownloadDialog by remember { mutableStateOf(false) }
+    var showSpeedDialog by remember { mutableStateOf(false) }
+    var showQualityDialog by remember { mutableStateOf(false) }
+    var currentTitle by remember { mutableStateOf<String?>(null) }
+    var reloadKey by remember { mutableStateOf(0) }
+    var availableQualities by remember { mutableStateOf<List<QualityOption>>(emptyList()) }
+    var selectedQualityId by remember { mutableStateOf("auto") }
+    var playbackInfo by remember { mutableStateOf<String?>(null) }
+    var isInPipMode by remember { mutableStateOf(activity?.isInPictureInPictureMode == true) }
+    var artistName by remember { mutableStateOf<String?>(null) }
+    var positionMs by remember { mutableStateOf(0L) }
+    var durationMs by remember { mutableStateOf(0L) }
+    var isPlaying by remember { mutableStateOf(false) }
+    var isScrubbing by remember { mutableStateOf(false) }
+    var isFullscreen by remember { mutableStateOf(false) }
+    var showControls by remember { mutableStateOf(true) }
+    var lastInteraction by remember { mutableStateOf(System.currentTimeMillis()) }
+    var videoBottomPx by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(videoId) {
+        val mappedSong = withContext(Dispatchers.IO) {
+            val direct = database.getSongById(videoId)
+            if (direct != null) return@withContext direct
+            val setVideo = database.getSetVideoId(videoId)?.setVideoId
+            if (setVideo != null) database.getSongById(setVideo) else null
+        }
+        mappedSong?.let { song ->
+            currentTitle = song.title
+            val artistDisplay = song.artists.joinToString(" • ") { it.name }
+            artistName = artistDisplay.ifBlank { null }
         }
     }
 
-    // Pause any currently playing music when video player is shown
-    val playerConnection = LocalPlayerConnection.current
+    val httpClient = remember {
+        OkHttpClient.Builder()
+            .dns(ResilientDns())
+            .build()
+    }
+
+    DisposableEffect(Unit) {
+        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
+    // Pause any music playback while the user is watching video
     LaunchedEffect(Unit) {
         playerConnection?.player?.pause()
+    }
+
+    DisposableEffect(playerInstance) {
+        val player = playerInstance ?: return@DisposableEffect onDispose { }
+        val listener = object : androidx.media3.common.Player.Listener {
+            override fun onTracksChanged(tracks: Tracks) {
+                val qualities = tracks.groups
+                    .filter { it.type == C.TRACK_TYPE_VIDEO }
+                    .flatMap { group ->
+                        val mtg = group.mediaTrackGroup
+                        (0 until group.length).map { index ->
+                            val format = group.getTrackFormat(index)
+                            val height = format.height.takeIf { it > 0 }
+                            val bitrate = format.bitrate.takeIf { it > 0 }
+                            val label = buildString {
+                                if (height != null) append("${height}p ")
+                                if (bitrate != null) append("(${bitrate / 1000}kbps) ")
+                                if (!format.codecs.isNullOrBlank()) append(format.codecs)
+                            }.ifBlank { "Video" }
+                            QualityOption(
+                                id = "${mtg.hashCode()}_$index",
+                                label = label.trim(),
+                                height = height,
+                                width = format.width.takeIf { it > 0 },
+                                bitrate = bitrate,
+                                codecs = format.codecs,
+                                mimeType = format.sampleMimeType,
+                                group = mtg,
+                                trackIndex = index
+                            )
+                        }
+                    }
+                    .sortedByDescending { it.height ?: 0 }
+                availableQualities = qualities
+
+                val currentOverrideEntry = player.trackSelectionParameters.overrides.entries.firstOrNull { entry ->
+                    qualities.any { it.group == entry.key }
+                }
+                selectedQualityId = currentOverrideEntry?.let { entry ->
+                    val match = qualities.firstOrNull { opt ->
+                        opt.group == entry.key && entry.value.trackIndices.contains(opt.trackIndex)
+                    }
+                    match?.id
+                } ?: "auto"
+
+                val format = player.videoFormat
+                playbackInfo = format?.let { f ->
+                    val resolution = if (f.width > 0 && f.height > 0) "${f.width}x${f.height}" else null
+                    val bitrateKbps = f.bitrate.takeIf { it > 0 }?.div(1000)
+                    val codec = when {
+                        !f.codecs.isNullOrBlank() -> f.codecs
+                        !f.sampleMimeType.isNullOrBlank() -> f.sampleMimeType
+                        else -> null
+                    }
+                    buildString {
+                        resolution?.let { append(it) }
+                        bitrateKbps?.let {
+                            if (isNotEmpty()) append(" • ")
+                            append("${it}kbps")
+                        }
+                        codec?.let {
+                            if (isNotEmpty()) append(" • ")
+                            append(it)
+                        }
+                    }.ifBlank { null }
+                }
+            }
+        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
+    }
+
+    LaunchedEffect(playerConnection?.mediaMetadata?.value, videoId) {
+        val meta = playerConnection?.mediaMetadata?.value ?: return@LaunchedEffect
+        if (meta.id == videoId || meta.setVideoId == videoId) {
+            currentTitle = meta.title
+            val artistDisplay = meta.artists.joinToString(" • ") { it.name }
+            artistName = artistDisplay.ifBlank { artistName }
+        }
     }
 
     val maxVideoBitrateKbps = remember(connectivityManager) {
         if (connectivityManager?.isActiveNetworkMetered == true) 1500 else 6000
     }
-
-    val videoHttpClient = remember(videoId) {
-        OkHttpClient.Builder()
-            .dns(ResilientDns())
-            .build()
+    val supportsPip = remember(activity) {
+        activity?.packageManager?.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE) == true
     }
-    val videoDataSourceFactory = remember(videoId) {
-        val okHttpFactory = OkHttpDataSource.Factory(videoHttpClient)
-        DefaultDataSource.Factory(context, okHttpFactory)
-    }
-    val exoPlayer = remember(videoId) {
-        ExoPlayer.Builder(context, DefaultRenderersFactory(context))
-            .setMediaSourceFactory(DefaultMediaSourceFactory(videoDataSourceFactory))
-            .build()
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            exoPlayer.stop()
-            exoPlayer.clearMediaItems()
-            exoPlayer.release()
-            activity?.window?.let {
-                WindowCompat.getInsetsController(it, it.decorView)?.show(WindowInsetsCompat.Type.systemBars())
-                it.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            }
+    val canEnterPip by remember {
+        derivedStateOf {
+            supportsPip &&
+                lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) &&
+                videoItem != null &&
+                loadError == null
         }
     }
 
-    var isLoading by remember { mutableStateOf(true) }
-    var loadError by remember { mutableStateOf<String?>(null) }
-    var position by remember { mutableLongStateOf(0L) }
-    var duration by remember { mutableLongStateOf(0L) }
-    var isPlaying by remember { mutableStateOf(false) }
-    var isImmersive by remember { mutableStateOf(false) }
-    var showControls by remember { mutableStateOf(true) }
-    var rotated by remember { mutableStateOf(false) }
-    var videoAspectRatio by remember { mutableStateOf(16f / 9f) }
-    val downloadVideo: suspend (Int) -> Unit = { maxBitrateKbps ->
-        val moviesDir = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES) ?: context.filesDir
-        val targetFile = File(moviesDir, "$videoId.mp4")
-        withContext(Dispatchers.IO) {
-            val playbackResult = YTPlayerUtils.playerResponseForPlayback(
-                videoId = videoId,
-                audioQuality = AudioQuality.HIGH,
-                connectivityManager = connectivityManager ?: return@withContext,
-                preferVideo = true,
-                maxVideoBitrateKbps = maxBitrateKbps,
-            )
-            playbackResult.onFailure {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Download failed: ${it.localizedMessage}", Toast.LENGTH_SHORT).show()
-                }
-                return@withContext
-            }
-            val playback = playbackResult.getOrThrow()
-            val validatedUrl = UrlValidator.validateAndParseUrl(playback.streamUrl)
-                ?: throw Exception("Invalid stream URL: ${playback.streamUrl}")
-            val request = try {
-                Request.Builder().url(validatedUrl).build()
-            } catch (e: Exception) {
-                throw Exception("Failed to build video request: ${e.message}", e)
-            }
-            videoHttpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Download failed (${response.code})", Toast.LENGTH_SHORT).show()
-                    }
-                    return@use
-                }
-                response.body?.byteStream()?.use { input ->
-                    targetFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                }
-            }
-            database.query {
-                upsert(
-                    SongEntity(
-                        id = videoId,
-                        title = playback.videoDetails?.title ?: "Video",
-                        duration = playback.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0,
-                        thumbnailUrl = playback.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url,
-                        explicit = false,
-                        dateDownload = LocalDateTime.now(),
-                        isDownloaded = true,
-                        isVideo = true
-                    )
-                )
-            }
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context, "Downloaded to ${targetFile.absolutePath}", Toast.LENGTH_LONG).show()
-            }
+    DisposableEffect(lifecycleOwner, activity) {
+        val observer = LifecycleEventObserver { _, _ ->
+            isInPipMode = activity?.isInPictureInPictureMode == true
         }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val windowInsetsController = remember(activity) {
-        activity?.window?.let { WindowCompat.getInsetsController(it, it.decorView) }
+    DisposableEffect(activity) {
+        onDispose { activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED }
     }
 
-    LaunchedEffect(isImmersive) {
-        windowInsetsController?.let { controller ->
-            if (isImmersive) {
-                controller.hide(WindowInsetsCompat.Type.systemBars())
-                controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            } else {
-                controller.show(WindowInsetsCompat.Type.systemBars())
-            }
-        }
-    }
-
-    LaunchedEffect(videoId, connectivityManager) {
+    LaunchedEffect(videoId, maxVideoBitrateKbps, reloadKey) {
         isLoading = true
         loadError = null
-        exoPlayer.stop()
-        exoPlayer.clearMediaItems()
+        videoItem = null
+
         val result = withContext(Dispatchers.IO) {
+            val cm = connectivityManager ?: error("No connectivity manager")
             YTPlayerUtils.playerResponseForPlayback(
                 videoId = videoId,
                 audioQuality = AudioQuality.HIGH,
-                connectivityManager = connectivityManager ?: return@withContext Result.failure(Exception("No connectivity manager")),
+                connectivityManager = cm,
                 preferVideo = true,
                 maxVideoBitrateKbps = maxVideoBitrateKbps,
             )
         }
+
         result.onSuccess { playback ->
-            // Validate stream URL before creating media item
-            if (!UrlValidator.isValidStreamUrl(playback.streamUrl)) {
+            val validatedUrl = UrlValidator.validateAndParseUrl(playback.streamUrl)?.toString()
+            if (validatedUrl == null) {
                 loadError = "Invalid stream URL"
                 isLoading = false
                 return@onSuccess
             }
-            val mediaItem = MediaItem.Builder()
-                .setUri(playback.streamUrl)
-                .setMimeType(playback.format.mimeType)
+
+            val title = currentTitle ?: playback.videoDetails?.title ?: videoId
+            if (artistName.isNullOrBlank()) {
+                artistName = playback.videoDetails?.author ?: playback.videoDetails?.channelId
+            }
+            val thumbnail = playback.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url
+
+            val mediaMetadata = MediaMetadata.Builder()
+                .setTitle(title)
+                .apply {
+                    thumbnail?.let { setArtworkUri(Uri.parse(it)) }
+                }
                 .build()
-            exoPlayer.setMediaItem(mediaItem)
-            exoPlayer.prepare()
-            exoPlayer.playWhenReady = true
+
+            videoItem = VideoPlayerMediaItem.NetworkMediaItem(
+                url = validatedUrl,
+                mediaMetadata = mediaMetadata,
+                mimeType = playback.format.mimeType ?: "",
+                drmConfiguration = null
+            )
+            currentTitle = title
             isLoading = false
-            isPlaying = true
         }.onFailure {
             loadError = it.localizedMessage ?: "Playback error"
             isLoading = false
         }
     }
 
-    DisposableEffect(exoPlayer) {
-        val listener = object : androidx.media3.common.Player.Listener {
-            override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
-                if (videoSize.width > 0 && videoSize.height > 0) {
-                    videoAspectRatio = videoSize.width.toFloat() / videoSize.height.toFloat()
+    val downloadVideo: (Int) -> Unit = { targetBitrate ->
+        showDownloadDialog = false
+        scope.launch {
+            try {
+                val playback = withContext(Dispatchers.IO) {
+                    val cm = connectivityManager ?: error("No connectivity manager")
+                    YTPlayerUtils.playerResponseForPlayback(
+                        videoId = videoId,
+                        audioQuality = AudioQuality.HIGH,
+                        connectivityManager = cm,
+                        preferVideo = true,
+                        maxVideoBitrateKbps = targetBitrate,
+                    ).getOrThrow()
                 }
+
+                val stream = UrlValidator.validateAndParseUrl(playback.streamUrl)?.toString()
+                    ?: error("Invalid stream URL")
+
+                val moviesDir = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES) ?: context.filesDir
+                val targetFile = File(moviesDir, "$videoId.mp4")
+
+                withContext(Dispatchers.IO) {
+                    val request = Request.Builder().url(stream).build()
+                    httpClient.newCall(request).execute().use { response ->
+                        if (!response.isSuccessful) error("HTTP ${response.code}")
+                        response.body?.byteStream()?.use { input ->
+                            targetFile.outputStream().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                    }
+
+                    database.query {
+                        upsert(
+                            SongEntity(
+                                id = videoId,
+                                title = playback.videoDetails?.title ?: currentTitle ?: "Video",
+                                duration = playback.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0,
+                                thumbnailUrl = playback.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url,
+                                explicit = false,
+                                dateDownload = LocalDateTime.now(),
+                                isDownloaded = true,
+                                isVideo = true
+                            )
+                        )
+                    }
+                }
+
+                Toast.makeText(context, "Downloaded to ${targetFile.absolutePath}", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toast.makeText(
+                    context,
+                    "Download failed: ${e.localizedMessage ?: "Unknown error"}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
-        exoPlayer.addListener(listener)
-        onDispose {
-            exoPlayer.removeListener(listener)
+    }
+
+    LaunchedEffect(playerInstance) {
+        val player = playerInstance ?: return@LaunchedEffect
+        while (isActive) {
+            if (!isScrubbing) {
+                positionMs = player.currentPosition
+            }
+            val d = player.duration
+            if (d > 0) durationMs = d
+            isPlaying = player.isPlaying
+            kotlinx.coroutines.delay(500)
         }
     }
 
-    LaunchedEffect(videoId, exoPlayer) {
-        while (true) {
-            position = exoPlayer.currentPosition
-            duration = exoPlayer.duration.coerceAtLeast(0L)
-            isPlaying = exoPlayer.isPlaying
-            delay(300)
+    val enterPip: () -> Unit = pip@{
+        val act = activity ?: return@pip
+        if (!canEnterPip) return@pip
+        val params = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            PictureInPictureParams.Builder()
+                .setAspectRatio(Rational(16, 9))
+                .build()
+        } else {
+            null
+        }
+        try {
+            @Suppress("DEPRECATION")
+            val entered = if (params != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                act.enterPictureInPictureMode(params)
+            } else {
+                act.enterPictureInPictureMode()
+                true
+            }
+            if (!entered) {
+                Toast.makeText(context, "Unable to start PiP", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: IllegalStateException) {
+            Toast.makeText(context, "PiP unavailable: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
         }
     }
 
-    LaunchedEffect(showControls, isPlaying) {
-        if (showControls && isPlaying) {
-            delay(5000)
+    val markInteraction: () -> Unit = {
+        showControls = true
+        lastInteraction = System.currentTimeMillis()
+    }
+
+    val togglePlayPause: () -> Unit = {
+        playerInstance?.let { player ->
+            if (player.isPlaying) {
+                player.pause()
+                showControls = true
+            } else {
+                player.play()
+                markInteraction()
+            }
+        }
+    }
+
+    val seekByMs: (Long) -> Unit = { delta ->
+        playerInstance?.let { player ->
+            val durationLimit = if (durationMs > 0) durationMs else Long.MAX_VALUE
+            val newPos = (player.currentPosition + delta).coerceIn(0, durationLimit)
+            player.seekTo(newPos)
+            positionMs = newPos
+            lastInteraction = System.currentTimeMillis()
+            showControls = true
+        }
+    }
+
+    val toggleFullscreen: () -> Unit = fullscreen@{
+        val act = activity ?: return@fullscreen
+        val next = !isFullscreen
+        isFullscreen = next
+        act.requestedOrientation = if (next) {
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+
+    val density = LocalDensity.current
+    val dragSkipThresholdPx = remember(density) { with(density) { 80.dp.toPx() } }
+    var dragAccum by remember { mutableStateOf(0f) }
+
+    LaunchedEffect(isPlaying) {
+        if (!isPlaying) {
+            showControls = true
+        } else {
+            markInteraction()
+        }
+    }
+
+    LaunchedEffect(showControls, lastInteraction, isPlaying) {
+        if (!showControls) return@LaunchedEffect
+        if (!isPlaying) return@LaunchedEffect
+        kotlinx.coroutines.delay(4000)
+        if (System.currentTimeMillis() - lastInteraction >= 3800 && isPlaying) {
             showControls = false
         }
     }
 
-    BackHandler {
-        exoPlayer.pause()
-        exoPlayer.clearMediaItems()
-        activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        // Try to enter PiP mode
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
-            try {
-                val pipParams = android.app.PictureInPictureParams.Builder()
-                    .setAspectRatio(android.util.Rational((videoAspectRatio * 100).toInt(), 100))
-                    .build()
-                activity?.enterPictureInPictureMode(pipParams)
-            } catch (e: Exception) {
-                // If PiP fails, just go back normally
-                navController.popBackStack()
-            }
-        } else {
-            navController.popBackStack()
-        }
+    BackHandler(enabled = !isInPipMode) {
+        navController.popBackStack()
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .pointerInput(showControls) {
-                detectTapGestures(
-                    onTap = {
-                        showControls = !showControls
-                    }
-                )
-            }
-            .pointerInput(Unit) {
-                detectVerticalDragGestures { _, dragAmount ->
-                    // Swipe up = next video (negative drag)
-                    // Swipe down = previous video (positive drag)
-                    if (dragAmount < -100) {
-                        // Swipe up - go to next video
-                        Toast.makeText(context, "⬆ Swipe up for next video", Toast.LENGTH_SHORT).show()
-                    } else if (dragAmount > 100) {
-                        // Swipe down - go to previous video
-                        Toast.makeText(context, "⬇ Swipe down for previous video", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-    ) {
+    Scaffold(containerColor = Color.Black) { innerPadding ->
         Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(Color.Black)
         ) {
-            AndroidView(
-                factory = { viewContext ->
-                    PlayerView(viewContext).apply {
-                        useController = false
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        player = exoPlayer
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(
-                        if (rotated) 1f / videoAspectRatio
-                        else videoAspectRatio
+            when {
+                isLoading -> {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.align(Alignment.Center)
                     )
-                    .graphicsLayer {
-                        rotationZ = if (rotated) 90f else 0f
-                        cameraDistance = 8 * density
-                    }
-            )
-        }
+                }
 
-        AnimatedVisibility(
-            visible = showControls,
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                color = Color.Black.copy(alpha = 0.6f),
-                tonalElevation = 0.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (isLoading) {
-                        LinearProgressIndicator(
+                loadError != null -> {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(text = loadError ?: "Playback error", color = Color.White)
+                        TextButton(onClick = { reloadKey++ }) {
+                            Text("Retry", color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+
+                videoItem != null -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp)
+                            .padding(vertical = if (isInPipMode) 0.dp else 12.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            tonalElevation = 6.dp,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
                             modifier = Modifier
+                                .align(Alignment.Center)
                                 .fillMaxWidth()
-                                .height(4.dp),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    loadError?.let {
-                        Text(
-                            text = it,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-
-                    Slider(
-                        value = if (duration > 0) position.toFloat() / duration.toFloat() else 0f,
-                        onValueChange = { fraction ->
-                            val seekPos = (fraction * duration).toLong()
-                            exoPlayer.seekTo(seekPos)
-                            position = seekPos
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = formatTime(position),
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                        Text(
-                            text = formatTime(duration),
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                    IconButton(
-                        onClick = {
-                            exoPlayer.seekTo((exoPlayer.currentPosition - 30_000).coerceAtLeast(0))
-                        }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.fast_forward),
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier
-                                .size(28.dp)
-                                .graphicsLayer { rotationY = 180f }
-                        )
-                    }
-                        IconButton(
-                            onClick = {
-                                if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play()
-                            }
+                                .aspectRatio(16f / 9f)
+                                .onGloballyPositioned { coords ->
+                                    videoBottomPx = coords.boundsInParent().bottom.toInt()
+                                }
                         ) {
-                            Icon(
-                                painter = painterResource(if (isPlaying) R.drawable.pause else R.drawable.play),
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                    IconButton(
-                        onClick = {
-                            val newPos = exoPlayer.currentPosition + 30_000
-                            exoPlayer.seekTo(newPos.coerceAtMost(duration))
-                        }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.fast_forward),
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = {
-                            val clip = ClipData.newPlainText("Video link", "https://youtu.be/$videoId")
-                            val clipboard = context.getSystemService(ClipboardManager::class.java)
-                            clipboard?.setPrimaryClip(clip)
-                            Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
-                        }) {
-                            Icon(
-                                painter = painterResource(R.drawable.link),
-                                contentDescription = null,
-                                tint = Color.White
-                            )
-                        }
-
-                        IconButton(onClick = { showDownloadDialog = true }) {
-                            Icon(
-                                painter = painterResource(R.drawable.download),
-                                contentDescription = null,
-                                tint = Color.White
+                            VideoPlayer(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(playerInstance) {
+                                        detectTapGestures {
+                                            if (!showControls) {
+                                                markInteraction()
+                                            } else {
+                                                togglePlayPause()
+                                            }
+                                        }
+                                    }
+                                    .pointerInput(playerInstance, durationMs) {
+                                        detectDragGestures(
+                                            onDrag = { _, dragAmount ->
+                                                dragAccum += dragAmount.x
+                                                markInteraction()
+                                            },
+                                            onDragEnd = {
+                                                when {
+                                                    dragAccum > dragSkipThresholdPx -> seekByMs(10_000)
+                                                    dragAccum < -dragSkipThresholdPx -> seekByMs(-10_000)
+                                                    else -> togglePlayPause()
+                                                }
+                                                dragAccum = 0f
+                                            },
+                                            onDragCancel = {
+                                                dragAccum = 0f
+                                            }
+                                        )
+                                    },
+                                mediaItems = listOf(videoItem!!),
+                                handleLifecycle = false,
+                                autoPlay = true,
+                                usePlayerController = false,
+                                controllerConfig = VideoPlayerControllerConfig.Default,
+                                repeatMode = RepeatMode.NONE,
+                                enablePip = false,
+                                enablePipWhenBackPressed = false,
+                                playerInstance = { playerInstance = this }
                             )
                         }
 
-                        IconButton(onClick = {
-                            rotated = !rotated
-                        }) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_rotate_screen),
-                                contentDescription = null,
-                                tint = Color.White
-                            )
-                        }
+                        if (!isInPipMode) {
+                            val outlineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.9f)
+                            val pillBg = MaterialTheme.colorScheme.surface
+                            val pillBorder = outlineColor
+                            val chipRowOffsetPx = videoBottomPx?.plus(with(density) { 8.dp.roundToPx() })
 
-                        IconButton(onClick = { forceLandscape = !forceLandscape }) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_fullscreen),
-                                contentDescription = null,
-                                tint = Color.White
-                            )
+                            AnimatedVisibility(
+                                visible = showControls,
+                                enter = fadeIn(),
+                                exit = fadeOut(),
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = 0.dp)
+                            ) {
+                                Surface(
+                                    shape = RectangleShape,
+                                    color = Color.Black.copy(alpha = 0.8f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        IconButton(
+                                            onClick = {
+                                                markInteraction()
+                                                navController.popBackStack()
+                                            },
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .background(Color.White.copy(alpha = 0.08f))
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.arrow_back),
+                                                contentDescription = null,
+                                                tint = Color.White
+                                            )
+                                        }
+                                        Text(
+                                            text = currentTitle ?: videoId,
+                                            color = Color.White,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        if (supportsPip) {
+                                            IconButton(
+                                                onClick = {
+                                                    markInteraction()
+                                                    enterPip()
+                                                },
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color.White.copy(alpha = 0.08f))
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.ic_pip),
+                                                    contentDescription = null,
+                                                    tint = Color.White
+                                                )
+                                            }
+                                        }
+                                        IconButton(
+                                            onClick = {
+                                                markInteraction()
+                                                val clip = ClipData.newPlainText("Video link", "https://youtu.be/$videoId")
+                                                clipboard?.setPrimaryClip(clip)
+                                                Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
+                                            },
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .background(Color.White.copy(alpha = 0.08f))
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.link),
+                                                contentDescription = null,
+                                                tint = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (chipRowOffsetPx != null) {
+                                AnimatedVisibility(
+                                    visible = showControls,
+                                enter = fadeIn(),
+                                exit = fadeOut(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .offset { IntOffset(0, chipRowOffsetPx) }
+                                        .padding(horizontal = 8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Text(
+                                                text = currentTitle ?: videoId,
+                                                color = Color.White,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = artistName ?: "Unknown artist",
+                                                color = Color.LightGray,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            val leftShape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 6.dp, bottomEnd = 6.dp)
+                                            val rightShape = RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 24.dp, bottomEnd = 24.dp)
+                                            Surface(
+                                                shape = leftShape,
+                                                color = pillBg,
+                                                border = BorderStroke(1.dp, pillBorder),
+                                                modifier = Modifier.size(44.dp)
+                                            ) {
+                                                IconButton(onClick = {
+                                                    markInteraction()
+                                                    showDownloadDialog = true
+                                                }) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.download),
+                                                        contentDescription = "Download"
+                                                    )
+                                                }
+                                            }
+                                            Surface(
+                                                shape = rightShape,
+                                                color = pillBg,
+                                                border = BorderStroke(1.dp, pillBorder),
+                                                modifier = Modifier.size(44.dp)
+                                            ) {
+                                                IconButton(onClick = {
+                                                    markInteraction()
+                                                    showQualityDialog = true
+                                                }) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.ic_video_hd),
+                                                        contentDescription = "Quality"
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            AnimatedVisibility(
+                                visible = showControls,
+                                enter = fadeIn(),
+                                exit = fadeOut(),
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 12.dp)
+                            ) {
+                                val sliderValue =
+                                    if (durationMs > 0) positionMs.toFloat() / durationMs.toFloat() else 0f
+                                val durationText = if (durationMs > 0) formatTime(durationMs) else "--:--"
+                                val positionText = formatTime(positionMs)
+
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 12.dp)
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .border(
+                                            width = 1.dp,
+                                            color = outlineColor,
+                                            shape = RoundedCornerShape(18.dp)
+                                        )
+                                        .background(Color.Black.copy(alpha = 0.6f))
+                                        .padding(horizontal = 12.dp, vertical = 12.dp)
+                                ) {
+                                    val buttonColors = IconButtonDefaults.outlinedIconButtonColors(
+                                        contentColor = Color.White,
+                                        containerColor = Color.Black.copy(alpha = 0.35f)
+                                    )
+                                    val buttonBorder = BorderStroke(1.dp, outlineColor)
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 10.dp),
+                                        horizontalArrangement = Arrangement.SpaceEvenly,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        OutlinedIconButton(
+                                            onClick = { showSpeedDialog = true },
+                                            modifier = Modifier.size(36.dp),
+                                            colors = buttonColors,
+                                            border = buttonBorder,
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_speedometer),
+                                                contentDescription = "Speed"
+                                            )
+                                        }
+                                        OutlinedIconButton(
+                                            onClick = { seekByMs(-10_000) },
+                                            modifier = Modifier.size(52.dp),
+                                            colors = buttonColors,
+                                            border = buttonBorder,
+                                            shape = RoundedCornerShape(18.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.skip_previous),
+                                                contentDescription = "Previous"
+                                            )
+                                        }
+                                        OutlinedIconButton(
+                                            onClick = togglePlayPause,
+                                            modifier = Modifier.size(64.dp),
+                                            colors = buttonColors,
+                                            border = buttonBorder,
+                                            shape = RoundedCornerShape(22.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(if (isPlaying) R.drawable.pause else R.drawable.play),
+                                                contentDescription = if (isPlaying) "Pause" else "Play"
+                                            )
+                                        }
+                                        OutlinedIconButton(
+                                            onClick = { seekByMs(10_000) },
+                                            modifier = Modifier.size(52.dp),
+                                            colors = buttonColors,
+                                            border = buttonBorder,
+                                            shape = RoundedCornerShape(18.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.skip_next),
+                                                contentDescription = "Next"
+                                            )
+                                        }
+                                        OutlinedIconButton(
+                                            onClick = toggleFullscreen,
+                                            modifier = Modifier.size(36.dp),
+                                            colors = buttonColors,
+                                            border = buttonBorder,
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_fullscreen),
+                                                contentDescription = "Fullscreen"
+                                            )
+                                        }
+                                    }
+
+                                    Slider(
+                                        value = sliderValue,
+                                        onValueChange = { value ->
+                                            if (durationMs > 0) {
+                                                isScrubbing = true
+                                                positionMs = (durationMs * value).toLong().coerceIn(0, durationMs)
+                                            }
+                                            lastInteraction = System.currentTimeMillis()
+                                        },
+                                        onValueChangeFinished = {
+                                            if (durationMs > 0) {
+                                                playerInstance?.seekTo(positionMs)
+                                            }
+                                            isScrubbing = false
+                                        },
+                                        enabled = durationMs > 0,
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = MaterialTheme.colorScheme.primary,
+                                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                                            inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                        )
+                                    )
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(positionText, color = Color.White, style = MaterialTheme.typography.labelSmall)
+                                        Text(durationText, color = Color.White, style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
-
-        IconButton(
-            onClick = { navController.popBackStack() },
-            modifier = Modifier
-                .padding(12.dp)
-                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(50))
-                .size(40.dp)
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.arrow_back),
-                contentDescription = null,
-                tint = Color.White
-            )
         }
     }
 
     if (showDownloadDialog) {
         AlertDialog(
             onDismissRequest = { showDownloadDialog = false },
-            confirmButton = {},
             title = { Text("Download video") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Choose a quality to download")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = {
-                            showDownloadDialog = false
-                            scope.launch {
-                                downloadVideo(1500)
-                            }
-                        }) {
+                    Text("Choose a quality")
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(onClick = { downloadVideo(1500) }) {
                             Text("360p (~1.5Mbps)")
                         }
-                        TextButton(onClick = {
-                            showDownloadDialog = false
-                            scope.launch {
-                                downloadVideo(4000)
-                            }
-                        }) {
+                        TextButton(onClick = { downloadVideo(4000) }) {
                             Text("720p (~4Mbps)")
                         }
                     }
                 }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showDownloadDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    if (showSpeedDialog) {
+        val speeds = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
+        AlertDialog(
+            onDismissRequest = { showSpeedDialog = false },
+            title = { Text("Playback speed") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    speeds.forEach { speed ->
+                        TextButton(onClick = {
+                            playerInstance?.setPlaybackSpeed(speed)
+                            showSpeedDialog = false
+                        }) {
+                            Text(if (speed == 1f) "1.0x (Normal)" else "${speed}x")
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showSpeedDialog = false }) { Text("Close") }
+            }
+        )
+    }
+
+    if (showQualityDialog) {
+        AlertDialog(
+            onDismissRequest = { showQualityDialog = false },
+            title = { Text("Video quality") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = if (selectedQualityId == "auto") "Current: Auto" else availableQualities.firstOrNull { it.id == selectedQualityId }?.label
+                            ?: "Current: Auto",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                    TextButton(onClick = {
+                        playerInstance?.let { player ->
+                            val params = player.trackSelectionParameters
+                                .buildUpon()
+                                .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
+                                .build()
+                            player.trackSelectionParameters = params
+                        }
+                        selectedQualityId = "auto"
+                        showQualityDialog = false
+                    }) {
+                        Text("Auto")
+                    }
+                    availableQualities.forEach { option ->
+                        TextButton(onClick = {
+                            playerInstance?.let { player ->
+                                val builder = player.trackSelectionParameters
+                                    .buildUpon()
+                                    .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
+                                    .setOverrideForType(
+                                        TrackSelectionOverride(option.group, listOf(option.trackIndex))
+                                    )
+                                player.trackSelectionParameters = builder.build()
+                                selectedQualityId = option.id
+                            }
+                            showQualityDialog = false
+                        }) {
+                            Text(option.label.ifBlank { "Track ${option.trackIndex + 1}" })
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showQualityDialog = false }) { Text("Close") }
             }
         )
     }
 }
 
-private fun formatTime(millis: Long): String {
-    val totalSeconds = millis / 1000
+private data class QualityOption(
+    val id: String,
+    val label: String,
+    val height: Int?,
+    val width: Int?,
+    val bitrate: Int?,
+    val codecs: String?,
+    val mimeType: String?,
+    val group: TrackGroup,
+    val trackIndex: Int,
+)
+
+@Composable
+private fun formatTime(ms: Long): String {
+    val totalSeconds = TimeUnit.MILLISECONDS.toSeconds(ms.coerceAtLeast(0))
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return "%d:%02d".format(minutes, seconds)

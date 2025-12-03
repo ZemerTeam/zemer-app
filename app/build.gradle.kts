@@ -17,8 +17,8 @@ android {
         applicationId = "com.jtech.zemer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "2"
+        versionCode = 3
+        versionName = "3"
         buildConfigField("String", "ARCHITECTURE", "\"universal\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -183,6 +183,7 @@ dependencies {
     implementation(libs.media3.session)
     implementation(libs.media3.okhttp)
     implementation(libs.media3.ui)
+    implementation(libs.compose.video)
     implementation(libs.squigglyslider)
 
     implementation(libs.room.runtime)

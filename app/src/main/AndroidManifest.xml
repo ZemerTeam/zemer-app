@@ -55,6 +55,7 @@
             android:launchMode="singleTask"
             android:theme="@style/Theme.Zemer"
             android:windowSoftInputMode="adjustResize"
+            android:supportsPictureInPicture="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

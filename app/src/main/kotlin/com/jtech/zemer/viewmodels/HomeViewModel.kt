@@ -297,13 +297,15 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadFeaturedContent(hideExplicit: Boolean): Triple<List<AlbumItem>, List<ArtistItem>, List<SongItem>> {
-        val filters = ContentFilterState.state.value
-        val allowedEntries = WhitelistCache.allowedEntries(database, filters)
-        val randomArtistIds = if (allowedEntries.isNotEmpty()) {
-            allowedEntries.shuffled().take(15).map { it.artistId }
-        } else {
-            database.getRandomWhitelistedArtistIds(15)
+    private suspend fun loadFeaturedContent(
+        hideExplicit: Boolean,
+        allowedEntries: List<com.jtech.zemer.db.entities.ArtistWhitelistEntity>,
+        useWhitelist: Boolean
+    ): Triple<List<AlbumItem>, List<ArtistItem>, List<SongItem>> {
+        val randomArtistIds = when {
+            allowedEntries.isNotEmpty() -> allowedEntries.shuffled().take(15).map { it.artistId }
+            useWhitelist -> database.getRandomWhitelistedArtistIds(15)
+            else -> emptyList()
         }
         if (randomArtistIds.isEmpty()) return Triple(emptyList(), emptyList(), emptyList())
 
@@ -493,10 +495,14 @@ class HomeViewModel @Inject constructor(
                 runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
             }
             val filters = ContentFilterState.state.value
+            val allowedEntries = WhitelistCache.allowedEntries(database, filters)
+            val useWhitelist = filters.filtersEnabled && allowedEntries.isNotEmpty()
+            val effectiveFilters = if (useWhitelist) filters else filters.copy(filtersEnabled = false)
+
             val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
             val quick = loadQuickPicks()
-            val featuredPlaylists = loadFeaturedPlaylists(filters, hideExplicit)
-            val trendingSongs = loadTrendingSongs(filters, hideExplicit)
+            val featuredPlaylists = loadFeaturedPlaylists(effectiveFilters, hideExplicit)
+            val trendingSongs = loadTrendingSongs(effectiveFilters, hideExplicit)
             val forgottenList = database.forgottenFavorites().first().shuffled().take(20)
             val forgotten = forgottenList.ifEmpty {
                 // Fallback: show liked songs if no forgotten favorites
@@ -506,13 +512,13 @@ class HomeViewModel @Inject constructor(
                     .take(20)
             }
             val keepListening = loadKeepListening()
-        val home = if (filters.filtersEnabled) loadWhitelistHome(hideExplicit) else loadHomePage(hideExplicit)
-        val explore = if (filters.filtersEnabled) loadWhitelistExplore(hideExplicit) else loadExplorePage(hideExplicit)
+        val home = if (useWhitelist) loadWhitelistHome(hideExplicit) else loadHomePage(hideExplicit)
+        val explore = if (useWhitelist) loadWhitelistExplore(hideExplicit) else loadExplorePage(hideExplicit)
         val (recentAlbums, recentSongs) = loadRecentReleases(hideExplicit)
 
             val quickSeeded = if (home != null) seedQuickPicksFromHomePage(home, hideExplicit, quick) else quick
 
-            val featuredTriple = loadFeaturedContent(hideExplicit)
+            val featuredTriple = loadFeaturedContent(hideExplicit, allowedEntries, useWhitelist)
             val isNewUser = quickSeeded.isEmpty() && keepListening.isEmpty()
 
             uiState.update {

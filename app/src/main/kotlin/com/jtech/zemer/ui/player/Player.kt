@@ -529,14 +529,6 @@ fun BottomSheetPlayer(
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(
-                        text = stringResource(R.string.now_playing_label),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-
                     val titleFocused = remember { mutableStateOf(false) }
                     val titleBorderColor = animateColorAsState(
                         targetValue = if (titleFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
