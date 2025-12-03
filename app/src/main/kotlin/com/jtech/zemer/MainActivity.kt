@@ -283,7 +283,9 @@ class MainActivity : ComponentActivity() {
         val serviceIntent = Intent(this, MusicService::class.java)
         try {
             if (hasNotificationPermission(this)) {
-                if (tryStartForegroundService<MusicService>(serviceIntent)) {
+                if (MusicService.isRunning) {
+                    bindService(serviceIntent, serviceConnection, BIND_AUTO_CREATE)
+                } else if (tryStartForegroundService<MusicService>(serviceIntent)) {
                     bindService(serviceIntent, serviceConnection, BIND_AUTO_CREATE)
                 }
             }
@@ -299,7 +301,9 @@ class MainActivity : ComponentActivity() {
             val serviceIntent = Intent(this, MusicService::class.java)
             try {
                 if (hasNotificationPermission(this)) {
-                    if (tryStartForegroundService<MusicService>(serviceIntent)) {
+                    if (MusicService.isRunning) {
+                        bindService(serviceIntent, serviceConnection, BIND_AUTO_CREATE)
+                    } else if (tryStartForegroundService<MusicService>(serviceIntent)) {
                         bindService(serviceIntent, serviceConnection, BIND_AUTO_CREATE)
                     }
                 }
