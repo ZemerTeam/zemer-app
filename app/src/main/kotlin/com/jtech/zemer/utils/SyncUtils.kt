@@ -10,6 +10,7 @@ import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.utils.filterWhitelisted
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -88,6 +89,8 @@ class SyncUtils @Inject constructor(
         try {
             YouTube.playlist("LM").completed().onSuccess { page ->
                 val remoteSongs = page.songs
+                    .filterWhitelisted(database)
+                    .filterIsInstance<SongItem>()
                 val remoteIds = remoteSongs.map { it.id }
                 val localSongs = database.likedSongsByNameAsc().first()
 
@@ -122,7 +125,11 @@ class SyncUtils @Inject constructor(
         isSyncingLibrarySongs.value = true
         try {
             YouTube.library("FEmusic_liked_videos").completed().onSuccess { page ->
-                val remoteSongs = page.items.filterIsInstance<SongItem>().reversed()
+                val remoteSongs = page.items
+                    .filterIsInstance<SongItem>()
+                    .filterWhitelisted(database)
+                    .filterIsInstance<SongItem>()
+                    .reversed()
                 val remoteIds = remoteSongs.map { it.id }.toSet()
                 val localSongs = database.songsByNameAsc().first()
                 val feedbackTokens = mutableListOf<String>()
@@ -165,7 +172,11 @@ class SyncUtils @Inject constructor(
         isSyncingUploadedSongs.value = true
         try {
             YouTube.library("FEmusic_library_privately_owned_tracks", tabIndex = 1).completed().onSuccess { page ->
-                val remoteSongs = page.items.filterIsInstance<SongItem>().reversed()
+                val remoteSongs = page.items
+                    .filterIsInstance<SongItem>()
+                    .filterWhitelisted(database)
+                    .filterIsInstance<SongItem>()
+                    .reversed()
                 val remoteIds = remoteSongs.map { it.id }.toSet()
                 val localSongs = database.uploadedSongsByNameAsc().first()
 
@@ -193,7 +204,11 @@ class SyncUtils @Inject constructor(
         isSyncingLikedAlbums.value = true
         try {
             YouTube.library("FEmusic_liked_albums").completed().onSuccess { page ->
-                val remoteAlbums = page.items.filterIsInstance<AlbumItem>().reversed()
+                val remoteAlbums = page.items
+                    .filterIsInstance<AlbumItem>()
+                    .filterWhitelisted(database)
+                    .filterIsInstance<AlbumItem>()
+                    .reversed()
                 val remoteIds = remoteAlbums.map { it.id }.toSet()
                 val localAlbums = database.albumsLikedByNameAsc().first()
 
@@ -224,7 +239,11 @@ class SyncUtils @Inject constructor(
         isSyncingUploadedAlbums.value = true
         try {
             YouTube.library("FEmusic_library_privately_owned_releases", tabIndex = 1).completed().onSuccess { page ->
-                val remoteAlbums = page.items.filterIsInstance<AlbumItem>().reversed()
+                val remoteAlbums = page.items
+                    .filterIsInstance<AlbumItem>()
+                    .filterWhitelisted(database)
+                    .filterIsInstance<AlbumItem>()
+                    .reversed()
                 val remoteIds = remoteAlbums.map { it.id }.toSet()
                 val localAlbums = database.albumsUploadedByNameAsc().first()
 
@@ -255,7 +274,10 @@ class SyncUtils @Inject constructor(
         isSyncingArtists.value = true
         try {
             YouTube.library("FEmusic_library_corpus_artists").completed().onSuccess { page ->
-                val remoteArtists = page.items.filterIsInstance<ArtistItem>()
+                val remoteArtists = page.items
+                    .filterIsInstance<ArtistItem>()
+                    .filterWhitelisted(database)
+                    .filterIsInstance<ArtistItem>()
                 val remoteIds = remoteArtists.map { it.id }.toSet()
                 val localArtists = database.artistsBookmarkedByNameAsc().first()
 
@@ -291,7 +313,12 @@ class SyncUtils @Inject constructor(
         isSyncingPlaylists.value = true
         try {
             YouTube.library("FEmusic_liked_playlists").completed().onSuccess { page ->
-                val remotePlaylists = page.items.filterIsInstance<PlaylistItem>().filterNot { it.id == "LM" || it.id == "SE" }.reversed()
+                val remotePlaylists = page.items
+                    .filterIsInstance<PlaylistItem>()
+                    .filterWhitelisted(database)
+                    .filterIsInstance<PlaylistItem>()
+                    .filterNot { it.id == "LM" || it.id == "SE" }
+                    .reversed()
                 val remoteIds = remotePlaylists.map { it.id }.toSet()
                 val localPlaylists = database.playlistsByNameAsc().first()
 
@@ -329,7 +356,10 @@ class SyncUtils @Inject constructor(
     private suspend fun syncPlaylist(browseId: String, playlistId: String) {
         try {
             YouTube.playlist(browseId).completed().onSuccess { page ->
-                val songs = page.songs.map(SongItem::toMediaMetadata)
+                val songs = page.songs
+                    .filterWhitelisted(database)
+                    .filterIsInstance<SongItem>()
+                    .map(SongItem::toMediaMetadata)
                 val remoteIds = songs.map { it.id }
                 val localIds = database.playlistSongs(playlistId).first().sortedBy { it.map.position }.map { it.song.id }
 
