@@ -153,9 +153,13 @@ fun VideoPlayerScreen(
             if (setVideo != null) database.getSongById(setVideo) else null
         }
         mappedSong?.let { song ->
-            currentTitle = song.title
-            val artistDisplay = song.artists.joinToString(" • ") { it.name }
-            artistName = artistDisplay.ifBlank { null }
+            if (currentTitle.isNullOrBlank()) {
+                currentTitle = song.title
+            }
+            if (artistName.isNullOrBlank()) {
+                val artistDisplay = song.artists.joinToString(" • ") { it.name }
+                artistName = artistDisplay.ifBlank { null }
+            }
         }
     }
 
@@ -307,14 +311,20 @@ fun VideoPlayerScreen(
                 return@onSuccess
             }
 
-            val title = currentTitle ?: playback.videoDetails?.title ?: videoId
-            if (artistName.isNullOrBlank()) {
-                artistName = playback.videoDetails?.author ?: playback.videoDetails?.channelId
+            val titleFromPlayback = playback.videoDetails?.title?.takeIf { it.isNotBlank() }
+            val artistFromPlayback = playback.videoDetails?.author?.takeIf { it.isNotBlank() }
+                ?: playback.videoDetails?.channelId
+            val resolvedTitle = titleFromPlayback ?: currentTitle ?: videoId
+            currentTitle = resolvedTitle
+            if (!artistFromPlayback.isNullOrBlank()) {
+                artistName = artistFromPlayback
+            } else if (artistName.isNullOrBlank()) {
+                artistName = playback.videoDetails?.channelId
             }
             val thumbnail = playback.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url
 
             val mediaMetadata = MediaMetadata.Builder()
-                .setTitle(title)
+                .setTitle(resolvedTitle)
                 .apply {
                     thumbnail?.let { setArtworkUri(Uri.parse(it)) }
                 }
@@ -326,7 +336,6 @@ fun VideoPlayerScreen(
                 mimeType = playback.format.mimeType ?: "",
                 drmConfiguration = null
             )
-            currentTitle = title
             isLoading = false
         }.onFailure {
             loadError = it.localizedMessage ?: "Playback error"
