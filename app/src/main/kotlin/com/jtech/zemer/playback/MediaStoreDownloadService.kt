@@ -9,10 +9,13 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.jtech.zemer.R
 import com.jtech.zemer.utils.hasNotificationPermission
+import timber.log.Timber
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,8 +57,13 @@ class MediaStoreDownloadService : Service() {
         const val EXTRA_SONG_ID = "song_id"
 
         fun start(context: Context) {
+            if (!hasNotificationPermission(context)) {
+                Timber.w("Notification permission missing; skipping MediaStoreDownloadService start")
+                return
+            }
             val intent = Intent(context, MediaStoreDownloadService::class.java)
             kotlin.runCatching { context.startForegroundService(intent) }
+                .onFailure { Timber.e(it, "Failed to start MediaStoreDownloadService") }
         }
 
         fun stop(context: Context) {
@@ -103,8 +111,22 @@ class MediaStoreDownloadService : Service() {
      */
     private fun ensureForegroundService() {
         if (hasStartedForeground) return
-        startForeground(NOTIFICATION_ID, createInitialNotification())
-        hasStartedForeground = true
+        runCatching {
+            val notification = createInitialNotification()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            hasStartedForeground = true
+        }.onFailure {
+            Timber.e(it, "Failed to enter foreground; stopping service to avoid ANR")
+            stopSelf()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
