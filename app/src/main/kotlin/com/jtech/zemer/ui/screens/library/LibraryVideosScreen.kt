@@ -39,6 +39,7 @@ import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.menu.SongMenu
+import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.viewmodels.LibraryVideosViewModel
 import com.metrolist.innertube.models.WatchEndpoint
 
@@ -117,7 +118,8 @@ fun LibraryVideosScreen(
                     Modifier
                         .combinedClickable(
                             onClick = {
-                                navController.navigate("video/${video.id}")
+                                val artistDisplay = video.artists.joinToString(" • ") { it.name }
+                                navController.navigate(videoRoute(video.id, video.song.title, artistDisplay))
                             },
                             onLongClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)

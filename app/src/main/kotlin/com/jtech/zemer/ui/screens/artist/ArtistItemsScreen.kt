@@ -52,6 +52,7 @@ import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.ArtistItemsViewModel
 import com.metrolist.innertube.models.AlbumItem
@@ -173,7 +174,8 @@ fun ArtistItemsScreen(
                     Modifier
                         .clickable {
                             if (isVideoSection && item is SongItem) {
-                                navController.navigate("video/${item.id}")
+                                val artistDisplay = item.artists.joinToString(" • ") { it.name }
+                                navController.navigate(videoRoute(item.id, item.title, artistDisplay))
                             } else {
                                 when (item) {
                                     is SongItem -> {
@@ -233,7 +235,8 @@ fun ArtistItemsScreen(
                         .combinedClickable(
                             onClick = {
                                 if (isVideoSection && item is SongItem) {
-                                    navController.navigate("video/${item.id}")
+                                    val artistDisplay = item.artists.joinToString(" • ") { it.name }
+                                    navController.navigate(videoRoute(item.id, item.title, artistDisplay))
                                 } else {
                                     when (item) {
                                         is SongItem -> playerConnection.playQueue(
