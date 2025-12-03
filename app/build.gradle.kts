@@ -195,6 +195,7 @@ dependencies {
     implementation(libs.credentials.play.services.auth)
     implementation(libs.googleid)
     implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.foundation)
     ksp(libs.room.compiler)
     implementation(libs.room.ktx)
 
