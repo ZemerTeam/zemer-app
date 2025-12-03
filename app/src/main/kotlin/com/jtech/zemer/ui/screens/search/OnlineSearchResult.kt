@@ -423,5 +423,4 @@ private fun mapItemToFilter(item: YTItem): com.metrolist.innertube.YouTube.Searc
         is AlbumItem -> FILTER_ALBUM
         is ArtistItem -> FILTER_ARTIST
         is PlaylistItem -> FILTER_COMMUNITY_PLAYLIST
-        else -> null
     }

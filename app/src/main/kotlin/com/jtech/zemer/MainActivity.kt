@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -103,6 +104,7 @@ import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -120,6 +122,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import coil3.compose.AsyncImage
 import coil3.imageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -155,6 +158,7 @@ import com.jtech.zemer.playback.MusicService
 import com.jtech.zemer.playback.MusicService.MusicBinder
 import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.ui.component.AccountSettingsDialog
 import com.jtech.zemer.ui.component.BottomSheetMenu
 import com.jtech.zemer.ui.component.BottomSheetPage
 import com.jtech.zemer.ui.component.IconButton
@@ -192,6 +196,7 @@ import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.setAppLocale
 import com.jtech.zemer.utils.tryStartForegroundService
+import com.jtech.zemer.viewmodels.HomeViewModel
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
@@ -593,6 +598,8 @@ class MainActivity : ComponentActivity() {
                     val isVideoScreen = remember(navBackStackEntry) {
                         navBackStackEntry?.destination?.route?.startsWith("video/") == true
                     }
+                    val homeViewModel: HomeViewModel = hiltViewModel()
+                    val accountImageUrl by homeViewModel.accountImageUrl.collectAsState()
 
                     // Contribution auth state
                     val firebaseAuth = remember { FirebaseAuth.getInstance() }
@@ -841,6 +848,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    var showAccountDialog by remember { mutableStateOf(false) }
                     var shouldShowTopBar by rememberSaveable { mutableStateOf(false) }
 
                     LaunchedEffect(navBackStackEntry) {
@@ -921,6 +929,33 @@ class MainActivity : ComponentActivity() {
                                         text = stringResource(R.string.app_name),
                                         style = MaterialTheme.typography.titleMedium,
                                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+                                    )
+                                    NavigationDrawerItem(
+                                        label = { Text(stringResource(R.string.account)) },
+                                        icon = {
+                                            if (accountImageUrl != null) {
+                                                AsyncImage(
+                                                    model = accountImageUrl,
+                                                    contentDescription = stringResource(R.string.account),
+                                                    modifier = Modifier
+                                                        .size(24.dp)
+                                                        .clip(CircleShape)
+                                                )
+                                            } else {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.account),
+                                                    contentDescription = stringResource(R.string.account)
+                                                )
+                                            }
+                                        },
+                                        selected = false,
+                                        onClick = {
+                                            coroutineScope.launch { drawerState.close() }
+                                            showAccountDialog = true
+                                        },
+                                        modifier = Modifier
+                                            .padding(NavigationDrawerItemDefaults.ItemPadding)
+                                            .focusProperties { canFocus = drawerState.isOpen }
                                     )
                                     navigationItems.fastForEachIndexed { index, screen ->
                                         val isSelected =
@@ -1394,6 +1429,17 @@ class MainActivity : ComponentActivity() {
                             state = LocalBottomSheetPageState.current,
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
+
+                        if (showAccountDialog) {
+                            AccountSettingsDialog(
+                                navController = navController,
+                                onDismiss = {
+                                    showAccountDialog = false
+                                    homeViewModel.refresh()
+                                },
+                                latestVersionName = latestVersionName
+                            )
+                        }
 
                         sharedSong?.let { song ->
                             playerConnection?.let {

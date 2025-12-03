@@ -36,6 +36,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
@@ -70,9 +71,13 @@ class HomeViewModel @Inject constructor(
     )
 
     val uiState = MutableStateFlow(HomeUiState())
+    val accountName = MutableStateFlow("Guest")
+    val accountImageUrl = MutableStateFlow<String?>(null)
 
     @Volatile
     private var hasLoadedOnce = false
+    @Volatile
+    private var isProcessingAccountData = false
     private val isLoadingMore = MutableStateFlow(false)
 
     private val quickPicksEnum = context.dataStore.data.map {
@@ -602,6 +607,31 @@ class HomeViewModel @Inject constructor(
                     syncUtils.syncSavedPlaylists()
                 }
             }
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            context.dataStore.data
+                .map { it[InnerTubeCookieKey] }
+                .collect { cookie ->
+                    if (isProcessingAccountData) return@collect
+                    isProcessingAccountData = true
+                    try {
+                        if (!cookie.isNullOrEmpty()) {
+                            YouTube.cookie = cookie
+                            YouTube.accountInfo().onSuccess { info ->
+                                accountName.value = info.name
+                                accountImageUrl.value = info.thumbnailUrl
+                            }.onFailure {
+                                reportException(it)
+                            }
+                        } else {
+                            accountName.value = "Guest"
+                            accountImageUrl.value = null
+                        }
+                    } finally {
+                        isProcessingAccountData = false
+                    }
+                }
         }
 
         viewModelScope.launch(Dispatchers.IO) {
