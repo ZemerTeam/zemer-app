@@ -418,6 +418,8 @@ fun BottomSheetPlayer(
 
     val backgroundAlpha = state.progress.coerceIn(0f, 1f)
 
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     BottomSheet(
         state = state,
         modifier = modifier,
@@ -944,6 +946,10 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(12.dp))
 
+            if (isLandscape) {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
             if (useNewPlayerDesign) {
                 BoxWithConstraints(
                     modifier = Modifier.fillMaxWidth()
@@ -1225,6 +1231,7 @@ fun BottomSheetPlayer(
                 Row(
                     modifier =
                     Modifier
+                        .fillMaxSize()
                         .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
                         .padding(bottom = queueSheetState.collapsedBound + 48.dp),
                 ) {
@@ -1245,15 +1252,12 @@ fun BottomSheetPlayer(
                         modifier =
                         Modifier
                             .weight(1f)
+                            .fillMaxHeight()
                             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top)),
                     ) {
-                        Spacer(Modifier.weight(1f))
-
                         mediaMetadata?.let {
                             controlsContent(it)
                         }
-
-                        Spacer(Modifier.weight(1f))
                     }
                 }
             }
