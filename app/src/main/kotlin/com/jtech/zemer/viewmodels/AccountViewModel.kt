@@ -7,6 +7,8 @@ import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.utils.completed
+import com.jtech.zemer.db.MusicDatabase
+import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.ui.utils.resize
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,7 +21,9 @@ enum class AccountContentType {
 }
 
 @HiltViewModel
-class AccountViewModel @Inject constructor() : ViewModel() {
+class AccountViewModel @Inject constructor(
+    private val database: MusicDatabase,
+) : ViewModel() {
     val playlists = MutableStateFlow<List<PlaylistItem>?>(null)
     val albums = MutableStateFlow<List<AlbumItem>?>(null)
     val artists = MutableStateFlow<List<ArtistItem>?>(null)
@@ -29,23 +33,42 @@ class AccountViewModel @Inject constructor() : ViewModel() {
 
     init {
         viewModelScope.launch {
-            YouTube.library("FEmusic_liked_playlists").completed().onSuccess {
-                playlists.value = it.items.filterIsInstance<PlaylistItem>()
+            runCatching {
+                val likedPlaylists = YouTube.library("FEmusic_liked_playlists").completed().getOrThrow()
+                likedPlaylists.items
+                    .filterIsInstance<PlaylistItem>()
                     .filterNot { it -> it.id == "SE" }
+                    .filterWhitelisted(database)
+                    .filterIsInstance<PlaylistItem>()
+            }.onSuccess {
+                playlists.value = it
             }.onFailure {
                 reportException(it)
             }
-            YouTube.library("FEmusic_liked_albums").completed().onSuccess {
-                albums.value = it.items.filterIsInstance<AlbumItem>()
+            runCatching {
+                val likedAlbums = YouTube.library("FEmusic_liked_albums").completed().getOrThrow()
+                likedAlbums.items
+                    .filterIsInstance<AlbumItem>()
+                    .filterWhitelisted(database)
+                    .filterIsInstance<AlbumItem>()
+            }.onSuccess {
+                albums.value = it
             }.onFailure {
                 reportException(it)
             }
-            YouTube.library("FEmusic_library_corpus_artists").completed().onSuccess {
-                artists.value = it.items.filterIsInstance<ArtistItem>().map { artist ->
-                    artist.copy(
-                        thumbnail = artist.thumbnail?.resize(544, 544)
-                    )
-                }
+            runCatching {
+                val libraryArtists = YouTube.library("FEmusic_library_corpus_artists").completed().getOrThrow()
+                libraryArtists.items
+                    .filterIsInstance<ArtistItem>()
+                    .filterWhitelisted(database)
+                    .filterIsInstance<ArtistItem>()
+                    .map { artist ->
+                        artist.copy(
+                            thumbnail = artist.thumbnail?.resize(544, 544)
+                        )
+                    }
+            }.onSuccess {
+                artists.value = it
             }.onFailure {
                 reportException(it)
             }
