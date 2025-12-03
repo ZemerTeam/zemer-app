@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtech.zemer.constants.HistorySource
 import com.jtech.zemer.db.MusicDatabase
+import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.pages.HistoryPage
+import com.metrolist.innertube.models.SongItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,7 +72,13 @@ constructor(
     fun fetchRemoteHistory() {
         viewModelScope.launch(Dispatchers.IO) {
             YouTube.musicHistory().onSuccess {
-                historyPage.value = it
+                val filteredSections = it.sections?.mapNotNull { section ->
+                    val whitelistedSongs = section.songs
+                        .filterWhitelisted(database)
+                        .filterIsInstance<SongItem>()
+                    if (whitelistedSongs.isEmpty()) null else section.copy(songs = whitelistedSongs)
+                }
+                historyPage.value = it.copy(sections = filteredSections)
             }.onFailure {
                 reportException(it)
             }
