@@ -186,15 +186,27 @@ fun NavGraphBuilder.navigationBuilder(
         ArtistItemsScreen(navController, scrollBehavior)
     }
     composable(
-        route = "video/{videoId}",
+        route = "video/{videoId}?title={title}&artist={artist}",
         arguments = listOf(
             navArgument("videoId") {
                 type = NavType.StringType
+            },
+            navArgument("title") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            },
+            navArgument("artist") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
             }
         )
     ) { backStackEntry ->
         val videoId = backStackEntry.arguments?.getString("videoId") ?: return@composable
-        VideoPlayerScreen(navController, videoId)
+        val title = backStackEntry.arguments?.getString("title")
+        val artist = backStackEntry.arguments?.getString("artist")
+        VideoPlayerScreen(navController, videoId, title, artist)
     }
     composable(
         route = "online_playlist/{playlistId}",

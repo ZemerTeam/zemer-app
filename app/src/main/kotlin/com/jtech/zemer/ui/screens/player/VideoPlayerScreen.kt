@@ -112,6 +112,8 @@ import java.util.concurrent.TimeUnit
 fun VideoPlayerScreen(
     navController: NavController,
     videoId: String,
+    title: String? = null,
+    artist: String? = null,
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
@@ -129,13 +131,13 @@ fun VideoPlayerScreen(
     var showDownloadDialog by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
-    var currentTitle by remember { mutableStateOf<String?>(null) }
+    var currentTitle by remember(videoId, title) { mutableStateOf(title?.takeIf { it.isNotBlank() }) }
     var reloadKey by remember { mutableStateOf(0) }
     var availableQualities by remember { mutableStateOf<List<QualityOption>>(emptyList()) }
     var selectedQualityId by remember { mutableStateOf("auto") }
     var playbackInfo by remember { mutableStateOf<String?>(null) }
     var isInPipMode by remember { mutableStateOf(activity?.isInPictureInPictureMode == true) }
-    var artistName by remember { mutableStateOf<String?>(null) }
+    var artistName by remember(videoId, artist) { mutableStateOf(artist?.takeIf { it.isNotBlank() }) }
     var positionMs by remember { mutableStateOf(0L) }
     var durationMs by remember { mutableStateOf(0L) }
     var isPlaying by remember { mutableStateOf(false) }
@@ -327,6 +329,7 @@ fun VideoPlayerScreen(
                 .setTitle(resolvedTitle)
                 .apply {
                     thumbnail?.let { setArtworkUri(Uri.parse(it)) }
+                    artistName?.let { setArtist(it) }
                 }
                 .build()
 

@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BorderStroke
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -278,6 +279,8 @@ fun BottomSheetPlayer(
         }
     }
 
+    val accentColor = MaterialTheme.colorScheme.primary
+
     val TextBackgroundColor =
         when (playerBackground) {
             PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.onBackground
@@ -374,6 +377,10 @@ fun BottomSheetPlayer(
                             showSleepTimerDialog = false
                             playerConnection.service.sleepTimer.start(-1)
                         },
+                        border = BorderStroke(1.dp, accentColor),
+                        colors = IconButtonDefaults.outlinedIconButtonColors(
+                            contentColor = accentColor
+                        ),
                     ) {
                         Text(stringResource(R.string.end_of_song))
                     }
@@ -417,6 +424,8 @@ fun BottomSheetPlayer(
     }
 
     val backgroundAlpha = state.progress.coerceIn(0f, 1f)
+
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     BottomSheet(
         state = state,
@@ -531,7 +540,7 @@ fun BottomSheetPlayer(
                 ) {
                     val titleFocused = remember { mutableStateOf(false) }
                     val titleBorderColor = animateColorAsState(
-                        targetValue = if (titleFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        targetValue = if (titleFocused.value) accentColor else Color.Transparent,
                         label = "title_focus"
                     )
 
@@ -598,7 +607,7 @@ fun BottomSheetPlayer(
 
                         val artistFocused = remember { mutableStateOf(false) }
                         val artistBorderColor = animateColorAsState(
-                            targetValue = if (artistFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            targetValue = if (artistFocused.value) accentColor else Color.Transparent,
                             label = "artist_focus"
                         )
 
@@ -685,12 +694,12 @@ fun BottomSheetPlayer(
 
                     val shareFocused = remember { mutableStateOf(false) }
                     val shareBorderColor = animateColorAsState(
-                        targetValue = if (shareFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        targetValue = if (shareFocused.value) accentColor else Color.Transparent,
                         label = "share_focus"
                     )
                     val favFocused = remember { mutableStateOf(false) }
                     val favBorderColor = animateColorAsState(
-                        targetValue = if (favFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        targetValue = if (favFocused.value) accentColor else Color.Transparent,
                         label = "fav_focus"
                     )
 
@@ -757,12 +766,12 @@ fun BottomSheetPlayer(
                 } else {
                     val oldShareFocused = remember { mutableStateOf(false) }
                     val oldShareBorderColor = animateColorAsState(
-                        targetValue = if (oldShareFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        targetValue = if (oldShareFocused.value) accentColor else Color.Transparent,
                         label = "old_share_focus"
                     )
                     val oldMenuFocused = remember { mutableStateOf(false) }
                     val oldMenuBorderColor = animateColorAsState(
-                        targetValue = if (oldMenuFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        targetValue = if (oldMenuFocused.value) accentColor else Color.Transparent,
                         label = "old_menu_focus"
                     )
                     Box(
@@ -859,7 +868,7 @@ fun BottomSheetPlayer(
                                 }
                                 sliderPosition = null
                             },
-                            colors = PlayerSliderColors.defaultSliderColors(textButtonColor, playerBackground, useDarkTheme),
+                            colors = PlayerSliderColors.defaultSliderColors(accentColor, playerBackground, useDarkTheme),
                             modifier = Modifier.padding(horizontal = PlayerHorizontalPadding - 8.dp),
                         )
                     }
@@ -878,7 +887,7 @@ fun BottomSheetPlayer(
                                 }
                                 sliderPosition = null
                             },
-                            colors = PlayerSliderColors.squigglySliderColors(textButtonColor, playerBackground, useDarkTheme),
+                            colors = PlayerSliderColors.squigglySliderColors(accentColor, playerBackground, useDarkTheme),
                             modifier = Modifier.padding(horizontal = PlayerHorizontalPadding - 8.dp),
                             squigglesSpec =
                             SquigglySlider.SquigglesSpec(
@@ -906,7 +915,7 @@ fun BottomSheetPlayer(
                             track = { sliderState ->
                                 PlayerSliderTrack(
                                     sliderState = sliderState,
-                                    colors = PlayerSliderColors.slimSliderColors(textButtonColor, playerBackground, useDarkTheme)
+                                    colors = PlayerSliderColors.slimSliderColors(accentColor, playerBackground, useDarkTheme)
                                 )
                             },
                             modifier = Modifier.padding(horizontal = PlayerHorizontalPadding - 8.dp)
@@ -944,6 +953,10 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(12.dp))
 
+            if (isLandscape) {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
             if (useNewPlayerDesign) {
                 BoxWithConstraints(
                     modifier = Modifier.fillMaxWidth()
@@ -963,7 +976,7 @@ fun BottomSheetPlayer(
 
                         val skipPrevFocused = remember { mutableStateOf(false) }
                         val skipPrevBorderColor = animateColorAsState(
-                            targetValue = if (skipPrevFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            targetValue = if (skipPrevFocused.value) accentColor else Color.Transparent,
                             label = "skip_prev_focus"
                         )
                         var skipPrevJob by remember { mutableStateOf<Job?>(null) }
@@ -1012,7 +1025,7 @@ fun BottomSheetPlayer(
 
                         val playButtonFocused = remember { mutableStateOf(false) }
                         val playButtonBorderColor = animateColorAsState(
-                            targetValue = if (playButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            targetValue = if (playButtonFocused.value) accentColor else Color.Transparent,
                             label = "play_button_focus"
                         )
                         FilledIconButton(
@@ -1052,7 +1065,7 @@ fun BottomSheetPlayer(
 
                         val skipNextFocused = remember { mutableStateOf(false) }
                         val skipNextBorderColor = animateColorAsState(
-                            targetValue = if (skipNextFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            targetValue = if (skipNextFocused.value) accentColor else Color.Transparent,
                             label = "skip_next_focus"
                         )
                         var skipNextJob by remember { mutableStateOf<Job?>(null) }
@@ -1144,7 +1157,7 @@ fun BottomSheetPlayer(
 
                     val landscapePlayFocused = remember { mutableStateOf(false) }
                     val landscapePlayBorderColor = animateColorAsState(
-                        targetValue = if (landscapePlayFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        targetValue = if (landscapePlayFocused.value) accentColor else Color.Transparent,
                         label = "landscape_play_focus"
                     )
                     Box(
@@ -1225,6 +1238,7 @@ fun BottomSheetPlayer(
                 Row(
                     modifier =
                     Modifier
+                        .fillMaxSize()
                         .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
                         .padding(bottom = queueSheetState.collapsedBound + 48.dp),
                 ) {
@@ -1245,15 +1259,12 @@ fun BottomSheetPlayer(
                         modifier =
                         Modifier
                             .weight(1f)
+                            .fillMaxHeight()
                             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top)),
                     ) {
-                        Spacer(Modifier.weight(1f))
-
                         mediaMetadata?.let {
                             controlsContent(it)
                         }
-
-                        Spacer(Modifier.weight(1f))
                     }
                 }
             }

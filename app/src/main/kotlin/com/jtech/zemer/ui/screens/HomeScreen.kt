@@ -89,6 +89,7 @@ import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.viewmodels.HomeViewModel
 import com.metrolist.innertube.models.AlbumItem
@@ -952,7 +953,8 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .combinedClickable(
                                         onClick = {
-                                            navController.navigate("video/${video.id}")
+                                            val artistDisplay = video.artists.joinToString(" • ") { it.name }
+                                            navController.navigate(videoRoute(video.id, video.title, artistDisplay))
                                         },
                                         onLongClick = {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
