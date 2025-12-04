@@ -172,8 +172,9 @@ fun LyricsMenu(
                     onClick = {
                         // Try search regardless of network status indicator
                         // as it might be a false negative
+                        val videoId = searchMediaMetadata.setVideoId ?: searchMediaMetadata.id
                         viewModel.search(
-                            searchMediaMetadata.id,
+                            videoId,
                             titleField.text,
                             artistField.text,
                             searchMediaMetadata.duration
