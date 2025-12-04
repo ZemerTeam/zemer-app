@@ -53,7 +53,7 @@ constructor(
                             items = artistItemsPage.items
                                 .distinctBy { it.id }
                                 .filterExplicit(hideExplicit)
-                                .filterWhitelisted(database, requireAllArtists = true),
+                                .filterWhitelisted(database, requireAllArtists = false),
                             continuation = artistItemsPage.continuation,
                         )
                 }.onFailure {
@@ -75,7 +75,7 @@ constructor(
                             (oldItemsPage.items + artistItemsContinuationPage.items)
                                 .distinctBy { it.id }
                                 .filterExplicit(context.dataStore.getSuspend(HideExplicitKey, false))
-                                .filterWhitelisted(database, requireAllArtists = true),
+                                .filterWhitelisted(database, requireAllArtists = false),
                             continuation = artistItemsContinuationPage.continuation,
                         )
                     }
