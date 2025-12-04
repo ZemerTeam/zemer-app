@@ -500,6 +500,8 @@
     <string name="onboarding_status_needed">Needed</string>
     <string name="ok">OK</string>
     <string name="now_playing_label">Now playing</string>
+    <string name="refresh_artists">Refresh artists</string>
+    <string name="version_short">v%1$s</string>
     <string name="radio_empty_message">Nothing to play yet. Try adding or playing something first.</string>
     <string name="splash_syncing_title">Setting up your music</string>
     <string name="splash_syncing_progress_named">Syncing %1$d/%2$d: %3$s</string>
