@@ -203,16 +203,26 @@ fun ContentSettings(
                 if (!enableContentFilters) return@SwitchPreference
 
                 if (newValue) {
-                    if (femalePasscodeHash.isEmpty()) {
-                        showCreatePasscodeDialog = true
-                    } else {
+                    if (femalePasscodeHash.isNotEmpty()) {
                         showUnlockDialog = true
+                    } else {
+                        onAllowFemaleSingersChange(true)
                     }
                 } else {
                     onAllowFemaleSingersChange(false)
                 }
             },
             isEnabled = enableContentFilters
+        )
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.female_passcode_setting)) },
+            icon = { Icon(painterResource(R.drawable.password), null) },
+            onClick = {
+                if (!enableContentFilters) return@PreferenceEntry
+
+                showCreatePasscodeDialog = true
+            },
+            enabled = enableContentFilters,
         )
         SwitchPreference(
             title = { Text(stringResource(R.string.i_am_chasidish)) },
@@ -274,7 +284,6 @@ fun ContentSettings(
 
                             else -> {
                                 onFemalePasscodeHashChange(hashPasscode(passcodeInput))
-                                onAllowFemaleSingersChange(true)
                                 passcodeInput = ""
                                 confirmPasscodeInput = ""
                                 passcodeError = null
