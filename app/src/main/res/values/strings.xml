@@ -287,6 +287,7 @@
     <string name="not_logged_in">Not logged in</string>
     <string name="login_failed">Login failed</string>
     <string name="account_status_logged_in">Logged in</string>
+    <string name="account_status_token">Token mode</string>
     <string name="account_status_anonymous">Anonymous access</string>
     <string name="login_with_google">Login with Google</string>
     <string name="login_as_anonymous">Login as Anonymous</string>

@@ -157,6 +157,7 @@ import com.jtech.zemer.constants.SlimNavBarKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
 import com.jtech.zemer.constants.UpdateNotificationsEnabledKey
 import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
+import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.SearchHistory
 import com.jtech.zemer.models.DpadDirection
@@ -646,8 +647,11 @@ class MainActivity : ComponentActivity() {
                         val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
                         val (floatingMiniPlayerEnabled) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
                         val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
-                        val isLoggedIn = remember(innerTubeCookie) {
-                            "SAPISID" in parseCookieString(innerTubeCookie)
+                        val (storedVisitorData) = rememberPreference(VisitorDataKey, defaultValue = "")
+                        val isLoggedIn = remember(innerTubeCookie, storedVisitorData) {
+                            val hasSap = parseCookieString(innerTubeCookie).containsKey("SAPISID")
+                            val hasVisitorToken = storedVisitorData.startsWith("Cg")
+                            hasSap || hasVisitorToken
                         }
                         val (defaultOpenTab) = rememberEnumPreference(DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
                         val tabOpenedFromShortcut = remember {
@@ -1002,10 +1006,20 @@ class MainActivity : ComponentActivity() {
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                             Spacer(modifier = Modifier.height(4.dp))
+                                            val statusText = when {
+                                                parseCookieString(innerTubeCookie).containsKey("SAPISID") -> stringResource(R.string.account_status_logged_in)
+                                                storedVisitorData.startsWith("Cg") -> stringResource(R.string.account_status_token)
+                                                else -> stringResource(R.string.account_status_anonymous)
+                                            }
+                                            val statusColor = when {
+                                                parseCookieString(innerTubeCookie).containsKey("SAPISID") -> MaterialTheme.colorScheme.primary
+                                                storedVisitorData.startsWith("Cg") -> MaterialTheme.colorScheme.tertiary
+                                                else -> MaterialTheme.colorScheme.outline
+                                            }
                                             Text(
-                                                text = stringResource(R.string.account_status_logged_in),
+                                                text = statusText,
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.primary
+                                                color = statusColor
                                             )
                                         }
                                     } else {
