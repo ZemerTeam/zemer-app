@@ -26,10 +26,20 @@ object PermissionHelper {
     /**
      * Check if storage permissions are granted for MediaStore WRITE operations.
      *
-     * Downloads are stored in the app's private cache, so we intentionally return true here to
-     * avoid blocking download flows behind unnecessary storage permissions.
+     * On Android 10+ (API 29+) MediaStore inserts to the Music collection do not require the
+     * legacy WRITE_EXTERNAL_STORAGE permission, but older devices still need the legacy pair of
+     * read/write permissions. Android 13+ requires granular media permissions for reading back
+     * downloaded audio and generated cover art.
      */
-    fun hasMediaStoreWritePermission(context: Context): Boolean = true
+    fun hasMediaStoreWritePermission(context: Context): Boolean {
+        val permissions = getRequiredWritePermissions()
+        if (permissions.isEmpty()) return true
+
+        return permissions.all { permission ->
+            ContextCompat.checkSelfPermission(context, permission) ==
+                PackageManager.PERMISSION_GRANTED
+        }
+    }
 
     /**
      * Check if storage permissions are granted for MediaStore READ operations
