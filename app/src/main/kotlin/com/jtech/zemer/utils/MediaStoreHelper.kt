@@ -11,7 +11,6 @@ import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
 import com.jtech.zemer.constants.CustomDownloadPathKey
 import com.jtech.zemer.utils.EnvironmentPaths.DEFAULT_RELATIVE_DOWNLOAD_PATH
-import com.jtech.zemer.utils.EnvironmentPaths.toRelativePath
 import com.jtech.zemer.utils.EnvironmentPaths.toStorageRoot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -178,13 +177,7 @@ class MediaStoreHelper(private val context: Context) {
             val sanitizedArtist = sanitizeFolderName(artist)
             val sanitizedAlbum = album?.takeIf { it.isNotBlank() }?.let { sanitizeFolderName(it) }
 
-            saveToCustomPath(
-                tempFile = tempFile,
-                mimeType = mimeType,
-                sanitizedFileName = sanitizedFileName,
-                sanitizedArtist = sanitizedArtist,
-                sanitizedAlbum = sanitizedAlbum
-            ) ?: tempFile.inputStream().use { inputStream ->
+            val mediaStoreUri = tempFile.inputStream().use { inputStream ->
                 saveToMediaStore(
                     inputStream = inputStream,
                     fileName = sanitizedFileName,
@@ -195,6 +188,16 @@ class MediaStoreHelper(private val context: Context) {
                     durationMs = durationMs
                 )
             }
+
+            val customUri = saveToCustomPath(
+                tempFile = tempFile,
+                mimeType = mimeType,
+                sanitizedFileName = sanitizedFileName,
+                sanitizedArtist = sanitizedArtist,
+                sanitizedAlbum = sanitizedAlbum
+            )
+
+            mediaStoreUri ?: customUri
         } catch (e: Exception) {
             null
         }
@@ -315,9 +318,7 @@ class MediaStoreHelper(private val context: Context) {
     }
 
     private fun getBaseDownloadPath(): String {
-        val stored = context.dataStore[customDownloadPathKey]
-        val relativePath = stored?.toRelativePath()?.takeIf { it.isNotBlank() }
-        return relativePath ?: DEFAULT_RELATIVE_DOWNLOAD_PATH
+        return DEFAULT_RELATIVE_DOWNLOAD_PATH
     }
 
     private fun buildRelativePath(
