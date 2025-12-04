@@ -216,13 +216,13 @@ fun ContentSettings(
         )
         PreferenceEntry(
             title = { Text(stringResource(R.string.female_passcode_setting)) },
-            icon = { Icon(painterResource(R.drawable.password), null) },
+            icon = { Icon(painterResource(R.drawable.lock), null) },
             onClick = {
                 if (!enableContentFilters) return@PreferenceEntry
 
                 showCreatePasscodeDialog = true
             },
-            enabled = enableContentFilters,
+            isEnabled = enableContentFilters,
         )
         SwitchPreference(
             title = { Text(stringResource(R.string.i_am_chasidish)) },
