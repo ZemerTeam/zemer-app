@@ -196,7 +196,7 @@ fun AccountSettings(
                         try {
                             val httpClient = HttpClient()
                             val responseText = httpClient.get(
-                                "https://yt-token-dispenser.usheraweiss.workers.dev/api/token"
+                                "https://ytzemer-token.usheraweiss.workers.dev/api/token"
                             ).bodyAsText()
 
                             val json = kotlinx.serialization.json.Json.parseToJsonElement(responseText)
