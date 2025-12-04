@@ -10,6 +10,8 @@ import android.os.Environment
 import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
 import com.jtech.zemer.constants.CustomDownloadPathKey
+import com.jtech.zemer.constants.DownloadLocationMode
+import com.jtech.zemer.constants.DownloadLocationModeKey
 import com.jtech.zemer.utils.EnvironmentPaths.DEFAULT_RELATIVE_DOWNLOAD_PATH
 import com.jtech.zemer.utils.EnvironmentPaths.toRelativePath
 import com.jtech.zemer.utils.EnvironmentPaths.toStorageRoot
@@ -50,6 +52,24 @@ class MediaStoreHelper(private val context: Context) {
     private val customDownloadPathKey = CustomDownloadPathKey
 
     /**
+     * Get the custom download URI from preferences, if set
+     */
+    private fun getCustomDownloadUri(): Uri? {
+        return context.dataStore[customDownloadPathKey]
+            ?.takeIf { it.isNotBlank() }
+            ?.let { Uri.parse(it) }
+    }
+
+    /**
+     * Get the download location mode from preferences
+     */
+    private fun getDownloadLocationMode(): DownloadLocationMode {
+        return context.dataStore[DownloadLocationModeKey]
+            ?.let { runCatching { DownloadLocationMode.valueOf(it) }.getOrNull() }
+            ?: DownloadLocationMode.NORMAL
+    }
+
+    /**
      * Save a downloaded audio file to MediaStore in the Music/Zemer folder
      *
      * @param inputStream The audio file data stream
@@ -73,10 +93,11 @@ class MediaStoreHelper(private val context: Context) {
         try {
             val sanitizedFileName = sanitizeFileName(fileName)
             val contentResolver = context.contentResolver
-            val baseDownloadPath = getBaseDownloadPath()
 
+            // MediaStore always uses the default Music/Zemer path
+            // Custom paths are handled separately via SAF
             val relativePath = buildRelativePath(
-                baseDownloadPath = baseDownloadPath,
+                baseDownloadPath = DEFAULT_RELATIVE_DOWNLOAD_PATH,
                 artist = artist,
                 album = album,
             )
@@ -143,9 +164,9 @@ class MediaStoreHelper(private val context: Context) {
     }
 
     /**
-     * Save a file from a temporary location to MediaStore
+     * Save a file from a temporary location based on download location mode
      *
-     * @param tempFile Temporary file to move to MediaStore
+     * @param tempFile Temporary file to save
      * @param fileName Desired filename
      * @param mimeType Audio MIME type
      * @param title Song title
@@ -164,13 +185,7 @@ class MediaStoreHelper(private val context: Context) {
         durationMs: Long? = null
     ): Uri? = withContext(Dispatchers.IO) {
         try {
-            if (!tempFile.exists()) {
-                return@withContext null
-            }
-
-            val fileSize = tempFile.length()
-
-            if (fileSize == 0L) {
+            if (!tempFile.exists() || tempFile.length() == 0L) {
                 return@withContext null
             }
 
@@ -178,29 +193,97 @@ class MediaStoreHelper(private val context: Context) {
             val sanitizedArtist = sanitizeFolderName(artist)
             val sanitizedAlbum = album?.takeIf { it.isNotBlank() }?.let { sanitizeFolderName(it) }
 
-            val mediaStoreUri = tempFile.inputStream().use { inputStream ->
-                saveToMediaStore(
-                    inputStream = inputStream,
-                    fileName = sanitizedFileName,
-                    mimeType = mimeType,
-                    title = title,
-                    artist = artist,
-                    album = album,
-                    durationMs = durationMs
-                )
+            val downloadLocationMode = getDownloadLocationMode()
+            val customDownloadUri = getCustomDownloadUri()
+
+            when (downloadLocationMode) {
+                DownloadLocationMode.NORMAL -> {
+                    // Save to MediaStore only (Music/Zemer/)
+                    saveToMediaStoreInternal(
+                        tempFile = tempFile,
+                        sanitizedFileName = sanitizedFileName,
+                        mimeType = mimeType,
+                        title = title,
+                        artist = artist,
+                        album = album,
+                        durationMs = durationMs
+                    )
+                }
+                DownloadLocationMode.CUSTOM -> {
+                    // Save to custom path only
+                    if (customDownloadUri != null) {
+                        saveToCustomPath(
+                            tempFile = tempFile,
+                            customDownloadUri = customDownloadUri,
+                            mimeType = mimeType,
+                            sanitizedFileName = sanitizedFileName,
+                            sanitizedArtist = sanitizedArtist,
+                            sanitizedAlbum = sanitizedAlbum
+                        )
+                    } else {
+                        // Fallback to MediaStore if no custom path set
+                        saveToMediaStoreInternal(
+                            tempFile = tempFile,
+                            sanitizedFileName = sanitizedFileName,
+                            mimeType = mimeType,
+                            title = title,
+                            artist = artist,
+                            album = album,
+                            durationMs = durationMs
+                        )
+                    }
+                }
+                DownloadLocationMode.BOTH -> {
+                    // Save to both locations
+                    val mediaStoreUri = saveToMediaStoreInternal(
+                        tempFile = tempFile,
+                        sanitizedFileName = sanitizedFileName,
+                        mimeType = mimeType,
+                        title = title,
+                        artist = artist,
+                        album = album,
+                        durationMs = durationMs
+                    )
+                    if (customDownloadUri != null) {
+                        saveToCustomPath(
+                            tempFile = tempFile,
+                            customDownloadUri = customDownloadUri,
+                            mimeType = mimeType,
+                            sanitizedFileName = sanitizedFileName,
+                            sanitizedArtist = sanitizedArtist,
+                            sanitizedAlbum = sanitizedAlbum
+                        )
+                    }
+                    mediaStoreUri  // Return MediaStore URI as primary
+                }
             }
-
-            val customUri = saveToCustomPath(
-                tempFile = tempFile,
-                mimeType = mimeType,
-                sanitizedFileName = sanitizedFileName,
-                sanitizedArtist = sanitizedArtist,
-                sanitizedAlbum = sanitizedAlbum
-            )
-
-            mediaStoreUri ?: customUri
         } catch (e: Exception) {
             null
+        }
+    }
+
+    /**
+     * Internal helper to save file to MediaStore (Music/Zemer/)
+     */
+    private suspend fun saveToMediaStoreInternal(
+        tempFile: File,
+        sanitizedFileName: String,
+        mimeType: String,
+        title: String,
+        artist: String,
+        album: String?,
+        durationMs: Long?
+    ): Uri? {
+        return tempFile.inputStream().use { inputStream ->
+            saveToMediaStore(
+                inputStream = inputStream,
+                fileName = sanitizedFileName,
+                mimeType = mimeType,
+                title = title,
+                artist = artist,
+                album = album,
+                durationMs = durationMs
+            )
         }
     }
 
@@ -277,16 +360,12 @@ class MediaStoreHelper(private val context: Context) {
 
     private fun saveToCustomPath(
         tempFile: File,
+        customDownloadUri: Uri,
         mimeType: String,
         sanitizedFileName: String,
         sanitizedArtist: String,
         sanitizedAlbum: String?,
     ): Uri? {
-        val customDownloadUri = context.dataStore[customDownloadPathKey]
-            ?.takeIf { it.isNotBlank() }
-            ?.let(Uri::parse)
-            ?: return null
-
         val rootDocument = DocumentFile.fromTreeUri(context, customDownloadUri) ?: return null
 
         val artistDir = ensureDirectory(rootDocument, sanitizedArtist) ?: return null

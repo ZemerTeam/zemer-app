@@ -44,6 +44,8 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.CustomDownloadPathKey
+import com.jtech.zemer.constants.DownloadLocationMode
+import com.jtech.zemer.constants.DownloadLocationModeKey
 import com.jtech.zemer.constants.MaxImageCacheSizeKey
 import com.jtech.zemer.constants.MaxSongCacheSizeKey
 import com.jtech.zemer.extensions.tryOrNull
@@ -56,6 +58,7 @@ import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.formatFileSize
 import com.jtech.zemer.utils.EnvironmentPaths.DEFAULT_RELATIVE_DOWNLOAD_PATH
 import com.jtech.zemer.utils.EnvironmentPaths.toUserFacingPath
+import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -86,6 +89,10 @@ fun StorageSettings(
     val (customDownloadPath, onCustomDownloadPathChange) = rememberPreference(
         key = CustomDownloadPathKey,
         defaultValue = ""
+    )
+    val (downloadLocationMode, onDownloadLocationModeChange) = rememberEnumPreference(
+        key = DownloadLocationModeKey,
+        defaultValue = DownloadLocationMode.NORMAL
     )
     val resolvedDownloadPath = remember(customDownloadPath) {
         customDownloadPath.toUserFacingPath().ifBlank { DEFAULT_RELATIVE_DOWNLOAD_PATH }
@@ -193,21 +200,38 @@ fun StorageSettings(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
         )
 
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.custom_download_path)) },
-            description = stringResource(
-                R.string.custom_download_path_summary,
-                resolvedDownloadPath
-            ),
-            onClick = { downloadPickerLauncher.launch(null) }
+        ListPreference(
+            title = { Text(stringResource(R.string.download_location_mode)) },
+            selectedValue = downloadLocationMode,
+            values = DownloadLocationMode.entries.toList(),
+            valueText = { mode ->
+                when (mode) {
+                    DownloadLocationMode.NORMAL -> stringResource(R.string.download_mode_normal)
+                    DownloadLocationMode.CUSTOM -> stringResource(R.string.download_mode_custom)
+                    DownloadLocationMode.BOTH -> stringResource(R.string.download_mode_both)
+                }
+            },
+            onValueSelected = onDownloadLocationModeChange,
         )
 
-        if (customDownloadPath.isNotBlank()) {
+        // Show custom path picker only for CUSTOM or BOTH modes
+        if (downloadLocationMode != DownloadLocationMode.NORMAL) {
             PreferenceEntry(
-                title = { Text(stringResource(R.string.reset_download_path)) },
-                description = stringResource(R.string.reset_download_path_summary),
-                onClick = onResetDownloadPath
+                title = { Text(stringResource(R.string.custom_download_path)) },
+                description = stringResource(
+                    R.string.custom_download_path_summary,
+                    resolvedDownloadPath
+                ),
+                onClick = { downloadPickerLauncher.launch(null) }
             )
+
+            if (customDownloadPath.isNotBlank()) {
+                PreferenceEntry(
+                    title = { Text(stringResource(R.string.reset_download_path)) },
+                    description = stringResource(R.string.reset_download_path_summary),
+                    onClick = onResetDownloadPath
+                )
+            }
         }
 
         PreferenceEntry(

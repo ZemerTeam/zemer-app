@@ -85,6 +85,13 @@ val AutoDownloadOnLikeKey = booleanPreferencesKey("autoDownloadOnLike")
 val AutoSkipNextOnErrorKey = booleanPreferencesKey("autoSkipNextOnError")
 val StopMusicOnTaskClearKey = booleanPreferencesKey("stopMusicOnTaskClear")
 val CustomDownloadPathKey = stringPreferencesKey("customDownloadPath")
+val DownloadLocationModeKey = stringPreferencesKey("downloadLocationMode")
+
+enum class DownloadLocationMode {
+    NORMAL,   // MediaStore only (Music/Zemer/)
+    CUSTOM,   // Custom path only (via SAF)
+    BOTH,     // Save to both locations
+}
 
 val MaxImageCacheSizeKey = intPreferencesKey("maxImageCacheSize")
 val MaxSongCacheSizeKey = intPreferencesKey("maxSongCacheSize")

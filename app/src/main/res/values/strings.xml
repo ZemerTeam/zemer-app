@@ -347,6 +347,10 @@
     <string name="song_cache">Song Cache</string>
     <string name="max_cache_size">Max cache size</string>
     <string name="unlimited">Unlimited</string>
+    <string name="download_location_mode">Download location</string>
+    <string name="download_mode_normal">Music folder (default)</string>
+    <string name="download_mode_custom">Custom folder only</string>
+    <string name="download_mode_both">Both locations</string>
     <string name="custom_download_path">Custom download path</string>
     <string name="custom_download_path_summary">Current: %1$s</string>
     <string name="reset_download_path">Reset download path</string>
