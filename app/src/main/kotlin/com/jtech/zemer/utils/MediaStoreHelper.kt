@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.documentfile.provider.DocumentFile
 import com.jtech.zemer.constants.CustomDownloadPathKey
 import com.jtech.zemer.utils.EnvironmentPaths.DEFAULT_RELATIVE_DOWNLOAD_PATH
 import com.jtech.zemer.utils.EnvironmentPaths.toRelativePath
@@ -173,10 +174,20 @@ class MediaStoreHelper(private val context: Context) {
                 return@withContext null
             }
 
-            tempFile.inputStream().use { inputStream ->
+            val sanitizedFileName = sanitizeFileName(fileName)
+            val sanitizedArtist = sanitizeFolderName(artist)
+            val sanitizedAlbum = album?.takeIf { it.isNotBlank() }?.let { sanitizeFolderName(it) }
+
+            saveToCustomPath(
+                tempFile = tempFile,
+                mimeType = mimeType,
+                sanitizedFileName = sanitizedFileName,
+                sanitizedArtist = sanitizedArtist,
+                sanitizedAlbum = sanitizedAlbum
+            ) ?: tempFile.inputStream().use { inputStream ->
                 saveToMediaStore(
                     inputStream = inputStream,
-                    fileName = fileName,
+                    fileName = sanitizedFileName,
                     mimeType = mimeType,
                     title = title,
                     artist = artist,
@@ -258,6 +269,49 @@ class MediaStoreHelper(private val context: Context) {
      */
     fun getMimeType(extension: String): String {
         return MIME_TYPE_MAP[extension.lowercase()] ?: "audio/mpeg"
+    }
+
+    private fun saveToCustomPath(
+        tempFile: File,
+        mimeType: String,
+        sanitizedFileName: String,
+        sanitizedArtist: String,
+        sanitizedAlbum: String?,
+    ): Uri? {
+        val customDownloadUri = context.dataStore[customDownloadPathKey]
+            ?.takeIf { it.isNotBlank() }
+            ?.let(Uri::parse)
+            ?: return null
+
+        val rootDocument = DocumentFile.fromTreeUri(context, customDownloadUri) ?: return null
+
+        val artistDir = ensureDirectory(rootDocument, sanitizedArtist) ?: return null
+        val targetDir = sanitizedAlbum?.let { ensureDirectory(artistDir, it) } ?: artistDir
+        targetDir.findFile(sanitizedFileName)?.delete()
+
+        val targetFile = targetDir.createFile(mimeType, sanitizedFileName) ?: return null
+
+        return try {
+            context.contentResolver.openOutputStream(targetFile.uri)?.use { outputStream ->
+                tempFile.inputStream().use { inputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+                outputStream.flush()
+                targetFile.uri
+            }
+        } catch (e: Exception) {
+            targetFile.delete()
+            null
+        }
+    }
+
+    private fun ensureDirectory(parent: DocumentFile, name: String): DocumentFile? {
+        parent.findFile(name)?.let { existing ->
+            if (existing.isDirectory) return existing
+            existing.delete()
+        }
+
+        return parent.createDirectory(name)
     }
 
     private fun getBaseDownloadPath(): String {
