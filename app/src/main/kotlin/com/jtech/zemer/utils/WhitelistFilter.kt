@@ -186,6 +186,10 @@ private suspend fun MusicDatabase.artistMatchesFilters(
     artistCache: MutableMap<String, ArtistWhitelistEntity?>,
     config: ContentFilterConfig,
 ): ArtistFilterDecision {
+    if (!config.filtersEnabled) {
+        return ArtistFilterDecision(allowed = true, isChasidish = false)
+    }
+
     allowedIds?.let { ids ->
         if (ids.isNotEmpty()) {
             val allowed = artistId in ids
