@@ -372,18 +372,6 @@ fun PlayerMenu(
                             Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
                             onDismiss()
                         }
-                    ),
-                    NewAction(
-                        icon = {
-                            Icon(
-                                painter = painterResource(R.drawable.warning),
-                                contentDescription = null,
-                                modifier = Modifier.size(28.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        text = stringResource(R.string.report_artist),
-                        onClick = { showReportDialog = true }
                     )
                 ),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp)
