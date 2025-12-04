@@ -126,14 +126,6 @@ fun SettingsScreen(
             route = "settings/backup_restore"
         ),
         SettingItem(
-            id = "contribute",
-            title = stringResource(R.string.contribute),
-            description = stringResource(R.string.contribute_description),
-            icon = R.drawable.person,
-            section = "Community",
-            route = "settings/contribute"
-        ),
-        SettingItem(
             id = "about",
             title = stringResource(R.string.about),
             description = "About Zemer",

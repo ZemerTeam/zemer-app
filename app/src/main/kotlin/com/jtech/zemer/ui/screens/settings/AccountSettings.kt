@@ -36,10 +36,6 @@ import kotlinx.coroutines.launch
 import io.ktor.client.HttpClient
 import io.ktor.client.statement.bodyAsText
 import io.ktor.client.request.get
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import android.content.Intent
@@ -57,12 +53,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
-import androidx.credentials.CredentialManager
-import androidx.credentials.CustomCredential
-import androidx.credentials.GetCredentialRequest
-import androidx.credentials.GetCredentialResponse
-import androidx.credentials.exceptions.GetCredentialCancellationException
-import androidx.credentials.exceptions.GetCredentialException
 import coil3.compose.AsyncImage
 import com.jtech.zemer.App
 import com.jtech.zemer.BuildConfig
@@ -86,7 +76,6 @@ import com.jtech.zemer.viewmodels.HomeViewModel
 import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.innertube.YouTube
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 
 @Composable
 fun AccountSettings(
@@ -97,8 +86,6 @@ fun AccountSettings(
 {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
-    val credentialManager = remember { CredentialManager.create(context) }
-
     val (accountNamePref, onAccountNameChange) = rememberPreference(AccountNameKey, "")
     val (accountEmail, onAccountEmailChange) = rememberPreference(AccountEmailKey, "")
     val (accountChannelHandle, onAccountChannelHandleChange) = rememberPreference(AccountChannelHandleKey, "")
@@ -121,119 +108,8 @@ fun AccountSettings(
     var showToken by remember { mutableStateOf(false) }
     var showTokenEditor by remember { mutableStateOf(false) }
     var isTestingToken by remember { mutableStateOf(false) }
-    var isGoogleLoginInProgress by remember { mutableStateOf(false) }
     var tokenTestResult by remember { mutableStateOf<String?>(null) }
-    var googleLoginError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-
-    fun exchangeGoogleIdToken(idToken: String) {
-        scope.launch {
-            try {
-                if (BuildConfig.GOOGLE_TOKEN_EXCHANGE_URL.isBlank()) {
-                    googleLoginError = context.getString(R.string.google_exchange_url_missing)
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.google_exchange_url_missing_toast),
-                        Toast.LENGTH_LONG
-                    ).show()
-                    return@launch
-                }
-
-                isGoogleLoginInProgress = true
-                val httpClient = HttpClient()
-                val responseText = httpClient.post(BuildConfig.GOOGLE_TOKEN_EXCHANGE_URL) {
-                    contentType(ContentType.Application.Json)
-                    setBody("""{"idToken":"$idToken"}""")
-                }.bodyAsText()
-
-                val json = kotlinx.serialization.json.Json.parseToJsonElement(responseText)
-                val fetchedVisitorData = json.jsonObject["visitorData"]?.jsonPrimitive?.content
-                val fetchedCookie = json.jsonObject["innerTubeCookie"]?.jsonPrimitive?.content
-                val fetchedDataSyncId = json.jsonObject["dataSyncId"]?.jsonPrimitive?.content
-                val fetchedAccountName = json.jsonObject["accountName"]?.jsonPrimitive?.content
-                val fetchedAccountEmail = json.jsonObject["accountEmail"]?.jsonPrimitive?.content
-                val fetchedAccountChannelHandle = json.jsonObject["accountChannelHandle"]?.jsonPrimitive?.content
-
-                if (!fetchedVisitorData.isNullOrEmpty() && fetchedVisitorData.startsWith("Cg") &&
-                    !fetchedCookie.isNullOrEmpty() && parseCookieString(fetchedCookie).containsKey("SAPISID")
-                ) {
-                    onVisitorDataChange(fetchedVisitorData)
-                    YouTube.visitorData = fetchedVisitorData
-
-                    onInnerTubeCookieChange(fetchedCookie)
-                    runCatching { YouTube.cookie = fetchedCookie }
-
-                    fetchedDataSyncId?.let {
-                        val clean = it.substringBefore("||")
-                        onDataSyncIdChange(clean)
-                        YouTube.dataSyncId = clean
-                    }
-                    fetchedAccountName?.let { onAccountNameChange(it) }
-                    fetchedAccountEmail?.let { onAccountEmailChange(it) }
-                    fetchedAccountChannelHandle?.let { onAccountChannelHandleChange(it) }
-
-                    googleLoginError = null
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.login_success_restart),
-                        Toast.LENGTH_LONG
-                    ).show()
-                } else {
-                    googleLoginError = context.getString(R.string.google_exchange_failed)
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.login_failed_invalid_token),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-
-                httpClient.close()
-            } catch (e: Exception) {
-                googleLoginError = e.localizedMessage ?: context.getString(R.string.login_failed)
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.login_failed_with_reason, googleLoginError!!),
-                    Toast.LENGTH_SHORT
-                ).show()
-            } finally {
-                isGoogleLoginInProgress = false
-            }
-        }
-    }
-
-    fun launchGoogleSignInForYouTube() {
-        scope.launch {
-            try {
-                googleLoginError = null
-                val googleIdOption = GetSignInWithGoogleOption.Builder(context.getString(R.string.default_web_client_id))
-                    .build()
-                val request = GetCredentialRequest.Builder()
-                    .addCredentialOption(googleIdOption)
-                    .build()
-                val response: GetCredentialResponse = credentialManager.getCredential(
-                    request = request,
-                    context = context
-                )
-                val credential = response.credential
-                if (credential is CustomCredential &&
-                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-                ) {
-                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                    exchangeGoogleIdToken(googleIdTokenCredential.idToken)
-                } else {
-                    googleLoginError = context.getString(R.string.google_id_token_missing)
-                }
-            } catch (e: GetCredentialCancellationException) {
-                googleLoginError = null
-            } catch (e: androidx.credentials.exceptions.NoCredentialException) {
-                googleLoginError = context.getString(R.string.google_id_token_missing)
-            } catch (e: GetCredentialException) {
-                googleLoginError = e.localizedMessage ?: context.getString(R.string.login_failed)
-            } catch (e: Exception) {
-                googleLoginError = e.localizedMessage ?: context.getString(R.string.login_failed)
-            }
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -260,72 +136,7 @@ fun AccountSettings(
 
         Spacer(Modifier.height(12.dp))
 
-        // 3 Login Buttons - All Identical Layout
-
-        // 1. Login with Google (token exchange)
-        Button(
-            onClick = {
-                if (isLoggedIn) {
-                    scope.launch {
-                        App.forgetAccount(context)
-                        Toast.makeText(context, context.getString(R.string.logged_out), Toast.LENGTH_SHORT).show()
-                        onClose()
-                    }
-                } else {
-                    launchGoogleSignInForYouTube()
-                }
-            },
-            enabled = !isGoogleLoginInProgress || isLoggedIn,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-            )
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Start
-            ) {
-                if (isGoogleLoginInProgress && !isLoggedIn) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(R.drawable.google_logo),
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    when {
-                        isLoggedIn -> stringResource(R.string.action_logout)
-                        isGoogleLoginInProgress -> stringResource(R.string.login_progress)
-                        else -> stringResource(R.string.login_with_google_device)
-                    }
-                )
-            }
-        }
-
-        if (googleLoginError != null) {
-            Text(
-                text = googleLoginError ?: "",
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp)
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // 2. Login with Google (WebView)
+        // 1. Login with Google (WebView)
         Button(
             onClick = {
                 if (isLoggedIn) {

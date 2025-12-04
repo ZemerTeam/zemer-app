@@ -27,7 +27,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
@@ -36,8 +35,6 @@ import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.YouTubeListItem
-import com.jtech.zemer.viewmodels.ContributeArtist
-import com.jtech.zemer.viewmodels.ContributeViewModel
 import com.metrolist.innertube.models.ArtistItem
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,7 +42,6 @@ import com.metrolist.innertube.models.ArtistItem
 fun YouTubeArtistMenu(
     artist: ArtistItem,
     onDismiss: () -> Unit,
-    contributeViewModel: ContributeViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val database = LocalDatabase.current
@@ -181,32 +177,7 @@ fun YouTubeArtistMenu(
         }
 
         item {
-            val contributeState by contributeViewModel.uiState.collectAsState()
-            val canContribute = contributeState.isSignedIn && !contributeState.isBanned
-            ListItem(
-                headlineContent = { Text("Contribute info") },
-                supportingContent = { Text(if (canContribute) "Stage this artist for verification" else "Sign in to contribute") },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.palette),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable(enabled = canContribute) {
-                    contributeViewModel.stageArtist(
-                        ContributeArtist(
-                            docId = artist.id,
-                            artistId = artist.id,
-                            artistName = artist.title,
-                            imageUrl = artist.thumbnail,
-                            isFemale = false,
-                            isChasid = false,
-                            isGenZ = false
-                        )
-                    )
-                    onDismiss()
-                }
-            )
+            // Contribute flow removed
         }
     }
 }

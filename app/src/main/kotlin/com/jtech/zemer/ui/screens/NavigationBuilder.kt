@@ -29,7 +29,6 @@ import com.jtech.zemer.ui.screens.settings.AppearanceSettings
 import com.jtech.zemer.ui.screens.settings.BackupAndRestore
 import com.jtech.zemer.ui.screens.settings.ButtonSetupScreen
 import com.jtech.zemer.ui.screens.settings.ContentSettings
-import com.jtech.zemer.ui.screens.settings.ContributeScreen
 import com.jtech.zemer.ui.screens.settings.PlayerSettings
 import com.jtech.zemer.ui.screens.settings.PrivacySettings
 import com.jtech.zemer.ui.screens.settings.SettingsScreen
@@ -311,9 +310,6 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("settings/about") {
         AboutScreen(navController, scrollBehavior)
-    }
-    composable("settings/contribute") {
-        ContributeScreen(navController, scrollBehavior)
     }
     composable("login") {
         LoginScreen(navController)
