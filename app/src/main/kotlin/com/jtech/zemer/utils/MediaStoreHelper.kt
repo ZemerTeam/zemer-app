@@ -8,6 +8,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.jtech.zemer.constants.CustomDownloadPathKey
+import com.jtech.zemer.utils.EnvironmentPaths.DEFAULT_RELATIVE_DOWNLOAD_PATH
+import com.jtech.zemer.utils.EnvironmentPaths.toRelativePath
+import com.jtech.zemer.utils.EnvironmentPaths.toStorageRoot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -42,6 +46,8 @@ class MediaStoreHelper(private val context: Context) {
         )
     }
 
+    private val customDownloadPathKey = CustomDownloadPathKey
+
     /**
      * Save a downloaded audio file to MediaStore in the Music/Zemer folder
      *
@@ -66,16 +72,17 @@ class MediaStoreHelper(private val context: Context) {
         try {
             val sanitizedFileName = sanitizeFileName(fileName)
             val contentResolver = context.contentResolver
+            val baseDownloadPath = getBaseDownloadPath()
+
+            val relativePath = buildRelativePath(
+                baseDownloadPath = baseDownloadPath,
+                artist = artist,
+                album = album,
+            )
 
             // Prepare ContentValues with metadata
             // Organize files: Music/Zemer/{Artist}/{Album}/Song.mp3 or Music/Zemer/{Artist}/Song.mp3
-            val sanitizedArtist = sanitizeFolderName(artist)
-            val relativePath = if (!album.isNullOrBlank()) {
-                val sanitizedAlbum = sanitizeFolderName(album)
-                "${Environment.DIRECTORY_MUSIC}/$ZEMER_FOLDER/$sanitizedArtist/$sanitizedAlbum"
-            } else {
-                "${Environment.DIRECTORY_MUSIC}/$ZEMER_FOLDER/$sanitizedArtist"
-            }
+            val targetFile = buildLegacyFile(relativePath, sanitizedFileName)
 
             val contentValues = ContentValues().apply {
                 put(MediaStore.Audio.Media.DISPLAY_NAME, sanitizedFileName)
@@ -89,6 +96,12 @@ class MediaStoreHelper(private val context: Context) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     put(MediaStore.Audio.Media.RELATIVE_PATH, relativePath)
                     put(MediaStore.Audio.Media.IS_PENDING, 1)
+                } else {
+                    // Ensure the custom directory exists for legacy devices
+                    targetFile?.let { file ->
+                        put(MediaStore.Audio.Media.DATA, file.absolutePath)
+                        file.parentFile?.takeUnless { it.exists() }?.mkdirs()
+                    }
                 }
             }
 
@@ -247,6 +260,34 @@ class MediaStoreHelper(private val context: Context) {
         return MIME_TYPE_MAP[extension.lowercase()] ?: "audio/mpeg"
     }
 
+    private fun getBaseDownloadPath(): String {
+        val stored = context.dataStore[customDownloadPathKey]
+        val relativePath = stored?.toRelativePath()?.takeIf { it.isNotBlank() }
+        return relativePath ?: DEFAULT_RELATIVE_DOWNLOAD_PATH
+    }
+
+    private fun buildRelativePath(
+        baseDownloadPath: String,
+        artist: String,
+        album: String?,
+    ): String {
+        val sanitizedArtist = sanitizeFolderName(artist)
+        val sanitizedAlbum = album?.takeIf { it.isNotBlank() }?.let { sanitizeFolderName(it) }
+        val base = baseDownloadPath.trim('/').ifEmpty { DEFAULT_RELATIVE_DOWNLOAD_PATH }
+
+        return if (sanitizedAlbum != null) {
+            "$base/$sanitizedArtist/$sanitizedAlbum"
+        } else {
+            "$base/$sanitizedArtist"
+        }
+    }
+
+    private fun buildLegacyFile(relativePath: String, fileName: String): File? {
+        if (relativePath.isBlank()) return null
+        val storageRoot = relativePath.toStorageRoot()
+        return File(storageRoot, fileName)
+    }
+
     /**
      * Sanitize a filename to be safe for filesystem use
      * Removes invalid characters and limits length
@@ -309,6 +350,6 @@ class MediaStoreHelper(private val context: Context) {
      * @return Folder path string
      */
     fun getZemerFolderPath(): String {
-        return "${Environment.DIRECTORY_MUSIC}/$ZEMER_FOLDER"
+        return DEFAULT_RELATIVE_DOWNLOAD_PATH
     }
 }

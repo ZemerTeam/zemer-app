@@ -1,6 +1,11 @@
 package com.jtech.zemer.ui.screens.settings
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.net.Uri
+import android.provider.DocumentsContract
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +43,7 @@ import coil3.imageLoader
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.CustomDownloadPathKey
 import com.jtech.zemer.constants.MaxImageCacheSizeKey
 import com.jtech.zemer.constants.MaxSongCacheSizeKey
 import com.jtech.zemer.extensions.tryOrNull
@@ -48,6 +54,8 @@ import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.formatFileSize
+import com.jtech.zemer.utils.EnvironmentPaths.DEFAULT_RELATIVE_DOWNLOAD_PATH
+import com.jtech.zemer.utils.EnvironmentPaths.toUserFacingPath
 import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -75,6 +83,33 @@ fun StorageSettings(
         key = MaxSongCacheSizeKey,
         defaultValue = 1024
     )
+    val (customDownloadPath, onCustomDownloadPathChange) = rememberPreference(
+        key = CustomDownloadPathKey,
+        defaultValue = ""
+    )
+    val resolvedDownloadPath = remember(customDownloadPath) {
+        customDownloadPath.toUserFacingPath().ifBlank { DEFAULT_RELATIVE_DOWNLOAD_PATH }
+    }
+    val downloadPickerLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            uri?.let {
+                val flags =
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                context.contentResolver.takePersistableUriPermission(it, flags)
+                onCustomDownloadPathChange(it.toString())
+            }
+        }
+    val onResetDownloadPath = {
+        customDownloadPath.takeIf { it.isNotBlank() }?.let { stored ->
+            runCatching {
+                context.contentResolver.releasePersistableUriPermission(
+                    Uri.parse(stored),
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            }
+        }
+        onCustomDownloadPathChange("")
+    }
     var clearCacheDialog by remember { mutableStateOf(false) }
     var clearDownloads by remember { mutableStateOf(false) }
     var clearImageCacheDialog by remember { mutableStateOf(false) }
@@ -157,6 +192,23 @@ fun StorageSettings(
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
         )
+
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.custom_download_path)) },
+            description = stringResource(
+                R.string.custom_download_path_summary,
+                resolvedDownloadPath
+            ),
+            onClick = { downloadPickerLauncher.launch(null) }
+        )
+
+        if (customDownloadPath.isNotBlank()) {
+            PreferenceEntry(
+                title = { Text(stringResource(R.string.reset_download_path)) },
+                description = stringResource(R.string.reset_download_path_summary),
+                onClick = onResetDownloadPath
+            )
+        }
 
         PreferenceEntry(
             title = { Text(stringResource(R.string.clear_all_downloads)) },
