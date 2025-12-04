@@ -71,7 +71,7 @@ class App : Application(), SingletonImageLoader.Factory {
         applicationScope.launch {
             initializeSettings()
             observeSettingsChanges()
-            fetchAnonymousTokenOnStartup()
+            // Removed auto-fetch of anonymous token; user must trigger login manually.
         }
     }
 
