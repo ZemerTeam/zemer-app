@@ -289,6 +289,7 @@
     <string name="clear_translation_models">ניקוי מודלי תרגום</string>
     <string name="content_filters">סינון תוכן</string>
     <string name="allow_female_singers">אפשר זמרות</string>
+    <string name="female_passcode_setting">הגדר קוד נעילה לזמרות</string>
     <string name="set_female_passcode_title">הגנת מתג הזמרות</string>
     <string name="set_female_passcode_message">צור קוד נעילה כדי לאפשר תוכן של זמרות.</string>
     <string name="female_passcode_label">קוד נעילה</string>

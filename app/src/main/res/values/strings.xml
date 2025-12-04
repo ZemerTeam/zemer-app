@@ -399,6 +399,7 @@
     <string name="clear_translation_models">Clear translation models</string>
     <string name="content_filters">Content filters</string>
     <string name="allow_female_singers">Allow female singers</string>
+    <string name="female_passcode_setting">Set female singers passcode</string>
     <string name="set_female_passcode_title">Protect female singers switch</string>
     <string name="set_female_passcode_message">Create a passcode to unlock female artists.</string>
     <string name="female_passcode_label">Passcode</string>
