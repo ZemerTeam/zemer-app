@@ -1248,13 +1248,6 @@ class MainActivity : ComponentActivity() {
                                                 if (currentRoute == Screens.Home.route) {
                                                     IconButton(
                                                         onClick = {
-                                                            navController.navigate(Screens.Search.route) {
-                                                                popUpTo(navController.graph.startDestinationId) {
-                                                                    saveState = true
-                                                                }
-                                                                launchSingleTop = true
-                                                                restoreState = true
-                                                            }
                                                             onActiveChange(true)
                                                         },
                                                         colors = IconButtonDefaults.iconButtonColors(
