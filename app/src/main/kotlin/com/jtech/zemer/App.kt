@@ -30,6 +30,7 @@ import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.WhitelistFetcher
 import com.metrolist.innertube.utils.ResilientDns
+import com.metrolist.innertube.utils.parseCookieString
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,8 +39,15 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Credentials
 import okhttp3.OkHttpClient
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.bodyAsText
 import java.net.Authenticator
 import java.net.PasswordAuthentication
 import java.net.Proxy
@@ -63,6 +71,81 @@ class App : Application(), SingletonImageLoader.Factory {
         applicationScope.launch {
             initializeSettings()
             observeSettingsChanges()
+            fetchAnonymousTokenOnStartup()
+        }
+    }
+
+    private suspend fun fetchAnonymousTokenOnStartup() {
+        fun sanitizeCookie(raw: String?): String? {
+            val trimmed = raw?.trim() ?: return null
+            return if ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+                (trimmed.startsWith("'") && trimmed.endsWith("'"))
+            ) {
+                trimmed.drop(1).dropLast(1)
+            } else {
+                trimmed
+            }
+        }
+
+        try {
+            val httpClient = HttpClient()
+            val responseText = httpClient.get(
+                "https://yt-token-dispenser.usheraweiss.workers.dev/api/token"
+            ).bodyAsText()
+
+            val json = kotlinx.serialization.json.Json.parseToJsonElement(responseText)
+            val visitorData = json.jsonObject["visitorData"]?.jsonPrimitive?.content
+            val clientVersion = json.jsonObject["clientVersion"]?.jsonPrimitive?.content
+            val timestamp = json.jsonObject["timestamp"]?.jsonPrimitive?.content?.toLongOrNull()
+            val expiresAt = json.jsonObject["expiresAt"]?.jsonPrimitive?.content?.toLongOrNull()
+            val cookie = sanitizeCookie(
+                json.jsonObject["cookie"]?.jsonPrimitive?.content
+                    ?: json.jsonObject["innerTubeCookie"]?.jsonPrimitive?.content
+            )
+            val dataSyncId = json.jsonObject["dataSyncId"]?.jsonPrimitive?.content
+            val accountName = json.jsonObject["accountName"]?.jsonPrimitive?.content
+            val accountEmail = json.jsonObject["accountEmail"]?.jsonPrimitive?.content
+            val accountChannelHandle = json.jsonObject["accountChannelHandle"]?.jsonPrimitive?.content
+
+            if (!visitorData.isNullOrEmpty()) {
+                // Validate token format
+                val isValidToken = visitorData.startsWith("Cg") && visitorData.length > 20
+
+                if (isValidToken) {
+                    dataStore.edit { prefs ->
+                        prefs[VisitorDataKey] = visitorData
+                        cookie
+                            ?.takeIf { parseCookieString(it).containsKey("SAPISID") }
+                            ?.let { prefs[InnerTubeCookieKey] = it }
+                        dataSyncId?.let { prefs[DataSyncIdKey] = it.substringBefore("||") }
+                        accountName?.let { prefs[AccountNameKey] = it }
+                        accountEmail?.let { prefs[AccountEmailKey] = it }
+                        accountChannelHandle?.let { prefs[AccountChannelHandleKey] = it }
+                    }
+                    cookie
+                        ?.takeIf { parseCookieString(it).containsKey("SAPISID") }
+                        ?.let { YouTube.cookie = it }
+                    dataSyncId?.let { YouTube.dataSyncId = it.substringBefore("||") }
+                    YouTube.visitorData = visitorData
+                    val expiresIn = if (expiresAt != null) {
+                        val minutesLeft = (expiresAt - (timestamp ?: System.currentTimeMillis())) / 60000
+                        "$minutesLeft minutes"
+                    } else {
+                        "~24 hours"
+                    }
+                    android.util.Log.i("AnonymousToken", "✓ Token fetched successfully")
+                    android.util.Log.i("AnonymousToken", "  Data: ${visitorData.take(20)}...")
+                    android.util.Log.i("AnonymousToken", "  Version: $clientVersion")
+                    android.util.Log.i("AnonymousToken", "  Expires in: $expiresIn")
+                } else {
+                    android.util.Log.w("AnonymousToken", "✗ Invalid token format: $visitorData")
+                }
+            } else {
+                android.util.Log.w("AnonymousToken", "✗ No visitorData in response")
+            }
+            httpClient.close()
+        } catch (e: Exception) {
+            android.util.Log.w("AnonymousToken", "✗ Failed to fetch token: ${e.message}", e)
         }
     }
 

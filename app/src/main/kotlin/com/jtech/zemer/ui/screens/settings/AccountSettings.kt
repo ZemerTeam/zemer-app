@@ -2,6 +2,7 @@ package com.jtech.zemer.ui.screens.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,7 +17,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -27,7 +30,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
+import io.ktor.client.HttpClient
+import io.ktor.client.statement.bodyAsText
+import io.ktor.client.request.get
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
+import com.jtech.zemer.App
 import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AccountChannelHandleKey
@@ -93,6 +107,9 @@ fun AccountSettings(
 
     var showToken by remember { mutableStateOf(false) }
     var showTokenEditor by remember { mutableStateOf(false) }
+    var isTestingToken by remember { mutableStateOf(false) }
+    var tokenTestResult by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -119,65 +136,178 @@ fun AccountSettings(
 
         Spacer(Modifier.height(12.dp))
 
-        val accountSectionModifier = Modifier.clickable {
-            onClose()
-            if (isLoggedIn) {
-                navController.navigate("account")
-            } else {
-                navController.navigate("login")
-            }
-        }
+        // 3 Login Buttons - All Identical Layout
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = accountSectionModifier
+        // 1. Login with Google
+        Button(
+            onClick = {
+                if (isLoggedIn) {
+                    scope.launch {
+                        App.forgetAccount(context)
+                        Toast.makeText(context, context.getString(R.string.logged_out), Toast.LENGTH_SHORT).show()
+                        onClose()
+                    }
+                } else {
+                    onClose()
+                    navController.navigate("login")
+                }
+            },
+            modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(horizontal = 18.dp, vertical = 12.dp)
+                .clip(RoundedCornerShape(16.dp)),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
         ) {
-            if (isLoggedIn && accountImageUrl != null) {
-                AsyncImage(
-                    model = accountImageUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(40.dp).clip(CircleShape)
-                )
-            } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Start
+            ) {
                 Icon(
-                    painter = painterResource(R.drawable.login),
+                    painter = painterResource(R.drawable.google_chrome),
                     contentDescription = null,
                     modifier = Modifier.size(24.dp)
                 )
-            }
-
-            Spacer(Modifier.width(12.dp))
-
-            Column(Modifier.weight(1f)) {
+                Spacer(Modifier.width(12.dp))
                 Text(
-                    text = if (isLoggedIn) accountName else stringResource(R.string.login),
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.padding(start = 5.dp)
+                    if (isLoggedIn) stringResource(R.string.action_logout)
+                    else stringResource(R.string.login_with_google)
                 )
-            }
-
-            if (isLoggedIn) {
-                OutlinedButton(
-                    onClick = {
-                        accountSettingsViewModel.logoutAndClearSyncedContent(context, onInnerTubeCookieChange)
-                    },
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    )
-                ) {
-                    Text(stringResource(R.string.action_logout))
-                }
             }
         }
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(8.dp))
+
+        // 2. Login as Anonymous
+        Button(
+            onClick = {
+                if (isLoggedIn) {
+                    scope.launch {
+                        App.forgetAccount(context)
+                        Toast.makeText(context, context.getString(R.string.logged_out), Toast.LENGTH_SHORT).show()
+                        onClose()
+                    }
+                } else {
+                    isTestingToken = true
+                    tokenTestResult = null
+                    scope.launch {
+                        try {
+                            val httpClient = HttpClient()
+                            val responseText = httpClient.get(
+                                "https://yt-token-dispenser.usheraweiss.workers.dev/api/token"
+                            ).bodyAsText()
+
+                            val json = kotlinx.serialization.json.Json.parseToJsonElement(responseText)
+                            val fetchedVisitorData = json.jsonObject["visitorData"]?.jsonPrimitive?.content
+                            val fetchedCookie = run {
+                                val raw = json.jsonObject["cookie"]?.jsonPrimitive?.content
+                                    ?: json.jsonObject["innerTubeCookie"]?.jsonPrimitive?.content
+                                val trimmed = raw?.trim()
+                                if (trimmed != null &&
+                                    ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+                                        (trimmed.startsWith("'") && trimmed.endsWith("'")))
+                                ) {
+                                    trimmed.drop(1).dropLast(1)
+                                } else {
+                                    trimmed
+                                }
+                            }
+                            val fetchedDataSyncId = json.jsonObject["dataSyncId"]?.jsonPrimitive?.content
+                            val fetchedAccountName = json.jsonObject["accountName"]?.jsonPrimitive?.content
+                            val fetchedAccountEmail = json.jsonObject["accountEmail"]?.jsonPrimitive?.content
+                            val fetchedAccountChannelHandle = json.jsonObject["accountChannelHandle"]?.jsonPrimitive?.content
+
+                            if (!fetchedVisitorData.isNullOrEmpty() && fetchedVisitorData.startsWith("Cg") && fetchedVisitorData.length > 20) {
+                                onVisitorDataChange(fetchedVisitorData)
+                                YouTube.visitorData = fetchedVisitorData
+                                fetchedCookie
+                                    ?.takeIf { parseCookieString(it).containsKey("SAPISID") }
+                                    ?.let {
+                                        onInnerTubeCookieChange(it)
+                                        runCatching { YouTube.cookie = it }
+                                    }
+                                fetchedDataSyncId?.let {
+                                    val clean = it.substringBefore("||")
+                                    onDataSyncIdChange(clean)
+                                    YouTube.dataSyncId = clean
+                                }
+                                fetchedAccountName?.let { onAccountNameChange(it) }
+                                fetchedAccountEmail?.let { onAccountEmailChange(it) }
+                                fetchedAccountChannelHandle?.let { onAccountChannelHandleChange(it) }
+                                tokenTestResult = "success"
+                                android.util.Log.i("TokenTest", "✓ Anonymous token valid!")
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.login_success_restart),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } else {
+                                tokenTestResult = "invalid"
+                                android.util.Log.w("TokenTest", "✗ Invalid token format")
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.login_failed_invalid_token),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            httpClient.close()
+                        } catch (e: Exception) {
+                            tokenTestResult = "error"
+                            android.util.Log.w("TokenTest", "✗ Login failed: ${e.message}")
+                            val reason = e.message ?: context.getString(R.string.error_unknown)
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.login_failed_with_reason, reason),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } finally {
+                            isTestingToken = false
+                        }
+                    }
+                }
+            },
+            enabled = !isTestingToken || isLoggedIn,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp)),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            )
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Start
+            ) {
+                if (!isLoggedIn && isTestingToken) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.incognito),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    when {
+                        isLoggedIn -> stringResource(R.string.action_logout)
+                        isTestingToken -> stringResource(R.string.login_progress)
+                        else -> stringResource(R.string.login_as_anonymous)
+                    }
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
 
         if (showTokenEditor) {
             val text = """

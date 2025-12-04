@@ -286,6 +286,15 @@
     <string name="login">Login</string>
     <string name="not_logged_in">Not logged in</string>
     <string name="login_failed">Login failed</string>
+    <string name="account_status_logged_in">Logged in</string>
+    <string name="account_status_anonymous">Anonymous access</string>
+    <string name="login_with_google">Login with Google</string>
+    <string name="login_as_anonymous">Login as Anonymous</string>
+    <string name="login_progress">Logging in...</string>
+    <string name="login_success_restart">Login success! Restart the app for changes to take effect</string>
+    <string name="login_failed_invalid_token">Login failed: Invalid token</string>
+    <string name="login_failed_with_reason">Login failed: %1$s</string>
+    <string name="logged_out">Logged out</string>
 
     <string name="content_language">Default content language</string>
     <string name="content_country">Default content country</string>

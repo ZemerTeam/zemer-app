@@ -22,6 +22,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
@@ -39,14 +41,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -90,6 +93,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -97,6 +101,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -105,7 +110,6 @@ import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -113,6 +117,7 @@ import androidx.core.net.toUri
 import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
 import androidx.datastore.preferences.core.edit
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
@@ -140,6 +145,7 @@ import com.jtech.zemer.constants.DefaultOpenTabKey
 import com.jtech.zemer.constants.DisableScreenshotKey
 import com.jtech.zemer.constants.DynamicThemeKey
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
+import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.LastWhitelistVersionKey
 import com.jtech.zemer.constants.MiniPlayerBottomSpacing
 import com.jtech.zemer.constants.MiniPlayerHeight
@@ -202,6 +208,7 @@ import com.jtech.zemer.viewmodels.HomeViewModel
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
+import com.metrolist.innertube.utils.parseCookieString
 import com.valentinilk.shimmer.LocalShimmerTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -573,8 +580,7 @@ class MainActivity : ComponentActivity() {
                         val (localWhitelistVersion) = rememberPreference(LastWhitelistVersionKey, 0L)
                         val alreadySyncedLocally = localWhitelistVersion > 0L && !isWhitelistSyncing && syncProgress.total == 0 && syncProgress.current == 0 && !syncProgress.isComplete
 
-                        DisposableEffect(lifecycleOwner, onboardingComplete) {
-                            if (!onboardingComplete) return@DisposableEffect onDispose {}
+                        DisposableEffect(lifecycleOwner, true) {
 
                             syncScope.launch { syncUtils.syncArtistWhitelist() }
 
@@ -622,6 +628,7 @@ class MainActivity : ComponentActivity() {
                         }
                         val homeViewModel: HomeViewModel = hiltViewModel()
                         val accountImageUrl by homeViewModel.accountImageUrl.collectAsState()
+                        val accountName by homeViewModel.accountName.collectAsState()
 
                         // Contribution auth state
                         val firebaseAuth = remember { FirebaseAuth.getInstance() }
@@ -638,24 +645,28 @@ class MainActivity : ComponentActivity() {
                         val (_) = rememberPreference(SlimNavBarKey, defaultValue = false)
                         val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
                         val (floatingMiniPlayerEnabled) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
-                    val (defaultOpenTab) = rememberEnumPreference(DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
-                    val tabOpenedFromShortcut = remember {
-                        when (intent?.action) {
-                            ACTION_LIBRARY -> NavigationTab.LIBRARY
-                            ACTION_SEARCH -> NavigationTab.SEARCH
-                            else -> null
+                        val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
+                        val isLoggedIn = remember(innerTubeCookie) {
+                            "SAPISID" in parseCookieString(innerTubeCookie)
                         }
-                    }
+                        val (defaultOpenTab) = rememberEnumPreference(DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
+                        val tabOpenedFromShortcut = remember {
+                            when (intent?.action) {
+                                ACTION_LIBRARY -> NavigationTab.LIBRARY
+                                ACTION_SEARCH -> NavigationTab.SEARCH
+                                else -> null
+                            }
+                        }
 
-                    val topLevelScreens = remember {
-                        listOf(
-                            Screens.Home.route,
-                            Screens.Artists.route,
-                            Screens.Search.route,
-                            Screens.Library.route,
-                            "settings",
-                        )
-                    }
+                        val topLevelScreens = remember {
+                            listOf(
+                                Screens.Home.route,
+                                Screens.Artists.route,
+                                Screens.Search.route,
+                                Screens.Library.route,
+                                "settings",
+                            )
+                        }
 
                     val (query, onQueryChange) =
                         rememberSaveable(stateSaver = TextFieldValue.Saver) {
@@ -916,7 +927,6 @@ class MainActivity : ComponentActivity() {
                     val drawerFocusRequester = remember { FocusRequester() }
                     val topPlayFocusRequester = remember { FocusRequester() }
                     val miniPlayFocusRequester = remember { FocusRequester() }
-                        remember { FocusRequester() }
                     val miniHeartFocusRequester = remember { FocusRequester() }
                     val burgerFocusRequester = remember { FocusRequester() }
                     val contentFocusRequester = remember { FocusRequester() }
@@ -947,28 +957,80 @@ class MainActivity : ComponentActivity() {
                                         canFocus = drawerState.isOpen
                                     }
                                 ) {
-                                    Text(
-                                        text = stringResource(R.string.app_name),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
-                                    )
+                                    // Profile Header
+                                    if (isLoggedIn) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            if (accountImageUrl != null) {
+                                                Surface(
+                                                    shape = CircleShape,
+                                                    border = BorderStroke(3.dp, MaterialTheme.colorScheme.primary),
+                                                    modifier = Modifier.size(64.dp)
+                                                ) {
+                                                    AsyncImage(
+                                                        model = accountImageUrl,
+                                                        contentDescription = stringResource(R.string.account),
+                                                        contentScale = ContentScale.Crop,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
+                                                }
+                                            } else {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(64.dp)
+                                                        .clip(CircleShape)
+                                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.account),
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(40.dp),
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Text(
+                                                text = accountName,
+                                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = stringResource(R.string.account_status_logged_in),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    } else {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            horizontalAlignment = Alignment.Start
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.app_name),
+                                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                                     NavigationDrawerItem(
                                         label = { Text(stringResource(R.string.account)) },
                                         icon = {
-                                            if (accountImageUrl != null) {
-                                                AsyncImage(
-                                                    model = accountImageUrl,
-                                                    contentDescription = stringResource(R.string.account),
-                                                    modifier = Modifier
-                                                        .size(24.dp)
-                                                        .clip(CircleShape)
-                                                )
-                                            } else {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.account),
-                                                    contentDescription = stringResource(R.string.account)
-                                                )
-                                            }
+                                            Icon(
+                                                painter = painterResource(R.drawable.account),
+                                                contentDescription = stringResource(R.string.account)
+                                            )
                                         },
                                         selected = false,
                                         onClick = {
