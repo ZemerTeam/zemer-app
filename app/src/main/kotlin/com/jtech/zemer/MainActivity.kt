@@ -648,10 +648,11 @@ class MainActivity : ComponentActivity() {
                         val (floatingMiniPlayerEnabled) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
                         val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
                         val (storedVisitorData) = rememberPreference(VisitorDataKey, defaultValue = "")
-                        val isLoggedIn = remember(innerTubeCookie, storedVisitorData) {
-                            val hasSap = parseCookieString(innerTubeCookie).containsKey("SAPISID")
-                            val hasVisitorToken = storedVisitorData.startsWith("Cg")
-                            hasSap || hasVisitorToken
+                        val isLoggedIn = remember(innerTubeCookie) {
+                            parseCookieString(innerTubeCookie).containsKey("SAPISID")
+                        }
+                        val hasVisitorToken = remember(storedVisitorData) {
+                            storedVisitorData.startsWith("Cg")
                         }
                         val (defaultOpenTab) = rememberEnumPreference(DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
                         val tabOpenedFromShortcut = remember {
@@ -1008,12 +1009,12 @@ class MainActivity : ComponentActivity() {
                                             Spacer(modifier = Modifier.height(4.dp))
                                             val statusText = when {
                                                 parseCookieString(innerTubeCookie).containsKey("SAPISID") -> stringResource(R.string.account_status_logged_in)
-                                                storedVisitorData.startsWith("Cg") -> stringResource(R.string.account_status_token)
+                                                hasVisitorToken -> stringResource(R.string.account_status_token)
                                                 else -> stringResource(R.string.account_status_anonymous)
                                             }
                                             val statusColor = when {
                                                 parseCookieString(innerTubeCookie).containsKey("SAPISID") -> MaterialTheme.colorScheme.primary
-                                                storedVisitorData.startsWith("Cg") -> MaterialTheme.colorScheme.tertiary
+                                                hasVisitorToken -> MaterialTheme.colorScheme.tertiary
                                                 else -> MaterialTheme.colorScheme.outline
                                             }
                                             Text(
