@@ -206,6 +206,7 @@ import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.setAppLocale
 import com.jtech.zemer.utils.tryStartForegroundService
 import com.jtech.zemer.viewmodels.HomeViewModel
+import com.jtech.zemer.viewmodels.WhitelistedArtistsViewModel
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
@@ -962,6 +963,26 @@ class MainActivity : ComponentActivity() {
                                         canFocus = drawerState.isOpen
                                     }
                                 ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        horizontalAlignment = Alignment.Start
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.app_name),
+                                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = stringResource(R.string.version_short, BuildConfig.VERSION_NAME),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
                                     // Profile Header
                                     if (isLoggedIn) {
                                         Column(
@@ -1021,20 +1042,6 @@ class MainActivity : ComponentActivity() {
                                                 text = statusText,
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = statusColor
-                                            )
-                                        }
-                                    } else {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(16.dp),
-                                            horizontalAlignment = Alignment.Start
-                                        ) {
-                                            Text(
-                                                text = stringResource(R.string.app_name),
-                                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
                                     }
@@ -1237,12 +1244,54 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             },
                                             actions = {
+                                                val currentRoute = navBackStackEntry?.destination?.route
+                                                if (currentRoute == Screens.Home.route) {
                                                     IconButton(
                                                         onClick = {
-                                                            coroutineScope.launch {
-                                                                playerBottomSheetState.expandSoft()
+                                                            navController.navigate(Screens.Search.route) {
+                                                                popUpTo(navController.graph.startDestinationId) {
+                                                                    saveState = true
+                                                                }
+                                                                launchSingleTop = true
+                                                                restoreState = true
                                                             }
-                                                    },
+                                                            onActiveChange(true)
+                                                        },
+                                                        colors = IconButtonDefaults.iconButtonColors(
+                                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                                        ),
+                                                        modifier = Modifier.clip(CircleShape)
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.search),
+                                                            contentDescription = stringResource(R.string.search)
+                                                        )
+                                                    }
+                                                }
+
+                                                if (currentRoute == Screens.Artists.route && navBackStackEntry != null) {
+                                                    val whitelistedArtistsViewModel: WhitelistedArtistsViewModel =
+                                                        hiltViewModel(navBackStackEntry!!)
+                                                    IconButton(
+                                                        onClick = { whitelistedArtistsViewModel.sync() },
+                                                        colors = IconButtonDefaults.iconButtonColors(
+                                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                                        ),
+                                                        modifier = Modifier.clip(CircleShape)
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.sync),
+                                                            contentDescription = stringResource(R.string.refresh_artists)
+                                                        )
+                                                    }
+                                                }
+
+                                                IconButton(
+                                                    onClick = {
+                                                        coroutineScope.launch {
+                                                            playerBottomSheetState.expandSoft()
+                                                        }
+                                                },
                                                     colors = IconButtonDefaults.iconButtonColors(
                                                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                                                     ),
