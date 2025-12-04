@@ -290,12 +290,18 @@
     <string name="account_status_token">Token mode</string>
     <string name="account_status_anonymous">Anonymous access</string>
     <string name="login_with_google">Login with Google</string>
+    <string name="login_with_google_device">Login with Google</string>
+    <string name="login_with_google_webview">Login with Google (WebView)</string>
     <string name="login_as_anonymous">Login as Anonymous</string>
     <string name="login_progress">Logging in...</string>
     <string name="login_success_restart">Login success! Restart the app for changes to take effect</string>
     <string name="login_failed_invalid_token">Login failed: Invalid token</string>
     <string name="login_failed_with_reason">Login failed: %1$s</string>
     <string name="logged_out">Logged out</string>
+    <string name="google_exchange_failed">Could not read YouTube cookies from the exchange response.</string>
+    <string name="google_id_token_missing">Google sign-in returned no ID token.</string>
+    <string name="google_exchange_url_missing">Set googleTokenExchangeUrl in gradle.properties to your Firebase HTTPS Function that exchanges Google ID tokens for YouTube cookies.</string>
+    <string name="google_exchange_url_missing_toast">Configure googleTokenExchangeUrl to point at a Firebase Function that returns visitorData, dataSyncId, innerTubeCookie, and account metadata.</string>
 
     <string name="content_language">Default content language</string>
     <string name="content_country">Default content country</string>

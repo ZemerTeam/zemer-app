@@ -20,6 +20,8 @@ android {
         versionCode = 3
         versionName = "3"
         buildConfigField("String", "ARCHITECTURE", "\"universal\"")
+        val googleTokenExchangeUrl = (project.findProperty("googleTokenExchangeUrl") as String?) ?: ""
+        buildConfigField("String", "GOOGLE_TOKEN_EXCHANGE_URL", "\"$googleTokenExchangeUrl\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
