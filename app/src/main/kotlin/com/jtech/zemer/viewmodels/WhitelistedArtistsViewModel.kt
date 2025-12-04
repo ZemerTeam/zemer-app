@@ -28,6 +28,7 @@ constructor(
 
     // Expose sync progress from SyncUtils
     val syncProgress = syncUtils.whitelistSyncProgress
+    val isSyncing = syncUtils.isWhitelistSyncing
 
     val allArtists =
         combine(
@@ -50,7 +51,9 @@ constructor(
 
     fun sync() {
         viewModelScope.launch(Dispatchers.IO) {
-            syncUtils.syncArtistWhitelist()  // Fixed: was calling syncArtistsSubscriptions() by mistake
+            // Force a full refresh when the user taps the refresh icon so it behaves
+            // like a manual “pull new whitelist” action even if the version hasn't changed.
+            syncUtils.syncArtistWhitelist(forceSync = true)
         }
     }
 

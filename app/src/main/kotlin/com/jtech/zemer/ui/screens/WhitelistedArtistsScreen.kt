@@ -64,6 +64,7 @@ import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.screens.LoadingScreen
 import com.jtech.zemer.ui.component.WhitelistedArtistGridItem
 import com.jtech.zemer.ui.component.WhitelistedArtistListItem
 import com.jtech.zemer.utils.rememberEnumPreference
@@ -89,13 +90,13 @@ fun WhitelistedArtistsScreen(
     val artists by viewModel.allArtists.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val syncProgress by viewModel.syncProgress.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     var showSyncOverlay by remember { mutableStateOf(false) }
 
-    LaunchedEffect(syncProgress.total, syncProgress.isComplete, syncProgress.current) {
-        if (syncProgress.total > 0 && !syncProgress.isComplete) {
-            showSyncOverlay = true
-        } else if (syncProgress.isComplete || syncProgress.total == 0) {
+    LaunchedEffect(syncProgress.total, syncProgress.isComplete, syncProgress.current, isSyncing) {
+        showSyncOverlay = isSyncing || (syncProgress.total > 0 && !syncProgress.isComplete)
+        if (!isSyncing && (syncProgress.isComplete || syncProgress.total == 0)) {
             showSyncOverlay = false
         }
     }
@@ -335,59 +336,11 @@ fun WhitelistedArtistsScreen(
                 }
         }
 
-        // Sync now happens at app startup, no blocking overlay needed
         if (showSyncOverlay && !syncProgress.isComplete) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.9f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier
-                        .padding(24.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surface,
-                            shape = RoundedCornerShape(16.dp)
-                        )
-                        .padding(20.dp)
-                ) {
-                    Text(
-                        text = if (syncProgress.total > 0) {
-                            stringResource(
-                                R.string.whitelist_loading_progress,
-                                syncProgress.current,
-                                syncProgress.total
-                            )
-                        } else {
-                            stringResource(R.string.whitelist_loading)
-                        },
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    LinearProgressIndicator(
-                        progress = {
-                            if (syncProgress.total > 0) {
-                                syncProgress.current.toFloat() / syncProgress.total.toFloat()
-                            } else {
-                                0f
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp)
-                    )
-                    Text(
-                        text = syncProgress.currentArtistName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    TextButton(onClick = { showSyncOverlay = false }) {
-                        Text(stringResource(R.string.whitelist_load_in_background))
-                    }
-                }
-            }
+            LoadingScreen(
+                onFinished = { showSyncOverlay = false },
+                shouldStartSync = false
+            )
         }
     }
 }
