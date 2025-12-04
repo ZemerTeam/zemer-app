@@ -37,6 +37,8 @@ constructor(
     suspend fun getLyrics(mediaMetadata: MediaMetadata): String {
         currentLyricsJob?.cancel()
 
+        val videoId = mediaMetadata.setVideoId ?: mediaMetadata.id
+
         val cached = cache.get(mediaMetadata.id)?.firstOrNull()
         if (cached != null) {
             return cached.lyrics
@@ -62,7 +64,7 @@ constructor(
                 if (provider.isEnabled(context)) {
                     try {
                         val result = provider.getLyrics(
-                            mediaMetadata.id,
+                            videoId,
                             mediaMetadata.title,
                             mediaMetadata.artists.joinToString { it.name },
                             mediaMetadata.duration,
