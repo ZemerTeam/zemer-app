@@ -29,6 +29,9 @@ constructor(
     val database: MusicDatabase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
+    private val artistId = requireNotNull(savedStateHandle.get<String>("artistId")) {
+        "artistId is required but was not provided in navigation arguments"
+    }
     private val browseId = requireNotNull(savedStateHandle.get<String>("browseId")) {
         "browseId is required but was not provided in navigation arguments"
     }
@@ -53,7 +56,11 @@ constructor(
                             items = artistItemsPage.items
                                 .distinctBy { it.id }
                                 .filterExplicit(hideExplicit)
-                                .filterWhitelisted(database, requireAllArtists = false),
+                                .filterWhitelisted(
+                                    database,
+                                    requireAllArtists = false,
+                                    fallbackArtistId = artistId,
+                                ),
                             continuation = artistItemsPage.continuation,
                         )
                 }.onFailure {
@@ -75,7 +82,11 @@ constructor(
                             (oldItemsPage.items + artistItemsContinuationPage.items)
                                 .distinctBy { it.id }
                                 .filterExplicit(context.dataStore.getSuspend(HideExplicitKey, false))
-                                .filterWhitelisted(database, requireAllArtists = false),
+                                .filterWhitelisted(
+                                    database,
+                                    requireAllArtists = false,
+                                    fallbackArtistId = artistId,
+                                ),
                             continuation = artistItemsContinuationPage.continuation,
                         )
                     }

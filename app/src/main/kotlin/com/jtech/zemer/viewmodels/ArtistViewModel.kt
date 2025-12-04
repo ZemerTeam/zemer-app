@@ -117,6 +117,7 @@ class ArtistViewModel @Inject constructor(
                             val whitelistFiltered = explicitFiltered.filterWhitelisted(
                                 database,
                                 requireAllArtists = false,
+                                fallbackArtistId = artistId,
                             )
                             timber.log.Timber.d("ArtistViewModel: Section '${section.title}': ${originalCount} items -> ${whitelistFiltered.size} after filtering")
                             filteredSections.add(section.copy(items = whitelistFiltered))
