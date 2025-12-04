@@ -4,20 +4,32 @@ import android.content.Intent
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
@@ -31,6 +43,7 @@ import com.jtech.zemer.constants.ContentLanguageKey
 import com.jtech.zemer.constants.CountryCodeToName
 import com.jtech.zemer.constants.EnableContentFiltersKey
 import com.jtech.zemer.constants.EnableLrcLibKey
+import com.jtech.zemer.constants.FemalePasscodeHashKey
 import com.jtech.zemer.constants.LanguageCodeToName
 import com.jtech.zemer.constants.QuickPicks
 import com.jtech.zemer.constants.QuickPicksKey
@@ -47,6 +60,7 @@ import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.setAppLocale
 import com.metrolist.innertube.YouTube
+import java.security.MessageDigest
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,8 +82,15 @@ fun ContentSettings(
     val (quickPicks, onQuickPicksChange) = rememberEnumPreference(key = QuickPicksKey, defaultValue = QuickPicks.QUICK_PICKS)
     val (enableContentFilters, onEnableContentFiltersChange) = rememberPreference(key = EnableContentFiltersKey, defaultValue = true)
     val (allowFemaleSingers, onAllowFemaleSingersChange) = rememberPreference(key = AllowFemaleSingersKey, defaultValue = false)
+    val (femalePasscodeHash, onFemalePasscodeHashChange) = rememberPreference(key = FemalePasscodeHashKey, defaultValue = "")
     val (allowChasidish, onAllowChasidishChange) = rememberPreference(key = AllowChasidishKey, defaultValue = false)
     val (allowDj, onAllowDjChange) = rememberPreference(key = AllowDjKey, defaultValue = false)
+
+    var showCreatePasscodeDialog by rememberSaveable { mutableStateOf(false) }
+    var showUnlockDialog by rememberSaveable { mutableStateOf(false) }
+    var passcodeInput by rememberSaveable { mutableStateOf("") }
+    var confirmPasscodeInput by rememberSaveable { mutableStateOf("") }
+    var passcodeError by rememberSaveable { mutableStateOf<String?>(null) }
 
     Column(
         Modifier
@@ -178,7 +199,19 @@ fun ContentSettings(
             title = { Text(stringResource(R.string.allow_female_singers)) },
             icon = { Icon(painterResource(R.drawable.person), null) },
             checked = allowFemaleSingers,
-            onCheckedChange = onAllowFemaleSingersChange,
+            onCheckedChange = { newValue ->
+                if (!enableContentFilters) return@SwitchPreference
+
+                if (newValue) {
+                    if (femalePasscodeHash.isEmpty()) {
+                        showCreatePasscodeDialog = true
+                    } else {
+                        showUnlockDialog = true
+                    }
+                } else {
+                    onAllowFemaleSingersChange(false)
+                }
+            },
             isEnabled = enableContentFilters
         )
         SwitchPreference(
@@ -219,6 +252,151 @@ fun ContentSettings(
         )
     }
 
+    if (showCreatePasscodeDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showCreatePasscodeDialog = false
+                passcodeInput = ""
+                confirmPasscodeInput = ""
+                passcodeError = null
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        when {
+                            passcodeInput.isBlank() -> {
+                                passcodeError = stringResource(R.string.female_passcode_required)
+                            }
+
+                            passcodeInput != confirmPasscodeInput -> {
+                                passcodeError = stringResource(R.string.female_passcode_mismatch)
+                            }
+
+                            else -> {
+                                onFemalePasscodeHashChange(hashPasscode(passcodeInput))
+                                onAllowFemaleSingersChange(true)
+                                passcodeInput = ""
+                                confirmPasscodeInput = ""
+                                passcodeError = null
+                                showCreatePasscodeDialog = false
+                            }
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showCreatePasscodeDialog = false
+                        passcodeInput = ""
+                        confirmPasscodeInput = ""
+                        passcodeError = null
+                    }
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+            title = { Text(stringResource(R.string.set_female_passcode_title)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.set_female_passcode_message))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    TextField(
+                        value = passcodeInput,
+                        onValueChange = {
+                            passcodeInput = it
+                            passcodeError = null
+                        },
+                        label = { Text(stringResource(R.string.female_passcode_label)) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextField(
+                        value = confirmPasscodeInput,
+                        onValueChange = {
+                            confirmPasscodeInput = it
+                            passcodeError = null
+                        },
+                        label = { Text(stringResource(R.string.female_passcode_confirm_label)) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                    )
+                    passcodeError?.let { error ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
+        )
+    }
+
+    if (showUnlockDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showUnlockDialog = false
+                passcodeInput = ""
+                passcodeError = null
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (hashPasscode(passcodeInput) == femalePasscodeHash) {
+                            onAllowFemaleSingersChange(true)
+                            showUnlockDialog = false
+                            passcodeInput = ""
+                            passcodeError = null
+                        } else {
+                            passcodeError = stringResource(R.string.female_passcode_incorrect)
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showUnlockDialog = false
+                        passcodeInput = ""
+                        passcodeError = null
+                    }
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+            title = { Text(stringResource(R.string.enter_female_passcode_title)) },
+            text = {
+                Column {
+                    TextField(
+                        value = passcodeInput,
+                        onValueChange = {
+                            passcodeInput = it
+                            passcodeError = null
+                        },
+                        label = { Text(stringResource(R.string.female_passcode_label)) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                    )
+                    passcodeError?.let { error ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
+        )
+    }
+
     TopAppBar(
         title = { Text(stringResource(R.string.content)) },
         navigationIcon = {
@@ -233,4 +411,10 @@ fun ContentSettings(
             }
         }
     )
+}
+
+private fun hashPasscode(passcode: String): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    val hash = digest.digest(passcode.toByteArray())
+    return hash.joinToString(separator = "") { byte -> "%02x".format(byte) }
 }
