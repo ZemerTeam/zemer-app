@@ -11,6 +11,7 @@ import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
 import com.jtech.zemer.constants.CustomDownloadPathKey
 import com.jtech.zemer.utils.EnvironmentPaths.DEFAULT_RELATIVE_DOWNLOAD_PATH
+import com.jtech.zemer.utils.EnvironmentPaths.toRelativePath
 import com.jtech.zemer.utils.EnvironmentPaths.toStorageRoot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -318,7 +319,10 @@ class MediaStoreHelper(private val context: Context) {
     }
 
     private fun getBaseDownloadPath(): String {
-        return DEFAULT_RELATIVE_DOWNLOAD_PATH
+        return context.dataStore[customDownloadPathKey]
+            ?.toRelativePath()
+            ?.takeIf { it.isNotBlank() }
+            ?: DEFAULT_RELATIVE_DOWNLOAD_PATH
     }
 
     private fun buildRelativePath(
