@@ -4,16 +4,23 @@ package com.jtech.zemer.ui.menu
 
 import android.content.Intent
 import android.content.res.Configuration
+import android.widget.Toast
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -21,6 +28,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,14 +39,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
@@ -47,18 +58,12 @@ import com.jtech.zemer.db.entities.PlaylistSong
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
-import com.jtech.zemer.playback.queues.YouTubeQueue
-import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.PlaylistListItem
-import com.jtech.zemer.ui.component.TextFieldDialog
-import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.time.LocalDateTime
+import kotlinx.coroutines.tasks.await
 
 @Composable
 fun PlaylistMenu(
@@ -73,10 +78,14 @@ fun PlaylistMenu(
     val database = LocalDatabase.current
     val downloadUtil = LocalDownloadUtil.current
     val playerConnection = LocalPlayerConnection.current ?: return
+    val auth = remember { FirebaseAuth.getInstance() }
+    val firestore = remember { FirebaseFirestore.getInstance() }
     val dbPlaylist by database.playlist(playlist.id).collectAsState(initial = playlist)
-    var songs by remember {
-        mutableStateOf(emptyList<Song>())
-    }
+    var songs by remember { mutableStateOf(emptyList<Song>()) }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var selectedReason by remember { mutableStateOf("") }
+    var comment by remember { mutableStateOf("") }
+    var isSubmitting by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (autoPlaylist == false) {
@@ -84,191 +93,126 @@ fun PlaylistMenu(
                 songs = it.map(PlaylistSong::song)
             }
         } else {
-            if (songList != null) {
-                songs = songList
-            }
+            songList?.let { songs = it }
         }
-    }
-
-    val editable: Boolean = playlist.playlist.isEditable
-
-    LaunchedEffect(songs) {
-        if (songs.isEmpty()) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
-        }
-    }
-
-    var mediaStoreDownloadState by remember {
-        mutableStateOf<PlaylistMediaStoreDownloadStatus>(PlaylistMediaStoreDownloadStatus.NotDownloaded)
-    }
-
-    LaunchedEffect(songs) {
-        if (songs.isEmpty()) return@LaunchedEffect
-        downloadUtil.getAllMediaStoreDownloads().collect { states ->
-            val songStates = songs.mapNotNull { states[it.id] }
-            mediaStoreDownloadState = when {
-                songStates.isEmpty() -> PlaylistMediaStoreDownloadStatus.NotDownloaded
-                songStates.all { it.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED } ->
-                    PlaylistMediaStoreDownloadStatus.Completed
-                songStates.any {
-                    it.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING ||
-                    it.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED
-                } -> {
-                    val totalProgress = songStates.sumOf { it.progress.toDouble() } / songs.size
-                    PlaylistMediaStoreDownloadStatus.Downloading(totalProgress.toFloat())
-                }
-                songStates.any { it.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.FAILED } ->
-                    PlaylistMediaStoreDownloadStatus.Failed
-                else -> PlaylistMediaStoreDownloadStatus.NotDownloaded
-            }
-        }
-    }
-
-    var showEditDialog by remember {
-        mutableStateOf(false)
-    }
-
-    if (showEditDialog) {
-        TextFieldDialog(
-            icon = { Icon(painter = painterResource(R.drawable.edit), contentDescription = null) },
-            title = { Text(text = stringResource(R.string.edit_playlist)) },
-            onDismiss = { showEditDialog = false },
-            initialTextFieldValue =
-            TextFieldValue(
-                playlist.playlist.name,
-                TextRange(playlist.playlist.name.length),
-            ),
-            onDone = { name ->
-                onDismiss()
-                database.query {
-                    update(
-                        playlist.playlist.copy(
-                            name = name,
-                            lastUpdateTime = LocalDateTime.now()
-                        )
-                    )
-                }
-                coroutineScope.launch(Dispatchers.IO) {
-                    playlist.playlist.browseId?.let { YouTube.renamePlaylist(it, name) }
-                }
-            },
-        )
-    }
-
-    var showRemoveDownloadDialog by remember {
-        mutableStateOf(false)
-    }
-
-    if (showRemoveDownloadDialog) {
-        DefaultDialog(
-            onDismiss = { showRemoveDownloadDialog = false },
-            content = {
-                Text(
-                    text = stringResource(
-                        R.string.remove_download_playlist_confirm,
-                        playlist.playlist.name
-                    ),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(horizontal = 18.dp),
-                )
-            },
-            buttons = {
-                TextButton(
-                    onClick = {
-                        showRemoveDownloadDialog = false
-                    },
-                ) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-
-                TextButton(
-                    onClick = {
-                        showRemoveDownloadDialog = false
-                        songs.forEach { song ->
-                            coroutineScope.launch {
-                                downloadUtil.removeDownload(song.id)
-                            }
-                        }
-                    },
-                ) {
-                    Text(text = stringResource(android.R.string.ok))
-                }
-            },
-        )
-    }
-
-    var showDeletePlaylistDialog by remember {
-        mutableStateOf(false)
-    }
-
-    if (showDeletePlaylistDialog) {
-        DefaultDialog(
-            onDismiss = { showDeletePlaylistDialog = false },
-            content = {
-                Text(
-                    text = stringResource(R.string.delete_playlist_confirm, playlist.playlist.name),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(horizontal = 18.dp)
-                )
-            },
-            buttons = {
-                TextButton(
-                    onClick = {
-                        showDeletePlaylistDialog = false
-                    }
-                ) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-
-                TextButton(
-                    onClick = {
-                        showDeletePlaylistDialog = false
-                        onDismiss()
-                        database.transaction {
-                            // First toggle the like using the same logic as the like button
-                            if (playlist.playlist.bookmarkedAt != null) {
-                                // Using the same toggleLike() method that's used in the like button
-                                update(playlist.playlist.toggleLike())
-                            }
-                            // Then delete the playlist
-                            delete(playlist.playlist)
-                        }
-
-                        coroutineScope.launch(Dispatchers.IO) {
-                            playlist.playlist.browseId?.let { YouTube.deletePlaylist(it) }
-                        }
-                    }
-                ) {
-                    Text(text = stringResource(android.R.string.ok))
-                }
-            }
-        )
     }
 
     PlaylistListItem(
         playlist = playlist,
         trailingContent = {
-            if (!playlist.playlist.isEditable) {
-                IconButton(
-                    onClick = {
-                        database.query {
-                            dbPlaylist?.playlist?.toggleLike()?.let { update(it) }
-                        }
+            IconButton(
+                onClick = {
+                    database.query {
+                        dbPlaylist?.playlist?.toggleLike()?.let { update(it) }
                     }
-                ) {
-                    Icon(
-                        painter = painterResource(if (dbPlaylist?.playlist?.bookmarkedAt != null) R.drawable.favorite else R.drawable.favorite_border),
-                        tint = if (dbPlaylist?.playlist?.bookmarkedAt != null) MaterialTheme.colorScheme.error else LocalContentColor.current,
-                        contentDescription = null
-                    )
                 }
+            ) {
+                Icon(
+                    painter = painterResource(if (dbPlaylist?.playlist?.bookmarkedAt != null) R.drawable.favorite else R.drawable.favorite_border),
+                    tint = if (dbPlaylist?.playlist?.bookmarkedAt != null) MaterialTheme.colorScheme.error else LocalContentColor.current,
+                    contentDescription = null
+                )
             }
         },
     )
 
     HorizontalDivider()
-
     Spacer(modifier = Modifier.height(12.dp))
+
+    if (showReportDialog) {
+        val reasons = listOf(
+            "female" to stringResource(R.string.report_reason_female),
+            "gentile" to stringResource(R.string.report_reason_gentile),
+            "bad_playlists" to stringResource(R.string.report_reason_bad_playlists),
+            "bad_images" to stringResource(R.string.report_reason_bad_images),
+            "other" to stringResource(R.string.report_reason_other),
+        )
+        AlertDialog(
+            onDismissRequest = { if (!isSubmitting) showReportDialog = false },
+            title = { Text(stringResource(R.string.report_artist)) },
+            text = {
+                Column {
+                    reasons.forEach { (value, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedReason = value }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedReason == value,
+                                onClick = { selectedReason = value }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = label)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = comment,
+                        onValueChange = { comment = it },
+                        label = { Text(stringResource(R.string.report_optional_comment)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = false,
+                        maxLines = 3
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (selectedReason.isBlank()) {
+                            Toast.makeText(context, context.getString(R.string.report_choose_reason), Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        coroutineScope.launch {
+                            isSubmitting = true
+                            try {
+                                val uid = auth.currentUser?.uid ?: "anon"
+                                val payload = hashMapOf(
+                                    "playlistId" to (dbPlaylist?.playlist?.browseId ?: ""),
+                                    "playlistName" to dbPlaylist?.playlist?.name,
+                                    "reason" to selectedReason,
+                                    "comment" to comment,
+                                    "status" to "pending",
+                                    "reporterUid" to uid,
+                                    "createdAt" to FieldValue.serverTimestamp()
+                                )
+                                firestore.collection("artistReports").add(payload).await()
+                                Toast.makeText(context, context.getString(R.string.report_success), Toast.LENGTH_SHORT).show()
+                                showReportDialog = false
+                                selectedReason = ""
+                                comment = ""
+                            } catch (e: Exception) {
+                                Toast.makeText(context, context.getString(R.string.report_failure), Toast.LENGTH_SHORT).show()
+                            } finally {
+                                isSubmitting = false
+                            }
+                        }
+                    },
+                    enabled = !isSubmitting
+                ) {
+                    if (isSubmitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(stringResource(R.string.report_submit))
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { if (!isSubmitting) showReportDialog = false },
+                    enabled = !isSubmitting
+                ) {
+                    Text(stringResource(R.string.report_cancel))
+                }
+            }
+        )
+    }
 
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
@@ -296,14 +240,14 @@ fun PlaylistMenu(
                         },
                         text = stringResource(R.string.play),
                         onClick = {
-                            onDismiss()
-                            if (songs.isNotEmpty()) {
+                            songs.takeIf { it.isNotEmpty() }?.let {
                                 playerConnection.playQueue(
                                     ListQueue(
                                         title = playlist.playlist.name,
-                                        items = songs.map(Song::toMediaItem)
+                                        items = it.map(Song::toMediaItem)
                                     )
                                 )
+                                onDismiss()
                             }
                         }
                     ),
@@ -318,14 +262,14 @@ fun PlaylistMenu(
                         },
                         text = stringResource(R.string.shuffle),
                         onClick = {
-                            onDismiss()
-                            if (songs.isNotEmpty()) {
+                            songs.takeIf { it.isNotEmpty() }?.let {
                                 playerConnection.playQueue(
                                     ListQueue(
                                         title = playlist.playlist.name,
-                                        items = songs.shuffled().map(Song::toMediaItem)
+                                        items = it.shuffled().map(Song::toMediaItem)
                                     )
                                 )
+                                onDismiss()
                             }
                         }
                     ),
@@ -340,13 +284,13 @@ fun PlaylistMenu(
                         },
                         text = stringResource(R.string.share),
                         onClick = {
-                            onDismiss()
                             val intent = Intent().apply {
                                 action = Intent.ACTION_SEND
                                 type = "text/plain"
                                 putExtra(Intent.EXTRA_TEXT, "https://music.youtube.com/playlist?list=${dbPlaylist?.playlist?.browseId}")
                             }
                             context.startActivity(Intent.createChooser(intent, null))
+                            onDismiss()
                         }
                     )
                 ),
@@ -354,49 +298,6 @@ fun PlaylistMenu(
             )
         }
 
-        playlist.playlist.browseId?.let { browseId ->
-            item {
-                ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.start_radio)) },
-                    leadingContent = {
-                        Icon(
-                            painter = painterResource(R.drawable.radio),
-                            contentDescription = null,
-                        )
-                    },
-                    modifier = Modifier.clickable {
-                        coroutineScope.launch(Dispatchers.IO) {
-                            YouTube.playlist(browseId).getOrNull()?.playlist?.let { playlistItem ->
-                                playlistItem.radioEndpoint?.let { radioEndpoint ->
-                                    withContext(Dispatchers.Main) {
-                                        playerConnection.playQueue(YouTubeQueue(radioEndpoint, preloadItem = null, database))
-                                    }
-                                }
-                            }
-                        }
-                        onDismiss()
-                    }
-                )
-            }
-        }
-
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.play_next)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.playlist_play),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    coroutineScope.launch {
-                        playerConnection.playNext(songs.map { it.toMediaItem() })
-                    }
-                    onDismiss()
-                }
-            )
-        }
         item {
             ListItem(
                 headlineContent = { Text(text = stringResource(R.string.add_to_queue)) },
@@ -407,164 +308,25 @@ fun PlaylistMenu(
                     )
                 },
                 modifier = Modifier.clickable {
+                    songs.takeIf { it.isNotEmpty() }?.let {
+                        playerConnection.addToQueue(it.map(Song::toMediaItem))
+                    }
                     onDismiss()
-                    playerConnection.addToQueue(songs.map { it.toMediaItem() })
                 }
             )
         }
 
-        if (editable && autoPlaylist != true) {
-            item {
-                ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.edit)) },
-                    leadingContent = {
-                        Icon(
-                            painter = painterResource(R.drawable.edit),
-                            contentDescription = null,
-                        )
-                    },
-                    modifier = Modifier.clickable {
-                        showEditDialog = true
-                    }
-                )
-            }
-        }
-        if (downloadPlaylist != true) {
-            item {
-                when (mediaStoreDownloadState) {
-                    is PlaylistMediaStoreDownloadStatus.Completed -> {
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    text = stringResource(R.string.downloaded_to_device),
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            },
-                            leadingContent = {
-                                Icon(
-                                    painter = painterResource(R.drawable.download),
-                                    contentDescription = null,
-                                )
-                            },
-                            modifier = Modifier.clickable {
-                                // TODO: Option to remove from MediaStore
-                                onDismiss()
-                            }
-                        )
-                    }
-                    is PlaylistMediaStoreDownloadStatus.Downloading -> {
-                        val progress = (mediaStoreDownloadState as PlaylistMediaStoreDownloadStatus.Downloading).progress
-                        ListItem(
-                            headlineContent = {
-                                Text(text = stringResource(R.string.downloading_to_device))
-                            },
-                            supportingContent = {
-                                Text(text = "${(progress * 100).toInt()}%")
-                            },
-                            leadingContent = {
-                                CircularProgressIndicator(
-                                    progress = { progress },
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            },
-                            modifier = Modifier.clickable {
-                                songs.forEach { song ->
-                                    downloadUtil.cancelMediaStoreDownload(song.id)
-                                }
-                                onDismiss()
-                            }
-                        )
-                    }
-                    is PlaylistMediaStoreDownloadStatus.Failed -> {
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    text = stringResource(R.string.download_failed),
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            },
-                            supportingContent = {
-                                Text(text = stringResource(R.string.retry_download))
-                            },
-                            leadingContent = {
-                                Icon(
-                                    painter = painterResource(R.drawable.info),
-                                    contentDescription = null,
-                                )
-                            },
-                            modifier = Modifier.clickable {
-                                songs.forEach { song ->
-                                    downloadUtil.retryMediaStoreDownload(song.id)
-                                }
-                                onDismiss()
-                            }
-                        )
-                    }
-                    PlaylistMediaStoreDownloadStatus.NotDownloaded -> {
-                        ListItem(
-                            headlineContent = { Text(text = stringResource(R.string.download_to_device)) },
-                            leadingContent = {
-                                Icon(
-                                    painter = painterResource(R.drawable.download),
-                                    contentDescription = null,
-                                )
-                            },
-                            modifier = Modifier.clickable {
-                                songs.forEach { song ->
-                                    downloadUtil.downloadToMediaStore(song)
-                                }
-                                onDismiss()
-                            }
-                        )
-                    }
-                }
-            }
-        }
-        if (autoPlaylist != true) {
-            item {
-                ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.delete)) },
-                    leadingContent = {
-                        Icon(
-                            painter = painterResource(R.drawable.delete),
-                            contentDescription = null,
-                        )
-                    },
-                    modifier = Modifier.clickable {
-                        showDeletePlaylistDialog = true
-                    }
-                )
-            }
-        }
-        playlist.playlist.shareLink?.let { shareLink ->
-            item {
-                ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.share)) },
-                    leadingContent = {
-                        Icon(
-                            painter = painterResource(R.drawable.share),
-                            contentDescription = null,
-                        )
-                    },
-                    modifier = Modifier.clickable {
-                        val intent = Intent().apply {
-                            action = Intent.ACTION_SEND
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, shareLink)
-                        }
-                        context.startActivity(Intent.createChooser(intent, null))
-                        onDismiss()
-                    }
-                )
-            }
+        item {
+            ListItem(
+                headlineContent = { Text(text = stringResource(R.string.report_artist)) },
+                leadingContent = {
+                    Icon(
+                        painter = painterResource(R.drawable.warning),
+                        contentDescription = null,
+                    )
+                },
+                modifier = Modifier.clickable { showReportDialog = true }
+            )
         }
     }
-}
-
-private sealed class PlaylistMediaStoreDownloadStatus {
-    object NotDownloaded : PlaylistMediaStoreDownloadStatus()
-    object Completed : PlaylistMediaStoreDownloadStatus()
-    data class Downloading(val progress: Float) : PlaylistMediaStoreDownloadStatus()
-    object Failed : PlaylistMediaStoreDownloadStatus()
 }

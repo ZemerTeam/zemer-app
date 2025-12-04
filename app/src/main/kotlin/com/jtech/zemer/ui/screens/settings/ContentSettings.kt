@@ -265,11 +265,11 @@ fun ContentSettings(
                     onClick = {
                         when {
                             passcodeInput.isBlank() -> {
-                                passcodeError = stringResource(R.string.female_passcode_required)
+                                passcodeError = context.getString(R.string.female_passcode_required)
                             }
 
                             passcodeInput != confirmPasscodeInput -> {
-                                passcodeError = stringResource(R.string.female_passcode_mismatch)
+                                passcodeError = context.getString(R.string.female_passcode_mismatch)
                             }
 
                             else -> {
@@ -353,7 +353,7 @@ fun ContentSettings(
                             passcodeInput = ""
                             passcodeError = null
                         } else {
-                            passcodeError = stringResource(R.string.female_passcode_incorrect)
+                            passcodeError = context.getString(R.string.female_passcode_incorrect)
                         }
                     }
                 ) {
