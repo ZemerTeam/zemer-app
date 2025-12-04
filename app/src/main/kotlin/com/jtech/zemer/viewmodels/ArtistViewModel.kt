@@ -88,7 +88,8 @@ class ArtistViewModel @Inject constructor(
                         timber.log.Timber.d("ArtistViewModel: Section '${section.title}' has ${section.items.size} items")
                     }
 
-                    val filteredSections = page.sections
+                    val filteredSections = mutableListOf<com.metrolist.innertube.pages.ArtistSection>()
+                    page.sections
                         .filterNot { section ->
                             // Filter "Fans might also like" / similar artist sections
                             val browseId = section.moreEndpoint?.browseId ?: ""
@@ -110,12 +111,15 @@ class ArtistViewModel @Inject constructor(
                             // Filter if it matches browseId OR (has similar title AND is only artists)
                             hasSimilarBrowseId || (hasSimilarTitle && isOnlyArtists)
                         }
-                        .map { section ->
+                        .forEach { section ->
                             val originalCount = section.items.size
-                            // Only filter explicit content, not by whitelist (we're already on a whitelisted artist's page)
-                            val filtered = section.items.filterExplicit(hideExplicit)
-                            timber.log.Timber.d("ArtistViewModel: Section '${section.title}': ${originalCount} items -> ${filtered.size} after filtering")
-                            section.copy(items = filtered)
+                            val explicitFiltered = section.items.filterExplicit(hideExplicit)
+                            val whitelistFiltered = explicitFiltered.filterWhitelisted(
+                                database,
+                                requireAllArtists = true,
+                            )
+                            timber.log.Timber.d("ArtistViewModel: Section '${section.title}': ${originalCount} items -> ${whitelistFiltered.size} after filtering")
+                            filteredSections.add(section.copy(items = whitelistFiltered))
                         }
 
                     artistPage = page.copy(sections = filteredSections)
