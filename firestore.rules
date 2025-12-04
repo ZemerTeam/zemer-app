@@ -25,6 +25,22 @@ service cloud.firestore {
         && request.resource.data.verifiedBy == request.auth.uid;
     }
 
+    // Artist/song reports: anyone can submit a pending report; only signed-in users can update status.
+    match /artistReports/{reportId} {
+      allow create: if request.resource.data.status == "pending"
+        && request.resource.data.artistId is string
+        && request.resource.data.reason is string
+        && (!('comment' in request.resource.data) || request.resource.data.comment is string)
+        && (!('reporterUid' in request.resource.data) || request.resource.data.reporterUid is string)
+        // Allow serverTimestamp or any provided timestamp
+        && ('createdAt' in request.resource.data);
+
+      allow update: if request.auth != null
+        && request.resource.data.status in ["pending", "approved", "rejected"];
+
+      allow delete: if false;
+    }
+
     // Default: no writes elsewhere
     match /{document=**} {
       allow write: if false;

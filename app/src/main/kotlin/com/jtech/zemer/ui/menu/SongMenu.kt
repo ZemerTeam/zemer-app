@@ -108,6 +108,10 @@ fun SongMenu(
     val syncUtils = LocalSyncUtils.current
     val scope = rememberCoroutineScope()
     var refetchIconDegree by remember { mutableFloatStateOf(0f) }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var selectedReason by remember { mutableStateOf("") }
+    var comment by remember { mutableStateOf("") }
+    var isSubmitting by remember { mutableStateOf(false) }
 
     val cacheViewModel = hiltViewModel<CachePlaylistViewModel>()
 
@@ -462,6 +466,20 @@ fun SongMenu(
                     database.query {
                         update(song.song.toggleLibrary())
                     }
+                }
+            )
+        }
+        item {
+            ListItem(
+                headlineContent = { Text(text = stringResource(R.string.report_artist)) },
+                leadingContent = {
+                    Icon(
+                        painter = painterResource(R.drawable.warning),
+                        contentDescription = null,
+                    )
+                },
+                modifier = Modifier.clickable {
+                    showReportDialog = true
                 }
             )
         }
