@@ -41,22 +41,27 @@ private suspend fun SongItem.isWhitelisted(
     allowedIds: Set<String>?,
     artistCache: MutableMap<String, ArtistWhitelistEntity?>,
     config: ContentFilterConfig,
+    requireAllArtists: Boolean,
 ): ArtistFilterDecision {
     if (this.artists.isEmpty()) return ArtistFilterDecision(allowed = false, isChasidish = false)
 
     var anyAllowed = false
+    var allAllowed = true
     var isChasidish = false
     for (artist in artists) {
         val artistId = artist.id ?: continue
         val decision = database.artistMatchesFilters(artistId, allowedIds, artistCache, config)
         if (decision.allowed) {
             anyAllowed = true
+        } else {
+            allAllowed = false
         }
         if (decision.isChasidish) {
             isChasidish = true
         }
     }
-    return ArtistFilterDecision(anyAllowed, isChasidish)
+    val allowed = if (requireAllArtists) allAllowed && anyAllowed else anyAllowed
+    return ArtistFilterDecision(allowed, isChasidish)
 }
 
 /**
@@ -69,6 +74,7 @@ private suspend fun AlbumItem.isWhitelisted(
     allowedIds: Set<String>?,
     artistCache: MutableMap<String, ArtistWhitelistEntity?>,
     config: ContentFilterConfig,
+    requireAllArtists: Boolean,
 ): ArtistFilterDecision {
     val albumArtists = this.artists ?: return ArtistFilterDecision(
         allowed = false,
@@ -77,18 +83,22 @@ private suspend fun AlbumItem.isWhitelisted(
     if (albumArtists.isEmpty()) return ArtistFilterDecision(allowed = false, isChasidish = false)
 
     var anyAllowed = false
+    var allAllowed = true
     var isChasidish = false
     for (artist in albumArtists) {
         val artistId = artist.id ?: continue
         val decision = database.artistMatchesFilters(artistId, allowedIds, artistCache, config)
         if (decision.allowed) {
             anyAllowed = true
+        } else {
+            allAllowed = false
         }
         if (decision.isChasidish) {
             isChasidish = true
         }
     }
-    return ArtistFilterDecision(anyAllowed, isChasidish)
+    val allowed = if (requireAllArtists) allAllowed && anyAllowed else anyAllowed
+    return ArtistFilterDecision(allowed, isChasidish)
 }
 
 /**
@@ -123,10 +133,12 @@ private suspend fun PlaylistItem.isWhitelisted(
 /**
  * Filter a list of YTItems by whitelist.
  * Only items whose artists are whitelisted will be returned.
+ * Set [requireAllArtists] to true to require every listed artist to be allowed.
  */
 suspend fun List<YTItem>.filterWhitelisted(
     database: MusicDatabase,
     config: ContentFilterConfig = ContentFilterState.current,
+    requireAllArtists: Boolean = false,
 ): List<YTItem> {
     Timber.d("WhitelistFilter: Filtering ${this.size} items")
     var allowedEntries = WhitelistCache.allowedEntries(config)
@@ -140,10 +152,10 @@ suspend fun List<YTItem>.filterWhitelisted(
 
     this.forEach { item ->
         val decision = when (item) {
-            is SongItem -> item.isWhitelisted(database, allowedIds, artistCache, config).also {
+            is SongItem -> item.isWhitelisted(database, allowedIds, artistCache, config, requireAllArtists).also {
                 Timber.d("WhitelistFilter: SongItem '${item.title}' by ${item.artists.joinToString { it -> it.name }} - allowed=${it.allowed}")
             }
-            is AlbumItem -> item.isWhitelisted(database, allowedIds, artistCache, config).also {
+            is AlbumItem -> item.isWhitelisted(database, allowedIds, artistCache, config, requireAllArtists).also {
                 Timber.d("WhitelistFilter: AlbumItem '${item.title}' by ${item.artists?.joinToString { it -> it.name }} - allowed=${it.allowed}")
             }
             is ArtistItem -> item.isWhitelisted(database, allowedIds, artistCache, config).also {
