@@ -117,3 +117,5 @@ core.*
 /tmp/genz_false_candidates.txt
 /tmp/genz_true_candidates.txt
 /tmp/names_sorted.txt
+/exports/artistsWhitelist.json
+/crash.txt
