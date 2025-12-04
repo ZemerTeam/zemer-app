@@ -386,6 +386,7 @@
     <string name="discord_integration">Discord Integration</string>
     <string name="discord_information">Zemer uses the KizzyRPC library to set your Discord account\'s status. This involves using the Discord Gateway connection, which may be considered a violation of Discord\'s TOS. However, there are no known cases of user accounts being suspended for this reason. Use at your own risk.\n\nZemer will only extract your token, and everything else is stored locally.</string>
     <string name="dismiss">Dismiss</string>
+    <string name="cancel">Cancel</string>
     <string name="options">Options</string>
     <string name="preview">Preview</string>
     <string name="enable_discord_rpc">Enable Rich Presence</string>
@@ -398,6 +399,14 @@
     <string name="clear_translation_models">Clear translation models</string>
     <string name="content_filters">Content filters</string>
     <string name="allow_female_singers">Allow female singers</string>
+    <string name="set_female_passcode_title">Protect female singers switch</string>
+    <string name="set_female_passcode_message">Create a passcode to unlock female artists.</string>
+    <string name="female_passcode_label">Passcode</string>
+    <string name="female_passcode_confirm_label">Confirm passcode</string>
+    <string name="female_passcode_required">Passcode cannot be empty.</string>
+    <string name="female_passcode_mismatch">Passcodes do not match.</string>
+    <string name="enter_female_passcode_title">Enter passcode</string>
+    <string name="female_passcode_incorrect">Incorrect passcode.</string>
     <string name="enable_personal_filters">Enable personal feed filters</string>
     <string name="i_like_dj">Hide old stuff</string>
     <string name="i_am_chasidish">Promote chassidish content</string>
