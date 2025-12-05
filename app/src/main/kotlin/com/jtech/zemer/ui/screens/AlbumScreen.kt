@@ -197,14 +197,14 @@ fun AlbumScreen(
     LaunchedEffect(albumWithSongs) {
         val songs = albumWithSongs?.songs?.map { it.id }
         if (songs.isNullOrEmpty()) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
+        downloadUtil.getAllMediaStoreDownloads().collect { downloads ->
             downloadState =
-                if (songs.all { downloads[it]?.state == Download.STATE_COMPLETED }) {
+                if (songs.all { downloads[it]?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED }) {
                     Download.STATE_COMPLETED
                 } else if (songs.all {
-                        downloads[it]?.state == Download.STATE_QUEUED ||
-                                downloads[it]?.state == Download.STATE_DOWNLOADING ||
-                                downloads[it]?.state == Download.STATE_COMPLETED
+                        downloads[it]?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED ||
+                                downloads[it]?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING ||
+                                downloads[it]?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED
                     }
                 ) {
                     Download.STATE_DOWNLOADING

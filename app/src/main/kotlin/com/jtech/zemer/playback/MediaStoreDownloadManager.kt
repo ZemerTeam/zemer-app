@@ -36,6 +36,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import com.metrolist.innertube.utils.ResilientDns
 import com.metrolist.innertube.YouTube
+import timber.log.Timber
 
 /**
  * Download manager that uses MediaStore to save music files to the public Music/Zemer folder.
@@ -273,9 +274,16 @@ constructor(
      * Process the download queue
      */
     private suspend fun processQueue() {
+        // Get and remove from queue atomically to prevent duplicate processing
         val song = synchronized(downloadQueue) {
-            downloadQueue.firstOrNull()
+            downloadQueue.firstOrNull()?.also { downloadQueue.remove(it) }
         } ?: return
+
+        // Check if already downloading (race condition guard)
+        if (activeDownloads.containsKey(song.id)) {
+            processQueue() // Try next song
+            return
+        }
 
         // Try to acquire semaphore (limit concurrent downloads)
         if (downloadSemaphore.tryAcquire()) {
@@ -284,9 +292,6 @@ constructor(
                     performDownload(song)
                 } finally {
                     downloadSemaphore.release()
-                    synchronized(downloadQueue) {
-                        downloadQueue.remove(song)
-                    }
                     activeDownloads.remove(song.id)
 
                     // Process next item in queue
@@ -294,6 +299,13 @@ constructor(
                 }
             }
             activeDownloads[song.id] = job
+        } else {
+            // Semaphore not available, put song back in queue for later
+            synchronized(downloadQueue) {
+                if (!downloadQueue.any { it.id == song.id }) {
+                    downloadQueue.add(0, song) // Add back at front
+                }
+            }
         }
     }
 
@@ -312,6 +324,7 @@ constructor(
             )
 
             // Get playback URL from YouTube using YTPlayerUtils
+            Timber.d("Starting download for song ${song.id}: ${song.song.title}")
             val playbackData = YTPlayerUtils.playerResponseForPlayback(
                 videoId = song.id,
                 audioQuality = audioQuality,
@@ -320,6 +333,7 @@ constructor(
 
             val format = playbackData.format
             val downloadUrl = playbackData.streamUrl
+            Timber.d("Got format: ${format.mimeType}, URL length: ${downloadUrl.length}")
 
             // Create temporary file for download
             val mimeTypeRaw = format.mimeType.substringBefore(";").trim()
@@ -350,6 +364,7 @@ constructor(
 
                 // Save to MediaStore
                 val fileName = "$artist - $title.$extension"
+                Timber.d("Saving to MediaStore: $fileName, mimeType: $mimeType, tempFile size: ${tempFile.length()}")
                 val uri = mediaStoreHelper.saveFileToMediaStore(
                     tempFile = tempFile,
                     fileName = fileName,
@@ -359,6 +374,7 @@ constructor(
                     album = album,
                     durationMs = duration
                 )
+                Timber.d("MediaStore save result: $uri")
 
                 if (uri != null) {
                     // Mark as completed
@@ -384,6 +400,7 @@ constructor(
             }
 
         } catch (e: Exception) {
+            Timber.e(e, "Download failed for song ${song.id}: ${e.message}")
             // Retry logic with exponential backoff
             if (retryAttempt < MAX_RETRY_ATTEMPTS) {
                 val delayMs: Long = (INITIAL_RETRY_DELAY_MS * RETRY_BACKOFF_MULTIPLIER.pow(retryAttempt)).toLong()

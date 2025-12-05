@@ -239,15 +239,24 @@ object YTPlayerUtils {
             return null
         }
 
-        val audioFormat = playerResponse.streamingData?.adaptiveFormats
-            ?.filter { it.isAudio && it.isOriginal }
-            ?.maxByOrNull {
-                it.bitrate * when (audioQuality) {
-                    AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
-                    AudioQuality.HIGH -> 1
-                    AudioQuality.LOW -> -1
-                } + (if (it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus stream
+        // Filter for MediaStore-compatible formats (exclude webm/opus which MediaStore doesn't support)
+        val compatibleFormats = playerResponse.streamingData?.adaptiveFormats
+            ?.filter { it.isAudio && it.isOriginal && !it.mimeType.startsWith("audio/webm") }
+
+        // If no compatible formats, fall back to all audio formats
+        val audioFormats = if (compatibleFormats.isNullOrEmpty()) {
+            playerResponse.streamingData?.adaptiveFormats?.filter { it.isAudio && it.isOriginal }
+        } else {
+            compatibleFormats
+        }
+
+        val audioFormat = audioFormats?.maxByOrNull {
+            it.bitrate * when (audioQuality) {
+                AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
+                AudioQuality.HIGH -> 1
+                AudioQuality.LOW -> -1
             }
+        }
 
         return audioFormat
     }

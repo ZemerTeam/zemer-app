@@ -119,12 +119,6 @@ fun AlbumMenu(
         }
     }
 
-    LaunchedEffect(songs) {
-        if (songs.isEmpty()) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
-        }
-    }
-
     var mediaStoreDownloadState by remember {
         mutableStateOf<AlbumMediaStoreDownloadStatus>(AlbumMediaStoreDownloadStatus.NotDownloaded)
     }

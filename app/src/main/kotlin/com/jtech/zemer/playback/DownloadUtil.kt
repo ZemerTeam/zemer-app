@@ -272,42 +272,23 @@ constructor(
 
     fun getDownload(songId: String): Flow<Download?> = downloads.map { it[songId] }
 
-    // MediaStore download methods (backed by ExoPlayer DownloadManager for compatibility)
+    // MediaStore download methods
     fun getMediaStoreDownload(songId: String): Flow<MediaStoreDownloadManager.DownloadState?> =
-        exoDownloadStates.map { it[songId] }
+        mediaStoreDownloadManager.downloadStates.map { it[songId] }
 
     fun getAllMediaStoreDownloads(): StateFlow<Map<String, MediaStoreDownloadManager.DownloadState>> =
-        exoDownloadStates
+        mediaStoreDownloadManager.downloadStates
 
     fun downloadToMediaStore(song: com.jtech.zemer.db.entities.Song) {
-        val downloadRequest =
-            DownloadRequest
-                .Builder(song.id, song.id.toUri())
-                .setCustomCacheKey(song.id)
-                .setData(song.song.title.toByteArray())
-                .build()
-        DownloadService.sendAddDownload(
-            appContext,
-            ExoDownloadService::class.java,
-            downloadRequest,
-            false,
-        )
+        mediaStoreDownloadManager.downloadSong(song)
     }
 
     fun cancelMediaStoreDownload(songId: String) {
-        DownloadService.sendRemoveDownload(
-            appContext,
-            ExoDownloadService::class.java,
-            songId,
-            false,
-        )
+        mediaStoreDownloadManager.cancelDownload(songId)
     }
 
     fun retryMediaStoreDownload(songId: String) {
-        scope.launch {
-            val song = database.song(songId).firstOrNull() ?: return@launch
-            downloadToMediaStore(song)
-        }
+        mediaStoreDownloadManager.retryDownload(songId)
     }
 
     suspend fun isDownloadedInMediaStore(songId: String): Boolean {

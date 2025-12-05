@@ -305,9 +305,14 @@ fun SongListItem(
             Icon.Library()
         }
         if (showDownloadIcon) {
-            val download by LocalDownloadUtil.current.getDownload(song.id)
-                .collectAsState(initial = null)
-            Icon.Download(download?.state)
+            // Check database for downloaded status (persisted) or live download state (in-progress)
+            if (song.song.isDownloaded) {
+                Icon.Download(com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED)
+            } else {
+                val downloadState by LocalDownloadUtil.current.getMediaStoreDownload(song.id)
+                    .collectAsState(initial = null)
+                Icon.Download(downloadState?.status)
+            }
         }
     },
     isSelected: Boolean = false,
@@ -370,8 +375,13 @@ fun SongGridItem(
             Icon.Library()
         }
         if (showDownloadIcon) {
-            val download by LocalDownloadUtil.current.getDownload(song.id).collectAsState(initial = null)
-            Icon.Download(download?.state)
+            // Check database for downloaded status (persisted) or live download state (in-progress)
+            if (song.song.isDownloaded) {
+                Icon.Download(com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED)
+            } else {
+                val downloadState by LocalDownloadUtil.current.getMediaStoreDownload(song.id).collectAsState(initial = null)
+                Icon.Download(downloadState?.status)
+            }
         }
     },
     isActive: Boolean = false,
@@ -506,16 +516,19 @@ fun AlbumListItem(
             }
         }
 
-        val allDownloads by downloadUtil.downloads.collectAsState()
+        val allMediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
 
-        val downloadState by remember(songs, allDownloads) {
+        val downloadState by remember(songs, allMediaStoreDownloads) {
             mutableStateOf(
                 if (songs.isEmpty()) {
                     Download.STATE_STOPPED
                 } else {
                     when {
-                        songs.all { allDownloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
-                        songs.any { allDownloads[it.id]?.state in listOf(STATE_QUEUED, STATE_DOWNLOADING) } -> STATE_DOWNLOADING
+                        songs.all { allMediaStoreDownloads[it.id]?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED } -> STATE_COMPLETED
+                        songs.any { allMediaStoreDownloads[it.id]?.status in listOf(
+                            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED,
+                            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING
+                        ) } -> STATE_DOWNLOADING
                         else -> Download.STATE_STOPPED
                     }
                 }
@@ -569,16 +582,19 @@ fun AlbumGridItem(
             }
         }
 
-        val allDownloads by downloadUtil.downloads.collectAsState()
+        val allMediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
 
-        val downloadState by remember(songs, allDownloads) {
+        val downloadState by remember(songs, allMediaStoreDownloads) {
             mutableIntStateOf(
                 if (songs.isEmpty()) {
                     Download.STATE_STOPPED
                 } else {
                     when {
-                        songs.all { allDownloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
-                        songs.any { allDownloads[it.id]?.state in listOf(STATE_QUEUED, STATE_DOWNLOADING) } -> STATE_DOWNLOADING
+                        songs.all { allMediaStoreDownloads[it.id]?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED } -> STATE_COMPLETED
+                        songs.any { allMediaStoreDownloads[it.id]?.status in listOf(
+                            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED,
+                            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING
+                        ) } -> STATE_DOWNLOADING
                         else -> Download.STATE_STOPPED
                     }
                 }
@@ -1560,6 +1576,27 @@ private object Icon {
                     .padding(end = 2.dp)
             )
             STATE_QUEUED, STATE_DOWNLOADING -> CircularProgressIndicator(
+                strokeWidth = 2.dp,
+                modifier = Modifier
+                    .size(16.dp)
+                    .padding(end = 2.dp)
+            )
+            else -> { /* no icon */ }
+        }
+    }
+
+    @Composable
+    fun Download(status: com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status?) {
+        when (status) {
+            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> Icon(
+                painter = painterResource(R.drawable.offline),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(18.dp)
+                    .padding(end = 2.dp)
+            )
+            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED,
+            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING -> CircularProgressIndicator(
                 strokeWidth = 2.dp,
                 modifier = Modifier
                     .size(16.dp)

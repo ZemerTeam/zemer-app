@@ -81,6 +81,14 @@ class MediaStoreHelper(private val context: Context) {
                 album = album,
             )
 
+            // Check if file already exists and delete it to prevent duplicates
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val existingUri = findFileByPath(relativePath, sanitizedFileName)
+                if (existingUri != null) {
+                    contentResolver.delete(existingUri, null, null)
+                }
+            }
+
             // Prepare ContentValues with metadata
             // Organize files: Music/Zemer/{Artist}/{Album}/Song.mp3 or Music/Zemer/{Artist}/Song.mp3
             val targetFile = buildLegacyFile(relativePath, sanitizedFileName)
@@ -178,27 +186,32 @@ class MediaStoreHelper(private val context: Context) {
             val sanitizedArtist = sanitizeFolderName(artist)
             val sanitizedAlbum = album?.takeIf { it.isNotBlank() }?.let { sanitizeFolderName(it) }
 
-            val mediaStoreUri = tempFile.inputStream().use { inputStream ->
-                saveToMediaStore(
-                    inputStream = inputStream,
-                    fileName = sanitizedFileName,
+            // Only save to custom path if one is configured, otherwise use MediaStore
+            val hasCustomPath = context.dataStore[customDownloadPathKey]?.isNotBlank() == true
+
+            if (hasCustomPath) {
+                // Save to custom path only
+                saveToCustomPath(
+                    tempFile = tempFile,
                     mimeType = mimeType,
-                    title = title,
-                    artist = artist,
-                    album = album,
-                    durationMs = durationMs
+                    sanitizedFileName = sanitizedFileName,
+                    sanitizedArtist = sanitizedArtist,
+                    sanitizedAlbum = sanitizedAlbum
                 )
+            } else {
+                // Save to MediaStore (default Music/Zemer folder)
+                tempFile.inputStream().use { inputStream ->
+                    saveToMediaStore(
+                        inputStream = inputStream,
+                        fileName = sanitizedFileName,
+                        mimeType = mimeType,
+                        title = title,
+                        artist = artist,
+                        album = album,
+                        durationMs = durationMs
+                    )
+                }
             }
-
-            val customUri = saveToCustomPath(
-                tempFile = tempFile,
-                mimeType = mimeType,
-                sanitizedFileName = sanitizedFileName,
-                sanitizedArtist = sanitizedArtist,
-                sanitizedAlbum = sanitizedAlbum
-            )
-
-            mediaStoreUri ?: customUri
         } catch (e: Exception) {
             null
         }
@@ -217,7 +230,8 @@ class MediaStoreHelper(private val context: Context) {
                 val projection = arrayOf(
                     MediaStore.Audio.Media._ID,
                     MediaStore.Audio.Media.TITLE,
-                    MediaStore.Audio.Media.ARTIST
+                    MediaStore.Audio.Media.ARTIST,
+                    MediaStore.Audio.Media.SIZE
                 )
 
                 val selection = "${MediaStore.Audio.Media.TITLE} = ? AND ${MediaStore.Audio.Media.ARTIST} = ?"
@@ -231,6 +245,13 @@ class MediaStoreHelper(private val context: Context) {
                     null
                 )?.use { cursor ->
                     if (cursor.moveToFirst()) {
+                        // Verify the file has actual content (not an orphaned entry)
+                        val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
+                        val fileSize = cursor.getLong(sizeColumn)
+                        if (fileSize <= 0) {
+                            return@withContext null
+                        }
+
                         val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                         val id = cursor.getLong(idColumn)
                         val contentUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -249,6 +270,37 @@ class MediaStoreHelper(private val context: Context) {
                 null
             }
         }
+
+    /**
+     * Find a file in MediaStore by relative path and filename
+     */
+    private fun findFileByPath(relativePath: String, fileName: String): Uri? {
+        return try {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+
+            val projection = arrayOf(MediaStore.Audio.Media._ID)
+            val selection = "${MediaStore.Audio.Media.RELATIVE_PATH} = ? AND ${MediaStore.Audio.Media.DISPLAY_NAME} = ?"
+            val selectionArgs = arrayOf(relativePath, fileName)
+
+            context.contentResolver.query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
+                    Uri.withAppendedPath(
+                        MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+                        id.toString()
+                    )
+                } else null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     /**
      * Delete a file from MediaStore
