@@ -951,8 +951,18 @@ class HomeViewModel @Inject constructor(
                 }
             }
 
+            fun collectLocalAlbums(items: List<Album>) {
+                items.forEach { album ->
+                    album.artists.forEach { artist -> usedArtistIds.add(artist.id) }
+                }
+            }
+
             fun collectArtistItems(items: List<ArtistItem>) {
                 items.forEach { artist -> artist.id?.let(usedArtistIds::add) }
+            }
+
+            fun collectLocalArtists(items: List<Artist>) {
+                items.forEach { artist -> usedArtistIds.add(artist.id) }
             }
 
             fun collectPlaylistItems(items: List<PlaylistItem>) {
@@ -969,8 +979,8 @@ class HomeViewModel @Inject constructor(
             collectSongItems(finalRecentSongs)
             collectSongArtists(finalForgotten)
             collectSongArtists(finalKeepListening.filterIsInstance<Song>())
-            collectAlbumItems(finalKeepListening.filterIsInstance<Album>())
-            collectArtistItems(finalKeepListening.filterIsInstance<Artist>())
+            collectLocalAlbums(finalKeepListening.filterIsInstance<Album>())
+            collectLocalArtists(finalKeepListening.filterIsInstance<Artist>())
 
             context.dataStore.edit { prefs ->
                 val buffer = LinkedHashSet<String>()
