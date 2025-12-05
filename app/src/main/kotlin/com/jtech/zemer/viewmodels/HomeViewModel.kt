@@ -798,7 +798,7 @@ class HomeViewModel @Inject constructor(
             } else {
                 eligibleProfiles
             }
-            val sharedUsedArtists = mutableSetOf<String>()
+            val sharedUsedArtists = recentArtistIds.toMutableSet()
             val selectionRandom = Random(System.nanoTime())
 
             val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
@@ -875,7 +875,9 @@ class HomeViewModel @Inject constructor(
                             else -> item
                         }
                     }
-                    if (filteredItems.isEmpty()) null else section.copy(items = filteredItems)
+                    if (filteredItems.isEmpty()) return@mapNotNull null
+                    val rotated = rotateByArtist(filteredItems, maxPerArtist = 1, target = filteredItems.size)
+                    if (rotated.isEmpty()) null else section.copy(items = rotated)
                 }
                 if (filteredSections.isEmpty()) return null
                 return copy(sections = filteredSections)
@@ -951,7 +953,9 @@ class HomeViewModel @Inject constructor(
             val fallbackQuick = runCatching {
                 database.allSongs().first().filter { it.isAllowed() }.take(30)
             }.getOrDefault(emptyList())
-            val recentAwareQuick = rotateByArtist(filteredQuick.ifEmpty { fallbackQuick }, 1, 20)
+            val freshQuick = filteredQuick.filter { song -> song.artistIds().none { it in recentArtistIds } }
+            val quickPool = freshQuick.ifEmpty { filteredQuick }
+            val recentAwareQuick = rotateByArtist(quickPool.ifEmpty { fallbackQuick }, 1, 20)
             sharedUsedArtists.addAll(recentAwareQuick.flatMap { it.artistIds() })
 
             val featuredTriple = loadFeaturedContent(
@@ -1033,6 +1037,19 @@ class HomeViewModel @Inject constructor(
                 items.mapNotNull { it.author?.id }.forEach(usedArtistIds::add)
             }
 
+            fun collectHomeSections(sections: List<HomePage.Section>) {
+                sections.forEach { section ->
+                    section.items.forEach { item ->
+                        when (item) {
+                            is SongItem -> collectSongItems(listOf(item))
+                            is AlbumItem -> collectAlbumItems(listOf(item))
+                            is ArtistItem -> collectArtistItems(listOf(item))
+                            is PlaylistItem -> collectPlaylistItems(listOf(item))
+                        }
+                    }
+                }
+            }
+
             collectSongArtists(finalQuick)
             collectSongItems(finalTrending)
             collectPlaylistItems(finalFeaturedPlaylists)
@@ -1045,6 +1062,8 @@ class HomeViewModel @Inject constructor(
             collectSongArtists(finalKeepListening.filterIsInstance<Song>())
             collectLocalAlbums(finalKeepListening.filterIsInstance<Album>())
             collectLocalArtists(finalKeepListening.filterIsInstance<Artist>())
+            collectHomeSections(filteredHome?.sections.orEmpty())
+            collectAlbumItems(filteredExplore?.newReleaseAlbums.orEmpty())
 
             context.dataStore.edit { prefs ->
                 val buffer = LinkedHashSet<String>()
