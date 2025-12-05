@@ -141,9 +141,19 @@ constructor(
             // as downloaded later (needed for the Library > Downloaded view).
             ensureSongPersisted(song)
 
+            // Use album artist for consistency with download folder structure
+            val checkArtist = if (song.album != null) {
+                val albumWithArtists = database.albumUnfiltered(song.album.id).first()
+                albumWithArtists?.artists?.firstOrNull()?.name
+                    ?: song.artists.firstOrNull()?.name
+                    ?: "Unknown"
+            } else {
+                song.artists.firstOrNull()?.name ?: "Unknown"
+            }
+
             val existingFile = mediaStoreHelper.findExistingFile(
                 title = song.song.title,
-                artist = song.artists.firstOrNull()?.name ?: "Unknown"
+                artist = checkArtist
             )
             if (existingFile != null) {
                 updateDownloadState(
@@ -357,8 +367,18 @@ constructor(
 
                 // Get audio metadata
                 val title = song.song.title
-                val artist = song.artists.firstOrNull()?.name ?: "Unknown Artist"
                 val album = song.album?.title
+
+                // For folder structure: use album artist if available, otherwise song artist
+                // This ensures all songs from an album go into the same folder
+                val artist = if (song.album != null) {
+                    val albumWithArtists = database.albumUnfiltered(song.album.id).first()
+                    albumWithArtists?.artists?.firstOrNull()?.name
+                        ?: song.artists.firstOrNull()?.name
+                        ?: "Unknown Artist"
+                } else {
+                    song.artists.firstOrNull()?.name ?: "Unknown Artist"
+                }
                 val duration = song.song.duration.takeIf { it > 0 }?.times(1000L) // Convert to milliseconds
                 val mimeType = mediaStoreHelper.getMimeType(extension)
 
