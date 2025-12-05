@@ -20,6 +20,8 @@ import com.jtech.zemer.ui.screens.library.LibraryScreen
 import com.jtech.zemer.ui.screens.player.VideoPlayerScreen
 import com.jtech.zemer.ui.screens.playlist.AutoPlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.CachePlaylistScreen
+import com.jtech.zemer.ui.screens.playlist.DownloadedContentScreen
+import com.jtech.zemer.ui.screens.playlist.DownloadedVideosScreen
 import com.jtech.zemer.ui.screens.playlist.LocalPlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.OnlinePlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.TopPlaylistScreen
@@ -253,6 +255,12 @@ fun NavGraphBuilder.navigationBuilder(
         ),
     ) {
         CachePlaylistScreen(navController, scrollBehavior)
+    }
+    composable(route = "downloaded_content") {
+        DownloadedContentScreen(navController, scrollBehavior)
+    }
+    composable(route = "downloaded_videos") {
+        DownloadedVideosScreen(navController, scrollBehavior)
     }
     composable(
         route = "top_playlist/{top}",

@@ -528,7 +528,38 @@ interface DatabaseDao {
     @Query("SELECT * FROM song WHERE isVideo = 1 AND isDownloaded = 1")
     fun downloadedVideos(): Flow<List<Song>>
 
-    
+    @Transaction
+    @Query("SELECT * FROM song WHERE isVideo = 1 AND isDownloaded = 1 ORDER BY dateDownload")
+    fun downloadedVideosByCreateDateAsc(): Flow<List<Song>>
+
+    @Transaction
+    @Query("SELECT * FROM song WHERE isVideo = 1 AND isDownloaded = 1 ORDER BY title")
+    fun downloadedVideosByNameAsc(): Flow<List<Song>>
+
+    @Transaction
+    @Query("SELECT * FROM song WHERE isVideo = 1 AND isDownloaded = 1 ORDER BY totalPlayTime")
+    fun downloadedVideosByPlayTimeAsc(): Flow<List<Song>>
+
+    fun downloadedVideosSorted(
+        sortType: SongSortType,
+        descending: Boolean
+    ): Flow<List<Song>> = when (sortType) {
+        SongSortType.CREATE_DATE -> downloadedVideosByCreateDateAsc()
+        SongSortType.NAME -> downloadedVideosByNameAsc().map { videos ->
+            val collator = Collator.getInstance(Locale.getDefault())
+            collator.strength = Collator.PRIMARY
+            videos.sortedWith(compareBy(collator) { it.song.title })
+        }
+        SongSortType.ARTIST -> downloadedVideosByNameAsc().map { videos ->
+            val collator = Collator.getInstance(Locale.getDefault())
+            collator.strength = Collator.PRIMARY
+            videos.sortedWith(compareBy(collator) { video ->
+                video.artists.joinToString("") { it.name }
+            })
+        }
+        SongSortType.PLAY_TIME -> downloadedVideosByPlayTimeAsc()
+    }.map { it.reversed(descending) }
+
     @Transaction
     @Query("SELECT * FROM song_artist_map WHERE songId = :songId")
     fun songArtistMap(songId: String): List<SongArtistMap>
