@@ -220,7 +220,7 @@ fun DownloadedVideosScreen(
 
                                         Text(
                                             text = pluralStringResource(
-                                                R.plurals.n_song,
+                                                R.plurals.n_video,
                                                 videos!!.size,
                                                 videos!!.size,
                                             ),
@@ -389,7 +389,7 @@ fun DownloadedVideosScreen(
                     selection -> {
                         val count = wrappedVideos.count { it.isSelected }
                         Text(
-                            text = pluralStringResource(R.plurals.n_song, count, count),
+                            text = pluralStringResource(R.plurals.n_video, count, count),
                             style = MaterialTheme.typography.titleLarge
                         )
                     }

@@ -97,6 +97,10 @@
     <string name="music">Music</string>
     <string name="downloaded_videos">Downloaded videos</string>
     <string name="no_downloaded_videos">No downloaded videos</string>
+    <plurals name="n_video">
+        <item quantity="one">%d video</item>
+        <item quantity="other">%d videos</item>
+    </plurals>
     <string name="player_background_blur">Blur</string>
     <string name="player_buttons_style">Player button colors</string>
     <string name="default_style">Default</string>

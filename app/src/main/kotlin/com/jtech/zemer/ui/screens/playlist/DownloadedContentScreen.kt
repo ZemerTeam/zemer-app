@@ -143,7 +143,7 @@ fun DownloadedContentScreen(
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                             )
                             Text(
-                                text = pluralStringResource(R.plurals.n_song, videoCount, videoCount),
+                                text = pluralStringResource(R.plurals.n_video, videoCount, videoCount),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
                             )
