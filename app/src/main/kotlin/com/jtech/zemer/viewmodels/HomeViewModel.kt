@@ -863,39 +863,6 @@ class HomeViewModel @Inject constructor(
                 else -> true
             }
 
-            fun HomePage?.filtered(): HomePage? {
-                if (this == null) return null
-                val filteredSections = sections.mapNotNull { section ->
-                    val filteredItems = section.items.mapNotNull { item ->
-                        when (item) {
-                            is SongItem -> item.takeUnless { it.isBlocked(profileById, allowFemale) }
-                            is AlbumItem -> item.takeUnless { it.isBlocked(profileById, allowFemale) }
-                            is ArtistItem -> item.takeUnless { it.isBlocked(profileById, allowFemale) }
-                            is PlaylistItem -> item.takeUnless { it.isBlocked(profileById, allowFemale) }
-                            else -> item
-                        }
-                    }
-                    if (filteredItems.isEmpty()) return@mapNotNull null
-                    val rotated = rotateByArtist(filteredItems, maxPerArtist = 1, target = filteredItems.size)
-                    if (rotated.isEmpty()) null else section.copy(items = rotated)
-                }
-                if (filteredSections.isEmpty()) return null
-                return copy(sections = filteredSections)
-            }
-
-            fun ExplorePage?.filtered(): ExplorePage? {
-                if (this == null) return null
-                val albums = newReleaseAlbums.filterIsInstance<AlbumItem>()
-                    .filter { !it.isBlocked(profileById, allowFemale) }
-                return copy(newReleaseAlbums = albums)
-            }
-
-            fun Song.artistIds(): List<String> = artists.mapNotNull { it.id }
-            fun SongItem.artistIds(): List<String> = artists?.mapNotNull { it.id }.orEmpty()
-            fun AlbumItem.artistIds(): List<String> = artists?.mapNotNull { it.id }.orEmpty()
-            fun ArtistItem.artistIds(): List<String> = listOfNotNull(id)
-            fun PlaylistItem.artistIds(): List<String> = listOfNotNull(author?.id)
-
             fun <T> rotateByArtist(
                 items: List<T>,
                 maxPerArtist: Int,
@@ -939,6 +906,39 @@ class HomeViewModel @Inject constructor(
                 if (result.size < target) append(fallbackBucket, result)
                 return result.take(target)
             }
+
+            fun HomePage?.filtered(): HomePage? {
+                if (this == null) return null
+                val filteredSections = sections.mapNotNull { section ->
+                    val filteredItems = section.items.mapNotNull { item ->
+                        when (item) {
+                            is SongItem -> item.takeUnless { it.isBlocked(profileById, allowFemale) }
+                            is AlbumItem -> item.takeUnless { it.isBlocked(profileById, allowFemale) }
+                            is ArtistItem -> item.takeUnless { it.isBlocked(profileById, allowFemale) }
+                            is PlaylistItem -> item.takeUnless { it.isBlocked(profileById, allowFemale) }
+                            else -> item
+                        }
+                    }
+                    if (filteredItems.isEmpty()) return@mapNotNull null
+                    val rotated = rotateByArtist(filteredItems, maxPerArtist = 1, target = filteredItems.size)
+                    if (rotated.isEmpty()) null else section.copy(items = rotated)
+                }
+                if (filteredSections.isEmpty()) return null
+                return copy(sections = filteredSections)
+            }
+
+            fun ExplorePage?.filtered(): ExplorePage? {
+                if (this == null) return null
+                val albums = newReleaseAlbums.filterIsInstance<AlbumItem>()
+                    .filter { !it.isBlocked(profileById, allowFemale) }
+                return copy(newReleaseAlbums = albums)
+            }
+
+            fun Song.artistIds(): List<String> = artists.mapNotNull { it.id }
+            fun SongItem.artistIds(): List<String> = artists?.mapNotNull { it.id }.orEmpty()
+            fun AlbumItem.artistIds(): List<String> = artists?.mapNotNull { it.id }.orEmpty()
+            fun ArtistItem.artistIds(): List<String> = listOfNotNull(id)
+            fun PlaylistItem.artistIds(): List<String> = listOfNotNull(author?.id)
 
             val filteredHome = home.filtered()
             val filteredExplore = explore.filtered()
