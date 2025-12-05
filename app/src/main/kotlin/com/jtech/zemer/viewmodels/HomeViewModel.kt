@@ -888,6 +888,56 @@ class HomeViewModel @Inject constructor(
                 return copy(newReleaseAlbums = albums)
             }
 
+            fun Song.artistIds(): List<String> = artists.mapNotNull { it.id }
+            fun SongItem.artistIds(): List<String> = artists?.mapNotNull { it.id }.orEmpty()
+            fun AlbumItem.artistIds(): List<String> = artists?.mapNotNull { it.id }.orEmpty()
+            fun ArtistItem.artistIds(): List<String> = listOfNotNull(id)
+            fun PlaylistItem.artistIds(): List<String> = listOfNotNull(author?.id)
+
+            fun <T> rotateByArtist(
+                items: List<T>,
+                maxPerArtist: Int,
+                target: Int,
+            ): List<T> {
+                if (items.isEmpty()) return emptyList()
+                val shuffled = items.shuffled(Random(System.nanoTime()))
+                val counts = mutableMapOf<String, Int>()
+                val freshBucket = mutableListOf<T>()
+                val fallbackBucket = mutableListOf<T>()
+
+                fun extractIds(item: T): List<String> = when (item) {
+                    is Song -> item.artistIds()
+                    is SongItem -> item.artistIds()
+                    is AlbumItem -> item.artistIds()
+                    is ArtistItem -> item.artistIds()
+                    is PlaylistItem -> item.artistIds()
+                    is Album -> item.artists.mapNotNull { it.id }
+                    is Artist -> listOfNotNull(item.id)
+                    else -> emptyList()
+                }
+
+                shuffled.forEach { item ->
+                    val ids = extractIds(item)
+                    if (ids.isEmpty() || ids.any { it in recentArtistIds }) fallbackBucket += item
+                    else freshBucket += item
+                }
+
+                fun append(from: List<T>, into: MutableList<T>) {
+                    from.forEach { item ->
+                        val ids = extractIds(item)
+                        if (ids.all { counts.getOrDefault(it, 0) < maxPerArtist }) {
+                            ids.forEach { id -> counts[id] = counts.getOrDefault(id, 0) + 1 }
+                            into += item
+                        }
+                    }
+                }
+
+                val result = mutableListOf<T>()
+                append(freshBucket, result)
+                if (result.size < target) append(fallbackBucket, result)
+                return result.take(target)
+            }
+
             val filteredHome = home.filtered()
             val filteredExplore = explore.filtered()
             val filteredRecentAlbums = recentAlbums.filter { it.isAllowed() }
@@ -896,6 +946,13 @@ class HomeViewModel @Inject constructor(
             val quickSeeded = if (filteredHome != null) {
                 seedQuickPicksFromHomePage(filteredHome, hideExplicit, quick)
             } else quick
+
+            val filteredQuick = quickSeeded.filter { song -> song.isAllowed() }
+            val fallbackQuick = runCatching {
+                database.allSongs().first().filter { it.isAllowed() }.take(30)
+            }.getOrDefault(emptyList())
+            val recentAwareQuick = rotateByArtist(filteredQuick.ifEmpty { fallbackQuick }, 1, 20)
+            sharedUsedArtists.addAll(recentAwareQuick.flatMap { it.artistIds() })
 
             val featuredTriple = loadFeaturedContent(
                 hideExplicit,
@@ -906,30 +963,37 @@ class HomeViewModel @Inject constructor(
                 recentArtistIds.toSet(),
             )
 
-            val filteredQuick = quickSeeded.filter { song -> song.isAllowed() }
-            val fallbackQuick = runCatching {
-                database.allSongs().first().filter { it.isAllowed() }.take(20)
-            }.getOrDefault(emptyList())
-            val finalQuick = filteredQuick
-                .shuffled(Random(System.nanoTime()))
-                .take(20)
-                .ifEmpty { filteredQuick.ifEmpty { fallbackQuick } }
-            val finalTrending = trendingSongs.filter { song -> song.isAllowed() }
-                .shuffled(Random(System.nanoTime()))
-            val finalFeaturedPlaylists = featuredPlaylists.filter { it.isAllowed() }
-                .shuffled(Random(System.nanoTime()))
-            val finalKeepListening = keepListening.filter { it.isAllowed() }
-                .shuffled(Random(System.nanoTime()))
-            val finalForgotten = forgotten.filter { song -> song.isAllowed() }
-                .shuffled(Random(System.nanoTime()))
-            val finalRecentAlbums = filteredRecentAlbums.shuffled(Random(System.nanoTime()))
-            val finalRecentSongs = filteredRecentSongs.shuffled(Random(System.nanoTime()))
+            val finalQuick = recentAwareQuick.ifEmpty { filteredQuick.ifEmpty { fallbackQuick } }
+            val finalTrending = rotateByArtist(
+                trendingSongs.filter { song -> song.isAllowed() },
+                maxPerArtist = 1,
+                target = 30,
+            )
+            val finalFeaturedPlaylists = rotateByArtist(
+                featuredPlaylists.filter { it.isAllowed() },
+                maxPerArtist = 1,
+                target = 8,
+            )
+            val finalKeepListening = rotateByArtist(
+                keepListening.filter { it.isAllowed() },
+                maxPerArtist = 1,
+                target = 24,
+            )
+            val finalForgotten = rotateByArtist(
+                forgotten.filter { song -> song.isAllowed() },
+                maxPerArtist = 1,
+                target = 20,
+            )
+            val finalRecentAlbums = filteredRecentAlbums
+                .let { rotateByArtist(it, maxPerArtist = 1, target = 16) }
+            val finalRecentSongs = filteredRecentSongs
+                .let { rotateByArtist(it, maxPerArtist = 1, target = 30) }
             val finalFeaturedAlbums = featuredTriple.first.filter { it.isAllowed() }
-                .shuffled(Random(System.nanoTime()))
+                .let { rotateByArtist(it, maxPerArtist = 1, target = 20) }
             val finalFeaturedArtists = featuredTriple.second.filter { it.isAllowed() }
-                .shuffled(Random(System.nanoTime()))
+                .let { rotateByArtist(it, maxPerArtist = 1, target = 20) }
             val finalFeaturedVideos = featuredTriple.third.filter { it.isAllowed() }
-                .shuffled(Random(System.nanoTime()))
+                .let { rotateByArtist(it, maxPerArtist = 1, target = 20) }
             val isNewUser = finalQuick.isEmpty() && keepListening.isEmpty()
 
             val usedArtistIds = mutableSetOf<String>()
