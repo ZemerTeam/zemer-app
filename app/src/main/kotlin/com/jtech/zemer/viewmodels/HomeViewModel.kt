@@ -366,7 +366,11 @@ class HomeViewModel @Inject constructor(
         allowFemale: Boolean
     ): Boolean {
         val ids = this.artists?.mapNotNull { it.id }.orEmpty()
-        if (!allowFemale && ids.any { profileById[it]?.isFemale == true }) return true
+        val profiles = ids.mapNotNull { profileById[it] }
+        if (!allowFemale && profiles.any { it.isFemale == true }) return true
+        if (profiles.any { it.isAmerican != true }) return true
+        if (profiles.any { it.isIsraeli == true }) return true
+        if (profiles.any { it.isFamous != true }) return true
         return false
     }
 
@@ -375,7 +379,11 @@ class HomeViewModel @Inject constructor(
         allowFemale: Boolean
     ): Boolean {
         val ids = this.artists?.mapNotNull { it.id }.orEmpty()
-        if (!allowFemale && ids.any { profileById[it]?.isFemale == true }) return true
+        val profiles = ids.mapNotNull { profileById[it] }
+        if (!allowFemale && profiles.any { it.isFemale == true }) return true
+        if (profiles.any { it.isAmerican != true }) return true
+        if (profiles.any { it.isIsraeli == true }) return true
+        if (profiles.any { it.isFamous != true }) return true
         return false
     }
 
@@ -383,7 +391,11 @@ class HomeViewModel @Inject constructor(
         profileById: Map<String, HomeArtistProfile>,
         allowFemale: Boolean
     ): Boolean {
-        if (!allowFemale && profileById[id]?.isFemale == true) return true
+        val profile = profileById[id]
+        if (!allowFemale && profile?.isFemale == true) return true
+        if (profile?.isAmerican != true) return true
+        if (profile?.isIsraeli == true) return true
+        if (profile?.isFamous != true) return true
         return false
     }
 
@@ -393,7 +405,11 @@ class HomeViewModel @Inject constructor(
     ): Boolean {
         val authorId = author?.id
         if (authorId != null) {
-            if (!allowFemale && profileById[authorId]?.isFemale == true) return true
+            val profile = profileById[authorId]
+            if (!allowFemale && profile?.isFemale == true) return true
+            if (profile?.isAmerican != true) return true
+            if (profile?.isIsraeli == true) return true
+            if (profile?.isFamous != true) return true
         }
         return false
     }
@@ -407,6 +423,7 @@ class HomeViewModel @Inject constructor(
     ): List<HomeArtistProfile> {
         if (targetCount <= 0) return emptyList()
         val base = profiles
+            .filter { it.isAmerican == true }
             .filter { it.isKids != true }
             .filter { it.isIsraeli != true }
             .filter { it.isFamous != false }
@@ -419,7 +436,7 @@ class HomeViewModel @Inject constructor(
             0.50f to base.filter { it.isFamous == true }.shuffled(Random(bucketRng.nextLong())),
             0.25f to base.filter { it.isDJ == true }.shuffled(Random(bucketRng.nextLong())),
             0.15f to base.filter { it.isGroup == true }.shuffled(Random(bucketRng.nextLong())),
-            0.10f to base.filter { it.isAmerican == false }.shuffled(Random(bucketRng.nextLong())),
+            0.10f to base.shuffled(Random(bucketRng.nextLong())),
         )
 
         val chosen = mutableListOf<HomeArtistProfile>()
@@ -670,6 +687,7 @@ class HomeViewModel @Inject constructor(
             val profiles = artistIds.mapNotNull { profileById[it] }
             if (profiles.isEmpty()) return@filter false
             if (!allowFemale && profiles.any { it.isFemale == true }) return@filter false
+            if (profiles.any { it.isAmerican != true }) return@filter false
             if (profiles.any { it.isIsraeli == true }) return@filter false
             if (profiles.any { it.isFamous != true }) return@filter false
             true
@@ -684,13 +702,11 @@ class HomeViewModel @Inject constructor(
         val famous = byProfile.filterKeys { it?.isFamous == true }.values.flatten().shuffled(Random(rng.nextLong()))
         val dj = byProfile.filterKeys { it?.isDJ == true }.values.flatten().shuffled(Random(rng.nextLong()))
         val group = byProfile.filterKeys { it?.isGroup == true }.values.flatten().shuffled(Random(rng.nextLong()))
-        val nonAmerican = byProfile.filterKeys { it?.isAmerican == false }.values.flatten().shuffled(Random(rng.nextLong()))
-
         val buckets = listOf(
             0.50f to famous,
             0.25f to dj,
             0.15f to group,
-            0.10f to nonAmerican,
+            0.10f to base.shuffled(Random(rng.nextLong())),
         )
 
         val chosen = mutableListOf<Song>()
@@ -742,6 +758,7 @@ class HomeViewModel @Inject constructor(
 
             val artistProfiles = loadHomeArtistProfiles(force = force)
             val eligibleProfiles = artistProfiles
+                .filter { it.isAmerican == true }
                 .filter { it.isIsraeli != true }
                 .filter { it.isFamous == true }
             val profileById = artistProfiles.associateBy { it.id }
@@ -780,7 +797,7 @@ class HomeViewModel @Inject constructor(
                 if (ids.any { IsraeliArtistRegistry.isIsraeli(it) }) return true
                 val profiles = ids.mapNotNull { profileById[it] }
                 if (!allowFemale && profiles.any { it.isFemale == true }) return true
-                if (profiles.any { it.isAmerican == false }) return true
+                if (profiles.any { it.isAmerican != true }) return true
                 if (profiles.any { it.isFamous != true }) return true
                 return false
             }
@@ -894,6 +911,8 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
             val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
+            val allowFemale = ContentFilterState.state.value.allowFemaleSingers
+            val profileById = homeArtistProfilesCache.associateBy { it.id }
             isLoadingMore.value = true
             IsraeliArtistRegistry.ensureLoaded()
             val nextSections = YouTube.home(continuation).getOrNull()
@@ -905,10 +924,49 @@ class HomeViewModel @Inject constructor(
                             .filterExplicit(hideExplicit)
                             .filterNot { item ->
                                 when (item) {
-                                    is SongItem -> item.artists?.any { IsraeliArtistRegistry.isIsraeli(it.id) } == true
-                                    is AlbumItem -> item.artists?.any { IsraeliArtistRegistry.isIsraeli(it.id) } == true
-                                    is ArtistItem -> IsraeliArtistRegistry.isIsraeli(item.id)
-                                    is PlaylistItem -> IsraeliArtistRegistry.isIsraeli(item.author?.id)
+                                    is SongItem -> {
+                                        val profiles = item.artists?.mapNotNull { profileById[it.id] }.orEmpty()
+                                        val blockedByProfile = profiles.any { profile ->
+                                            (!allowFemale && profile.isFemale == true) ||
+                                                profile.isAmerican != true ||
+                                                profile.isIsraeli == true ||
+                                                profile.isFamous != true
+                                        }
+                                        blockedByProfile || item.artists?.any { IsraeliArtistRegistry.isIsraeli(it.id) } == true
+                                    }
+
+                                    is AlbumItem -> {
+                                        val profiles = item.artists?.mapNotNull { profileById[it.id] }.orEmpty()
+                                        val blockedByProfile = profiles.any { profile ->
+                                            (!allowFemale && profile.isFemale == true) ||
+                                                profile.isAmerican != true ||
+                                                profile.isIsraeli == true ||
+                                                profile.isFamous != true
+                                        }
+                                        blockedByProfile || item.artists?.any { IsraeliArtistRegistry.isIsraeli(it.id) } == true
+                                    }
+
+                                    is ArtistItem -> {
+                                        val profile = profileById[item.id]
+                                        val blockedByProfile = profile?.let {
+                                            (!allowFemale && it.isFemale == true) ||
+                                                it.isAmerican != true ||
+                                                it.isIsraeli == true ||
+                                                it.isFamous != true
+                                        } == true
+                                        blockedByProfile || IsraeliArtistRegistry.isIsraeli(item.id)
+                                    }
+
+                                    is PlaylistItem -> {
+                                        val profile = profileById[item.author?.id]
+                                        val blockedByProfile = profile?.let {
+                                            (!allowFemale && it.isFemale == true) ||
+                                                it.isAmerican != true ||
+                                                it.isIsraeli == true ||
+                                                it.isFamous != true
+                                        } == true
+                                        blockedByProfile || IsraeliArtistRegistry.isIsraeli(item.author?.id)
+                                    }
                                     else -> false
                                 }
                             }
