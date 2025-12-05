@@ -120,11 +120,57 @@ constructor(
     }
 
     /**
+     * Start downloading a video
+     *
+     * @param song The song/video to download as video file
+     */
+    fun downloadVideo(song: Song) {
+        Timber.d("downloadVideo called: id=${song.id}, title=${song.song.title}, inputIsVideo=${song.song.isVideo}")
+        scope.launch {
+            // Start notification service
+            MediaStoreDownloadService.start(context)
+            // Check if already downloading or completed
+            val currentState = _downloadStates.value[song.id]
+            if (currentState?.status == DownloadState.Status.DOWNLOADING ||
+                currentState?.status == DownloadState.Status.COMPLETED
+            ) {
+                Timber.d("downloadVideo skipped - already downloading or completed: status=${currentState?.status}")
+                return@launch
+            }
+
+            // Mark as video FIRST, then persist
+            val videoSong = song.copy(song = song.song.copy(isVideo = true))
+            Timber.d("downloadVideo: videoSong.song.isVideo=${videoSong.song.isVideo}")
+
+            // Make sure the song and its relations exist in the database WITH isVideo = true
+            ensureSongPersisted(videoSong)
+
+            // Add to queue - remove any existing entry first to ensure video flag is set
+            synchronized(downloadQueue) {
+                downloadQueue.removeAll { it.id == song.id }
+                downloadQueue.add(videoSong)
+                Timber.d("downloadVideo: added to queue with isVideo=${videoSong.song.isVideo}, queueSize=${downloadQueue.size}")
+                updateDownloadState(
+                    song.id,
+                    DownloadState(
+                        songId = song.id,
+                        status = DownloadState.Status.QUEUED
+                    )
+                )
+            }
+
+            // Start download
+            processQueue()
+        }
+    }
+
+    /**
      * Start downloading a song
      *
      * @param song The song to download
      */
     fun downloadSong(song: Song) {
+        Timber.d("downloadSong called: id=${song.id}, title=${song.song.title}, isVideo=${song.song.isVideo}")
         scope.launch {
             // Start notification service
             MediaStoreDownloadService.start(context)
@@ -136,46 +182,49 @@ constructor(
                 return@launch
             }
 
+            // For audio downloads, ensure isVideo is false (song may have been marked as video previously)
+            val audioSong = song.copy(song = song.song.copy(isVideo = false))
+
             // Check if already exists in MediaStore
             // Make sure the song and its relations exist in the database so we can flag it
             // as downloaded later (needed for the Library > Downloaded view).
-            ensureSongPersisted(song)
+            ensureSongPersisted(audioSong)
 
             // Use album artist for consistency with download folder structure
-            val checkArtist = if (song.album != null) {
-                val albumWithArtists = database.albumUnfiltered(song.album.id).first()
+            val checkArtist = if (audioSong.album != null) {
+                val albumWithArtists = database.albumUnfiltered(audioSong.album.id).first()
                 albumWithArtists?.artists?.firstOrNull()?.name
-                    ?: song.artists.firstOrNull()?.name
+                    ?: audioSong.artists.firstOrNull()?.name
                     ?: "Unknown"
             } else {
-                song.artists.firstOrNull()?.name ?: "Unknown"
+                audioSong.artists.firstOrNull()?.name ?: "Unknown"
             }
 
             val existingFile = mediaStoreHelper.findExistingFile(
-                title = song.song.title,
+                title = audioSong.song.title,
                 artist = checkArtist
             )
             if (existingFile != null) {
                 updateDownloadState(
-                    song.id,
+                    audioSong.id,
                     DownloadState(
-                        songId = song.id,
+                        songId = audioSong.id,
                         status = DownloadState.Status.COMPLETED,
                         progress = 1f
                     )
                 )
-                markSongAsDownloaded(song, existingFile.toString())
+                markSongAsDownloaded(audioSong, existingFile.toString())
                 return@launch
             }
 
             // Add to queue
             synchronized(downloadQueue) {
-                if (!downloadQueue.any { it.id == song.id }) {
-                    downloadQueue.add(song)
+                if (!downloadQueue.any { it.id == audioSong.id }) {
+                    downloadQueue.add(audioSong)
                     updateDownloadState(
-                        song.id,
+                        audioSong.id,
                         DownloadState(
-                            songId = song.id,
+                            songId = audioSong.id,
                             status = DownloadState.Status.QUEUED
                         )
                     )
@@ -232,7 +281,12 @@ constructor(
                 )
             )
 
-            downloadSong(song)
+            // Use video download if the song is marked as video
+            if (song.song.isVideo) {
+                downloadVideo(song)
+            } else {
+                downloadSong(song)
+            }
         }
     }
 
@@ -323,6 +377,8 @@ constructor(
      * Perform the actual download with retry logic
      */
     private suspend fun performDownload(song: Song, retryAttempt: Int = 0): Unit = withContext(Dispatchers.IO) {
+        val isVideoDownload = song.song.isVideo
+        Timber.d("performDownload: id=${song.id}, isVideo=${isVideoDownload}, title=${song.song.title}")
         try {
             updateDownloadState(
                 song.id,
@@ -334,11 +390,13 @@ constructor(
             )
 
             // Get playback URL from YouTube using YTPlayerUtils
-            Timber.d("Starting download for song ${song.id}: ${song.song.title}")
+            // For videos, request video stream with preferVideo=true
+            Timber.d("Starting download for ${if (isVideoDownload) "video" else "song"} ${song.id}: ${song.song.title}, preferVideo=${isVideoDownload}")
             val playbackData = YTPlayerUtils.playerResponseForPlayback(
                 videoId = song.id,
                 audioQuality = audioQuality,
-                connectivityManager = connectivityManager
+                connectivityManager = connectivityManager,
+                preferVideo = isVideoDownload
             ).getOrThrow()
 
             val format = playbackData.format
@@ -347,13 +405,24 @@ constructor(
 
             // Create temporary file for download
             val mimeTypeRaw = format.mimeType.substringBefore(";").trim()
-            val extension = when {
-                mimeTypeRaw.contains("webm") -> "webm"
-                mimeTypeRaw.contains("mp4") -> "m4a"
-                mimeTypeRaw.contains("ogg") -> "ogg"
-                mimeTypeRaw.contains("opus") -> "opus"
-                mimeTypeRaw.contains("mpeg") -> "mp3"
-                else -> mimeTypeRaw.substringAfterLast("/")
+            val extension = if (isVideoDownload) {
+                // For video downloads, keep video extensions
+                when {
+                    mimeTypeRaw.contains("webm") -> "webm"
+                    mimeTypeRaw.contains("mp4") -> "mp4"
+                    mimeTypeRaw.contains("3gp") -> "3gp"
+                    else -> "mp4" // Default to mp4 for videos
+                }
+            } else {
+                // For audio downloads, convert to audio extensions
+                when {
+                    mimeTypeRaw.contains("webm") -> "webm"
+                    mimeTypeRaw.contains("mp4") -> "m4a"
+                    mimeTypeRaw.contains("ogg") -> "ogg"
+                    mimeTypeRaw.contains("opus") -> "opus"
+                    mimeTypeRaw.contains("mpeg") -> "mp3"
+                    else -> mimeTypeRaw.substringAfterLast("/")
+                }
             }
             val tempFile = File(context.cacheDir, "temp_${song.id}.$extension")
 
@@ -365,7 +434,7 @@ constructor(
                     throw Exception("Download failed - temp file not created or empty")
                 }
 
-                // Get audio metadata
+                // Get metadata
                 val title = song.song.title
                 val album = song.album?.title
 
@@ -380,20 +449,36 @@ constructor(
                     song.artists.firstOrNull()?.name ?: "Unknown Artist"
                 }
                 val duration = song.song.duration.takeIf { it > 0 }?.times(1000L) // Convert to milliseconds
-                val mimeType = mediaStoreHelper.getMimeType(extension)
 
-                // Save to MediaStore
                 val fileName = "$artist - $title.$extension"
-                Timber.d("Saving to MediaStore: $fileName, mimeType: $mimeType, tempFile size: ${tempFile.length()}")
-                val uri = mediaStoreHelper.saveFileToMediaStore(
-                    tempFile = tempFile,
-                    fileName = fileName,
-                    mimeType = mimeType,
-                    title = title,
-                    artist = artist,
-                    album = album,
-                    durationMs = duration
-                )
+                val uri: Uri?
+
+                if (isVideoDownload) {
+                    // Save video to Movies/Zemer folder
+                    val mimeType = mediaStoreHelper.getVideoMimeType(extension)
+                    Timber.d("VIDEO DOWNLOAD PATH: Saving to Movies/Zemer: $fileName, mimeType: $mimeType, extension: $extension, tempFile size: ${tempFile.length()}")
+                    uri = mediaStoreHelper.saveVideoFileToMediaStore(
+                        tempFile = tempFile,
+                        fileName = fileName,
+                        mimeType = mimeType,
+                        title = title,
+                        artist = artist,
+                        durationMs = duration
+                    )
+                } else {
+                    // Save audio to Music/Zemer folder
+                    val mimeType = mediaStoreHelper.getMimeType(extension)
+                    Timber.d("AUDIO DOWNLOAD PATH: Saving to Music/Zemer: $fileName, mimeType: $mimeType, extension: $extension, tempFile size: ${tempFile.length()}")
+                    uri = mediaStoreHelper.saveFileToMediaStore(
+                        tempFile = tempFile,
+                        fileName = fileName,
+                        mimeType = mimeType,
+                        title = title,
+                        artist = artist,
+                        album = album,
+                        durationMs = duration
+                    )
+                }
                 Timber.d("MediaStore save result: $uri")
 
                 if (uri != null) {
@@ -407,7 +492,7 @@ constructor(
                         )
                     )
 
-                    // Update database with MediaStore URI
+                    // Update database with MediaStore URI (preserving isVideo flag)
                     markSongAsDownloaded(song, uri.toString())
                 } else {
                     throw Exception("Failed to save file to MediaStore")
@@ -563,6 +648,8 @@ constructor(
                 isDownloaded = existing?.song?.isDownloaded ?: song.song.isDownloaded,
                 dateDownload = existing?.song?.dateDownload ?: song.song.dateDownload,
                 mediaStoreUri = existing?.song?.mediaStoreUri ?: song.song.mediaStoreUri,
+                // Use the incoming isVideo value - allows resetting a video back to song
+                isVideo = song.song.isVideo,
             )
 
             upsert(mergedSong)

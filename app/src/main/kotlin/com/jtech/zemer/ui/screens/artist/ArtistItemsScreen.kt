@@ -139,6 +139,7 @@ fun ArtistItemsScreen(
                                                 song = item,
                                                 navController = navController,
                                                 onDismiss = menuState::dismiss,
+                                                isVideo = isVideoSection,
                                             )
 
                                         is AlbumItem ->
@@ -182,10 +183,14 @@ fun ArtistItemsScreen(
                                         if (item.id == mediaMetadata?.id) {
                                             playerConnection.player.togglePlayPause()
                                         } else {
+                                            // Mark as video if from video section
+                                            val metadata = item.toMediaMetadata().let {
+                                                if (isVideoSection) it.copy(isVideo = true) else it
+                                            }
                                             playerConnection.playQueue(
                                                 YouTubeQueue(
                                                     item.endpoint ?: WatchEndpoint(videoId = item.id),
-                                                    item.toMediaMetadata(),
+                                                    metadata,
                                                     database
                                                 ),
                                             )
@@ -239,13 +244,19 @@ fun ArtistItemsScreen(
                                     navController.navigate(videoRoute(item.id, item.title, artistDisplay))
                                 } else {
                                     when (item) {
-                                        is SongItem -> playerConnection.playQueue(
-                                            YouTubeQueue(
-                                                item.endpoint ?: WatchEndpoint(videoId = item.id),
-                                                item.toMediaMetadata(),
-                                                database
+                                        is SongItem -> {
+                                            // Mark as video if from video section
+                                            val metadata = item.toMediaMetadata().let {
+                                                if (isVideoSection) it.copy(isVideo = true) else it
+                                            }
+                                            playerConnection.playQueue(
+                                                YouTubeQueue(
+                                                    item.endpoint ?: WatchEndpoint(videoId = item.id),
+                                                    metadata,
+                                                    database
+                                                )
                                             )
-                                        )
+                                        }
 
                                         is AlbumItem -> navController.navigate("album/${item.id}")
                                         is ArtistItem -> navController.navigate("artist/${item.id}")
@@ -260,7 +271,8 @@ fun ArtistItemsScreen(
                                         is SongItem -> YouTubeSongMenu(
                                             song = item,
                                             navController = navController,
-                                            onDismiss = menuState::dismiss
+                                            onDismiss = menuState::dismiss,
+                                            isVideo = isVideoSection
                                         )
 
                                         is AlbumItem -> YouTubeAlbumMenu(

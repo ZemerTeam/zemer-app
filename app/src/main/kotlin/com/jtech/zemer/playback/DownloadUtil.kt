@@ -283,6 +283,14 @@ constructor(
         mediaStoreDownloadManager.downloadSong(song)
     }
 
+    /**
+     * Download a video to MediaStore (Movies/Zemer folder)
+     * This downloads the actual video file (mp4), not just audio.
+     */
+    fun downloadVideoToMediaStore(song: com.jtech.zemer.db.entities.Song) {
+        mediaStoreDownloadManager.downloadVideo(song)
+    }
+
     fun cancelMediaStoreDownload(songId: String) {
         mediaStoreDownloadManager.cancelDownload(songId)
     }

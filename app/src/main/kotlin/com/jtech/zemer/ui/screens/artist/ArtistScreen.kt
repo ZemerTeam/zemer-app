@@ -745,6 +745,7 @@ fun ArtistScreen(
                                                                         song = item,
                                                                         navController = navController,
                                                                         onDismiss = menuState::dismiss,
+                                                                        isVideo = isVideoSection,
                                                                     )
 
                                                                 is AlbumItem ->

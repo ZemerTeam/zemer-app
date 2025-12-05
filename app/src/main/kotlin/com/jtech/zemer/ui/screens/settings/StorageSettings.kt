@@ -202,6 +202,12 @@ fun StorageSettings(
             onClick = { downloadPickerLauncher.launch(null) }
         )
 
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.video_download_path)) },
+            description = stringResource(R.string.video_download_path_summary),
+            onClick = { /* Video path is fixed to Movies/Zemer */ }
+        )
+
         if (customDownloadPath.isNotBlank()) {
             PreferenceEntry(
                 title = { Text(stringResource(R.string.reset_download_path)) },

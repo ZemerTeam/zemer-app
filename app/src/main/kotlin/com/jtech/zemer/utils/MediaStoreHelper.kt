@@ -15,6 +15,7 @@ import com.jtech.zemer.utils.EnvironmentPaths.toRelativePath
 import com.jtech.zemer.utils.EnvironmentPaths.toStorageRoot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import java.io.File
 import java.io.InputStream
 
@@ -44,6 +45,14 @@ class MediaStoreHelper(private val context: Context) {
             "mp3" to "audio/mpeg",
             "aac" to "audio/aac",
             "flac" to "audio/flac"
+        )
+
+        // Supported video MIME types
+        private val VIDEO_MIME_TYPE_MAP = mapOf(
+            "mp4" to "video/mp4",
+            "webm" to "video/webm",
+            "mkv" to "video/x-matroska",
+            "3gp" to "video/3gpp"
         )
     }
 
@@ -151,6 +160,175 @@ class MediaStoreHelper(private val context: Context) {
     }
 
     /**
+     * Save a downloaded video file to MediaStore in the Movies/Zemer folder
+     *
+     * @param inputStream The video file data stream
+     * @param fileName Desired filename (will be sanitized)
+     * @param mimeType Video MIME type (e.g., "video/mp4")
+     * @param title Video title for metadata
+     * @param artist Artist name for metadata
+     * @param durationMs Duration in milliseconds (optional)
+     * @return Uri of the saved file, or null if save failed
+     */
+    suspend fun saveVideoToMediaStore(
+        inputStream: InputStream,
+        fileName: String,
+        mimeType: String,
+        title: String,
+        artist: String,
+        durationMs: Long? = null
+    ): Uri? = withContext(Dispatchers.IO) {
+        try {
+            val sanitizedFileName = sanitizeFileName(fileName)
+            val contentResolver = context.contentResolver
+
+            // Videos go to Movies/Zemer/{Artist}/ folder
+            val relativePath = "${Environment.DIRECTORY_MOVIES}/$ZEMER_FOLDER/${sanitizeFolderName(artist)}"
+            Timber.d("saveVideoToMediaStore: relativePath=$relativePath, fileName=$sanitizedFileName, mimeType=$mimeType")
+
+            // Check if file already exists and delete it to prevent duplicates
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val existingUri = findVideoByPath(relativePath, sanitizedFileName)
+                if (existingUri != null) {
+                    contentResolver.delete(existingUri, null, null)
+                }
+            }
+
+            // Prepare ContentValues with metadata
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Video.Media.DISPLAY_NAME, sanitizedFileName)
+                put(MediaStore.Video.Media.MIME_TYPE, mimeType)
+                put(MediaStore.Video.Media.TITLE, title)
+                put(MediaStore.Video.Media.ARTIST, artist)
+                durationMs?.let { put(MediaStore.Video.Media.DURATION, it) }
+
+                // Set relative path for Android 10+ (API 29+)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Video.Media.RELATIVE_PATH, relativePath)
+                    put(MediaStore.Video.Media.IS_PENDING, 1)
+                } else {
+                    // Legacy path for older Android versions
+                    val targetDir = File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
+                        "$ZEMER_FOLDER/${sanitizeFolderName(artist)}"
+                    )
+                    targetDir.mkdirs()
+                    val targetFile = File(targetDir, sanitizedFileName)
+                    put(MediaStore.Video.Media.DATA, targetFile.absolutePath)
+                }
+            }
+
+            // Insert the file entry into MediaStore
+            val videoCollection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            } else {
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            }
+
+            val videoUri = contentResolver.insert(videoCollection, contentValues)
+
+            if (videoUri == null) {
+                return@withContext null
+            }
+
+            // Write the actual file content
+            contentResolver.openOutputStream(videoUri)?.use { outputStream ->
+                inputStream.copyTo(outputStream)
+                outputStream.flush()
+            } ?: run {
+                contentResolver.delete(videoUri, null, null)
+                return@withContext null
+            }
+
+            // Mark file as ready (remove IS_PENDING flag)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                contentValues.clear()
+                contentValues.put(MediaStore.Video.Media.IS_PENDING, 0)
+                contentResolver.update(videoUri, contentValues, null, null)
+            }
+
+            videoUri
+
+        } catch (e: Exception) {
+            Timber.e(e, "saveVideoToMediaStore failed: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Find a video file in MediaStore by relative path and filename
+     */
+    private fun findVideoByPath(relativePath: String, fileName: String): Uri? {
+        return try {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+
+            val projection = arrayOf(MediaStore.Video.Media._ID)
+            val selection = "${MediaStore.Video.Media.RELATIVE_PATH} = ? AND ${MediaStore.Video.Media.DISPLAY_NAME} = ?"
+            val selectionArgs = arrayOf(relativePath, fileName)
+
+            context.contentResolver.query(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID))
+                    Uri.withAppendedPath(
+                        MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+                        id.toString()
+                    )
+                } else null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Save a video file from a temporary location to MediaStore
+     *
+     * @param tempFile Temporary file to move to MediaStore
+     * @param fileName Desired filename
+     * @param mimeType Video MIME type
+     * @param title Video title
+     * @param artist Artist name
+     * @param durationMs Duration in milliseconds (optional)
+     * @return Uri of the saved file, or null if save failed
+     */
+    suspend fun saveVideoFileToMediaStore(
+        tempFile: File,
+        fileName: String,
+        mimeType: String,
+        title: String,
+        artist: String,
+        durationMs: Long? = null
+    ): Uri? = withContext(Dispatchers.IO) {
+        Timber.d("saveVideoFileToMediaStore: fileName=$fileName, mimeType=$mimeType, tempFile=${tempFile.absolutePath}, size=${tempFile.length()}")
+        try {
+            if (!tempFile.exists() || tempFile.length() == 0L) {
+                Timber.e("saveVideoFileToMediaStore: temp file doesn't exist or is empty")
+                return@withContext null
+            }
+
+            tempFile.inputStream().use { inputStream ->
+                saveVideoToMediaStore(
+                    inputStream = inputStream,
+                    fileName = fileName,
+                    mimeType = mimeType,
+                    title = title,
+                    artist = artist,
+                    durationMs = durationMs
+                )
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "saveVideoFileToMediaStore failed: ${e.message}")
+            null
+        }
+    }
+
+    /**
      * Save a file from a temporary location to MediaStore
      *
      * @param tempFile Temporary file to move to MediaStore
@@ -227,46 +405,61 @@ class MediaStoreHelper(private val context: Context) {
     suspend fun findExistingFile(title: String, artist: String): Uri? =
         withContext(Dispatchers.IO) {
             try {
-                val projection = arrayOf(
-                    MediaStore.Audio.Media._ID,
-                    MediaStore.Audio.Media.TITLE,
-                    MediaStore.Audio.Media.ARTIST,
-                    MediaStore.Audio.Media.SIZE
-                )
+                // Only check for files in Zemer folder to avoid false positives from other apps
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val projection = arrayOf(
+                        MediaStore.Audio.Media._ID,
+                        MediaStore.Audio.Media.TITLE,
+                        MediaStore.Audio.Media.ARTIST,
+                        MediaStore.Audio.Media.SIZE,
+                        MediaStore.Audio.Media.RELATIVE_PATH
+                    )
 
-                val selection = "${MediaStore.Audio.Media.TITLE} = ? AND ${MediaStore.Audio.Media.ARTIST} = ?"
-                val selectionArgs = arrayOf(title, artist)
+                    val selection = "${MediaStore.Audio.Media.TITLE} = ? AND ${MediaStore.Audio.Media.ARTIST} = ? AND ${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ?"
+                    val selectionArgs = arrayOf(title, artist, "%$ZEMER_FOLDER%")
 
-                context.contentResolver.query(
-                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                    projection,
-                    selection,
-                    selectionArgs,
-                    null
-                )?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        // Verify the file has actual content (not an orphaned entry)
-                        val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
-                        val fileSize = cursor.getLong(sizeColumn)
-                        if (fileSize <= 0) {
-                            return@withContext null
-                        }
+                    context.contentResolver.query(
+                        MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+                        projection,
+                        selection,
+                        selectionArgs,
+                        null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            // Verify the file has actual content (not an orphaned entry)
+                            val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
+                            val fileSize = cursor.getLong(sizeColumn)
+                            if (fileSize <= 0) {
+                                return@withContext null
+                            }
 
-                        val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                        val id = cursor.getLong(idColumn)
-                        val contentUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            MediaStore.Audio.Media.getContentUri(
-                                MediaStore.VOLUME_EXTERNAL_PRIMARY
+                            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                            val id = cursor.getLong(idColumn)
+                            Uri.withAppendedPath(
+                                MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+                                id.toString()
                             )
                         } else {
-                            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                            null
                         }
-                        Uri.withAppendedPath(contentUri, id.toString())
-                    } else {
-                        null
                     }
+                } else {
+                    // For older Android, check if file exists in Zemer folder
+                    val baseDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+                    val zemerDir = File(baseDir, ZEMER_FOLDER)
+                    val artistDir = File(zemerDir, sanitizeFolderName(artist))
+
+                    // Check common extensions
+                    listOf("m4a", "opus", "mp3", "webm", "ogg").forEach { ext ->
+                        val file = File(artistDir, "${sanitizeFileName("$artist - $title.$ext")}")
+                        if (file.exists() && file.length() > 0) {
+                            return@withContext Uri.fromFile(file)
+                        }
+                    }
+                    null
                 }
             } catch (e: Exception) {
+                Timber.e(e, "Error finding existing file: $title by $artist")
                 null
             }
         }
@@ -318,13 +511,23 @@ class MediaStoreHelper(private val context: Context) {
     }
 
     /**
-     * Get MIME type from file extension
+     * Get audio MIME type from file extension
      *
      * @param extension File extension (e.g., "opus", "m4a")
      * @return MIME type string, or "audio/mpeg" as default
      */
     fun getMimeType(extension: String): String {
         return MIME_TYPE_MAP[extension.lowercase()] ?: "audio/mpeg"
+    }
+
+    /**
+     * Get video MIME type from file extension
+     *
+     * @param extension File extension (e.g., "mp4", "webm")
+     * @return MIME type string, or "video/mp4" as default
+     */
+    fun getVideoMimeType(extension: String): String {
+        return VIDEO_MIME_TYPE_MAP[extension.lowercase()] ?: "video/mp4"
     }
 
     private fun saveToCustomPath(

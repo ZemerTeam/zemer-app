@@ -102,7 +102,8 @@ fun YouTubeSongMenu(
     song: SongItem,
     navController: NavController,
     onDismiss: () -> Unit,
-    onHistoryRemoved: () -> Unit = {}
+    onHistoryRemoved: () -> Unit = {},
+    isVideo: Boolean = false,
 ) {
     val context = LocalContext.current
     val auth = remember { FirebaseAuth.getInstance() }
@@ -528,8 +529,16 @@ fun YouTubeSongMenu(
                             inLibrary(song.id, null)
                         }
                     } else {
+                        // Set isVideo flag when adding video to library
+                        val metadata = song.toMediaMetadata().let {
+                            if (isVideo) it.copy(isVideo = true) else it
+                        }
                         database.transaction {
-                            insert(song.toMediaMetadata())
+                            insert(metadata)
+                            // Ensure isVideo is set even if song already exists (insert uses IGNORE)
+                            if (isVideo) {
+                                setIsVideo(song.id, true)
+                            }
                             inLibrary(song.id, LocalDateTime.now())
                             addLibraryTokens(song.id, song.libraryAddToken, song.libraryRemoveToken)
                         }
@@ -631,7 +640,12 @@ fun YouTubeSongMenu(
                         }
                         else -> {
                             ListItem(
-                                headlineContent = { Text(text = stringResource(R.string.action_download)) },
+                                headlineContent = {
+                                    Text(text = if (isVideo)
+                                        stringResource(R.string.download_video_to_device)
+                                    else
+                                        stringResource(R.string.action_download))
+                                },
                                 leadingContent = {
                                     Icon(
                                         painter = painterResource(R.drawable.download),
@@ -640,12 +654,20 @@ fun YouTubeSongMenu(
                                 },
                                 modifier = Modifier.clickable {
                                     coroutineScope.launch(Dispatchers.IO) {
+                                        // Insert with correct isVideo flag
+                                        val metadata = song.toMediaMetadata().copy(isVideo = isVideo)
                                         database.transaction {
-                                            insert(song.toMediaMetadata())
+                                            insert(metadata)
+                                            // Always set isVideo to match the download context
+                                            setIsVideo(song.id, isVideo)
                                         }
                                         val dbSong = database.song(song.id).first()
                                         dbSong?.let {
-                                            downloadUtil.downloadToMediaStore(it)
+                                            if (isVideo) {
+                                                downloadUtil.downloadVideoToMediaStore(it)
+                                            } else {
+                                                downloadUtil.downloadToMediaStore(it)
+                                            }
                                         }
                                     }
                                 }
