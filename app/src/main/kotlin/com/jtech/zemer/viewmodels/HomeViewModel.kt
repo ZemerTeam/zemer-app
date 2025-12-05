@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
 import com.jtech.zemer.constants.HideExplicitKey
+import com.jtech.zemer.constants.HomeRecentArtistsKey
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.OnboardingCompleteKey
 import com.jtech.zemer.constants.QuickPicks
@@ -17,6 +18,7 @@ import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
@@ -34,6 +36,7 @@ import com.metrolist.innertube.pages.ExplorePage
 import com.metrolist.innertube.pages.HomePage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -61,6 +64,7 @@ class HomeViewModel @Inject constructor(
         val id: String,
         val name: String,
         val isAmerican: Boolean?,
+        val isIsraeli: Boolean?,
         val isFemale: Boolean?,
         val isFamous: Boolean?,
         val isKids: Boolean?,
@@ -169,8 +173,17 @@ class HomeViewModel @Inject constructor(
         artistProfiles: List<HomeArtistProfile>,
         allowFemale: Boolean,
         random: Random,
+        usedArtists: MutableSet<String>,
+        recentExclusions: Set<String>,
     ): List<PlaylistItem> {
-        val selectedArtists = selectWeightedArtists(artistProfiles, allowFemale, 12, Random(random.nextLong()))
+        val selectedArtists = selectWeightedArtists(
+            artistProfiles,
+            allowFemale,
+            12,
+            Random(random.nextLong()),
+            usedArtists,
+            recentExclusions,
+        )
         if (selectedArtists.isEmpty()) return emptyList()
 
         val playlistItems = coroutineScope {
@@ -322,6 +335,8 @@ class HomeViewModel @Inject constructor(
         if (homeArtistProfilesCache.isNotEmpty() && !force) return homeArtistProfilesCache
 
         return runCatching {
+            IsraeliArtistRegistry.ensureLoaded()
+
             val snapshot = FirebaseFirestore.getInstance()
                 .collection("artistsWhitelist")
                 .get()
@@ -334,6 +349,7 @@ class HomeViewModel @Inject constructor(
                     id = id,
                     name = name,
                     isAmerican = doc.getBoolean("isAmerican"),
+                    isIsraeli = IsraeliArtistRegistry.isIsraeli(id),
                     isFemale = doc.getBoolean("isFemale"),
                     isFamous = doc.getBoolean("isFamous"),
                     isKids = doc.getBoolean("isKids"),
@@ -354,7 +370,11 @@ class HomeViewModel @Inject constructor(
         allowFemale: Boolean
     ): Boolean {
         val ids = this.artists?.mapNotNull { it.id }.orEmpty()
-        if (!allowFemale && ids.any { profileById[it]?.isFemale == true }) return true
+        val profiles = ids.mapNotNull { profileById[it] }
+        if (!allowFemale && profiles.any { it.isFemale == true }) return true
+        if (profiles.any { it.isAmerican != true }) return true
+        if (profiles.any { it.isIsraeli == true }) return true
+        if (profiles.any { it.isFamous != true }) return true
         return false
     }
 
@@ -363,7 +383,11 @@ class HomeViewModel @Inject constructor(
         allowFemale: Boolean
     ): Boolean {
         val ids = this.artists?.mapNotNull { it.id }.orEmpty()
-        if (!allowFemale && ids.any { profileById[it]?.isFemale == true }) return true
+        val profiles = ids.mapNotNull { profileById[it] }
+        if (!allowFemale && profiles.any { it.isFemale == true }) return true
+        if (profiles.any { it.isAmerican != true }) return true
+        if (profiles.any { it.isIsraeli == true }) return true
+        if (profiles.any { it.isFamous != true }) return true
         return false
     }
 
@@ -371,7 +395,11 @@ class HomeViewModel @Inject constructor(
         profileById: Map<String, HomeArtistProfile>,
         allowFemale: Boolean
     ): Boolean {
-        if (!allowFemale && profileById[id]?.isFemale == true) return true
+        val profile = profileById[id]
+        if (!allowFemale && profile?.isFemale == true) return true
+        if (profile?.isAmerican != true) return true
+        if (profile?.isIsraeli == true) return true
+        if (profile?.isFamous != true) return true
         return false
     }
 
@@ -381,7 +409,11 @@ class HomeViewModel @Inject constructor(
     ): Boolean {
         val authorId = author?.id
         if (authorId != null) {
-            if (!allowFemale && profileById[authorId]?.isFemale == true) return true
+            val profile = profileById[authorId]
+            if (!allowFemale && profile?.isFemale == true) return true
+            if (profile?.isAmerican != true) return true
+            if (profile?.isIsraeli == true) return true
+            if (profile?.isFamous != true) return true
         }
         return false
     }
@@ -391,50 +423,65 @@ class HomeViewModel @Inject constructor(
         allowFemale: Boolean,
         targetCount: Int,
         random: Random,
-        used: MutableSet<String>? = null
+        used: MutableSet<String>? = null,
+        recentExclusions: Set<String> = emptySet(),
     ): List<HomeArtistProfile> {
         if (targetCount <= 0) return emptyList()
         val base = profiles
+            .filter { it.isAmerican == true }
             .filter { it.isKids != true }
+            .filter { it.isIsraeli != true }
+            .filter { it.isFamous != false }
             .filter { allowFemale || it.isFemale != true }
             .filter { used?.contains(it.id) != true }
         if (base.isEmpty()) return emptyList()
 
-        val bucketRng = Random(random.nextLong())
-        val buckets = listOf(
-            0.50f to base.filter { it.isFamous == true }.shuffled(Random(bucketRng.nextLong())),
-            0.25f to base.filter { it.isDJ == true }.shuffled(Random(bucketRng.nextLong())),
-            0.15f to base.filter { it.isGroup == true }.shuffled(Random(bucketRng.nextLong())),
-            0.10f to base.filter { it.isAmerican == false }.shuffled(Random(bucketRng.nextLong())),
-        )
+        fun pickFrom(pool: List<HomeArtistProfile>, remainingTarget: Int): List<HomeArtistProfile> {
+            if (pool.isEmpty() || remainingTarget <= 0) return emptyList()
+            val bucketRng = Random(random.nextLong())
+            val buckets = listOf(
+                0.50f to pool.filter { it.isFamous == true }.shuffled(Random(bucketRng.nextLong())),
+                0.25f to pool.filter { it.isDJ == true }.shuffled(Random(bucketRng.nextLong())),
+                0.15f to pool.filter { it.isGroup == true }.shuffled(Random(bucketRng.nextLong())),
+                0.10f to pool.shuffled(Random(bucketRng.nextLong())),
+            )
 
-        val chosen = mutableListOf<HomeArtistProfile>()
-        val seen = mutableSetOf<String>()
+            val chosen = mutableListOf<HomeArtistProfile>()
+            val seen = mutableSetOf<String>()
 
-        buckets.forEach { (ratio, bucket) ->
-            if (bucket.isEmpty()) return@forEach
-            val goal = (targetCount * ratio).toInt().coerceAtLeast(1)
-            bucket.forEach { candidate ->
-                if (chosen.size >= targetCount) return@forEach
-                if (seen.add(candidate.id)) {
-                    chosen += candidate
-                    used?.add(candidate.id)
-                    if (chosen.size >= goal) return@forEach
+            buckets.forEach { (ratio, bucket) ->
+                if (bucket.isEmpty()) return@forEach
+                val goal = (remainingTarget * ratio).toInt().coerceAtLeast(1)
+                bucket.forEach { candidate ->
+                    if (chosen.size >= remainingTarget) return@forEach
+                    if (seen.add(candidate.id)) {
+                        chosen += candidate
+                        used?.add(candidate.id)
+                        if (chosen.size >= goal) return@forEach
+                    }
                 }
             }
-        }
 
-        if (chosen.size < targetCount) {
-            base.shuffled(Random(bucketRng.nextLong())).forEach { candidate ->
-                if (chosen.size >= targetCount) return@forEach
-                if (seen.add(candidate.id)) {
-                    chosen += candidate
-                    used?.add(candidate.id)
+            if (chosen.size < remainingTarget) {
+                pool.shuffled(Random(bucketRng.nextLong())).forEach { candidate ->
+                    if (chosen.size >= remainingTarget) return@forEach
+                    if (seen.add(candidate.id)) {
+                        chosen += candidate
+                        used?.add(candidate.id)
+                    }
                 }
             }
+
+            return chosen.take(remainingTarget)
         }
 
-        return chosen.take(targetCount)
+        val primaryPool = base.filterNot { it.id in recentExclusions }
+        val primaryPick = pickFrom(primaryPool, targetCount)
+        if (primaryPick.size >= targetCount || recentExclusions.isEmpty()) return primaryPick.take(targetCount)
+
+        val remaining = targetCount - primaryPick.size
+        val fallbackPool = base.filter { candidate -> candidate.id !in primaryPick.map { it.id } }
+        return (primaryPick + pickFrom(fallbackPool, remaining)).take(targetCount)
     }
 
     private suspend fun loadFeaturedContent(
@@ -442,8 +489,17 @@ class HomeViewModel @Inject constructor(
         artistProfiles: List<HomeArtistProfile>,
         allowFemale: Boolean,
         random: Random,
+        usedArtists: MutableSet<String>,
+        recentExclusions: Set<String>,
     ): Triple<List<AlbumItem>, List<ArtistItem>, List<SongItem>> {
-        val weightedArtists = selectWeightedArtists(artistProfiles, allowFemale, 15, Random(random.nextLong()))
+        val weightedArtists = selectWeightedArtists(
+            artistProfiles,
+            allowFemale,
+            15,
+            Random(random.nextLong()),
+            usedArtists,
+            recentExclusions,
+        )
         if (weightedArtists.isEmpty()) return Triple(emptyList(), emptyList(), emptyList())
 
         val albums = mutableListOf<AlbumItem>()
@@ -489,14 +545,15 @@ class HomeViewModel @Inject constructor(
         hideExplicit: Boolean,
         artistProfiles: List<HomeArtistProfile>,
         allowFemale: Boolean,
-        random: Random
+        random: Random,
+        recentExclusions: Set<String>,
     ): HomePage? {
         val filters = ContentFilterState.state.value
         val allowed = WhitelistCache.allowedEntries(database, filters)
         if (allowed.isEmpty()) return null
         val profileById = artistProfiles.associateBy { it.id }
         val candidates = allowed.mapNotNull { profileById[it.artistId] }
-        val selected = selectWeightedArtists(candidates, allowFemale, 10, Random(random.nextLong()))
+        val selected = selectWeightedArtists(candidates, allowFemale, 10, Random(random.nextLong()), recentExclusions = recentExclusions)
         val sections = mutableListOf<HomePage.Section>()
         val allSongs = mutableListOf<SongItem>()
         val allAlbums = mutableListOf<AlbumItem>()
@@ -587,7 +644,8 @@ class HomeViewModel @Inject constructor(
         hideExplicit: Boolean,
         artistProfiles: List<HomeArtistProfile>,
         allowFemale: Boolean,
-        random: Random
+        random: Random,
+        recentExclusions: Set<String>,
     ): ExplorePage? {
         val filters = ContentFilterState.state.value
         val allowed = WhitelistCache.allowedEntries(database, filters)
@@ -595,7 +653,13 @@ class HomeViewModel @Inject constructor(
 
         val profileById = artistProfiles.associateBy { it.id }
         val candidates = allowed.mapNotNull { profileById[it.artistId] }
-        val selected = selectWeightedArtists(candidates, allowFemale, 12, Random(random.nextLong()))
+        val selected = selectWeightedArtists(
+            candidates,
+            allowFemale,
+            12,
+            Random(random.nextLong()),
+            recentExclusions = recentExclusions,
+        )
         val albums = mutableListOf<AlbumItem>()
 
         coroutineScope {
@@ -646,7 +710,12 @@ class HomeViewModel @Inject constructor(
 
         val base = songs.filter { song ->
             val artistIds = song.artists.mapNotNull { it.id }
-            if (!allowFemale && artistIds.any { profileById[it]?.isFemale == true }) return@filter false
+            val profiles = artistIds.mapNotNull { profileById[it] }
+            if (profiles.isEmpty()) return@filter false
+            if (!allowFemale && profiles.any { it.isFemale == true }) return@filter false
+            if (profiles.any { it.isAmerican != true }) return@filter false
+            if (profiles.any { it.isIsraeli == true }) return@filter false
+            if (profiles.any { it.isFamous != true }) return@filter false
             true
         }
         if (base.isEmpty()) return emptyList()
@@ -659,13 +728,11 @@ class HomeViewModel @Inject constructor(
         val famous = byProfile.filterKeys { it?.isFamous == true }.values.flatten().shuffled(Random(rng.nextLong()))
         val dj = byProfile.filterKeys { it?.isDJ == true }.values.flatten().shuffled(Random(rng.nextLong()))
         val group = byProfile.filterKeys { it?.isGroup == true }.values.flatten().shuffled(Random(rng.nextLong()))
-        val nonAmerican = byProfile.filterKeys { it?.isAmerican == false }.values.flatten().shuffled(Random(rng.nextLong()))
-
         val buckets = listOf(
             0.50f to famous,
             0.25f to dj,
             0.15f to group,
-            0.10f to nonAmerican,
+            0.10f to base.shuffled(Random(rng.nextLong())),
         )
 
         val chosen = mutableListOf<Song>()
@@ -697,10 +764,11 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun load(force: Boolean = false) {
         if (uiState.value.isLoading) return
-        if (!force && hasLoadedOnce) return
 
         uiState.update { it.copy(isLoading = true) }
         try {
+            IsraeliArtistRegistry.ensureLoaded()
+
             if (WhitelistCache.snapshot().isEmpty()) {
                 runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
             }
@@ -713,15 +781,36 @@ class HomeViewModel @Inject constructor(
             val useWhitelist = filters.filtersEnabled && allowedEntries.isNotEmpty()
             val effectiveFilters = if (useWhitelist) filters else filters.copy(filtersEnabled = false)
             val allowFemale = filters.allowFemaleSingers
+            val recentArtistIds = context.dataStore
+                .getSuspend(HomeRecentArtistsKey, "")
+                .orEmpty()
+                .split(",")
+                .filter { it.isNotBlank() }
 
             val artistProfiles = loadHomeArtistProfiles(force = force)
+            val eligibleProfiles = artistProfiles
+                .filter { it.isAmerican == true }
+                .filter { it.isIsraeli != true }
+                .filter { it.isFamous == true }
             val profileById = artistProfiles.associateBy { it.id }
-            val baseProfiles = if (useWhitelist) artistProfiles.filter { it.id in allowedIds } else artistProfiles
+            val baseProfiles = if (useWhitelist) {
+                eligibleProfiles.filter { it.id in allowedIds }
+            } else {
+                eligibleProfiles
+            }
+            val sharedUsedArtists = recentArtistIds.toMutableSet()
             val selectionRandom = Random(System.nanoTime())
 
             val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
             val quick = loadQuickPicks()
-            val featuredPlaylists = loadFeaturedPlaylists(hideExplicit, baseProfiles, allowFemale, selectionRandom)
+            val featuredPlaylists = loadFeaturedPlaylists(
+                hideExplicit,
+                baseProfiles,
+                allowFemale,
+                selectionRandom,
+                sharedUsedArtists,
+                recentArtistIds.toSet(),
+            )
             val trendingSongs = loadTrendingSongs(effectiveFilters, hideExplicit)
             val forgottenList = database.forgottenFavorites().first().shuffled().take(20)
             val forgotten = forgottenList.ifEmpty {
@@ -732,15 +821,32 @@ class HomeViewModel @Inject constructor(
                     .take(20)
             }
             val keepListening = loadKeepListening()
-            val home = if (useWhitelist) loadWhitelistHome(hideExplicit, baseProfiles, allowFemale, selectionRandom) else loadHomePage(hideExplicit)
-            val explore = if (useWhitelist) loadWhitelistExplore(hideExplicit, baseProfiles, allowFemale, selectionRandom) else loadExplorePage(hideExplicit)
+            val home = if (useWhitelist) {
+                loadWhitelistHome(
+                    hideExplicit,
+                    baseProfiles,
+                    allowFemale,
+                    selectionRandom,
+                    recentArtistIds.toSet(),
+                )
+            } else loadHomePage(hideExplicit)
+            val explore = if (useWhitelist) {
+                loadWhitelistExplore(
+                    hideExplicit,
+                    baseProfiles,
+                    allowFemale,
+                    selectionRandom,
+                    recentArtistIds.toSet(),
+                )
+            } else loadExplorePage(hideExplicit)
             val (recentAlbums, recentSongs) = loadRecentReleases(hideExplicit)
 
             fun isBlockedArtist(ids: List<String>): Boolean {
+                if (ids.any { IsraeliArtistRegistry.isIsraeli(it) }) return true
                 val profiles = ids.mapNotNull { profileById[it] }
                 if (!allowFemale && profiles.any { it.isFemale == true }) return true
-                if (profiles.any { it.isAmerican == false }) return true
-                if (profiles.any { it.isFamous == false }) return true
+                if (profiles.any { it.isAmerican != true }) return true
+                if (profiles.any { it.isFamous != true }) return true
                 return false
             }
 
@@ -757,6 +863,56 @@ class HomeViewModel @Inject constructor(
                 else -> true
             }
 
+            fun Song.artistIds(): List<String> = artists.mapNotNull { it.id }
+            fun SongItem.artistIds(): List<String> = artists?.mapNotNull { it.id }.orEmpty()
+            fun AlbumItem.artistIds(): List<String> = artists?.mapNotNull { it.id }.orEmpty()
+            fun ArtistItem.artistIds(): List<String> = listOfNotNull(id)
+            fun PlaylistItem.artistIds(): List<String> = listOfNotNull(author?.id)
+
+            fun <T> rotateByArtist(
+                items: List<T>,
+                maxPerArtist: Int,
+                target: Int,
+            ): List<T> {
+                if (items.isEmpty()) return emptyList()
+                val shuffled = items.shuffled(Random(System.nanoTime()))
+                val counts = mutableMapOf<String, Int>()
+                val freshBucket = mutableListOf<T>()
+                val fallbackBucket = mutableListOf<T>()
+
+                fun extractIds(item: T): List<String> = when (item) {
+                    is Song -> item.artistIds()
+                    is SongItem -> item.artistIds()
+                    is AlbumItem -> item.artistIds()
+                    is ArtistItem -> item.artistIds()
+                    is PlaylistItem -> item.artistIds()
+                    is Album -> item.artists.mapNotNull { it.id }
+                    is Artist -> listOfNotNull(item.id)
+                    else -> emptyList()
+                }
+
+                shuffled.forEach { item ->
+                    val ids = extractIds(item)
+                    if (ids.isEmpty() || ids.any { it in recentArtistIds }) fallbackBucket += item
+                    else freshBucket += item
+                }
+
+                fun append(from: List<T>, into: MutableList<T>) {
+                    from.forEach { item ->
+                        val ids = extractIds(item)
+                        if (ids.all { counts.getOrDefault(it, 0) < maxPerArtist }) {
+                            ids.forEach { id -> counts[id] = counts.getOrDefault(id, 0) + 1 }
+                            into += item
+                        }
+                    }
+                }
+
+                val result = mutableListOf<T>()
+                append(freshBucket, result)
+                if (result.size < target) append(fallbackBucket, result)
+                return result.take(target)
+            }
+
             fun HomePage?.filtered(): HomePage? {
                 if (this == null) return null
                 val filteredSections = sections.mapNotNull { section ->
@@ -769,7 +925,9 @@ class HomeViewModel @Inject constructor(
                             else -> item
                         }
                     }
-                    if (filteredItems.isEmpty()) null else section.copy(items = filteredItems)
+                    if (filteredItems.isEmpty()) return@mapNotNull null
+                    val rotated = rotateByArtist(filteredItems, maxPerArtist = 1, target = filteredItems.size)
+                    if (rotated.isEmpty()) null else section.copy(items = rotated)
                 }
                 if (filteredSections.isEmpty()) return null
                 return copy(sections = filteredSections)
@@ -791,17 +949,129 @@ class HomeViewModel @Inject constructor(
                 seedQuickPicksFromHomePage(filteredHome, hideExplicit, quick)
             } else quick
 
-            val featuredTriple = loadFeaturedContent(hideExplicit, baseProfiles, allowFemale, selectionRandom)
-
             val filteredQuick = quickSeeded.filter { song -> song.isAllowed() }
             val fallbackQuick = runCatching {
-                database.allSongs().first().filter { it.isAllowed() }.take(20)
+                database.allSongs().first().filter { it.isAllowed() }.take(30)
             }.getOrDefault(emptyList())
-            val finalQuick = filteredQuick
-                .shuffled(Random(System.nanoTime()))
-                .take(20)
-                .ifEmpty { filteredQuick.ifEmpty { fallbackQuick } }
+            val freshQuick = filteredQuick.filter { song -> song.artistIds().none { it in recentArtistIds } }
+            val quickPool = freshQuick.ifEmpty { filteredQuick }
+            val recentAwareQuick = rotateByArtist(quickPool.ifEmpty { fallbackQuick }, 1, 20)
+            sharedUsedArtists.addAll(recentAwareQuick.flatMap { it.artistIds() })
+
+            val featuredTriple = loadFeaturedContent(
+                hideExplicit,
+                baseProfiles,
+                allowFemale,
+                selectionRandom,
+                sharedUsedArtists,
+                recentArtistIds.toSet(),
+            )
+
+            val finalQuick = recentAwareQuick.ifEmpty { filteredQuick.ifEmpty { fallbackQuick } }
+            val finalTrending = rotateByArtist(
+                trendingSongs.filter { song -> song.isAllowed() },
+                maxPerArtist = 1,
+                target = 30,
+            )
+            val finalFeaturedPlaylists = rotateByArtist(
+                featuredPlaylists.filter { it.isAllowed() },
+                maxPerArtist = 1,
+                target = 8,
+            )
+            val finalKeepListening = rotateByArtist(
+                keepListening.filter { it.isAllowed() },
+                maxPerArtist = 1,
+                target = 24,
+            )
+            val finalForgotten = rotateByArtist(
+                forgotten.filter { song -> song.isAllowed() },
+                maxPerArtist = 1,
+                target = 20,
+            )
+            val finalRecentAlbums = filteredRecentAlbums
+                .let { rotateByArtist(it, maxPerArtist = 1, target = 16) }
+            val finalRecentSongs = filteredRecentSongs
+                .let { rotateByArtist(it, maxPerArtist = 1, target = 30) }
+            val finalFeaturedAlbums = featuredTriple.first.filter { it.isAllowed() }
+                .let { rotateByArtist(it, maxPerArtist = 1, target = 20) }
+            val finalFeaturedArtists = featuredTriple.second.filter { it.isAllowed() }
+                .let { rotateByArtist(it, maxPerArtist = 1, target = 20) }
+            val finalFeaturedVideos = featuredTriple.third.filter { it.isAllowed() }
+                .let { rotateByArtist(it, maxPerArtist = 1, target = 20) }
             val isNewUser = finalQuick.isEmpty() && keepListening.isEmpty()
+
+            val usedArtistIds = mutableSetOf<String>()
+            fun collectSongArtists(items: List<Song>) {
+                items.forEach { song ->
+                    song.artists.forEach { artist -> artist.id?.let(usedArtistIds::add) }
+                }
+            }
+
+            fun collectSongItems(items: List<SongItem>) {
+                items.forEach { item ->
+                    item.artists?.forEach { artist -> artist.id?.let(usedArtistIds::add) }
+                }
+            }
+
+            fun collectAlbumItems(items: List<AlbumItem>) {
+                items.forEach { album ->
+                    album.artists?.forEach { artist -> artist.id?.let(usedArtistIds::add) }
+                }
+            }
+
+            fun collectLocalAlbums(items: List<Album>) {
+                items.forEach { album ->
+                    album.artists.forEach { artist -> usedArtistIds.add(artist.id) }
+                }
+            }
+
+            fun collectArtistItems(items: List<ArtistItem>) {
+                items.forEach { artist -> artist.id?.let(usedArtistIds::add) }
+            }
+
+            fun collectLocalArtists(items: List<Artist>) {
+                items.forEach { artist -> usedArtistIds.add(artist.id) }
+            }
+
+            fun collectPlaylistItems(items: List<PlaylistItem>) {
+                items.mapNotNull { it.author?.id }.forEach(usedArtistIds::add)
+            }
+
+            fun collectHomeSections(sections: List<HomePage.Section>) {
+                sections.forEach { section ->
+                    section.items.forEach { item ->
+                        when (item) {
+                            is SongItem -> collectSongItems(listOf(item))
+                            is AlbumItem -> collectAlbumItems(listOf(item))
+                            is ArtistItem -> collectArtistItems(listOf(item))
+                            is PlaylistItem -> collectPlaylistItems(listOf(item))
+                        }
+                    }
+                }
+            }
+
+            collectSongArtists(finalQuick)
+            collectSongItems(finalTrending)
+            collectPlaylistItems(finalFeaturedPlaylists)
+            collectAlbumItems(finalFeaturedAlbums)
+            collectArtistItems(finalFeaturedArtists)
+            collectSongItems(finalFeaturedVideos)
+            collectAlbumItems(finalRecentAlbums)
+            collectSongItems(finalRecentSongs)
+            collectSongArtists(finalForgotten)
+            collectSongArtists(finalKeepListening.filterIsInstance<Song>())
+            collectLocalAlbums(finalKeepListening.filterIsInstance<Album>())
+            collectLocalArtists(finalKeepListening.filterIsInstance<Artist>())
+            collectHomeSections(filteredHome?.sections.orEmpty())
+            collectAlbumItems(filteredExplore?.newReleaseAlbums.orEmpty())
+
+            context.dataStore.edit { prefs ->
+                val buffer = LinkedHashSet<String>()
+                buffer.addAll(recentArtistIds.takeLast(60))
+                buffer.addAll(usedArtistIds)
+                val trimmed = buffer.toList().takeLast(60)
+                prefs[HomeRecentArtistsKey] = trimmed.joinToString(",")
+            }
 
             Timber.d(
                 "HomeViewModel: load -> featuredArtists=%d playlists=%d albums=%d videos=%d quick=%d",
@@ -818,15 +1088,15 @@ class HomeViewModel @Inject constructor(
                     isRefreshing = false,
                     isNewUser = isNewUser,
                     quickPicks = finalQuick.shuffled(Random(System.nanoTime())),
-                    trendingSongs = trendingSongs.filter { song -> song.isAllowed() }.shuffled(Random(System.nanoTime())),
-                    featuredPlaylists = featuredPlaylists.filter { it.isAllowed() }.shuffled(Random(System.nanoTime())),
-                    keepListening = keepListening.filter { it.isAllowed() }.shuffled(Random(System.nanoTime())),
-                    forgottenFavorites = forgotten.filter { song -> song.isAllowed() }.shuffled(Random(System.nanoTime())),
-                    recentReleaseAlbums = filteredRecentAlbums.shuffled(Random(System.nanoTime())),
-                    recentReleaseSongs = filteredRecentSongs.shuffled(Random(System.nanoTime())),
-                    featuredAlbums = featuredTriple.first.filter { it.isAllowed() }.shuffled(Random(System.nanoTime())),
-                    featuredArtists = featuredTriple.second.filter { it.isAllowed() }.shuffled(Random(System.nanoTime())),
-                    featuredVideos = featuredTriple.third.filter { it.isAllowed() }.shuffled(Random(System.nanoTime())),
+                    trendingSongs = finalTrending,
+                    featuredPlaylists = finalFeaturedPlaylists,
+                    keepListening = finalKeepListening,
+                    forgottenFavorites = finalForgotten,
+                    recentReleaseAlbums = finalRecentAlbums,
+                    recentReleaseSongs = finalRecentSongs,
+                    featuredAlbums = finalFeaturedAlbums,
+                    featuredArtists = finalFeaturedArtists,
+                    featuredVideos = finalFeaturedVideos,
                     homePage = filteredHome,
                     explorePage = filteredExplore,
                 )
@@ -847,7 +1117,10 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
             val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
+            val allowFemale = ContentFilterState.state.value.allowFemaleSingers
+            val profileById = homeArtistProfilesCache.associateBy { it.id }
             isLoadingMore.value = true
+            IsraeliArtistRegistry.ensureLoaded()
             val nextSections = YouTube.home(continuation).getOrNull()
             if (nextSections != null) {
                 uiState.update { state ->
@@ -855,6 +1128,54 @@ class HomeViewModel @Inject constructor(
                     val mergedSections = (existingSections + nextSections.sections).mapNotNull { section ->
                         val filteredItems = section.items
                             .filterExplicit(hideExplicit)
+                            .filterNot { item ->
+                                when (item) {
+                                    is SongItem -> {
+                                        val profiles = item.artists?.mapNotNull { profileById[it.id] }.orEmpty()
+                                        val blockedByProfile = profiles.any { profile ->
+                                            (!allowFemale && profile.isFemale == true) ||
+                                                profile.isAmerican != true ||
+                                                profile.isIsraeli == true ||
+                                                profile.isFamous != true
+                                        }
+                                        blockedByProfile || item.artists?.any { IsraeliArtistRegistry.isIsraeli(it.id) } == true
+                                    }
+
+                                    is AlbumItem -> {
+                                        val profiles = item.artists?.mapNotNull { profileById[it.id] }.orEmpty()
+                                        val blockedByProfile = profiles.any { profile ->
+                                            (!allowFemale && profile.isFemale == true) ||
+                                                profile.isAmerican != true ||
+                                                profile.isIsraeli == true ||
+                                                profile.isFamous != true
+                                        }
+                                        blockedByProfile || item.artists?.any { IsraeliArtistRegistry.isIsraeli(it.id) } == true
+                                    }
+
+                                    is ArtistItem -> {
+                                        val profile = profileById[item.id]
+                                        val blockedByProfile = profile?.let {
+                                            (!allowFemale && it.isFemale == true) ||
+                                                it.isAmerican != true ||
+                                                it.isIsraeli == true ||
+                                                it.isFamous != true
+                                        } == true
+                                        blockedByProfile || IsraeliArtistRegistry.isIsraeli(item.id)
+                                    }
+
+                                    is PlaylistItem -> {
+                                        val profile = profileById[item.author?.id]
+                                        val blockedByProfile = profile?.let {
+                                            (!allowFemale && it.isFemale == true) ||
+                                                it.isAmerican != true ||
+                                                it.isIsraeli == true ||
+                                                it.isFamous != true
+                                        } == true
+                                        blockedByProfile || IsraeliArtistRegistry.isIsraeli(item.author?.id)
+                                    }
+                                    else -> false
+                                }
+                            }
                         if (filteredItems.isEmpty()) null else section.copy(items = filteredItems)
                     }
                     val updatedHome = (state.homePage ?: HomePage(null, emptyList(), null)).copy(

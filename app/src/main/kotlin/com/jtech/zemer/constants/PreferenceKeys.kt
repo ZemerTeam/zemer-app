@@ -134,6 +134,7 @@ val AllowFemaleSingersKey = booleanPreferencesKey("allowFemaleSingers")
 val FemalePasscodeHashKey = stringPreferencesKey("femalePasscodeHash")
 val AllowChasidishKey = booleanPreferencesKey("allowChasidish")
 val EnableContentFiltersKey = booleanPreferencesKey("enableContentFilters")
+val HomeRecentArtistsKey = stringPreferencesKey("home_recent_artists")
 
 val ShowLikedPlaylistKey = booleanPreferencesKey("show_liked_playlist")
 val ShowDownloadedPlaylistKey = booleanPreferencesKey("show_downloaded_playlist")

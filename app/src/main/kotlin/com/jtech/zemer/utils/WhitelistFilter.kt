@@ -223,6 +223,11 @@ private suspend fun MusicDatabase.artistMatchesFilters(
         }
     }
 
+    IsraeliArtistRegistry.ensureLoaded()
+    if (IsraeliArtistRegistry.isIsraeli(artistId)) {
+        return ArtistFilterDecision(allowed = false, isChasidish = false)
+    }
+
     var entry = artistCache[artistId]
         ?: WhitelistEntryCache.get(artistId)
         ?: getWhitelistEntry(artistId)?.also { WhitelistEntryCache.put(it) }
