@@ -7,7 +7,6 @@ data class ContentFilterConfig(
     val filtersEnabled: Boolean = true,
     val allowFemaleSingers: Boolean = false,
     val promoteChasidish: Boolean = false,
-    val hideOldStuff: Boolean = false,
 )
 
 object ContentFilterState {

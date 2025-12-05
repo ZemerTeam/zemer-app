@@ -167,9 +167,6 @@ class App : Application(), SingletonImageLoader.Factory {
         if (!settings.contains(AllowChasidishKey)) {
             dataStore.edit { it[AllowChasidishKey] = false }
         }
-        if (!settings.contains(AllowDjKey)) {
-            dataStore.edit { it[AllowDjKey] = false }
-        }
 
         YouTube.locale = YouTubeLocale(
             gl = settings[ContentCountryKey]?.takeIf { it != SYSTEM_DEFAULT }
@@ -240,7 +237,6 @@ class App : Application(), SingletonImageLoader.Factory {
                         filtersEnabled = prefs[EnableContentFiltersKey] ?: true,
                         allowFemaleSingers = prefs[AllowFemaleSingersKey] ?: false,
                         promoteChasidish = prefs[AllowChasidishKey] ?: false,
-                        hideOldStuff = prefs[AllowDjKey] ?: false,
                     )
                 }
                 .distinctUntilChanged()
@@ -256,7 +252,6 @@ class App : Application(), SingletonImageLoader.Factory {
                         filtersEnabled = prefs[EnableContentFiltersKey] ?: true,
                         allowFemaleSingers = prefs[AllowFemaleSingersKey] ?: false,
                         promoteChasidish = prefs[AllowChasidishKey] ?: false,
-                        hideOldStuff = prefs[AllowDjKey] ?: false,
                     )
                 }
                 .distinctUntilChanged()

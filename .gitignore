@@ -119,3 +119,15 @@ core.*
 /tmp/names_sorted.txt
 /exports/artistsWhitelist.json
 /crash.txt
+/exports/.env
+/exports/artist_flags_firebase_mini_ai_v1.json
+/exports/artist_flags_fullai_rescan.json
+/exports/artist_flags_fullai_v3.json
+/exports/artist_names_ids.json
+/exports/classify_channels.py
+/exports/classify_channels_fullai_rescan.py
+/exports/classify_channels_fullai_v3.py
+/.venv_tools/lib64/
+/.venv_tools/pyvenv.cfg
+/.venv_tools/lib64/
+/.venv_tools/lib64/

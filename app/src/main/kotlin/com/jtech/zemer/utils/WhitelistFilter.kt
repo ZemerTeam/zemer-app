@@ -231,7 +231,7 @@ private suspend fun MusicDatabase.artistMatchesFilters(
     }
 
     val needsRemoteCheck =
-        entry == null || (config.filtersEnabled && !config.allowFemaleSingers && !entry.isFemale) || (config.filtersEnabled && config.hideOldStuff && !entry.isGenZ) || (config.promoteChasidish && !entry.isChasid)
+        entry == null || (config.filtersEnabled && !config.allowFemaleSingers && entry?.isFemale == true) || (config.promoteChasidish && entry?.isChasid != true)
 
     if (needsRemoteCheck) {
         // Fall back to DB once before giving up
@@ -246,9 +246,6 @@ private suspend fun MusicDatabase.artistMatchesFilters(
 
     if (config.filtersEnabled) {
         if (!config.allowFemaleSingers && entry.isFemale) {
-            return ArtistFilterDecision(false, entry.isChasid)
-        }
-        if (config.hideOldStuff && !entry.isGenZ) {
             return ArtistFilterDecision(false, entry.isChasid)
         }
     }

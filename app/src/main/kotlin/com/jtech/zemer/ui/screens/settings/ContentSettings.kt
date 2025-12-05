@@ -35,7 +35,6 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AllowChasidishKey
-import com.jtech.zemer.constants.AllowDjKey
 import com.jtech.zemer.constants.AllowFemaleSingersKey
 import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.ContentCountryKey
@@ -84,7 +83,6 @@ fun ContentSettings(
     val (allowFemaleSingers, onAllowFemaleSingersChange) = rememberPreference(key = AllowFemaleSingersKey, defaultValue = false)
     val (femalePasscodeHash, onFemalePasscodeHashChange) = rememberPreference(key = FemalePasscodeHashKey, defaultValue = "")
     val (allowChasidish, onAllowChasidishChange) = rememberPreference(key = AllowChasidishKey, defaultValue = false)
-    val (allowDj, onAllowDjChange) = rememberPreference(key = AllowDjKey, defaultValue = false)
 
     var showCreatePasscodeDialog by rememberSaveable { mutableStateOf(false) }
     var showUnlockDialog by rememberSaveable { mutableStateOf(false) }
@@ -231,14 +229,6 @@ fun ContentSettings(
             onCheckedChange = onAllowChasidishChange,
             isEnabled = enableContentFilters
         )
-        SwitchPreference(
-            title = { Text(stringResource(R.string.i_like_dj)) },
-            icon = { Icon(painterResource(R.drawable.music_note), null) },
-            checked = allowDj,
-            onCheckedChange = onAllowDjChange,
-            isEnabled = enableContentFilters
-        )
-
         PreferenceGroupTitle(title = stringResource(R.string.misc))
         EditTextPreference(
             title = { Text(stringResource(R.string.top_length)) },

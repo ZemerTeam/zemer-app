@@ -29,6 +29,7 @@
     <string name="quick_picks_empty">Listen to songs to generate your quick picks</string>
     <string name="forgotten_favorites">Forgotten favorites</string>
     <string name="keep_listening">Keep listening</string>
+    <string name="for_the_kids">For the kids</string>
     <string name="your_youtube_playlists">Your YouTube playlists</string>
     <string name="new_release_albums">New release albums</string>
 
@@ -409,7 +410,6 @@
     <string name="enter_female_passcode_title">Enter passcode</string>
     <string name="female_passcode_incorrect">Incorrect passcode.</string>
     <string name="enable_personal_filters">Enable personal feed filters</string>
-    <string name="i_like_dj">Hide old stuff</string>
     <string name="i_am_chasidish">Promote chassidish content</string>
     <string name="coming_soon">Coming soon</string>
     <string name="radio_mode">Radio mode</string>
