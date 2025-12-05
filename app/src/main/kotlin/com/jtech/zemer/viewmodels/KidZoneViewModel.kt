@@ -24,6 +24,10 @@ constructor(
 ) : ViewModel() {
     val searchQuery = MutableStateFlow("")
 
+    // Expose sync progress from SyncUtils
+    val syncProgress = syncUtils.whitelistSyncProgress
+    val isSyncing = syncUtils.isWhitelistSyncing
+
     fun sync() {
         viewModelScope.launch(Dispatchers.IO) {
             syncUtils.syncArtistWhitelist(forceSync = true)

@@ -1,6 +1,7 @@
 package com.jtech.zemer.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.asPaddingValues
@@ -26,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -56,6 +58,7 @@ import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
 import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.screens.LoadingScreen
 import com.jtech.zemer.ui.component.WhitelistedArtistGridItem
 import com.jtech.zemer.ui.component.WhitelistedArtistListItem
 import com.jtech.zemer.utils.rememberEnumPreference
@@ -76,7 +79,17 @@ fun KidZoneScreen(
 
     val artists by viewModel.allArtists.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val syncProgress by viewModel.syncProgress.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+    var showSyncOverlay by remember { mutableStateOf(false) }
+
+    LaunchedEffect(syncProgress.total, syncProgress.isComplete, syncProgress.current, isSyncing) {
+        showSyncOverlay = isSyncing || (syncProgress.total > 0 && !syncProgress.isComplete)
+        if (!isSyncing && (syncProgress.isComplete || syncProgress.total == 0)) {
+            showSyncOverlay = false
+        }
+    }
 
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
@@ -200,13 +213,15 @@ fun KidZoneScreen(
         }
     }
 
-    when (viewType) {
-        LibraryViewType.LIST ->
-            LazyColumn(
-                state = lazyListState,
-                contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
-                modifier = Modifier.fillMaxSize(),
-            ) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        when (viewType) {
+            LibraryViewType.LIST ->
+                LazyColumn(
+                    state = lazyListState,
+                    contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
+                ) {
                 item(
                     key = "search",
                     contentType = CONTENT_TYPE_HEADER,
@@ -253,13 +268,12 @@ fun KidZoneScreen(
                 }
             }
 
-        LibraryViewType.GRID ->
-            LazyVerticalGrid(
-                state = lazyGridState,
-                columns = GridCells.Fixed(3),
-                contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
-                modifier = Modifier.fillMaxSize(),
-            ) {
+            LibraryViewType.GRID ->
+                LazyVerticalGrid(
+                    state = lazyGridState,
+                    columns = GridCells.Fixed(3),
+                    contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
+                ) {
                 item(
                     key = "search",
                     span = { GridItemSpan(maxLineSpan) },
@@ -310,5 +324,13 @@ fun KidZoneScreen(
                     )
                 }
             }
+        }
+
+        if (showSyncOverlay && !syncProgress.isComplete) {
+            LoadingScreen(
+                onFinished = { showSyncOverlay = false },
+                shouldStartSync = false
+            )
+        }
     }
 }

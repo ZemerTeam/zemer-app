@@ -16,5 +16,6 @@ data class ArtistWhitelistEntity(
     val isFemale: Boolean = false,
     val isChasid: Boolean = false,
     val isGenZ: Boolean = false,
-    val isKids: Boolean = false
+    val isKids: Boolean = false,
+    val isKidZone: Boolean = false
 )

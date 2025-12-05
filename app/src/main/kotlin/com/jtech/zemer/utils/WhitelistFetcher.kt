@@ -42,6 +42,7 @@ object WhitelistFetcher {
                 val isChasid = doc.getBoolean("isChasid") ?: false
                 val isGenZ = doc.getBoolean("isGenZ") ?: false
                 val isKids = doc.getBoolean("isKids") ?: false
+                val isKidZone = doc.getBoolean("isKidZone") ?: false
 
                 whitelistEntities.add(
                     ArtistWhitelistEntity(
@@ -53,7 +54,8 @@ object WhitelistFetcher {
                         isFemale = isFemale,
                         isChasid = isChasid,
                         isGenZ = isGenZ,
-                        isKids = isKids
+                        isKids = isKids,
+                        isKidZone = isKidZone
                     )
                 )
                 processed++
