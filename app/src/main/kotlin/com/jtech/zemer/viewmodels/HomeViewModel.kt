@@ -863,6 +863,12 @@ class HomeViewModel @Inject constructor(
                 else -> true
             }
 
+            fun Song.artistIds(): List<String> = artists.mapNotNull { it.id }
+            fun SongItem.artistIds(): List<String> = artists?.mapNotNull { it.id }.orEmpty()
+            fun AlbumItem.artistIds(): List<String> = artists?.mapNotNull { it.id }.orEmpty()
+            fun ArtistItem.artistIds(): List<String> = listOfNotNull(id)
+            fun PlaylistItem.artistIds(): List<String> = listOfNotNull(author?.id)
+
             fun <T> rotateByArtist(
                 items: List<T>,
                 maxPerArtist: Int,
@@ -933,12 +939,6 @@ class HomeViewModel @Inject constructor(
                     .filter { !it.isBlocked(profileById, allowFemale) }
                 return copy(newReleaseAlbums = albums)
             }
-
-            fun Song.artistIds(): List<String> = artists.mapNotNull { it.id }
-            fun SongItem.artistIds(): List<String> = artists?.mapNotNull { it.id }.orEmpty()
-            fun AlbumItem.artistIds(): List<String> = artists?.mapNotNull { it.id }.orEmpty()
-            fun ArtistItem.artistIds(): List<String> = listOfNotNull(id)
-            fun PlaylistItem.artistIds(): List<String> = listOfNotNull(author?.id)
 
             val filteredHome = home.filtered()
             val filteredExplore = explore.filtered()
