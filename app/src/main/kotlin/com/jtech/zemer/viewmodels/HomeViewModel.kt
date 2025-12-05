@@ -17,6 +17,7 @@ import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
@@ -330,6 +331,8 @@ class HomeViewModel @Inject constructor(
         if (homeArtistProfilesCache.isNotEmpty() && !force) return homeArtistProfilesCache
 
         return runCatching {
+            IsraeliArtistRegistry.ensureLoaded()
+
             val snapshot = FirebaseFirestore.getInstance()
                 .collection("artistsWhitelist")
                 .get()
@@ -342,7 +345,7 @@ class HomeViewModel @Inject constructor(
                     id = id,
                     name = name,
                     isAmerican = doc.getBoolean("isAmerican"),
-                    isIsraeli = doc.getBoolean("isIsraeli"),
+                    isIsraeli = IsraeliArtistRegistry.isIsraeli(id),
                     isFemale = doc.getBoolean("isFemale"),
                     isFamous = doc.getBoolean("isFamous"),
                     isKids = doc.getBoolean("isKids"),
@@ -722,6 +725,8 @@ class HomeViewModel @Inject constructor(
 
         uiState.update { it.copy(isLoading = true) }
         try {
+            IsraeliArtistRegistry.ensureLoaded()
+
             if (WhitelistCache.snapshot().isEmpty()) {
                 runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
             }
@@ -772,9 +777,9 @@ class HomeViewModel @Inject constructor(
             val (recentAlbums, recentSongs) = loadRecentReleases(hideExplicit)
 
             fun isBlockedArtist(ids: List<String>): Boolean {
+                if (ids.any { IsraeliArtistRegistry.isIsraeli(it) }) return true
                 val profiles = ids.mapNotNull { profileById[it] }
                 if (!allowFemale && profiles.any { it.isFemale == true }) return true
-                if (profiles.any { it.isIsraeli == true }) return true
                 if (profiles.any { it.isAmerican == false }) return true
                 if (profiles.any { it.isFamous != true }) return true
                 return false
@@ -890,6 +895,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
             isLoadingMore.value = true
+            IsraeliArtistRegistry.ensureLoaded()
             val nextSections = YouTube.home(continuation).getOrNull()
             if (nextSections != null) {
                 uiState.update { state ->
@@ -897,6 +903,15 @@ class HomeViewModel @Inject constructor(
                     val mergedSections = (existingSections + nextSections.sections).mapNotNull { section ->
                         val filteredItems = section.items
                             .filterExplicit(hideExplicit)
+                            .filterNot { item ->
+                                when (item) {
+                                    is SongItem -> item.artists?.any { IsraeliArtistRegistry.isIsraeli(it.id) } == true
+                                    is AlbumItem -> item.artists?.any { IsraeliArtistRegistry.isIsraeli(it.id) } == true
+                                    is ArtistItem -> IsraeliArtistRegistry.isIsraeli(item.id)
+                                    is PlaylistItem -> IsraeliArtistRegistry.isIsraeli(item.author?.id)
+                                    else -> false
+                                }
+                            }
                         if (filteredItems.isEmpty()) null else section.copy(items = filteredItems)
                     }
                     val updatedHome = (state.homePage ?: HomePage(null, emptyList(), null)).copy(
