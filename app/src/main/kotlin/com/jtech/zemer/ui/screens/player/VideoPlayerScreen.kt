@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.border
@@ -89,6 +90,7 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.db.entities.SongEntity
+import com.jtech.zemer.utils.MediaStoreHelper
 import com.jtech.zemer.utils.UrlValidator
 import com.jtech.zemer.utils.YTPlayerUtils
 import com.metrolist.innertube.utils.ResilientDns
@@ -346,6 +348,8 @@ fun VideoPlayerScreen(
         }
     }
 
+    val mediaStoreHelper = remember { MediaStoreHelper(context) }
+
     val downloadVideo: (Int) -> Unit = { targetBitrate ->
         showDownloadDialog = false
         scope.launch {
@@ -364,37 +368,62 @@ fun VideoPlayerScreen(
                 val stream = UrlValidator.validateAndParseUrl(playback.streamUrl)?.toString()
                     ?: error("Invalid stream URL")
 
-                val moviesDir = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES) ?: context.filesDir
-                val targetFile = File(moviesDir, "$videoId.mp4")
+                // Get video metadata
+                val videoTitle = playback.videoDetails?.title ?: currentTitle ?: "Video"
+                val videoArtist = artistName ?: "Unknown Artist"
+                val videoDuration = playback.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0
 
-                withContext(Dispatchers.IO) {
+                // Download to temp file first
+                val tempFile = File(context.cacheDir, "temp_video_$videoId.mp4")
+
+                val uri = withContext(Dispatchers.IO) {
                     val request = Request.Builder().url(stream).build()
                     httpClient.newCall(request).execute().use { response ->
                         if (!response.isSuccessful) error("HTTP ${response.code}")
                         response.body?.byteStream()?.use { input ->
-                            targetFile.outputStream().use { output ->
+                            tempFile.outputStream().use { output ->
                                 input.copyTo(output)
                             }
                         }
                     }
 
+                    // Save to MediaStore (Movies/Zemer folder)
+                    val fileName = "$videoArtist - $videoTitle.mp4"
+                    val savedUri = mediaStoreHelper.saveVideoFileToMediaStore(
+                        tempFile = tempFile,
+                        fileName = fileName,
+                        mimeType = "video/mp4",
+                        title = videoTitle,
+                        artist = videoArtist,
+                        durationMs = videoDuration * 1000L
+                    )
+
+                    // Clean up temp file
+                    tempFile.delete()
+
+                    savedUri
+                }
+
+                if (uri != null) {
                     database.query {
                         upsert(
                             SongEntity(
                                 id = videoId,
-                                title = playback.videoDetails?.title ?: currentTitle ?: "Video",
-                                duration = playback.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0,
+                                title = videoTitle,
+                                duration = videoDuration,
                                 thumbnailUrl = playback.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url,
                                 explicit = false,
                                 dateDownload = LocalDateTime.now(),
                                 isDownloaded = true,
-                                isVideo = true
+                                isVideo = true,
+                                mediaStoreUri = uri.toString()
                             )
                         )
                     }
+                    Toast.makeText(context, "Video saved to Movies/Zemer", Toast.LENGTH_LONG).show()
+                } else {
+                    error("Failed to save video to MediaStore")
                 }
-
-                Toast.makeText(context, "Downloaded to ${targetFile.absolutePath}", Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 Toast.makeText(
                     context,
@@ -908,15 +937,25 @@ fun VideoPlayerScreen(
             onDismissRequest = { showDownloadDialog = false },
             title = { Text("Download video") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Choose a quality")
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TextButton(onClick = { downloadVideo(1500) }) {
-                            Text("360p (~1.5Mbps)")
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Choose a quality", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (availableQualities.isNotEmpty()) {
+                        availableQualities.forEach { quality ->
+                            val bitrateKbps = quality.bitrate?.div(1000) ?: 4000
+                            TextButton(
+                                onClick = { downloadVideo(bitrateKbps) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = quality.label,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         }
-                        TextButton(onClick = { downloadVideo(4000) }) {
-                            Text("720p (~4Mbps)")
-                        }
+                    } else {
+                        // Fallback if qualities not yet loaded
+                        Text("Loading available qualities...", style = MaterialTheme.typography.bodySmall)
                     }
                 }
             },

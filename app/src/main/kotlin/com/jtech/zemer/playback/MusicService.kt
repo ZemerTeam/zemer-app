@@ -972,8 +972,12 @@ class MusicService :
 
                 // Check if auto-download on like is enabled and the song is now liked
                 if (dataStore.get(AutoDownloadOnLikeKey, false) && song.liked) {
-                    // Trigger download for the liked song
-                    downloadUtil.downloadToMediaStore(it)
+                    // Trigger download for the liked song (use video download if isVideo)
+                    if (it.song.isVideo) {
+                        downloadUtil.downloadVideoToMediaStore(it)
+                    } else {
+                        downloadUtil.downloadToMediaStore(it)
+                    }
                 }
             }
         }

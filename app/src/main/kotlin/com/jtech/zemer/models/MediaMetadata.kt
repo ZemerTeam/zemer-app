@@ -23,6 +23,7 @@ data class MediaMetadata(
     val inLibrary: LocalDateTime? = null,
     val libraryAddToken: String? = null,
     val libraryRemoveToken: String? = null,
+    val isVideo: Boolean = false,
 ) : Serializable {
     data class Artist(
         val id: String?,
@@ -47,7 +48,8 @@ data class MediaMetadata(
             likedDate = likedDate,
             inLibrary = inLibrary,
             libraryAddToken = libraryAddToken,
-            libraryRemoveToken = libraryRemoveToken
+            libraryRemoveToken = libraryRemoveToken,
+            isVideo = isVideo
         )
 }
 
@@ -76,6 +78,7 @@ fun Song.toMediaMetadata() =
                 title = song.albumName.orEmpty(),
             )
         },
+        isVideo = song.isVideo,
     )
 
 fun SongItem.toMediaMetadata() =

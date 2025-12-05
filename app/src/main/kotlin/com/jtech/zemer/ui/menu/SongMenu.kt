@@ -129,13 +129,20 @@ fun SongMenu(
     val auth = remember { FirebaseAuth.getInstance() }
     val firestore = remember { FirebaseFirestore.getInstance() }
 
+    // Track whether user requested video download (for permission callback)
+    var pendingVideoDownload by remember { mutableStateOf(false) }
+
     // Permission launcher for storage access
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions.values.all { it }) {
-            // All permissions granted, proceed with download
-            downloadUtil.downloadToMediaStore(song)
+            // All permissions granted, proceed with download based on user's choice
+            if (pendingVideoDownload) {
+                downloadUtil.downloadVideoToMediaStore(song)
+            } else {
+                downloadUtil.downloadToMediaStore(song)
+            }
             onDismiss()
         } else {
             // Permissions denied - show error message
@@ -730,25 +737,38 @@ fun SongMenu(
                     )
                 }
                 else -> {
+                    // Check if this is a video - if so, offer video download
+                    val isVideo = song.song.isVideo
                     ListItem(
-                        headlineContent = { Text(text = stringResource(R.string.download_to_device)) },
+                        headlineContent = {
+                            Text(text = if (isVideo)
+                                stringResource(R.string.download_video_to_device)
+                            else
+                                stringResource(R.string.download_to_device))
+                        },
                         leadingContent = {
                             Icon(
-                        painter = painterResource(R.drawable.download),
-                        contentDescription = null,
+                                painter = painterResource(R.drawable.download),
+                                contentDescription = null,
+                            )
+                        },
+                        modifier = Modifier.clickable {
+                            // Track the user's download choice for permission callback
+                            pendingVideoDownload = isVideo
+                            if (PermissionHelper.hasMediaStoreWritePermission(context)) {
+                                if (isVideo) {
+                                    downloadUtil.downloadVideoToMediaStore(song)
+                                } else {
+                                    downloadUtil.downloadToMediaStore(song)
+                                }
+                                onDismiss()
+                            } else {
+                                val permissions = PermissionHelper.getRequiredWritePermissions()
+                                permissionLauncher.launch(permissions)
+                            }
+                        }
                     )
-                },
-                modifier = Modifier.clickable {
-                    if (PermissionHelper.hasMediaStoreWritePermission(context)) {
-                        downloadUtil.downloadToMediaStore(song)
-                        onDismiss()
-                    } else {
-                        val permissions = PermissionHelper.getRequiredWritePermissions()
-                        permissionLauncher.launch(permissions)
-                    }
                 }
-            )
-        }
             }
         }
         item {
