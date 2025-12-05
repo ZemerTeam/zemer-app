@@ -15,5 +15,6 @@ data class ArtistWhitelistEntity(
     val lastSyncedAt: LocalDateTime = LocalDateTime.now(),
     val isFemale: Boolean = false,
     val isChasid: Boolean = false,
-    val isGenZ: Boolean = false
+    val isGenZ: Boolean = false,
+    val isKids: Boolean = false
 )

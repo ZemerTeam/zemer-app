@@ -206,6 +206,7 @@ import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.setAppLocale
 import com.jtech.zemer.utils.tryStartForegroundService
 import com.jtech.zemer.viewmodels.HomeViewModel
+import com.jtech.zemer.viewmodels.KidZoneViewModel
 import com.jtech.zemer.viewmodels.WhitelistedArtistsViewModel
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
@@ -668,6 +669,7 @@ class MainActivity : ComponentActivity() {
                             listOf(
                                 Screens.Home.route,
                                 Screens.Artists.route,
+                                Screens.KidZone.route,
                                 Screens.Search.route,
                                 Screens.Library.route,
                                 "settings",
@@ -922,6 +924,7 @@ class MainActivity : ComponentActivity() {
                         when (navBackStackEntry?.destination?.route) {
                             Screens.Home.route -> R.string.home
                             Screens.Artists.route -> R.string.artists
+                            Screens.KidZone.route -> R.string.kid_zone
                             Screens.Search.route -> R.string.search
                             Screens.Library.route -> R.string.filter_library
                             else -> null
@@ -1267,6 +1270,23 @@ class MainActivity : ComponentActivity() {
                                                         hiltViewModel(navBackStackEntry!!)
                                                     IconButton(
                                                         onClick = { whitelistedArtistsViewModel.sync() },
+                                                        colors = IconButtonDefaults.iconButtonColors(
+                                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                                        ),
+                                                        modifier = Modifier.clip(CircleShape)
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.sync),
+                                                            contentDescription = stringResource(R.string.refresh_artists)
+                                                        )
+                                                    }
+                                                }
+
+                                                if (currentRoute == Screens.KidZone.route && navBackStackEntry != null) {
+                                                    val kidZoneViewModel: KidZoneViewModel =
+                                                        hiltViewModel(navBackStackEntry!!)
+                                                    IconButton(
+                                                        onClick = { kidZoneViewModel.sync() },
                                                         colors = IconButtonDefaults.iconButtonColors(
                                                             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                                                         ),

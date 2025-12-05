@@ -49,6 +49,9 @@ fun NavGraphBuilder.navigationBuilder(
     composable(Screens.Artists.route) {
         WhitelistedArtistsScreen(navController)
     }
+    composable(Screens.KidZone.route) {
+        KidZoneScreen(navController)
+    }
     composable(
         Screens.Library.route,
     ) {

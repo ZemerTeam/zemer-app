@@ -41,6 +41,7 @@ object WhitelistFetcher {
                 val isFemale = doc.getBoolean("isFemale") ?: false
                 val isChasid = doc.getBoolean("isChasid") ?: false
                 val isGenZ = doc.getBoolean("isGenZ") ?: false
+                val isKids = doc.getBoolean("isKids") ?: false
 
                 whitelistEntities.add(
                     ArtistWhitelistEntity(
@@ -51,7 +52,8 @@ object WhitelistFetcher {
                         lastSyncedAt = now,
                         isFemale = isFemale,
                         isChasid = isChasid,
-                        isGenZ = isGenZ
+                        isGenZ = isGenZ,
+                        isKids = isKids
                     )
                 )
                 processed++

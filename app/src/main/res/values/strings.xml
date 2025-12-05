@@ -11,6 +11,7 @@
     <string name="home">Home</string>
     <string name="songs">Songs</string>
     <string name="artists">Artists</string>
+    <string name="kid_zone">Kid Zone</string>
     <string name="albums">Albums</string>
     <string name="playlists">Playlists</string>
 
@@ -70,6 +71,7 @@
     <string name="library_artist_empty">Library artists will show up here</string>
     <string name="library_album_empty">Library albums will show up here</string>
     <string name="library_playlist_empty">Your playlists will show up here</string>
+    <string name="kid_zone_empty">No kids artists available</string>
 
     <!-- Artist screen -->
     <string name="from_your_library">From your library</string>
