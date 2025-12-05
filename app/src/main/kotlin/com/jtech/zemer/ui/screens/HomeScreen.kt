@@ -131,7 +131,6 @@ fun HomeScreen(
     val featuredVideos = homeUiState.featuredVideos
     val recentReleaseAlbums = homeUiState.recentReleaseAlbums
     val recentReleaseSongs = homeUiState.recentReleaseSongs
-    val kidsArtists = homeUiState.kidsArtists
     homeUiState.isNewUser
 
     val allLocalItems =
@@ -414,8 +413,7 @@ fun HomeScreen(
             featuredArtists.isNotEmpty() ||
                 featuredAlbums.isNotEmpty() ||
                 featuredVideos.isNotEmpty() ||
-                trendingSongs.isNotEmpty() ||
-                kidsArtists.isNotEmpty()
+                trendingSongs.isNotEmpty()
         val shouldShowShimmer = isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent)
 
         LazyColumn(
@@ -747,31 +745,6 @@ fun HomeScreen(
                                             }
                                         )
                                 )
-                            }
-                        }
-                    }
-                }
-
-                kidsArtists.takeIf { it.isNotEmpty() }?.let { artists ->
-                    item(key = "for_the_kids_title") {
-                        NavigationTitle(
-                            title = stringResource(R.string.for_the_kids),
-                            modifier = Modifier.animateItem()
-                        )
-                    }
-
-                    item(key = "for_the_kids_list") {
-                        LazyRow(
-                            contentPadding = WindowInsets.systemBars
-                                .only(WindowInsetsSides.Horizontal)
-                                .asPaddingValues(),
-                            modifier = Modifier.animateItem()
-                        ) {
-                            items(
-                                items = artists.distinctBy { it.id },
-                                key = { "kids_artist_${it.id}" }
-                            ) { artist ->
-                                ytGridItem(artist)
                             }
                         }
                     }
