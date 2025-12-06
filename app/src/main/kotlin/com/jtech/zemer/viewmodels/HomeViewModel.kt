@@ -922,7 +922,6 @@ class HomeViewModel @Inject constructor(
                             is AlbumItem -> item.takeUnless { it.isBlocked(profileById, allowFemale) }
                             is ArtistItem -> item.takeUnless { it.isBlocked(profileById, allowFemale) }
                             is PlaylistItem -> item.takeUnless { it.isBlocked(profileById, allowFemale) }
-                            else -> item
                         }
                     }
                     if (filteredItems.isEmpty()) return@mapNotNull null
@@ -1173,7 +1172,6 @@ class HomeViewModel @Inject constructor(
                                         } == true
                                         blockedByProfile || IsraeliArtistRegistry.isIsraeli(item.author?.id)
                                     }
-                                    else -> false
                                 }
                             }
                         if (filteredItems.isEmpty()) null else section.copy(items = filteredItems)
