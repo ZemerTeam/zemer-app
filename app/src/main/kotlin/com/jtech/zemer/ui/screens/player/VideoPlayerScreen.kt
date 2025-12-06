@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
@@ -734,7 +735,10 @@ fun VideoPlayerScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Column(
+                                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
                                             Text(
                                                 text = currentTitle ?: videoId,
                                                 color = Color.White,
@@ -750,6 +754,7 @@ fun VideoPlayerScreen(
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                         }
+                                        Spacer(modifier = Modifier.width(8.dp))
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                             val leftShape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 6.dp, bottomEnd = 6.dp)
                                             val rightShape = RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 24.dp, bottomEnd = 24.dp)
