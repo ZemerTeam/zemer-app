@@ -413,6 +413,7 @@
     <string name="female_passcode_required">Passcode cannot be empty.</string>
     <string name="female_passcode_mismatch">Passcodes do not match.</string>
     <string name="enter_female_passcode_title">Enter passcode</string>
+    <string name="enter_passcode_title">Enter passcode</string>
     <string name="female_passcode_incorrect">Incorrect passcode.</string>
     <string name="enable_personal_filters">Enable personal feed filters</string>
     <string name="i_am_chasidish">Promote chassidish content</string>
