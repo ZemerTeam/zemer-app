@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -85,10 +86,11 @@ fun ContentSettings(
     val (allowChasidish, onAllowChasidishChange) = rememberPreference(key = AllowChasidishKey, defaultValue = false)
 
     var showCreatePasscodeDialog by rememberSaveable { mutableStateOf(false) }
-    var showUnlockDialog by rememberSaveable { mutableStateOf(false) }
+    var showPasscodeDialog by rememberSaveable { mutableStateOf(false) }
     var passcodeInput by rememberSaveable { mutableStateOf("") }
     var confirmPasscodeInput by rememberSaveable { mutableStateOf("") }
     var passcodeError by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingPasscodeAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     Column(
         Modifier
@@ -190,7 +192,14 @@ fun ContentSettings(
             title = { Text(stringResource(R.string.enable_personal_filters)) },
             icon = { Icon(painterResource(R.drawable.settings), null) },
             checked = enableContentFilters,
-            onCheckedChange = onEnableContentFiltersChange,
+            onCheckedChange = { newValue ->
+                if (femalePasscodeHash.isNotEmpty()) {
+                    pendingPasscodeAction = { onEnableContentFiltersChange(newValue) }
+                    showPasscodeDialog = true
+                } else {
+                    onEnableContentFiltersChange(newValue)
+                }
+            },
             isEnabled = true
         )
         SwitchPreference(
@@ -202,7 +211,8 @@ fun ContentSettings(
 
                 if (newValue) {
                     if (femalePasscodeHash.isNotEmpty()) {
-                        showUnlockDialog = true
+                        pendingPasscodeAction = { onAllowFemaleSingersChange(true) }
+                        showPasscodeDialog = true
                     } else {
                         onAllowFemaleSingersChange(true)
                     }
@@ -336,10 +346,11 @@ fun ContentSettings(
         )
     }
 
-    if (showUnlockDialog) {
+    if (showPasscodeDialog) {
         AlertDialog(
             onDismissRequest = {
-                showUnlockDialog = false
+                showPasscodeDialog = false
+                pendingPasscodeAction = null
                 passcodeInput = ""
                 passcodeError = null
             },
@@ -347,8 +358,9 @@ fun ContentSettings(
                 TextButton(
                     onClick = {
                         if (hashPasscode(passcodeInput) == femalePasscodeHash) {
-                            onAllowFemaleSingersChange(true)
-                            showUnlockDialog = false
+                            pendingPasscodeAction?.invoke()
+                            pendingPasscodeAction = null
+                            showPasscodeDialog = false
                             passcodeInput = ""
                             passcodeError = null
                         } else {
@@ -362,7 +374,8 @@ fun ContentSettings(
             dismissButton = {
                 TextButton(
                     onClick = {
-                        showUnlockDialog = false
+                        showPasscodeDialog = false
+                        pendingPasscodeAction = null
                         passcodeInput = ""
                         passcodeError = null
                     }
@@ -370,7 +383,7 @@ fun ContentSettings(
                     Text(stringResource(R.string.cancel))
                 }
             },
-            title = { Text(stringResource(R.string.enter_female_passcode_title)) },
+            title = { Text(stringResource(R.string.enter_passcode_title)) },
             text = {
                 Column {
                     TextField(

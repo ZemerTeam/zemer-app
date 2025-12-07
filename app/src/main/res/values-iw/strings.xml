@@ -297,6 +297,7 @@
     <string name="female_passcode_required">קוד נעילה לא יכול להיות ריק.</string>
     <string name="female_passcode_mismatch">קודי הנעילה אינם תואמים.</string>
     <string name="enter_female_passcode_title">הזן קוד נעילה</string>
+    <string name="enter_passcode_title">הזן קוד נעילה</string>
     <string name="female_passcode_incorrect">קוד נעילה שגוי.</string>
     <string name="enable_personal_filters">הפעלת מסננים אישיים</string>
     <string name="i_am_chasidish">אני חסידי</string>
