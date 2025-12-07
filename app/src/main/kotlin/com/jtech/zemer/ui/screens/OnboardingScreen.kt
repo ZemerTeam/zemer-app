@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import androidx.core.content.edit
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
@@ -37,8 +38,10 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -77,24 +80,37 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import com.airbnb.lottie.compose.rememberLottieDynamicProperties
 import com.airbnb.lottie.compose.rememberLottieDynamicProperty
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.DensityScale
 import com.jtech.zemer.utils.PermissionHelper
 
-private enum class OnboardingStep { Welcome, Permissions, Loading }
+private enum class OnboardingStep { Welcome, Density, Permissions, Loading }
 private enum class LegalKind { TOS, PRIVACY }
 
 @Composable
 fun OnboardingFlow(
     onFinished: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val densityAlreadySet = remember {
+        val prefs = context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE)
+        prefs.getFloat("density_scale_factor", 1.0f) != 1.0f
+    }
     var step by rememberSaveable { mutableStateOf(OnboardingStep.Welcome) }
 
     when (step) {
         OnboardingStep.Welcome -> WelcomeScreen(
-            onContinue = { step = OnboardingStep.Permissions }
+            onContinue = {
+                step = if (densityAlreadySet) OnboardingStep.Permissions else OnboardingStep.Density
+            }
+        )
+
+        OnboardingStep.Density -> DensityScreen(
+            onSkip = { step = OnboardingStep.Permissions },
+            onBack = { step = OnboardingStep.Welcome }
         )
 
         OnboardingStep.Permissions -> PermissionsScreen(
-            onBack = { step = OnboardingStep.Welcome },
+            onBack = { step = if (densityAlreadySet) OnboardingStep.Welcome else OnboardingStep.Density },
             onComplete = { step = OnboardingStep.Loading }
         )
 
@@ -244,6 +260,224 @@ private fun WelcomeScreen(
             )
         }
     }
+}
+
+@Composable
+private fun DensityScreen(
+    onSkip: () -> Unit,
+    onBack: () -> Unit,
+) {
+    val context = LocalContext.current
+    var selectedDensity by rememberSaveable { mutableStateOf(DensityScale.NATIVE) }
+    var showRestartDialog by rememberSaveable { mutableStateOf(false) }
+
+    // Filter out CUSTOM option for simplicity in onboarding
+    val densityOptions = DensityScale.entries.filter { it != DensityScale.CUSTOM }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth(0.92f)
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(R.string.onboarding_density_title),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = stringResource(R.string.onboarding_density_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(10.dp)
+                    ),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Column(modifier = Modifier.padding(4.dp)) {
+                    densityOptions.forEach { density ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { selectedDensity = density }
+                                .padding(horizontal = 4.dp, vertical = 6.dp)
+                        ) {
+                            RadioButton(
+                                selected = selectedDensity == density,
+                                onClick = { selectedDensity = density },
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Text(
+                                text = density.label,
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (selectedDensity != DensityScale.NATIVE) {
+                    Button(
+                        onClick = {
+                            // Save density setting
+                            context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE)
+                                .edit {
+                                    putFloat("density_scale_factor", selectedDensity.value)
+                                }
+                            showRestartDialog = true
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text(
+                            text = stringResource(R.string.onboarding_apply_density),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = onSkip,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    Text(
+                        text = stringResource(R.string.onboarding_skip),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+
+                TextButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(32.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.onboarding_back),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+
+    if (showRestartDialog) {
+        RestartDialog(
+            onDismiss = { showRestartDialog = false },
+            onRestart = {
+                showRestartDialog = false
+                restartApp(context)
+            }
+        )
+    }
+}
+
+@Composable
+private fun RestartDialog(
+    onDismiss: () -> Unit,
+    onRestart: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.4f))
+            .clickable { onDismiss() },
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.88f)
+                .padding(20.dp),
+            shape = RoundedCornerShape(16.dp),
+            tonalElevation = 6.dp,
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.restart_required),
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = stringResource(R.string.density_restart_message),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(android.R.string.cancel))
+                    }
+                    Button(
+                        onClick = onRestart,
+                        modifier = Modifier.padding(start = 8.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(stringResource(R.string.restart))
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun restartApp(context: Context) {
+    val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+    }
+    context.startActivity(intent)
+    Runtime.getRuntime().exit(0)
 }
 
 @Composable

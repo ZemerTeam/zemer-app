@@ -487,7 +487,7 @@
     <string name="onboarding_perm_notifications_title">Notifications</string>
     <string name="onboarding_perm_notifications_desc">Show playback controls in notifications.</string>
     <string name="onboarding_perm_storage_title">Download access</string>
-    <string name="onboarding_perm_storage_desc">Allow saving music and cover art to your device so downloads show up offline with full artwork.</string>
+    <string name="onboarding_perm_storage_desc">Allow saving music and video to your device.</string>
     <string name="onboarding_perm_background_title">Background run</string>
     <string name="onboarding_perm_background_desc">Keep playback alive without battery kills.</string>
     <string name="onboarding_perm_accessibility_title">Accessibility</string>
@@ -504,6 +504,13 @@
     <string name="onboarding_skip">Skip for now</string>
     <string name="onboarding_status_done">Ready</string>
     <string name="onboarding_status_needed">Needed</string>
+    <string name="onboarding_density_title">Have a small phone?</string>
+    <string name="onboarding_density_subtitle">Change density to gain more screen real estate</string>
+    <string name="onboarding_density_more_content">Fits more content on screen</string>
+    <string name="onboarding_apply_density">Apply &amp; Restart</string>
+    <string name="restart_required">Restart Required</string>
+    <string name="density_restart_message">The display density change will take effect after restarting the app. Do you want to restart now?</string>
+    <string name="restart">Restart</string>
     <string name="ok">OK</string>
     <string name="now_playing_label">Now playing</string>
     <string name="refresh_artists">Refresh artists</string>
