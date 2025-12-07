@@ -1,6 +1,7 @@
 package com.jtech.zemer.ui.screens.settings
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
@@ -412,23 +413,28 @@ private suspend fun calculateDownloadedSongsSize(
     songs: List<Song>,
 ): Long = withContext(Dispatchers.IO) {
     songs.sumOf { song ->
-        val uriString = song.song.mediaStoreUri ?: return@sumOf song.format?.contentLength ?: 0L
+        val uriString = song.song.mediaStoreUri
+        val fallbackSize = song.format?.contentLength ?: 0L
 
-        try {
+        if (uriString.isNullOrBlank()) return@sumOf fallbackSize
+
+        val resolvedSize: Long = try {
             val uri = Uri.parse(uriString)
-            val contentResolver = context.contentResolver
+            val resolver = context.contentResolver
 
-            contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)
+            resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)
                 ?.use { cursor ->
                     val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
                     if (sizeIndex != -1 && cursor.moveToFirst()) {
                         cursor.getLong(sizeIndex)
                     } else {
-                        song.format?.contentLength ?: 0L
+                        fallbackSize
                     }
-                } ?: song.format?.contentLength ?: 0L
+                } ?: fallbackSize
         } catch (e: Exception) {
-            song.format?.contentLength ?: 0L
+            fallbackSize
         }
+
+        resolvedSize
     }
 }
