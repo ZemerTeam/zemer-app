@@ -84,6 +84,7 @@ class App : Application(), SingletonImageLoader.Factory {
         when (val result = UpdateChecker.checkForUpdates()) {
             is UpdateChecker.UpdateResult.UpdateAvailable -> {
                 pendingUpdateVersion = result.latestVersion
+                pendingUpdateNotes = result.notes
             }
             else -> { /* No action needed */ }
         }
@@ -337,11 +338,13 @@ class App : Application(), SingletonImageLoader.Factory {
     }
 
     companion object {
-        // Holds pending update version detected on startup
+        // Holds pending update version and notes detected on startup
         var pendingUpdateVersion: String? = null
+        var pendingUpdateNotes: String? = null
 
         fun clearPendingUpdate() {
             pendingUpdateVersion = null
+            pendingUpdateNotes = null
         }
 
         suspend fun forgetAccount(context: Context) {

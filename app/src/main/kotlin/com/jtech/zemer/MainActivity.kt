@@ -667,32 +667,109 @@ class MainActivity : ComponentActivity() {
                         // Update notification dialog
                         var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
                         var pendingUpdateVersion by rememberSaveable { mutableStateOf<String?>(null) }
+                        var pendingUpdateNotes by rememberSaveable { mutableStateOf<String?>(null) }
+                        var downloadState by remember { mutableStateOf<com.jtech.zemer.utils.UpdateChecker.DownloadState>(com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle) }
+                        val updateScope = rememberCoroutineScope()
+
                         LaunchedEffect(Unit) {
                             App.pendingUpdateVersion?.let { version ->
                                 pendingUpdateVersion = version
+                                pendingUpdateNotes = App.pendingUpdateNotes
                                 showUpdateDialog = true
                                 App.clearPendingUpdate()
                             }
                         }
 
+                        // Auto-install when download completes
+                        LaunchedEffect(downloadState) {
+                            if (downloadState is com.jtech.zemer.utils.UpdateChecker.DownloadState.Downloaded) {
+                                val apkFile = (downloadState as com.jtech.zemer.utils.UpdateChecker.DownloadState.Downloaded).apkFile
+                                com.jtech.zemer.utils.UpdateChecker.installApk(this@MainActivity, apkFile)
+                            }
+                        }
+
                         if (showUpdateDialog && pendingUpdateVersion != null) {
+                            val isDownloading = downloadState is com.jtech.zemer.utils.UpdateChecker.DownloadState.Downloading
+                            val downloadProgress = (downloadState as? com.jtech.zemer.utils.UpdateChecker.DownloadState.Downloading)?.progress ?: 0f
+                            val downloadError = (downloadState as? com.jtech.zemer.utils.UpdateChecker.DownloadState.Error)?.message
+
                             androidx.compose.material3.AlertDialog(
-                                onDismissRequest = { showUpdateDialog = false },
+                                onDismissRequest = {
+                                    if (!isDownloading) {
+                                        showUpdateDialog = false
+                                        downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle
+                                    }
+                                },
                                 title = { Text(stringResource(R.string.update_available)) },
                                 text = {
-                                    Text(stringResource(R.string.update_available_message, BuildConfig.VERSION_NAME, pendingUpdateVersion!!))
+                                    Column {
+                                        Text(stringResource(R.string.update_available_message, BuildConfig.VERSION_NAME, pendingUpdateVersion!!))
+                                        if (!pendingUpdateNotes.isNullOrBlank()) {
+                                            Spacer(Modifier.height(12.dp))
+                                            Text(
+                                                text = stringResource(R.string.whats_new),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            Spacer(Modifier.height(4.dp))
+                                            Text(
+                                                text = pendingUpdateNotes!!,
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+                                        if (isDownloading) {
+                                            Spacer(Modifier.height(16.dp))
+                                            Text(
+                                                text = stringResource(R.string.downloading_update),
+                                                style = MaterialTheme.typography.labelMedium
+                                            )
+                                            Spacer(Modifier.height(8.dp))
+                                            if (downloadProgress >= 0) {
+                                                androidx.compose.material3.LinearProgressIndicator(
+                                                    progress = { downloadProgress },
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                                Spacer(Modifier.height(4.dp))
+                                                Text(
+                                                    text = "${(downloadProgress * 100).toInt()}%",
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            } else {
+                                                androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                            }
+                                        }
+                                        if (downloadError != null) {
+                                            Spacer(Modifier.height(12.dp))
+                                            Text(
+                                                text = downloadError,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
                                 },
                                 confirmButton = {
-                                    TextButton(onClick = {
-                                        showUpdateDialog = false
-                                        com.jtech.zemer.utils.UpdateChecker.openDownloadPage(this@MainActivity)
-                                    }) {
-                                        Text(stringResource(R.string.download))
+                                    if (!isDownloading) {
+                                        TextButton(onClick = {
+                                            downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Downloading(0f)
+                                            updateScope.launch {
+                                                com.jtech.zemer.utils.UpdateChecker.downloadUpdate(this@MainActivity).collect { state ->
+                                                    downloadState = state
+                                                }
+                                            }
+                                        }) {
+                                            Text(stringResource(R.string.download_and_install))
+                                        }
                                     }
                                 },
                                 dismissButton = {
-                                    TextButton(onClick = { showUpdateDialog = false }) {
-                                        Text(stringResource(R.string.later))
+                                    if (!isDownloading) {
+                                        TextButton(onClick = {
+                                            showUpdateDialog = false
+                                            downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle
+                                        }) {
+                                            Text(stringResource(R.string.later))
+                                        }
                                     }
                                 }
                             )

@@ -256,7 +256,10 @@
     <string name="update_channel_name">App updates</string>
     <string name="update_channel_desc">Notifications about new versions</string>
     <string name="download">Download</string>
+    <string name="download_and_install">Download &amp; Install</string>
+    <string name="downloading_update">Downloading update…</string>
     <string name="later">Later</string>
+    <string name="whats_new">What\'s new:</string>
     <string name="error">Error</string>
 
     <!-- Offload -->

@@ -504,6 +504,7 @@
     <string name="onboarding_skip">Skip for now</string>
     <string name="onboarding_status_done">Ready</string>
     <string name="onboarding_status_needed">Needed</string>
+    <string name="onboarding_permissions_required">These permissions are required for the app to run.</string>
     <string name="onboarding_density_title">Have a small phone?</string>
     <string name="onboarding_density_subtitle">Change density to gain more screen real estate</string>
     <string name="onboarding_density_more_content">Fits more content on screen</string>

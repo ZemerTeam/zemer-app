@@ -669,6 +669,9 @@ private fun PermissionsScreen(
         storageGranted = PermissionHelper.hasMediaStoreWritePermission(context)
     }, lifecycleOwner = lifecycleOwner)
 
+    // Required permissions that must be granted to continue
+    val requiredGranted = storageGranted && notificationsGranted && backgroundGranted
+
     val allGranted = listOf(
         storageGranted,
         notificationsGranted,
@@ -793,9 +796,23 @@ private fun PermissionsScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            if (allGranted) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (!requiredGranted) {
+                    Text(
+                        text = stringResource(R.string.onboarding_permissions_required),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
                 Button(
                     onClick = onComplete,
+                    enabled = requiredGranted,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp),
@@ -809,36 +826,16 @@ private fun PermissionsScreen(
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
-            } else {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+
+                TextButton(
+                    onClick = onBack,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Button(
-                        onClick = onComplete,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text(
-                            text = stringResource(R.string.onboarding_continue_anyway),
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                    TextButton(
-                        onClick = onBack,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = stringResource(R.string.onboarding_back),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.onboarding_back),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

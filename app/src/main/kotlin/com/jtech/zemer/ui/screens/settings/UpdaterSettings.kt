@@ -15,6 +15,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,6 +48,7 @@ import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.UpdateChecker
 import com.jtech.zemer.utils.rememberPreference
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,12 +64,21 @@ fun UpdaterScreen(
     var isChecking by remember { mutableStateOf(false) }
     var showResultDialog by remember { mutableStateOf(false) }
     var updateResult by remember { mutableStateOf<UpdateChecker.UpdateResult?>(null) }
+    var downloadState by remember { mutableStateOf<UpdateChecker.DownloadState>(UpdateChecker.DownloadState.Idle) }
 
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
         firstFocus.requestFocus()
+    }
+
+    // Auto-install when download completes
+    LaunchedEffect(downloadState) {
+        if (downloadState is UpdateChecker.DownloadState.Downloaded) {
+            val apkFile = (downloadState as UpdateChecker.DownloadState.Downloaded).apkFile
+            UpdateChecker.installApk(context, apkFile)
+        }
     }
 
     Column(
@@ -130,23 +141,87 @@ fun UpdaterScreen(
     if (showResultDialog) {
         when (val result = updateResult) {
             is UpdateChecker.UpdateResult.UpdateAvailable -> {
+                val isDownloading = downloadState is UpdateChecker.DownloadState.Downloading
+                val downloadProgress = (downloadState as? UpdateChecker.DownloadState.Downloading)?.progress ?: 0f
+                val downloadError = (downloadState as? UpdateChecker.DownloadState.Error)?.message
+
                 AlertDialog(
-                    onDismissRequest = { showResultDialog = false },
+                    onDismissRequest = {
+                        if (!isDownloading) {
+                            showResultDialog = false
+                            downloadState = UpdateChecker.DownloadState.Idle
+                        }
+                    },
                     title = { Text(stringResource(R.string.update_available)) },
                     text = {
-                        Text(stringResource(R.string.update_available_message, result.currentVersion, result.latestVersion))
+                        Column {
+                            Text(stringResource(R.string.update_available_message, result.currentVersion, result.latestVersion))
+                            if (!result.notes.isNullOrBlank()) {
+                                Spacer(Modifier.height(12.dp))
+                                Text(
+                                    text = stringResource(R.string.whats_new),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = result.notes,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            if (isDownloading) {
+                                Spacer(Modifier.height(16.dp))
+                                Text(
+                                    text = stringResource(R.string.downloading_update),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                if (downloadProgress >= 0) {
+                                    LinearProgressIndicator(
+                                        progress = { downloadProgress },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = "${(downloadProgress * 100).toInt()}%",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                } else {
+                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                }
+                            }
+                            if (downloadError != null) {
+                                Spacer(Modifier.height(12.dp))
+                                Text(
+                                    text = downloadError,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
                     },
                     confirmButton = {
-                        TextButton(onClick = {
-                            showResultDialog = false
-                            UpdateChecker.openDownloadPage(context)
-                        }) {
-                            Text(stringResource(R.string.download))
+                        if (!isDownloading) {
+                            TextButton(onClick = {
+                                downloadState = UpdateChecker.DownloadState.Downloading(0f)
+                                scope.launch {
+                                    UpdateChecker.downloadUpdate(context).collectLatest { state ->
+                                        downloadState = state
+                                    }
+                                }
+                            }) {
+                                Text(stringResource(R.string.download_and_install))
+                            }
                         }
                     },
                     dismissButton = {
-                        TextButton(onClick = { showResultDialog = false }) {
-                            Text(stringResource(R.string.later))
+                        if (!isDownloading) {
+                            TextButton(onClick = {
+                                showResultDialog = false
+                                downloadState = UpdateChecker.DownloadState.Idle
+                            }) {
+                                Text(stringResource(R.string.later))
+                            }
                         }
                     }
                 )
