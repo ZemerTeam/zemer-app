@@ -787,11 +787,11 @@ fun AppearanceSettings(
                     onClick = {
                         showRestartDialog = false
                         // Restart the app
-                        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-                        intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                        intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        }
                         context.startActivity(intent)
-                        android.os.Process.killProcess(android.os.Process.myPid())
+                        Runtime.getRuntime().exit(0)
                     }
                 ) {
                     Text(text = "Restart")

@@ -269,10 +269,11 @@ private fun DensityScreen(
 ) {
     val context = LocalContext.current
     var selectedDensity by rememberSaveable { mutableStateOf(DensityScale.NATIVE) }
+    var customDensityValue by rememberSaveable { mutableStateOf(0.85f) }
     var showRestartDialog by rememberSaveable { mutableStateOf(false) }
+    var showCustomDensityDialog by rememberSaveable { mutableStateOf(false) }
 
-    // Filter out CUSTOM option for simplicity in onboarding
-    val densityOptions = DensityScale.entries.filter { it != DensityScale.CUSTOM }
+    val densityOptions = DensityScale.entries
 
     Box(
         modifier = Modifier
@@ -326,16 +327,32 @@ private fun DensityScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(6.dp))
-                                .clickable { selectedDensity = density }
+                                .clickable {
+                                    if (density == DensityScale.CUSTOM) {
+                                        showCustomDensityDialog = true
+                                    } else {
+                                        selectedDensity = density
+                                    }
+                                }
                                 .padding(horizontal = 4.dp, vertical = 6.dp)
                         ) {
                             RadioButton(
                                 selected = selectedDensity == density,
-                                onClick = { selectedDensity = density },
+                                onClick = {
+                                    if (density == DensityScale.CUSTOM) {
+                                        showCustomDensityDialog = true
+                                    } else {
+                                        selectedDensity = density
+                                    }
+                                },
                                 modifier = Modifier.size(36.dp)
                             )
                             Text(
-                                text = density.label,
+                                text = if (density == DensityScale.CUSTOM && selectedDensity == DensityScale.CUSTOM) {
+                                    "Custom (${(customDensityValue * 100).toInt()}%)"
+                                } else {
+                                    density.label
+                                },
                                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(start = 4.dp)
@@ -354,10 +371,14 @@ private fun DensityScreen(
                 if (selectedDensity != DensityScale.NATIVE) {
                     Button(
                         onClick = {
-                            // Save density setting
+                            val densityValue = if (selectedDensity == DensityScale.CUSTOM) {
+                                customDensityValue
+                            } else {
+                                selectedDensity.value
+                            }
                             context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE)
                                 .edit {
-                                    putFloat("density_scale_factor", selectedDensity.value)
+                                    putFloat("density_scale_factor", densityValue)
                                 }
                             showRestartDialog = true
                         },
@@ -404,6 +425,18 @@ private fun DensityScreen(
                 }
             }
         }
+    }
+
+    if (showCustomDensityDialog) {
+        CustomDensityDialog(
+            initialValue = customDensityValue,
+            onDismiss = { showCustomDensityDialog = false },
+            onConfirm = { value ->
+                customDensityValue = value
+                selectedDensity = DensityScale.CUSTOM
+                showCustomDensityDialog = false
+            }
+        )
     }
 
     if (showRestartDialog) {
@@ -465,6 +498,84 @@ private fun RestartDialog(
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Text(stringResource(R.string.restart))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CustomDensityDialog(
+    initialValue: Float,
+    onDismiss: () -> Unit,
+    onConfirm: (Float) -> Unit,
+) {
+    var textValue by remember { mutableStateOf((initialValue * 100).toInt().toString()) }
+    var isError by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.4f))
+            .clickable { onDismiss() },
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.88f)
+                .padding(20.dp)
+                .clickable(enabled = false) { },
+            shape = RoundedCornerShape(16.dp),
+            tonalElevation = 6.dp,
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.custom_density_title),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = stringResource(R.string.custom_density_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = textValue,
+                    onValueChange = { newValue ->
+                        textValue = newValue.filter { it.isDigit() }
+                        val intValue = textValue.toIntOrNull()
+                        isError = intValue == null || intValue !in 50..120
+                    },
+                    label = { Text("%") },
+                    isError = isError,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(android.R.string.cancel))
+                    }
+                    Button(
+                        onClick = {
+                            val intValue = textValue.toIntOrNull()
+                            if (intValue != null && intValue in 50..120) {
+                                onConfirm(intValue / 100f)
+                            }
+                        },
+                        enabled = !isError && textValue.isNotEmpty(),
+                        modifier = Modifier.padding(start = 8.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(stringResource(R.string.ok))
                     }
                 }
             }

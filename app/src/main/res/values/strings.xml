@@ -511,6 +511,8 @@
     <string name="restart_required">Restart Required</string>
     <string name="density_restart_message">The display density change will take effect after restarting the app. Do you want to restart now?</string>
     <string name="restart">Restart</string>
+    <string name="custom_density_title">Custom Density</string>
+    <string name="custom_density_hint">Enter a value between 50 and 120</string>
     <string name="ok">OK</string>
     <string name="now_playing_label">Now playing</string>
     <string name="refresh_artists">Refresh artists</string>
