@@ -22,10 +22,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -45,6 +45,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.relocation.rememberBringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -92,6 +94,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -633,7 +636,6 @@ class MainActivity : ComponentActivity() {
                         }
                         val homeViewModel: HomeViewModel = hiltViewModel()
                         val accountImageUrl by homeViewModel.accountImageUrl.collectAsState()
-                        val accountName by homeViewModel.accountName.collectAsState()
 
                         // Contribution auth state
                         val firebaseAuth = remember { FirebaseAuth.getInstance() }
@@ -941,6 +943,7 @@ class MainActivity : ComponentActivity() {
                     val miniHeartFocusRequester = remember { FocusRequester() }
                     val burgerFocusRequester = remember { FocusRequester() }
                     val contentFocusRequester = remember { FocusRequester() }
+                    val drawerScrollState = rememberScrollState()
                     val snackbarHostState = remember { SnackbarHostState() }
 
                     // Observe playback errors and show snackbar
@@ -971,7 +974,7 @@ class MainActivity : ComponentActivity() {
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .verticalScroll(rememberScrollState())
+                                            .verticalScroll(drawerScrollState)
                                             .padding(horizontal = 16.dp, vertical = 12.dp),
                                         horizontalAlignment = Alignment.Start
                                     ) {
@@ -989,76 +992,57 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
 
-                                    // Profile Header
-                                    if (isLoggedIn) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(16.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally
-                                        ) {
-                                            if (accountImageUrl != null) {
-                                                Surface(
-                                                    shape = CircleShape,
-                                                    border = BorderStroke(3.dp, MaterialTheme.colorScheme.primary),
-                                                    modifier = Modifier.size(64.dp)
-                                                ) {
-                                                    AsyncImage(
-                                                        model = accountImageUrl,
-                                                        contentDescription = stringResource(R.string.account),
-                                                        contentScale = ContentScale.Crop,
-                                                        modifier = Modifier.fillMaxSize()
+                                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                                    val statusText = stringResource(R.string.account_status_logged_in)
+                                    val statusColor = when {
+                                        isLoggedIn -> MaterialTheme.colorScheme.primary
+                                        hasVisitorToken -> MaterialTheme.colorScheme.tertiary
+                                        else -> MaterialTheme.colorScheme.outline
+                                    }
+                                    val accountItemBringIntoViewRequester = rememberBringIntoViewRequester()
+                                    NavigationDrawerItem(
+                                        label = {
+                                            Column(verticalArrangement = Arrangement.Center) {
+                                                Text(stringResource(R.string.account))
+                                                if (isLoggedIn || hasVisitorToken) {
+                                                    Text(
+                                                        text = statusText,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = statusColor
                                                     )
                                                 }
-                                            } else {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(64.dp)
-                                                        .clip(CircleShape)
-                                                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
+                                            }
+                                        },
+                                        icon = {
+                                            when {
+                                                isLoggedIn && accountImageUrl != null -> {
+                                                    Surface(
+                                                        shape = CircleShape,
+                                                        modifier = Modifier.size(24.dp)
+                                                    ) {
+                                                        AsyncImage(
+                                                            model = accountImageUrl,
+                                                            contentDescription = stringResource(R.string.account),
+                                                            contentScale = ContentScale.Crop,
+                                                            modifier = Modifier.fillMaxSize()
+                                                        )
+                                                    }
+                                                }
+
+                                                hasVisitorToken -> {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.incognito),
+                                                        contentDescription = stringResource(R.string.account)
+                                                    )
+                                                }
+
+                                                else -> {
                                                     Icon(
                                                         painter = painterResource(R.drawable.account),
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(40.dp),
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        contentDescription = stringResource(R.string.account)
                                                     )
                                                 }
                                             }
-                                            Spacer(modifier = Modifier.height(12.dp))
-                                            Text(
-                                                text = accountName,
-                                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            val statusText = when {
-                                                parseCookieString(innerTubeCookie).containsKey("SAPISID") -> stringResource(R.string.account_status_logged_in)
-                                                hasVisitorToken -> stringResource(R.string.account_status_token)
-                                                else -> stringResource(R.string.account_status_anonymous)
-                                            }
-                                            val statusColor = when {
-                                                parseCookieString(innerTubeCookie).containsKey("SAPISID") -> MaterialTheme.colorScheme.primary
-                                                hasVisitorToken -> MaterialTheme.colorScheme.tertiary
-                                                else -> MaterialTheme.colorScheme.outline
-                                            }
-                                            Text(
-                                                text = statusText,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = statusColor
-                                            )
-                                        }
-                                    }
-                                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                                    NavigationDrawerItem(
-                                        label = { Text(stringResource(R.string.account)) },
-                                        icon = {
-                                            Icon(
-                                                painter = painterResource(R.drawable.account),
-                                                contentDescription = stringResource(R.string.account)
-                                            )
                                         },
                                         selected = false,
                                         onClick = {
@@ -1068,10 +1052,19 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier
                                             .padding(NavigationDrawerItemDefaults.ItemPadding)
                                             .focusProperties { canFocus = drawerState.isOpen }
+                                            .bringIntoViewRequester(accountItemBringIntoViewRequester)
+                                            .onFocusEvent { event ->
+                                                if (event.isFocused) {
+                                                    coroutineScope.launch {
+                                                        accountItemBringIntoViewRequester.bringIntoView()
+                                                    }
+                                                }
+                                            }
                                     )
                                     navigationItems.fastForEachIndexed { index, screen ->
                                         val isSelected =
                                             navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true
+                                        val itemBringIntoViewRequester = rememberBringIntoViewRequester()
                                         NavigationDrawerItem(
                                             label = {
                                                 Text(
@@ -1111,11 +1104,20 @@ class MainActivity : ComponentActivity() {
                                             modifier = Modifier
                                                 .padding(NavigationDrawerItemDefaults.ItemPadding)
                                                 .focusProperties { canFocus = drawerState.isOpen }
+                                                .bringIntoViewRequester(itemBringIntoViewRequester)
+                                                .onFocusEvent { event ->
+                                                    if (event.isFocused) {
+                                                        coroutineScope.launch {
+                                                            itemBringIntoViewRequester.bringIntoView()
+                                                        }
+                                                    }
+                                                }
                                                 .then(
                                                     if (index == 0) Modifier.focusRequester(drawerFocusRequester) else Modifier
                                                 )
                                     )
                                 }
+                                val radioBringIntoViewRequester = rememberBringIntoViewRequester()
                                 NavigationDrawerItem(
                                     label = { Text(stringResource(R.string.radio_mode)) },
                                     icon = {
@@ -1138,8 +1140,17 @@ class MainActivity : ComponentActivity() {
                                     modifier = Modifier
                                         .padding(NavigationDrawerItemDefaults.ItemPadding)
                                         .focusProperties { canFocus = drawerState.isOpen }
+                                        .bringIntoViewRequester(radioBringIntoViewRequester)
+                                        .onFocusEvent { event ->
+                                            if (event.isFocused) {
+                                                coroutineScope.launch {
+                                                    radioBringIntoViewRequester.bringIntoView()
+                                                }
+                                            }
+                                        }
                                 )
                                 if (isContributorSignedIn) {
+                                    val contributeBringIntoViewRequester = rememberBringIntoViewRequester()
                                     NavigationDrawerItem(
                                         label = { Text(stringResource(R.string.contribute)) },
                                         icon = { Icon(painterResource(R.drawable.person), null) },
@@ -1155,8 +1166,17 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier
                                             .padding(NavigationDrawerItemDefaults.ItemPadding)
                                             .focusProperties { canFocus = drawerState.isOpen }
+                                            .bringIntoViewRequester(contributeBringIntoViewRequester)
+                                            .onFocusEvent { event ->
+                                                if (event.isFocused) {
+                                                    coroutineScope.launch {
+                                                        contributeBringIntoViewRequester.bringIntoView()
+                                                    }
+                                                }
+                                            }
                                     )
                                 }
+                                val settingsBringIntoViewRequester = rememberBringIntoViewRequester()
                                 NavigationDrawerItem(
                                     label = { Text(stringResource(R.string.settings)) },
                                     icon = {
@@ -1177,6 +1197,14 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier
                                             .padding(NavigationDrawerItemDefaults.ItemPadding)
                                             .focusProperties { canFocus = drawerState.isOpen }
+                                            .bringIntoViewRequester(settingsBringIntoViewRequester)
+                                            .onFocusEvent { event ->
+                                                if (event.isFocused) {
+                                                    coroutineScope.launch {
+                                                        settingsBringIntoViewRequester.bringIntoView()
+                                                    }
+                                                }
+                                            }
                                     )
                                 }
                             }
