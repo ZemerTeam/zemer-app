@@ -46,7 +46,7 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.relocation.rememberBringIntoViewRequester
+import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -999,7 +999,7 @@ class MainActivity : ComponentActivity() {
                                         hasVisitorToken -> MaterialTheme.colorScheme.tertiary
                                         else -> MaterialTheme.colorScheme.outline
                                     }
-                                    val accountItemBringIntoViewRequester = rememberBringIntoViewRequester()
+                                    val accountItemBringIntoViewRequester = remember { BringIntoViewRequester() }
                                     NavigationDrawerItem(
                                         label = {
                                             Column(verticalArrangement = Arrangement.Center) {
@@ -1064,7 +1064,7 @@ class MainActivity : ComponentActivity() {
                                     navigationItems.fastForEachIndexed { index, screen ->
                                         val isSelected =
                                             navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true
-                                        val itemBringIntoViewRequester = rememberBringIntoViewRequester()
+                                        val itemBringIntoViewRequester = remember { BringIntoViewRequester() }
                                         NavigationDrawerItem(
                                             label = {
                                                 Text(
@@ -1117,7 +1117,7 @@ class MainActivity : ComponentActivity() {
                                                 )
                                     )
                                 }
-                                val radioBringIntoViewRequester = rememberBringIntoViewRequester()
+                                val radioBringIntoViewRequester = remember { BringIntoViewRequester() }
                                 NavigationDrawerItem(
                                     label = { Text(stringResource(R.string.radio_mode)) },
                                     icon = {
@@ -1150,7 +1150,7 @@ class MainActivity : ComponentActivity() {
                                         }
                                 )
                                 if (isContributorSignedIn) {
-                                    val contributeBringIntoViewRequester = rememberBringIntoViewRequester()
+                                    val contributeBringIntoViewRequester = remember { BringIntoViewRequester() }
                                     NavigationDrawerItem(
                                         label = { Text(stringResource(R.string.contribute)) },
                                         icon = { Icon(painterResource(R.drawable.person), null) },
@@ -1176,7 +1176,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                     )
                                 }
-                                val settingsBringIntoViewRequester = rememberBringIntoViewRequester()
+                                val settingsBringIntoViewRequester = remember { BringIntoViewRequester() }
                                 NavigationDrawerItem(
                                     label = { Text(stringResource(R.string.settings)) },
                                     icon = {

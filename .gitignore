@@ -131,3 +131,8 @@ core.*
 /.venv_tools/pyvenv.cfg
 /.venv_tools/lib64/
 /.venv_tools/lib64/
+/exports/AGENTS.md
+/exports/artist_whitelist_backup_20251205_035519.json
+/.venv_tools/lib64/
+/.venv_tools/lib64/
+/.venv_tools/lib64/
