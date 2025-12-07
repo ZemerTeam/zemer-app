@@ -246,10 +246,18 @@
     <!-- Updater -->
     <string name="updater">Updater</string>
     <string name="check_for_updates">Automatically check for updates</string>
+    <string name="check_for_updates_now">Check for updates now</string>
     <string name="update_notifications">Enable update notifications</string>
     <string name="update_available_title">Update available</string>
+    <string name="update_available">Update available</string>
+    <string name="update_available_message">You are on version %1$s. Version %2$s is available.</string>
+    <string name="up_to_date">Up to date</string>
+    <string name="up_to_date_message">You are running the latest version (%1$s).</string>
     <string name="update_channel_name">App updates</string>
     <string name="update_channel_desc">Notifications about new versions</string>
+    <string name="download">Download</string>
+    <string name="later">Later</string>
+    <string name="error">Error</string>
 
     <!-- Offload -->
     <string name="audio_offload">Enable offload</string>

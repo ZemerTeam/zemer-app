@@ -126,6 +126,14 @@ fun SettingsScreen(
             route = "settings/backup_restore"
         ),
         SettingItem(
+            id = "updater",
+            title = stringResource(R.string.updater),
+            description = "Check for app updates",
+            icon = R.drawable.update,
+            section = "System & About",
+            route = "settings/updater"
+        ),
+        SettingItem(
             id = "about",
             title = stringResource(R.string.about),
             description = "About Zemer",

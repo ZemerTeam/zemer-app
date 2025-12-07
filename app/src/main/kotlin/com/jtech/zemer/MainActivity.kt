@@ -45,8 +45,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -69,6 +70,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -234,6 +236,7 @@ import javax.inject.Inject
 import kotlin.time.Duration.Companion.days
 
 @Suppress("DEPRECATION", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+@OptIn(ExperimentalFoundationApi::class)
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @Inject
@@ -660,6 +663,41 @@ class MainActivity : ComponentActivity() {
                         val hasVisitorToken = remember(storedVisitorData) {
                             storedVisitorData.startsWith("Cg")
                         }
+
+                        // Update notification dialog
+                        var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
+                        var pendingUpdateVersion by rememberSaveable { mutableStateOf<String?>(null) }
+                        LaunchedEffect(Unit) {
+                            App.pendingUpdateVersion?.let { version ->
+                                pendingUpdateVersion = version
+                                showUpdateDialog = true
+                                App.clearPendingUpdate()
+                            }
+                        }
+
+                        if (showUpdateDialog && pendingUpdateVersion != null) {
+                            androidx.compose.material3.AlertDialog(
+                                onDismissRequest = { showUpdateDialog = false },
+                                title = { Text(stringResource(R.string.update_available)) },
+                                text = {
+                                    Text(stringResource(R.string.update_available_message, BuildConfig.VERSION_NAME, pendingUpdateVersion!!))
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        showUpdateDialog = false
+                                        com.jtech.zemer.utils.UpdateChecker.openDownloadPage(this@MainActivity)
+                                    }) {
+                                        Text(stringResource(R.string.download))
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showUpdateDialog = false }) {
+                                        Text(stringResource(R.string.later))
+                                    }
+                                }
+                            )
+                        }
+
                         val (defaultOpenTab) = rememberEnumPreference(DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
                         val tabOpenedFromShortcut = remember {
                             when (intent?.action) {

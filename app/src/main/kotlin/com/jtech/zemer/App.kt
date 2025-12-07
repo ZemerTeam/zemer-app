@@ -25,6 +25,7 @@ import com.jtech.zemer.extensions.toInetSocketAddress
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
+import com.jtech.zemer.utils.UpdateChecker
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
@@ -71,7 +72,20 @@ class App : Application(), SingletonImageLoader.Factory {
         applicationScope.launch {
             initializeSettings()
             observeSettingsChanges()
+            checkForUpdatesOnStartup()
             // Removed auto-fetch of anonymous token; user must trigger login manually.
+        }
+    }
+
+    private suspend fun checkForUpdatesOnStartup() {
+        val settings = dataStore.data.first()
+        if (settings[CheckForUpdatesKey] != true) return
+
+        when (val result = UpdateChecker.checkForUpdates()) {
+            is UpdateChecker.UpdateResult.UpdateAvailable -> {
+                pendingUpdateVersion = result.latestVersion
+            }
+            else -> { /* No action needed */ }
         }
     }
 
@@ -166,6 +180,10 @@ class App : Application(), SingletonImageLoader.Factory {
         }
         if (!settings.contains(AllowChasidishKey)) {
             dataStore.edit { it[AllowChasidishKey] = false }
+        }
+        // Auto-enable update checks on fresh install
+        if (!settings.contains(CheckForUpdatesKey)) {
+            dataStore.edit { it[CheckForUpdatesKey] = true }
         }
 
         YouTube.locale = YouTubeLocale(
@@ -319,6 +337,13 @@ class App : Application(), SingletonImageLoader.Factory {
     }
 
     companion object {
+        // Holds pending update version detected on startup
+        var pendingUpdateVersion: String? = null
+
+        fun clearPendingUpdate() {
+            pendingUpdateVersion = null
+        }
+
         suspend fun forgetAccount(context: Context) {
             context.dataStore.edit { settings ->
                 settings.remove(InnerTubeCookieKey)
