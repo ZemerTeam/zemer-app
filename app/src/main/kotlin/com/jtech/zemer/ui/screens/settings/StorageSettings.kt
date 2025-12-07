@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
@@ -54,13 +55,16 @@ import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.formatFileSize
+import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.utils.EnvironmentPaths.DEFAULT_RELATIVE_DOWNLOAD_PATH
 import com.jtech.zemer.utils.EnvironmentPaths.toUserFacingPath
 import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @SuppressLint("AutoboxingStateCreation")
 @OptIn(ExperimentalCoilApi::class, ExperimentalMaterial3Api::class)
@@ -71,8 +75,10 @@ fun StorageSettings(
 ) {
     val context = LocalContext.current
     val imageDiskCache = context.imageLoader.diskCache ?: return
-    val playerCache = LocalPlayerConnection.current?.service?.playerCache ?: return
-    val downloadCache = LocalPlayerConnection.current?.service?.downloadCache ?: return
+    val playerService = LocalPlayerConnection.current?.service ?: return
+    val playerCache = playerService.playerCache
+    val downloadCache = playerService.downloadCache
+    val database = playerService.database
 
     val coroutineScope = rememberCoroutineScope()
     val (maxImageCacheSize, onMaxImageCacheSizeChange) = rememberPreference(
@@ -120,9 +126,7 @@ fun StorageSettings(
     var playerCacheSize by remember {
         mutableLongStateOf(tryOrNull { playerCache.cacheSpace } ?: 0)
     }
-    var downloadCacheSize by remember {
-        mutableStateOf(tryOrNull { downloadCache.cacheSpace } ?: 0)
-    }
+    var downloadCacheSize by remember { mutableStateOf(0L) }
     val imageCacheProgress by animateFloatAsState(
         targetValue = (imageCacheSize.toFloat() / imageDiskCache.maxSize).coerceIn(0f, 1f),
         label = "imageCacheProgress",
@@ -164,10 +168,9 @@ fun StorageSettings(
             playerCacheSize = tryOrNull { playerCache.cacheSpace } ?: 0
         }
     }
-    LaunchedEffect(downloadCache) {
-        while (isActive) {
-            delay(500)
-            downloadCacheSize = tryOrNull { downloadCache.cacheSpace } ?: 0
+    LaunchedEffect(database) {
+        database.downloadedSongsByCreateDateAsc().collect { songs ->
+            downloadCacheSize = calculateDownloadedSongsSize(context, songs)
         }
     }
 
@@ -402,4 +405,30 @@ fun StorageSettings(
             }
         }
     )
+}
+
+private suspend fun calculateDownloadedSongsSize(
+    context: Context,
+    songs: List<Song>,
+): Long = withContext(Dispatchers.IO) {
+    songs.sumOf { song ->
+        val uriString = song.song.mediaStoreUri ?: return@sumOf song.format?.contentLength ?: 0L
+
+        try {
+            val uri = Uri.parse(uriString)
+            val contentResolver = context.contentResolver
+
+            contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)
+                ?.use { cursor ->
+                    val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    if (sizeIndex != -1 && cursor.moveToFirst()) {
+                        cursor.getLong(sizeIndex)
+                    } else {
+                        song.format?.contentLength ?: 0L
+                    }
+                } ?: song.format?.contentLength ?: 0L
+        } catch (e: Exception) {
+            song.format?.contentLength ?: 0L
+        }
+    }
 }
