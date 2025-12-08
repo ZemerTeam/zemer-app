@@ -9,10 +9,12 @@ import com.jtech.zemer.BuildConfig
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.http.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -81,9 +83,23 @@ object UpdateChecker {
 
         try {
             val httpClient = HttpClient()
+
+            // First, do a HEAD request to get the actual content length after redirects
+            var contentLength = -1L
+            try {
+                val headResponse = httpClient.head(DOWNLOAD_URL)
+                contentLength = headResponse.contentLength() ?: -1L
+            } catch (_: Exception) {
+                // HEAD request failed, will try to get from GET response
+            }
+
             val response = httpClient.prepareGet(DOWNLOAD_URL).execute()
 
-            val contentLength = response.headers["Content-Length"]?.toLongOrNull() ?: -1L
+            // If HEAD didn't work, try from the GET response
+            if (contentLength <= 0) {
+                contentLength = response.contentLength() ?: -1L
+            }
+
             val apkFile = File(context.cacheDir, APK_FILENAME)
 
             // Delete existing file if present
@@ -117,7 +133,7 @@ object UpdateChecker {
         } catch (e: Exception) {
             emit(DownloadState.Error(e.message ?: "Download failed"))
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     fun installApk(context: Context, apkFile: File) {
         val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
