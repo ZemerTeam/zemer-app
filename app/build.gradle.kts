@@ -28,6 +28,16 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
         multiDexEnabled = true
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+
+        externalNativeBuild {
+            cmake {
+                cppFlags += "-std=c++17"
+            }
+        }
     }
 
     androidResources {
@@ -128,12 +138,22 @@ android {
     //     }
     // }
 
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
+    ndkVersion = "27.0.12077973"
+
     packaging {
         jniLibs {
             useLegacyPackaging = false
             keepDebugSymbols += listOf(
                 "**/libandroidx.graphics.path.so",
-                "**/libdatastore_shared_counter.so"
+                "**/libdatastore_shared_counter.so",
+                "**/libcoverart.so"
             )
         }
         resources {
@@ -219,14 +239,12 @@ dependencies {
     implementation(project(":innertube"))
     implementation(project(":lrclib"))
 
+    // No external dependencies for cover art - using native Bento4 library
+
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.serialization.json)
 
     coreLibraryDesugaring(libs.desugaring)
 
     implementation(libs.timber)
-
-    // FFmpeg for remuxing audio and embedding cover art (min package for smallest size)
-    // Using community fork since original ffmpeg-kit was retired in 2025
-    implementation("io.github.maitrungduc1410:ffmpeg-kit-min:6.0.1")
 }

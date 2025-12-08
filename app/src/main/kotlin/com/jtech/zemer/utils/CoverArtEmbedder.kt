@@ -2,8 +2,6 @@ package com.jtech.zemer.utils
 
 import android.content.Context
 import android.util.Log
-import com.arthenica.ffmpegkit.FFmpegKit
-import com.arthenica.ffmpegkit.ReturnCode
 import com.jtech.zemer.ui.utils.resize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -13,177 +11,141 @@ import okhttp3.Request
 import java.io.File
 
 /**
- * Utility class for embedding cover art into downloaded audio files using FFmpeg.
- * Supports all audio formats that FFmpeg can handle.
+ * Utility class for embedding cover art into downloaded M4A audio files.
+ * Uses native Bento4 library for reliable DASH/fragmented file support.
  */
 object CoverArtEmbedder {
 
     private const val TAG = "CoverArt"
-
-    // Artwork dimensions for embedding
     private const val ARTWORK_SIZE = 500
-
-    // Timeout for artwork download (10 seconds)
     private const val ARTWORK_DOWNLOAD_TIMEOUT_MS = 10_000L
 
-    // Extensions that support embedded artwork via FFmpeg
-    private val SUPPORTED_EXTENSIONS = setOf("mp3", "m4a", "flac", "ogg", "opus", "webm")
+    // Only M4A/MP4 supported
+    private val SUPPORTED_EXTENSIONS = setOf("m4a", "mp4")
 
-    /**
-     * Check if the given file extension supports embedded artwork
-     */
     fun supportsEmbedding(extension: String): Boolean {
         return extension.lowercase() in SUPPORTED_EXTENSIONS
     }
 
-    /**
-     * Download and embed artwork into an audio file using FFmpeg.
-     * This creates a new file with artwork and replaces the original.
-     *
-     * @param context Android context for cache directory
-     * @param audioFile The audio file to embed artwork into
-     * @param thumbnailUrl The URL of the thumbnail/cover art
-     * @param httpClient OkHttpClient instance to use for downloading
-     * @return true if artwork was successfully embedded, false otherwise
-     */
     suspend fun embedArtworkIntoFile(
         context: Context,
         audioFile: File,
         thumbnailUrl: String,
         httpClient: OkHttpClient
     ): Boolean = withContext(Dispatchers.IO) {
+        var tempFile: File? = null
+        var outputFile: File? = null
         try {
-            Log.d(TAG, "Starting FFmpeg artwork embedding for ${audioFile.name}")
+            Log.d(TAG, "Starting artwork embedding for ${audioFile.name}")
+            Log.d(TAG, "Thumbnail URL: $thumbnailUrl")
 
             // Get optimized thumbnail URL
-            val artworkUrl = thumbnailUrl.resize(ARTWORK_SIZE, ARTWORK_SIZE).let { resized ->
-                if (resized == thumbnailUrl && thumbnailUrl.contains("i.ytimg.com")) {
-                    thumbnailUrl.replace(Regex("/(default|mqdefault|hqdefault|sddefault)\\.jpg"), "/maxresdefault.jpg")
-                } else {
-                    resized
-                }
-            }
+            val artworkUrl = getOptimizedUrl(thumbnailUrl)
+            Log.d(TAG, "Optimized URL: $artworkUrl")
 
-            // Download artwork to temp file
-            val artworkFile = File(context.cacheDir, "cover_${System.currentTimeMillis()}.jpg")
+            // Download artwork
             val artworkData = withTimeoutOrNull(ARTWORK_DOWNLOAD_TIMEOUT_MS) {
                 downloadArtwork(artworkUrl, httpClient)
             }
 
-            if (artworkData == null || artworkData.size < 1000) {
-                Log.w(TAG, "Artwork download failed or too small")
+            if (artworkData == null) {
+                Log.w(TAG, "Artwork download returned null")
                 return@withContext false
             }
 
-            // Write artwork to temp file
-            artworkFile.writeBytes(artworkData)
-            Log.d(TAG, "Artwork saved to ${artworkFile.absolutePath}, size: ${artworkData.size}")
+            if (artworkData.size < 1000) {
+                Log.w(TAG, "Artwork too small: ${artworkData.size} bytes")
+                return@withContext false
+            }
 
-            // Create output file
-            val outputFile = File(context.cacheDir, "output_${System.currentTimeMillis()}.${audioFile.extension}")
+            Log.d(TAG, "Artwork downloaded: ${artworkData.size} bytes")
 
-            try {
-                // Use FFmpeg to embed cover art
-                val success = embedWithFFmpeg(audioFile, artworkFile, outputFile)
+            // Try to defragment first (for DASH files)
+            tempFile = File(context.cacheDir, "defrag_${System.currentTimeMillis()}.m4a")
+            val defragmented = try {
+                CoverArtNative.defragmentFile(audioFile.absolutePath, tempFile.absolutePath)
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e(TAG, "Native library not loaded: ${e.message}")
+                false
+            }
 
-                if (success && outputFile.exists() && outputFile.length() > 0) {
-                    // Replace original with output
-                    audioFile.delete()
-                    outputFile.renameTo(audioFile)
-                    Log.d(TAG, "Successfully embedded artwork into ${audioFile.name}")
-                    true
-                } else {
-                    Log.w(TAG, "FFmpeg embedding failed")
-                    outputFile.delete()
-                    false
-                }
-            } finally {
-                // Cleanup
-                artworkFile.delete()
-                if (outputFile.exists()) outputFile.delete()
+            val workingFile = if (defragmented && tempFile.exists() && tempFile.length() > 0) {
+                Log.d(TAG, "Using defragmented file")
+                tempFile
+            } else {
+                Log.d(TAG, "Using original file (defragment not needed or failed)")
+                tempFile.delete()
+                tempFile = null
+                audioFile
+            }
+
+            // Embed cover art using native library
+            outputFile = File(context.cacheDir, "output_${System.currentTimeMillis()}.m4a")
+            val success = try {
+                CoverArtNative.embedCoverArt(
+                    workingFile.absolutePath,
+                    outputFile.absolutePath,
+                    artworkData
+                )
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e(TAG, "Native library not loaded: ${e.message}")
+                false
+            }
+
+            if (success && outputFile.exists() && outputFile.length() > 0) {
+                // Replace original with processed file
+                audioFile.delete()
+                outputFile.renameTo(audioFile)
+                tempFile?.delete()
+                Log.d(TAG, "Successfully embedded artwork")
+                true
+            } else {
+                Log.w(TAG, "Cover art embedding failed")
+                outputFile?.delete()
+                tempFile?.delete()
+                false
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to embed artwork: ${e.message}", e)
+            tempFile?.delete()
+            outputFile?.delete()
             false
         }
     }
 
-    /**
-     * Embed cover art using FFmpeg
-     * Uses simple commands compatible with ffmpeg-kit-min package
-     */
-    private fun embedWithFFmpeg(audioFile: File, artworkFile: File, outputFile: File): Boolean {
-        val inputPath = audioFile.absolutePath
-        val artworkPath = artworkFile.absolutePath
-        val outputPath = outputFile.absolutePath
-        val extension = audioFile.extension.lowercase()
-
-        // Build FFmpeg command based on format
-        // Using simple commands compatible with min package (no external encoders)
-        val command = when (extension) {
-            "mp3" -> {
-                // For MP3, use ID3v2 cover art with copy for image
-                "-i $inputPath -i $artworkPath -map 0:a -map 1:0 -c:a copy -c:v copy -id3v2_version 3 -metadata:s:v title=Cover -metadata:s:v comment=Cover -y $outputPath"
+    private fun getOptimizedUrl(url: String): String {
+        return url.resize(ARTWORK_SIZE, ARTWORK_SIZE).let { resized ->
+            if (resized == url && url.contains("i.ytimg.com")) {
+                url.replace(Regex("/(default|mqdefault|hqdefault|sddefault)\\.jpg"), "/maxresdefault.jpg")
+            } else {
+                resized
             }
-            "m4a", "mp4" -> {
-                // For M4A/MP4, embed as attached picture
-                "-i $inputPath -i $artworkPath -map 0:a -map 1:0 -c:a copy -c:v copy -disposition:v:0 attached_pic -y $outputPath"
-            }
-            "flac" -> {
-                // For FLAC, embed as attached picture
-                "-i $inputPath -i $artworkPath -map 0:a -map 1:0 -c:a copy -c:v copy -disposition:v:0 attached_pic -y $outputPath"
-            }
-            "ogg", "opus", "webm" -> {
-                // For OGG/Opus/WebM - these formats have limited cover art support
-                // Try generic approach, may not work with all players
-                "-i $inputPath -i $artworkPath -map 0:a -map 1:0 -c:a copy -c:v copy -disposition:v:0 attached_pic -y $outputPath"
-            }
-            else -> {
-                // Generic approach
-                "-i $inputPath -i $artworkPath -map 0:a -map 1:0 -c:a copy -c:v copy -disposition:v:0 attached_pic -y $outputPath"
-            }
-        }
-
-        Log.d(TAG, "FFmpeg command: ffmpeg $command")
-
-        val session = FFmpegKit.execute(command)
-        val returnCode = session.returnCode
-
-        if (ReturnCode.isSuccess(returnCode)) {
-            Log.d(TAG, "FFmpeg succeeded")
-            return true
-        } else {
-            Log.e(TAG, "FFmpeg failed with code: $returnCode")
-            Log.e(TAG, "FFmpeg output: ${session.output}")
-            return false
         }
     }
 
-    /**
-     * Download artwork from URL
-     */
-    private suspend fun downloadArtwork(
-        url: String,
-        httpClient: OkHttpClient
-    ): ByteArray? = withContext(Dispatchers.IO) {
-        try {
-            val request = Request.Builder()
-                .url(url)
-                .get()
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                .build()
+    private suspend fun downloadArtwork(url: String, httpClient: OkHttpClient): ByteArray? =
+        withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Downloading artwork from: $url")
+                val request = Request.Builder()
+                    .url(url)
+                    .get()
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .build()
 
-            val response = httpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                Log.w(TAG, "Artwork download failed with code ${response.code}")
-                response.close()
-                return@withContext null
+                val response = httpClient.newCall(request).execute()
+                if (!response.isSuccessful) {
+                    Log.w(TAG, "Download failed: ${response.code}")
+                    response.close()
+                    return@withContext null
+                }
+
+                val bytes = response.body?.bytes()
+                Log.d(TAG, "Downloaded ${bytes?.size ?: 0} bytes")
+                bytes
+            } catch (e: Exception) {
+                Log.e(TAG, "Download error: ${e.message}", e)
+                null
             }
-
-            response.body?.bytes()
-        } catch (e: Exception) {
-            Log.w(TAG, "Error downloading artwork: ${e.message}")
-            null
         }
-    }
 }

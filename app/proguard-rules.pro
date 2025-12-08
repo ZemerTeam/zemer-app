@@ -105,6 +105,5 @@
 -keep class com.yalantis.ucrop** { *; }
 -keep interface com.yalantis.ucrop** { *; }
 
-## FFmpeg-kit Rules (for cover art embedding)
--keep class com.arthenica.ffmpegkit.** { *; }
--dontwarn com.arthenica.ffmpegkit.**
+## Native Cover Art Library (Bento4 JNI)
+-keep class com.jtech.zemer.utils.CoverArtNative { *; }
