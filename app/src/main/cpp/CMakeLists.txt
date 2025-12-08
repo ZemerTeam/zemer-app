@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.18)
 project(coverart)
 
+# Size optimization flags
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Os -fvisibility=hidden -ffunction-sections -fdata-sections")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Os -fvisibility=hidden -ffunction-sections -fdata-sections")
+set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -Wl,--gc-sections -Wl,--strip-all")
+
+# Enable LTO for release builds
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+
 # Build Bento4 as static library
 set(BUILD_APPS OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBRARY OFF CACHE BOOL "" FORCE)

@@ -1,0 +1,9 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: bento4
+Description: Bento4 MP4 SDK
+Version: @BENTO4_VERSION@
+Libs: -L${libdir} -lap4
+Cflags: -I${includedir}/bento4
