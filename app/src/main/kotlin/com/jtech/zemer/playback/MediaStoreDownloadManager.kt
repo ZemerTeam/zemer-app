@@ -466,7 +466,7 @@ constructor(
                     )
                 }
 
-                val fileName = "$artist - $title.$extension"
+                val fileName = "$title.$extension"
                 val uri: Uri?
 
                 if (isVideoDownload) {
