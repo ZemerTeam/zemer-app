@@ -117,6 +117,17 @@ android {
         generateLocaleConfig = true
     }
 
+    // ABI splits disabled - builds single universal APK
+    // Enable if you want smaller per-architecture APKs for distribution
+    // splits {
+    //     abi {
+    //         isEnable = true
+    //         reset()
+    //         include("arm64-v8a", "armeabi-v7a")
+    //         isUniversalApk = true
+    //     }
+    // }
+
     packaging {
         jniLibs {
             useLegacyPackaging = false
@@ -214,4 +225,8 @@ dependencies {
     coreLibraryDesugaring(libs.desugaring)
 
     implementation(libs.timber)
+
+    // FFmpeg for remuxing audio and embedding cover art (min package for smallest size)
+    // Using community fork since original ffmpeg-kit was retired in 2025
+    implementation("io.github.maitrungduc1410:ffmpeg-kit-min:6.0.1")
 }

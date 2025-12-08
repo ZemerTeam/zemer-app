@@ -10,6 +10,7 @@ import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.db.entities.SongAlbumMap
 import com.jtech.zemer.db.entities.SongArtistMap
+import com.jtech.zemer.utils.CoverArtEmbedder
 import com.jtech.zemer.utils.MediaStoreHelper
 import com.jtech.zemer.utils.UrlValidator
 import com.jtech.zemer.utils.YTPlayerUtils
@@ -432,6 +433,19 @@ constructor(
 
                 if (!tempFile.exists() || tempFile.length() == 0L) {
                     throw Exception("Download failed - temp file not created or empty")
+                }
+
+                // Embed cover art if format supports it and thumbnail available (audio only)
+                if (!isVideoDownload) {
+                    val thumbnailUrl = song.song.thumbnailUrl
+                    if (thumbnailUrl != null && CoverArtEmbedder.supportsEmbedding(extension)) {
+                        CoverArtEmbedder.embedArtworkIntoFile(
+                            context = context,
+                            audioFile = tempFile,
+                            thumbnailUrl = thumbnailUrl,
+                            httpClient = httpClient
+                        )
+                    }
                 }
 
                 // Get metadata
