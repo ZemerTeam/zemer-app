@@ -237,17 +237,10 @@ class MusicService :
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
 
     private var consecutivePlaybackErr = 0
-    private var hasStartedForeground = false
 
     override fun onCreate() {
         super.onCreate()
-        // CRITICAL: Must call startForeground() immediately to avoid ANR when startForegroundService() is used
-        // This MUST happen before any other heavy initialization
-        if (!ensureForegroundService(force = true)) {
-            stopSelf()
-            return
-        }
-
+        // Media3's MediaLibraryService handles foreground notification automatically
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider(
                 this,
@@ -457,66 +450,6 @@ class MusicService :
                     saveQueueToDisk()
                 }
             }
-        }
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // CRITICAL: Must call startForeground() immediately to avoid ANR when startForegroundService() is used
-        if (!ensureForegroundService(force = true)) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
-        return super.onStartCommand(intent, flags, startId)
-    }
-
-    private fun ensureForegroundService(force: Boolean = false): Boolean {
-        if (hasStartedForeground && !force) return true
-
-        return runCatching {
-            // Create notification channel if needed
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (notificationManager.getNotificationChannel(CHANNEL_ID) == null) {
-                val channel = NotificationChannel(
-                    CHANNEL_ID,
-                    getString(R.string.music_player),
-                    NotificationManager.IMPORTANCE_LOW
-                ).apply {
-                    description = getString(R.string.music_player)
-                    setShowBadge(false)
-                }
-                notificationManager.createNotificationChannel(channel)
-            }
-
-            // Create a minimal notification to satisfy foreground service requirement
-            val notification = Notification.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.small_icon)
-                .setContentTitle(getString(R.string.music_player))
-                .setContentIntent(
-                    PendingIntent.getActivity(
-                        this,
-                        0,
-                        Intent(this, MainActivity::class.java),
-                        PendingIntent.FLAG_IMMUTABLE
-                    )
-                )
-                .build()
-
-            // Start foreground with appropriate service type for media playback
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(
-                    NOTIFICATION_ID,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-                )
-            } else {
-                startForeground(NOTIFICATION_ID, notification)
-            }
-            hasStartedForeground = true
-            isRunning = true
-            true
-        }.getOrElse { e ->
-            Timber.e(e, "MusicService: startForeground failed")
-            false
         }
     }
 

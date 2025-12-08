@@ -299,16 +299,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // NOTE: Notification permission is now handled in the onboarding flow
+        // Use startService() - Media3's MediaLibraryService handles foreground notification
+        // automatically when playback begins
         val serviceIntent = Intent(this, MusicService::class.java)
         try {
-            if (hasNotificationPermission(this)) {
-                if (MusicService.isRunning) {
-                    bindService(serviceIntent, serviceConnection, BIND_AUTO_CREATE)
-                } else if (tryStartForegroundService<MusicService>(serviceIntent)) {
-                    bindService(serviceIntent, serviceConnection, BIND_AUTO_CREATE)
-                }
-            }
+            startService(serviceIntent)
+            bindService(serviceIntent, serviceConnection, BIND_AUTO_CREATE)
         } catch (e: IllegalStateException) {
             // In case the system still thinks we're background, retry once on resume
             pendingServiceStart = true
@@ -320,13 +316,8 @@ class MainActivity : ComponentActivity() {
         if (pendingServiceStart) {
             val serviceIntent = Intent(this, MusicService::class.java)
             try {
-                if (hasNotificationPermission(this)) {
-                    if (MusicService.isRunning) {
-                        bindService(serviceIntent, serviceConnection, BIND_AUTO_CREATE)
-                    } else if (tryStartForegroundService<MusicService>(serviceIntent)) {
-                        bindService(serviceIntent, serviceConnection, BIND_AUTO_CREATE)
-                    }
-                }
+                startService(serviceIntent)
+                bindService(serviceIntent, serviceConnection, BIND_AUTO_CREATE)
                 pendingServiceStart = false
             } catch (e: IllegalStateException) {
             }
