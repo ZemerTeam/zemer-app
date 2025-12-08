@@ -92,17 +92,24 @@ object CoverArtEmbedder {
                 false
             }
 
-            if (success && outputFile.exists() && outputFile.length() > 0) {
+            // Verify output is valid - must be at least 90% of original size
+            // (metadata addition shouldn't significantly reduce file size)
+            val originalSize = workingFile.length()
+            val outputSize = outputFile?.length() ?: 0
+            val sizeRatio = if (originalSize > 0) outputSize.toDouble() / originalSize else 0.0
+
+            if (success && outputFile != null && outputFile.exists() && outputSize > 0 && sizeRatio > 0.9) {
                 // Replace original with processed file
                 audioFile.delete()
                 outputFile.renameTo(audioFile)
                 tempFile?.delete()
-                Log.d(TAG, "Successfully embedded artwork")
+                Log.d(TAG, "Successfully embedded artwork (size ratio: $sizeRatio)")
                 true
             } else {
-                Log.w(TAG, "Cover art embedding failed")
+                Log.w(TAG, "Cover art embedding failed or output invalid (success=$success, size=$outputSize, ratio=$sizeRatio)")
                 outputFile?.delete()
                 tempFile?.delete()
+                // Original file is preserved - download still works without cover art
                 false
             }
         } catch (e: Exception) {
