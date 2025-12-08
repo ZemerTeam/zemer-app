@@ -11,8 +11,10 @@ import okhttp3.Request
 import java.io.File
 
 /**
- * Utility class for embedding cover art into downloaded M4A audio files.
+ * Utility class for embedding metadata into downloaded M4A audio files.
  * Uses native Bento4 library for reliable DASH/fragmented file support.
+ * Supports embedding: cover art, title, artist, album, year.
+ * All text is stored as UTF-8 (supports Hebrew, Arabic, and all Unicode).
  */
 object CoverArtEmbedder {
 
@@ -27,38 +29,44 @@ object CoverArtEmbedder {
         return extension.lowercase() in SUPPORTED_EXTENSIONS
     }
 
-    suspend fun embedArtworkIntoFile(
+    /**
+     * Embed metadata (cover art, title, artist, album, year) into an M4A/MP4 file.
+     * All text fields support UTF-8 including Hebrew, Arabic, etc.
+     */
+    suspend fun embedMetadataIntoFile(
         context: Context,
         audioFile: File,
-        thumbnailUrl: String,
-        httpClient: OkHttpClient
+        thumbnailUrl: String?,
+        httpClient: OkHttpClient,
+        title: String? = null,
+        artist: String? = null,
+        album: String? = null,
+        year: Int? = null
     ): Boolean = withContext(Dispatchers.IO) {
         var tempFile: File? = null
         var outputFile: File? = null
         try {
-            Log.d(TAG, "Starting artwork embedding for ${audioFile.name}")
-            Log.d(TAG, "Thumbnail URL: $thumbnailUrl")
+            Log.d(TAG, "Starting metadata embedding for ${audioFile.name}")
+            Log.d(TAG, "Title: $title, Artist: $artist, Album: $album, Year: $year")
 
-            // Get optimized thumbnail URL
-            val artworkUrl = getOptimizedUrl(thumbnailUrl)
-            Log.d(TAG, "Optimized URL: $artworkUrl")
+            // Download artwork if URL provided
+            var artworkData: ByteArray? = null
+            if (!thumbnailUrl.isNullOrBlank()) {
+                Log.d(TAG, "Thumbnail URL: $thumbnailUrl")
+                val artworkUrl = getOptimizedUrl(thumbnailUrl)
+                Log.d(TAG, "Optimized URL: $artworkUrl")
 
-            // Download artwork
-            val artworkData = withTimeoutOrNull(ARTWORK_DOWNLOAD_TIMEOUT_MS) {
-                downloadArtwork(artworkUrl, httpClient)
+                artworkData = withTimeoutOrNull(ARTWORK_DOWNLOAD_TIMEOUT_MS) {
+                    downloadArtwork(artworkUrl, httpClient)
+                }
+
+                if (artworkData != null && artworkData.size >= 1000) {
+                    Log.d(TAG, "Artwork downloaded: ${artworkData.size} bytes")
+                } else {
+                    Log.w(TAG, "Artwork download failed or too small")
+                    artworkData = null
+                }
             }
-
-            if (artworkData == null) {
-                Log.w(TAG, "Artwork download returned null")
-                return@withContext false
-            }
-
-            if (artworkData.size < 1000) {
-                Log.w(TAG, "Artwork too small: ${artworkData.size} bytes")
-                return@withContext false
-            }
-
-            Log.d(TAG, "Artwork downloaded: ${artworkData.size} bytes")
 
             // Try to defragment first (for DASH files)
             tempFile = File(context.cacheDir, "defrag_${System.currentTimeMillis()}.m4a")
@@ -79,13 +87,17 @@ object CoverArtEmbedder {
                 audioFile
             }
 
-            // Embed cover art using native library
+            // Embed metadata using native library
             outputFile = File(context.cacheDir, "output_${System.currentTimeMillis()}.m4a")
             val success = try {
-                CoverArtNative.embedCoverArt(
-                    workingFile.absolutePath,
-                    outputFile.absolutePath,
-                    artworkData
+                CoverArtNative.embedMetadata(
+                    inputPath = workingFile.absolutePath,
+                    outputPath = outputFile.absolutePath,
+                    artworkData = artworkData,
+                    title = title,
+                    artist = artist,
+                    album = album,
+                    year = year?.toString()
                 )
             } catch (e: UnsatisfiedLinkError) {
                 Log.e(TAG, "Native library not loaded: ${e.message}")
@@ -103,17 +115,17 @@ object CoverArtEmbedder {
                 audioFile.delete()
                 outputFile.renameTo(audioFile)
                 tempFile?.delete()
-                Log.d(TAG, "Successfully embedded artwork (size ratio: $sizeRatio)")
+                Log.d(TAG, "Successfully embedded metadata (size ratio: $sizeRatio)")
                 true
             } else {
-                Log.w(TAG, "Cover art embedding failed or output invalid (success=$success, size=$outputSize, ratio=$sizeRatio)")
+                Log.w(TAG, "Metadata embedding failed or output invalid (success=$success, size=$outputSize, ratio=$sizeRatio)")
                 outputFile?.delete()
                 tempFile?.delete()
-                // Original file is preserved - download still works without cover art
+                // Original file is preserved - download still works without metadata
                 false
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to embed artwork: ${e.message}", e)
+            Log.e(TAG, "Failed to embed metadata: ${e.message}", e)
             tempFile?.delete()
             outputFile?.delete()
             false

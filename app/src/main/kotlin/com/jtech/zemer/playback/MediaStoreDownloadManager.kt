@@ -435,22 +435,10 @@ constructor(
                     throw Exception("Download failed - temp file not created or empty")
                 }
 
-                // Embed cover art if format supports it and thumbnail available (audio only)
-                if (!isVideoDownload) {
-                    val thumbnailUrl = song.song.thumbnailUrl
-                    if (thumbnailUrl != null && CoverArtEmbedder.supportsEmbedding(extension)) {
-                        CoverArtEmbedder.embedArtworkIntoFile(
-                            context = context,
-                            audioFile = tempFile,
-                            thumbnailUrl = thumbnailUrl,
-                            httpClient = httpClient
-                        )
-                    }
-                }
-
-                // Get metadata
+                // Get metadata for embedding and file naming
                 val title = song.song.title
                 val album = song.album?.title
+                val year = song.song.year ?: song.album?.year
 
                 // For folder structure: use album artist if available, otherwise song artist
                 // This ensures all songs from an album go into the same folder
@@ -463,6 +451,20 @@ constructor(
                     song.artists.firstOrNull()?.name ?: "Unknown Artist"
                 }
                 val duration = song.song.duration.takeIf { it > 0 }?.times(1000L) // Convert to milliseconds
+
+                // Embed metadata if format supports it (audio only)
+                if (!isVideoDownload && CoverArtEmbedder.supportsEmbedding(extension)) {
+                    CoverArtEmbedder.embedMetadataIntoFile(
+                        context = context,
+                        audioFile = tempFile,
+                        thumbnailUrl = song.song.thumbnailUrl,
+                        httpClient = httpClient,
+                        title = title,
+                        artist = artist,
+                        album = album,
+                        year = year
+                    )
+                }
 
                 val fileName = "$artist - $title.$extension"
                 val uri: Uri?

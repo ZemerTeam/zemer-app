@@ -11,26 +11,62 @@
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
+// Helper to add text metadata atom (©nam, ©ART, ©alb, etc.)
+static void addTextMetadata(AP4_ContainerAtom* ilst, AP4_Atom::Type type, const char* text) {
+    if (!text || strlen(text) == 0) return;
+
+    // Remove existing atom of this type
+    ilst->DeleteChild(type);
+
+    // Create container -> data structure
+    AP4_ContainerAtom* container = new AP4_ContainerAtom(type);
+    AP4_StringMetaDataValue value(text);  // Constructor sets TYPE_STRING_UTF_8 automatically
+    AP4_DataAtom* dataAtom = new AP4_DataAtom(value);
+    container->AddChild(dataAtom);
+    ilst->AddChild(container);
+}
+
 extern "C" {
 
 /**
- * Embed cover art into an M4A/MP4 file.
+ * Embed metadata (cover art, title, artist, album, year) into an M4A/MP4 file.
  * Uses a two-pass approach: first parse to build modified moov, then rebuild file.
+ * All text is stored as UTF-8 (supports Hebrew, Arabic, and all Unicode).
  */
 JNIEXPORT jboolean JNICALL
-Java_com_jtech_zemer_utils_CoverArtNative_embedCoverArt(
+Java_com_jtech_zemer_utils_CoverArtNative_embedMetadata(
         JNIEnv *env,
         jclass clazz,
         jstring inputPath,
         jstring outputPath,
-        jbyteArray artworkData) {
+        jbyteArray artworkData,
+        jstring titleStr,
+        jstring artistStr,
+        jstring albumStr,
+        jstring yearStr) {
 
     const char *input = env->GetStringUTFChars(inputPath, nullptr);
     const char *output = env->GetStringUTFChars(outputPath, nullptr);
-    jbyte *artwork = env->GetByteArrayElements(artworkData, nullptr);
-    jsize artworkSize = env->GetArrayLength(artworkData);
 
-    LOGI("Embedding cover art: %s -> %s (%d bytes artwork)", input, output, artworkSize);
+    // Artwork can be null
+    jbyte *artwork = nullptr;
+    jsize artworkSize = 0;
+    if (artworkData != nullptr) {
+        artwork = env->GetByteArrayElements(artworkData, nullptr);
+        artworkSize = env->GetArrayLength(artworkData);
+    }
+
+    // Get text metadata (UTF-8 for Hebrew/Unicode support)
+    const char *title = titleStr ? env->GetStringUTFChars(titleStr, nullptr) : nullptr;
+    const char *artist = artistStr ? env->GetStringUTFChars(artistStr, nullptr) : nullptr;
+    const char *album = albumStr ? env->GetStringUTFChars(albumStr, nullptr) : nullptr;
+    const char *year = yearStr ? env->GetStringUTFChars(yearStr, nullptr) : nullptr;
+
+    LOGI("Embedding metadata: %s -> %s (%d bytes artwork)", input, output, artworkSize);
+    if (title) LOGI("  Title: %s", title);
+    if (artist) LOGI("  Artist: %s", artist);
+    if (album) LOGI("  Album: %s", album);
+    if (year) LOGI("  Year: %s", year);
 
     bool success = false;
 
@@ -134,32 +170,38 @@ Java_com_jtech_zemer_utils_CoverArtNative_embedCoverArt(
             LOGI("Created ilst atom");
         }
 
-        // Remove existing cover art
-        AP4_Atom *existingCovr = ilst->FindChild("covr");
-        if (existingCovr) {
+        // Add text metadata (©nam = title, ©ART = artist, ©alb = album, ©day = year)
+        addTextMetadata(ilst, AP4_ATOM_TYPE_cNAM, title);   // Title
+        addTextMetadata(ilst, AP4_ATOM_TYPE_cART, artist);  // Artist
+        addTextMetadata(ilst, AP4_ATOM_TYPE_cALB, album);   // Album
+        addTextMetadata(ilst, AP4_ATOM_TYPE_cDAY, year);    // Year
+        LOGI("Added text metadata atoms");
+
+        // Add cover art if provided
+        if (artwork != nullptr && artworkSize > 0) {
+            // Remove existing cover art
             ilst->DeleteChild(AP4_ATOM_TYPE_COVR);
-            LOGI("Removed existing cover art");
-        }
 
-        // Create cover art
-        AP4_MetaData::Value::Type valueType = AP4_MetaData::Value::TYPE_JPEG;
-        if (artworkSize >= 8 &&
-            (unsigned char)artwork[0] == 0x89 &&
-            (unsigned char)artwork[1] == 0x50 &&
-            (unsigned char)artwork[2] == 0x4E &&
-            (unsigned char)artwork[3] == 0x47) {
-            valueType = AP4_MetaData::Value::TYPE_GIF;
-            LOGI("Detected PNG artwork");
-        } else {
-            LOGI("Using JPEG artwork type");
-        }
+            // Detect image type
+            AP4_MetaData::Value::Type valueType = AP4_MetaData::Value::TYPE_JPEG;
+            if (artworkSize >= 8 &&
+                (unsigned char)artwork[0] == 0x89 &&
+                (unsigned char)artwork[1] == 0x50 &&
+                (unsigned char)artwork[2] == 0x4E &&
+                (unsigned char)artwork[3] == 0x47) {
+                valueType = AP4_MetaData::Value::TYPE_GIF;
+                LOGI("Detected PNG artwork");
+            } else {
+                LOGI("Using JPEG artwork type");
+            }
 
-        AP4_ContainerAtom *covr = new AP4_ContainerAtom(AP4_ATOM_TYPE_COVR);
-        AP4_BinaryMetaDataValue value(valueType, (const AP4_UI08*)artwork, artworkSize);
-        AP4_DataAtom *dataAtom = new AP4_DataAtom(value);
-        covr->AddChild(dataAtom);
-        ilst->AddChild(covr);
-        LOGI("Added cover art atom");
+            AP4_ContainerAtom *covr = new AP4_ContainerAtom(AP4_ATOM_TYPE_COVR);
+            AP4_BinaryMetaDataValue value(valueType, (const AP4_UI08*)artwork, artworkSize);
+            AP4_DataAtom *dataAtom = new AP4_DataAtom(value);
+            covr->AddChild(dataAtom);
+            ilst->AddChild(covr);
+            LOGI("Added cover art atom");
+        }
 
         // Open output file
         AP4_ByteStream *outputStream = nullptr;
@@ -213,7 +255,11 @@ Java_com_jtech_zemer_utils_CoverArtNative_embedCoverArt(
 
     env->ReleaseStringUTFChars(inputPath, input);
     env->ReleaseStringUTFChars(outputPath, output);
-    env->ReleaseByteArrayElements(artworkData, artwork, JNI_ABORT);
+    if (artwork) env->ReleaseByteArrayElements(artworkData, artwork, JNI_ABORT);
+    if (title) env->ReleaseStringUTFChars(titleStr, title);
+    if (artist) env->ReleaseStringUTFChars(artistStr, artist);
+    if (album) env->ReleaseStringUTFChars(albumStr, album);
+    if (year) env->ReleaseStringUTFChars(yearStr, year);
 
     return success ? JNI_TRUE : JNI_FALSE;
 }
