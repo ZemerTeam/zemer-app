@@ -1423,10 +1423,7 @@ class MusicService :
         player.removeListener(this)
         player.removeListener(sleepTimer)
         player.release()
-        if (hasStartedForeground) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            hasStartedForeground = false
-        }
+        stopForeground(STOP_FOREGROUND_REMOVE)
         isRunning = false
         super.onDestroy()
     }
