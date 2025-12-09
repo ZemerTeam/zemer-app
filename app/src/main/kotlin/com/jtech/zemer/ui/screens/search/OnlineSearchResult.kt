@@ -71,6 +71,7 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.YTItem
+import com.jtech.zemer.ui.screens.videoRoute
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -132,6 +133,7 @@ fun OnlineSearchResult(
                             song = item,
                             navController = navController,
                             onDismiss = menuState::dismiss,
+                            isVideo = searchFilter?.value == FILTER_VIDEO.value,
                         )
 
                     is AlbumItem ->
@@ -186,7 +188,11 @@ fun OnlineSearchResult(
                         event.key == Key.Enter || event.key == Key.DirectionCenter -> {
                             when (item) {
                                 is SongItem -> {
-                                    if (item.id == mediaMetadata?.id) {
+                                    val isVideoFilter = searchFilter?.value == FILTER_VIDEO.value
+                                    if (isVideoFilter) {
+                                        val artistDisplay = item.artists.joinToString(" • ") { it.name }
+                                        navController.navigate(videoRoute(item.id, item.title, artistDisplay))
+                                    } else if (item.id == mediaMetadata?.id) {
                                         playerConnection.player.togglePlayPause()
                                     } else {
                                         playerConnection.playQueue(
@@ -211,7 +217,11 @@ fun OnlineSearchResult(
                     onClick = {
                         when (item) {
                             is SongItem -> {
-                                if (item.id == mediaMetadata?.id) {
+                                val isVideoFilter = searchFilter?.value == FILTER_VIDEO.value
+                                if (isVideoFilter) {
+                                    val artistDisplay = item.artists.joinToString(" • ") { it.name }
+                                    navController.navigate(videoRoute(item.id, item.title, artistDisplay))
+                                } else if (item.id == mediaMetadata?.id) {
                                     playerConnection.player.togglePlayPause()
                                 } else {
                                     playerConnection.playQueue(
