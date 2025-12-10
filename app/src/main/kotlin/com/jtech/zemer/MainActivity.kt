@@ -17,6 +17,7 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -62,6 +63,8 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Scaffold
@@ -92,6 +95,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -156,11 +163,14 @@ import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.LastWhitelistVersionKey
 import com.jtech.zemer.constants.MiniPlayerBottomSpacing
 import com.jtech.zemer.constants.MiniPlayerHeight
+import com.jtech.zemer.constants.NavigationBarHeight
+import com.jtech.zemer.constants.SlimNavBarHeight
 import com.jtech.zemer.constants.OnboardingCompleteKey
 import com.jtech.zemer.constants.PauseSearchHistoryKey
 import com.jtech.zemer.constants.PureBlackKey
 import com.jtech.zemer.constants.SYSTEM_DEFAULT
 import com.jtech.zemer.constants.SlimNavBarKey
+import com.jtech.zemer.constants.BottomNavigationBarEnabledKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
 import com.jtech.zemer.constants.UpdateNotificationsEnabledKey
 import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
@@ -643,7 +653,8 @@ class MainActivity : ComponentActivity() {
                         }
 
                         val navigationItems = remember { Screens.MainScreens }
-                        val (_) = rememberPreference(SlimNavBarKey, defaultValue = false)
+                        val (bottomNavEnabled) = rememberPreference(BottomNavigationBarEnabledKey, defaultValue = false)
+                        val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
                         val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
                         val (floatingMiniPlayerEnabled) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
                         val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
@@ -840,11 +851,30 @@ class MainActivity : ComponentActivity() {
                                 inSearchScreen
                     }
 
-                    val shouldShowNavigationBar = false
+                    val shouldShowNavigationBar = remember(bottomNavEnabled, active, navBackStackEntry) {
+                        bottomNavEnabled &&
+                        !active &&
+                        (navBackStackEntry?.destination?.route == null ||
+                         navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route })
+                    }
 
                     val showRail = false
 
-                    val getNavPadding: () -> Dp = remember { { 0.dp } }
+                    val getNavPadding: () -> Dp = remember(shouldShowNavigationBar, slimNav) {
+                        {
+                            if (shouldShowNavigationBar) {
+                                if (slimNav) SlimNavBarHeight else NavigationBarHeight
+                            } else {
+                                0.dp
+                            }
+                        }
+                    }
+
+                    val navigationBarHeight by animateDpAsState(
+                        targetValue = if (shouldShowNavigationBar) getNavPadding() else 0.dp,
+                        animationSpec = tween(durationMillis = 300),
+                        label = "navigationBarHeight"
+                    )
 
                     val floatingMiniPlayerAllowed = floatingMiniPlayerEnabled && !isVideoScreen
 
@@ -1618,6 +1648,47 @@ class MainActivity : ComponentActivity() {
                                             .align(Alignment.BottomCenter)
                                             .height(bottomInsetDp)
                                     )
+
+                                    // Bottom Navigation Bar
+                                    AnimatedVisibility(
+                                        visible = shouldShowNavigationBar,
+                                        modifier = Modifier.align(Alignment.BottomCenter)
+                                    ) {
+                                        NavigationBar {
+                                            navigationItems.forEach { screen ->
+                                                NavigationBarItem(
+                                                    selected = navBackStackEntry?.destination?.hierarchy?.any {
+                                                        it.route == screen.route
+                                                    } == true,
+                                                    icon = {
+                                                        Icon(
+                                                            painter = painterResource(
+                                                                if (navBackStackEntry?.destination?.hierarchy?.any {
+                                                                    it.route == screen.route
+                                                                } == true) screen.iconIdActive else screen.iconIdInactive
+                                                            ),
+                                                            contentDescription = null
+                                                        )
+                                                    },
+                                                    label = {
+                                                        Text(
+                                                            text = stringResource(screen.titleId),
+                                                            maxLines = 1
+                                                        )
+                                                    },
+                                                    onClick = {
+                                                        navController.navigate(screen.route) {
+                                                            popUpTo(navController.graph.startDestinationId) {
+                                                                saveState = true
+                                                            }
+                                                            launchSingleTop = true
+                                                            restoreState = true
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             },
                             modifier = Modifier

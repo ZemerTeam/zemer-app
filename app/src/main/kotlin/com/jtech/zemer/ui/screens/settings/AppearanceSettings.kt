@@ -80,6 +80,7 @@ import com.jtech.zemer.constants.SwipeSensitivityKey
 import com.jtech.zemer.constants.SwipeThumbnailKey
 import com.jtech.zemer.constants.SwipeToRemoveSongKey
 import com.jtech.zemer.constants.SwipeToSongKey
+import com.jtech.zemer.constants.BottomNavigationBarEnabledKey
 import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.ui.component.DefaultDialog
@@ -186,6 +187,11 @@ fun AppearanceSettings(
     val (gridItemSize, onGridItemSizeChange) = rememberEnumPreference(
         GridItemsSizeKey,
         defaultValue = GridItemSize.SMALL
+    )
+
+    val (bottomNavEnabled, onBottomNavEnabledChange) = rememberPreference(
+        BottomNavigationBarEnabledKey,
+        defaultValue = false
     )
 
     val (slimNav, onSlimNavChange) = rememberPreference(
@@ -673,11 +679,20 @@ fun AppearanceSettings(
         )
 
         SwitchPreference(
-            title = { Text(stringResource(R.string.slim_navbar)) },
+            title = { Text(stringResource(R.string.bottom_nav_bar)) },
             icon = { Icon(painterResource(R.drawable.nav_bar), null) },
-            checked = slimNav,
-            onCheckedChange = onSlimNavChange
+            checked = bottomNavEnabled,
+            onCheckedChange = onBottomNavEnabledChange
         )
+
+        AnimatedVisibility(visible = bottomNavEnabled) {
+            SwitchPreference(
+                title = { Text(stringResource(R.string.slim_navbar)) },
+                icon = { Icon(painterResource(R.drawable.nav_bar), null) },
+                checked = slimNav,
+                onCheckedChange = onSlimNavChange
+            )
+        }
 
         EnumListPreference(
             title = { Text(stringResource(R.string.grid_cell_size)) },
