@@ -823,7 +823,7 @@ private fun LegacyMiniMediaInfo(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(if (pureBlack) Color(0xFF0A0A0A) else MaterialTheme.colorScheme.surfaceVariant)
             )
 
             // Main thumbnail

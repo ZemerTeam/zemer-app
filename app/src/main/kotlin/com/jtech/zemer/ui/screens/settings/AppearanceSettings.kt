@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,12 +18,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +52,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
 import androidx.core.content.edit
 import androidx.navigation.NavController
 import java.util.Collections
@@ -855,11 +861,12 @@ fun AppearanceSettings(
     if (showBottomNavCustomizationDialog) {
         DefaultDialog(
             onDismiss = { showBottomNavCustomizationDialog = false },
+            pureBlack = pureBlack,
             buttons = {
                 TextButton(
                     onClick = { showBottomNavCustomizationDialog = false }
                 ) {
-                    Text(text = stringResource(android.R.string.cancel))
+                    Text(text = stringResource(android.R.string.cancel), color = if (pureBlack) Color.White else Color.Unspecified)
                 }
                 TextButton(
                     onClick = {
@@ -871,26 +878,27 @@ fun AppearanceSettings(
                         showBottomNavCustomizationDialog = false
                     }
                 ) {
-                    Text(text = stringResource(android.R.string.ok))
+                    Text(text = stringResource(android.R.string.ok), color = if (pureBlack) Color.White else Color.Unspecified)
                 }
             }
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(16.dp)
+                    .background(if (pureBlack) Color(0xFF0A0A0A) else Color.Transparent),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
                     text = "Bottom Navigation Items",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurface
                 )
 
                 Text(
                     text = "${currentSelectedItems.size}/5 selected",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (pureBlack) Color.LightGray else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.End)
                 )
 
@@ -903,10 +911,15 @@ fun AppearanceSettings(
                     "library" to stringResource(R.string.filter_library)
                 )
 
-                LazyColumn(
-                    modifier = Modifier.height(200.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                val listState = rememberLazyListState()
+                Box(
+                    modifier = Modifier.heightIn(max = 400.dp)
                 ) {
+                    LazyColumn(
+                        state = listState,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                     items(availableItems.size) { index ->
                         val (key, title) = availableItems[index]
                         val isSelected = key in currentSelectedItems
@@ -933,23 +946,26 @@ fun AppearanceSettings(
                                     }
                                 },
                                 colors = androidx.compose.material3.CheckboxDefaults.colors(
-                                    checkedColor = MaterialTheme.colorScheme.primary
+                                    checkedColor = if (pureBlack) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary,
+                                    uncheckedColor = if (pureBlack) Color.Gray else Color.Unspecified,
+                                    checkmarkColor = Color.White
                                 )
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = title,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
+                }
                 }
 
                 if (currentSelectedItems.isEmpty()) {
                     Text(
                         text = "Select at least 1 item",
-                        color = MaterialTheme.colorScheme.error,
+                        color = if (pureBlack) Color.Red else MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }

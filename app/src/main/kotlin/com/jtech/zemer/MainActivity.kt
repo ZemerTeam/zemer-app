@@ -873,7 +873,9 @@ class MainActivity : ComponentActivity() {
                         !active &&
                         (navBackStackEntry?.destination?.route == null ||
                          bottomNavigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } ||
-                         inSearchScreen)
+                         inSearchScreen ||
+                         // Show bottom nav on any main screen if bottom nav is enabled, even if current screen's tab was removed
+                         navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route })
                     }
 
                     val showRail = false
@@ -905,7 +907,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         if (floatingMiniPlayerAllowed) {
                             bottomInset +
-                                (if (!showRail && shouldShowNavigationBar) getNavPadding() + 2.dp else 0.dp) +
+                                (if (!showRail && shouldShowNavigationBar) getNavPadding() + 1.dp else 0.dp) +
                                 (if (useNewMiniPlayerDesign) MiniPlayerBottomSpacing else 0.dp) +
                                 MiniPlayerHeight
                         } else {
@@ -1672,7 +1674,9 @@ class MainActivity : ComponentActivity() {
                                         visible = shouldShowNavigationBar,
                                         modifier = Modifier.align(Alignment.BottomCenter)
                                     ) {
-                                        NavigationBar {
+                                        NavigationBar(
+                                            containerColor = if (pureBlack) Color(0xFF0A0A0A) else MaterialTheme.colorScheme.surfaceContainer
+                                        ) {
                                             bottomNavigationItems.forEach { screen ->
                                                 val isSelected = navBackStackEntry?.destination?.hierarchy?.any {
                                 destination ->
