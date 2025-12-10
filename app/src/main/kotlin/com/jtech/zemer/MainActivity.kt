@@ -99,6 +99,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.height
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -171,6 +172,7 @@ import com.jtech.zemer.constants.PureBlackKey
 import com.jtech.zemer.constants.SYSTEM_DEFAULT
 import com.jtech.zemer.constants.SlimNavBarKey
 import com.jtech.zemer.constants.BottomNavigationBarEnabledKey
+import com.jtech.zemer.constants.BottomNavigationItemsKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
 import com.jtech.zemer.constants.UpdateNotificationsEnabledKey
 import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
@@ -654,7 +656,22 @@ class MainActivity : ComponentActivity() {
 
                         val navigationItems = remember { Screens.MainScreens }
                         val (bottomNavEnabled) = rememberPreference(BottomNavigationBarEnabledKey, defaultValue = false)
-                        val (slimNav) = rememberPreference(SlimNavBarKey, defaultValue = false)
+                        val (bottomNavItemsString) = rememberPreference(BottomNavigationItemsKey, defaultValue = "home,artists,search,library")
+
+                        // Create bottom navigation items dynamically from preferences
+                        val bottomNavigationItems = remember(bottomNavItemsString) {
+                            val items = mutableListOf<Screens>()
+                            bottomNavItemsString.split(",").forEach { itemKey ->
+                                when (itemKey.trim()) {
+                                    "home" -> items.add(Screens.Home)
+                                    "artists" -> items.add(Screens.Artists)
+                                    "kid_zone" -> items.add(Screens.KidZone)
+                                    "search" -> items.add(Screens.Search)
+                                    "library" -> items.add(Screens.Library)
+                                }
+                            }
+                            items
+                        }
                         val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
                         val (floatingMiniPlayerEnabled) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
                         val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
@@ -851,19 +868,20 @@ class MainActivity : ComponentActivity() {
                                 inSearchScreen
                     }
 
-                    val shouldShowNavigationBar = remember(bottomNavEnabled, active, navBackStackEntry) {
+                    val shouldShowNavigationBar = remember(bottomNavEnabled, active, navBackStackEntry, inSearchScreen) {
                         bottomNavEnabled &&
                         !active &&
                         (navBackStackEntry?.destination?.route == null ||
-                         navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route })
+                         bottomNavigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } ||
+                         inSearchScreen)
                     }
 
                     val showRail = false
 
-                    val getNavPadding: () -> Dp = remember(shouldShowNavigationBar, slimNav) {
+                    val getNavPadding: () -> Dp = remember(shouldShowNavigationBar) {
                         {
                             if (shouldShowNavigationBar) {
-                                if (slimNav) SlimNavBarHeight else NavigationBarHeight
+                                NavigationBarHeight
                             } else {
                                 0.dp
                             }
@@ -887,7 +905,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         if (floatingMiniPlayerAllowed) {
                             bottomInset +
-                                (if (!showRail && shouldShowNavigationBar) getNavPadding() else 0.dp) +
+                                (if (!showRail && shouldShowNavigationBar) getNavPadding() + 2.dp else 0.dp) +
                                 (if (useNewMiniPlayerDesign) MiniPlayerBottomSpacing else 0.dp) +
                                 MiniPlayerHeight
                         } else {
@@ -1655,17 +1673,19 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier.align(Alignment.BottomCenter)
                                     ) {
                                         NavigationBar {
-                                            navigationItems.forEach { screen ->
+                                            bottomNavigationItems.forEach { screen ->
+                                                val isSelected = navBackStackEntry?.destination?.hierarchy?.any {
+                                destination ->
+                                    destination.route == screen.route ||
+                                    (screen.route == Screens.Search.route && destination.route?.startsWith("search/") == true)
+                            } == true
+
                                                 NavigationBarItem(
-                                                    selected = navBackStackEntry?.destination?.hierarchy?.any {
-                                                        it.route == screen.route
-                                                    } == true,
+                                                    selected = isSelected,
                                                     icon = {
                                                         Icon(
                                                             painter = painterResource(
-                                                                if (navBackStackEntry?.destination?.hierarchy?.any {
-                                                                    it.route == screen.route
-                                                                } == true) screen.iconIdActive else screen.iconIdInactive
+                                                                if (isSelected) screen.iconIdActive else screen.iconIdInactive
                                                             ),
                                                             contentDescription = null
                                                         )
@@ -1677,12 +1697,16 @@ class MainActivity : ComponentActivity() {
                                                         )
                                                     },
                                                     onClick = {
-                                                        navController.navigate(screen.route) {
-                                                            popUpTo(navController.graph.startDestinationId) {
-                                                                saveState = true
+                                                        if (screen.route == Screens.Search.route) {
+                                                            onActiveChange(true)
+                                                        } else {
+                                                            navController.navigate(screen.route) {
+                                                                popUpTo(navController.graph.startDestinationId) {
+                                                                    saveState = true
+                                                                }
+                                                                launchSingleTop = true
+                                                                restoreState = true
                                                             }
-                                                            launchSingleTop = true
-                                                            restoreState = true
                                                         }
                                                     }
                                                 )

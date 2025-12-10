@@ -113,6 +113,11 @@
     <string name="lyrics_auto_scroll">Auto scroll lyrics</string>
     <string name="slim">Slim</string>
     <string name="bottom_nav_bar">Bottom navigation bar</string>
+    <string name="customize_bottom_navigation">Customize Bottom Navigation</string>
+    <string name="select_and_arrange_bottom_nav">Select which items to show in the bottom navigation bar and arrange them in your preferred order</string>
+    <string name="select_at_least_one_item">Please select at least one item</string>
+    <string name="selected_items_order">Selected Items (Order):</string>
+    <string name="add_remove_items">Add/Remove Items:</string>
     <string name="slim_navbar">Slim bottom navigation bar</string>
     <string name="auto_playlists">Auto playlists</string>
     <string name="show_liked_playlist">Show \"Liked\" playlist</string>

@@ -15,7 +15,11 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -46,6 +50,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.navigation.NavController
+import java.util.Collections
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ChipSortTypeKey
@@ -81,6 +86,7 @@ import com.jtech.zemer.constants.SwipeThumbnailKey
 import com.jtech.zemer.constants.SwipeToRemoveSongKey
 import com.jtech.zemer.constants.SwipeToSongKey
 import com.jtech.zemer.constants.BottomNavigationBarEnabledKey
+import com.jtech.zemer.constants.BottomNavigationItemsKey
 import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.ui.component.DefaultDialog
@@ -198,6 +204,18 @@ fun AppearanceSettings(
         SlimNavBarKey,
         defaultValue = false
     )
+
+    val (bottomNavigationItems, onBottomNavigationItemsChange) = rememberPreference(
+        BottomNavigationItemsKey,
+        defaultValue = "home,artists,search,library"
+    )
+
+    var showBottomNavCustomizationDialog by rememberSaveable { mutableStateOf(false) }
+    var currentSelectedItems by remember(bottomNavigationItems) {
+        mutableStateOf(
+            bottomNavigationItems.split(",").toSet()
+        )
+    }
 
     val (swipeToSong, onSwipeToSongChange) = rememberPreference(
         SwipeToSongKey,
@@ -682,15 +700,20 @@ fun AppearanceSettings(
             title = { Text(stringResource(R.string.bottom_nav_bar)) },
             icon = { Icon(painterResource(R.drawable.nav_bar), null) },
             checked = bottomNavEnabled,
-            onCheckedChange = onBottomNavEnabledChange
+            onCheckedChange = { enabled ->
+                onBottomNavEnabledChange(enabled)
+                // Reset to default when toggling
+                if (!enabled) {
+                    onBottomNavigationItemsChange("home,artists,search,library")
+                }
+            }
         )
 
         AnimatedVisibility(visible = bottomNavEnabled) {
-            SwitchPreference(
-                title = { Text(stringResource(R.string.slim_navbar)) },
+            PreferenceEntry(
+                title = { Text(stringResource(R.string.customize_bottom_navigation)) },
                 icon = { Icon(painterResource(R.drawable.nav_bar), null) },
-                checked = slimNav,
-                onCheckedChange = onSlimNavChange
+                onClick = { showBottomNavCustomizationDialog = true }
             )
         }
 
@@ -824,6 +847,112 @@ fun AppearanceSettings(
                     text = "The display density change will take effect after restarting the app. Do you want to restart now?",
                     style = MaterialTheme.typography.bodyMedium
                 )
+            }
+        }
+    }
+
+    // Bottom Navigation Customization Dialog
+    if (showBottomNavCustomizationDialog) {
+        DefaultDialog(
+            onDismiss = { showBottomNavCustomizationDialog = false },
+            buttons = {
+                TextButton(
+                    onClick = { showBottomNavCustomizationDialog = false }
+                ) {
+                    Text(text = stringResource(android.R.string.cancel))
+                }
+                TextButton(
+                    onClick = {
+                        // Build the selected items string
+                        val selectedScreens = listOf("home", "artists", "kid_zone", "search", "library")
+                            .filter { it in currentSelectedItems }
+                            .joinToString(",")
+                        onBottomNavigationItemsChange(selectedScreens)
+                        showBottomNavCustomizationDialog = false
+                    }
+                ) {
+                    Text(text = stringResource(android.R.string.ok))
+                }
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Bottom Navigation Items",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Text(
+                    text = "${currentSelectedItems.size}/5 selected",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.End)
+                )
+
+                // Available navigation items
+                val availableItems = listOf(
+                    "home" to stringResource(R.string.home),
+                    "artists" to stringResource(R.string.artists),
+                    "kid_zone" to stringResource(R.string.kid_zone),
+                    "search" to stringResource(R.string.search),
+                    "library" to stringResource(R.string.filter_library)
+                )
+
+                LazyColumn(
+                    modifier = Modifier.height(200.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(availableItems.size) { index ->
+                        val (key, title) = availableItems[index]
+                        val isSelected = key in currentSelectedItems
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    if (isSelected && currentSelectedItems.size > 1) {
+                                        currentSelectedItems = currentSelectedItems - key
+                                    } else if (!isSelected && currentSelectedItems.size < 5) {
+                                        currentSelectedItems = currentSelectedItems + key
+                                    }
+                                }
+                                .padding(vertical = 6.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            androidx.compose.material3.Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { checked ->
+                                    if (checked && currentSelectedItems.size < 5) {
+                                        currentSelectedItems = currentSelectedItems + key
+                                    } else if (!checked && currentSelectedItems.size > 1) {
+                                        currentSelectedItems = currentSelectedItems - key
+                                    }
+                                },
+                                colors = androidx.compose.material3.CheckboxDefaults.colors(
+                                    checkedColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+
+                if (currentSelectedItems.isEmpty()) {
+                    Text(
+                        text = "Select at least 1 item",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
         }
     }
