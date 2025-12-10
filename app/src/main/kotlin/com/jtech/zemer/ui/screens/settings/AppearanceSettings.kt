@@ -1,6 +1,7 @@
 package com.jtech.zemer.ui.screens.settings
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.border
@@ -147,11 +148,17 @@ fun AppearanceSettings(
             defaultValue = PlayerBackgroundStyle.DEFAULT,
         )
     val (pureBlack, onPureBlackChange) = rememberPreference(PureBlackKey, defaultValue = false)
-    val (densityScale, setDensityScale) = rememberPreference(DensityScaleKey, defaultValue = 1.0f)
     val (customDensityValue, setCustomDensityValue) = rememberPreference(CustomDensityScaleKey, defaultValue = 0.85f)
     val context = LocalContext.current
     var showRestartDialog by rememberSaveable { mutableStateOf(false) }
     var showCustomDensityDialog by rememberSaveable { mutableStateOf(false) }
+
+    // Check SharedPreferences first for onboarding density value, then fallback to DataStore
+    val sharedPreferences = remember { context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE) }
+    val prefDensityScale = remember(sharedPreferences) {
+        sharedPreferences.getFloat("density_scale_factor", 1.0f)
+    }
+    val (densityScale, setDensityScale) = rememberPreference(DensityScaleKey, defaultValue = prefDensityScale)
 
     val onDensityScaleChange: (Float) -> Unit = { newScale ->
         if (newScale == -1f) {
@@ -201,9 +208,13 @@ fun AppearanceSettings(
         defaultValue = GridItemSize.SMALL
     )
 
+    // Check SharedPreferences first for onboarding bottom nav value, then fallback to DataStore
+    val prefBottomNavEnabled = remember(sharedPreferences) {
+        sharedPreferences.getBoolean("bottomNavigationBarEnabled", false)
+    }
     val (bottomNavEnabled, onBottomNavEnabledChange) = rememberPreference(
         BottomNavigationBarEnabledKey,
-        defaultValue = false
+        defaultValue = prefBottomNavEnabled
     )
 
     val (slimNav, onSlimNavChange) = rememberPreference(
@@ -211,9 +222,13 @@ fun AppearanceSettings(
         defaultValue = false
     )
 
+    // Check SharedPreferences first for onboarding bottom nav items, then fallback to DataStore
+    val prefBottomNavItems = remember(sharedPreferences) {
+        sharedPreferences.getString("bottomNavigationItems", null)
+    }
     val (bottomNavigationItems, onBottomNavigationItemsChange) = rememberPreference(
         BottomNavigationItemsKey,
-        defaultValue = "home,artists,search,library"
+        defaultValue = prefBottomNavItems ?: "home,artists,search,library"
     )
 
     var showBottomNavCustomizationDialog by rememberSaveable { mutableStateOf(false) }

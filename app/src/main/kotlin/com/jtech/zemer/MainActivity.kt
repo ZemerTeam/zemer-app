@@ -655,8 +655,16 @@ class MainActivity : ComponentActivity() {
                         }
 
                         val navigationItems = remember { Screens.MainScreens }
-                        val (bottomNavEnabled) = rememberPreference(BottomNavigationBarEnabledKey, defaultValue = false)
-                        val (bottomNavItemsString) = rememberPreference(BottomNavigationItemsKey, defaultValue = "home,artists,search,library")
+                        // Check SharedPreferences first for onboarding values, then fallback to DataStore
+                        val sharedPreferences = remember { getSharedPreferences("metrolist_settings", MODE_PRIVATE) }
+                        val prefBottomNavEnabled = remember(sharedPreferences) {
+                            sharedPreferences.getBoolean("bottomNavigationBarEnabled", false)
+                        }
+                        val prefBottomNavItems = remember(sharedPreferences) {
+                            sharedPreferences.getString("bottomNavigationItems", null)
+                        }
+                        val (bottomNavEnabled) = rememberPreference(BottomNavigationBarEnabledKey, defaultValue = prefBottomNavEnabled)
+                        val (bottomNavItemsString) = rememberPreference(BottomNavigationItemsKey, defaultValue = prefBottomNavItems ?: "home,artists,search,library")
 
                         // Create bottom navigation items dynamically from preferences
                         val bottomNavigationItems = remember(bottomNavItemsString) {

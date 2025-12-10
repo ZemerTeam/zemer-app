@@ -83,7 +83,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.DensityScale
 import com.jtech.zemer.utils.PermissionHelper
 
-private enum class OnboardingStep { Welcome, Density, Permissions, Loading }
+private enum class OnboardingStep { Welcome, Density, Permissions, BottomNavSetup, Loading }
 private enum class LegalKind { TOS, PRIVACY }
 
 @Composable
@@ -111,6 +111,11 @@ fun OnboardingFlow(
 
         OnboardingStep.Permissions -> PermissionsScreen(
             onBack = { step = if (densityAlreadySet) OnboardingStep.Welcome else OnboardingStep.Density },
+            onComplete = { step = OnboardingStep.BottomNavSetup }
+        )
+
+        OnboardingStep.BottomNavSetup -> BottomNavSetupScreen(
+            onBack = { step = OnboardingStep.Permissions },
             onComplete = { step = OnboardingStep.Loading }
         )
 
@@ -694,7 +699,7 @@ private fun PermissionsScreen(
                 .fillMaxWidth(0.9f)
         ) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -1088,6 +1093,209 @@ private fun DisposableEffectWithLifecycle(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+}
+
+@Composable
+private fun BottomNavSetupScreen(
+    onBack: () -> Unit,
+    onComplete: () -> Unit,
+) {
+    val context = LocalContext.current
+    var enableBottomNav by remember { mutableStateOf(true) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth(0.9f)
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Navigation Setup",
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Would you like to enable the bottom navigation bar for quick access to your favorite screens?",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Choice cards similar to permission cards
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Enable option
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            width = 1.5.dp,
+                            color = if (enableBottomNav)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.outline,
+                            shape = RoundedCornerShape(12.dp)
+                        ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (enableBottomNav)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { enableBottomNav = true }
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Enable Bottom Navigation",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Show bottom navigation bar for quick access",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
+                        androidx.compose.material3.RadioButton(
+                            selected = enableBottomNav,
+                            onClick = { enableBottomNav = true },
+                            colors = androidx.compose.material3.RadioButtonDefaults.colors(
+                                selectedColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    }
+                }
+
+                // Disable option
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            width = 1.5.dp,
+                            color = if (!enableBottomNav)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.outline,
+                            shape = RoundedCornerShape(12.dp)
+                        ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (!enableBottomNav)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { enableBottomNav = false }
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "No thanks",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "I can enable it later in appearance settings",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
+                        androidx.compose.material3.RadioButton(
+                            selected = !enableBottomNav,
+                            onClick = { enableBottomNav = false },
+                            colors = androidx.compose.material3.RadioButtonDefaults.colors(
+                                selectedColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "You can customize which menu items appear later in appearance settings",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
+                )
+
+                Button(
+                    onClick = {
+                        // Save preference using SharedPreferences
+                        val prefs = context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE)
+                        prefs.edit {
+                            putBoolean("bottomNavigationBarEnabled", enableBottomNav)
+                            // Set default items if enabling
+                            if (enableBottomNav) {
+                                putString("bottomNavigationItems", "home,artists,search,library")
+                            }
+                        }
+                        onComplete()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text(
+                        text = "Continue",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+
+                TextButton(
+                    onClick = onBack,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Back",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }
