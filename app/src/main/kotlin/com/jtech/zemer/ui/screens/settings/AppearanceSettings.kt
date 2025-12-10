@@ -119,7 +119,7 @@ fun AppearanceSettings(
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     val (dynamicTheme, onDynamicThemeChange) = rememberPreference(
-        DynamicThemeKey,
+ DynamicThemeKey,
         defaultValue = true
     )
     val (darkMode, onDarkModeChange) = rememberEnumPreference(

@@ -96,6 +96,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -121,6 +123,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.window.Dialog
@@ -888,19 +891,9 @@ class MainActivity : ComponentActivity() {
 
                     val showRail = false
 
-                    val getNavPadding: () -> Dp = remember(shouldShowNavigationBar) {
-                        {
-                            if (shouldShowNavigationBar) {
-                                NavigationBarHeight
-                            } else {
-                                0.dp
-                            }
-                        }
-                    }
-
                     val navigationBarHeight by animateDpAsState(
-                        targetValue = if (shouldShowNavigationBar) getNavPadding() else 0.dp,
-                        animationSpec = tween(durationMillis = 300),
+                        targetValue = if (shouldShowNavigationBar) NavigationBarHeight else 0.dp,
+                        animationSpec = tween(durationMillis = 200),
                         label = "navigationBarHeight"
                     )
 
@@ -915,7 +908,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         if (floatingMiniPlayerAllowed) {
                             bottomInset +
-                                (if (!showRail && shouldShowNavigationBar) getNavPadding() + 1.dp else 0.dp) +
+                                (if (!showRail && shouldShowNavigationBar) NavigationBarHeight + 1.dp else 0.dp) +
                                 (if (useNewMiniPlayerDesign) MiniPlayerBottomSpacing else 0.dp) +
                                 MiniPlayerHeight
                         } else {
@@ -939,6 +932,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         var bottom = bottomInset
                         if (floatingMiniPlayerAllowed && !playerBottomSheetState.isDismissed) bottom += MiniPlayerHeight
+                        if (shouldShowNavigationBar) bottom += NavigationBarHeight
                         windowsInsets
                             .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
                             .add(WindowInsets(top = AppBarHeight, bottom = bottom))
@@ -1678,53 +1672,73 @@ class MainActivity : ComponentActivity() {
                                     )
 
                                     // Bottom Navigation Bar
-                                    AnimatedVisibility(
-                                        visible = shouldShowNavigationBar,
-                                        modifier = Modifier.align(Alignment.BottomCenter)
-                                    ) {
-                                        NavigationBar(
-                                            containerColor = if (pureBlack) Color(0xFF0A0A0A) else MaterialTheme.colorScheme.surfaceContainer
-                                        ) {
-                                            bottomNavigationItems.forEach { screen ->
-                                                val isSelected = navBackStackEntry?.destination?.hierarchy?.any {
+                                val density = LocalDensity.current
+                                NavigationBar(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .height(bottomInset + NavigationBarHeight)
+                                        .offset {
+                                            if (!shouldShowNavigationBar || playerBottomSheetState.isExpanded) {
+                                                IntOffset(
+                                                    x = 0,
+                                                    y = with(density) { (bottomInset + NavigationBarHeight).roundToPx() },
+                                                )
+                                            } else {
+                                                val slideOffset =
+                                                    (bottomInset + NavigationBarHeight) *
+                                                            playerBottomSheetState.progress.coerceIn(
+                                                                0f,
+                                                                1f,
+                                                            )
+                                                val hideOffset =
+                                                    (bottomInset + NavigationBarHeight) * (1 - navigationBarHeight / NavigationBarHeight)
+                                                IntOffset(
+                                                    x = 0,
+                                                    y = with(density) { (slideOffset + hideOffset).roundToPx() },
+                                                )
+                                            }
+                                        },
+                                    containerColor = if (pureBlack) Color(0xFF0A0A0A) else MaterialTheme.colorScheme.surfaceContainer
+                                ) {
+                                    bottomNavigationItems.forEach { screen ->
+                                        val isSelected = navBackStackEntry?.destination?.hierarchy?.any {
                                 destination ->
                                     destination.route == screen.route ||
                                     (screen.route == Screens.Search.route && destination.route?.startsWith("search/") == true)
                             } == true
 
-                                                NavigationBarItem(
-                                                    selected = isSelected,
-                                                    icon = {
-                                                        Icon(
-                                                            painter = painterResource(
-                                                                if (isSelected) screen.iconIdActive else screen.iconIdInactive
-                                                            ),
-                                                            contentDescription = null
-                                                        )
-                                                    },
-                                                    label = {
-                                                        Text(
-                                                            text = stringResource(screen.titleId),
-                                                            maxLines = 1
-                                                        )
-                                                    },
-                                                    onClick = {
-                                                        if (screen.route == Screens.Search.route) {
-                                                            onActiveChange(true)
-                                                        } else {
-                                                            navController.navigate(screen.route) {
-                                                                popUpTo(navController.graph.startDestinationId) {
-                                                                    saveState = true
-                                                                }
-                                                                launchSingleTop = true
-                                                                restoreState = true
-                                                            }
+                                        NavigationBarItem(
+                                            selected = isSelected,
+                                            icon = {
+                                                Icon(
+                                                    painter = painterResource(
+                                                        if (isSelected) screen.iconIdActive else screen.iconIdInactive
+                                                    ),
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            label = {
+                                                Text(
+                                                    text = stringResource(screen.titleId),
+                                                    maxLines = 1
+                                                )
+                                            },
+                                            onClick = {
+                                                if (screen.route == Screens.Search.route) {
+                                                    onActiveChange(true)
+                                                } else {
+                                                    navController.navigate(screen.route) {
+                                                        popUpTo(navController.graph.startDestinationId) {
+                                                            saveState = true
+                                                        }
+                                                        launchSingleTop = true
+                                                        restoreState = true
                                                         }
                                                     }
-                                                )
-                                            }
-                                        }
+                                                }
+                                        )
                                     }
+                                }
                                 }
                             },
                             modifier = Modifier
