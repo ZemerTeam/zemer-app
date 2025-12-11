@@ -125,6 +125,7 @@ import com.jtech.zemer.utils.enumPreference
 import com.jtech.zemer.utils.enumPreferenceFlow
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
+import com.metrolist.innertube.utils.parseCookieString
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -237,6 +238,9 @@ class MusicService :
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
 
     private var consecutivePlaybackErr = 0
+
+    // Cache for stream URLs to avoid repeated requests
+    private val songUrlCache = HashMap<String, Pair<String, Long>>()
 
     override fun onCreate() {
         super.onCreate()
@@ -383,6 +387,24 @@ class MusicService :
         ) { format, normalizeAudio ->
             format to normalizeAudio
         }.collectLatest(scope) { (format, normalizeAudio) -> setupLoudnessEnhancer()}
+
+        // Observe authentication state changes to keep MusicService in sync
+        scope.launch {
+            dataStore.data
+                .map { it[com.jtech.zemer.constants.InnerTubeCookieKey] }
+                .distinctUntilChanged()
+                .collect { cookie ->
+                    // Update YouTube auth context in MusicService when it changes
+                    YouTube.cookie = cookie
+
+                    // Clear stream cache when auth changes to force fresh URLs with new auth
+                    songUrlCache.clear()
+
+                    // Log authentication state change for debugging
+                    val isLoggedIn = cookie != null && "SAPISID" in parseCookieString(cookie ?: "")
+                    android.util.Log.d("MusicService", "Auth state changed: isLoggedIn=$isLoggedIn")
+                }
+        }
 
         if (dataStore.get(PersistentQueueKey, true)) {
             runCatching {
@@ -1182,7 +1204,6 @@ class MusicService :
             .setFlags(FLAG_IGNORE_CACHE_ON_ERROR)
 
     private fun createDataSourceFactory(): DataSource.Factory {
-        val songUrlCache = HashMap<String, Pair<String, Long>>()
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 
@@ -1213,6 +1234,10 @@ class MusicService :
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                 return@Factory dataSpec.withUri(it.first.toUri())
             }
+
+            // Validate current authentication state before fetching stream
+            val currentAuthCookie = YouTube.cookie
+            val isLoggedIn = currentAuthCookie != null && "SAPISID" in parseCookieString(currentAuthCookie)
 
             val playbackData = runBlocking(Dispatchers.IO) {
                 YTPlayerUtils.playerResponseForPlayback(

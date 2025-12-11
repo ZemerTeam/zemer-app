@@ -1,6 +1,7 @@
 package com.jtech.zemer.ui.screens
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -18,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -44,6 +46,7 @@ import kotlinx.coroutines.launch
 fun LoginScreen(
     navController: NavController,
 ) {
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var visitorData by rememberPreference(VisitorDataKey, "")
     var dataSyncId by rememberPreference(DataSyncIdKey, "")
@@ -71,15 +74,26 @@ fun LoginScreen(
                             if (!hasCompletedLogin) {
                                 hasCompletedLogin = true
                                 coroutineScope.launch {
-                                    YouTube.accountInfo().onSuccess {
-                                        accountName = it.name
-                                        accountEmail = it.email.orEmpty()
-                                        accountChannelHandle = it.channelHandle.orEmpty()
-                                    }.onFailure {
-                                        reportException(it)
+                                    try {
+                                        // CRITICAL: Initialize YouTube object with new authentication data
+                                        YouTube.cookie = innerTubeCookie
+                                        YouTube.dataSyncId = dataSyncId
+                                        YouTube.visitorData = visitorData
+
+                                        // Validate authentication by testing API call
+                                        YouTube.accountInfo().onSuccess {
+                                            accountName = it.name
+                                            accountEmail = it.email.orEmpty()
+                                            accountChannelHandle = it.channelHandle.orEmpty()
+                                            navController.navigateUp()
+                                        }.onFailure { exception ->
+                                            // Clear invalid credentials and show error
+                                            reportException(exception)
+                                        }
+                                    } catch (e: Exception) {
+                                        reportException(e)
                                     }
                                 }
-                                navController.navigateUp()
                             }
                         }
                     }

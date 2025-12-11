@@ -21,6 +21,7 @@ import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.metrolist.innertube.models.response.PlayerResponse
 import com.metrolist.innertube.utils.ResilientDns
+import com.metrolist.innertube.utils.parseCookieString
 import okhttp3.OkHttpClient
 
 object YTPlayerUtils {
@@ -85,7 +86,10 @@ object YTPlayerUtils {
          */
         val signatureTimestamp = getSignatureTimestampOrNull(videoId)
 
-        val isLoggedIn = YouTube.cookie != null
+        // Enhanced authentication validation with SAPISID check
+        val currentAuthCookie = YouTube.cookie
+        val isLoggedIn = currentAuthCookie != null && "SAPISID" in parseCookieString(currentAuthCookie)
+
         if (isLoggedIn) {
             // signed in sessions use dataSyncId as identifier
             YouTube.dataSyncId
@@ -119,8 +123,9 @@ object YTPlayerUtils {
                 // after main client use fallback clients
                 client = STREAM_FALLBACK_CLIENTS[clientIndex]
 
-                if (client.loginRequired && !isLoggedIn && YouTube.cookie == null) {
-                    // skip client if it requires login but user is not logged in
+                if (client.loginRequired && !isLoggedIn) {
+                    // skip client if it requires login but user is not properly authenticated
+                    android.util.Log.d("YTPlayerUtils", "Skipping client ${client.clientName} - requires login but user is not authenticated")
                     continue
                 }
 

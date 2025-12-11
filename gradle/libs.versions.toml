@@ -1,5 +1,5 @@
 [versions]
-androidGradlePlugin = "8.13.1"
+androidGradlePlugin = "8.13.2"
 annotation = "1.9.1"
 googleServices = "4.4.4"
 json = "20250517"

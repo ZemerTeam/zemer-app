@@ -169,6 +169,15 @@ class App : Application(), SingletonImageLoader.Factory {
         val locale = Locale.getDefault()
         val languageTag = locale.toLanguageTag().replace("-Hant", "")
 
+        // IMPORTANT: Initialize YouTube authentication data FIRST before anything else
+        YouTube.cookie = settings[InnerTubeCookieKey]
+        YouTube.visitorData = settings[VisitorDataKey]?.takeIf { it != "null" }
+        YouTube.dataSyncId = settings[DataSyncIdKey]?.let {
+            it.takeIf { !it.contains("||") }
+                ?: it.takeIf { it.endsWith("||") }?.substringBefore("||")
+                ?: it.substringAfter("||")
+        }
+
         // Ensure floating mini player defaults to ON if unset
         if (!settings.contains(FloatingMiniPlayerKey)) {
             dataStore.edit { it[FloatingMiniPlayerKey] = true }

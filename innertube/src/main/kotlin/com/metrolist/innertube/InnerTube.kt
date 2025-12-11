@@ -158,9 +158,13 @@ class InnerTube {
             if (setLogin && client.loginSupported) {
                 cookie?.let { cookie ->
                     append("cookie", cookie)
-                    if ("SAPISID" !in cookieMap) return@let
+                    val sapisid = cookieMap["SAPISID"]
+                    if (sapisid.isNullOrEmpty()) {
+                        // SAPISID missing from cookie - proceed without authentication
+                        return@let  // Continue without auth headers instead of failing
+                    }
                     val currentTime = System.currentTimeMillis() / 1000
-                    val sapisidHash = sha1("$currentTime ${cookieMap["SAPISID"]} ${YouTubeClient.ORIGIN_YOUTUBE_MUSIC}")
+                    val sapisidHash = sha1("$currentTime $sapisid ${YouTubeClient.ORIGIN_YOUTUBE_MUSIC}")
                     append("Authorization", "SAPISIDHASH ${currentTime}_${sapisidHash}")
                 }
             }
