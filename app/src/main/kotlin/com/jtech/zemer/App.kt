@@ -5,6 +5,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
+import android.util.Log
+import android.webkit.CookieManager
 import android.widget.Toast
 import androidx.datastore.preferences.core.edit
 import coil3.ImageLoader
@@ -357,6 +359,15 @@ class App : Application(), SingletonImageLoader.Factory {
         }
 
         suspend fun forgetAccount(context: Context) {
+            // CRITICAL: Clear cookies to allow new account login
+            try {
+                CookieManager.getInstance().removeAllCookies(null)
+                CookieManager.getInstance().flush()
+            } catch (e: Exception) {
+                Log.w("App", "Error clearing cookies during logout: ${e.message}")
+            }
+
+            // Clear authentication data from DataStore
             context.dataStore.edit { settings ->
                 settings.remove(InnerTubeCookieKey)
                 settings.remove(VisitorDataKey)
@@ -365,6 +376,13 @@ class App : Application(), SingletonImageLoader.Factory {
                 settings.remove(AccountEmailKey)
                 settings.remove(AccountChannelHandleKey)
             }
+
+            // Clear YouTube object to prevent stale authentication state
+            YouTube.cookie = null
+            YouTube.visitorData = null
+            YouTube.dataSyncId = null
+
+            Log.d("App", "Account forgotten - cookies cleared for new account login")
         }
     }
 }
