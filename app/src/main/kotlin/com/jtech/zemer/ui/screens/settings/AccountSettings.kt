@@ -23,8 +23,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -109,6 +111,7 @@ fun AccountSettings(
     var showTokenEditor by remember { mutableStateOf(false) }
     var isTestingToken by remember { mutableStateOf(false) }
     var tokenTestResult by remember { mutableStateOf<String?>(null) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     Column(
@@ -140,11 +143,7 @@ fun AccountSettings(
         Button(
             onClick = {
                 if (isLoggedIn) {
-                    scope.launch {
-                        App.forgetAccount(context)
-                        Toast.makeText(context, context.getString(R.string.logged_out), Toast.LENGTH_SHORT).show()
-                        onClose()
-                    }
+                    showLogoutDialog = true
                 } else {
                     onClose()
                     navController.navigate("login")
@@ -182,11 +181,7 @@ fun AccountSettings(
         Button(
             onClick = {
                 if (isLoggedIn) {
-                    scope.launch {
-                        App.forgetAccount(context)
-                        Toast.makeText(context, context.getString(R.string.logged_out), Toast.LENGTH_SHORT).show()
-                        onClose()
-                    }
+                    showLogoutDialog = true
                 } else {
                     isTestingToken = true
                     tokenTestResult = null
@@ -398,6 +393,44 @@ fun AccountSettings(
         }
 
         Spacer(Modifier.height(12.dp))
+
+        // Logout confirmation dialog
+        if (showLogoutDialog) {
+            AlertDialog(
+                onDismissRequest = { showLogoutDialog = false },
+                title = { Text("Keep library data?") },
+                text = { Text("Do you want to keep your downloaded songs, playlists, and library data?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                App.forgetAccount(context)
+                                Toast.makeText(context, context.getString(R.string.logged_out), Toast.LENGTH_SHORT).show()
+                                showLogoutDialog = false
+                                onClose()
+                            }
+                        }
+                    ) {
+                        Text("Keep")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                accountSettingsViewModel.clearAllLibraryData()
+                                App.forgetAccount(context)
+                                Toast.makeText(context, context.getString(R.string.logged_out), Toast.LENGTH_SHORT).show()
+                                showLogoutDialog = false
+                                onClose()
+                            }
+                        }
+                    ) {
+                        Text("Clear")
+                    }
+                }
+            )
+        }
 
         if (latestVersionName != BuildConfig.VERSION_NAME) {
             PreferenceEntry(

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -18,21 +19,37 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import android.widget.Toast
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -101,6 +118,10 @@ fun LibraryMixScreen(
     )
     val (sortDescending, onSortDescendingChange) = rememberPreference(MixSortDescendingKey, true)
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
+
+    // State to track if sync is in progress
+    var isSyncing by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
 
@@ -252,6 +273,59 @@ fun LibraryMixScreen(
             )
 
             Spacer(Modifier.weight(1f))
+
+            IconButton(
+                onClick = {
+                    if (!isSyncing) {
+                        coroutineScope.launch {
+                            isSyncing = true
+                            // Show start toast
+                            Toast.makeText(context, "Syncing...", Toast.LENGTH_SHORT).show()
+
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    viewModel.syncAllLibrary()
+                                }
+                                // Show success toast
+                                Toast.makeText(context, "Sync completed", Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                // Show error toast
+                                Toast.makeText(context, "Sync failed: ${e.message}", Toast.LENGTH_LONG).show()
+                            } finally {
+                                isSyncing = false
+                            }
+                        }
+                    }
+                },
+                modifier = Modifier.padding(start = 6.dp, end = 6.dp),
+                enabled = !isSyncing
+            ) {
+                if (isSyncing) {
+                    val infiniteTransition = rememberInfiniteTransition(label = "rotation")
+                    val rotation by infiniteTransition.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 360f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "rotation"
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.sync),
+                        contentDescription = "Syncing...",
+                        modifier = Modifier
+                            .size(24.dp)
+                            .rotate(rotation)
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.sync),
+                        contentDescription = "Fetch from YouTube Music",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
 
             IconButton(
                 onClick = {

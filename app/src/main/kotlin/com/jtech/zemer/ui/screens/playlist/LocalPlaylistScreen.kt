@@ -140,6 +140,7 @@ import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.screens.settings.DarkMode
 import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.backToMain
+import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
@@ -1342,20 +1343,27 @@ fun LocalPlaylistHeader(
                                     val playlistPage = YouTube.playlist(playlist.playlist.browseId)
                                         .completed()
                                         .getOrNull() ?: return@launch
+
+                                    // Apply whitelist filtering to songs before inserting
+                                    val allowedSongs = playlistPage.songs.filterWhitelisted(database)
+
                                     database.transaction {
                                         clearPlaylist(playlist.id)
-                                        playlistPage.songs
-                                            .map(SongItem::toMediaMetadata)
-                                            .onEach(::insert)
-                                            .mapIndexed { position, song ->
+                                        val songItems = allowedSongs.filterIsInstance<SongItem>()
+                                        songItems.forEach { songItem ->
+                                            val mediaMetadata = songItem.toMediaMetadata()
+                                            insert(mediaMetadata)
+                                        }
+                                        songItems.forEachIndexed { position, songItem ->
+                                            insert(
                                                 PlaylistSongMap(
-                                                    songId = song.id,
+                                                    songId = songItem.id,
                                                     playlistId = playlist.id,
                                                     position = position,
-                                                    setVideoId = song.setVideoId
+                                                    setVideoId = songItem.setVideoId
                                                 )
-                                            }
-                                            .forEach(::insert)
+                                            )
+                                        }
                                     }
                                 }
                                 scope.launch(Dispatchers.Main) {

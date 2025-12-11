@@ -10,6 +10,7 @@ import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.db.entities.SongEntity
+import com.jtech.zemer.extensions.toSQLiteQuery
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.utils.filterWhitelisted
 import com.metrolist.innertube.YouTube
@@ -341,7 +342,7 @@ class SyncUtils @Inject constructor(
                                     playlistEntity = PlaylistEntity(
                                         name = playlist.title,
                                         browseId = playlist.id,
-                                        thumbnailUrl = playlist.thumbnail ?: allowedSongs.firstOrNull()?.thumbnail,
+                                        thumbnailUrl = allowedSongs.firstOrNull()?.thumbnail,
                                         isEditable = playlist.isEditable,
                                         bookmarkedAt = LocalDateTime.now(),
                                         remoteSongCount = allowedSongs.size,
@@ -353,7 +354,7 @@ class SyncUtils @Inject constructor(
                                 } else {
                                     // Update existing playlist entity with filtered metadata
                                     database.update(playlistEntity.copy(
-                                        thumbnailUrl = playlist.thumbnail ?: allowedSongs.firstOrNull()?.thumbnail,
+                                        thumbnailUrl = allowedSongs.firstOrNull()?.thumbnail,
                                         remoteSongCount = allowedSongs.size
                                     ))
                                 }
@@ -489,6 +490,45 @@ class SyncUtils @Inject constructor(
             }
         } catch (e: Exception) {
             android.util.Log.w("SyncUtils", "Error syncing playlist $playlistId: ${e.message}")
+        }
+    }
+
+    suspend fun clearAllLibraryData() {
+        try {
+            // Clear all data using existing clear methods first
+            database.clearListenHistory()
+            database.clearSearchHistory()
+            database.clearWhitelist()
+
+            // Use raw SQL queries for the remaining tables
+            withContext(Dispatchers.IO) {
+                // Clear all playlists and mappings
+                database.raw("DELETE FROM playlist_song_map".toSQLiteQuery())
+                database.raw("DELETE FROM playlist".toSQLiteQuery())
+
+                // Clear all songs and related data
+                database.raw("DELETE FROM playCount".toSQLiteQuery())
+                database.raw("DELETE FROM format".toSQLiteQuery())
+                database.raw("DELETE FROM lyrics".toSQLiteQuery())
+                database.raw("DELETE FROM song".toSQLiteQuery())
+
+                // Clear all albums and mappings
+                database.raw("DELETE FROM song_album_map".toSQLiteQuery())
+                database.raw("DELETE FROM album_artist_map".toSQLiteQuery())
+                database.raw("DELETE FROM album".toSQLiteQuery())
+
+                // Clear all artists and mappings
+                database.raw("DELETE FROM song_artist_map".toSQLiteQuery())
+                database.raw("DELETE FROM artist".toSQLiteQuery())
+
+                // Clear any remaining related data
+                database.raw("DELETE FROM related_song_map".toSQLiteQuery())
+            }
+
+            android.util.Log.d("SyncUtils", "All library data cleared successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("SyncUtils", "Error clearing library data: ${e.message}")
+            throw e
         }
     }
 

@@ -243,7 +243,10 @@ constructor(
             }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun sync() {
-        viewModelScope.launch(Dispatchers.IO) { syncUtils.syncSavedPlaylists() }
+        viewModelScope.launch(Dispatchers.IO) {
+            syncUtils.syncArtistWhitelist()
+            syncUtils.syncSavedPlaylists()
+        }
     }
 
     val topValue =
@@ -293,6 +296,7 @@ constructor(
 ) : ViewModel() {
     val syncAllLibrary = {
          viewModelScope.launch(Dispatchers.IO) {
+             syncUtils.syncArtistWhitelist()
              syncUtils.syncLikedSongs()
              syncUtils.syncLibrarySongs()
              syncUtils.syncArtistsSubscriptions()

@@ -30,4 +30,13 @@ class AccountSettingsViewModel @Inject constructor(
             onCookieChange("")
         }
     }
+
+    /**
+     * Clear all library data including songs, albums, artists, playlists.
+     */
+    fun clearAllLibraryData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            syncUtils.clearAllLibraryData()
+        }
+    }
 }
