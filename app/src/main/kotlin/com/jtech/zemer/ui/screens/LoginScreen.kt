@@ -4,8 +4,10 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -68,6 +70,27 @@ fun LoginScreen(
         factory = { context ->
             WebView(context).apply {
                 webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                        val url = request?.url?.toString()
+
+                        // Block specific URLs
+                        val blockedUrls = listOf(
+                            "support.google.com",
+                            "policies.google.com"
+                        )
+
+                        if (url != null && blockedUrls.any { url.contains(it) }) {
+                            android.util.Log.d("LoginScreen", "Blocked URL: $url")
+                            // Show "Blocked" message
+                            coroutineScope.launch {
+                                Toast.makeText(context, "Blocked", Toast.LENGTH_SHORT).show()
+                            }
+                            return true // Block the URL
+                        }
+
+                        return false // Allow the URL
+                    }
+
                     override fun onPageFinished(view: WebView, url: String?) {
                         loadUrl("javascript:Android.onRetrieveVisitorData(window.yt.config_.VISITOR_DATA)")
                         loadUrl("javascript:Android.onRetrieveDataSyncId(window.yt.config_.DATASYNC_ID)")
