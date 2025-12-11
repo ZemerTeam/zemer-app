@@ -1,6 +1,7 @@
 package com.jtech.zemer.utils
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.constants.LastWhitelistSyncTimeKey
 import com.jtech.zemer.constants.LastWhitelistVersionKey
@@ -313,39 +314,77 @@ class SyncUtils @Inject constructor(
         isSyncingPlaylists.value = true
         try {
             YouTube.library("FEmusic_liked_playlists").completed().onSuccess { page ->
-                val remotePlaylists = page.items
-                    .filterIsInstance<PlaylistItem>()
-                    .filterWhitelisted(database)
+                val allPlaylists = page.items
                     .filterIsInstance<PlaylistItem>()
                     .filterNot { it.id == "LM" || it.id == "SE" }
                     .reversed()
-                val remoteIds = remotePlaylists.map { it.id }.toSet()
+
+                val remotePlaylists = mutableListOf<PlaylistItem>()
+
+                // Filter playlists based on whitelist - only keep those with allowed songs
                 val localPlaylists = database.playlistsByNameAsc().first()
 
-                localPlaylists.filterNot { it.playlist.browseId in remoteIds }.filterNot { it.playlist.browseId == null }.forEach { database.update(it.playlist.localToggleLike()) }
+                allPlaylists.forEach { playlist ->
+                    try {
+                        val playlistPage = YouTube.playlist(playlist.id).completed().getOrNull()
+                        if (playlistPage != null) {
+                            // Filter songs within playlist by whitelist
+                            val allowedSongs = playlistPage.songs.filterWhitelisted(database)
 
-                remotePlaylists.forEach { playlist ->
-                    var playlistEntity = localPlaylists.find { it.playlist.browseId == playlist.id }?.playlist
-                    if (playlistEntity == null) {
-                        playlistEntity = PlaylistEntity(
-                            name = playlist.title,
-                            browseId = playlist.id,
-                            thumbnailUrl = playlist.thumbnail,
-                            isEditable = playlist.isEditable,
-                            bookmarkedAt = LocalDateTime.now(),
-                            remoteSongCount = playlist.songCountText?.let {
-                                Regex("""\d+""").find(it)?.value?.toIntOrNull()
-                            },
-                            playEndpointParams = playlist.playEndpoint?.params,
-                            shuffleEndpointParams = playlist.shuffleEndpoint?.params,
-                            radioEndpointParams = playlist.radioEndpoint?.params
-                        )
-                        database.insert(playlistEntity)
-                    } else {
-                        database.update(playlistEntity, playlist)
+                            if (allowedSongs.isNotEmpty()) {
+                                // Only add playlist if it has at least one allowed song
+                                remotePlaylists.add(playlist)
+
+                                var playlistEntity = localPlaylists.find { it.playlist.browseId == playlist.id }?.playlist
+                                if (playlistEntity == null) {
+                                    // Create new playlist entity with filtered metadata
+                                    playlistEntity = PlaylistEntity(
+                                        name = playlist.title,
+                                        browseId = playlist.id,
+                                        thumbnailUrl = playlist.thumbnail ?: allowedSongs.firstOrNull()?.thumbnail,
+                                        isEditable = playlist.isEditable,
+                                        bookmarkedAt = LocalDateTime.now(),
+                                        remoteSongCount = allowedSongs.size,
+                                        playEndpointParams = playlist.playEndpoint?.params,
+                                        shuffleEndpointParams = playlist.shuffleEndpoint?.params,
+                                        radioEndpointParams = playlist.radioEndpoint?.params
+                                    )
+                                    database.insert(playlistEntity)
+                                } else {
+                                    // Update existing playlist entity with filtered metadata
+                                    database.update(playlistEntity.copy(
+                                        thumbnailUrl = playlist.thumbnail ?: allowedSongs.firstOrNull()?.thumbnail,
+                                        remoteSongCount = allowedSongs.size
+                                    ))
+                                }
+                                // Sync only allowed songs for this playlist
+                                syncPlaylist(playlist.id, playlistEntity.id, allowedSongs.map { it.id }.toSet())
+                                android.util.Log.d("SyncUtils", "Playlist ${playlist.title} synced with ${allowedSongs.size} allowed songs")
+                            } else {
+                                // If no allowed songs, remove playlist from library
+                                localPlaylists.find { it.playlist.browseId == playlist.id }?.let { found ->
+                                    database.update(found.playlist.localToggleLike())
+                                }
+                                android.util.Log.d("SyncUtils", "Playlist ${playlist.title} removed - no allowed songs")
+                            }
+                        } else {
+                            // If playlist fetch failed, remove it from database
+                            localPlaylists.find { it.playlist.browseId == playlist.id }?.let { found ->
+                                database.update(found.playlist.localToggleLike())
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // If playlist fetch fails, remove it from database
+                        localPlaylists.find { it.playlist.browseId == playlist.id }?.let { found ->
+                            database.update(found.playlist.localToggleLike())
+                        }
+                        android.util.Log.w("SyncUtils", "Failed to fetch playlist ${playlist.id}: ${e.message}")
                     }
-                    syncPlaylist(playlist.id, playlistEntity.id)
                 }
+
+                // Remove playlists that are no longer in remote (not filtered) from database
+                val remoteIds = remotePlaylists.map { it.id }.toSet()
+                localPlaylists.filterNot { it.playlist.browseId in remoteIds }.filterNot { it.playlist.browseId == null }.forEach { database.update(it.playlist.localToggleLike()) }
             }
         } catch (e: Exception) {
         } finally {
@@ -385,6 +424,71 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
+        }
+    }
+
+    private suspend fun syncPlaylist(browseId: String, playlistId: String, allowedSongIds: Set<String>) {
+        // Only sync if we have pre-filtered allowed songs
+        if (allowedSongIds.isEmpty()) {
+            // Clear all songs from playlist since no artists are allowed
+            database.transaction {
+                clearPlaylist(playlistId)
+            }
+            android.util.Log.d("SyncUtils", "Playlist $playlistId cleared - no allowed songs")
+            return
+        }
+
+        try {
+            YouTube.playlist(browseId).completed().onSuccess { page ->
+                val songs = page.songs
+                    .filter { it.id in allowedSongIds }  // Only use pre-filtered songs
+                    .filterIsInstance<SongItem>()
+                    .map(SongItem::toMediaMetadata)
+                val remoteIds = songs.map { it.id }
+                val localIds = database.playlistSongs(playlistId).first().sortedBy { it.map.position }.map { it.song.id }
+
+                if (remoteIds == localIds) return@onSuccess
+                if (database.playlist(playlistId).firstOrNull() == null) return@onSuccess
+
+                // Pre-load existing songs to avoid blocking inside transaction
+                val existingSongIds = songs.mapNotNull { song ->
+                    database.song(song.id).firstOrNull()?.song?.id
+                }.toSet()
+
+                database.transaction {
+                    clearPlaylist(playlistId)
+
+                    // Insert new songs that don't exist
+                    songs.forEach { mediaMetadata ->
+                        if (mediaMetadata.id !in existingSongIds) {
+                            insert(
+                                SongEntity(
+                                    id = mediaMetadata.id,
+                                    title = mediaMetadata.title,
+                                    duration = mediaMetadata.duration,
+                                    thumbnailUrl = mediaMetadata.thumbnailUrl,
+                                    explicit = mediaMetadata.explicit,
+                                    albumId = mediaMetadata.album?.id,
+                                    albumName = mediaMetadata.album?.title
+                                )
+                            )
+                        }
+                    }
+
+                    // Add playlist song mappings
+                    songs.forEachIndexed { index, mediaMetadata ->
+                        insert(
+                            PlaylistSongMap(
+                                songId = mediaMetadata.id,
+                                playlistId = playlistId,
+                                position = index
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("SyncUtils", "Error syncing playlist $playlistId: ${e.message}")
         }
     }
 
