@@ -228,7 +228,14 @@ fun ContentSettings(
             onClick = {
                 if (!enableContentFilters) return@PreferenceEntry
 
-                showCreatePasscodeDialog = true
+                if (femalePasscodeHash.isNotEmpty()) {
+                    // Passcode exists - verify old passcode first before allowing to set new one
+                    pendingPasscodeAction = { showCreatePasscodeDialog = true }
+                    showPasscodeDialog = true
+                } else {
+                    // No passcode set - go directly to create dialog
+                    showCreatePasscodeDialog = true
+                }
             },
             isEnabled = enableContentFilters,
         )
