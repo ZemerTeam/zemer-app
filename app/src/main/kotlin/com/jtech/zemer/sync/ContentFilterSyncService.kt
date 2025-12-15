@@ -62,18 +62,19 @@ class ContentFilterSyncService @Inject constructor(
             Log.d("ZemerSync", "User signed in: ${authManager.isUserSignedIn}")
             Log.d("ZemerSync", "Has authenticated sync: ${userPreferencesRepository.hasAuthenticatedSync()}")
 
-            // First, try to auto-restore preferences by device ID (no auth required)
-            if (!userPreferencesRepository.hasAuthenticatedSync()) {
+            // Auto-restore logic: Only auto-restore if we find server preferences but user isn't signed in locally
+            // This happens on data clear/reinstall, NOT on first-time sign-in
+            if (!authManager.isUserSignedIn) {
                 try {
-                    Log.d("ZemerSync", "Attempting auto-restore by device ID")
+                    Log.d("ZemerSync", "User not signed in locally - checking for server preferences to auto-restore")
                     val result = userPreferencesRepository.fetchDevicePreferencesByDeviceId()
                     if (result.isSuccess) {
-                        Log.d("ZemerSync", "Auto-restore successful!")
+                        Log.d("ZemerSync", "Found server preferences - performing auto-restore and auto-lock")
                         _isApplyingServerPreferences = true
                         val config = result.getOrThrow()
                         Log.d("ZemerSync", "Applying config: $config")
 
-                        // Mark as auto-restored and save the email from the device preferences
+                        // Mark as auto-restored and auto-lock settings
                         userPreferencesRepository.markAutoRestored(config)
 
                         ContentFilterState.current = config
@@ -81,15 +82,14 @@ class ContentFilterSyncService @Inject constructor(
                         _isApplyingServerPreferences = false
                         return@launch
                     } else {
-                        Log.d("ZemerSync", "Auto-restore failed: ${result.exceptionOrNull()?.message}")
+                        Log.d("ZemerSync", "No server preferences found - first-time user, no auto-restore")
                     }
                 } catch (e: Exception) {
                     Log.d("ZemerSync", "Auto-restore exception: ${e.message}")
                     e.printStackTrace()
-                    // Auto-restore failed, continue with normal flow
                 }
             } else {
-                Log.d("ZemerSync", "Skipping auto-restore - has authenticated sync")
+                Log.d("ZemerSync", "User already signed in locally - no auto-restore")
             }
 
             // If user is signed in, perform normal sync

@@ -583,6 +583,13 @@ class UserPreferencesRepository @Inject constructor(
             preferences.remove(ContentFiltersLockedKey)
         }
     }
+
+    /**
+     * Public access to deviceIdGenerator for checking device ID generation status
+     */
+    fun getDeviceIdGenerator(): DeviceIdGenerator {
+        return deviceIdGenerator
+    }
 }
 
 /**

@@ -319,9 +319,14 @@ fun ContentSettings(
                 }
             },
             onLockClick = {
-                coroutineScope.launch {
-                    viewModel.setLocked(true)
-                    isLocked = true
+                if (authState.isSignedIn) {
+                    coroutineScope.launch {
+                        viewModel.setLocked(true)
+                        isLocked = true
+                    }
+                } else {
+                    // Show sign-in dialog if user tries to lock without being signed in
+                    showSignInDialog = true
                 }
             },
             onUnlockClick = {
@@ -386,8 +391,8 @@ fun ContentSettings(
     if (showSignInDialog) {
         AlertDialog(
             onDismissRequest = { showSignInDialog = false },
-            title = { Text("Sign In for Sync") },
-            text = { Text("Sign in with your Google account to sync your content filter preferences and restore them after app reinstallation. Each device maintains its own settings.") },
+            title = { Text("Sign In Required") },
+            text = { Text("Sign in with your Google account to save your locked content filter settings. This ensures your preferences are backed up and can be restored after app reinstallation.") },
             confirmButton = {
                 Button(
                     onClick = {
