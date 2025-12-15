@@ -405,6 +405,10 @@
     <string name="clear_translation_models">Clear translation models</string>
     <string name="content_filters">Content filters</string>
     <string name="allow_female_singers">Allow female singers</string>
+    <string name="block_videos">Block videos</string>
+    <string name="block_videos_description">Hide all video content from the app</string>
+    <string name="videos_blocked">Videos Blocked</string>
+    <string name="videos_blocked_description">Video content has been disabled in settings. You can enable it again in Content Settings.</string>
     <string name="female_passcode_setting">Set female singers passcode</string>
     <string name="set_female_passcode_title">Protect female singers switch</string>
     <string name="set_female_passcode_message">Create a passcode to unlock female artists.</string>

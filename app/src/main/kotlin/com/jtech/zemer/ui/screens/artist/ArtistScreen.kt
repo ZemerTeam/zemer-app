@@ -85,6 +85,7 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AppBarHeight
+import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.extensions.toMediaItem
@@ -144,6 +145,7 @@ fun ArtistScreen(
     val librarySongs by viewModel.librarySongs.collectAsState()
     val libraryAlbums by viewModel.libraryAlbums.collectAsState()
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
     val visibleCounts = remember { mutableStateMapOf<String, Int>() }
@@ -591,6 +593,12 @@ fun ArtistScreen(
                         val distinctItems = section.items.distinctBy { it.id }
                         val isVideoSection = section.title.contains("video", ignoreCase = true) ||
                             section.title.contains("short", ignoreCase = true)
+
+                        // Skip video sections entirely if videos are blocked
+                        if (isVideoSection && blockVideos) {
+                            return@fastForEach
+                        }
+
                         val visibleCount = visibleCounts.getOrPut(section.title) {
                             if (isVideoSection) minOf(8, distinctItems.size) else distinctItems.size
                         }
@@ -659,10 +667,10 @@ fun ArtistScreen(
                                     modifier = Modifier
                                         .combinedClickable(
                                             onClick = {
-                                                if (isVideoSection) {
+                                                if (isVideoSection && !blockVideos) {
                                                     val artistDisplay = song.artists.joinToString(" • ") { it.name }
                                                     navController.navigate(videoRoute(song.id, song.title, artistDisplay))
-                                                } else {
+                                                } else if (!isVideoSection) {
                                                     if (song.id == mediaMetadata?.id) {
                                                         playerConnection.player.togglePlayPause()
                                                     } else {
@@ -716,10 +724,10 @@ fun ArtistScreen(
                                             modifier = Modifier
                                                 .combinedClickable(
                                                     onClick = {
-                                                        if (isVideoSection && item is SongItem) {
+                                                        if (isVideoSection && item is SongItem && !blockVideos) {
                                                             val artistDisplay = item.artists.joinToString(" • ") { it.name }
                                                             navController.navigate(videoRoute(item.id, item.title, artistDisplay))
-                                                        } else {
+                                                        } else if (!isVideoSection) {
                                                             when (item) {
                                                                 is SongItem -> {
                                                                     playerConnection.playQueue(

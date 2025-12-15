@@ -37,9 +37,11 @@ import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.GridThumbnailHeight
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -78,6 +80,7 @@ fun ArtistItemsScreen(
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
 
     val title by viewModel.title.collectAsState()
     val itemsPage by viewModel.itemsPage.collectAsState()
@@ -139,7 +142,7 @@ fun ArtistItemsScreen(
                                                 song = item,
                                                 navController = navController,
                                                 onDismiss = menuState::dismiss,
-                                                isVideo = isVideoSection,
+                                                isVideo = isVideoSection && !blockVideos,
                                             )
 
                                         is AlbumItem ->
@@ -174,10 +177,10 @@ fun ArtistItemsScreen(
                     modifier =
                     Modifier
                         .clickable {
-                            if (isVideoSection && item is SongItem) {
+                            if (isVideoSection && item is SongItem && !blockVideos) {
                                 val artistDisplay = item.artists.joinToString(" • ") { it.name }
                                 navController.navigate(videoRoute(item.id, item.title, artistDisplay))
-                            } else {
+                            } else if (!isVideoSection) {
                                 when (item) {
                                     is SongItem -> {
                                         if (item.id == mediaMetadata?.id) {
@@ -239,10 +242,10 @@ fun ArtistItemsScreen(
                     modifier = Modifier
                         .combinedClickable(
                             onClick = {
-                                if (isVideoSection && item is SongItem) {
+                                if (isVideoSection && item is SongItem && !blockVideos) {
                                     val artistDisplay = item.artists.joinToString(" • ") { it.name }
                                     navController.navigate(videoRoute(item.id, item.title, artistDisplay))
-                                } else {
+                                } else if (!isVideoSection) {
                                     when (item) {
                                         is SongItem -> {
                                             // Mark as video if from video section
@@ -272,7 +275,7 @@ fun ArtistItemsScreen(
                                             song = item,
                                             navController = navController,
                                             onDismiss = menuState::dismiss,
-                                            isVideo = isVideoSection
+                                            isVideo = isVideoSection && !blockVideos
                                         )
 
                                         is AlbumItem -> YouTubeAlbumMenu(

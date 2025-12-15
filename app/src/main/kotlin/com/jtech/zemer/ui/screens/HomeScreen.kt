@@ -54,6 +54,7 @@ import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.GridThumbnailHeight
 import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.db.entities.Album
@@ -87,6 +88,7 @@ import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
+import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.HomeViewModel
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -126,6 +128,7 @@ fun HomeScreen(
     val featuredVideos = homeUiState.featuredVideos
     val recentReleaseAlbums = homeUiState.recentReleaseAlbums
     val recentReleaseSongs = homeUiState.recentReleaseSongs
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     homeUiState.isNewUser
 
     val allLocalItems =
@@ -133,9 +136,11 @@ fun HomeScreen(
             (quickPicks + forgottenFavorites + keepListening).filter { it is Song || it is Album }
         }
     val allYtItems =
-        remember(featuredVideos, featuredAlbums, featuredArtists, trendingSongs) {
+        remember(featuredVideos, featuredAlbums, featuredArtists, trendingSongs, blockVideos) {
             buildList {
-                addAll(featuredVideos)
+                if (!blockVideos) {
+                    addAll(featuredVideos)
+                }
                 addAll(featuredAlbums)
                 addAll(featuredArtists)
                 addAll(trendingSongs)
@@ -397,7 +402,7 @@ fun HomeScreen(
         val hasRemoteHomeContent =
             featuredArtists.isNotEmpty() ||
                 featuredAlbums.isNotEmpty() ||
-                featuredVideos.isNotEmpty() ||
+                (!blockVideos && featuredVideos.isNotEmpty()) ||
                 trendingSongs.isNotEmpty()
         val shouldShowShimmer = isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent)
 
@@ -910,7 +915,7 @@ fun HomeScreen(
                 }
             }
 
-            if (featuredVideos.isNotEmpty()) {
+            if (!blockVideos && featuredVideos.isNotEmpty()) {
                 item(key = "featured_videos_title") {
                     NavigationTitle(
                         title = stringResource(R.string.featured_videos),

@@ -7,6 +7,7 @@ data class ContentFilterConfig(
     val filtersEnabled: Boolean = true,
     val allowFemaleSingers: Boolean = false,
     val promoteChasidish: Boolean = false,
+    val blockVideos: Boolean = false,
 )
 
 object ContentFilterState {

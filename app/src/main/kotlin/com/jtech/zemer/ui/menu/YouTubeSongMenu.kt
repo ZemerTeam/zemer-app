@@ -70,6 +70,7 @@ import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.LocalSyncUtils
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.constants.ThumbnailCornerRadius
@@ -87,6 +88,7 @@ import com.jtech.zemer.ui.utils.ShowMediaInfo
 import com.jtech.zemer.ui.utils.resize
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.utils.makeTimeString
+import com.jtech.zemer.utils.rememberPreference
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import kotlinx.coroutines.Dispatchers
@@ -120,6 +122,7 @@ fun YouTubeSongMenu(
     var selectedReason by remember { mutableStateOf("") }
     var comment by remember { mutableStateOf("") }
     var isSubmitting by remember { mutableStateOf(false) }
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     val artists = remember {
         song.artists.mapNotNull {
             it.id?.let { artistId ->
@@ -639,39 +642,44 @@ fun YouTubeSongMenu(
                             )
                         }
                         else -> {
-                            ListItem(
-                                headlineContent = {
-                                    Text(text = if (isVideo)
-                                        stringResource(R.string.download_video_to_device)
-                                    else
-                                        stringResource(R.string.action_download))
-                                },
-                                leadingContent = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.download),
-                                        contentDescription = null,
-                                    )
-                                },
-                                modifier = Modifier.clickable {
-                                    coroutineScope.launch(Dispatchers.IO) {
-                                        // Insert with correct isVideo flag
-                                        val metadata = song.toMediaMetadata().copy(isVideo = isVideo)
-                                        database.transaction {
-                                            insert(metadata)
-                                            // Always set isVideo to match the download context
-                                            setIsVideo(song.id, isVideo)
-                                        }
-                                        val dbSong = database.song(song.id).first()
-                                        dbSong?.let {
-                                            if (isVideo) {
-                                                downloadUtil.downloadVideoToMediaStore(it)
-                                            } else {
-                                                downloadUtil.downloadToMediaStore(it)
+                            // Skip showing download option for videos when blocked
+                            if (isVideo && blockVideos) {
+                                null
+                            } else {
+                                ListItem(
+                                    headlineContent = {
+                                        Text(text = if (isVideo)
+                                            stringResource(R.string.download_video_to_device)
+                                        else
+                                            stringResource(R.string.action_download))
+                                    },
+                                    leadingContent = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.download),
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    modifier = Modifier.clickable {
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            // Insert with correct isVideo flag
+                                            val metadata = song.toMediaMetadata().copy(isVideo = isVideo)
+                                            database.transaction {
+                                                insert(metadata)
+                                                // Always set isVideo to match the download context
+                                                setIsVideo(song.id, isVideo)
+                                            }
+                                            val dbSong = database.song(song.id).first()
+                                            dbSong?.let {
+                                                if (isVideo) {
+                                                    downloadUtil.downloadVideoToMediaStore(it)
+                                                } else {
+                                                    downloadUtil.downloadToMediaStore(it)
+                                                }
                                             }
                                         }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }

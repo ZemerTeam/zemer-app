@@ -48,9 +48,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -62,6 +63,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -69,7 +72,6 @@ import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.RectangleShape
@@ -90,10 +92,12 @@ import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AudioQuality
+import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.utils.MediaStoreHelper
 import com.jtech.zemer.utils.UrlValidator
 import com.jtech.zemer.utils.YTPlayerUtils
+import com.jtech.zemer.utils.rememberPreference
 import com.metrolist.innertube.utils.ResilientDns
 import io.sanghun.compose.video.RepeatMode
 import io.sanghun.compose.video.VideoPlayer
@@ -119,6 +123,46 @@ fun VideoPlayerScreen(
     artist: String? = null,
 ) {
     val context = LocalContext.current
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+
+    // Check if videos are blocked and show blocking message
+    if (blockVideos) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_video_hd),
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.videos_blocked),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.videos_blocked_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            TextButton(
+                onClick = { navController.navigateUp() }
+            ) {
+                Text(stringResource(R.string.onboarding_back))
+            }
+        }
+        return
+    }
+
     val activity = context as? Activity
     val clipboard = remember { context.getSystemService(ClipboardManager::class.java) }
     val connectivityManager = remember { context.getSystemService(ConnectivityManager::class.java) }

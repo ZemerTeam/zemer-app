@@ -135,6 +135,7 @@ val QueueEditLockKey = booleanPreferencesKey("queueEditLock")
 val AllowFemaleSingersKey = booleanPreferencesKey("allowFemaleSingers")
 val FemalePasscodeHashKey = stringPreferencesKey("femalePasscodeHash")
 val AllowChasidishKey = booleanPreferencesKey("allowChasidish")
+val BlockVideosKey = booleanPreferencesKey("blockVideos")
 val EnableContentFiltersKey = booleanPreferencesKey("enableContentFilters")
 val HomeRecentArtistsKey = stringPreferencesKey("home_recent_artists")
 

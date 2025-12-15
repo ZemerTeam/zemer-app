@@ -36,6 +36,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.DownloadedContentViewModel
@@ -47,6 +49,7 @@ fun DownloadedContentScreen(
     scrollBehavior: TopAppBarScrollBehavior,
     viewModel: DownloadedContentViewModel = hiltViewModel(),
 ) {
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     val musicCount by viewModel.downloadedMusicCount.collectAsState()
     val videoCount by viewModel.downloadedVideoCount.collectAsState()
 
@@ -109,7 +112,8 @@ fun DownloadedContentScreen(
                         }
                     }
 
-                    // Video Card
+                    // Video Card - Only show if videos are not blocked
+                    if (!blockVideos) {
                     Card(
                         modifier = Modifier
                             .weight(1f)
@@ -148,6 +152,7 @@ fun DownloadedContentScreen(
                                 color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
                             )
                         }
+                    }
                     }
                 }
             }

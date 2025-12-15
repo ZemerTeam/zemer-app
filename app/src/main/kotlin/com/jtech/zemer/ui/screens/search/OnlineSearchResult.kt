@@ -47,6 +47,8 @@ import com.jtech.zemer.R
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -100,6 +102,7 @@ fun OnlineSearchResult(
     }
 
     val searchFilter by viewModel.filter.collectAsState()
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     val searchSummary = viewModel.summaryPage
     val isSummaryLoading by viewModel.isSummaryLoading.collectAsState()
     val summaryError by viewModel.summaryError.collectAsState()
@@ -133,7 +136,7 @@ fun OnlineSearchResult(
                             song = item,
                             navController = navController,
                             onDismiss = menuState::dismiss,
-                            isVideo = searchFilter?.value == FILTER_VIDEO.value,
+                            isVideo = !blockVideos && searchFilter?.value == FILTER_VIDEO.value,
                         )
 
                     is AlbumItem ->
@@ -188,7 +191,7 @@ fun OnlineSearchResult(
                         event.key == Key.Enter || event.key == Key.DirectionCenter -> {
                             when (item) {
                                 is SongItem -> {
-                                    val isVideoFilter = searchFilter?.value == FILTER_VIDEO.value
+                                    val isVideoFilter = !blockVideos && searchFilter?.value == FILTER_VIDEO.value
                                     if (isVideoFilter) {
                                         val artistDisplay = item.artists.joinToString(" • ") { it.name }
                                         navController.navigate(videoRoute(item.id, item.title, artistDisplay))
@@ -217,7 +220,7 @@ fun OnlineSearchResult(
                     onClick = {
                         when (item) {
                             is SongItem -> {
-                                val isVideoFilter = searchFilter?.value == FILTER_VIDEO.value
+                                val isVideoFilter = !blockVideos && searchFilter?.value == FILTER_VIDEO.value
                                 if (isVideoFilter) {
                                     val artistDisplay = item.artists.joinToString(" • ") { it.name }
                                     navController.navigate(videoRoute(item.id, item.title, artistDisplay))
@@ -254,15 +257,17 @@ fun OnlineSearchResult(
         stickyHeader {
             ChipsRow(
                 chips =
-                listOf(
-                    null to stringResource(R.string.filter_all),
-                    FILTER_SONG to stringResource(R.string.filter_songs),
-                    FILTER_VIDEO to stringResource(R.string.filter_videos),
-                    FILTER_ALBUM to stringResource(R.string.filter_albums),
-                    FILTER_ARTIST to stringResource(R.string.filter_artists),
-                    FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists),
-                    FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists),
-                ),
+                buildList {
+                    add(null to stringResource(R.string.filter_all))
+                    add(FILTER_SONG to stringResource(R.string.filter_songs))
+                    if (!blockVideos) {
+                        add(FILTER_VIDEO to stringResource(R.string.filter_videos))
+                    }
+                    add(FILTER_ALBUM to stringResource(R.string.filter_albums))
+                    add(FILTER_ARTIST to stringResource(R.string.filter_artists))
+                    add(FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists))
+                    add(FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists))
+                },
                 currentValue = searchFilter,
                 onValueUpdate = {
                     if (viewModel.filter.value != it) {
@@ -336,7 +341,7 @@ fun OnlineSearchResult(
                                             "albums" -> FILTER_ALBUM
                                             "songs" -> FILTER_SONG
                                             "artists" -> FILTER_ARTIST
-                                            "videos" -> FILTER_VIDEO
+                                            "videos" -> if (!blockVideos) FILTER_VIDEO else null
                                             "community playlists" -> FILTER_COMMUNITY_PLAYLIST
                                             "featured playlists" -> FILTER_FEATURED_PLAYLIST
                                             else -> null
