@@ -151,7 +151,6 @@ fun ContentSettings(
     }
 
     var showSignInDialog by remember { mutableStateOf(false) }
-    var showSyncErrorDialog by remember { mutableStateOf(false) }
 
     // Determine if toggles should be disabled
     val togglesEnabled = !isLocked && !authState.isSignedIn
@@ -309,16 +308,7 @@ fun ContentSettings(
             isAutoRestored = isAutoRestored,
             restoredEmail = restoredEmail,
             onSignInClick = { showSignInDialog = true },
-            onSyncClick = {
-                coroutineScope.launch {
-                    try {
-                        viewModel.performManualSync()
-                    } catch (e: Exception) {
-                        showSyncErrorDialog = true
-                    }
-                }
-            },
-            onLockClick = {
+                        onLockClick = {
                 if (authState.isSignedIn) {
                     coroutineScope.launch {
                         viewModel.setLocked(true)
@@ -414,27 +404,7 @@ fun ContentSettings(
         )
     }
 
-    // Sync error dialog
-    if (showSyncErrorDialog) {
-        AlertDialog(
-            onDismissRequest = { showSyncErrorDialog = false },
-            title = { Text("Sync Error") },
-            text = {
-                Text(
-                    "Failed to sync preferences. Please check your internet connection and try again.\n\n" +
-                    "Error: ${syncState.errorMessage ?: "Unknown error"}"
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = { showSyncErrorDialog = false }
-                ) {
-                    Text("OK")
-                }
-            }
-        )
-    }
-
+    
     TopAppBar(
         title = { Text(stringResource(R.string.content)) },
         navigationIcon = {
@@ -459,12 +429,11 @@ private fun SyncStatusCard(
     isAutoRestored: Boolean,
     restoredEmail: String?,
     onSignInClick: () -> Unit,
-    onSyncClick: () -> Unit,
     onLockClick: () -> Unit,
     onUnlockClick: () -> Unit,
     isLocked: Boolean
 ) {
-    Card(
+      Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -612,25 +581,6 @@ private fun SyncStatusCard(
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Medium
                             )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onSyncClick,
-                            enabled = syncState.isIdle && !syncState.isError,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            if (syncState.isError) {
-                                Text("Retry")
-                            } else {
-                                Text("Sync Now")
-                            }
                         }
                     }
                 }

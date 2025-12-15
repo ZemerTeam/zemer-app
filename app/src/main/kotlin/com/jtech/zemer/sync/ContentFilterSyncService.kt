@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import android.util.Log
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.pow
 
 /**
  * Service that orchestrates content filter preference synchronization.
@@ -92,10 +93,28 @@ class ContentFilterSyncService @Inject constructor(
                 Log.d("ZemerSync", "User already signed in locally - no auto-restore")
             }
 
-            // If user is signed in, perform normal sync
+            // If user is signed in, perform normal sync with retry mechanism
             if (authManager.isUserSignedIn) {
-                Log.d("ZemerSync", "User is signed in, performing normal sync")
-                performInitialSync()
+                Log.d("ZemerSync", "User is signed in, performing normal sync with retry")
+                Log.d("ZemerSync", "Attempting sync with auth ready check...")
+
+                // Set syncing state
+                _syncState.value = SyncState.SYNCING
+
+                val result = retryWithAuthTimeout {
+                    userPreferencesRepository.performSync()
+                }
+                Log.d("ZemerSync", "Sync result: ${result.isSuccess}, error: ${result.exceptionOrNull()?.message}")
+                _lastSyncResult.value = result.map { }
+
+                if (result.isFailure) {
+                    val error = result.exceptionOrNull()
+                    Log.e("ZemerSync", "Initial sync failed", error)
+                    _syncState.value = SyncState.ERROR("Initial sync failed: ${error?.message}")
+                } else {
+                    Log.d("ZemerSync", "Initial sync completed successfully")
+                    _syncState.value = SyncState.IDLE
+                }
             } else {
                 Log.d("ZemerSync", "User is not signed in, skipping normal sync")
             }
@@ -253,8 +272,13 @@ class ContentFilterSyncService @Inject constructor(
     private suspend fun handleAuthStateChange(authState: AuthState) {
         when (authState) {
             is AuthState.SignedIn -> {
-                // User signed in - perform initial sync
-                performInitialSync()
+                // Wait for auth to be fully ready (email loaded)
+                if (waitForAuthReady()) {
+                    performInitialSync()
+                } else {
+                    _syncState.value = SyncState.ERROR("Authentication timeout")
+                    Log.e("ZemerSync", "Failed to get user email within timeout")
+                }
             }
             is AuthState.SignedOut -> {
                 // User signed out - clear sync state
@@ -289,7 +313,19 @@ class ContentFilterSyncService @Inject constructor(
             _syncState.value = SyncState.SYNCING
             _isApplyingServerPreferences = true
 
-            val result = userPreferencesRepository.performSync()
+            val result = retryWithAuthTimeout {
+                userPreferencesRepository.performSync()
+            }
+
+            // After sync, always ensure current local preferences are uploaded to server
+            // This handles the case where user set preferences during onboarding before signing in
+            Log.d("ZemerSync", "Ensuring local preferences are uploaded after initial sync")
+            val uploadResult = userPreferencesRepository.syncToServer()
+            if (uploadResult.isSuccess) {
+                Log.d("ZemerSync", "Local preferences uploaded successfully after sign-in")
+            } else {
+                Log.e("ZemerSync", "Failed to upload local preferences after sign-in", uploadResult.exceptionOrNull())
+            }
 
             _syncState.value = SyncState.IDLE
             _lastSyncResult.value = result.map { }
@@ -299,6 +335,75 @@ class ContentFilterSyncService @Inject constructor(
         } finally {
             _isApplyingServerPreferences = false
         }
+    }
+
+    /**
+     * Wait for authentication to be ready with timeout
+     */
+    private suspend fun waitForAuthReady(timeoutMs: Long = 10000L): Boolean {
+        val startTime = System.currentTimeMillis()
+
+        while (System.currentTimeMillis() - startTime < timeoutMs) {
+            if (authManager.isUserSignedIn && authManager.currentUserEmail != null) {
+                return true
+            }
+            kotlinx.coroutines.delay(100)
+        }
+        return false
+    }
+
+    /**
+     * Retry operation with authentication timeout and exponential backoff
+     */
+    private suspend fun <T> retryWithAuthTimeout(
+        maxRetries: Int = 5,
+        timeoutMs: Long = 10000L,
+        operation: suspend () -> T
+    ): Result<T> {
+        val startTime = System.currentTimeMillis()
+        var lastException: Exception? = null
+
+        for (attempt in 0 until maxRetries) {
+            try {
+                // Check if auth is ready
+                val isSignedIn = authManager.isUserSignedIn
+                val userEmail = authManager.currentUserEmail
+                Log.d("ZemerSync", "Retry attempt ${attempt + 1}: isSignedIn=$isSignedIn, userEmail=$userEmail")
+
+                if (isSignedIn && userEmail != null) {
+                    Log.d("ZemerSync", "Auth is ready, executing operation")
+                    return Result.success(operation())
+                } else {
+                    lastException = Exception("Authentication not ready (attempt ${attempt + 1}/$maxRetries)")
+                    Log.d("ZemerSync", "Auth not ready: isSignedIn=$isSignedIn, userEmail=$userEmail")
+                    if (System.currentTimeMillis() - startTime < timeoutMs) {
+                        // Exponential backoff: 100ms, 200ms, 400ms, 800ms, 1600ms
+                        val delay = (100L * (1 shl attempt)).coerceAtMost(1600L)
+                        Log.d("ZemerSync", "Waiting ${delay}ms before retry")
+                        kotlinx.coroutines.delay(delay)
+                        continue
+                    } else {
+                        Log.d("ZemerSync", "Timeout reached, breaking")
+                        break
+                    }
+                }
+            } catch (e: Exception) {
+                lastException = e
+                Log.e("ZemerSync", "Exception in retry attempt ${attempt + 1}", e)
+                if (e is com.google.firebase.auth.FirebaseAuthException) {
+                    // Auth error - retry with backoff
+                    if (System.currentTimeMillis() - startTime < timeoutMs) {
+                        val delay = (100L * (1 shl attempt)).coerceAtMost(1600L)
+                        Log.d("ZemerSync", "Auth error, waiting ${delay}ms before retry")
+                        kotlinx.coroutines.delay(delay)
+                        continue
+                    }
+                }
+                break
+            }
+        }
+
+        return Result.failure(lastException ?: Exception("Retry timeout after $timeoutMs ms"))
     }
 
     /**

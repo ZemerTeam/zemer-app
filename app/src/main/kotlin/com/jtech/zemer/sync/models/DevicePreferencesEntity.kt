@@ -88,24 +88,38 @@ data class DeviceMetadata(
 }
 
 /**
- * Firestore entity representing content filter preferences for a specific device.
- * Each device has its own separate configuration stored under a user's account.
+ * Simple device data for storing in user document
+ */
+@IgnoreExtraProperties
+data class UserDeviceData(
+    val deviceId: String = "",
+    val deviceInfo: DeviceMetadata = DeviceMetadata(),
+    val contentFilters: DeviceContentFilters = DeviceContentFilters(),
+    val createdAt: Date? = null,
+    val lastSyncTime: Long = -1
+)
+
+/**
+ * Firestore entity representing content filter preferences for a user with multiple devices.
+ * All devices are stored in one document per user for easy browsing and searching.
  */
 @IgnoreExtraProperties
 data class DevicePreferencesEntity(
-    val deviceId: String = "",
     val userId: String = "",
     val userEmail: String = "",
     val contentFilters: DeviceContentFilters = DeviceContentFilters(),
     val deviceInfo: DeviceMetadata = DeviceMetadata(),
+    val devices: List<UserDeviceData> = emptyList(), // Array of all user devices
     val createdAt: Date? = null,
     val updatedAt: Date? = null
 ) {
     companion object {
         const val COLLECTION_NAME = "devicePreferences"
-        const val FIELD_DEVICE_ID = "deviceId"
+        const val FIELD_USER_ID = "userId"
+        const val FIELD_USER_EMAIL = "userEmail"
         const val FIELD_CONTENT_FILTERS = "contentFilters"
         const val FIELD_DEVICE_INFO = "deviceInfo"
+        const val FIELD_DEVICES = "devices"
         const val FIELD_CREATED_AT = "createdAt"
         const val FIELD_UPDATED_AT = "updatedAt"
     }
