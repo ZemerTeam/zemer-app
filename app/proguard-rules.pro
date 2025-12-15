@@ -107,3 +107,116 @@
 
 ## Native Cover Art Library (Bento4 JNI)
 -keep class com.jtech.zemer.utils.CoverArtNative { *; }
+
+## Firebase and Auth Rules (for release build sync)
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-keep class com.google.firebase.auth.** { *; }
+-keep class com.google.firebase.firestore.** { *; }
+-keep class com.google.android.gms.auth.** { *; }
+-keep class com.google.android.gms.tasks.** { *; }
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.**
+
+## Firebase Authentication
+-keep class com.google.firebase.auth.FirebaseAuth { *; }
+-keep class com.google.firebase.auth.FirebaseUser { *; }
+-keep class com.google.firebase.auth.AuthResult { *; }
+-keep class com.google.firebase.auth.GoogleAuthProvider { *; }
+-keep class com.google.android.gms.auth.api.signin.** { *; }
+
+## Firebase Firestore
+-keep class com.google.firebase.firestore.FirebaseFirestore { *; }
+-keep class com.google.firebase.firestore.CollectionReference { *; }
+-keep class com.google.firebase.firestore.DocumentReference { *; }
+-keep class com.google.firebase.firestore.Query { *; }
+-keep class com.google.firebase.firestore.DocumentSnapshot { *; }
+-keep class com.google.firebase.firestore.QuerySnapshot { *; }
+
+## App Sync Classes (prevent obfuscation)
+-keep class com.jtech.zemer.sync.** { *; }
+-keep class com.jtech.zemer.auth.** { *; }
+-keep class com.jtech.zemer.utils.DeviceIdGenerator { *; }
+-keep class com.jtech.zemer.utils.ContentFilterConfig { *; }
+-keep class com.jtech.zemer.utils.ContentFilterState { *; }
+-keep class com.jtech.zemer.sync.models.** { *; }
+
+## Keep DataStore and Preferences classes
+-keep class androidx.datastore.** { *; }
+-keep class androidx.datastore.preferences.** { *; }
+-dontwarn androidx.datastore.**
+
+## Hilt and Dependency Injection (keep sync-related)
+-keep class javax.inject.** { *; }
+-keep class dagger.** { *; }
+-keep class dagger.hilt.** { *; }
+-keep class javax.annotation.** { *; }
+-keep class * extends dagger.hilt.android.HiltAndroidApp
+-keepclasseswithmembers class * {
+    @dagger.hilt.android.AndroidEntryPoint <methods>;
+}
+-keepclasseswithmembers class * {
+    @dagger.hilt.android.lifecycle.HiltViewModel <methods>;
+}
+
+## Keep enum classes used in sync
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+## Keep Parcelable implementations for sync models
+-keep class * implements android.os.Parcelable {
+    public static final ** CREATOR;
+}
+
+## Keep custom annotations used in sync module
+-keep @interface com.jtech.zemer.di.SyncDataStore
+-keep @interface com.jtech.zemer.di.MainDataStore
+-keep @interface dagger.BindsInstance
+-keep @interface dagger.Provides
+-keep @interface javax.inject.Singleton
+-keep @interface javax.inject.Qualifier
+
+## Keep Gson serialization for Firestore models
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn sun.misc.**
+-keep class com.google.gson.** { *; }
+-keep class * implements com.google.gson.TypeAdapterFactory
+-keep class * implements com.google.gson.JsonSerializer
+-keep class * implements com.google.gson.JsonDeserializer
+
+## Keep R8/ProGuard from optimizing critical sync methods
+-keepclassmembers class com.jtech.zemer.sync.UserPreferencesRepository {
+    public *;
+}
+
+-keepclassmembers class com.jtech.zemer.auth.UserAuthManager {
+    public *;
+}
+
+-keepclassmembers class com.jtech.zemer.utils.DeviceIdGenerator {
+    public *;
+}
+
+## Keep Firebase callback interfaces
+-keep interface com.google.android.gms.tasks.OnSuccessListener
+-keep interface com.google.android.gms.tasks.OnFailureListener
+-keep interface com.google.android.gms.tasks.OnCompleteListener
+
+## Reflection and serialization for Firestore
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.AnnotationsKt
+-keep,includedescriptorclasses class com.jtech.zemer.sync.models.**$$serializer { *; }
+-keepclassmembers class com.jtech.zemer.sync.models.** {
+    *** Companion;
+}
+-keepclasseswithmembers class com.jtech.zemer.sync.models.** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+
+## Preserve debugging information for sync troubleshooting
+-keepattributes SourceFile,LineNumberTable
+-keepattributes LocalVariableTable
+-keepattributes LocalVariableTypeTable

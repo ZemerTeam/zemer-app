@@ -137,6 +137,14 @@ val FemalePasscodeHashKey = stringPreferencesKey("femalePasscodeHash")
 val AllowChasidishKey = booleanPreferencesKey("allowChasidish")
 val BlockVideosKey = booleanPreferencesKey("blockVideos")
 val EnableContentFiltersKey = booleanPreferencesKey("enableContentFilters")
+
+// Sync-related preference keys
+val LastContentFilterSyncTimeKey = longPreferencesKey("last_content_filter_sync_time")
+val IsContentFilterSyncEnabledKey = booleanPreferencesKey("content_filter_sync_enabled")
+val CurrentUserIdKey = stringPreferencesKey("current_user_id")
+val IsAuthenticatedKey = booleanPreferencesKey("is_authenticated")
+val DeviceIdKey = stringPreferencesKey("device_id")
+val DeviceNameKey = stringPreferencesKey("device_name")
 val HomeRecentArtistsKey = stringPreferencesKey("home_recent_artists")
 
 val ShowLikedPlaylistKey = booleanPreferencesKey("show_liked_playlist")

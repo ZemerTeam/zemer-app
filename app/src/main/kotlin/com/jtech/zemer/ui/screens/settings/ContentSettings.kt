@@ -3,28 +3,56 @@ package com.jtech.zemer.ui.screens.settings
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
+import com.google.android.gms.common.api.ApiException
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.auth.AuthState
+import com.jtech.zemer.auth.UserAuthManager
 import com.jtech.zemer.constants.AllowChasidishKey
 import com.jtech.zemer.constants.AllowFemaleSingersKey
 import com.jtech.zemer.constants.BlockVideosKey
@@ -39,6 +67,8 @@ import com.jtech.zemer.constants.QuickPicks
 import com.jtech.zemer.constants.QuickPicksKey
 import com.jtech.zemer.constants.SYSTEM_DEFAULT
 import com.jtech.zemer.constants.TopSize
+import com.jtech.zemer.sync.SyncState
+import com.jtech.zemer.sync.SyncStatus
 import com.jtech.zemer.ui.component.EditTextPreference
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.ListPreference
@@ -46,20 +76,89 @@ import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.utils.backToMain
+import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.setAppLocale
 import com.metrolist.innertube.YouTube
+import dagger.hilt.android.lifecycle.HiltViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
+import javax.inject.Inject
+
+/**
+ * ViewModel for content settings screen with sync functionality
+ */
+@HiltViewModel
+class ContentSettingsViewModel @Inject constructor(
+    val authManager: UserAuthManager,
+    private val syncService: com.jtech.zemer.sync.ContentFilterSyncService
+) : androidx.lifecycle.ViewModel() {
+
+    val authState = authManager.authStateFlow
+    val syncState = syncService.syncState
+    val syncStatus = syncService.getSyncStatusFlow()
+
+    suspend fun signInWithGoogle(idToken: String) = authManager.signInWithGoogle(idToken)
+    suspend fun signOut() = authManager.signOut()
+    suspend fun performManualSync() = syncService.performManualSync()
+    suspend fun setSyncEnabled(enabled: Boolean) = syncService.setSyncEnabled(enabled)
+    suspend fun getUserDevices() = syncService.getUserDevices()
+
+    fun formatLastSyncTime(timestamp: Long): String {
+        return if (timestamp > 0) {
+            val sdf = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+            sdf.format(Date(timestamp))
+        } else {
+            "Never"
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContentSettings(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
+    viewModel: ContentSettingsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
+
+    // Auth and sync state
+    val authState by viewModel.authState.collectAsState(initial = AuthState.Loading)
+    val syncState by viewModel.syncState.collectAsState(initial = SyncState.IDLE)
+    val syncStatus by viewModel.syncStatus.collectAsState(initial = SyncStatus.NEVER_SYNCED)
+
+    var showSignInDialog by remember { mutableStateOf(false) }
+    var showSyncErrorDialog by remember { mutableStateOf(false) }
+
+    // Google Sign-In launcher
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            // Handle Google Sign-In result
+            val data = result.data
+            val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                val idToken = account.idToken
+                if (idToken != null) {
+                    coroutineScope.launch {
+                        viewModel.signInWithGoogle(idToken)
+                        showSignInDialog = false
+                    }
+                }
+            } catch (e: ApiException) {
+                showSignInDialog = false
+                // Handle sign-in failure
+            }
+        } else {
+            showSignInDialog = false
+        }
+    }
 
     // Used only before Android 13
     val (appLanguage, onAppLanguageChange) = rememberPreference(key = AppLanguageKey, defaultValue = SYSTEM_DEFAULT)
@@ -73,6 +172,16 @@ fun ContentSettings(
     val (allowFemaleSingers, onAllowFemaleSingersChange) = rememberPreference(key = AllowFemaleSingersKey, defaultValue = false)
     val (allowChasidish, onAllowChasidishChange) = rememberPreference(key = AllowChasidishKey, defaultValue = false)
     val (blockVideos, onBlockVideosChange) = rememberPreference(key = BlockVideosKey, defaultValue = false)
+
+    // Update ContentFilterState when preferences change
+    LaunchedEffect(enableContentFilters, allowFemaleSingers, allowChasidish, blockVideos) {
+        ContentFilterState.updateContentFilters(
+            filtersEnabled = enableContentFilters,
+            allowFemaleSingers = allowFemaleSingers,
+            promoteChasidish = allowChasidish,
+            blockVideos = blockVideos
+        )
+    }
 
     Column(
         Modifier
@@ -170,6 +279,24 @@ fun ContentSettings(
         )
 
         PreferenceGroupTitle(title = stringResource(R.string.content_filters))
+
+        // Sync status card
+        SyncStatusCard(
+            authState = authState,
+            syncState = syncState,
+            syncStatus = syncStatus,
+            onSignInClick = { showSignInDialog = true },
+            onSyncClick = {
+                coroutineScope.launch {
+                    try {
+                        viewModel.performManualSync()
+                    } catch (e: Exception) {
+                        showSyncErrorDialog = true
+                    }
+                }
+            }
+        )
+
         SwitchPreference(
             title = { Text(stringResource(R.string.enable_personal_filters)) },
             icon = { Icon(painterResource(R.drawable.settings), null) },
@@ -220,6 +347,54 @@ fun ContentSettings(
             onValueSelected = onQuickPicksChange,)
     }
 
+    // Sign-in dialog
+    if (showSignInDialog) {
+        AlertDialog(
+            onDismissRequest = { showSignInDialog = false },
+            title = { Text("Sign In for Sync") },
+            text = { Text("Sign in with your Google account to sync your content filter preferences and restore them after app reinstallation. Each device maintains its own settings.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val signInIntent = viewModel.authManager.googleSignInClient.signInIntent
+                        googleSignInLauncher.launch(signInIntent)
+                        showSignInDialog = false
+                    }
+                ) {
+                    Text("Sign In with Google")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showSignInDialog = false }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Sync error dialog
+    if (showSyncErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { showSyncErrorDialog = false },
+            title = { Text("Sync Error") },
+            text = {
+                Text(
+                    "Failed to sync preferences. Please check your internet connection and try again.\n\n" +
+                    "Error: ${syncState.errorMessage ?: "Unknown error"}"
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showSyncErrorDialog = false }
+                ) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
     TopAppBar(
         title = { Text(stringResource(R.string.content)) },
         navigationIcon = {
@@ -234,4 +409,164 @@ fun ContentSettings(
             }
         }
     )
+}
+
+@Composable
+private fun SyncStatusCard(
+    authState: AuthState,
+    syncState: SyncState,
+    syncStatus: SyncStatus,
+    onSignInClick: () -> Unit,
+    onSyncClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.sync),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = when {
+                        syncState.isSyncing -> MaterialTheme.colorScheme.primary
+                        syncState.isError -> MaterialTheme.colorScheme.error
+                        authState.isSignedIn -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Text(
+                    text = "Content Filter Sync",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f)
+                )
+
+                when {
+                    syncState.isSyncing -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                    authState.isSignedIn -> {
+                        Icon(
+                            painter = painterResource(R.drawable.check),
+                            contentDescription = "Signed in",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    else -> {
+                        Icon(
+                            painter = painterResource(R.drawable.person),
+                            contentDescription = "Not signed in",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            when {
+                authState.isSignedIn -> {
+                    // User is signed in
+                    val statusText = when (syncStatus) {
+                        is SyncStatus.SYNCED -> {
+                            "Last synced: ${SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(Date(syncStatus.lastSyncTime))}"
+                        }
+                        SyncStatus.NEVER_SYNCED -> "Never synced"
+                        SyncStatus.DISABLED -> "Sync disabled"
+                        else -> "Ready to sync"
+                    }
+
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Show logged-in account
+                    val userEmail = when (authState) {
+                        is AuthState.SignedIn -> authState.email
+                        else -> null
+                    }
+
+                    if (userEmail != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.person),
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = userEmail,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onSyncClick,
+                            enabled = syncState.isIdle && !syncState.isError,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (syncState.isError) {
+                                Text("Retry")
+                            } else {
+                                Text("Sync Now")
+                            }
+                        }
+
+                        }
+                }
+                else -> {
+                    // User is not signed in
+                    Text(
+                        text = "Sign in to sync your content filter preferences across devices and restore them after app reinstallation.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = onSignInClick,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.person),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Sign In with Google")
+                    }
+                }
+            }
+        }
+    }
 }

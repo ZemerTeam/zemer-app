@@ -263,6 +263,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var syncUtils: SyncUtils
 
+    @Inject
+    lateinit var contentFilterSyncService: com.jtech.zemer.sync.ContentFilterSyncService
+
     private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
     private var latestVersionName by mutableStateOf(BuildConfig.VERSION_NAME)
@@ -432,6 +435,9 @@ class MainActivity : ComponentActivity() {
                     }
                 }
         }
+
+        // Initialize content filter sync service
+        contentFilterSyncService.initialize()
 
         setContent {
             val checkForUpdates by rememberPreference(CheckForUpdatesKey, defaultValue = false)
