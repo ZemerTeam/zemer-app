@@ -11,14 +11,12 @@ import java.util.Date
 data class DeviceContentFilters(
     val enableContentFilters: Boolean = true,
     val allowFemaleSingers: Boolean = false,
-    val promoteChasidish: Boolean = false,
     val blockVideos: Boolean = false,
     val femalePasscodeHash: String? = null
 ) {
     companion object {
         const val FIELD_ENABLE_CONTENT_FILTERS = "enableContentFilters"
         const val FIELD_ALLOW_FEMALE_SINGERS = "allowFemaleSingers"
-        const val FIELD_PROMOTE_CHASIDISH = "promoteChasidish"
         const val FIELD_BLOCK_VIDEOS = "blockVideos"
         const val FIELD_FEMALE_PASSCODE_HASH = "femalePasscodeHash"
     }
@@ -30,7 +28,6 @@ data class DeviceContentFilters(
         return DeviceContentFilters(
             enableContentFilters = config.filtersEnabled,
             allowFemaleSingers = config.allowFemaleSingers,
-            promoteChasidish = config.promoteChasidish,
             blockVideos = config.blockVideos,
             femalePasscodeHash = config.femalePasscodeHash
         )
@@ -43,7 +40,6 @@ data class DeviceContentFilters(
         return com.jtech.zemer.utils.ContentFilterConfig(
             filtersEnabled = enableContentFilters,
             allowFemaleSingers = allowFemaleSingers,
-            promoteChasidish = promoteChasidish,
             blockVideos = blockVideos,
             femalePasscodeHash = femalePasscodeHash
         )

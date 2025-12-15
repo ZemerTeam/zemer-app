@@ -152,6 +152,9 @@ suspend fun List<YTItem>.filterWhitelisted(
     requireAllArtists: Boolean = false,
     fallbackArtistId: String? = null,
 ): List<YTItem> {
+    // Chasidish preference is now handled separately since it's for recommendations only
+    // For now, default to false - in a real implementation, you might want to get this from a separate source
+    val promoteChasidish = false
     Timber.d("WhitelistFilter: Filtering ${this.size} items")
     var allowedEntries = WhitelistCache.allowedEntries(config)
     if (allowedEntries.isEmpty()) {
@@ -196,7 +199,7 @@ suspend fun List<YTItem>.filterWhitelisted(
         }
     }
 
-    val result = if (config.promoteChasidish) {
+    val result = if (promoteChasidish) {
         filtered.sortedByDescending { it.second }.map { it.first }
     } else {
         filtered.map { it.first }
@@ -236,7 +239,7 @@ private suspend fun MusicDatabase.artistMatchesFilters(
     }
 
     val needsRemoteCheck =
-        entry == null || (config.filtersEnabled && !config.allowFemaleSingers && entry?.isFemale == true) || (config.promoteChasidish && entry?.isChasid != true)
+        entry == null || (config.filtersEnabled && !config.allowFemaleSingers && entry?.isFemale == true)
 
     if (needsRemoteCheck) {
         // Fall back to DB once before giving up

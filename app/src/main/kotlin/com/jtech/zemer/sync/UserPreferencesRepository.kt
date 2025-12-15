@@ -22,6 +22,9 @@ import com.jtech.zemer.constants.AllowFemaleSingersKey
 import com.jtech.zemer.constants.AllowChasidishKey
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.FemalePasscodeHashKey
+import com.jtech.zemer.constants.ContentFiltersAutoRestoredKey
+import com.jtech.zemer.constants.ContentFiltersRestoredEmailKey
+import com.jtech.zemer.constants.ContentFiltersLockedKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -39,7 +42,6 @@ private fun ContentFilterConfig.toDeviceContentFilters(): DeviceContentFilters {
     return DeviceContentFilters(
         enableContentFilters = filtersEnabled,
         allowFemaleSingers = allowFemaleSingers,
-        promoteChasidish = promoteChasidish,
         blockVideos = blockVideos,
         femalePasscodeHash = femalePasscodeHash
     )
@@ -478,11 +480,11 @@ class UserPreferencesRepository @Inject constructor(
         mainDataStore.edit { preferences ->
             preferences[EnableContentFiltersKey] = config.filtersEnabled
             preferences[AllowFemaleSingersKey] = config.allowFemaleSingers
-            preferences[AllowChasidishKey] = config.promoteChasidish
             preferences[BlockVideosKey] = config.blockVideos
             config.femalePasscodeHash?.let { hash ->
                 preferences[FemalePasscodeHashKey] = hash
             }
+            // Note: AllowChasidishKey is excluded since chasidish is now for recommendations only
         }
     }
 
@@ -501,6 +503,84 @@ class UserPreferencesRepository @Inject constructor(
                 lastSync == 0L -> SyncStatus.NEVER_SYNCED
                 else -> SyncStatus.SYNCED(lastSync)
             }
+        }
+    }
+
+    /**
+     * Mark preferences as auto-restored and save the email
+     */
+    suspend fun markAutoRestored(config: com.jtech.zemer.utils.ContentFilterConfig) {
+        try {
+            // Get the email from the device preferences that were just fetched
+            val deviceId = deviceIdGenerator.getDeviceId()
+            val query = firestore
+                .collectionGroup(DEVICE_PREFERENCES_SUBCOLLECTION)
+                .whereEqualTo("deviceId", deviceId)
+                .limit(1)
+                .get()
+                .await()
+
+            if (query.documents.isNotEmpty()) {
+                val document = query.documents[0]
+                val devicePreferences = document.toObject(DevicePreferencesEntity::class.java)
+                val userEmail = devicePreferences?.userEmail
+
+                syncDataStore.edit { preferences ->
+                    preferences[ContentFiltersAutoRestoredKey] = true
+                    preferences[ContentFiltersRestoredEmailKey] = userEmail ?: ""
+                    preferences[ContentFiltersLockedKey] = true // Auto-lock when restored
+                }
+            }
+        } catch (e: Exception) {
+            Log.d("ZemerSync", "Error marking auto-restored: ${e.message}")
+        }
+    }
+
+    /**
+     * Check if content filters were auto-restored
+     */
+    suspend fun isAutoRestored(): Boolean {
+        return syncDataStore.data.map { preferences ->
+            preferences[ContentFiltersAutoRestoredKey] ?: false
+        }.first()
+    }
+
+    /**
+     * Get the restored email
+     */
+    suspend fun getRestoredEmail(): String? {
+        return syncDataStore.data.map { preferences ->
+            val email = preferences[ContentFiltersRestoredEmailKey]
+            if (email.isNullOrEmpty()) null else email
+        }.first()
+    }
+
+    /**
+     * Check if content filters are locked
+     */
+    suspend fun isLocked(): Boolean {
+        return syncDataStore.data.map { preferences ->
+            preferences[ContentFiltersLockedKey] ?: false
+        }.first()
+    }
+
+    /**
+     * Set content filters lock state
+     */
+    suspend fun setLocked(locked: Boolean) {
+        syncDataStore.edit { preferences ->
+            preferences[ContentFiltersLockedKey] = locked
+        }
+    }
+
+    /**
+     * Clear auto-restore state (for testing or migration)
+     */
+    suspend fun clearAutoRestoreState() {
+        syncDataStore.edit { preferences ->
+            preferences.remove(ContentFiltersAutoRestoredKey)
+            preferences.remove(ContentFiltersRestoredEmailKey)
+            preferences.remove(ContentFiltersLockedKey)
         }
     }
 }

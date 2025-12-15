@@ -266,7 +266,6 @@ class App : Application(), SingletonImageLoader.Factory {
                     ContentFilterConfig(
                         filtersEnabled = prefs[EnableContentFiltersKey] ?: true,
                         allowFemaleSingers = prefs[AllowFemaleSingersKey] ?: false,
-                        promoteChasidish = prefs[AllowChasidishKey] ?: false,
                     )
                 }
                 .distinctUntilChanged()
@@ -281,7 +280,6 @@ class App : Application(), SingletonImageLoader.Factory {
                     ContentFilterConfig(
                         filtersEnabled = prefs[EnableContentFiltersKey] ?: true,
                         allowFemaleSingers = prefs[AllowFemaleSingersKey] ?: false,
-                        promoteChasidish = prefs[AllowChasidishKey] ?: false,
                     )
                 }
                 .distinctUntilChanged()

@@ -72,6 +72,10 @@ class ContentFilterSyncService @Inject constructor(
                         _isApplyingServerPreferences = true
                         val config = result.getOrThrow()
                         Log.d("ZemerSync", "Applying config: $config")
+
+                        // Mark as auto-restored and save the email from the device preferences
+                        userPreferencesRepository.markAutoRestored(config)
+
                         ContentFilterState.current = config
                         userPreferencesRepository.saveToDataStore(config)
                         _isApplyingServerPreferences = false

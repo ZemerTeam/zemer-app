@@ -93,7 +93,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ContentSettingsViewModel @Inject constructor(
     val authManager: UserAuthManager,
-    private val syncService: com.jtech.zemer.sync.ContentFilterSyncService
+    private val syncService: com.jtech.zemer.sync.ContentFilterSyncService,
+    private val userPreferencesRepository: com.jtech.zemer.sync.UserPreferencesRepository
 ) : androidx.lifecycle.ViewModel() {
 
     val authState = authManager.authStateFlow
@@ -105,6 +106,12 @@ class ContentSettingsViewModel @Inject constructor(
     suspend fun performManualSync() = syncService.performManualSync()
     suspend fun setSyncEnabled(enabled: Boolean) = syncService.setSyncEnabled(enabled)
     suspend fun getUserDevices() = syncService.getUserDevices()
+
+    // Auto-restore and lock management
+    suspend fun isAutoRestored() = userPreferencesRepository.isAutoRestored()
+    suspend fun getRestoredEmail() = userPreferencesRepository.getRestoredEmail()
+    suspend fun isLocked() = userPreferencesRepository.isLocked()
+    suspend fun setLocked(locked: Boolean) = userPreferencesRepository.setLocked(locked)
 
     fun formatLastSyncTime(timestamp: Long): String {
         return if (timestamp > 0) {
@@ -131,8 +138,23 @@ fun ContentSettings(
     val syncState by viewModel.syncState.collectAsState(initial = SyncState.IDLE)
     val syncStatus by viewModel.syncStatus.collectAsState(initial = SyncStatus.NEVER_SYNCED)
 
+    // Auto-restore and lock state
+    var isAutoRestored by remember { mutableStateOf(false) }
+    var restoredEmail by remember { mutableStateOf<String?>(null) }
+    var isLocked by remember { mutableStateOf(false) }
+
+    // Load auto-restore and lock state
+    LaunchedEffect(Unit) {
+        isAutoRestored = viewModel.isAutoRestored()
+        restoredEmail = viewModel.getRestoredEmail()
+        isLocked = viewModel.isLocked()
+    }
+
     var showSignInDialog by remember { mutableStateOf(false) }
     var showSyncErrorDialog by remember { mutableStateOf(false) }
+
+    // Determine if toggles should be disabled
+    val togglesEnabled = !isLocked && !authState.isSignedIn
 
     // Google Sign-In launcher
     val googleSignInLauncher = rememberLauncherForActivityResult(
@@ -173,12 +195,11 @@ fun ContentSettings(
     val (allowChasidish, onAllowChasidishChange) = rememberPreference(key = AllowChasidishKey, defaultValue = false)
     val (blockVideos, onBlockVideosChange) = rememberPreference(key = BlockVideosKey, defaultValue = false)
 
-    // Update ContentFilterState when preferences change
-    LaunchedEffect(enableContentFilters, allowFemaleSingers, allowChasidish, blockVideos) {
+    // Update ContentFilterState when preferences change (excluding chasidish since it's for recommendations only)
+    LaunchedEffect(enableContentFilters, allowFemaleSingers, blockVideos) {
         ContentFilterState.updateContentFilters(
             filtersEnabled = enableContentFilters,
             allowFemaleSingers = allowFemaleSingers,
-            promoteChasidish = allowChasidish,
             blockVideos = blockVideos
         )
     }
@@ -285,6 +306,8 @@ fun ContentSettings(
             authState = authState,
             syncState = syncState,
             syncStatus = syncStatus,
+            isAutoRestored = isAutoRestored,
+            restoredEmail = restoredEmail,
             onSignInClick = { showSignInDialog = true },
             onSyncClick = {
                 coroutineScope.launch {
@@ -294,7 +317,17 @@ fun ContentSettings(
                         showSyncErrorDialog = true
                     }
                 }
-            }
+            },
+            onLockClick = {
+                coroutineScope.launch {
+                    viewModel.setLocked(true)
+                    isLocked = true
+                }
+            },
+            onUnlockClick = {
+                // No unlock functionality - once locked, always locked
+            },
+            isLocked = isLocked
         )
 
         SwitchPreference(
@@ -302,28 +335,30 @@ fun ContentSettings(
             icon = { Icon(painterResource(R.drawable.settings), null) },
             checked = enableContentFilters,
             onCheckedChange = onEnableContentFiltersChange,
-            isEnabled = true
+            isEnabled = togglesEnabled
         )
         SwitchPreference(
             title = { Text(stringResource(R.string.allow_female_singers)) },
             icon = { Icon(painterResource(R.drawable.person), null) },
             checked = allowFemaleSingers,
             onCheckedChange = onAllowFemaleSingersChange,
-            isEnabled = enableContentFilters
+            isEnabled = enableContentFilters && togglesEnabled
         )
         SwitchPreference(
             title = { Text(stringResource(R.string.block_videos)) },
             icon = { Icon(painterResource(R.drawable.ic_video_hd), null) },
             checked = blockVideos,
             onCheckedChange = onBlockVideosChange,
-            isEnabled = enableContentFilters
+            isEnabled = enableContentFilters && togglesEnabled
         )
+
+        PreferenceGroupTitle(title = "Recommendations")
         SwitchPreference(
             title = { Text(stringResource(R.string.i_am_chasidish)) },
             icon = { Icon(painterResource(R.drawable.person), null) },
             checked = allowChasidish,
             onCheckedChange = onAllowChasidishChange,
-            isEnabled = enableContentFilters
+            isEnabled = true // Chasidish is not locked, it's for recommendations only
         )
         PreferenceGroupTitle(title = stringResource(R.string.misc))
         EditTextPreference(
@@ -416,8 +451,13 @@ private fun SyncStatusCard(
     authState: AuthState,
     syncState: SyncState,
     syncStatus: SyncStatus,
+    isAutoRestored: Boolean,
+    restoredEmail: String?,
     onSignInClick: () -> Unit,
-    onSyncClick: () -> Unit
+    onSyncClick: () -> Unit,
+    onLockClick: () -> Unit,
+    onUnlockClick: () -> Unit,
+    isLocked: Boolean
 ) {
     Card(
         modifier = Modifier
@@ -479,6 +519,53 @@ private fun SyncStatusCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             when {
+                isAutoRestored && restoredEmail != null -> {
+                    // Auto-restored from server without sign-in
+                    Text(
+                        text = "Content filter preferences have been automatically restored from your account.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Show restored account email
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.person),
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Restored from: $restoredEmail",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Show lock button only if not locked
+                    if (!isLocked) {
+                        OutlinedButton(
+                            onClick = onLockClick,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.lock_open),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Lock Settings")
+                        }
+                    }
+                }
                 authState.isSignedIn -> {
                     // User is signed in
                     val statusText = when (syncStatus) {
@@ -540,31 +627,49 @@ private fun SyncStatusCard(
                                 Text("Sync Now")
                             }
                         }
-
-                        }
+                    }
                 }
                 else -> {
-                    // User is not signed in
+                    // User is not signed in and not auto-restored
                     Text(
-                        text = "Sign in to sync your content filter preferences across devices and restore them after app reinstallation.",
+                        text = "Sign in to sync your content filter preferences and restore them after app reinstallation.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Button(
-                        onClick = onSignInClick,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.person),
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Sign In with Google")
+                    // If not locked, show sign in and lock buttons
+                    if (!isLocked) {
+                        Button(
+                            onClick = onSignInClick,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.person),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Sign In with Google")
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedButton(
+                            onClick = onLockClick,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.lock_open),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Lock Settings")
+                        }
                     }
+                    // If locked, show no buttons - settings are permanently locked
                 }
             }
         }

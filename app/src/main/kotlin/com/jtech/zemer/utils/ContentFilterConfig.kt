@@ -7,7 +7,6 @@ package com.jtech.zemer.utils
 data class ContentFilterConfig(
     val filtersEnabled: Boolean = true,
     val allowFemaleSingers: Boolean = false,
-    val promoteChasidish: Boolean = false,
     val blockVideos: Boolean = false,
     val femalePasscodeHash: String? = null,
     val lastSyncTime: Long = -1L,
@@ -30,7 +29,6 @@ object ContentFilterState {
     fun updateConfig(
         filtersEnabled: Boolean? = null,
         allowFemaleSingers: Boolean? = null,
-        promoteChasidish: Boolean? = null,
         blockVideos: Boolean? = null,
         femalePasscodeHash: String? = null,
         lastSyncTime: Long? = null,
@@ -40,7 +38,6 @@ object ContentFilterState {
         current = currentConfig.copy(
             filtersEnabled = filtersEnabled ?: currentConfig.filtersEnabled,
             allowFemaleSingers = allowFemaleSingers ?: currentConfig.allowFemaleSingers,
-            promoteChasidish = promoteChasidish ?: currentConfig.promoteChasidish,
             blockVideos = blockVideos ?: currentConfig.blockVideos,
             femalePasscodeHash = femalePasscodeHash ?: currentConfig.femalePasscodeHash,
             lastSyncTime = lastSyncTime ?: currentConfig.lastSyncTime,
@@ -54,7 +51,6 @@ object ContentFilterState {
     fun updateContentFilters(
         filtersEnabled: Boolean? = null,
         allowFemaleSingers: Boolean? = null,
-        promoteChasidish: Boolean? = null,
         blockVideos: Boolean? = null,
         femalePasscodeHash: String? = null
     ) {
@@ -62,7 +58,6 @@ object ContentFilterState {
         updateConfig(
             filtersEnabled = filtersEnabled,
             allowFemaleSingers = allowFemaleSingers,
-            promoteChasidish = promoteChasidish,
             blockVideos = blockVideos,
             femalePasscodeHash = femalePasscodeHash
         )
@@ -107,7 +102,6 @@ object ContentFilterState {
     val hasActiveFilters: Boolean
         get() = current.filtersEnabled && (
             current.allowFemaleSingers.not() ||
-            current.promoteChasidish ||
             current.blockVideos ||
             current.femalePasscodeHash != null
         )
