@@ -1,0 +1,191 @@
+package com.jtech.zemer.viewmodels
+
+import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.jtech.zemer.auth.UserAuthManager
+import com.jtech.zemer.auth.AuthState
+import com.jtech.zemer.constants.AllowFemaleSingersKey
+import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.EnableContentFiltersKey
+import com.jtech.zemer.sync.UserPreferencesRepository
+import com.jtech.zemer.sync.ContentFilterSyncService
+import com.jtech.zemer.utils.ContentFilterConfig
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class OnboardingViewModel @Inject constructor(
+    private val userPreferencesRepository: UserPreferencesRepository,
+    val authManager: UserAuthManager,
+    private val syncService: ContentFilterSyncService
+) : ViewModel() {
+
+    data class UiState(
+        val isCheckingAutoRestore: Boolean = false,
+        val hasServerPreferences: Boolean = false,
+        val restoredConfig: ContentFilterConfig? = null,
+        val contentFiltersAlreadySet: Boolean = false,
+        val isSignedIn: Boolean = false
+    )
+
+    private val _uiState = MutableStateFlow(UiState())
+    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+    val authState = authManager.authStateFlow
+
+    init {
+        checkInitialState()
+    }
+
+    suspend fun signInWithGoogle(idToken: String): Result<com.google.firebase.auth.FirebaseUser> {
+    return authManager.signInWithGoogle(idToken).also { result ->
+        if (result.isSuccess) {
+            // Trigger a sync to upload current preferences to Firebase
+            try {
+                syncService.performManualSync()
+            } catch (e: Exception) {
+                // Log error but don't fail the sign-in
+            }
+        }
+    }
+}
+
+    private fun checkInitialState() {
+        viewModelScope.launch {
+            val isSignedIn = authManager.isUserSignedIn
+            val isAutoRestored = userPreferencesRepository.isAutoRestored()
+            val contentFiltersSet = shouldSkipContentFilters()
+
+            _uiState.update {
+                it.copy(
+                    isSignedIn = isSignedIn,
+                    contentFiltersAlreadySet = contentFiltersSet
+                )
+            }
+        }
+    }
+
+    /**
+     * Attempt auto-restore for unregistered users with server preferences
+     */
+    fun attemptAutoRestore() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCheckingAutoRestore = true) }
+
+            try {
+                if (!authManager.isUserSignedIn) {
+                    val result = userPreferencesRepository.fetchDevicePreferencesByDeviceId()
+                    if (result.isSuccess) {
+                        val config = result.getOrThrow()
+
+                        // Mark as auto-restored and auto-lock
+                        userPreferencesRepository.markAutoRestored(config)
+
+                        // Apply locally
+                        userPreferencesRepository.saveToDataStore(config)
+
+                        _uiState.update {
+                            it.copy(
+                                isCheckingAutoRestore = false,
+                                hasServerPreferences = true,
+                                restoredConfig = config,
+                                contentFiltersAlreadySet = true
+                            )
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                isCheckingAutoRestore = false,
+                                hasServerPreferences = false
+                            )
+                        }
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isCheckingAutoRestore = false,
+                            hasServerPreferences = false
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isCheckingAutoRestore = false,
+                        hasServerPreferences = false
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if content filters should be skipped
+     * Returns true if already auto-restored OR complete local configuration exists
+     */
+    suspend fun shouldSkipContentFilters(): Boolean {
+        // Check if already auto-restored
+        if (userPreferencesRepository.isAutoRestored()) {
+            return true
+        }
+
+        // Check for complete local configuration using existing preferences
+        // Note: This would need access to context in a real implementation
+        // For now, we'll delegate this to the UI layer that has context access
+        return false
+    }
+
+    /**
+     * Enhanced version that includes context for proper preference checking
+     */
+    fun shouldSkipContentFilters(context: Context): Boolean {
+        // For now, just check for complete local configuration
+        // Auto-restore check will be handled in the UI with proper coroutine scope
+        val prefs = context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE)
+        val hasEnableFilter = prefs.contains(EnableContentFiltersKey.name)
+        val hasFemaleSetting = prefs.contains(AllowFemaleSingersKey.name)
+        val hasVideoSetting = prefs.contains(BlockVideosKey.name)
+
+        // Only skip if ALL content filter settings are present
+        return hasEnableFilter && hasFemaleSetting && hasVideoSetting
+    }
+
+    /**
+     * Get the restored email for display purposes
+     */
+    fun getRestoredEmail(): String? {
+        return try {
+            // We need to make this synchronous, so we'll use a different approach
+            // This would be better handled by making the UI collect the restored email as state
+            null // For now, return null - can be implemented later
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Reset auto-restore state (for testing or if needed)
+     */
+    fun resetAutoRestoreState() {
+        viewModelScope.launch {
+            try {
+                userPreferencesRepository.clearAutoRestoreState()
+                _uiState.update {
+                    it.copy(
+                        hasServerPreferences = false,
+                        restoredConfig = null,
+                        contentFiltersAlreadySet = false
+                    )
+                }
+            } catch (e: Exception) {
+                // Handle error silently for now
+            }
+        }
+    }
+}

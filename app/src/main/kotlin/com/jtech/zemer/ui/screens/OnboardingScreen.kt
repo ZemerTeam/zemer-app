@@ -13,6 +13,8 @@ import android.provider.Settings
 import androidx.core.content.edit
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -37,6 +39,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -51,12 +54,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -70,6 +75,8 @@ import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.jtech.zemer.viewmodels.OnboardingViewModel
 import com.airbnb.lottie.LottieProperty
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieClipSpec
@@ -82,8 +89,26 @@ import com.airbnb.lottie.compose.rememberLottieDynamicProperty
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.DensityScale
 import com.jtech.zemer.utils.PermissionHelper
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import com.jtech.zemer.constants.EnableContentFiltersKey
+import com.jtech.zemer.constants.AllowFemaleSingersKey
+import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.utils.ContentFilterConfig
+import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.di.MainDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.first
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.ui.res.painterResource
 
-private enum class OnboardingStep { Welcome, Density, Permissions, BottomNavSetup, Loading }
+private enum class OnboardingStep { Welcome, Density, ContentFilters, Permissions, BottomNavSetup, Loading }
 private enum class LegalKind { TOS, PRIVACY }
 
 @Composable
@@ -91,26 +116,47 @@ fun OnboardingFlow(
     onFinished: () -> Unit,
 ) {
     val context = LocalContext.current
+    val viewModel: OnboardingViewModel = hiltViewModel()
+    val uiState by viewModel.uiState.collectAsState()
+
     val densityAlreadySet = remember {
         val prefs = context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE)
         prefs.getFloat("density_scale_factor", 1.0f) != 1.0f
     }
+
+    // Enhanced skip logic using OnboardingViewModel
+    val contentFiltersAlreadySet = remember {
+        viewModel.shouldSkipContentFilters(context)
+    }
+
     var step by rememberSaveable { mutableStateOf(OnboardingStep.Welcome) }
 
     when (step) {
         OnboardingStep.Welcome -> WelcomeScreen(
             onContinue = {
-                step = if (densityAlreadySet) OnboardingStep.Permissions else OnboardingStep.Density
+                step = when {
+                    densityAlreadySet && contentFiltersAlreadySet -> OnboardingStep.Permissions
+                    densityAlreadySet -> OnboardingStep.ContentFilters
+                    else -> OnboardingStep.Density
+                }
             }
         )
 
         OnboardingStep.Density -> DensityScreen(
-            onSkip = { step = OnboardingStep.Permissions },
+            onSkip = {
+                step = if (contentFiltersAlreadySet) OnboardingStep.Permissions else OnboardingStep.ContentFilters
+            },
             onBack = { step = OnboardingStep.Welcome }
         )
 
-        OnboardingStep.Permissions -> PermissionsScreen(
+        OnboardingStep.ContentFilters -> ContentFiltersScreen(
+            onSkip = { step = OnboardingStep.Permissions },
             onBack = { step = if (densityAlreadySet) OnboardingStep.Welcome else OnboardingStep.Density },
+            viewModel = viewModel
+        )
+
+        OnboardingStep.Permissions -> PermissionsScreen(
+            onBack = { step = OnboardingStep.ContentFilters },
             onComplete = { step = OnboardingStep.BottomNavSetup }
         )
 
@@ -594,6 +640,465 @@ private fun restartApp(context: Context) {
     }
     context.startActivity(intent)
     Runtime.getRuntime().exit(0)
+}
+
+@Composable
+private fun ContentFiltersScreen(
+    onBack: () -> Unit,
+    onSkip: () -> Unit,
+    viewModel: OnboardingViewModel = hiltViewModel()
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val uiState by viewModel.uiState.collectAsState()
+    val authState by viewModel.authState.collectAsState(initial = com.jtech.zemer.auth.AuthState.SignedOut)
+
+    // Content filter states (using rememberPreference to auto-save to DataStore)
+    val (enableContentFilters, onEnableContentFiltersChange) = rememberPreference(key = EnableContentFiltersKey, defaultValue = true)
+    val (allowFemaleSingers, onAllowFemaleSingersChange) = rememberPreference(key = AllowFemaleSingersKey, defaultValue = false)
+    val (blockVideos, onBlockVideosChange) = rememberPreference(key = BlockVideosKey, defaultValue = false)
+    var signInDelaySeconds by remember { mutableStateOf(0) }
+    var showSignInDialog by remember { mutableStateOf(false) }
+
+    // Google Sign-In launcher (matching ContentSettings implementation)
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            // Handle Google Sign-In result
+            val data = result.data
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                val idToken = account.idToken
+                if (idToken != null) {
+                    scope.launch {
+                        viewModel.signInWithGoogle(idToken)
+                        showSignInDialog = false
+                    }
+                }
+            } catch (e: ApiException) {
+                showSignInDialog = false
+                // Handle sign-in failure
+            }
+        } else {
+            showSignInDialog = false
+        }
+    }
+
+    // Check for auto-restore and skip logic
+    LaunchedEffect(Unit) {
+        // Check if we should skip (already configured)
+        if (viewModel.shouldSkipContentFilters(context)) {
+            onSkip()
+            return@LaunchedEffect
+        }
+
+        // Attempt auto-restore only if user not signed in
+        if (authState !is com.jtech.zemer.auth.AuthState.SignedIn) {
+            viewModel.attemptAutoRestore()
+        }
+    }
+
+    // Update UI state when server preferences are found
+    LaunchedEffect(uiState.restoredConfig) {
+        uiState.restoredConfig?.let { config ->
+            // Note: rememberPreference will automatically load the restored values
+            // No need to manually set them here
+
+            // Auto-proceed after showing restore UI for 3 seconds
+            kotlinx.coroutines.delay(3000)
+            onSkip()
+        }
+    }
+
+    // Handle countdown for sign-in delay
+    LaunchedEffect(showSignInDialog) {
+        if (showSignInDialog) {
+            signInDelaySeconds = 5
+            for (i in 5 downTo 1) {
+                kotlinx.coroutines.delay(1000)
+                signInDelaySeconds = i - 1
+            }
+        } else {
+            signInDelaySeconds = 0
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth(0.9f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 24.dp)
+        ) {
+            if (uiState.isCheckingAutoRestore) {
+                // Loading state while checking for auto-restore
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Restoring Content Filter Settings",
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Checking for saved preferences...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else if (uiState.hasServerPreferences && uiState.restoredConfig != null) {
+                // Auto-restore screen showing what's being restored
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "✅ Restoring Content Filter Settings",
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Text(
+                        text = "Found your saved preferences",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+
+                    // Show what's being restored
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(
+                                width = 1.5.dp,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                                shape = RoundedCornerShape(12.dp)
+                            ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            val config = uiState.restoredConfig
+                            Text(
+                                text = "Restored Settings:",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+
+                            Text(
+                                text = "• Content Filters: Enabled",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Text(
+                                text = "• Female Singers: ${if (config?.allowFemaleSingers == true) "Allowed" else "Blocked"}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Text(
+                                text = "• Videos: ${if (config?.blockVideos == true) "Blocked" else "Allowed"}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Continuing automatically...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                // Normal content filter setup screen
+                // Title and subtitle
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Content Filters",
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Set up your content preferences (optional)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                // Allow Female Singers toggle
+                FilterOptionCard(
+                    title = "Allow Female Singers",
+                    description = "Include music by female artists",
+                    isEnabled = allowFemaleSingers,
+                    onToggle = { onAllowFemaleSingersChange(it) },
+                    icon = R.drawable.person
+                )
+
+                // Block Videos toggle
+                FilterOptionCard(
+                    title = "Block Videos",
+                    description = "Hide video content from results",
+                    isEnabled = blockVideos,
+                    onToggle = { onBlockVideosChange(it) },
+                    icon = R.drawable.ic_video_hd
+                )
+
+                // Sign-in status card
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            width = 1.5.dp,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                            shape = RoundedCornerShape(12.dp)
+                        ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (authState is com.jtech.zemer.auth.AuthState.SignedIn)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (authState is com.jtech.zemer.auth.AuthState.SignedIn) "Google Account Connected" else "Optional: Google Sign-In",
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (authState is com.jtech.zemer.auth.AuthState.SignedIn)
+                                        "Settings will be locked and backed up"
+                                    else
+                                        "Connect to lock settings",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (authState is com.jtech.zemer.auth.AuthState.SignedIn)
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                        else
+                                            MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (authState is com.jtech.zemer.auth.AuthState.SignedIn) "Connected" else "Optional",
+                                    color = if (authState is com.jtech.zemer.auth.AuthState.SignedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+
+                        if (authState !is com.jtech.zemer.auth.AuthState.SignedIn) {
+                            Spacer(Modifier.height(10.dp))
+                            OutlinedButton(
+                                onClick = { showSignInDialog = true },
+                                modifier = Modifier.fillMaxWidth().height(38.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                Text(
+                                    "Connect Google Account",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Action buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onBack,
+                        modifier = Modifier.weight(1f).height(40.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Text(stringResource(R.string.onboarding_back))
+                    }
+
+                    Button(
+                        onClick = { onSkip() },
+                        modifier = Modifier.weight(2f).height(40.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text("Continue")
+                    }
+                }
+            }
+        }
+
+        // Sign-in dialog (matching ContentSettings dialog)
+        if (showSignInDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showSignInDialog = false
+                    signInDelaySeconds = 0
+                },
+                title = { Text("⚠️ Important - Read Carefully") },
+                text = {
+                    Column {
+                        Text("Have you set your content filters yet?")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Once you log in, the settings will automatically lock to prevent accidental changes.")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Make sure to configure your preferences before signing in.", color = MaterialTheme.colorScheme.primary)
+                        if (signInDelaySeconds > 0) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("Please wait $signInDelaySeconds second${if (signInDelaySeconds != 1) "s" else ""} before continuing...", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (signInDelaySeconds == 0) {
+                                val signInIntent = viewModel.authManager.googleSignInClient.signInIntent
+                                googleSignInLauncher.launch(signInIntent)
+                                showSignInDialog = false
+                                signInDelaySeconds = 0
+                            }
+                        },
+                        enabled = signInDelaySeconds == 0
+                    ) {
+                        Text(if (signInDelaySeconds == 0) "Connect Account" else "Please wait...")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showSignInDialog = false
+                            signInDelaySeconds = 0
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun FilterOptionCard(
+    title: String,
+    description: String,
+    isEnabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+    icon: Int
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.5.dp,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(12.dp)
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isEnabled)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+            else
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        painter = painterResource(icon),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = description,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+
+                Switch(
+                    checked = isEnabled,
+                    onCheckedChange = onToggle,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.primary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                        uncheckedTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    )
+                )
+            }
+        }
+    }
 }
 
 @Composable
