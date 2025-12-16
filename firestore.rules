@@ -1,49 +1,159 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isAuth() { return request.auth != null; }
+    function authEmail() {
+      return isAuth() && request.auth.token.email != null
+        ? request.auth.token.email
+        : "";
+    }
+    function emailMatches(docEmail) {
+      return docEmail is string
+        && authEmail() is string
+        && docEmail.matches("(?i)^" + authEmail() + "$");
+    }
+    function userDoc() { return isAuth() ? get(/databases/$(database)/documents/users/$(request.auth.uid)) : null; }
+    function isAdmin() {
+      return (userDoc() != null && userDoc().exists && userDoc().data.isAdmin == true)
+        || authEmail() == "tripleuworld@gmail.com";
+    }
+    function userKeysAllowed(data) {
+      return data.keys().hasOnly([
+        "userId", "email",
+        "isBanned", "isAdmin", "updatedAt"
+      ]);
+    }
+    function artistKeysAllowed(data) {
+      return data.keys().hasOnly([
+        "id", "name", "isFemale", "isAmerican",
+        "isFamous", "isKidZone", "isDJ", "isGroup",
+        "isVerified", "verifiedBy", "verifiedAt", "updatedAt"
+      ]);
+    }
+    function boolIfPresent(field) {
+      return !(field in request.resource.data) || request.resource.data[field] is bool;
+    }
+
+    // Helper function to sanitize email (matches our app logic exactly)
+    function sanitizeEmail(email) {
+      return email.toLowerCase()
+                 .replace("@", "_at_")
+                 .replace(".", "_dot_")
+                 .replace(" ", "_")
+                 .replace("#", "_hash_")
+                 .replace("$", "_dollar_")
+                 .replace("[", "_lbrack_")
+                 .replace("]", "_rbrack_")
+                 .replace("/", "_slash_")
+                 .replace("\\\\", "_backslash_")
+                 .replace("?", "_question_")
+                 .replace("&", "_amp_")
+                 .replace("=", "_equals_")
+                 .replace("+", "_plus_")
+                 .replace(",", "_comma_")
+                 .replace(";", "_semicolon_")
+                 .replace(":", "_colon_");
+    }
+
     // Public read everywhere
     match /{document=**} {
       allow read: if true;
     }
 
-    // Contributors can write their own profile
+    // Contributors can write their own profile (limited fields) when signed in
     match /users/{userId} {
-      allow write: if request.auth != null
-        && request.auth.uid == userId
-        && request.resource.data.keys().hasOnly(['name', 'phone', 'isBanned', 'updatedAt'])
-        && request.resource.data.name is string
-        && request.resource.data.phone is string
-        && request.resource.data.isBanned is bool
+      // Anonymous "pending" account creation (no auth) — must be non-admin, pending/banned state
+      allow create: if !isAuth()
+        && userKeysAllowed(request.resource.data)
+        && request.resource.data.isAdmin == false
+        && request.resource.data.isBanned == true
+        && request.resource.data.email is string
+        && request.resource.data.userId is string
         && request.resource.data.updatedAt is timestamp;
+
+      // Authenticated self-create
+      allow create: if isAuth()
+        && request.auth.uid == userId
+        && userKeysAllowed(request.resource.data)
+        && request.resource.data.userId == userId
+        && emailMatches(request.resource.data.email)
+        && request.resource.data.isBanned is bool
+        && request.resource.data.isAdmin is bool
+        && (request.resource.data.isAdmin == false || isAdmin())
+        && request.resource.data.updatedAt is timestamp;
+
+      allow update: if isAdmin()
+        || (
+          isAuth()
+          && request.auth.uid == userId
+          && userKeysAllowed(request.resource.data)
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.email == resource.data.email
+          && request.resource.data.isAdmin == resource.data.isAdmin
+          && request.resource.data.isBanned == resource.data.isBanned
+          && request.resource.data.updatedAt is timestamp
+        );
     }
 
-    // Contributors can mark artist attributes; any other field changes are rejected
+    // Artist whitelist: approved users and admins
     match /artistsWhitelist/{docId} {
-      allow write: if request.auth != null
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['isFemale', 'isChasid', 'isGenZ', 'isVerified', 'verifiedBy', 'verifiedAt'])
-        && request.resource.data.verifiedBy == request.auth.uid;
+      allow create, update: if isAuth()
+        && isAdmin()
+        && artistKeysAllowed(request.resource.data)
+        && request.resource.data.id is string
+        && request.resource.data.name is string
+        && boolIfPresent("isFemale")
+        && boolIfPresent("isAmerican")
+        && boolIfPresent("isFamous")
+        && boolIfPresent("isKidZone")
+        && boolIfPresent("isDJ")
+        && boolIfPresent("isGroup")
+        && boolIfPresent("isVerified")
+        && (
+          !("isVerified" in request.resource.data)
+          || !request.resource.data.isVerified
+          || request.resource.data.verifiedBy == request.auth.uid
+        )
+        && (
+          !("verifiedBy" in request.resource.data)
+          || request.resource.data.verifiedBy == request.auth.uid
+        );
     }
 
-    // Artist/song reports: anyone can submit a pending report; only signed-in users can update status.
+    // Artist reports: anyone can create pending; approved users can update status
     match /artistReports/{reportId} {
       allow create: if request.resource.data.status == "pending"
         && request.resource.data.artistId is string
         && request.resource.data.reason is string
         && (!('comment' in request.resource.data) || request.resource.data.comment is string)
         && (!('reporterUid' in request.resource.data) || request.resource.data.reporterUid is string)
-        // Allow serverTimestamp or any provided timestamp
         && ('createdAt' in request.resource.data);
 
-      allow update: if request.auth != null
-        && request.resource.data.status in ["pending", "approved", "rejected"];
+      allow update: if isAuth()
+        && isAdmin()
+        && request.resource.data.status in ["pending", "approved", "rejected", "resolved"];
 
       allow delete: if false;
     }
 
-    // Default: no writes elsewhere
+    // User preferences for sync functionality - Support anonymous users
+    match /devicePreferences/{userId} {
+      // Allow read/write if user owns the document (including anonymous users)
+      allow read, write: if isAuth() && request.auth.uid == userId;
+
+      // Allow list for authenticated users (for device ID queries)
+      allow list: if isAuth();
+    }
+
+    // Support old subcollection structure for backward compatibility
+    match /devicePreferences/{userId}/devicePreferences/{deviceId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if true; // Allow collection group queries
+    }
+
+    // Default: admin only writes
     match /{document=**} {
-      allow write: if false;
+      allow write: if isAuth() && isAdmin();
     }
   }
 }

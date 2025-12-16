@@ -46,14 +46,13 @@ class OnboardingViewModel @Inject constructor(
     }
 
     suspend fun signInWithGoogle(idToken: String): Result<com.google.firebase.auth.FirebaseUser> {
-        return authManager.signInWithGoogle(idToken).also { result ->
-            if (result.isSuccess) {
-                // Trigger a sync to upload current preferences to Firebase
-                try {
-                    syncService.performManualSync()
-                } catch (e: Exception) {
-                    // Log error but don't fail the sign-in
-                }
+    return authManager.signInWithGoogle(idToken).also { result ->
+        if (result.isSuccess) {
+            // Trigger a sync to upload current preferences to Firebase
+            try {
+                syncService.performManualSync()
+            } catch (e: Exception) {
+                // Log error but don't fail the sign-in
             }
         }
     }
@@ -66,6 +65,17 @@ class OnboardingViewModel @Inject constructor(
                 syncService.performManualSync()
             } catch (e: Exception) {
                 // Log error but don't fail the sign-in
+            }
+        }
+    }
+
+    fun syncAfterAnonymousAuth() {
+        viewModelScope.launch {
+            try {
+                syncService.setSyncEnabled(true)
+                syncService.performManualSync()
+            } catch (e: Exception) {
+                // Log error but don't fail the sync
             }
         }
     }

@@ -123,12 +123,12 @@ class UserPreferencesRepository @Inject constructor(
      */
     suspend fun fetchDevicePreferences(): Result<ContentFilterConfig> {
         return try {
-            val userEmail = authManager.currentUserEmail
-                ?: return Result.failure(Exception("User email not available"))
+            val userId = authManager.currentUserId
+                ?: return Result.failure(Exception("User not authenticated"))
 
             val deviceId = deviceIdGenerator.getDeviceId()
 
-            // NEW: Fetch single document by email directly from userPreferences collection
+            // NEW: Fetch single document by UID directly from devicePreferences collection
             val document = firestore
                 .collection(USER_PREFERENCES_COLLECTION)
                 .document(getDocumentId())
@@ -225,8 +225,7 @@ class UserPreferencesRepository @Inject constructor(
         return try {
             val userId = authManager.currentUserId
                 ?: return Result.failure(Exception("User not authenticated"))
-            val userEmail = authManager.currentUserEmail
-                ?: return Result.failure(Exception("User email not available"))
+            val userEmail = authManager.currentUserEmail ?: userId // Use userId as fallback for anonymous users
 
             val deviceId = deviceIdGenerator.getDeviceId()
             val deviceInfo = deviceIdGenerator.getDeviceInfo()
@@ -286,10 +285,10 @@ class UserPreferencesRepository @Inject constructor(
                     .set(newDoc)
                     .await()
 
-                Log.d("ZemerSync", "Created new document for user: $userEmail")
+                Log.d("ZemerSync", "Created new document for user: $userId")
             }
 
-            Log.d("ZemerSync", "Successfully uploaded to: userPreferences/$userEmail")
+            Log.d("ZemerSync", "Successfully uploaded to: devicePreferences/$userId")
 
             // Update sync timestamp
             updateLastSyncTime()
@@ -312,9 +311,7 @@ class UserPreferencesRepository @Inject constructor(
      */
     suspend fun updateDevicePreferences(config: ContentFilterConfig): Result<Unit> {
         return try {
-            val userEmail = authManager.currentUserEmail
-                ?: return Result.failure(Exception("User email not available"))
-
+            // No email needed for updating preferences - we use UID as document ID
             val deviceId = deviceIdGenerator.getDeviceId()
 
             // NEW: Fetch the user document and update the specific device in the devices array
@@ -369,9 +366,7 @@ class UserPreferencesRepository @Inject constructor(
      */
     suspend fun deleteDevicePreferences(): Result<Unit> {
         return try {
-            val userEmail = authManager.currentUserEmail
-                ?: return Result.failure(Exception("User email not available"))
-
+            // No email needed for deleting preferences - we use UID as document ID
             val deviceId = deviceIdGenerator.getDeviceId()
 
             // NEW: Fetch the user document and remove the device from the devices array
@@ -413,12 +408,10 @@ class UserPreferencesRepository @Inject constructor(
      */
     suspend fun getUserDevices(): Result<List<UserDevice>> {
         return try {
-            val userEmail = authManager.currentUserEmail
-                ?: return Result.failure(Exception("User email not available"))
-
+            // No email needed - we use UID as document ID
             val currentDeviceId = deviceIdGenerator.getDeviceId()
 
-            // NEW: Fetch single user document by email
+            // NEW: Fetch single user document by UID
             val document = firestore
                 .collection(USER_PREFERENCES_COLLECTION)
                 .document(getDocumentId())
@@ -500,8 +493,14 @@ class UserPreferencesRepository @Inject constructor(
             //     return Result.failure(Exception("Sync is disabled"))
             // }
 
-            // Get current local configuration
-            val currentConfig = ContentFilterState.current
+            // Get current local configuration from DataStore
+            val prefs = mainDataStore.data.first()
+            val currentConfig = ContentFilterConfig(
+                filtersEnabled = prefs[EnableContentFiltersKey] ?: true,
+                allowFemaleSingers = prefs[AllowFemaleSingersKey] ?: false,
+                blockVideos = prefs[BlockVideosKey] ?: false,
+                femalePasscodeHash = prefs[FemalePasscodeHashKey]
+            )
 
             // Check if device preferences exist
             val existingPrefs = fetchDevicePreferences()

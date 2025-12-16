@@ -75,6 +75,7 @@ import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SwitchPreference
+import com.jtech.zemer.ui.component.AnonymousAuthEmailDialog
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.rememberEnumPreference
@@ -93,6 +94,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ContentSettingsViewModel @Inject constructor(
     val authManager: UserAuthManager,
+    val webAuthManager: com.jtech.zemer.auth.WebViewGoogleAuthManager,
     private val syncService: com.jtech.zemer.sync.ContentFilterSyncService,
     private val userPreferencesRepository: com.jtech.zemer.sync.UserPreferencesRepository
 ) : androidx.lifecycle.ViewModel() {
@@ -102,6 +104,7 @@ class ContentSettingsViewModel @Inject constructor(
     val syncStatus = syncService.getSyncStatusFlow()
 
     suspend fun signInWithGoogle(idToken: String) = authManager.signInWithGoogle(idToken)
+    suspend fun signInAnonymously() = webAuthManager.signInAnonymously()
     suspend fun signOut() = authManager.signOut()
     suspend fun performManualSync() = syncService.performManualSync()
     suspend fun setSyncEnabled(enabled: Boolean) = syncService.setSyncEnabled(enabled)
@@ -308,20 +311,8 @@ fun ContentSettings(
             isAutoRestored = isAutoRestored,
             restoredEmail = restoredEmail,
             onSignInClick = { showSignInDialog = true },
-                        onLockClick = {
-                if (authState.isSignedIn) {
-                    coroutineScope.launch {
-                        viewModel.setLocked(true)
-                        isLocked = true
-                    }
-                } else {
-                    // Show sign-in dialog if user tries to lock without being signed in
-                    showSignInDialog = true
-                }
-            },
-            onUnlockClick = {
-                // No unlock functionality - once locked, always locked
-            },
+            onLockClick = { },
+            onUnlockClick = { },
             isLocked = isLocked
         )
 
@@ -377,34 +368,72 @@ fun ContentSettings(
             onValueSelected = onQuickPicksChange,)
     }
 
-    // Sign-in dialog
+    // Create account dialog
     if (showSignInDialog) {
+        var isLoading by remember { mutableStateOf(false) }
+
         AlertDialog(
-            onDismissRequest = { showSignInDialog = false },
-            title = { Text("Sign In Required") },
-            text = { Text("Sign in with your Google account to save your locked content filter settings. This ensures your preferences are backed up and can be restored after app reinstallation.") },
+            onDismissRequest = { if (!isLoading) showSignInDialog = false },
+            title = { Text("Create Sync Account") },
+            text = {
+                if (isLoading) {
+                    Text("Creating account and locking your preferences...")
+                } else {
+                    Column {
+                        Text("Create an anonymous account to sync and backup your content filter settings.")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("This will permanently lock your preferences to prevent accidental changes.", color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = {
-                        val signInIntent = viewModel.authManager.googleSignInClient.signInIntent
-                        googleSignInLauncher.launch(signInIntent)
-                        showSignInDialog = false
-                    }
+                        isLoading = true
+                        coroutineScope.launch {
+                            try {
+                                val result = viewModel.webAuthManager.signInAnonymously()
+                                if (result.isSuccess) {
+                                    // Lock settings after successful authentication
+                                    viewModel.setLocked(true)
+                                    isLocked = true
+                                    // Enable sync and perform initial sync
+                                    viewModel.setSyncEnabled(true)
+                                    viewModel.performManualSync()
+                                }
+                            } catch (e: Exception) {
+                                // Handle error
+                            } finally {
+                                isLoading = false
+                                showSignInDialog = false
+                            }
+                        }
+                    },
+                    enabled = !isLoading
                 ) {
-                    Text("Sign In with Google")
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Create Account & Lock")
+                    }
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { showSignInDialog = false }
-                ) {
-                    Text("Cancel")
+                if (!isLoading) {
+                    TextButton(
+                        onClick = { showSignInDialog = false }
+                    ) {
+                        Text("Cancel")
+                    }
                 }
             }
         )
     }
 
-    
     TopAppBar(
         title = { Text(stringResource(R.string.content)) },
         navigationIcon = {
@@ -587,41 +616,26 @@ private fun SyncStatusCard(
                 else -> {
                     // User is not signed in and not auto-restored
                     Text(
-                        text = "Sign in to sync your content filter preferences and restore them after app reinstallation.",
+                        text = "Create an account to sync your content filter preferences and restore them after app reinstallation.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // If not locked, show sign in and lock buttons
+                    // If not locked, show create account button
                     if (!isLocked) {
                         Button(
                             onClick = onSignInClick,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(
-                                painter = painterResource(R.drawable.person),
+                                painter = painterResource(R.drawable.lock),
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Sign In with Google")
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        OutlinedButton(
-                            onClick = onLockClick,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.lock_open),
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Lock Settings")
+                            Text("Create Account to Lock")
                         }
                     }
                     // If locked, show no buttons - settings are permanently locked

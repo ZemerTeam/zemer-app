@@ -124,9 +124,13 @@ fun OnboardingFlow(
         prefs.getFloat("density_scale_factor", 1.0f) != 1.0f
     }
 
-    // Enhanced skip logic using OnboardingViewModel
+    // Simple check if filters are already set
     val contentFiltersAlreadySet = remember {
-        viewModel.shouldSkipContentFilters(context)
+        context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE).let { prefs ->
+            prefs.contains(EnableContentFiltersKey.name) &&
+            prefs.contains(AllowFemaleSingersKey.name) &&
+            prefs.contains(BlockVideosKey.name)
+        }
     }
 
     var step by rememberSaveable { mutableStateOf(OnboardingStep.Welcome) }
@@ -152,7 +156,8 @@ fun OnboardingFlow(
         OnboardingStep.ContentFilters -> ContentFiltersScreen(
             onSkip = { step = OnboardingStep.Permissions },
             onBack = { step = if (densityAlreadySet) OnboardingStep.Welcome else OnboardingStep.Density },
-            viewModel = viewModel
+            viewModel = viewModel,
+            contentFiltersAlreadySet = contentFiltersAlreadySet
         )
 
         OnboardingStep.Permissions -> PermissionsScreen(
@@ -646,7 +651,8 @@ private fun restartApp(context: Context) {
 private fun ContentFiltersScreen(
     onBack: () -> Unit,
     onSkip: () -> Unit,
-    viewModel: OnboardingViewModel = hiltViewModel()
+    viewModel: OnboardingViewModel = hiltViewModel(),
+    contentFiltersAlreadySet: Boolean = false
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -689,7 +695,7 @@ private fun ContentFiltersScreen(
     // Check for auto-restore and skip logic
     LaunchedEffect(Unit) {
         // Check if we should skip (already configured)
-        if (viewModel.shouldSkipContentFilters(context)) {
+        if (contentFiltersAlreadySet) {
             onSkip()
             return@LaunchedEffect
         }
@@ -896,7 +902,7 @@ private fun ContentFiltersScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = if (authState is com.jtech.zemer.auth.AuthState.SignedIn) "Google Account Connected" else "Optional: Google Sign-In",
+                                    text = if (authState is com.jtech.zemer.auth.AuthState.SignedIn) "Sync Account Created" else "Optional: Create Sync Account",
                                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
@@ -923,7 +929,7 @@ private fun ContentFiltersScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = if (authState is com.jtech.zemer.auth.AuthState.SignedIn) "Connected" else "Optional",
+                                    text = if (authState is com.jtech.zemer.auth.AuthState.SignedIn) "Active" else "Optional",
                                     color = if (authState is com.jtech.zemer.auth.AuthState.SignedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                                     textAlign = TextAlign.Center
@@ -942,7 +948,7 @@ private fun ContentFiltersScreen(
                                 )
                             ) {
                                 Text(
-                                    "Connect Google Account",
+                                    "Create Sync Account",
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
                                 )
                             }
@@ -1004,15 +1010,21 @@ private fun ContentFiltersScreen(
                     Button(
                         onClick = {
                             if (signInDelaySeconds == 0) {
-                                val signInIntent = viewModel.authManager.googleSignInClient.signInIntent
-                                googleSignInLauncher.launch(signInIntent)
+                                // Create anonymous account directly
+                                scope.launch {
+                                    val result = viewModel.webAuthManager.signInAnonymously()
+                                    if (result.isSuccess) {
+                                        // Sync preferences after successful authentication
+                                        viewModel.signInAnonymously()
+                                    }
+                                }
                                 showSignInDialog = false
                                 signInDelaySeconds = 0
                             }
                         },
                         enabled = signInDelaySeconds == 0
                     ) {
-                        Text(if (signInDelaySeconds == 0) "Connect Account" else "Please wait...")
+                        Text(if (signInDelaySeconds == 0) "Create Account" else "Please wait...")
                     }
                 },
                 dismissButton = {
