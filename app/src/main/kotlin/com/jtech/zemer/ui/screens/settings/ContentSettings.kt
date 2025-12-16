@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -586,14 +587,19 @@ private fun SyncStatusCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // Show logged-in account
-                    val userEmail = when (authState) {
-                        is AuthState.SignedIn -> authState.email
+                    // Show logged-in account info
+                    val userInfo = when (authState) {
+                        is AuthState.SignedIn -> Pair(
+                            authState.email ?: "Anonymous",
+                            authState.userId
+                        )
                         else -> null
                     }
 
-                    if (userEmail != null) {
+                    if (userInfo != null) {
                         Spacer(modifier = Modifier.height(8.dp))
+
+                        // Show email or "Anonymous"
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -605,10 +611,31 @@ private fun SyncStatusCard(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = userEmail,
+                                text = userInfo.first,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Show user ID
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.security),
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "ID: ${userInfo.second.take(12)}...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontFamily = FontFamily.Monospace
                             )
                         }
                     }

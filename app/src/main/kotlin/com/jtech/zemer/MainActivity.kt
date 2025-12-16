@@ -582,6 +582,7 @@ class MainActivity : ComponentActivity() {
                         val syncScope = rememberCoroutineScope()
                         val lifecycleOwner = LocalLifecycleOwner.current
 
+                        
                         // Show onboarding first (before splash screen)
                         if (!onboardingComplete) {
                             OnboardingFlow(

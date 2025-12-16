@@ -86,7 +86,37 @@ fun Context.isUserLoggedInFlow(): Flow<Boolean> {
 }
 
 fun Context.isInternetConnected(): Boolean {
-    val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    val networkCapabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
-    return networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) ?: false
+    return try {
+        // First check if we have a network connection
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val activeNetwork = connectivityManager.activeNetwork ?: return false
+        val networkCapabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+
+        // Check if network has internet capability
+        if (!networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
+            return false
+        }
+
+        // For more accurate detection, try a simple socket connection
+        // This is faster than HTTP and more reliable than just checking capabilities
+        return try {
+            val socket = java.net.Socket()
+            socket.connect(java.net.InetSocketAddress("8.8.8.8", 53), 1500) // Google DNS, 1.5 second timeout
+            socket.close()
+            true
+        } catch (e: Exception) {
+            // If we can't reach Google DNS, try Cloudflare
+            try {
+                val socket = java.net.Socket()
+                socket.connect(java.net.InetSocketAddress("1.1.1.1", 53), 1500) // Cloudflare DNS
+                socket.close()
+                true
+            } catch (e2: Exception) {
+                false
+            }
+        }
+    } catch (e: Exception) {
+        timber.log.Timber.e(e, "Failed to check internet connectivity")
+        false
+    }
 }

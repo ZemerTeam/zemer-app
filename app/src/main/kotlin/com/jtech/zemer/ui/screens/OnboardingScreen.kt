@@ -89,6 +89,7 @@ import com.airbnb.lottie.compose.rememberLottieDynamicProperty
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.DensityScale
 import com.jtech.zemer.utils.PermissionHelper
+import com.jtech.zemer.extensions.isInternetConnected
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -107,9 +108,96 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.ui.res.painterResource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 private enum class OnboardingStep { Welcome, Density, ContentFilters, Permissions, BottomNavSetup, Loading }
 private enum class LegalKind { TOS, PRIVACY }
+
+@Composable
+private fun NetworkStatusBanner(
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var isConnected by remember { mutableStateOf(false) }
+    var isChecking by remember { mutableStateOf(true) }
+
+    // Periodic network check on background thread
+    LaunchedEffect(Unit) {
+        // Initial check
+        isConnected = withContext(Dispatchers.IO) {
+            context.isInternetConnected()
+        }
+        isChecking = false
+
+        // Continue checking every 2 seconds
+        while (true) {
+            delay(2000)
+            val newConnectionState = withContext(Dispatchers.IO) {
+                context.isInternetConnected()
+            }
+            if (newConnectionState != isConnected) {
+                isConnected = newConnectionState
+            }
+        }
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                isChecking -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                isConnected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                else -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+            }
+        ),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (isChecking) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Icon(
+                    painter = painterResource(
+                        id = if (isConnected) R.drawable.wifi_proxy else R.drawable.offline
+                    ),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = if (isConnected)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.error
+                )
+            }
+
+            Text(
+                text = when {
+                    isChecking -> "Checking connection..."
+                    isConnected -> "Connected to internet"
+                    else -> "No internet connection"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = when {
+                    isChecking -> MaterialTheme.colorScheme.onSurfaceVariant
+                    isConnected -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.error
+                }
+            )
+        }
+    }
+}
 
 @Composable
 fun OnboardingFlow(
@@ -180,6 +268,8 @@ fun OnboardingFlow(
 private fun WelcomeScreen(
     onContinue: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val gradient = Brush.verticalGradient(
         listOf(
             MaterialTheme.colorScheme.surface,
@@ -188,6 +278,29 @@ private fun WelcomeScreen(
     )
     var legal by remember { mutableStateOf<LegalKind?>(null) }
     var agreed by rememberSaveable { mutableStateOf(false) }
+    var isConnected by remember { mutableStateOf(false) }
+    var isCheckingNetwork by remember { mutableStateOf(true) }
+
+    // Initial and periodic network checks
+    LaunchedEffect(Unit) {
+        // Initial check
+        isConnected = withContext(Dispatchers.IO) {
+            context.isInternetConnected()
+        }
+        isCheckingNetwork = false
+
+        // Continue checking every 2 seconds
+        while (true) {
+            delay(2000)
+            val newConnectionState = withContext(Dispatchers.IO) {
+                context.isInternetConnected()
+            }
+            if (newConnectionState != isConnected) {
+                isConnected = newConnectionState
+            }
+        }
+    }
+
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.welcome))
     val animationState = animateLottieCompositionAsState(
         composition = composition,
@@ -290,15 +403,40 @@ private fun WelcomeScreen(
 
                 Button(
                     onClick = onContinue,
-                    enabled = agreed,
+                    enabled = agreed && isConnected && !isCheckingNetwork,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
+                    if (isCheckingNetwork) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text(
+                            text = when {
+                                !isConnected -> "Internet Required"
+                                else -> stringResource(R.string.onboarding_continue)
+                            },
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+
+                if (!isConnected || isCheckingNetwork) {
                     Text(
-                        text = stringResource(R.string.onboarding_continue),
-                        style = MaterialTheme.typography.labelMedium
+                        text = when {
+                            isCheckingNetwork -> "Checking internet connection..."
+                            !isConnected -> "An internet connection is required to continue with setup and save your preferences."
+                            else -> ""
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
@@ -324,6 +462,28 @@ private fun DensityScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    var isConnected by remember { mutableStateOf(false) }
+    var isCheckingNetwork by remember { mutableStateOf(true) }
+
+    // Initial and periodic network checks
+    LaunchedEffect(Unit) {
+        // Initial check
+        isConnected = withContext(Dispatchers.IO) {
+            context.isInternetConnected()
+        }
+        isCheckingNetwork = false
+
+        // Continue checking every 2 seconds
+        while (true) {
+            delay(2000)
+            val newConnectionState = withContext(Dispatchers.IO) {
+                context.isInternetConnected()
+            }
+            if (newConnectionState != isConnected) {
+                isConnected = newConnectionState
+            }
+        }
+    }
     var selectedDensity by rememberSaveable { mutableStateOf(DensityScale.NATIVE) }
     var customDensityValue by rememberSaveable { mutableStateOf(0.85f) }
     var showRestartDialog by rememberSaveable { mutableStateOf(false) }
@@ -342,6 +502,7 @@ private fun DensityScreen(
                 .align(Alignment.Center)
                 .fillMaxWidth(0.92f)
         ) {
+            
             Column(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier.fillMaxWidth(),
@@ -438,6 +599,7 @@ private fun DensityScreen(
                                 }
                             showRestartDialog = true
                         },
+                        enabled = isConnected && !isCheckingNetwork,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(40.dp),
@@ -447,7 +609,9 @@ private fun DensityScreen(
                         )
                     ) {
                         Text(
-                            text = stringResource(R.string.onboarding_apply_density),
+                            text = if (isCheckingNetwork) "Checking..."
+                                  else if (!isConnected) "Internet Required"
+                                  else stringResource(R.string.onboarding_apply_density),
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
@@ -455,15 +619,30 @@ private fun DensityScreen(
 
                 OutlinedButton(
                     onClick = onSkip,
+                    enabled = isConnected && !isCheckingNetwork,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(40.dp),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                    border = BorderStroke(1.dp, if (isConnected && !isCheckingNetwork) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                 ) {
                     Text(
-                        text = stringResource(R.string.onboarding_skip),
-                        style = MaterialTheme.typography.labelMedium
+                        text = if (isCheckingNetwork) "Checking..."
+                              else if (!isConnected) "Internet Required"
+                              else stringResource(R.string.onboarding_skip),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (isConnected && !isCheckingNetwork) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (!isConnected || isCheckingNetwork) {
+                    Text(
+                        text = if (isCheckingNetwork) "Checking internet connection..."
+                              else "An internet connection is required to continue.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 
@@ -658,6 +837,28 @@ private fun ContentFiltersScreen(
     val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
     val authState by viewModel.authState.collectAsState(initial = com.jtech.zemer.auth.AuthState.SignedOut)
+    var isConnected by remember { mutableStateOf(false) }
+    var isCheckingNetwork by remember { mutableStateOf(true) }
+
+    // Initial and periodic network checks
+    LaunchedEffect(Unit) {
+        // Initial check
+        isConnected = withContext(Dispatchers.IO) {
+            context.isInternetConnected()
+        }
+        isCheckingNetwork = false
+
+        // Continue checking every 2 seconds
+        while (true) {
+            delay(2000)
+            val newConnectionState = withContext(Dispatchers.IO) {
+                context.isInternetConnected()
+            }
+            if (newConnectionState != isConnected) {
+                isConnected = newConnectionState
+            }
+        }
+    }
 
     // Content filter states (using rememberPreference to auto-save to DataStore)
     val (enableContentFilters, onEnableContentFiltersChange) = rememberPreference(key = EnableContentFiltersKey, defaultValue = true)
@@ -745,7 +946,7 @@ private fun ContentFiltersScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 24.dp)
         ) {
-            if (uiState.isCheckingAutoRestore) {
+                        if (uiState.isCheckingAutoRestore) {
                 // Loading state while checking for auto-restore
                 Column(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -775,7 +976,7 @@ private fun ContentFiltersScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "✅ Restoring Content Filter Settings",
+                        text = "Restoring Content Filter Settings",
                         style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.primary
@@ -974,12 +1175,15 @@ private fun ContentFiltersScreen(
 
                     Button(
                         onClick = { onSkip() },
+                        enabled = isConnected && !isCheckingNetwork,
                         modifier = Modifier.weight(2f).height(40.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Text("Continue")
+                        Text(if (isCheckingNetwork) "Checking..."
+                             else if (!isConnected) "Internet Required"
+                             else "Continue")
                     }
                 }
             }
@@ -1215,7 +1419,7 @@ private fun PermissionsScreen(
                 .align(Alignment.Center)
                 .fillMaxWidth(0.9f)
         ) {
-            Column(
+                        Column(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -1633,7 +1837,7 @@ private fun BottomNavSetupScreen(
                 .align(Alignment.Center)
                 .fillMaxWidth(0.9f)
         ) {
-            Column(
+                        Column(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
