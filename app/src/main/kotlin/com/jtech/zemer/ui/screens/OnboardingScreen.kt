@@ -1198,12 +1198,16 @@ private fun ContentFiltersScreen(
                 },
                 title = { Text("⚠️ Important - Read Carefully") },
                 text = {
-                    Column {
-                        Text("Have you set your content filters yet?")
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Text("Create an anonymous account to sync and backup your content filter settings.")
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Once you log in, the settings will automatically lock to prevent accidental changes.")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Make sure to configure your preferences before signing in.", color = MaterialTheme.colorScheme.primary)
+                        Text("This will permanently lock your preferences to prevent accidental changes.", color = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("THIS CANNOT BE CHANGED ONCE SET, IT WILL PERSIST CLEARING DATA OR UNINSTALLATION OF THE APP!", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                         if (signInDelaySeconds > 0) {
                             Spacer(modifier = Modifier.height(12.dp))
                             Text("Please wait $signInDelaySeconds second${if (signInDelaySeconds != 1) "s" else ""} before continuing...", color = MaterialTheme.colorScheme.error)

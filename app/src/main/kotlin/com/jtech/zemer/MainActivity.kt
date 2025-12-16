@@ -1314,34 +1314,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                 )
-                                if (isContributorSignedIn) {
-                                    val contributeBringIntoViewRequester = remember { BringIntoViewRequester() }
-                                    NavigationDrawerItem(
-                                        label = { Text(stringResource(R.string.contribute)) },
-                                        icon = { Icon(painterResource(R.drawable.person), null) },
-                                        selected = navBackStackEntry?.destination?.route == "settings/contribute",
-                                        onClick = {
-                                            coroutineScope.launch { drawerState.close() }
-                                            navController.navigate("settings/contribute") {
-                                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        },
-                                        modifier = Modifier
-                                            .padding(NavigationDrawerItemDefaults.ItemPadding)
-                                            .focusProperties { canFocus = drawerState.isOpen }
-                                            .bringIntoViewRequester(contributeBringIntoViewRequester)
-                                            .onFocusEvent { event ->
-                                                if (event.isFocused) {
-                                                    coroutineScope.launch {
-                                                        contributeBringIntoViewRequester.bringIntoView()
-                                                    }
-                                                }
-                                            }
-                                    )
-                                }
-                                val settingsBringIntoViewRequester = remember { BringIntoViewRequester() }
+                                                                val settingsBringIntoViewRequester = remember { BringIntoViewRequester() }
                                 NavigationDrawerItem(
                                     label = { Text(stringResource(R.string.settings)) },
                                     icon = {

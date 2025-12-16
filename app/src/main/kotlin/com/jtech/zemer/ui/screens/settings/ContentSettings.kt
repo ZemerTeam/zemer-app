@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import com.google.android.gms.common.api.ApiException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -155,6 +156,7 @@ fun ContentSettings(
     }
 
     var showSignInDialog by remember { mutableStateOf(false) }
+    var signInDelaySeconds by remember { mutableStateOf(0) }
 
     // Determine if toggles should be disabled
     val togglesEnabled = !isLocked && !authState.isSignedIn
@@ -205,6 +207,19 @@ fun ContentSettings(
             allowFemaleSingers = allowFemaleSingers,
             blockVideos = blockVideos
         )
+    }
+
+    // Handle countdown for sign-in delay
+    LaunchedEffect(showSignInDialog) {
+        if (showSignInDialog) {
+            signInDelaySeconds = 5
+            for (i in 5 downTo 1) {
+                delay(1000)
+                signInDelaySeconds = i - 1
+            }
+        } else {
+            signInDelaySeconds = 0
+        }
     }
 
     Column(
@@ -380,37 +395,48 @@ fun ContentSettings(
                 if (isLoading) {
                     Text("Creating account and locking your preferences...")
                 } else {
-                    Column {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
                         Text("Create an anonymous account to sync and backup your content filter settings.")
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("This will permanently lock your preferences to prevent accidental changes.", color = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("THIS CANNOT BE CHANGED ONCE SET, IT WILL PERSIST CLEARING DATA OR UNINSTALLATION OF THE APP!", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Please wait $signInDelaySeconds second${if (signInDelaySeconds != 1) "s" else ""} before continuing...", color = MaterialTheme.colorScheme.error)
                     }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        isLoading = true
-                        coroutineScope.launch {
-                            try {
-                                val result = viewModel.webAuthManager.signInAnonymously()
-                                if (result.isSuccess) {
-                                    // Lock settings after successful authentication
-                                    viewModel.setLocked(true)
-                                    isLocked = true
-                                    // Enable sync and perform initial sync
-                                    viewModel.setSyncEnabled(true)
-                                    viewModel.performManualSync()
+                        if (signInDelaySeconds == 0) {
+                            isLoading = true
+                            coroutineScope.launch {
+                                try {
+                                    val result = viewModel.webAuthManager.signInAnonymously()
+                                    if (result.isSuccess) {
+                                        // Lock settings after successful authentication
+                                        viewModel.setLocked(true)
+                                        isLocked = true
+                                        // Enable sync and perform initial sync
+                                        viewModel.setSyncEnabled(true)
+                                        viewModel.performManualSync()
+                                    }
+                                } catch (e: Exception) {
+                                    // Handle error
+                                } finally {
+                                    isLoading = false
+                                    showSignInDialog = false
+                                    signInDelaySeconds = 0
                                 }
-                            } catch (e: Exception) {
-                                // Handle error
-                            } finally {
-                                isLoading = false
-                                showSignInDialog = false
                             }
                         }
                     },
-                    enabled = !isLoading
+                    enabled = !isLoading && signInDelaySeconds == 0
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
@@ -419,14 +445,17 @@ fun ContentSettings(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Text("Create Account & Lock")
+                        Text(if (signInDelaySeconds == 0) "Create Account & Lock" else "Please wait...")
                     }
                 }
             },
             dismissButton = {
                 if (!isLoading) {
                     TextButton(
-                        onClick = { showSignInDialog = false }
+                        onClick = {
+                            showSignInDialog = false
+                            signInDelaySeconds = 0
+                        }
                     ) {
                         Text("Cancel")
                     }
@@ -590,7 +619,7 @@ private fun SyncStatusCard(
                     // Show logged-in account info
                     val userInfo = when (authState) {
                         is AuthState.SignedIn -> Pair(
-                            authState.email ?: "Anonymous",
+                            authState.email,
                             authState.userId
                         )
                         else -> null
@@ -598,27 +627,6 @@ private fun SyncStatusCard(
 
                     if (userInfo != null) {
                         Spacer(modifier = Modifier.height(8.dp))
-
-                        // Show email or "Anonymous"
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.person),
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = userInfo.first,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(4.dp))
 
                         // Show user ID
                         Row(
@@ -632,7 +640,7 @@ private fun SyncStatusCard(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "ID: ${userInfo.second.take(12)}...",
+                                text = "ID: ${userInfo.second}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontFamily = FontFamily.Monospace
