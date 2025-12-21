@@ -722,7 +722,7 @@ fun BottomSheetPlayer(
                                         type = "text/plain"
                                         putExtra(
                                             Intent.EXTRA_TEXT,
-                                            "https://music.youtube.com/watch?v=${mediaMetadata.id}"
+                                            "https://music.zemer.io/watch?v=${mediaMetadata.id}"
                                         )
                                     }
                                     context.startActivity(Intent.createChooser(intent, null))
@@ -791,7 +791,7 @@ fun BottomSheetPlayer(
                                         type = "text/plain"
                                         putExtra(
                                             Intent.EXTRA_TEXT,
-                                            "https://music.youtube.com/watch?v=${mediaMetadata.id}"
+                                            "https://music.zemer.io/watch?v=${mediaMetadata.id}"
                                         )
                                     }
                                 context.startActivity(Intent.createChooser(intent, null))

@@ -102,6 +102,14 @@ fun SettingsScreen(
             route = "settings/dpad"
         ),
         SettingItem(
+            id = "general",
+            title = stringResource(R.string.general),
+            description = "Link handling settings",
+            icon = R.drawable.link,
+            section = "Player & Content",
+            route = "settings/general"
+        ),
+        SettingItem(
             id = "privacy",
             title = stringResource(R.string.privacy),
             description = "History, privacy settings",

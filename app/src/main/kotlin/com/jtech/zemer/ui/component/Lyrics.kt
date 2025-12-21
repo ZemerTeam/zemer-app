@@ -729,7 +729,7 @@ fun Lyrics(
                                     action = Intent.ACTION_SEND
                                     type = "text/plain"
                                     val songLink =
-                                        "https://music.youtube.com/watch?v=${mediaMetadata?.id}"
+                                        "https://music.zemer.io/watch?v=${mediaMetadata?.id}"
                                     // Use the potentially multi-line lyricsText here
                                     putExtra(
                                         Intent.EXTRA_TEXT,

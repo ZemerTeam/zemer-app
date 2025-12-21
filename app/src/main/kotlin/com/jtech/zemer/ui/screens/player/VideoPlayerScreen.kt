@@ -96,6 +96,7 @@ import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.utils.MediaStoreHelper
 import com.jtech.zemer.utils.UrlValidator
+import com.jtech.zemer.utils.VideoLinkBuilder
 import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.rememberPreference
 import com.metrolist.innertube.utils.ResilientDns
@@ -743,7 +744,7 @@ fun VideoPlayerScreen(
                                         IconButton(
                                             onClick = {
                                                 markInteraction()
-                                                val clip = ClipData.newPlainText("Video link", "https://youtu.be/$videoId")
+                                                val clip = ClipData.newPlainText("Video link", VideoLinkBuilder.videoLink(videoId))
                                                 clipboard?.setPrimaryClip(clip)
                                                 Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
                                             },

@@ -155,6 +155,7 @@ val ShowDownloadedPlaylistKey = booleanPreferencesKey("show_downloaded_playlist"
 val ShowTopPlaylistKey = booleanPreferencesKey("show_top_playlist")
 val ShowCachedPlaylistKey = booleanPreferencesKey("show_cached_playlist")
 val ShowUploadedPlaylistKey = booleanPreferencesKey("show_uploaded_playlist")
+val DefaultLinkHandlerKey = booleanPreferencesKey("defaultLinkHandler")
 
 enum class LibraryViewType {
     LIST,

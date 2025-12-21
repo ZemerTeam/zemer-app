@@ -81,6 +81,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.MediaStoreDownloadManager
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.ui.component.ListDialog
+import com.jtech.zemer.utils.VideoLinkBuilder
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
@@ -427,7 +428,12 @@ fun YouTubeSongMenu(
                             val intent = Intent().apply {
                                 action = Intent.ACTION_SEND
                                 type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, song.shareLink)
+                                val shareUrl = if (isVideo) {
+                                    VideoLinkBuilder.videoLink(song.id)
+                                } else {
+                                    song.shareLink
+                                }
+                                putExtra(Intent.EXTRA_TEXT, shareUrl)
                             }
                             context.startActivity(Intent.createChooser(intent, null))
                             onDismiss()

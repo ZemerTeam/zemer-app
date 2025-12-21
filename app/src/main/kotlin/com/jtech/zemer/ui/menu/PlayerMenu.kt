@@ -367,7 +367,7 @@ fun PlayerMenu(
                         text = stringResource(R.string.copy_link),
                         onClick = {
                             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            val clip = android.content.ClipData.newPlainText("Song Link", "https://music.youtube.com/watch?v=${mediaMetadata.id}")
+                            val clip = android.content.ClipData.newPlainText("Song Link", "https://music.zemer.io/watch?v=${mediaMetadata.id}")
                             clipboard.setPrimaryClip(clip)
                             Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
                             onDismiss()

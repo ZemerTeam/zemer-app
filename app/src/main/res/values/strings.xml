@@ -126,6 +126,9 @@
     <string name="view_album">View album</string>
     <string name="refetch">Refetch</string>
     <string name="share">Share</string>
+    <string name="default_link_handler">Default link handler</string>
+    <string name="default_link_handler_description">Open music.zemer.io links with Zemer by default</string>
+    <string name="links">Links</string>
     <string name="delete">Delete</string>
     <string name="remove_from_history">Remove from history</string>
     <string name="remove_from_playlist">Remove from playlist</string>
