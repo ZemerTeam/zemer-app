@@ -103,7 +103,7 @@ fun SettingsScreen(
         ),
         SettingItem(
             id = "general",
-            title = stringResource(R.string.general),
+            title = stringResource(R.string.links),
             description = "Link handling settings",
             icon = R.drawable.link,
             section = "Player & Content",

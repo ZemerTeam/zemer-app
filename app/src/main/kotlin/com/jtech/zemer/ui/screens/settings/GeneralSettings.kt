@@ -54,7 +54,6 @@ fun GeneralSettings(
 
         SwitchPreference(
             title = { Text(stringResource(R.string.default_link_handler)) },
-            description = stringResource(R.string.default_link_handler_description),
             icon = { Icon(painterResource(R.drawable.link), null) },
             checked = defaultLinkHandler,
             onCheckedChange = {
