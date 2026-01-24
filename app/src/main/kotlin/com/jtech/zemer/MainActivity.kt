@@ -1811,6 +1811,7 @@ class MainActivity : ComponentActivity() {
                                         navigationBuilder(
                                             navController,
                                             topAppBarScrollBehavior,
+                                            searchBarScrollBehavior,
                                             latestVersionName
                                         )
                                     }

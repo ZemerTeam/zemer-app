@@ -44,13 +44,14 @@ import com.jtech.zemer.ui.screens.settings.integrations.IntegrationScreen
 fun NavGraphBuilder.navigationBuilder(
     navController: NavHostController,
     scrollBehavior: TopAppBarScrollBehavior,
+    searchBarScrollBehavior: TopAppBarScrollBehavior,
     latestVersionName: String,
 ) {
     composable(Screens.Home.route) {
         HomeScreen(navController)
     }
     composable(Screens.Artists.route) {
-        WhitelistedArtistsScreen(navController)
+        WhitelistedArtistsScreen(navController, searchBarScrollBehavior)
     }
     composable(Screens.KidZone.route) {
         KidZoneScreen(navController)

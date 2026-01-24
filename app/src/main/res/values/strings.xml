@@ -9,6 +9,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Bottom navigation -->
     <string name="home">Home</string>
+    <string name="back_to_top">Back to top</string>
     <string name="songs">Songs</string>
     <string name="artists">Artists</string>
     <string name="kid_zone">Kid Zone</string>
