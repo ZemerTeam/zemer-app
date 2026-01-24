@@ -4,6 +4,7 @@ import android.net.ConnectivityManager
 import androidx.core.net.toUri
 import androidx.media3.common.PlaybackException
 import com.jtech.zemer.constants.AudioQuality
+import timber.log.Timber
 import com.metrolist.innertube.NewPipeUtils
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.YouTubeClient
@@ -26,23 +27,15 @@ import okhttp3.OkHttpClient
 
 object YTPlayerUtils {
 
+    private const val TAG = "YTPlayerUtils"
+
     private val httpClient = OkHttpClient.Builder()
         .dns(ResilientDns())
         .proxy(YouTube.proxy)
         .build()
-    /**
-     * The main client is used for metadata and initial streams.
-     * Do not use other clients for this because it can result in inconsistent metadata.
-     * For example other clients can have different normalization targets (loudnessDb).
-     *
-     * [com.metrolist.innertube.models.YouTubeClient.WEB_REMIX] should be preferred here because currently it is the only client which provides:
-     * - the correct metadata (like loudnessDb)
-     * - premium formats
-     */
+
     private val MAIN_CLIENT: YouTubeClient = ANDROID_VR_1_43_32
-    /**
-     * Clients used for fallback streams in case the streams of the main client do not work.
-     */
+
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
         ANDROID_VR_1_61_48,
         WEB_REMIX,
@@ -66,8 +59,8 @@ object YTPlayerUtils {
     )
     /**
      * Custom player response intended to use for playback.
-     * Metadata like audioConfig and videoDetails are from [MAIN_CLIENT].
-     * Format & stream can be from [MAIN_CLIENT] or [STREAM_FALLBACK_CLIENTS].
+     * Metadata like audioConfig and videoDetails are from the selected main client.
+     * Format & stream can be from main client or fallback clients.
      */
     suspend fun playerResponseForPlayback(
         videoId: String,
@@ -77,10 +70,15 @@ object YTPlayerUtils {
         preferVideo: Boolean = false,
         maxVideoBitrateKbps: Int? = null,
     ): Result<PlaybackData> = runCatching {
+        val mainClient = MAIN_CLIENT
+        val fallbackClients = STREAM_FALLBACK_CLIENTS
+
+        Timber.tag(TAG).d("Fetching player response for videoId: $videoId, client: ${mainClient.clientName}")
+
         val defaultStreamTtlSeconds = 6 * 60 * 60 // 6 hours
         /**
          * This is required for some clients to get working streams however
-         * it should not be forced for the [MAIN_CLIENT] because the response of the [MAIN_CLIENT]
+         * it should not be forced for the main client because the response of the main client
          * is required even if the streams won't work from this client.
          * This is why it is allowed to be null.
          */
@@ -98,8 +96,9 @@ object YTPlayerUtils {
             YouTube.visitorData
         }
 
+        Timber.tag(TAG).d("Attempting to get player response using main client: ${mainClient.clientName}")
         val mainPlayerResponse =
-            YouTube.player(videoId, playlistId, MAIN_CLIENT, signatureTimestamp).getOrThrow()
+            YouTube.player(videoId, playlistId, mainClient, signatureTimestamp).getOrThrow()
         val audioConfig = mainPlayerResponse.playerConfig?.audioConfig
         val videoDetails = mainPlayerResponse.videoDetails
         val playbackTracking = mainPlayerResponse.playbackTracking
@@ -108,7 +107,7 @@ object YTPlayerUtils {
         var streamExpiresInSeconds: Int? = null
         var streamPlayerResponse: PlayerResponse? = null
 
-        for (clientIndex in (-1 until STREAM_FALLBACK_CLIENTS.size)) {
+        for (clientIndex in (-1 until fallbackClients.size)) {
             // reset for each client
             format = null
             streamUrl = null
@@ -118,14 +117,17 @@ object YTPlayerUtils {
             val client: YouTubeClient
             if (clientIndex == -1) {
                 // try with streams from main client first
+                client = mainClient
                 streamPlayerResponse = mainPlayerResponse
+                Timber.tag(TAG).d("Trying stream from main client: ${client.clientName}")
             } else {
                 // after main client use fallback clients
-                client = STREAM_FALLBACK_CLIENTS[clientIndex]
+                client = fallbackClients[clientIndex]
+                Timber.tag(TAG).d("Trying fallback client ${clientIndex + 1}/${fallbackClients.size}: ${client.clientName}")
 
                 if (client.loginRequired && !isLoggedIn) {
                     // skip client if it requires login but user is not properly authenticated
-                    android.util.Log.d("YTPlayerUtils", "Skipping client ${client.clientName} - requires login but user is not authenticated")
+                    Timber.tag(TAG).d("Skipping client ${client.clientName} - requires login but user is not authenticated")
                     continue
                 }
 
@@ -135,6 +137,8 @@ object YTPlayerUtils {
 
             // process current client response
             if (streamPlayerResponse?.playabilityStatus?.status == "OK") {
+                Timber.tag(TAG).d("Player response status OK for client: ${client.clientName}")
+
                 format =
                     findFormat(
                         streamPlayerResponse,
@@ -145,6 +149,7 @@ object YTPlayerUtils {
                     )
 
                 if (format == null) {
+                    Timber.tag(TAG).d("No suitable format found for client: ${client.clientName}")
                     continue
                 }
 
@@ -158,19 +163,34 @@ object YTPlayerUtils {
                         ?: streamUrl.let(::deriveExpireSecondsFromUrl)
                         ?: defaultStreamTtlSeconds
 
+                Timber.tag(TAG).d("Stream expires in: $streamExpiresInSeconds seconds")
+
                 if (streamExpiresInSeconds <= 0) {
                     continue
                 }
 
-                if (clientIndex == STREAM_FALLBACK_CLIENTS.size - 1) {
+                // Skip validation for main client - it almost always works and
+                // skipping the HEAD request saves ~300-500ms on initial playback
+                if (clientIndex == -1) {
+                    Timber.tag(TAG).d("Using main client directly without validation for faster playback")
+                    break
+                }
+
+                if (clientIndex == fallbackClients.size - 1) {
                     /** skip [validateStatus] for last client */
+                    Timber.tag(TAG).d("Using last fallback client without validation: ${client.clientName}")
                     break
                 }
 
                 if (validateStatus(streamUrl)) {
                     // working stream found
+                    Timber.tag(TAG).d("Stream validated successfully with client: ${client.clientName}")
                     break
+                } else {
+                    Timber.tag(TAG).d("Stream validation failed for client: ${client.clientName}")
                 }
+            } else {
+                Timber.tag(TAG).d("Player response status not OK: ${streamPlayerResponse?.playabilityStatus?.status}, reason: ${streamPlayerResponse?.playabilityStatus?.reason}")
             }
         }
 

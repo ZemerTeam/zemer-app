@@ -38,6 +38,7 @@ import androidx.media3.common.Timeline
 import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR
@@ -239,8 +240,8 @@ class MusicService :
 
     private var consecutivePlaybackErr = 0
 
-    // Cache for stream URLs to avoid repeated requests
-    private val songUrlCache = HashMap<String, Pair<String, Long>>()
+    // Use shared URL cache from DownloadUtil for consistency between playback and downloads
+    private val songUrlCache get() = DownloadUtil.sharedUrlCache
 
     override fun onCreate() {
         super.onCreate()
@@ -1158,9 +1159,19 @@ class MusicService :
 
     override fun onPlayerError(error: PlaybackException) {
         super.onPlayerError(error)
+        Timber.w(error, "Player error occurred: ${error.message}")
+
+        // Check for expired URL (403 error) - needs immediate URL refresh
+        if (isExpiredUrlError(error)) {
+            Timber.d("Expired URL detected (403), refreshing stream URL")
+            handleExpiredUrlError()
+            return
+        }
+
         val isConnectionError = (error.cause?.cause is PlaybackException) &&
                 (error.cause?.cause as PlaybackException).errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
 
+        // Don't treat 403 as network error - it needs URL refresh, not network wait
         if (!isNetworkConnected.value || isConnectionError) {
             waitOnNetworkError()
             return
@@ -1171,6 +1182,49 @@ class MusicService :
         } else {
             stopOnError()
         }
+    }
+
+    /**
+     * Extracts the HTTP response code from an error's cause chain.
+     * Returns null if no HTTP response code is found.
+     */
+    private fun getHttpResponseCode(error: PlaybackException): Int? {
+        var cause: Throwable? = error.cause
+        while (cause != null) {
+            if (cause is HttpDataSource.InvalidResponseCodeException) {
+                return cause.responseCode
+            }
+            cause = cause.cause
+        }
+        return null
+    }
+
+    /**
+     * Checks if the error is caused by an expired/invalid URL.
+     * HTTP 403 (Forbidden) and 410 (Gone) typically indicate expired YouTube stream URLs.
+     */
+    private fun isExpiredUrlError(error: PlaybackException): Boolean {
+        val code = getHttpResponseCode(error)
+        return code == 403 || code == 410
+    }
+
+    /**
+     * Handles expired URL errors by clearing the cached URL and immediately retrying.
+     */
+    private fun handleExpiredUrlError() {
+        val mediaId = player.currentMediaItem?.mediaId
+        if (mediaId != null) {
+            // Clear the cached URL so it will be refreshed on next request
+            // Using DownloadUtil.invalidateUrl ensures both playback and download see the invalidation
+            DownloadUtil.invalidateUrl(mediaId)
+            Timber.d("Cleared cached URL for $mediaId")
+        }
+
+        // Seek to current position to force URL re-resolution
+        val currentPosition = player.currentPosition
+        player.seekTo(player.currentMediaItemIndex, currentPosition)
+        player.prepare()
+        // Let playWhenReady handle playback resume
     }
 
     private fun createCacheDataSource(): CacheDataSource.Factory =
@@ -1208,13 +1262,14 @@ class MusicService :
             val mediaId = dataSpec.key ?: error("No media id")
 
             // Check for MediaStore URI first (local playback)
+            // Only use local file if starting from beginning (position 0) to avoid
+            // switching sources mid-stream when a download completes during playback
             // Use a blocking call here because ResolvingDataSource.Factory requires synchronous code
-            // This is unavoidable for this factory, but we minimize blocking time by using cache first
             val song = runBlocking(Dispatchers.IO) {
                 database.song(mediaId).first()
             }
 
-            if (song?.song?.mediaStoreUri != null) {
+            if (song?.song?.mediaStoreUri != null && dataSpec.position == 0L) {
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                 return@Factory dataSpec.withUri(song.song.mediaStoreUri.toUri())
             }

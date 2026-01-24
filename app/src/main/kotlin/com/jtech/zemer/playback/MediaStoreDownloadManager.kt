@@ -402,6 +402,14 @@ constructor(
 
             val format = playbackData.format
             val downloadUrl = playbackData.streamUrl
+
+            // Only update shared cache if there's no valid entry - don't overwrite player's URL
+            // Different fetches return different URL signatures, overwriting breaks playback
+            val existingEntry = DownloadUtil.sharedUrlCache[song.id]
+            if (existingEntry == null || existingEntry.second < System.currentTimeMillis()) {
+                DownloadUtil.sharedUrlCache[song.id] = downloadUrl to
+                    (System.currentTimeMillis() + playbackData.streamExpiresInSeconds * 1000L)
+            }
             Timber.d("Got format: ${format.mimeType}, URL length: ${downloadUrl.length}")
 
             // Create temporary file for download

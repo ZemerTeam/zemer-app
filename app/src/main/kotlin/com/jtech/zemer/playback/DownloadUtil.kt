@@ -67,7 +67,26 @@ constructor(
         ?: throw IllegalStateException("ConnectivityManager not available on this device")
     private val audioQualityFlow = enumPreferenceFlow(appContext, AudioQualityKey, AudioQuality.AUTO)
     private var audioQuality = AudioQuality.AUTO
-    private val songUrlCache = ConcurrentHashMap<String, Pair<String, Long>>()
+
+    companion object {
+        /**
+         * Shared URL cache between MusicService and DownloadUtil.
+         * Stores stream URLs and their expiry timestamps.
+         * Using ConcurrentHashMap for thread-safety.
+         */
+        val sharedUrlCache = ConcurrentHashMap<String, Pair<String, Long>>()
+
+        /**
+         * Clears the cached URL for a specific media ID.
+         * Call this when a stream URL is known to be expired or invalid.
+         */
+        fun invalidateUrl(mediaId: String) {
+            sharedUrlCache.remove(mediaId)
+        }
+    }
+
+    // Use shared cache
+    private val songUrlCache get() = sharedUrlCache
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -109,7 +128,7 @@ constructor(
                 return@Factory dataSpec
             }
 
-            songUrlCache[mediaId]?.takeIf { it.second < System.currentTimeMillis() }?.let {
+            songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                 return@Factory dataSpec.withUri(it.first.toUri())
             }
 
@@ -159,12 +178,17 @@ constructor(
                 upsert(updatedSong)
             }
 
-            val streamUrl = playbackData.streamUrl.let {
-                "${it}&range=0-${format.contentLength ?: 10000000}"
+            // Only update shared cache if there's no valid entry - don't overwrite player's URL
+            // Different fetches return different URL signatures, overwriting breaks playback
+            val baseStreamUrl = playbackData.streamUrl
+            val existingEntry = songUrlCache[mediaId]
+            if (existingEntry == null || existingEntry.second < System.currentTimeMillis()) {
+                songUrlCache[mediaId] = baseStreamUrl to (System.currentTimeMillis() + playbackData.streamExpiresInSeconds * 1000L)
             }
 
-            songUrlCache[mediaId] = streamUrl to playbackData.streamExpiresInSeconds * 1000L
-            dataSpec.withUri(streamUrl.toUri())
+            // Add range parameter only for this download request (full file)
+            val downloadUrl = "${baseStreamUrl}&range=0-${format.contentLength ?: 10000000}"
+            dataSpec.withUri(downloadUrl.toUri())
         }
     }
 

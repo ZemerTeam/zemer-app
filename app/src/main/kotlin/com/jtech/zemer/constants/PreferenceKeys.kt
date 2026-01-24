@@ -76,6 +76,7 @@ enum class AudioQuality {
     HIGH,
     LOW,
 }
+
 val AudioOffload = booleanPreferencesKey("enableOffload")
 
 val PersistentQueueKey = booleanPreferencesKey("persistentQueue")
