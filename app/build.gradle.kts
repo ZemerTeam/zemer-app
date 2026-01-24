@@ -248,4 +248,7 @@ dependencies {
     coreLibraryDesugaring(libs.desugaring)
 
     implementation(libs.timber)
+
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
 }

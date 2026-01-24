@@ -552,4 +552,9 @@
     <string name="search_retry">Search again</string>
     <string name="setting_up_library_title">Setting up your library…</string>
     <string name="setting_up_library_progress">Setting up your library… %1$d%%</string>
+
+    <!-- Widget -->
+    <string name="widget_name">Zemer Music</string>
+    <string name="widget_description">Control your music playback</string>
+    <string name="widget_tap_to_open">Tap to open</string>
 </resources>

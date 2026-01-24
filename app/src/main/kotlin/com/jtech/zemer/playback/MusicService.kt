@@ -122,6 +122,7 @@ import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.hasNotificationPermission
+import com.jtech.zemer.widget.MusicWidget
 import com.jtech.zemer.utils.enumPreference
 import com.jtech.zemer.utils.enumPreferenceFlow
 import com.jtech.zemer.utils.get
@@ -350,6 +351,7 @@ class MusicService :
 
         currentSong.debounce(1000).collect(scope) { song ->
             updateNotification()
+            updateWidget()
         }
 
         combine(
@@ -618,6 +620,27 @@ class MusicService :
 
     private fun stopOnError() {
         player.pause()
+    }
+
+    private fun updateWidget() {
+        scope.launch {
+            val metadata = currentMediaMetadata.value
+            val song = currentSong.value
+            val isPlaying = player.isPlaying
+            val isLiked = song?.song?.liked ?: false
+            val title = metadata?.title ?: getString(R.string.app_name)
+            val artist = metadata?.artists?.joinToString(", ") { it.name } ?: ""
+            val albumArtUrl = metadata?.thumbnailUrl
+
+            MusicWidget.updateWidget(
+                context = this@MusicService,
+                title = title,
+                artist = artist,
+                isPlaying = isPlaying,
+                albumArtUrl = albumArtUrl,
+                isLiked = isLiked
+            )
+        }
     }
 
     private fun updateNotification() {
@@ -1048,6 +1071,7 @@ class MusicService :
         lastPlaybackSpeed = -1.0f // force update song
 
         setupLoudnessEnhancer()
+        updateWidget()
 
         // Auto load more songs
         if (dataStore.get(AutoLoadMoreKey, true) &&
@@ -1078,12 +1102,14 @@ class MusicService :
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
         }
+        updateWidget()
     }
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
         if (playWhenReady) {
             setupLoudnessEnhancer()
         }
+        updateWidget()
     }
 
     override fun onEvents(
@@ -1506,6 +1532,18 @@ class MusicService :
         stopForeground(STOP_FOREGROUND_REMOVE)
         isRunning = false
         super.onDestroy()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            MusicWidget.ACTION_PLAY_PAUSE -> {
+                if (player.isPlaying) player.pause() else player.play()
+            }
+            MusicWidget.ACTION_NEXT -> player.seekToNext()
+            MusicWidget.ACTION_PREV -> player.seekToPrevious()
+            MusicWidget.ACTION_LIKE -> toggleLike()
+        }
+        return super.onStartCommand(intent, flags, startId)
     }
 
     override fun onBind(intent: Intent?) = super.onBind(intent) ?: binder
