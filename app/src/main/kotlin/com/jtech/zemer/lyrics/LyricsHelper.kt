@@ -26,6 +26,7 @@ constructor(
 ) {
     private val lyricsProviders =
         listOf(
+            SimpMusicLyricsProvider,
             LrcLibLyricsProvider,
             YouTubeSubtitleLyricsProvider,
             YouTubeLyricsProvider
@@ -68,14 +69,18 @@ constructor(
                             mediaMetadata.title,
                             mediaMetadata.artists.joinToString { it.name },
                             mediaMetadata.duration,
+                            mediaMetadata.album?.title,
                         )
                         result.onSuccess { lyrics ->
                             return@async lyrics
                         }.onFailure {
-                            if (it is LyricsUnavailableException || (it is IllegalStateException && it.message?.contains("Lyrics") == true)) {
-                                return@async LYRICS_NOT_FOUND
+                            // Don't return LYRICS_NOT_FOUND here - continue to next provider
+                            // Only report non-lyrics exceptions
+                            if (it !is LyricsUnavailableException &&
+                                !(it is IllegalStateException && it.message?.contains("Lyrics") == true)) {
+                                reportException(it)
                             }
-                            reportException(it)
+                            // Continue to next provider
                         }
                     } catch (e: Exception) {
                         // Catch network-related exceptions like UnresolvedAddressException
@@ -96,6 +101,7 @@ constructor(
         songTitle: String,
         songArtists: String,
         duration: Int,
+        album: String? = null,
         callback: (LyricsResult) -> Unit,
     ) {
         currentLyricsJob?.cancel()
@@ -127,7 +133,7 @@ constructor(
             lyricsProviders.forEach { provider ->
                 if (provider.isEnabled(context)) {
                     try {
-                        provider.getAllLyrics(mediaId, songTitle, songArtists, duration) { lyrics ->
+                        provider.getAllLyrics(mediaId, songTitle, songArtists, duration, album) { lyrics ->
                             val result = LyricsResult(provider.name, lyrics)
                             allResult += result
                             callback(result)
