@@ -14,6 +14,8 @@ dependencies {
     implementation(libs.ktor.serialization.json)
     implementation(libs.ktor.client.encoding)
     implementation(libs.okhttp.dnsoverhttps)
-    implementation(libs.extractor)
+    implementation(libs.extractor) {
+        exclude(group = "com.google.protobuf", module = "protobuf-javalite")
+    }
     testImplementation(libs.junit)
 }

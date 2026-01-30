@@ -15,8 +15,6 @@ import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_61_48
 import com.metrolist.innertube.models.YouTubeClient.Companion.IOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.IPADOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.MOBILE
-import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5
-import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY_EMBEDDED_PLAYER
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
@@ -37,15 +35,13 @@ object YTPlayerUtils {
     private val MAIN_CLIENT: YouTubeClient = ANDROID_VR_1_43_32
 
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
+        IOS,
+        IPADOS,
         ANDROID_VR_1_61_48,
         WEB_REMIX,
         ANDROID_CREATOR,
-        IPADOS,
         ANDROID_VR_NO_AUTH,
         MOBILE,
-        TVHTML5,
-        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
-        IOS,
         WEB,
         WEB_CREATOR
     )
@@ -155,8 +151,10 @@ object YTPlayerUtils {
 
                 streamUrl = findUrlOrNull(format, videoId)
                 if (streamUrl == null) {
+                    Timber.tag(TAG).d("No stream URL found for format on client: ${client.clientName}")
                     continue
                 }
+                Timber.tag(TAG).d("Found stream URL for $videoId from client: ${client.clientName}")
 
                 streamExpiresInSeconds =
                     streamPlayerResponse.streamingData?.expiresInSeconds
@@ -167,13 +165,6 @@ object YTPlayerUtils {
 
                 if (streamExpiresInSeconds <= 0) {
                     continue
-                }
-
-                // Skip validation for main client - it almost always works and
-                // skipping the HEAD request saves ~300-500ms on initial playback
-                if (clientIndex == -1) {
-                    Timber.tag(TAG).d("Using main client directly without validation for faster playback")
-                    break
                 }
 
                 if (clientIndex == fallbackClients.size - 1) {
@@ -190,12 +181,16 @@ object YTPlayerUtils {
                     Timber.tag(TAG).d("Stream validation failed for client: ${client.clientName}")
                 }
             } else {
-                Timber.tag(TAG).d("Player response status not OK: ${streamPlayerResponse?.playabilityStatus?.status}, reason: ${streamPlayerResponse?.playabilityStatus?.reason}")
+                Timber.tag(TAG).d("Player response status not OK for ${client.clientName}: ${streamPlayerResponse?.playabilityStatus?.status}, reason: ${streamPlayerResponse?.playabilityStatus?.reason}")
             }
         }
 
         if (streamPlayerResponse == null) {
-            throw Exception("Bad stream player response")
+            throw PlaybackException(
+                "All clients failed for $videoId",
+                null,
+                PlaybackException.ERROR_CODE_REMOTE_ERROR
+            )
         }
 
         if (streamPlayerResponse.playabilityStatus.status != "OK") {
@@ -207,16 +202,28 @@ object YTPlayerUtils {
             )
         }
 
-        if (streamExpiresInSeconds == null) {
-            throw Exception("Missing stream expire time")
-        }
-
         if (format == null) {
-            throw Exception("Could not find format")
+            throw PlaybackException(
+                "No playable format found",
+                null,
+                PlaybackException.ERROR_CODE_REMOTE_ERROR
+            )
         }
 
         if (streamUrl == null) {
-            throw Exception("Could not find stream url")
+            throw PlaybackException(
+                "No stream URL found",
+                null,
+                PlaybackException.ERROR_CODE_REMOTE_ERROR
+            )
+        }
+
+        if (streamExpiresInSeconds == null) {
+            throw PlaybackException(
+                "Stream expired",
+                null,
+                PlaybackException.ERROR_CODE_REMOTE_ERROR
+            )
         }
 
         PlaybackData(
@@ -299,6 +306,7 @@ object YTPlayerUtils {
             val requestBuilder = okhttp3.Request.Builder()
                 .head()
                 .url(validatedUrl)
+                .header("User-Agent", YouTubeClient.USER_AGENT_WEB)
             val request = try {
                 requestBuilder.build()
             } catch (e: Exception) {
@@ -326,23 +334,36 @@ object YTPlayerUtils {
             .getOrNull()
     }
     /**
-     * Wrapper around the [NewPipeUtils.getStreamUrl] function which reports exceptions
+     * Resolves a playable stream URL from the format.
+     * Tries the extractor first (handles cipher + n-parameter deobfuscation),
+     * falls back to the raw format URL if the extractor fails.
      */
     private fun findUrlOrNull(
         format: PlayerResponse.StreamingData.Format,
         videoId: String
     ): String? {
-        val url = NewPipeUtils.getStreamUrl(format, videoId)
+        // Try full extractor pipeline (cipher deobfuscation + n-parameter)
+        val extractorUrl = NewPipeUtils.getStreamUrl(format, videoId)
             .onFailure {
-                reportException(it)
+                Timber.tag(TAG).w(it, "Extractor getStreamUrl failed for $videoId")
             }
-            .getOrNull() ?: return null
+            .getOrNull()
+
+        val url = if (extractorUrl != null) {
+            extractorUrl
+        } else {
+            // Extractor failed — use direct URL from format if available
+            // Stream may be throttled without n-parameter deobfuscation
+            format.url?.also {
+                Timber.tag(TAG).d("Using direct format URL for $videoId (extractor failed)")
+            }
+        } ?: return null
 
         // Validate the URL before returning it to prevent OkHttp crashes
         return if (UrlValidator.isValidUrl(url)) {
             url
         } else {
-            reportException(Exception("Stream URL from NewPipe validation failed: $url"))
+            reportException(Exception("Stream URL validation failed: $url"))
             null
         }
     }

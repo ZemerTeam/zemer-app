@@ -59,6 +59,8 @@
 -dontwarn javax.script.**
 -keep class jdk.dynalink.** { *; }
 -dontwarn jdk.dynalink.**
+-dontwarn com.google.re2j.**
+-dontwarn org.jsoup.helper.Re2jRegex**
 
 ## Logging (does not affect Timber)
 -assumenosideeffects class android.util.Log {
