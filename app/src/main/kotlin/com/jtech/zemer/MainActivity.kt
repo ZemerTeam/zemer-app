@@ -200,6 +200,7 @@ import com.jtech.zemer.ui.component.rememberBottomSheetState
 import com.jtech.zemer.ui.component.shimmer.ShimmerTheme
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.player.BottomSheetPlayer
+import com.jtech.zemer.ui.screens.LoginGateScreen
 import com.jtech.zemer.ui.screens.OnboardingFlow
 import com.jtech.zemer.ui.screens.Screens
 import com.jtech.zemer.ui.screens.SplashScreen
@@ -648,6 +649,20 @@ class MainActivity : ComponentActivity() {
                         val navBackStackEntry by navController.currentBackStackEntryAsState()
                         val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
                         val drawerState = rememberDrawerState(DrawerValue.Closed)
+
+                        // Login gate - redirect to login_gate if not logged in
+                        val (loginGateCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
+                        val isYouTubeLoggedIn = remember(loginGateCookie) {
+                            parseCookieString(loginGateCookie).containsKey("SAPISID")
+                        }
+                        val currentRoute = navBackStackEntry?.destination?.route
+                        LaunchedEffect(isYouTubeLoggedIn, currentRoute) {
+                            if (!isYouTubeLoggedIn && currentRoute != "login_gate" && currentRoute != "login") {
+                                navController.navigate("login_gate") {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            }
+                        }
                         val isVideoScreen = remember(navBackStackEntry) {
                             navBackStackEntry?.destination?.route?.startsWith("video/") == true
                         }

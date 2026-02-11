@@ -330,4 +330,7 @@ fun NavGraphBuilder.navigationBuilder(
     composable("login") {
         LoginScreen(navController)
     }
+    composable("login_gate") {
+        LoginGateScreen(navController = navController)
+    }
 }
