@@ -184,7 +184,8 @@ class App : Application(), SingletonImageLoader.Factory {
         if (!settings.contains(FloatingMiniPlayerKey)) {
             dataStore.edit { it[FloatingMiniPlayerKey] = true }
         }
-        if (!settings.contains(EnableContentFiltersKey)) {
+        // Force content filters to always be enabled - cannot be disabled
+        if (settings[EnableContentFiltersKey] != true) {
             dataStore.edit { it[EnableContentFiltersKey] = true }
         }
         if (!settings.contains(AllowFemaleSingersKey)) {

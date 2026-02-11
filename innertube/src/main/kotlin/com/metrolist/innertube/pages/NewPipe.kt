@@ -82,7 +82,7 @@ object NewPipeUtils {
 
     fun getStreamUrl(format: PlayerResponse.StreamingData.Format, videoId: String): Result<String> =
         runCatching {
-            val cipherValue = format.signatureCipher ?: format.cipher
+            val cipherValue = format.signatureCipher
             val url = format.url ?: cipherValue?.let { signatureCipher ->
                 val params = parseQueryString(signatureCipher)
                 val obfuscatedSignature = params["s"]
