@@ -27,6 +27,8 @@ import com.jtech.zemer.extensions.toInetSocketAddress
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
+import com.jtech.zemer.utils.cipher.CipherDeobfuscator
+import timber.log.Timber
 import com.jtech.zemer.utils.UpdateChecker
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.get
@@ -69,6 +71,14 @@ class App : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Initialize Timber for logging
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        }
+
+        // Initialize cipher deobfuscator for WEB_REMIX streaming
+        CipherDeobfuscator.initialize(this)
 
         // تهيئة إعدادات التطبيق عند الإقلاع
         applicationScope.launch {

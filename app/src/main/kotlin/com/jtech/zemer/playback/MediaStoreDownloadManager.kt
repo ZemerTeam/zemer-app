@@ -397,7 +397,8 @@ constructor(
                 videoId = song.id,
                 audioQuality = audioQuality,
                 connectivityManager = connectivityManager,
-                preferVideo = isVideoDownload
+                preferVideo = isVideoDownload,
+                forDownload = true,
             ).getOrThrow()
 
             val format = playbackData.format
