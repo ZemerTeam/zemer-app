@@ -95,6 +95,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.platform.LocalDensity
@@ -651,13 +652,24 @@ class MainActivity : ComponentActivity() {
                         val drawerState = rememberDrawerState(DrawerValue.Closed)
 
                         // Login gate - redirect to login_gate if not logged in
-                        val (loginGateCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
+                        // Use a state that tracks whether preferences have been loaded
+                        val context = LocalContext.current
+                        var preferencesLoaded by remember { mutableStateOf(false) }
+                        var loginGateCookie by rememberPreference(InnerTubeCookieKey, defaultValue = "")
+
+                        // Mark preferences as loaded after first emission from DataStore
+                        LaunchedEffect(Unit) {
+                            context.dataStore.data.first()
+                            preferencesLoaded = true
+                        }
+
                         val isYouTubeLoggedIn = remember(loginGateCookie) {
                             parseCookieString(loginGateCookie).containsKey("SAPISID")
                         }
                         val currentRoute = navBackStackEntry?.destination?.route
-                        LaunchedEffect(isYouTubeLoggedIn, currentRoute) {
-                            if (!isYouTubeLoggedIn && currentRoute != "login_gate" && currentRoute != "login") {
+                        LaunchedEffect(preferencesLoaded, isYouTubeLoggedIn, currentRoute) {
+                            // Only redirect after preferences are loaded
+                            if (preferencesLoaded && !isYouTubeLoggedIn && currentRoute != "login_gate" && currentRoute != "login") {
                                 navController.navigate("login_gate") {
                                     popUpTo(0) { inclusive = true }
                                 }
