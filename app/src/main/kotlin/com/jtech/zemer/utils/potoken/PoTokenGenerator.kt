@@ -30,9 +30,7 @@ class PoTokenGenerator {
 
         return try {
             Timber.tag(TAG).d("Calling runBlocking to generate poToken...")
-            val result = runBlocking { getWebClientPoToken(videoId, sessionId, forceRecreate = false) }
-            Timber.tag(TAG).d("poToken generated successfully: player=${result.playerRequestPoToken.take(20)}..., streaming=${result.streamingDataPoToken.take(20)}...")
-            result
+            runBlocking { getWebClientPoToken(videoId, sessionId, forceRecreate = false) }
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "poToken generation exception: ${e.javaClass.simpleName}: ${e.message}")
             when (e) {
@@ -74,21 +72,6 @@ class PoTokenGenerator {
                     // any other (player) tokens.
                     webPoTokenStreamingPot = webPoTokenGenerator!!.generatePoToken(webPoTokenSessionId!!)
                     Timber.tag(TAG).d("Streaming poToken generated for sessionId=${webPoTokenSessionId?.take(20)}...")
-                    Timber.tag(TAG).d("Streaming poToken value: ${webPoTokenStreamingPot?.take(40)}... (length=${webPoTokenStreamingPot?.length})")
-
-                    // Validate streaming token (should be URL-safe base64, 110-128 bytes when decoded)
-                    try {
-                        val decoded = android.util.Base64.decode(
-                            webPoTokenStreamingPot,
-                            android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING
-                        )
-                        Timber.tag(TAG).d("Streaming poToken decoded size: ${decoded.size} bytes (expected 110-128)")
-                        if (decoded.size !in 100..140) {
-                            Timber.tag(TAG).w("Streaming poToken size ${decoded.size} may be outside expected range!")
-                        }
-                    } catch (e: Exception) {
-                        Timber.tag(TAG).e(e, "Failed to validate streaming poToken encoding")
-                    }
                 }
 
                 Triple(webPoTokenGenerator!!, webPoTokenStreamingPot!!, shouldRecreate)
@@ -110,21 +93,7 @@ class PoTokenGenerator {
             }
         }
 
-        Timber.tag(TAG).d("[$videoId] playerPot=$playerPot, streamingPot=$streamingPot")
-
-        // Validate playerPot size
-        try {
-            val decodedPlayer = android.util.Base64.decode(
-                playerPot,
-                android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING
-            )
-            Timber.tag(TAG).d("PlayerPot decoded size: ${decodedPlayer.size} bytes (expected 110-128)")
-            if (decodedPlayer.size !in 100..140) {
-                Timber.tag(TAG).w("PlayerPot size ${decodedPlayer.size} is outside expected range!")
-            }
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Failed to validate playerPot encoding")
-        }
+        Timber.tag(TAG).d("poToken generated successfully: player=${playerPot.take(20)}..., streaming=${streamingPot.take(20)}...")
 
         return PoTokenResult(playerPot, streamingPot)
     }

@@ -189,6 +189,19 @@ object YTPlayerUtils {
                     Timber.tag(TAG).d( "Appended streaming PoToken to URL")
                 }
 
+                // Apply n-transform proactively for web clients (avoids 403 round-trip)
+                if (client.useWebPoTokens) {
+                    try {
+                        val transformed = EjsNTransformSolver.transformNParamInUrl(streamUrl)
+                        if (transformed != streamUrl) {
+                            streamUrl = transformed
+                            Timber.tag(TAG).d("Applied n-transform proactively")
+                        }
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).w("Proactive n-transform failed, will retry if needed: ${e.message}")
+                    }
+                }
+
                 streamExpiresInSeconds =
                     streamPlayerResponse.streamingData?.expiresInSeconds
                         ?: streamUrl.let(::deriveExpireSecondsFromUrl)
