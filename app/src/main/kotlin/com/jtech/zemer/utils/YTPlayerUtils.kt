@@ -124,6 +124,7 @@ object YTPlayerUtils {
         var streamUrl: String? = null
         var streamExpiresInSeconds: Int? = null
         var streamPlayerResponse: PlayerResponse? = null
+        var successClient: String? = null
 
         for (clientIndex in (-1 until fallbackClients.size)) {
             // reset for each client
@@ -219,12 +220,14 @@ object YTPlayerUtils {
 
                 if (clientIndex == fallbackClients.size - 1) {
                     Timber.tag(TAG).d( "Last fallback — skipping validation: ${client.clientName}")
+                    successClient = client.clientName
                     break
                 }
 
                 val validationResult = validateStatus(streamUrl)
                 if (validationResult) {
                     Timber.tag(TAG).d( "Stream VALIDATED OK with ${client.clientName}")
+                    successClient = client.clientName
                     break
                 } else {
                     Timber.tag(TAG).d( "Stream validation FAILED for ${client.clientName}")
@@ -242,6 +245,7 @@ object YTPlayerUtils {
                                     Timber.tag(TAG).d( "N-transformed URL VALIDATED OK!")
                                     streamUrl = nTransformed
                                     nTransformWorked = true
+                                    successClient = client.clientName
                                 }
                             }
                         } catch (e: Exception) {
@@ -258,6 +262,7 @@ object YTPlayerUtils {
                                         Timber.tag(TAG).d( "EJS n-transformed URL VALIDATED OK!")
                                         streamUrl = ejsTransformed
                                         nTransformWorked = true
+                                        successClient = client.clientName
                                     }
                                 }
                             } catch (e: Exception) {
@@ -320,6 +325,8 @@ object YTPlayerUtils {
         }
 
         Timber.tag(TAG).d( "=== Stream resolution SUCCESS: client=${streamPlayerResponse.let { "OK" }}, itag=${format.itag}, expires=${streamExpiresInSeconds}s ===")
+        // Log.i survives release builds (Timber is stripped)
+        android.util.Log.i(TAG, "Playback: client=${successClient ?: "unknown"}, itag=${format.itag}, videoId=$videoId")
 
         PlaybackData(
             audioConfig,
