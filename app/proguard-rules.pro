@@ -5,12 +5,28 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# WebView JavaScript interfaces - MUST keep @JavascriptInterface methods
+-keepclassmembers class com.jtech.zemer.utils.sabr.EjsNTransformSolver$SolverWebView {
+    @android.webkit.JavascriptInterface public *;
+}
+-keepclassmembers class com.jtech.zemer.utils.cipher.CipherWebView {
+    @android.webkit.JavascriptInterface public *;
+}
+-keep class com.jtech.zemer.utils.sabr.EjsNTransformSolver { *; }
+-keep class com.jtech.zemer.utils.sabr.EjsNTransformSolver$SolverWebView { *; }
+-keep class com.jtech.zemer.utils.cipher.CipherDeobfuscator { *; }
+-keep class com.jtech.zemer.utils.cipher.CipherWebView { *; }
+-keep class com.jtech.zemer.utils.cipher.PlayerJsFetcher { *; }
+
+# Keep entire cipher and sabr packages (critical for stream playback)
+-keep class com.jtech.zemer.utils.cipher.** { *; }
+-keep class com.jtech.zemer.utils.sabr.** { *; }
+
+# Keep coroutine continuation for WebView callbacks
+-keepclassmembers class * {
+    void resume(...);
+    void resumeWithException(...);
+}
 
 # Uncomment this to preserve the line number information for
 # debugging stack traces.

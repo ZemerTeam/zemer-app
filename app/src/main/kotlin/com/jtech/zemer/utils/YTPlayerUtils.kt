@@ -191,11 +191,14 @@ object YTPlayerUtils {
 
                 // Apply n-transform proactively for web clients (avoids 403 round-trip)
                 if (client.useWebPoTokens) {
+                    Timber.tag(TAG).d("Attempting proactive n-transform...")
                     try {
                         val transformed = EjsNTransformSolver.transformNParamInUrl(streamUrl)
                         if (transformed != streamUrl) {
                             streamUrl = transformed
-                            Timber.tag(TAG).d("Applied n-transform proactively")
+                            Timber.tag(TAG).d("Proactive n-transform applied successfully")
+                        } else {
+                            Timber.tag(TAG).d("Proactive n-transform returned same URL (no change)")
                         }
                     } catch (e: Exception) {
                         Timber.tag(TAG).w("Proactive n-transform failed, will retry if needed: ${e.message}")
