@@ -422,14 +422,14 @@ fun HomeScreen(
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
         ) {
                 quickPicks.takeIf { it.isNotEmpty() }?.let { quickPicks ->
-                    item(key = "quick_picks_title") {
+                    item(key = "quick_picks_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.quick_picks),
                             modifier = Modifier.animateItem()
                         )
                     }
 
-                    item(key = "quick_picks_list") {
+                    item(key = "quick_picks_list", contentType = "grid") {
                         LazyHorizontalGrid(
                             state = quickPicksLazyGridState,
                             rows = GridCells.Fixed(4),
@@ -443,7 +443,8 @@ fun HomeScreen(
                         ) {
                             items(
                                 items = uniqueQuickPicks,
-                                key = { it.id }
+                                key = { it.id },
+                                contentType = { "song" }
                             ) { originalSong ->
                                 // fetch song from database to keep updated
                                 val song by database.song(originalSong.id)
@@ -505,14 +506,14 @@ fun HomeScreen(
                 }
 
                 featuredPlaylists.takeIf { it.isNotEmpty() }?.let { playlists ->
-                    item(key = "featured_playlists_title") {
+                    item(key = "featured_playlists_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.featured_playlists),
                             modifier = Modifier.animateItem()
                         )
                     }
 
-                    item(key = "featured_playlists_list") {
+                    item(key = "featured_playlists_list", contentType = "grid") {
                         LazyHorizontalGrid(
                             rows = GridCells.Fixed(2),
                             contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
@@ -525,7 +526,8 @@ fun HomeScreen(
                         ) {
                             items(
                                 items = uniqueFeaturedPlaylists,
-                                key = { it.id }
+                                key = { it.id },
+                                contentType = { "playlist" }
                             ) { playlist ->
                                 YouTubeListItem(
                                     item = playlist,
@@ -553,14 +555,14 @@ fun HomeScreen(
                 }
 
                 keepListening.takeIf { it.isNotEmpty() }?.let { keepListening ->
-                    item(key = "keep_listening_title") {
+                    item(key = "keep_listening_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.keep_listening),
                             modifier = Modifier.animateItem()
                         )
                     }
 
-                    item(key = "keep_listening_list") {
+                    item(key = "keep_listening_list", contentType = "grid") {
                         val rows = if (keepListening.size > 6) 2 else 1
                         LazyHorizontalGrid(
                             state = rememberLazyGridState(),
@@ -575,7 +577,11 @@ fun HomeScreen(
                                 }) * rows)
                                 .animateItem()
                         ) {
-                            items(keepListening) {
+                            items(
+                                items = keepListening,
+                                key = { it.id },
+                                contentType = { "local_item" }
+                            ) {
                                 localGridItem(it)
                             }
                         }
@@ -583,14 +589,14 @@ fun HomeScreen(
                 }
 
                 forgottenFavorites.takeIf { it.isNotEmpty() }?.let { forgottenFavorites ->
-                    item(key = "forgotten_favorites_title") {
+                    item(key = "forgotten_favorites_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.forgotten_favorites),
                             modifier = Modifier.animateItem()
                         )
                     }
 
-                    item(key = "forgotten_favorites_list") {
+                    item(key = "forgotten_favorites_list", contentType = "grid") {
                         // take min in case list size is less than 4
                         val rows = min(4, forgottenFavorites.size)
                         LazyHorizontalGrid(
@@ -608,7 +614,8 @@ fun HomeScreen(
                         ) {
                             items(
                                 items = uniqueForgottenFavorites,
-                                key = { it.id }
+                                key = { it.id },
+                                contentType = { "song" }
                             ) { originalSong ->
                                 val song by database.song(originalSong.id)
                                     .collectAsState(initial = originalSong)
@@ -670,7 +677,7 @@ fun HomeScreen(
             }
 
             if (recentReleaseSongs.isNotEmpty() || recentReleaseAlbums.isNotEmpty()) {
-                item(key = "recent_releases_title") {
+                item(key = "recent_releases_title", contentType = "header") {
                     NavigationTitle(
                         title = stringResource(R.string.new_release_title),
                         modifier = Modifier.animateItem()
@@ -678,7 +685,7 @@ fun HomeScreen(
                 }
 
                 if (recentReleaseSongs.isNotEmpty()) {
-                    item(key = "recent_releases_songs_title") {
+                    item(key = "recent_releases_songs_title", contentType = "header") {
                         Text(
                             text = stringResource(R.string.new_release_songs_title),
                             style = MaterialTheme.typography.titleSmall,
@@ -687,7 +694,7 @@ fun HomeScreen(
                                 .animateItem()
                         )
                     }
-                    item(key = "recent_releases_songs_list") {
+                    item(key = "recent_releases_songs_list", contentType = "grid") {
                         LazyRow(
                             modifier = Modifier.animateItem(),
                             contentPadding = WindowInsets.systemBars
@@ -696,7 +703,8 @@ fun HomeScreen(
                         ) {
                             items(
                                 items = uniqueRecentReleaseSongs,
-                                key = { "recent_song_${it.id}" }
+                                key = { "recent_song_${it.id}" },
+                                contentType = { "yt_song" }
                             ) { song ->
                                 YouTubeListItem(
                                     item = song,
@@ -752,14 +760,14 @@ fun HomeScreen(
                 }
 
                 trendingSongs.takeIf { it.isNotEmpty() }?.let { songs ->
-                    item(key = "trending_title") {
+                    item(key = "trending_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.trending),
                             modifier = Modifier.animateItem()
                         )
                     }
 
-                    item(key = "trending_list") {
+                    item(key = "trending_list", contentType = "grid") {
                         LazyHorizontalGrid(
                             rows = GridCells.Fixed(2),
                             contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
@@ -772,7 +780,8 @@ fun HomeScreen(
                         ) {
                             items(
                                 items = uniqueTrendingSongs,
-                                key = { it.id }
+                                key = { it.id },
+                                contentType = { "yt_song" }
                             ) { song ->
                                 YouTubeListItem(
                                     item = song,
@@ -827,7 +836,7 @@ fun HomeScreen(
                 }
 
                 if (recentReleaseAlbums.isNotEmpty()) {
-                    item(key = "recent_releases_albums_title") {
+                    item(key = "recent_releases_albums_title", contentType = "header") {
                         Text(
                             text = stringResource(R.string.new_release_albums_title),
                             style = MaterialTheme.typography.titleSmall,
@@ -836,7 +845,7 @@ fun HomeScreen(
                                 .animateItem()
                         )
                     }
-                    item(key = "recent_releases_albums_list") {
+                    item(key = "recent_releases_albums_list", contentType = "grid") {
                         LazyRow(
                             modifier = Modifier.animateItem(),
                             contentPadding = WindowInsets.systemBars
@@ -845,7 +854,8 @@ fun HomeScreen(
                         ) {
                             items(
                                 items = uniqueRecentReleaseAlbums,
-                                key = { "recent_album_${it.id}" }
+                                key = { "recent_album_${it.id}" },
+                                contentType = { "album" }
                             ) { album ->
                                 YouTubeGridItem(
                                     item = album,
@@ -876,14 +886,14 @@ fun HomeScreen(
 
             // Show featured artists
             if (featuredArtists.isNotEmpty()) {
-                item(key = "featured_artists_title") {
+                item(key = "featured_artists_title", contentType = "header") {
                     NavigationTitle(
                         title = stringResource(R.string.featured_artists),
                         modifier = Modifier.animateItem()
                     )
                 }
 
-                item(key = "featured_artists_list") {
+                item(key = "featured_artists_list", contentType = "grid") {
                     LazyRow(
                         contentPadding = WindowInsets.systemBars
                             .only(WindowInsetsSides.Horizontal)
@@ -892,7 +902,8 @@ fun HomeScreen(
                     ) {
                         items(
                             items = uniqueFeaturedArtists,
-                            key = { "featured_artist_${it.id}" }
+                            key = { "featured_artist_${it.id}" },
+                            contentType = { "artist" }
                         ) { artist ->
                             ytGridItem(artist)
                         }
@@ -902,14 +913,14 @@ fun HomeScreen(
 
             // Show featured albums
             if (featuredAlbums.isNotEmpty()) {
-                item(key = "featured_albums_title") {
+                item(key = "featured_albums_title", contentType = "header") {
                     NavigationTitle(
                         title = stringResource(R.string.featured_albums),
                         modifier = Modifier.animateItem()
                     )
                 }
 
-                item(key = "featured_albums_list") {
+                item(key = "featured_albums_list", contentType = "grid") {
                     LazyRow(
                         contentPadding = WindowInsets.systemBars
                             .only(WindowInsetsSides.Horizontal)
@@ -918,7 +929,8 @@ fun HomeScreen(
                     ) {
                         items(
                             items = uniqueFeaturedAlbums,
-                            key = { "featured_album_${it.id}" }
+                            key = { "featured_album_${it.id}" },
+                            contentType = { "album" }
                         ) { album ->
                             ytGridItem(album)
                         }
@@ -927,14 +939,14 @@ fun HomeScreen(
             }
 
             if (!blockVideos && featuredVideos.isNotEmpty()) {
-                item(key = "featured_videos_title") {
+                item(key = "featured_videos_title", contentType = "header") {
                     NavigationTitle(
                         title = stringResource(R.string.featured_videos),
                         modifier = Modifier.animateItem()
                     )
                 }
 
-                item(key = "featured_videos_list") {
+                item(key = "featured_videos_list", contentType = "grid") {
                     LazyRow(
                         contentPadding = WindowInsets.systemBars
                             .only(WindowInsetsSides.Horizontal)
@@ -943,7 +955,8 @@ fun HomeScreen(
                     ) {
                         items(
                             items = uniqueFeaturedVideos,
-                            key = { "featured_video_${it.id}" }
+                            key = { "featured_video_${it.id}" },
+                            contentType = { "video" }
                         ) { video ->
                             YouTubeGridItem(
                                 item = video,
