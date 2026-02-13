@@ -53,14 +53,14 @@ data class YouTubeClient(
 
         val WEB = YouTubeClient(
             clientName = "WEB",
-            clientVersion = "2.20260124.00.00",
+            clientVersion = "2.20260213.00.00",
             clientId = "1",
             userAgent = USER_AGENT_WEB,
         )
 
         val WEB_REMIX = YouTubeClient(
             clientName = "WEB_REMIX",
-            clientVersion = "1.20260124.01.00",
+            clientVersion = "1.20260213.01.00",
             clientId = "67",
             userAgent = USER_AGENT_WEB,
             loginSupported = true,
@@ -70,7 +70,7 @@ data class YouTubeClient(
 
         val WEB_CREATOR = YouTubeClient(
             clientName = "WEB_CREATOR",
-            clientVersion = "1.20260124.00.00",
+            clientVersion = "1.20260213.00.00",
             clientId = "62",
             userAgent = USER_AGENT_WEB,
             loginSupported = true,
@@ -80,7 +80,7 @@ data class YouTubeClient(
 
         val TVHTML5 = YouTubeClient(
             clientName = "TVHTML5",
-            clientVersion = "7.20260124.00.00",
+            clientVersion = "7.20260213.00.00",
             clientId = "7",
             userAgent = "Mozilla/5.0(SMART-TV; Linux; Tizen 4.0.0.2) AppleWebkit/605.1.15 (KHTML, like Gecko) SamsungBrowser/9.2 TV Safari/605.1.15",
             loginSupported = true,
@@ -191,9 +191,9 @@ data class YouTubeClient(
          */
         val ANDROID_CREATOR = YouTubeClient(
             clientName = "ANDROID_CREATOR",
-            clientVersion = "23.47.101",
+            clientVersion = "25.03.101",
             clientId = "14",
-            userAgent = "com.google.android.apps.youtube.creator/23.47.101 (Linux; U; Android 15; en_US; Pixel 9 Pro Fold; Build/AP3A.241005.015.A2; Cronet/132.0.6779.0)",
+            userAgent = "com.google.android.apps.youtube.creator/25.03.101 (Linux; U; Android 15; en_US; Pixel 9 Pro Fold; Build/AP3A.241005.015.A2; Cronet/132.0.6779.0)",
             osName = "Android",
             osVersion = "15",
             deviceMake = "Google",
@@ -239,9 +239,9 @@ data class YouTubeClient(
          */
         val IPADOS = YouTubeClient(
             clientName = "IOS",
-            clientVersion = "19.22.3",
+            clientVersion = "21.03.3",
             clientId = "5",
-            userAgent = "com.google.ios.youtube/19.22.3 (iPad7,6; U; CPU iPadOS 17_7_10 like Mac OS X; en-US)",
+            userAgent = "com.google.ios.youtube/21.03.3 (iPad7,6; U; CPU iPadOS 17_7_10 like Mac OS X; en-US)",
             osName = "iPadOS",
             osVersion = "17.7.10.21H450",
             deviceMake = "Apple",
