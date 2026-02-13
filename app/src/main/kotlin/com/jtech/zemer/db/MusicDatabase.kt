@@ -91,7 +91,7 @@ class MusicDatabase(
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 30,
+    version = 31,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -134,7 +134,7 @@ abstract class InternalDatabase : RoomDatabase() {
             val builtDb = try {
                 Room
                     .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
-                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31)
                     .setJournalMode(JournalMode.TRUNCATE)
                     .enableMultiInstanceInvalidation()
                     .build().also {
@@ -394,6 +394,18 @@ val MIGRATION_29_30 =
     object : Migration(29, 30) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE artist_whitelist ADD COLUMN isKidZone INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+val MIGRATION_30_31 =
+    object : Migration(30, 31) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add indexes for frequently queried columns in song table
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_song_inLibrary ON song(inLibrary)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_song_liked ON song(liked)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_song_isVideo ON song(isVideo)")
+            // Add timestamp index for event table (time-range queries)
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_event_timestamp ON event(timestamp)")
         }
     }
 

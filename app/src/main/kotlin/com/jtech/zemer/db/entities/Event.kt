@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.time.LocalDateTime
 
@@ -18,10 +19,14 @@ import java.time.LocalDateTime
             onDelete = ForeignKey.CASCADE,
         ),
     ],
+    indices = [
+        Index(value = ["songId"]),
+        Index(value = ["timestamp"]),
+    ]
 )
 data class Event(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    @ColumnInfo(index = true) val songId: String,
+    val songId: String,
     val timestamp: LocalDateTime,
     val playTime: Long,
 )

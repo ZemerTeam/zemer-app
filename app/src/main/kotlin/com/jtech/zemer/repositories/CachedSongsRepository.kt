@@ -37,46 +37,60 @@ class CachedSongsRepository @Inject constructor(
 
     init {
         scope.launch {
+            // Initial refresh
+            refreshInternal()
+            // Then refresh every 30 seconds instead of every 1 second
             while (isActive) {
-                val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-                val cachedIds = playerCache.keys.mapNotNull { it?.toString() }.toSet()
-                val downloadedIds = downloadCache.keys.mapNotNull { it?.toString() }.toSet()
-                val pureCacheIds = cachedIds.subtract(downloadedIds)
-
-                val songs = if (pureCacheIds.isNotEmpty()) {
-                    database.getSongsByIds(pureCacheIds.toList())
-                } else {
-                    emptyList()
-                }
-
-                val completeSongs = songs.filter { song ->
-                    val contentLength = song.format?.contentLength
-                    contentLength != null &&
-                        playerCache.isCached(song.song.id, 0, contentLength) &&
-                        !song.song.isDownloaded
-                }
-
-                if (completeSongs.isNotEmpty()) {
-                    database.query {
-                        completeSongs.forEach {
-                            if (it.song.dateDownload == null) {
-                                update(it.song.copy(dateDownload = LocalDateTime.now()))
-                            }
-                        }
-                    }
-                }
-
-                _cachedSongs.value = completeSongs
-                    .filter { it.song.dateDownload != null }
-                    .sortedByDescending { it.song.dateDownload }
-                    .filterExplicit(hideExplicit)
-
-                delay(1000)
+                delay(30_000)
+                refreshInternal()
             }
         }
     }
 
+    /** Force refresh the cached songs list */
+    fun refresh() {
+        scope.launch {
+            refreshInternal()
+        }
+    }
+
+    private suspend fun refreshInternal() {
+        val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+        val cachedIds = playerCache.keys.mapNotNull { it?.toString() }.toSet()
+        val downloadedIds = downloadCache.keys.mapNotNull { it?.toString() }.toSet()
+        val pureCacheIds = cachedIds.subtract(downloadedIds)
+
+        val songs = if (pureCacheIds.isNotEmpty()) {
+            database.getSongsByIds(pureCacheIds.toList())
+        } else {
+            emptyList()
+        }
+
+        val completeSongs = songs.filter { song ->
+            val contentLength = song.format?.contentLength
+            contentLength != null &&
+                playerCache.isCached(song.song.id, 0, contentLength) &&
+                !song.song.isDownloaded
+        }
+
+        if (completeSongs.isNotEmpty()) {
+            database.query {
+                completeSongs.forEach {
+                    if (it.song.dateDownload == null) {
+                        update(it.song.copy(dateDownload = LocalDateTime.now()))
+                    }
+                }
+            }
+        }
+
+        _cachedSongs.value = completeSongs
+            .filter { it.song.dateDownload != null }
+            .sortedByDescending { it.song.dateDownload }
+            .filterExplicit(hideExplicit)
+    }
+
     fun removeSongFromCache(songId: String) {
         playerCache.removeResource(songId)
+        refresh() // Refresh list after removal
     }
 }

@@ -147,6 +147,17 @@ fun HomeScreen(
             }
         }
 
+    // Memoized distinct lists to avoid creating new lists on every recomposition
+    val uniqueQuickPicks = remember(quickPicks) { quickPicks.distinctBy { it.id } }
+    val uniqueFeaturedPlaylists = remember(featuredPlaylists) { featuredPlaylists.distinctBy { it.id } }
+    val uniqueForgottenFavorites = remember(forgottenFavorites) { forgottenFavorites.distinctBy { it.id } }
+    val uniqueRecentReleaseSongs = remember(recentReleaseSongs) { recentReleaseSongs.distinctBy { it.id } }
+    val uniqueRecentReleaseAlbums = remember(recentReleaseAlbums) { recentReleaseAlbums.distinctBy { it.id } }
+    val uniqueFeaturedArtists = remember(featuredArtists) { featuredArtists.distinctBy { it.id } }
+    val uniqueFeaturedAlbums = remember(featuredAlbums) { featuredAlbums.distinctBy { it.id } }
+    val uniqueFeaturedVideos = remember(featuredVideos) { featuredVideos.distinctBy { it.id } }
+    val uniqueTrendingSongs = remember(trendingSongs) { trendingSongs.distinctBy { it.id } }
+
     val isLoading: Boolean = homeUiState.isLoading
     val isRefreshing = homeUiState.isRefreshing
     val pullRefreshState = rememberPullToRefreshState()
@@ -431,7 +442,7 @@ fun HomeScreen(
                                 .animateItem()
                         ) {
                             items(
-                                items = quickPicks.distinctBy { it.id },
+                                items = uniqueQuickPicks,
                                 key = { it.id }
                             ) { originalSong ->
                                 // fetch song from database to keep updated
@@ -513,7 +524,7 @@ fun HomeScreen(
                                 .animateItem()
                         ) {
                             items(
-                                items = playlists.distinctBy { it.id },
+                                items = uniqueFeaturedPlaylists,
                                 key = { it.id }
                             ) { playlist ->
                                 YouTubeListItem(
@@ -596,7 +607,7 @@ fun HomeScreen(
                                 .animateItem()
                         ) {
                             items(
-                                items = forgottenFavorites.distinctBy { it.id },
+                                items = uniqueForgottenFavorites,
                                 key = { it.id }
                             ) { originalSong ->
                                 val song by database.song(originalSong.id)
@@ -684,7 +695,7 @@ fun HomeScreen(
                                 .asPaddingValues()
                         ) {
                             items(
-                                items = recentReleaseSongs.distinctBy { it.id },
+                                items = uniqueRecentReleaseSongs,
                                 key = { "recent_song_${it.id}" }
                             ) { song ->
                                 YouTubeListItem(
@@ -760,7 +771,7 @@ fun HomeScreen(
                                 .animateItem()
                         ) {
                             items(
-                                items = songs.distinctBy { it.id },
+                                items = uniqueTrendingSongs,
                                 key = { it.id }
                             ) { song ->
                                 YouTubeListItem(
@@ -833,7 +844,7 @@ fun HomeScreen(
                                 .asPaddingValues()
                         ) {
                             items(
-                                items = recentReleaseAlbums.distinctBy { it.id },
+                                items = uniqueRecentReleaseAlbums,
                                 key = { "recent_album_${it.id}" }
                             ) { album ->
                                 YouTubeGridItem(
@@ -880,7 +891,7 @@ fun HomeScreen(
                         modifier = Modifier.animateItem()
                     ) {
                         items(
-                            items = featuredArtists.distinctBy { it.id },
+                            items = uniqueFeaturedArtists,
                             key = { "featured_artist_${it.id}" }
                         ) { artist ->
                             ytGridItem(artist)
@@ -906,7 +917,7 @@ fun HomeScreen(
                         modifier = Modifier.animateItem()
                     ) {
                         items(
-                            items = featuredAlbums.distinctBy { it.id },
+                            items = uniqueFeaturedAlbums,
                             key = { "featured_album_${it.id}" }
                         ) { album ->
                             ytGridItem(album)
@@ -931,7 +942,7 @@ fun HomeScreen(
                         modifier = Modifier.animateItem()
                     ) {
                         items(
-                            items = featuredVideos.distinctBy { it.id },
+                            items = uniqueFeaturedVideos,
                             key = { "featured_video_${it.id}" }
                         ) { video ->
                             YouTubeGridItem(
