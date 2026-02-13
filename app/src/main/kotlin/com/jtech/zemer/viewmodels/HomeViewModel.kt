@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
+import com.jtech.zemer.constants.ArtistProfilesCacheKey
+import com.jtech.zemer.constants.ArtistProfilesCacheTimestampKey
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.HomeRecentArtistsKey
 import com.jtech.zemer.constants.InnerTubeCookieKey
@@ -102,6 +104,42 @@ class HomeViewModel @Inject constructor(
     @Volatile
     private var homeArtistProfilesCache: List<HomeArtistProfile> = emptyList()
 
+    // Cache song IDs for instant load on next app start
+    private suspend fun loadCachedLocalData(): Triple<List<Song>, List<Song>, List<LocalItem>> {
+        val cachedIds = context.dataStore.getSuspend(com.jtech.zemer.constants.HomeCacheKey, "")
+        if (cachedIds.isBlank()) return Triple(emptyList(), emptyList(), emptyList())
+
+        return try {
+            val parts = cachedIds.split("|")
+            val quickPickIds = parts.getOrNull(0)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+            val forgottenIds = parts.getOrNull(1)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+            val keepListeningIds = parts.getOrNull(2)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+
+            val quickPicks = if (quickPickIds.isNotEmpty()) database.getSongsByIds(quickPickIds) else emptyList()
+            val forgotten = if (forgottenIds.isNotEmpty()) database.getSongsByIds(forgottenIds) else emptyList()
+            val keepListening = if (keepListeningIds.isNotEmpty()) {
+                database.getSongsByIds(keepListeningIds).map { it as LocalItem }
+            } else emptyList()
+
+            Triple(quickPicks, forgotten, keepListening)
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to load cached home data")
+            Triple(emptyList(), emptyList(), emptyList())
+        }
+    }
+
+    private suspend fun saveCachedLocalData(quickPicks: List<Song>, forgotten: List<Song>, keepListening: List<LocalItem>) {
+        try {
+            val quickPickIds = quickPicks.take(20).joinToString(",") { it.id }
+            val forgottenIds = forgotten.take(20).joinToString(",") { it.id }
+            val keepListeningIds = keepListening.filterIsInstance<Song>().take(20).joinToString(",") { it.id }
+            val cacheString = "$quickPickIds|$forgottenIds|$keepListeningIds"
+            context.dataStore.edit { it[com.jtech.zemer.constants.HomeCacheKey] = cacheString }
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to save cached home data")
+        }
+    }
+
     private val quickPicksEnum = context.dataStore.data.map {
         it[QuickPicksKey].toEnum(QuickPicks.QUICK_PICKS)
     }.distinctUntilChanged()
@@ -176,6 +214,7 @@ class HomeViewModel @Inject constructor(
         usedArtists: MutableSet<String>,
         recentExclusions: Set<String>,
     ): List<PlaylistItem> {
+        val start = System.currentTimeMillis()
         val selectedArtists = selectWeightedArtists(
             artistProfiles,
             allowFemale,
@@ -202,6 +241,7 @@ class HomeViewModel @Inject constructor(
                 }
             }.awaitAll().filterNotNull().flatten()
         }
+        Timber.d("NET: loadFeaturedPlaylists (${selectedArtists.size} artists) took ${System.currentTimeMillis() - start}ms")
 
         return playlistItems
             .shuffled()
@@ -210,8 +250,11 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadTrendingSongs(filters: ContentFilterConfig, hideExplicit: Boolean): List<SongItem> {
+        val start = System.currentTimeMillis()
         val allowedIds = WhitelistCache.allowedEntries(database, filters).map { it.artistId }.toSet()
-        val charts = YouTube.getChartsPage().getOrNull() ?: return emptyList()
+        val charts = YouTube.getChartsPage().getOrNull()
+        Timber.d("NET: YouTube.getChartsPage() took ${System.currentTimeMillis() - start}ms")
+        if (charts == null) return emptyList()
         val allSongs = charts.sections
             .flatMap { it.items }
             .filterIsInstance<SongItem>()
@@ -274,7 +317,9 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadHomePage(hideExplicit: Boolean): HomePage? {
+        val start = System.currentTimeMillis()
         val homeResult = YouTube.home()
+        Timber.d("NET: YouTube.home() took ${System.currentTimeMillis() - start}ms")
         if (homeResult.isSuccess) {
             val page = homeResult.getOrNull()!!
             return page.copy(
@@ -290,7 +335,10 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadExplorePage(hideExplicit: Boolean): ExplorePage? {
-        return YouTube.explore().mapCatching { page ->
+        val start = System.currentTimeMillis()
+        return YouTube.explore().also {
+            Timber.d("NET: YouTube.explore() took ${System.currentTimeMillis() - start}ms")
+        }.mapCatching { page ->
             val rawAlbums = page.newReleaseAlbums
             val finalAlbums = rawAlbums.filterExplicit(hideExplicit).filterIsInstance<AlbumItem>()
             page.copy(newReleaseAlbums = finalAlbums)
@@ -311,7 +359,9 @@ class HomeViewModel @Inject constructor(
                 return artists?.any { it.id in allowedIds } == true
             }
 
+            val browseStart = System.currentTimeMillis()
             val browse = YouTube.browse(browseId = "FEmusic_new_releases", params = null).getOrNull()
+            Timber.d("NET: YouTube.browse(new_releases) took ${System.currentTimeMillis() - browseStart}ms")
             val items = browse
                 ?.filterExplicit(hideExplicit)
                 ?.items
@@ -332,15 +382,90 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadHomeArtistProfiles(force: Boolean = false): List<HomeArtistProfile> {
-        if (homeArtistProfilesCache.isNotEmpty() && !force) return homeArtistProfilesCache
+        if (homeArtistProfilesCache.isNotEmpty() && !force) {
+            Timber.d("NET: loadHomeArtistProfiles using memory cache (${homeArtistProfilesCache.size} profiles)")
+            return homeArtistProfilesCache
+        }
 
-        return runCatching {
-            IsraeliArtistRegistry.ensureLoaded()
+        val registryStart = System.currentTimeMillis()
+        IsraeliArtistRegistry.ensureLoaded()
+        Timber.d("NET: IsraeliArtistRegistry.ensureLoaded() took ${System.currentTimeMillis() - registryStart}ms")
 
+        // Load from DataStore cache first for instant UI
+        val cachedJson = context.dataStore.getSuspend(ArtistProfilesCacheKey, "")
+        var cachedProfiles: List<HomeArtistProfile> = emptyList()
+
+        if (cachedJson.isNotBlank()) {
+            val cacheStart = System.currentTimeMillis()
+            cachedProfiles = parseArtistProfilesCache(cachedJson)
+            if (cachedProfiles.isNotEmpty()) {
+                Timber.d("NET: Loaded ${cachedProfiles.size} artist profiles from cache in ${System.currentTimeMillis() - cacheStart}ms")
+                homeArtistProfilesCache = cachedProfiles
+            }
+        }
+
+        // If we have cache, return it immediately and check Firebase in background
+        if (cachedProfiles.isNotEmpty() && !force) {
+            // Background check for updates
+            viewModelScope.launch(Dispatchers.IO) {
+                checkAndUpdateArtistProfiles(cachedProfiles)
+            }
+            return cachedProfiles
+        }
+
+        // No cache - must fetch from Firebase (first launch)
+        return fetchArtistProfilesFromFirebase(cachedProfiles)
+    }
+
+    private suspend fun checkAndUpdateArtistProfiles(cachedProfiles: List<HomeArtistProfile>) {
+        runCatching {
+            val firestoreStart = System.currentTimeMillis()
             val snapshot = FirebaseFirestore.getInstance()
                 .collection("artistsWhitelist")
                 .get()
                 .await()
+            val fetchTime = System.currentTimeMillis() - firestoreStart
+
+            val profiles = snapshot.documents.mapNotNull { doc ->
+                val id = doc.getString("id") ?: doc.getString("artistId") ?: return@mapNotNull null
+                val name = doc.getString("name") ?: doc.getString("artistName") ?: id
+                HomeArtistProfile(
+                    id = id,
+                    name = name,
+                    isAmerican = doc.getBoolean("isAmerican"),
+                    isIsraeli = IsraeliArtistRegistry.isIsraeli(id),
+                    isFemale = doc.getBoolean("isFemale"),
+                    isFamous = doc.getBoolean("isFamous"),
+                    isKids = doc.getBoolean("isKids"),
+                    isDJ = doc.getBoolean("isDJ"),
+                    isGroup = doc.getBoolean("isGroup"),
+                )
+            }
+
+            // Check if data changed
+            val changed = profiles.size != cachedProfiles.size ||
+                profiles.map { it.id }.toSet() != cachedProfiles.map { it.id }.toSet()
+
+            if (changed) {
+                Timber.d("NET: Firebase artistsWhitelist CHANGED in ${fetchTime}ms (${cachedProfiles.size} -> ${profiles.size} docs) - cache updated for next load")
+                homeArtistProfilesCache = profiles
+                saveArtistProfilesToCache(profiles)
+            } else {
+                Timber.d("NET: Firebase artistsWhitelist unchanged in ${fetchTime}ms (${profiles.size} docs)")
+            }
+        }.onFailure {
+            Timber.w(it, "HomeViewModel: Background Firebase check failed")
+        }
+    }
+
+    private suspend fun fetchArtistProfilesFromFirebase(fallback: List<HomeArtistProfile>): List<HomeArtistProfile> {
+        return runCatching {
+            val firestoreStart = System.currentTimeMillis()
+            val snapshot = FirebaseFirestore.getInstance()
+                .collection("artistsWhitelist")
+                .get()
+                .await()
+            Timber.d("NET: Firebase artistsWhitelist fetch took ${System.currentTimeMillis() - firestoreStart}ms (${snapshot.documents.size} docs)")
 
             val profiles = snapshot.documents.mapNotNull { doc ->
                 val id = doc.getString("id") ?: doc.getString("artistId") ?: return@mapNotNull null
@@ -358,10 +483,49 @@ class HomeViewModel @Inject constructor(
                 )
             }
             homeArtistProfilesCache = profiles
+            saveArtistProfilesToCache(profiles)
             profiles
         }.getOrElse {
             Timber.w(it, "HomeViewModel: Failed to load artist profiles")
+            fallback
+        }
+    }
+
+    private fun parseArtistProfilesCache(json: String): List<HomeArtistProfile> {
+        return try {
+            json.split("||").mapNotNull { entry ->
+                val parts = entry.split("|")
+                if (parts.size < 8) return@mapNotNull null
+                HomeArtistProfile(
+                    id = parts[0],
+                    name = parts[1],
+                    isAmerican = parts[2].toBooleanStrictOrNull(),
+                    isIsraeli = parts[3].toBooleanStrictOrNull(),
+                    isFemale = parts[4].toBooleanStrictOrNull(),
+                    isFamous = parts[5].toBooleanStrictOrNull(),
+                    isKids = parts[6].toBooleanStrictOrNull(),
+                    isDJ = parts[7].toBooleanStrictOrNull(),
+                    isGroup = parts.getOrNull(8)?.toBooleanStrictOrNull(),
+                )
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to parse artist profiles cache")
             emptyList()
+        }
+    }
+
+    private suspend fun saveArtistProfilesToCache(profiles: List<HomeArtistProfile>) {
+        try {
+            val json = profiles.joinToString("||") { p ->
+                "${p.id}|${p.name}|${p.isAmerican}|${p.isIsraeli}|${p.isFemale}|${p.isFamous}|${p.isKids}|${p.isDJ}|${p.isGroup}"
+            }
+            context.dataStore.edit { prefs ->
+                prefs[ArtistProfilesCacheKey] = json
+                prefs[ArtistProfilesCacheTimestampKey] = System.currentTimeMillis()
+            }
+            Timber.d("NET: Saved ${profiles.size} artist profiles to DataStore cache")
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to save artist profiles cache")
         }
     }
 
@@ -492,6 +656,7 @@ class HomeViewModel @Inject constructor(
         usedArtists: MutableSet<String>,
         recentExclusions: Set<String>,
     ): Triple<List<AlbumItem>, List<ArtistItem>, List<SongItem>> {
+        val start = System.currentTimeMillis()
         val weightedArtists = selectWeightedArtists(
             artistProfiles,
             allowFemale,
@@ -513,6 +678,7 @@ class HomeViewModel @Inject constructor(
                 }
             }
             val artistPages = deferredArtistPages.awaitAll().filterNotNull()
+            Timber.d("NET: loadFeaturedContent fetched ${artistPages.size}/${weightedArtists.size} artists in ${System.currentTimeMillis() - start}ms")
             artistPages.forEach { artistPage ->
                 artists.add(artistPage.artist)
                 val artistAlbums = artistPage.sections
@@ -548,6 +714,7 @@ class HomeViewModel @Inject constructor(
         random: Random,
         recentExclusions: Set<String>,
     ): HomePage? {
+        val start = System.currentTimeMillis()
         val filters = ContentFilterState.state.value
         val allowed = WhitelistCache.allowedEntries(database, filters)
         if (allowed.isEmpty()) return null
@@ -563,6 +730,7 @@ class HomeViewModel @Inject constructor(
             val pages = selected.map { entry ->
                 async { YouTube.artist(entry.id).getOrNull() }
             }.awaitAll().filterNotNull()
+            Timber.d("NET: loadWhitelistHome fetched ${pages.size}/${selected.size} artists in ${System.currentTimeMillis() - start}ms")
 
             pages.forEach { artistPage ->
                 val songs = artistPage.sections.flatMap { it.items }
@@ -647,6 +815,7 @@ class HomeViewModel @Inject constructor(
         random: Random,
         recentExclusions: Set<String>,
     ): ExplorePage? {
+        val start = System.currentTimeMillis()
         val filters = ContentFilterState.state.value
         val allowed = WhitelistCache.allowedEntries(database, filters)
         if (allowed.isEmpty()) return null
@@ -666,6 +835,7 @@ class HomeViewModel @Inject constructor(
             val pages = selected.map { entry ->
                 async { YouTube.artist(entry.id).getOrNull() }
             }.awaitAll().filterNotNull()
+            Timber.d("NET: loadWhitelistExplore fetched ${pages.size}/${selected.size} artists in ${System.currentTimeMillis() - start}ms")
 
             pages.forEach { artistPage ->
                 albums += artistPage.sections.flatMap { it.items }
@@ -764,30 +934,83 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun load(force: Boolean = false) {
         if (uiState.value.isLoading) return
+        val loadStartTime = System.currentTimeMillis()
+        Timber.d("HomeViewModel: load() START force=$force")
 
         uiState.update { it.copy(isLoading = true) }
         try {
-            IsraeliArtistRegistry.ensureLoaded()
+            // Run prep work in parallel with local data fetch
+            val prepDeferred = viewModelScope.async(Dispatchers.IO) {
+                // These can run while local data loads
+                IsraeliArtistRegistry.ensureLoaded()
+                Timber.d("HomeViewModel: IsraeliArtistRegistry loaded at +${System.currentTimeMillis() - loadStartTime}ms")
 
-            if (WhitelistCache.snapshot().isEmpty()) {
-                runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
+                if (WhitelistCache.snapshot().isEmpty()) {
+                    runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
+                }
+                // Don't force artist profiles - use cache + background check for updates
+                // Only clear memory cache on force refresh, DataStore cache remains for instant load
+                if (force) {
+                    homeArtistProfilesCache = emptyList()
+                }
+                loadHomeArtistProfiles(force = false)
             }
-            if (force) {
-                homeArtistProfilesCache = emptyList()
-            }
+
             val filters = ContentFilterState.state.value
-            val allowedEntries = WhitelistCache.allowedEntries(database, filters)
-            val allowedIds = allowedEntries.map { it.artistId }.toSet()
-            val useWhitelist = filters.filtersEnabled && allowedEntries.isNotEmpty()
-            val effectiveFilters = if (useWhitelist) filters else filters.copy(filtersEnabled = false)
             val allowFemale = filters.allowFemaleSingers
             val recentArtistIds = context.dataStore
                 .getSuspend(HomeRecentArtistsKey, "")
                 .orEmpty()
                 .split(",")
                 .filter { it.isNotBlank() }
+            val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
 
-            val artistProfiles = loadHomeArtistProfiles(force = force)
+            // Start LOCAL data loading immediately (parallel with prep work)
+            val parallelStartTime = System.currentTimeMillis()
+            Timber.d("HomeViewModel: Starting parallel fetch at +${parallelStartTime - loadStartTime}ms")
+            val quickDeferred = viewModelScope.async(Dispatchers.IO) { loadQuickPicks() }
+            val forgottenDeferred = viewModelScope.async(Dispatchers.IO) {
+                database.forgottenFavorites().first().shuffled().take(20)
+            }
+            val keepListeningDeferred = viewModelScope.async(Dispatchers.IO) { loadKeepListening() }
+
+            // Await LOCAL data first and show immediately (instant UI)
+            Timber.d("HomeViewModel: Awaiting local data at +${System.currentTimeMillis() - loadStartTime}ms")
+            val quick = quickDeferred.await()
+            val forgottenList = forgottenDeferred.await()
+            val keepListening = keepListeningDeferred.await()
+            Timber.d("HomeViewModel: LOCAL data ready at +${System.currentTimeMillis() - loadStartTime}ms (quick=${quick.size}, forgotten=${forgottenList.size}, keep=${keepListening.size})")
+
+            val forgotten = forgottenList.ifEmpty {
+                // Fallback: show liked songs if no forgotten favorites
+                runCatching { database.allSongs().first().filter { it.song.liked } }
+                    .getOrDefault(emptyList())
+                    .shuffled()
+                    .take(20)
+            }
+
+            // Show local data immediately while network loads
+            if (quick.isNotEmpty() || forgotten.isNotEmpty() || keepListening.isNotEmpty()) {
+                uiState.update {
+                    it.copy(
+                        quickPicks = quick.shuffled(Random(System.nanoTime())),
+                        forgottenFavorites = forgotten,
+                        keepListening = keepListening,
+                        isNewUser = quick.isEmpty() && keepListening.isEmpty()
+                    )
+                }
+                Timber.d("HomeViewModel: Showing local data first - quick=${quick.size}, forgotten=${forgotten.size}, keep=${keepListening.size}")
+            }
+
+            // Await prep work (IsraeliArtistRegistry, WhitelistCache, artistProfiles)
+            Timber.d("HomeViewModel: Awaiting prep work at +${System.currentTimeMillis() - loadStartTime}ms")
+            val artistProfiles = prepDeferred.await()
+            Timber.d("HomeViewModel: Prep work done at +${System.currentTimeMillis() - loadStartTime}ms")
+
+            val allowedEntries = WhitelistCache.allowedEntries(database, filters)
+            val allowedIds = allowedEntries.map { it.artistId }.toSet()
+            val useWhitelist = filters.filtersEnabled && allowedEntries.isNotEmpty()
+            val effectiveFilters = if (useWhitelist) filters else filters.copy(filtersEnabled = false)
             val eligibleProfiles = artistProfiles
                 .filter { it.isAmerican == true }
                 .filter { it.isIsraeli != true }
@@ -801,8 +1024,40 @@ class HomeViewModel @Inject constructor(
             val sharedUsedArtists = recentArtistIds.toMutableSet()
             val selectionRandom = Random(System.nanoTime())
 
-            val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
-            val quick = loadQuickPicks()
+            // Now start NETWORK calls (after prep work is done)
+            Timber.d("HomeViewModel: Starting NETWORK fetch at +${System.currentTimeMillis() - loadStartTime}ms")
+            val trendingDeferred = viewModelScope.async(Dispatchers.IO) { loadTrendingSongs(effectiveFilters, hideExplicit) }
+            val homeDeferred = viewModelScope.async(Dispatchers.IO) {
+                if (useWhitelist) {
+                    loadWhitelistHome(
+                        hideExplicit,
+                        baseProfiles,
+                        allowFemale,
+                        selectionRandom,
+                        recentArtistIds.toSet(),
+                    )
+                } else loadHomePage(hideExplicit)
+            }
+            val exploreDeferred = viewModelScope.async(Dispatchers.IO) {
+                if (useWhitelist) {
+                    loadWhitelistExplore(
+                        hideExplicit,
+                        baseProfiles,
+                        allowFemale,
+                        selectionRandom,
+                        recentArtistIds.toSet(),
+                    )
+                } else loadExplorePage(hideExplicit)
+            }
+            val recentReleasesDeferred = viewModelScope.async(Dispatchers.IO) { loadRecentReleases(hideExplicit) }
+
+            val trendingSongs = trendingDeferred.await()
+            val home = homeDeferred.await()
+            val explore = exploreDeferred.await()
+            val (recentAlbums, recentSongs) = recentReleasesDeferred.await()
+            Timber.d("HomeViewModel: NETWORK data ready at +${System.currentTimeMillis() - loadStartTime}ms")
+
+            // Featured playlists loaded after (uses sharedUsedArtists which is mutable)
             val featuredPlaylists = loadFeaturedPlaylists(
                 hideExplicit,
                 baseProfiles,
@@ -811,35 +1066,6 @@ class HomeViewModel @Inject constructor(
                 sharedUsedArtists,
                 recentArtistIds.toSet(),
             )
-            val trendingSongs = loadTrendingSongs(effectiveFilters, hideExplicit)
-            val forgottenList = database.forgottenFavorites().first().shuffled().take(20)
-            val forgotten = forgottenList.ifEmpty {
-                // Fallback: show liked songs if no forgotten favorites
-                runCatching { database.allSongs().first().filter { it.song.liked } }
-                    .getOrDefault(emptyList())
-                    .shuffled()
-                    .take(20)
-            }
-            val keepListening = loadKeepListening()
-            val home = if (useWhitelist) {
-                loadWhitelistHome(
-                    hideExplicit,
-                    baseProfiles,
-                    allowFemale,
-                    selectionRandom,
-                    recentArtistIds.toSet(),
-                )
-            } else loadHomePage(hideExplicit)
-            val explore = if (useWhitelist) {
-                loadWhitelistExplore(
-                    hideExplicit,
-                    baseProfiles,
-                    allowFemale,
-                    selectionRandom,
-                    recentArtistIds.toSet(),
-                )
-            } else loadExplorePage(hideExplicit)
-            val (recentAlbums, recentSongs) = loadRecentReleases(hideExplicit)
 
             fun isBlockedArtist(ids: List<String>): Boolean {
                 if (ids.any { IsraeliArtistRegistry.isIsraeli(it) }) return true
@@ -955,6 +1181,7 @@ class HomeViewModel @Inject constructor(
             val freshQuick = filteredQuick.filter { song -> song.artistIds().none { it in recentArtistIds } }
             val quickPool = freshQuick.ifEmpty { filteredQuick }
             val recentAwareQuick = rotateByArtist(quickPool.ifEmpty { fallbackQuick }, 1, 20)
+            Timber.d("HomeViewModel: quickPicks flow - quick=${quick.size}, filtered=${filteredQuick.size}, rotated=${recentAwareQuick.size}")
             sharedUsedArtists.addAll(recentAwareQuick.flatMap { it.artistIds() })
 
             val featuredTriple = loadFeaturedContent(
@@ -966,7 +1193,20 @@ class HomeViewModel @Inject constructor(
                 recentArtistIds.toSet(),
             )
 
-            val finalQuick = recentAwareQuick.ifEmpty { filteredQuick.ifEmpty { fallbackQuick } }
+            // CRITICAL: Never show fewer items than already displayed to user
+            val finalQuick = when {
+                recentAwareQuick.size >= quick.size -> recentAwareQuick
+                recentAwareQuick.size + filteredQuick.size >= quick.size -> {
+                    val additional = filteredQuick.filter { it.id !in recentAwareQuick.map { q -> q.id } }
+                    (recentAwareQuick + additional).take(quick.size.coerceAtLeast(5))
+                }
+                else -> {
+                    // Fallback: keep original quick picks to avoid showing less
+                    Timber.d("HomeViewModel: Keeping original quick picks (${quick.size}) instead of filtered (${recentAwareQuick.size})")
+                    quick
+                }
+            }
+            Timber.d("HomeViewModel: finalQuick=${finalQuick.size} (original=${quick.size}, rotated=${recentAwareQuick.size})")
             val finalTrending = rotateByArtist(
                 trendingSongs.filter { song -> song.isAllowed() },
                 maxPerArtist = 1,
@@ -1081,6 +1321,7 @@ class HomeViewModel @Inject constructor(
                 finalQuick.size
             )
 
+            Timber.d("HomeViewModel: Updating final UI state at +${System.currentTimeMillis() - loadStartTime}ms")
             uiState.update {
                 it.copy(
                     isLoading = false,
@@ -1101,6 +1342,10 @@ class HomeViewModel @Inject constructor(
                 )
             }
             hasLoadedOnce = true
+            Timber.d("HomeViewModel: load() COMPLETE in ${System.currentTimeMillis() - loadStartTime}ms")
+
+            // Save local data to cache for instant load next time
+            saveCachedLocalData(finalQuick, finalForgotten, finalKeepListening)
         } catch (e: java.util.concurrent.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -1206,6 +1451,25 @@ class HomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
+            val initStart = System.currentTimeMillis()
+            Timber.d("HomeViewModel: init START")
+
+            // Load cached local data instantly for fast startup
+            val cacheStart = System.currentTimeMillis()
+            val (cachedQuick, cachedForgotten, cachedKeepListening) = loadCachedLocalData()
+            Timber.d("HomeViewModel: loadCachedLocalData took ${System.currentTimeMillis() - cacheStart}ms")
+            if (cachedQuick.isNotEmpty() || cachedForgotten.isNotEmpty() || cachedKeepListening.isNotEmpty()) {
+                uiState.update {
+                    it.copy(
+                        quickPicks = cachedQuick,
+                        forgottenFavorites = cachedForgotten,
+                        keepListening = cachedKeepListening,
+                        isNewUser = cachedQuick.isEmpty() && cachedKeepListening.isEmpty()
+                    )
+                }
+                Timber.d("HomeViewModel: Loaded cached data instantly - quick=${cachedQuick.size}, forgotten=${cachedForgotten.size}, keep=${cachedKeepListening.size}")
+            }
+
             context.dataStore.data
                 .map { it[InnerTubeCookieKey] }
                 .distinctUntilChanged()
@@ -1221,7 +1485,10 @@ class HomeViewModel @Inject constructor(
 
             val isSyncEnabled = context.dataStore.getSuspend(YtmSyncKey, true)
 
+            Timber.d("HomeViewModel: init ready to load, elapsed ${System.currentTimeMillis() - initStart}ms")
+            val loadStart = System.currentTimeMillis()
             runCatching { load(force = true) }.onFailure { reportException(it) }
+            Timber.d("HomeViewModel: load() completed in ${System.currentTimeMillis() - loadStart}ms, total init ${System.currentTimeMillis() - initStart}ms")
 
             if (isSyncEnabled) {
                 viewModelScope.launch(Dispatchers.IO) {

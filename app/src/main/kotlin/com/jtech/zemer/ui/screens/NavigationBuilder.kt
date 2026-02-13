@@ -38,6 +38,7 @@ import com.jtech.zemer.ui.screens.settings.SettingsScreen
 import com.jtech.zemer.ui.screens.settings.StorageSettings
 import com.jtech.zemer.ui.screens.settings.UpdaterScreen
 import com.jtech.zemer.ui.screens.settings.integrations.IntegrationScreen
+import com.jtech.zemer.viewmodels.HomeViewModel
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,9 +47,10 @@ fun NavGraphBuilder.navigationBuilder(
     scrollBehavior: TopAppBarScrollBehavior,
     searchBarScrollBehavior: TopAppBarScrollBehavior,
     latestVersionName: String,
+    homeViewModel: HomeViewModel? = null,
 ) {
     composable(Screens.Home.route) {
-        HomeScreen(navController)
+        HomeScreen(navController, viewModel = homeViewModel)
     }
     composable(Screens.Artists.route) {
         WhitelistedArtistsScreen(navController, searchBarScrollBehavior)

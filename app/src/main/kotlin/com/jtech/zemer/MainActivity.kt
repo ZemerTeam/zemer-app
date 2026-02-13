@@ -1839,7 +1839,8 @@ class MainActivity : ComponentActivity() {
                                             navController,
                                             topAppBarScrollBehavior,
                                             searchBarScrollBehavior,
-                                            latestVersionName
+                                            latestVersionName,
+                                            homeViewModel
                                         )
                                     }
                                 }

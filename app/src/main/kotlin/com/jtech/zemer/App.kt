@@ -26,6 +26,7 @@ import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.extensions.toInetSocketAddress
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.cipher.CipherDeobfuscator
 import timber.log.Timber
@@ -85,6 +86,11 @@ class App : Application(), SingletonImageLoader.Factory {
             initializeSettings()
             observeSettingsChanges()
             checkForUpdatesOnStartup()
+            // Pre-load IsraeliArtistRegistry in background for faster HomeViewModel init
+            launch(Dispatchers.IO) {
+                IsraeliArtistRegistry.ensureLoaded()
+                Timber.d("App: IsraeliArtistRegistry pre-loaded")
+            }
             // Removed auto-fetch of anonymous token; user must trigger login manually.
         }
     }

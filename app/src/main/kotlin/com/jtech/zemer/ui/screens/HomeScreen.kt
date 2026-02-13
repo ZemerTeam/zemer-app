@@ -36,7 +36,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,8 +107,11 @@ import kotlin.random.Random
 @Composable
 fun HomeScreen(
     navController: NavController,
-    viewModel: HomeViewModel = hiltViewModel(),
+    viewModel: HomeViewModel? = null,
 ) {
+    // Use passed viewModel or create new one (fallback for direct navigation)
+    @Suppress("NAME_SHADOWING")
+    val viewModel: HomeViewModel = viewModel ?: hiltViewModel()
     val menuState = LocalMenuState.current
     LocalBottomSheetPageState.current
     val database = LocalDatabase.current
@@ -177,6 +182,15 @@ fun HomeScreen(
         if (scrollToTop?.value == true) {
             lazylistState.animateScrollToItem(0)
             backStackEntry?.savedStateHandle?.set("scrollToTop", false)
+        }
+    }
+
+    // Scroll to top on initial load and when quickPicks first loads
+    var hasScrolledToTop by remember { mutableStateOf(false) }
+    LaunchedEffect(quickPicks.isNotEmpty()) {
+        if (quickPicks.isNotEmpty() && !hasScrolledToTop) {
+            lazylistState.scrollToItem(0)
+            hasScrolledToTop = true
         }
     }
 

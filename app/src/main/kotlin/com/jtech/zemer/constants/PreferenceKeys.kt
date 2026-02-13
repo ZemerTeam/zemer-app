@@ -125,6 +125,14 @@ val LastAlbumSyncKey = longPreferencesKey("last_album_sync")
 val LastArtistSyncKey = longPreferencesKey("last_artist_sync")
 val LastPlaylistSyncKey = longPreferencesKey("last_playlist_sync")
 
+// Home screen cache
+val HomeCacheKey = stringPreferencesKey("home_cache_json")
+val HomeCacheTimestampKey = longPreferencesKey("home_cache_timestamp")
+
+// Artist profiles cache (Firebase whitelist)
+val ArtistProfilesCacheKey = stringPreferencesKey("artist_profiles_cache")
+val ArtistProfilesCacheTimestampKey = longPreferencesKey("artist_profiles_cache_timestamp")
+
 val ArtistViewTypeKey = stringPreferencesKey("artistViewType")
 val AlbumViewTypeKey = stringPreferencesKey("albumViewType")
 val PlaylistViewTypeKey = stringPreferencesKey("playlistViewType")
