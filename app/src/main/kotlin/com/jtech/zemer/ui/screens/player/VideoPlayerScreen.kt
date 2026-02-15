@@ -88,6 +88,15 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.MergingMediaSource
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.common.MediaItem
+import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.YouTubeClient
+import androidx.media3.ui.PlayerView
+import android.view.ViewGroup
+import androidx.compose.ui.viewinterop.AndroidView
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
@@ -111,7 +120,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import timber.log.Timber
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.media.MediaMuxer
 import java.io.File
+import java.nio.ByteBuffer
 import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
 
@@ -183,6 +198,10 @@ fun VideoPlayerScreen(
     var reloadKey by remember { mutableStateOf(0) }
     var availableQualities by remember { mutableStateOf<List<QualityOption>>(emptyList()) }
     var selectedQualityId by remember { mutableStateOf("auto") }
+    // Adaptive playback data for 1080p+ support
+    var adaptiveData by remember { mutableStateOf<YTPlayerUtils.AdaptiveVideoData?>(null) }
+    var adaptiveQualities by remember { mutableStateOf<List<YTPlayerUtils.VideoQualityInfo>>(emptyList()) }
+    var selectedQualityHeight by remember { mutableStateOf(1080) } // Default to 1080p
     var playbackInfo by remember { mutableStateOf<String?>(null) }
     var isInPipMode by remember { mutableStateOf(activity?.isInPictureInPictureMode == true) }
     var artistName by remember(videoId, artist) { mutableStateOf(artist?.takeIf { it.isNotBlank() }) }
@@ -337,11 +356,62 @@ fun VideoPlayerScreen(
         onDispose { activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED }
     }
 
-    LaunchedEffect(videoId, maxVideoBitrateKbps, reloadKey) {
+    LaunchedEffect(videoId, maxVideoBitrateKbps, reloadKey, selectedQualityHeight) {
         isLoading = true
         loadError = null
         videoItem = null
+        adaptiveData = null
 
+        // Try adaptive playback first (for 1080p+ support)
+        val adaptiveResult = withContext(Dispatchers.IO) {
+            YTPlayerUtils.getAdaptiveVideoData(videoId, targetHeight = selectedQualityHeight)
+        }
+
+        adaptiveResult.onSuccess { adaptive ->
+            val videoUrl = UrlValidator.validateAndParseUrl(adaptive.videoUrl)?.toString()
+            val audioUrl = UrlValidator.validateAndParseUrl(adaptive.audioUrl)?.toString()
+
+            if (videoUrl != null && audioUrl != null) {
+                adaptiveData = adaptive
+                adaptiveQualities = adaptive.availableQualities
+
+                val titleFromPlayback = adaptive.videoDetails?.title?.takeIf { it.isNotBlank() }
+                val resolvedTitle = titleFromPlayback ?: currentTitle ?: videoId
+                currentTitle = resolvedTitle
+
+                // Get artist name, avoiding channel IDs (which start with "UC" and have no spaces)
+                val authorFromPlayback = adaptive.videoDetails?.author?.takeIf {
+                    it.isNotBlank() && !it.isChannelId()
+                }
+                val artistFromTitle = resolvedTitle.extractArtistFromTitle()
+
+                if (artistName.isNullOrBlank() || artistName?.isChannelId() == true) {
+                    artistName = authorFromPlayback ?: artistFromTitle ?: "Unknown Artist"
+                }
+                val thumbnail = adaptive.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url
+
+                val mediaMetadata = MediaMetadata.Builder()
+                    .setTitle(resolvedTitle)
+                    .apply {
+                        thumbnail?.let { setArtworkUri(Uri.parse(it)) }
+                        artistName?.let { setArtist(it) }
+                    }
+                    .build()
+
+                // Use video URL as placeholder - we'll set MergingMediaSource after player is created
+                videoItem = VideoPlayerMediaItem.NetworkMediaItem(
+                    url = videoUrl,
+                    mediaMetadata = mediaMetadata,
+                    mimeType = adaptive.videoFormat.mimeType ?: "video/mp4",
+                    drmConfiguration = null
+                )
+                isLoading = false
+                return@LaunchedEffect
+            }
+        }
+
+        // Fallback to progressive playback (limited to 720p)
+        // Uses isVideoFallback=true to skip TVHTML5 (already tried for adaptive)
         val result = withContext(Dispatchers.IO) {
             val cm = connectivityManager ?: error("No connectivity manager")
             YTPlayerUtils.playerResponseForPlayback(
@@ -350,6 +420,7 @@ fun VideoPlayerScreen(
                 connectivityManager = cm,
                 preferVideo = true,
                 maxVideoBitrateKbps = maxVideoBitrateKbps,
+                isVideoFallback = true,
             )
         }
 
@@ -362,14 +433,17 @@ fun VideoPlayerScreen(
             }
 
             val titleFromPlayback = playback.videoDetails?.title?.takeIf { it.isNotBlank() }
-            val artistFromPlayback = playback.videoDetails?.author?.takeIf { it.isNotBlank() }
-                ?: playback.videoDetails?.channelId
             val resolvedTitle = titleFromPlayback ?: currentTitle ?: videoId
             currentTitle = resolvedTitle
-            if (!artistFromPlayback.isNullOrBlank()) {
-                artistName = artistFromPlayback
-            } else if (artistName.isNullOrBlank()) {
-                artistName = playback.videoDetails?.channelId
+
+            // Get artist name, avoiding channel IDs
+            val authorFromPlayback = playback.videoDetails?.author?.takeIf {
+                it.isNotBlank() && !it.isChannelId()
+            }
+            val artistFromTitle = resolvedTitle.extractArtistFromTitle()
+
+            if (artistName.isNullOrBlank() || artistName?.isChannelId() == true) {
+                artistName = authorFromPlayback ?: artistFromTitle ?: "Unknown Artist"
             }
             val thumbnail = playback.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url
 
@@ -396,81 +470,219 @@ fun VideoPlayerScreen(
 
     val mediaStoreHelper = remember { MediaStoreHelper(context) }
 
-    val downloadVideo: (Int) -> Unit = { targetBitrate ->
+    val downloadVideo: (Int) -> Unit = { targetHeight ->
         showDownloadDialog = false
         scope.launch {
             try {
-                val playback = withContext(Dispatchers.IO) {
-                    val cm = connectivityManager ?: error("No connectivity manager")
-                    YTPlayerUtils.playerResponseForPlayback(
-                        videoId = videoId,
-                        audioQuality = AudioQuality.HIGH,
-                        connectivityManager = cm,
-                        preferVideo = true,
-                        maxVideoBitrateKbps = targetBitrate,
-                    ).getOrThrow()
-                }
+                // For 720p and below, use progressive streams (combined video+audio)
+                // For 1080p+, use adaptive streams (video only without FFmpeg muxing)
+                val useProgressive = targetHeight <= 720
 
-                val stream = UrlValidator.validateAndParseUrl(playback.streamUrl)?.toString()
-                    ?: error("Invalid stream URL")
+                if (useProgressive) {
+                    // Use progressive stream for combined video+audio
+                    val playback = withContext(Dispatchers.IO) {
+                        val cm = connectivityManager ?: error("No connectivity manager")
+                        // Map height to approximate bitrate
+                        val bitrateKbps = when {
+                            targetHeight >= 720 -> 2500
+                            targetHeight >= 480 -> 1000
+                            else -> 500
+                        }
+                        YTPlayerUtils.playerResponseForPlayback(
+                            videoId = videoId,
+                            audioQuality = AudioQuality.HIGH,
+                            connectivityManager = cm,
+                            preferVideo = true,
+                            maxVideoBitrateKbps = bitrateKbps,
+                        ).getOrThrow()
+                    }
 
-                // Get video metadata
-                val videoTitle = playback.videoDetails?.title ?: currentTitle ?: "Video"
-                val videoArtist = artistName ?: "Unknown Artist"
-                val videoDuration = playback.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0
+                    val stream = UrlValidator.validateAndParseUrl(playback.streamUrl)?.toString()
+                        ?: error("Invalid stream URL")
 
-                // Download to temp file first
-                val tempFile = File(context.cacheDir, "temp_video_$videoId.mp4")
+                    val fullTitle = playback.videoDetails?.title ?: currentTitle ?: "Video"
+                    val videoArtist = fullTitle.extractArtistFromTitle()
+                        ?: playback.videoDetails?.author?.takeIf { !it.isChannelId() }
+                        ?: artistName?.takeIf { !it.isChannelId() }
+                        ?: "Unknown Artist"
+                    // Extract just the song name (without artist prefix) for filename
+                    val songName = fullTitle.extractSongName()
+                    val videoDuration = playback.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0
+                    val qualityLabel = playback.format.height?.let { "${it}p" } ?: "${targetHeight}p"
 
-                val uri = withContext(Dispatchers.IO) {
-                    val request = Request.Builder().url(stream).build()
-                    httpClient.newCall(request).execute().use { response ->
-                        if (!response.isSuccessful) error("HTTP ${response.code}")
-                        response.body?.byteStream()?.use { input ->
-                            tempFile.outputStream().use { output ->
-                                input.copyTo(output)
+                    Toast.makeText(context, "Downloading $qualityLabel video...", Toast.LENGTH_SHORT).show()
+
+                    val tempFile = File(context.cacheDir, "temp_video_$videoId.mp4")
+
+                    val uri = withContext(Dispatchers.IO) {
+                        val request = Request.Builder().url(stream).build()
+                        httpClient.newCall(request).execute().use { response ->
+                            if (!response.isSuccessful) error("HTTP ${response.code}")
+                            response.body?.byteStream()?.use { input ->
+                                tempFile.outputStream().use { output ->
+                                    input.copyTo(output)
+                                }
                             }
                         }
-                    }
 
-                    // Save to MediaStore (Movies/Zemer folder)
-                    val fileName = "$videoArtist - $videoTitle.mp4"
-                    val savedUri = mediaStoreHelper.saveVideoFileToMediaStore(
-                        tempFile = tempFile,
-                        fileName = fileName,
-                        mimeType = "video/mp4",
-                        title = videoTitle,
-                        artist = videoArtist,
-                        durationMs = videoDuration * 1000L
-                    )
-
-                    // Clean up temp file
-                    tempFile.delete()
-
-                    savedUri
-                }
-
-                if (uri != null) {
-                    database.query {
-                        upsert(
-                            SongEntity(
-                                id = videoId,
-                                title = videoTitle,
-                                duration = videoDuration,
-                                thumbnailUrl = playback.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url,
-                                explicit = false,
-                                dateDownload = LocalDateTime.now(),
-                                isDownloaded = true,
-                                isVideo = true,
-                                mediaStoreUri = uri.toString()
-                            )
+                        // Filename is just song name (artist is in folder path)
+                        val fileName = "$songName ($qualityLabel).mp4"
+                        val savedUri = mediaStoreHelper.saveVideoFileToMediaStore(
+                            tempFile = tempFile,
+                            fileName = fileName,
+                            mimeType = "video/mp4",
+                            title = songName,
+                            artist = videoArtist,
+                            durationMs = videoDuration * 1000L
                         )
+                        tempFile.delete()
+                        savedUri
                     }
-                    Toast.makeText(context, "Video saved to Movies/Zemer", Toast.LENGTH_LONG).show()
+
+                    if (uri != null) {
+                        database.query {
+                            upsert(
+                                SongEntity(
+                                    id = videoId,
+                                    title = fullTitle,
+                                    duration = videoDuration,
+                                    thumbnailUrl = playback.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url,
+                                    explicit = false,
+                                    dateDownload = LocalDateTime.now(),
+                                    isDownloaded = true,
+                                    isVideo = true,
+                                    mediaStoreUri = uri.toString()
+                                )
+                            )
+                        }
+                        Toast.makeText(context, "Video saved to Movies/Zemer ($qualityLabel)", Toast.LENGTH_LONG).show()
+                    } else {
+                        error("Failed to save video to MediaStore")
+                    }
                 } else {
-                    error("Failed to save video to MediaStore")
+                    // Use adaptive streams for 1080p+ and mux video+audio with MediaMuxer
+                    val adaptiveResult = withContext(Dispatchers.IO) {
+                        YTPlayerUtils.getAdaptiveVideoData(videoId, targetHeight = targetHeight)
+                    }
+
+                    adaptiveResult.onSuccess { adaptive ->
+                        val videoUrl = UrlValidator.validateAndParseUrl(adaptive.videoUrl)?.toString()
+                            ?: error("Invalid video URL")
+                        val audioUrl = UrlValidator.validateAndParseUrl(adaptive.audioUrl)?.toString()
+                            ?: error("Invalid audio URL")
+
+                        val fullTitle = adaptive.videoDetails?.title ?: currentTitle ?: "Video"
+                        val videoArtist = fullTitle.extractArtistFromTitle()
+                            ?: adaptive.videoDetails?.author?.takeIf { !it.isChannelId() }
+                            ?: artistName?.takeIf { !it.isChannelId() }
+                            ?: "Unknown Artist"
+                        // Extract just the song name (without artist prefix) for filename
+                        val songName = fullTitle.extractSongName()
+                        val videoDuration = adaptive.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0
+                        val qualityLabel = "${adaptive.videoFormat.height}p"
+
+                        Toast.makeText(context, "Downloading $qualityLabel video...", Toast.LENGTH_SHORT).show()
+
+                        val downloadClient = OkHttpClient.Builder()
+                            .dns(ResilientDns())
+                            .proxy(YouTube.proxy)
+                            .connectTimeout(30, TimeUnit.SECONDS)
+                            .readTimeout(5, TimeUnit.MINUTES)
+                            .build()
+
+                        val requestHeaders = mutableMapOf(
+                            "Origin" to "https://www.youtube.com",
+                            "Referer" to "https://www.youtube.com/",
+                            "User-Agent" to YouTubeClient.USER_AGENT_WEB
+                        )
+                        YouTube.cookie?.let { requestHeaders["Cookie"] = it }
+
+                        val tempVideoFile = File(context.cacheDir, "temp_video_${videoId}_video.mp4")
+                        val tempAudioFile = File(context.cacheDir, "temp_video_${videoId}_audio.m4a")
+                        val tempMuxedFile = File(context.cacheDir, "temp_video_${videoId}_muxed.mp4")
+
+                        val uri = withContext(Dispatchers.IO) {
+                            // Download video stream
+                            Timber.tag("VideoPlayer").d("Downloading video stream...")
+                            val videoRequest = Request.Builder()
+                                .url(videoUrl)
+                                .apply { requestHeaders.forEach { (k, v) -> addHeader(k, v) } }
+                                .build()
+
+                            downloadClient.newCall(videoRequest).execute().use { response ->
+                                if (!response.isSuccessful) error("Video download failed: HTTP ${response.code}")
+                                response.body?.byteStream()?.use { input ->
+                                    tempVideoFile.outputStream().use { output ->
+                                        input.copyTo(output)
+                                    }
+                                }
+                            }
+
+                            // Download audio stream
+                            Timber.tag("VideoPlayer").d("Downloading audio stream...")
+                            val audioRequest = Request.Builder()
+                                .url(audioUrl)
+                                .apply { requestHeaders.forEach { (k, v) -> addHeader(k, v) } }
+                                .build()
+
+                            downloadClient.newCall(audioRequest).execute().use { response ->
+                                if (!response.isSuccessful) error("Audio download failed: HTTP ${response.code}")
+                                response.body?.byteStream()?.use { input ->
+                                    tempAudioFile.outputStream().use { output ->
+                                        input.copyTo(output)
+                                    }
+                                }
+                            }
+
+                            // Mux video and audio using MediaMuxer
+                            Timber.tag("VideoPlayer").d("Muxing video and audio...")
+                            muxVideoAudio(tempVideoFile, tempAudioFile, tempMuxedFile)
+
+                            // Filename is just song name (artist is in folder path)
+                            val fileName = "$songName ($qualityLabel).mp4"
+                            val savedUri = mediaStoreHelper.saveVideoFileToMediaStore(
+                                tempFile = tempMuxedFile,
+                                fileName = fileName,
+                                mimeType = "video/mp4",
+                                title = songName,
+                                artist = videoArtist,
+                                durationMs = videoDuration * 1000L
+                            )
+
+                            // Clean up temp files
+                            tempVideoFile.delete()
+                            tempAudioFile.delete()
+                            tempMuxedFile.delete()
+
+                            savedUri
+                        }
+
+                        if (uri != null) {
+                            database.query {
+                                upsert(
+                                    SongEntity(
+                                        id = videoId,
+                                        title = fullTitle,
+                                        duration = videoDuration,
+                                        thumbnailUrl = adaptive.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url,
+                                        explicit = false,
+                                        dateDownload = LocalDateTime.now(),
+                                        isDownloaded = true,
+                                        isVideo = true,
+                                        mediaStoreUri = uri.toString()
+                                    )
+                                )
+                            }
+                            Toast.makeText(context, "Video saved to Movies/Zemer ($qualityLabel)", Toast.LENGTH_LONG).show()
+                        } else {
+                            error("Failed to save video to MediaStore")
+                        }
+                    }.onFailure { e ->
+                        throw e
+                    }
                 }
             } catch (e: Exception) {
+                Timber.tag("VideoPlayer").e(e, "Download failed")
                 Toast.makeText(
                     context,
                     "Download failed: ${e.localizedMessage ?: "Unknown error"}",
@@ -630,47 +842,174 @@ fun VideoPlayerScreen(
                                     videoBottomPx = coords.boundsInParent().bottom.toInt()
                                 }
                         ) {
-                            VideoPlayer(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .pointerInput(playerInstance) {
-                                        detectTapGestures {
-                                            if (!showControls) {
-                                                markInteraction()
-                                            } else {
-                                                togglePlayPause()
+                            // Use custom ExoPlayer for adaptive playback (1080p+)
+                            if (adaptiveData != null) {
+                                val adaptive = adaptiveData!!
+
+                                // Create stable OkHttpClient and DataSourceFactory
+                                val okHttpClient = remember {
+                                    OkHttpClient.Builder()
+                                        .dns(ResilientDns())
+                                        .proxy(YouTube.proxy)
+                                        .build()
+                                }
+
+                                val dataSourceFactory = remember(okHttpClient) {
+                                    val requestHeaders = mutableMapOf<String, String>()
+                                    requestHeaders["Origin"] = "https://www.youtube.com"
+                                    requestHeaders["Referer"] = "https://www.youtube.com/"
+                                    YouTube.cookie?.let { requestHeaders["Cookie"] = it }
+
+                                    OkHttpDataSource.Factory(okHttpClient)
+                                        .setUserAgent(YouTubeClient.USER_AGENT_WEB)
+                                        .setDefaultRequestProperties(requestHeaders)
+                                }
+
+                                // Create player once per videoId (not per quality change)
+                                val adaptivePlayer = remember(videoId) {
+                                    ExoPlayer.Builder(context).build().apply {
+                                        playWhenReady = true
+                                        addListener(object : androidx.media3.common.Player.Listener {
+                                            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                                                Timber.tag("VideoPlayer").e(error, "Playback error: ${error.message}")
                                             }
+                                        })
+                                    }.also {
+                                        Timber.tag("VideoPlayer").d("Created stable ExoPlayer for videoId=$videoId")
+                                    }
+                                }
+
+                                // Update media source when URLs change (quality switch)
+                                LaunchedEffect(adaptive.videoUrl, adaptive.audioUrl) {
+                                    val currentPos = adaptivePlayer.currentPosition
+                                    val wasPlaying = adaptivePlayer.isPlaying
+
+                                    val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+                                        .createMediaSource(MediaItem.fromUri(adaptive.videoUrl))
+                                    val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+                                        .createMediaSource(MediaItem.fromUri(adaptive.audioUrl))
+
+                                    val mergingSource = MergingMediaSource(videoSource, audioSource)
+
+                                    adaptivePlayer.setMediaSource(mergingSource)
+                                    adaptivePlayer.prepare()
+
+                                    // Restore position on quality changes (not initial load)
+                                    if (currentPos > 0) {
+                                        adaptivePlayer.seekTo(currentPos)
+                                    }
+                                    adaptivePlayer.playWhenReady = wasPlaying || currentPos == 0L
+
+                                    Timber.tag("VideoPlayer").d("Updated media source: video=${adaptive.videoFormat.height}p, restored pos=${currentPos}ms")
+                                }
+
+                                // Set playerInstance for controls
+                                LaunchedEffect(adaptivePlayer) {
+                                    playerInstance = adaptivePlayer
+                                }
+
+                                // Cleanup only when videoId changes or screen is disposed
+                                DisposableEffect(videoId) {
+                                    onDispose {
+                                        Timber.tag("VideoPlayer").d("Releasing ExoPlayer for videoId=$videoId")
+                                        adaptivePlayer.release()
+                                        if (playerInstance == adaptivePlayer) {
+                                            playerInstance = null
                                         }
                                     }
-                                    .pointerInput(playerInstance, durationMs) {
-                                        detectDragGestures(
-                                            onDrag = { _, dragAmount ->
-                                                dragAccum += dragAmount.x
-                                                markInteraction()
-                                            },
-                                            onDragEnd = {
-                                                when {
-                                                    dragAccum > dragSkipThresholdPx -> seekByMs(10_000)
-                                                    dragAccum < -dragSkipThresholdPx -> seekByMs(-10_000)
-                                                    else -> togglePlayPause()
-                                                }
-                                                dragAccum = 0f
-                                            },
-                                            onDragCancel = {
-                                                dragAccum = 0f
-                                            }
-                                        )
+                                }
+
+                                AndroidView(
+                                    factory = { ctx ->
+                                        PlayerView(ctx).apply {
+                                            useController = false
+                                            player = adaptivePlayer
+                                            layoutParams = ViewGroup.LayoutParams(
+                                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                                ViewGroup.LayoutParams.MATCH_PARENT
+                                            )
+                                        }
                                     },
-                                mediaItems = listOf(videoItem!!),
-                                handleLifecycle = false,
-                                autoPlay = true,
-                                usePlayerController = false,
-                                controllerConfig = VideoPlayerControllerConfig.Default,
-                                repeatMode = RepeatMode.NONE,
-                                enablePip = false,
-                                enablePipWhenBackPressed = false,
-                                playerInstance = { playerInstance = this }
-                            )
+                                    update = { playerView ->
+                                        if (playerView.player != adaptivePlayer) {
+                                            playerView.player = adaptivePlayer
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .pointerInput(adaptivePlayer) {
+                                            detectTapGestures {
+                                                // Tap toggles controls visibility
+                                                showControls = !showControls
+                                                if (showControls) {
+                                                    lastInteraction = System.currentTimeMillis()
+                                                }
+                                            }
+                                        }
+                                        .pointerInput(adaptivePlayer, durationMs) {
+                                            detectDragGestures(
+                                                onDrag = { _, dragAmount ->
+                                                    dragAccum += dragAmount.x
+                                                    markInteraction()
+                                                },
+                                                onDragEnd = {
+                                                    // Swipe left/right to seek
+                                                    when {
+                                                        dragAccum > dragSkipThresholdPx -> seekByMs(10_000)
+                                                        dragAccum < -dragSkipThresholdPx -> seekByMs(-10_000)
+                                                    }
+                                                    dragAccum = 0f
+                                                },
+                                                onDragCancel = {
+                                                    dragAccum = 0f
+                                                }
+                                            )
+                                        }
+                                )
+                            } else if (videoItem != null) {
+                                // Fallback to library's VideoPlayer for progressive streams (720p max)
+                                VideoPlayer(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .pointerInput(playerInstance) {
+                                            detectTapGestures {
+                                                // Tap toggles controls visibility
+                                                showControls = !showControls
+                                                if (showControls) {
+                                                    lastInteraction = System.currentTimeMillis()
+                                                }
+                                            }
+                                        }
+                                        .pointerInput(playerInstance, durationMs) {
+                                            detectDragGestures(
+                                                onDrag = { _, dragAmount ->
+                                                    dragAccum += dragAmount.x
+                                                    markInteraction()
+                                                },
+                                                onDragEnd = {
+                                                    // Swipe left/right to seek
+                                                    when {
+                                                        dragAccum > dragSkipThresholdPx -> seekByMs(10_000)
+                                                        dragAccum < -dragSkipThresholdPx -> seekByMs(-10_000)
+                                                    }
+                                                    dragAccum = 0f
+                                                },
+                                                onDragCancel = {
+                                                    dragAccum = 0f
+                                                }
+                                            )
+                                        },
+                                    mediaItems = listOf(videoItem!!),
+                                    handleLifecycle = false,
+                                    autoPlay = true,
+                                    usePlayerController = false,
+                                    controllerConfig = VideoPlayerControllerConfig.Default,
+                                    repeatMode = RepeatMode.NONE,
+                                    enablePip = false,
+                                    enablePipWhenBackPressed = false,
+                                    playerInstance = { playerInstance = this }
+                                )
+                            }
                         }
 
                         if (!isInPipMode) {
@@ -982,6 +1321,24 @@ fun VideoPlayerScreen(
         }
     }
 
+    // State for download qualities
+    var downloadQualities by remember { mutableStateOf<List<YTPlayerUtils.VideoQualityInfo>>(emptyList()) }
+    var isLoadingDownloadQualities by remember { mutableStateOf(false) }
+
+    // Fetch all download qualities when dialog opens
+    LaunchedEffect(showDownloadDialog) {
+        if (showDownloadDialog && downloadQualities.isEmpty() && !isLoadingDownloadQualities) {
+            isLoadingDownloadQualities = true
+            val result = withContext(Dispatchers.IO) {
+                YTPlayerUtils.getAdaptiveVideoData(videoId, targetHeight = null)
+            }
+            result.onSuccess { data ->
+                downloadQualities = data.availableQualities
+            }
+            isLoadingDownloadQualities = false
+        }
+    }
+
     if (showDownloadDialog) {
         AlertDialog(
             onDismissRequest = { showDownloadDialog = false },
@@ -990,11 +1347,19 @@ fun VideoPlayerScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Choose a quality", style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(8.dp))
-                    if (availableQualities.isNotEmpty()) {
-                        availableQualities.forEach { quality ->
-                            val bitrateKbps = quality.bitrate?.div(1000) ?: 4000
+                    if (isLoadingDownloadQualities) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Loading qualities...", style = MaterialTheme.typography.bodySmall)
+                        }
+                    } else if (downloadQualities.isNotEmpty()) {
+                        downloadQualities.forEach { quality ->
                             TextButton(
-                                onClick = { downloadVideo(bitrateKbps) },
+                                onClick = { downloadVideo(quality.height) },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
@@ -1004,8 +1369,15 @@ fun VideoPlayerScreen(
                             }
                         }
                     } else {
-                        // Fallback if qualities not yet loaded
-                        Text("Loading available qualities...", style = MaterialTheme.typography.bodySmall)
+                        // Fallback to standard qualities
+                        listOf(1080, 720, 480, 360).forEach { height ->
+                            TextButton(
+                                onClick = { downloadVideo(height) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(text = "${height}p", modifier = Modifier.fillMaxWidth())
+                            }
+                        }
                     }
                 }
             },
@@ -1048,40 +1420,69 @@ fun VideoPlayerScreen(
             title = { Text("Video quality") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Show current playing quality
+                    val playingQuality = adaptiveData?.videoFormat?.height ?: selectedQualityHeight
                     Text(
-                        text = if (selectedQualityId == "auto") "Current: Auto" else availableQualities.firstOrNull { it.id == selectedQualityId }?.label
-                            ?: "Current: Auto",
+                        text = "Playing: ${playingQuality ?: "?"}p",
                         style = MaterialTheme.typography.labelMedium
                     )
-                    TextButton(onClick = {
-                        playerInstance?.let { player ->
-                            val params = player.trackSelectionParameters
-                                .buildUpon()
-                                .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
-                                .build()
-                            player.trackSelectionParameters = params
+
+                    // Use adaptive qualities if available (1080p+ support)
+                    if (adaptiveQualities.isNotEmpty()) {
+                        // Quality options (no "auto" - default is 1080p or highest below)
+                        adaptiveQualities.forEach { quality ->
+                            TextButton(
+                                onClick = {
+                                    selectedQualityHeight = quality.height
+                                    showQualityDialog = false
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(quality.label)
+                                    if (playingQuality == quality.height) {
+                                        Text("✓", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
                         }
-                        selectedQualityId = "auto"
-                        showQualityDialog = false
-                    }) {
-                        Text("Auto")
-                    }
-                    availableQualities.forEach { option ->
+                    } else if (availableQualities.isNotEmpty()) {
+                        // Fallback to ExoPlayer track selection (progressive streams)
                         TextButton(onClick = {
                             playerInstance?.let { player ->
-                                val builder = player.trackSelectionParameters
+                                val params = player.trackSelectionParameters
                                     .buildUpon()
                                     .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
-                                    .setOverrideForType(
-                                        TrackSelectionOverride(option.group, listOf(option.trackIndex))
-                                    )
-                                player.trackSelectionParameters = builder.build()
-                                selectedQualityId = option.id
+                                    .build()
+                                player.trackSelectionParameters = params
                             }
+                            selectedQualityId = "auto"
                             showQualityDialog = false
                         }) {
-                            Text(option.label.ifBlank { "Track ${option.trackIndex + 1}" })
+                            Text("Auto")
                         }
+                        availableQualities.forEach { option ->
+                            TextButton(onClick = {
+                                playerInstance?.let { player ->
+                                    val builder = player.trackSelectionParameters
+                                        .buildUpon()
+                                        .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
+                                        .setOverrideForType(
+                                            TrackSelectionOverride(option.group, listOf(option.trackIndex))
+                                        )
+                                    player.trackSelectionParameters = builder.build()
+                                    selectedQualityId = option.id
+                                }
+                                showQualityDialog = false
+                            }) {
+                                Text(option.label.ifBlank { "Track ${option.trackIndex + 1}" })
+                            }
+                        }
+                    } else {
+                        Text("No quality options available", style = MaterialTheme.typography.bodySmall)
                     }
                 }
             },
@@ -1111,4 +1512,142 @@ private fun formatTime(ms: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return "%d:%02d".format(minutes, seconds)
+}
+
+/**
+ * Mux separate video and audio files into a single MP4 using Android's MediaMuxer.
+ * This allows downloading 1080p+ videos with audio without needing FFmpeg.
+ */
+private fun muxVideoAudio(videoFile: File, audioFile: File, outputFile: File) {
+    val videoExtractor = MediaExtractor()
+    val audioExtractor = MediaExtractor()
+
+    try {
+        videoExtractor.setDataSource(videoFile.absolutePath)
+        audioExtractor.setDataSource(audioFile.absolutePath)
+
+        // Find video track
+        var videoTrackIndex = -1
+        var videoFormat: MediaFormat? = null
+        for (i in 0 until videoExtractor.trackCount) {
+            val format = videoExtractor.getTrackFormat(i)
+            val mime = format.getString(MediaFormat.KEY_MIME) ?: ""
+            if (mime.startsWith("video/")) {
+                videoTrackIndex = i
+                videoFormat = format
+                break
+            }
+        }
+
+        // Find audio track
+        var audioTrackIndex = -1
+        var audioFormat: MediaFormat? = null
+        for (i in 0 until audioExtractor.trackCount) {
+            val format = audioExtractor.getTrackFormat(i)
+            val mime = format.getString(MediaFormat.KEY_MIME) ?: ""
+            if (mime.startsWith("audio/")) {
+                audioTrackIndex = i
+                audioFormat = format
+                break
+            }
+        }
+
+        if (videoFormat == null || audioFormat == null) {
+            error("Could not find video or audio track")
+        }
+
+        // Create muxer
+        val muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+
+        // Add tracks to muxer
+        val muxerVideoTrack = muxer.addTrack(videoFormat)
+        val muxerAudioTrack = muxer.addTrack(audioFormat)
+
+        muxer.start()
+
+        // Select and copy video track
+        videoExtractor.selectTrack(videoTrackIndex)
+        val videoBuffer = ByteBuffer.allocate(1024 * 1024) // 1MB buffer
+        val videoBufferInfo = MediaCodec.BufferInfo()
+
+        while (true) {
+            videoBufferInfo.offset = 0
+            videoBufferInfo.size = videoExtractor.readSampleData(videoBuffer, 0)
+            if (videoBufferInfo.size < 0) break
+
+            videoBufferInfo.presentationTimeUs = videoExtractor.sampleTime
+            videoBufferInfo.flags = videoExtractor.sampleFlags
+            muxer.writeSampleData(muxerVideoTrack, videoBuffer, videoBufferInfo)
+            videoExtractor.advance()
+        }
+
+        // Select and copy audio track
+        audioExtractor.selectTrack(audioTrackIndex)
+        val audioBuffer = ByteBuffer.allocate(256 * 1024) // 256KB buffer
+        val audioBufferInfo = MediaCodec.BufferInfo()
+
+        while (true) {
+            audioBufferInfo.offset = 0
+            audioBufferInfo.size = audioExtractor.readSampleData(audioBuffer, 0)
+            if (audioBufferInfo.size < 0) break
+
+            audioBufferInfo.presentationTimeUs = audioExtractor.sampleTime
+            audioBufferInfo.flags = audioExtractor.sampleFlags
+            muxer.writeSampleData(muxerAudioTrack, audioBuffer, audioBufferInfo)
+            audioExtractor.advance()
+        }
+
+        muxer.stop()
+        muxer.release()
+
+        Timber.tag("VideoPlayer").d("Muxing completed: ${outputFile.length()} bytes")
+    } finally {
+        videoExtractor.release()
+        audioExtractor.release()
+    }
+}
+
+/**
+ * Check if a string looks like a YouTube channel ID.
+ * Channel IDs start with "UC" and are alphanumeric with no spaces.
+ */
+private fun String.isChannelId(): Boolean {
+    return this.startsWith("UC") && this.length >= 20 && !this.contains(" ")
+}
+
+/**
+ * Extract artist name from video title.
+ * Assumes format "Artist - Title" or "Artist | Title".
+ */
+private fun String.extractArtistFromTitle(): String? {
+    // Try common separators
+    val separators = listOf(" - ", " – ", " — ", " | ", " // ")
+    for (separator in separators) {
+        if (this.contains(separator)) {
+            val artist = this.substringBefore(separator).trim()
+            // Make sure we got something reasonable (not empty, not too long)
+            if (artist.isNotBlank() && artist.length < 100) {
+                return artist
+            }
+        }
+    }
+    return null
+}
+
+/**
+ * Extract song/video name from title (removes artist prefix).
+ * If title is "Artist - Song Name", returns "Song Name".
+ * If no separator found, returns the full title.
+ */
+private fun String.extractSongName(): String {
+    val separators = listOf(" - ", " – ", " — ", " | ", " // ")
+    for (separator in separators) {
+        if (this.contains(separator)) {
+            val songPart = this.substringAfter(separator).trim()
+            if (songPart.isNotBlank()) {
+                return songPart
+            }
+        }
+    }
+    return this // Return full title if no separator found
 }
