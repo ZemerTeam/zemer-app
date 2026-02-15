@@ -561,8 +561,9 @@ fun VideoPlayerScreen(
                     }
                 } else {
                     // Use adaptive streams for 1080p+ and mux video+audio with MediaMuxer
+                    // preferMp4=true ensures we get H.264 format that MediaMuxer supports (not VP9/WebM)
                     val adaptiveResult = withContext(Dispatchers.IO) {
-                        YTPlayerUtils.getAdaptiveVideoData(videoId, targetHeight = targetHeight)
+                        YTPlayerUtils.getAdaptiveVideoData(videoId, targetHeight = targetHeight, preferMp4 = true)
                     }
 
                     adaptiveResult.onSuccess { adaptive ->
@@ -1329,8 +1330,9 @@ fun VideoPlayerScreen(
     LaunchedEffect(showDownloadDialog) {
         if (showDownloadDialog && downloadQualities.isEmpty() && !isLoadingDownloadQualities) {
             isLoadingDownloadQualities = true
+            // preferMp4=true to only show qualities that MediaMuxer can handle
             val result = withContext(Dispatchers.IO) {
-                YTPlayerUtils.getAdaptiveVideoData(videoId, targetHeight = null)
+                YTPlayerUtils.getAdaptiveVideoData(videoId, targetHeight = null, preferMp4 = true)
             }
             result.onSuccess { data ->
                 downloadQualities = data.availableQualities

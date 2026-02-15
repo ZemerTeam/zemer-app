@@ -400,12 +400,13 @@ object YTPlayerUtils {
         videoId: String,
         targetHeight: Int? = null,
         preferredClient: PreferredClient = PreferredClient.AUTO,
+        preferMp4: Boolean = false, // Set true for downloads - MediaMuxer only supports H.264/MP4
     ): Result<AdaptiveVideoData> = runCatching {
         // Use TVHTML5 for adaptive video - doesn't require n-transform
         // If this fails, VideoPlayerScreen will fallback to progressive playback (720p max)
         val client = TVHTML5
 
-        Timber.tag(TAG).d("=== Adaptive video START for videoId=$videoId, targetHeight=$targetHeight ===")
+        Timber.tag(TAG).d("=== Adaptive video START for videoId=$videoId, targetHeight=$targetHeight, preferMp4=$preferMp4 ===")
 
         val signatureTimestamp = getSignatureTimestampOrNull(videoId)
 
@@ -447,7 +448,7 @@ object YTPlayerUtils {
             throw PlaybackException("No video formats available", null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
         }
 
-        // Build available qualities list
+        // Build available qualities list (show all for selection)
         val availableQualities = videoFormats
             .distinctBy { it.height }
             .mapNotNull { format ->
@@ -465,16 +466,22 @@ object YTPlayerUtils {
                 )
             }
 
-        // Select video format based on target height
+        // When preferMp4 is true (for downloads), only use MP4 formats (MediaMuxer doesn't support WebM/VP9)
+        val filteredFormats = if (preferMp4) {
+            videoFormats.filter { it.mimeType.contains("mp4") }.ifEmpty { videoFormats }
+        } else {
+            videoFormats
+        }
+
         val selectedVideoFormat = if (targetHeight != null) {
             // Find exact match or closest lower
-            videoFormats.find { it.height == targetHeight }
-                ?: videoFormats.filter { (it.height ?: 0) <= targetHeight }.maxByOrNull { it.height ?: 0 }
-                ?: videoFormats.first()
+            filteredFormats.find { it.height == targetHeight }
+                ?: filteredFormats.filter { (it.height ?: 0) <= targetHeight }.maxByOrNull { it.height ?: 0 }
+                ?: filteredFormats.first()
         } else {
             // Pick highest quality, prefer MP4 over WebM
-            val mp4Formats = videoFormats.filter { it.mimeType.contains("mp4") }
-            (mp4Formats.ifEmpty { videoFormats }).first()
+            val mp4Formats = filteredFormats.filter { it.mimeType.contains("mp4") }
+            (mp4Formats.ifEmpty { filteredFormats }).first()
         }
 
         Timber.tag(TAG).d("Selected video: ${selectedVideoFormat.height}p, itag=${selectedVideoFormat.itag}, mime=${selectedVideoFormat.mimeType}")
