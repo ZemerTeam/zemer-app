@@ -644,6 +644,191 @@ class MediaStoreHelper(private val context: Context) {
     }
 
     /**
+     * Find and delete ALL audio files matching a title in the artist folder (any extension).
+     * This handles the case where a song was downloaded with different formats over time
+     * (e.g., first as .opus, then re-downloaded as .m4a).
+     *
+     * @param title The song title (without extension)
+     * @param artist The artist name (used for folder path)
+     * @param album Optional album name (used for folder path if present)
+     * @return Number of files deleted
+     */
+    suspend fun deleteAllVariantsByTitle(title: String, artist: String, album: String? = null): Int = withContext(Dispatchers.IO) {
+        var totalDeleted = 0
+
+        try {
+            val sanitizedTitle = sanitizeFileName(title)
+            val sanitizedArtist = sanitizeFolderName(artist)
+
+            Timber.tag("MediaStoreDelete").i("=== DELETE VARIANTS START: title='$title' -> sanitized='$sanitizedTitle' ===")
+            Timber.tag("MediaStoreDelete").d("Artist: '$artist' -> '$sanitizedArtist', Album: $album")
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // Build the expected relative path
+                val baseDownloadPath = getBaseDownloadPath()
+                val relativePathBase = buildRelativePath(
+                    baseDownloadPath = baseDownloadPath,
+                    artist = artist,
+                    album = album
+                )
+                // CRITICAL: MediaStore stores RELATIVE_PATH with trailing slash!
+                val relativePath = if (relativePathBase.endsWith("/")) relativePathBase else "$relativePathBase/"
+
+                // Find all files in this folder that start with the title
+                // Use LIKE query to match "Title.%" (any extension)
+                val projection = arrayOf(
+                    MediaStore.Audio.Media._ID,
+                    MediaStore.Audio.Media.DISPLAY_NAME,
+                    MediaStore.Audio.Media.RELATIVE_PATH
+                )
+                // Match: exact path AND filename starts with title followed by a dot
+                val selection = "${MediaStore.Audio.Media.RELATIVE_PATH} = ? AND ${MediaStore.Audio.Media.DISPLAY_NAME} LIKE ?"
+                val selectionArgs = arrayOf(relativePath, "$sanitizedTitle.%")
+
+                Timber.tag("MediaStoreDelete").i("Query: RELATIVE_PATH='$relativePath' AND DISPLAY_NAME LIKE '$sanitizedTitle.%'")
+
+                // First, try exact path match
+                var foundAny = false
+                context.contentResolver.query(
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                    projection,
+                    selection,
+                    selectionArgs,
+                    null
+                )?.use { cursor ->
+                    Timber.tag("MediaStoreDelete").d("Exact path query returned ${cursor.count} results")
+                    while (cursor.moveToNext()) {
+                        foundAny = true
+                        val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
+                        val displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME))
+                        val actualPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.RELATIVE_PATH))
+
+                        Timber.tag("MediaStoreDelete").d("Found file: '$displayName' at path='$actualPath'")
+
+                        val uri = Uri.withAppendedPath(
+                            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+                            id.toString()
+                        )
+
+                        try {
+                            val deleted = context.contentResolver.delete(uri, null, null)
+                            if (deleted > 0) {
+                                totalDeleted++
+                                Timber.tag("MediaStoreDelete").i("Deleted variant: $displayName (uri=$uri)")
+                            } else {
+                                Timber.tag("MediaStoreDelete").w("Failed to delete variant: $displayName")
+                            }
+                        } catch (e: Exception) {
+                            Timber.tag("MediaStoreDelete").e("Error deleting variant $displayName: ${e.message}")
+                        }
+                    }
+                }
+
+                // If exact path didn't find anything, try broader search within Zemer folder
+                if (!foundAny) {
+                    Timber.tag("MediaStoreDelete").w("No files found with exact path, trying broader search in Zemer folder")
+
+                    // Search anywhere in the Zemer folder structure
+                    val broadSelection = "${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ? AND ${MediaStore.Audio.Media.DISPLAY_NAME} LIKE ?"
+                    val broadSelectionArgs = arrayOf("%$ZEMER_FOLDER%$sanitizedArtist%", "$sanitizedTitle.%")
+
+                    Timber.tag("MediaStoreDelete").d("Broad query: RELATIVE_PATH LIKE '%$ZEMER_FOLDER%$sanitizedArtist%' AND DISPLAY_NAME LIKE '$sanitizedTitle.%'")
+
+                    context.contentResolver.query(
+                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        projection,
+                        broadSelection,
+                        broadSelectionArgs,
+                        null
+                    )?.use { cursor ->
+                        Timber.tag("MediaStoreDelete").d("Broad query returned ${cursor.count} results")
+                        while (cursor.moveToNext()) {
+                            val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
+                            val displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME))
+                            val actualPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.RELATIVE_PATH))
+
+                            Timber.tag("MediaStoreDelete").d("Broad search found: '$displayName' at path='$actualPath'")
+
+                            val uri = Uri.withAppendedPath(
+                                MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+                                id.toString()
+                            )
+
+                            try {
+                                val deleted = context.contentResolver.delete(uri, null, null)
+                                if (deleted > 0) {
+                                    totalDeleted++
+                                    Timber.tag("MediaStoreDelete").i("Deleted variant (broad): $displayName (uri=$uri)")
+                                } else {
+                                    Timber.tag("MediaStoreDelete").w("Failed to delete variant (broad): $displayName")
+                                }
+                            } catch (e: Exception) {
+                                Timber.tag("MediaStoreDelete").e("Error deleting variant $displayName: ${e.message}")
+                            }
+                        }
+                    }
+                }
+
+                // Also check for cover art files (use same relativePath with trailing slash)
+                val coverPattern = "$sanitizedTitle.%"  // Cover files might be title.jpg, title.png, etc.
+                Timber.tag("MediaStoreDelete").d("Searching for cover art: path='$relativePath', pattern='$coverPattern'")
+
+                context.contentResolver.query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.RELATIVE_PATH),
+                    "${MediaStore.Images.Media.RELATIVE_PATH} = ? AND ${MediaStore.Images.Media.DISPLAY_NAME} LIKE ?",
+                    arrayOf(relativePath, coverPattern),
+                    null
+                )?.use { cursor ->
+                    Timber.tag("MediaStoreDelete").d("Cover art query returned ${cursor.count} results")
+                    while (cursor.moveToNext()) {
+                        val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
+                        val displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME))
+
+                        val uri = Uri.withAppendedPath(
+                            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+                            id.toString()
+                        )
+
+                        try {
+                            val deleted = context.contentResolver.delete(uri, null, null)
+                            if (deleted > 0) {
+                                totalDeleted++
+                                Timber.tag("MediaStoreDelete").i("Deleted cover art: $displayName")
+                            }
+                        } catch (e: Exception) {
+                            Timber.tag("MediaStoreDelete").e("Error deleting cover art $displayName: ${e.message}")
+                        }
+                    }
+                }
+            } else {
+                // Legacy path for Android 9 and below
+                val baseDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+                val zemerDir = File(baseDir, ZEMER_FOLDER)
+                val artistDir = File(zemerDir, sanitizedArtist)
+                val targetDir = if (album != null) File(artistDir, sanitizeFolderName(album)) else artistDir
+
+                if (targetDir.exists()) {
+                    targetDir.listFiles()?.forEach { file ->
+                        if (file.nameWithoutExtension == sanitizedTitle) {
+                            if (file.delete()) {
+                                totalDeleted++
+                                Timber.tag("MediaStoreDelete").i("Deleted legacy file: ${file.name}")
+                            }
+                        }
+                    }
+                }
+            }
+
+            Timber.tag("MediaStoreDelete").i("=== DELETE VARIANTS END: deleted $totalDeleted files for '$sanitizedTitle' by '$sanitizedArtist' ===")
+        } catch (e: Exception) {
+            Timber.tag("MediaStoreDelete").e(e, "Error in deleteAllVariantsByTitle: ${e.message}")
+        }
+
+        totalDeleted
+    }
+
+    /**
      * Delete a file from MediaStore
      *
      * @param uri Uri of the file to delete
@@ -651,9 +836,42 @@ class MediaStoreHelper(private val context: Context) {
      */
     suspend fun deleteFromMediaStore(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
+            Timber.tag("MediaStoreDelete").d("Attempting to delete: $uri")
+
+            // First check if the file exists
+            val exists = try {
+                context.contentResolver.query(uri, arrayOf(MediaStore.MediaColumns._ID), null, null, null)?.use {
+                    it.moveToFirst()
+                } ?: false
+            } catch (e: Exception) {
+                Timber.tag("MediaStoreDelete").w("URI query failed: ${e.message}")
+                false
+            }
+
+            if (!exists) {
+                Timber.tag("MediaStoreDelete").w("File does not exist at $uri, nothing to delete")
+                return@withContext true // Consider it successfully deleted if it doesn't exist
+            }
+
             val deleted = context.contentResolver.delete(uri, null, null)
+            Timber.tag("MediaStoreDelete").i("Delete result for $uri: rowsDeleted=$deleted")
+
+            if (deleted == 0) {
+                // On Android 10+, we may not have permission to delete files we didn't create
+                // Try to get more info about why the delete failed
+                Timber.tag("MediaStoreDelete").w("Delete returned 0 rows - file may be owned by another app or protected")
+            }
+
             deleted > 0
+        } catch (e: android.app.RecoverableSecurityException) {
+            // On Android 10+, this exception indicates we need user permission to delete
+            Timber.tag("MediaStoreDelete").e("RecoverableSecurityException - need user permission to delete: ${e.message}")
+            false
+        } catch (e: SecurityException) {
+            Timber.tag("MediaStoreDelete").e("SecurityException deleting file: ${e.message}")
+            false
         } catch (e: Exception) {
+            Timber.tag("MediaStoreDelete").e(e, "Exception deleting file: ${e.message}")
             false
         }
     }
