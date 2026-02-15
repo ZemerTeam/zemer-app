@@ -342,23 +342,83 @@ constructor(
      * Delete a downloaded song (or cancel and clear pending state) and remove it from MediaStore/DB.
      */
     suspend fun deleteDownloaded(songId: String) {
-        Timber.d("deleteDownloaded: songId=$songId")
+        Timber.tag("DownloadRemoval").i("=== deleteDownloaded START: $songId ===")
         // Cancel active work and purge queue
+        val hadActiveJob = activeDownloads[songId] != null
         activeDownloads[songId]?.cancel()
         activeDownloads.remove(songId)
+        Timber.tag("DownloadRemoval").d("[$songId] Cancelled active job: $hadActiveJob")
+
+        val queueCountBefore = downloadQueue.size
         synchronized(downloadQueue) {
             downloadQueue.removeAll { it.id == songId }
         }
+        val queueCountAfter = downloadQueue.size
+        Timber.tag("DownloadRemoval").d("[$songId] Queue cleanup: $queueCountBefore -> $queueCountAfter")
 
-        val song = database.song(songId).first()
+        // If the download state shows COMPLETED but DB doesn't have URI yet, wait briefly
+        // This handles race condition where UI shows completed but DB update is still pending
+        var song = database.song(songId).first()
+        val downloadState = _downloadStates.value[songId]
+        if (downloadState?.status == DownloadState.Status.COMPLETED && song?.song?.mediaStoreUri == null) {
+            Timber.tag("DownloadRemoval").d("[$songId] State=COMPLETED but no URI in DB - waiting for DB sync...")
+            // Wait up to 500ms for DB to sync
+            repeat(5) {
+                delay(100)
+                song = database.song(songId).first()
+                if (song?.song?.mediaStoreUri != null) {
+                    Timber.tag("DownloadRemoval").d("[$songId] DB synced after ${(it + 1) * 100}ms")
+                    return@repeat
+                }
+            }
+        }
+
         val uriString = song?.song?.mediaStoreUri
-        Timber.d("deleteDownloaded: song found=${song != null}, mediaStoreUri=$uriString, isDownloaded=${song?.song?.isDownloaded}")
+        Timber.tag("DownloadRemoval").d("[$songId] DB state: found=${song != null}, uri=$uriString, isDownloaded=${song?.song?.isDownloaded}")
 
+        // Get song metadata for variant deletion
+        // IMPORTANT: Use same artist resolution logic as download (album artist > song artist)
+        // Otherwise the folder path won't match!
+        val title = song?.song?.title
+        val album = song?.album?.title
+        val artists: String? = if (song?.album != null) {
+            // Try to get album artist first (matches download folder structure)
+            val albumWithArtists = database.albumUnfiltered(song.album.id).first()
+            albumWithArtists?.artists?.firstOrNull()?.name
+                ?: song.artists.firstOrNull()?.name
+        } else {
+            song?.artists?.firstOrNull()?.name
+        }
+        Timber.tag("DownloadRemoval").d("[$songId] Resolved artist: '$artists' (album=${song?.album?.title})")
+
+        // First, try to delete by stored URI
         if (uriString != null) {
+            Timber.tag("DownloadRemoval").d("[$songId] Deleting from MediaStore by URI: $uriString")
             val deleteResult = runCatching {
                 mediaStoreHelper.deleteFromMediaStore(Uri.parse(uriString))
             }
-            Timber.d("deleteDownloaded: MediaStore delete result=${deleteResult.getOrNull()}, error=${deleteResult.exceptionOrNull()?.message}")
+            if (deleteResult.isSuccess) {
+                Timber.tag("DownloadRemoval").i("[$songId] MediaStore URI delete SUCCESS: ${deleteResult.getOrNull()}")
+            } else {
+                Timber.tag("DownloadRemoval").e("[$songId] MediaStore URI delete FAILED: ${deleteResult.exceptionOrNull()?.message}")
+            }
+        } else {
+            Timber.tag("DownloadRemoval").d("[$songId] No MediaStore URI stored")
+        }
+
+        // Also delete ALL variants by title (handles files with different extensions)
+        // This cleans up old downloads that may have used different formats (e.g., .opus vs .m4a)
+        if (title != null && artists != null) {
+            Timber.tag("DownloadRemoval").d("[$songId] Searching for file variants: '$title' by '$artists'")
+            val variantsDeleted = runCatching {
+                mediaStoreHelper.deleteAllVariantsByTitle(title, artists, album)
+            }.getOrElse { e ->
+                Timber.tag("DownloadRemoval").e("[$songId] Variant deletion error: ${e.message}")
+                0
+            }
+            Timber.tag("DownloadRemoval").i("[$songId] Variant cleanup: $variantsDeleted files deleted")
+        } else {
+            Timber.tag("DownloadRemoval").w("[$songId] Cannot search variants: title=$title, artist=$artists")
         }
 
         song?.let {
@@ -371,12 +431,13 @@ constructor(
                     )
                 )
             }
-            Timber.d("deleteDownloaded: Database flags cleared for $songId")
+            Timber.tag("DownloadRemoval").d("[$songId] Database flags cleared")
         }
 
         // Clear state entry
+        val hadState = _downloadStates.value.containsKey(songId)
         _downloadStates.value = _downloadStates.value - songId
-        Timber.d("deleteDownloaded: State cleared for $songId")
+        Timber.tag("DownloadRemoval").i("=== deleteDownloaded END: $songId (hadState=$hadState) ===")
     }
 
     /**
@@ -469,8 +530,12 @@ constructor(
             // Different fetches return different URL signatures, overwriting breaks playback
             val existingEntry = DownloadUtil.sharedUrlCache[song.id]
             if (existingEntry == null || existingEntry.second < System.currentTimeMillis()) {
-                DownloadUtil.sharedUrlCache[song.id] = downloadUrl to
-                    (System.currentTimeMillis() + playbackData.streamExpiresInSeconds * 1000L)
+                val expiresAt = System.currentTimeMillis() + playbackData.streamExpiresInSeconds * 1000L
+                DownloadUtil.sharedUrlCache[song.id] = downloadUrl to expiresAt
+                Timber.tag("StreamCache").i("[${song.id}] MediaStore download CACHED URL (expires in ${playbackData.streamExpiresInSeconds}s)")
+            } else {
+                val remainingSec = (existingEntry.second - System.currentTimeMillis()) / 1000
+                Timber.tag("StreamCache").d("[${song.id}] MediaStore download NOT updating cache - valid entry exists (${remainingSec}s remaining)")
             }
             Timber.d("Got format: ${format.mimeType}, URL length: ${downloadUrl.length}")
 
@@ -590,9 +655,14 @@ constructor(
                 }
 
                 if (uri != null) {
+                    // IMPORTANT: Update database FIRST before marking as completed
+                    // This prevents race condition where user taps "remove" before DB has the URI
+                    markSongAsDownloaded(song, uri.toString())
+
                     Timber.tag("DownloadQuality").i("=== DOWNLOAD SUCCESS ===")
                     Timber.tag("DownloadQuality").i("Saved to: $uri")
-                    // Mark as completed
+
+                    // Mark as completed in state flow (after DB is updated)
                     updateDownloadState(
                         song.id,
                         DownloadState(
@@ -601,9 +671,6 @@ constructor(
                             progress = 1f
                         )
                     )
-
-                    // Update database with MediaStore URI (preserving isVideo flag)
-                    markSongAsDownloaded(song, uri.toString())
 
                     // Clear the itag override now that download is complete
                     targetItagOverride.remove(song.id)
