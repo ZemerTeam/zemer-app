@@ -31,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -78,6 +79,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import com.jtech.zemer.utils.YTPlayerUtils
 import kotlin.math.log2
 import kotlin.math.pow
 import kotlin.math.round
@@ -280,6 +282,146 @@ fun PlayerMenu(
         )
     }
 
+    // Download quality selection dialog
+    var showDownloadQualityDialog by remember { mutableStateOf(false) }
+    var availableFormats by remember { mutableStateOf<List<YTPlayerUtils.AudioFormatOption>>(emptyList()) }
+    var isLoadingFormats by remember { mutableStateOf(false) }
+    var isRedownload by remember { mutableStateOf(false) }
+
+    if (showDownloadQualityDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDownloadQualityDialog = false
+                isRedownload = false
+            },
+            title = {
+                Text(
+                    text = stringResource(R.string.choose_download_quality),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+            },
+            text = {
+                if (isLoadingFormats) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(48.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Loading available qualities...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else if (availableFormats.isEmpty()) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp)
+                    ) {
+                        Text(
+                            text = "No formats available",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    Column {
+                        LazyColumn(
+                            modifier = Modifier.height(280.dp)
+                        ) {
+                            items(availableFormats) { format ->
+                                Surface(
+                                    onClick = {
+                                        val shouldOverwrite = isRedownload
+                                        showDownloadQualityDialog = false
+                                        isRedownload = false
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            database.transaction {
+                                                insert(mediaMetadata)
+                                            }
+                                            val song = database.song(mediaMetadata.id).first()
+                                            song?.let {
+                                                downloadUtil.downloadToMediaStoreWithItag(
+                                                    it,
+                                                    format.itag,
+                                                    overwrite = shouldOverwrite
+                                                )
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = MaterialTheme.colorScheme.surface
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = "${format.bitrateKbps} kbps",
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            Text(
+                                                // Show save format: OPUS from YouTube is in WebM container
+                                                text = if (format.codec == "OPUS") "OPUS (.webm)" else format.codec,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Icon(
+                                            painter = painterResource(R.drawable.download),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+                        // Note about OPUS limitations
+                        if (availableFormats.any { it.codec == "OPUS" }) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Note: OPUS files won't have embedded metadata. Cover art will be saved as a separate image.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDownloadQualityDialog = false
+                        isRedownload = false
+                    }
+                ) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+            confirmButton = {}
+        )
+    }
+
     if (isQueueTrigger != true) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(24.dp),
@@ -434,6 +576,7 @@ fun PlayerMenu(
         item {
             when (mediaStoreDownload?.status) {
                 MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> {
+                    // Show "Remove Download" option
                     ListItem(
                         headlineContent = {
                             Text(
@@ -450,6 +593,8 @@ fun PlayerMenu(
                         modifier = Modifier.clickable {
                             coroutineScope.launch {
                                 downloadUtil.removeDownload(mediaMetadata.id)
+                                Toast.makeText(context, context.getString(R.string.download_removed), Toast.LENGTH_SHORT).show()
+                                onDismiss()
                             }
                         }
                     )
@@ -497,6 +642,8 @@ fun PlayerMenu(
                                 modifier = Modifier.clickable {
                                     coroutineScope.launch {
                                         downloadUtil.removeDownload(mediaMetadata.id)
+                                        Toast.makeText(context, context.getString(R.string.download_removed), Toast.LENGTH_SHORT).show()
+                                        onDismiss()
                                     }
                                 }
                             )
@@ -514,12 +661,15 @@ fun PlayerMenu(
                                 modifier = Modifier.clickable {
                                     coroutineScope.launch {
                                         downloadUtil.removeDownload(mediaMetadata.id)
+                                        Toast.makeText(context, context.getString(R.string.download_removed), Toast.LENGTH_SHORT).show()
+                                        onDismiss()
                                     }
                                 }
                             )
                         }
 
                         else -> {
+                            // Quick download with current quality settings
                             ListItem(
                                 headlineContent = { Text(text = stringResource(R.string.action_download)) },
                                 leadingContent = {
@@ -543,6 +693,61 @@ fun PlayerMenu(
                         }
                     }
                 }
+            }
+        }
+        // Show "Choose quality" option when song is NOT downloaded
+        if (mediaStoreDownload?.status != MediaStoreDownloadManager.DownloadState.Status.COMPLETED &&
+            mediaStoreDownload?.status != MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING &&
+            mediaStoreDownload?.status != MediaStoreDownloadManager.DownloadState.Status.QUEUED &&
+            download?.state != Download.STATE_COMPLETED &&
+            download?.state != Download.STATE_DOWNLOADING &&
+            download?.state != Download.STATE_QUEUED) {
+            item {
+                ListItem(
+                    headlineContent = { Text(text = stringResource(R.string.choose_download_quality)) },
+                    leadingContent = {
+                        Icon(
+                            painter = painterResource(R.drawable.tune),
+                            contentDescription = null,
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        showDownloadQualityDialog = true
+                        isLoadingFormats = true
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val formats = YTPlayerUtils.getAllAvailableAudioFormats(mediaMetadata.id)
+                                .getOrNull() ?: emptyList()
+                            availableFormats = formats
+                            isLoadingFormats = false
+                        }
+                    }
+                )
+            }
+        }
+        // Show "Swap Download" option when song is already downloaded
+        if (mediaStoreDownload?.status == MediaStoreDownloadManager.DownloadState.Status.COMPLETED ||
+            download?.state == Download.STATE_COMPLETED) {
+            item {
+                ListItem(
+                    headlineContent = { Text(text = stringResource(R.string.swap_download)) },
+                    leadingContent = {
+                        Icon(
+                            painter = painterResource(R.drawable.sync),
+                            contentDescription = null,
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        isRedownload = true
+                        showDownloadQualityDialog = true
+                        isLoadingFormats = true
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val formats = YTPlayerUtils.getAllAvailableAudioFormats(mediaMetadata.id)
+                                .getOrNull() ?: emptyList()
+                            availableFormats = formats
+                            isLoadingFormats = false
+                        }
+                    }
+                )
             }
         }
         item {

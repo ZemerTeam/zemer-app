@@ -106,6 +106,8 @@
     <string name="action_download">Download</string>
     <string name="downloading">Downloading</string>
     <string name="remove_download">Remove download</string>
+    <string name="swap_download">Swap download quality</string>
+    <string name="choose_download_quality">Choose download quality</string>
 
     <!-- MediaStore downloads -->
     <string name="download_to_device">Download</string>
@@ -220,6 +222,7 @@
     <!-- Snackbar -->
     <string name="playlist_imported">Playlist imported</string>
     <string name="removed_song_from_playlist">Removed \"%s\" from playlist</string>
+    <string name="download_removed">Download removed</string>
     <string name="playlist_synced">Playlist synced</string>
     <string name="undo">Undo</string>
 

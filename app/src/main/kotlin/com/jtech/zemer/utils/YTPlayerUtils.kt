@@ -113,6 +113,7 @@ object YTPlayerUtils {
         maxVideoBitrateKbps: Int? = null,
         forDownload: Boolean = false,
         targetBitrateKbps: Int = 0, // 0 = use audioQuality, >0 = target specific bitrate
+        targetItag: Int = 0, // 0 = auto, >0 = exact itag (overrides all other quality settings)
         preferredClient: PreferredClient = PreferredClient.AUTO,
         isVideoFallback: Boolean = false, // Set true for video 720p fallback (skips TVHTML5)
     ): Result<PlaybackData> = runCatching {
@@ -217,6 +218,7 @@ object YTPlayerUtils {
                         maxVideoBitrateKbps,
                         forDownload,
                         targetBitrateKbps,
+                        targetItag,
                     )
 
                 if (format == null) {
@@ -684,6 +686,92 @@ object YTPlayerUtils {
         formats
     }
 
+    /**
+     * Fetches available audio formats from ALL clients for download selection.
+     * Returns all formats (including opus/webm) sorted by bitrate (highest first).
+     * Shows all format options so user can choose their preferred codec.
+     */
+    suspend fun getAllAvailableAudioFormats(
+        videoId: String
+    ): Result<List<AudioFormatOption>> = runCatching {
+        Timber.tag(TAG).d("=== Fetching ALL audio formats for $videoId from multiple clients ===")
+
+        val allClients = listOf(WEB_REMIX, TVHTML5, ANDROID_VR_1_43_32, IOS)
+        val allFormats = mutableListOf<AudioFormatOption>()
+        val seenItags = mutableSetOf<Int>()
+
+        // Get signature timestamp once
+        val signatureTimestamp = getSignatureTimestampOrNull(videoId)
+
+        // Check login status
+        val currentAuthCookie = YouTube.cookie
+        val isLoggedIn = currentAuthCookie != null && "SAPISID" in parseCookieString(currentAuthCookie)
+        val sessionId = if (isLoggedIn) YouTube.dataSyncId ?: YouTube.visitorData else YouTube.visitorData
+
+        // Generate PoToken once for web clients
+        val poTokenResult: PoTokenResult? = try {
+            if (sessionId != null) poTokenGenerator.getWebClientPoToken(videoId, sessionId) else null
+        } catch (e: Exception) {
+            Timber.tag(TAG).e("PoToken generation failed", e)
+            null
+        }
+
+        for (client in allClients) {
+            try {
+                if (client.loginRequired && !isLoggedIn) {
+                    Timber.tag(TAG).d("Skipping ${client.clientName} - requires login")
+                    continue
+                }
+
+                val response = YouTube.player(
+                    videoId = videoId,
+                    client = client,
+                    signatureTimestamp = signatureTimestamp,
+                    webPlayerPot = if (client.useWebPoTokens) poTokenResult?.playerRequestPoToken else null
+                ).getOrNull()
+
+                if (response?.playabilityStatus?.status != "OK") {
+                    Timber.tag(TAG).d("${client.clientName}: status=${response?.playabilityStatus?.status}")
+                    continue
+                }
+
+                val formats = response.streamingData?.adaptiveFormats
+                    ?.filter { it.isAudio && it.isOriginal }
+                    ?: continue
+
+                for (format in formats) {
+                    // Dedupe by itag (same format from different clients)
+                    if (seenItags.contains(format.itag)) continue
+                    seenItags.add(format.itag)
+
+                    val bitrateKbps = format.bitrate / 1000
+                    val codec = when {
+                        format.mimeType.contains("opus") -> "OPUS"
+                        format.mimeType.contains("mp4a") -> "M4A"
+                        else -> format.mimeType.substringAfter("audio/").substringBefore(";").uppercase()
+                    }
+                    allFormats.add(
+                        AudioFormatOption(
+                            itag = format.itag,
+                            bitrate = format.bitrate,
+                            bitrateKbps = bitrateKbps,
+                            mimeType = format.mimeType,
+                            codec = codec,
+                        )
+                    )
+                    Timber.tag(TAG).d("  ${client.clientName}: ${bitrateKbps}kbps $codec (itag=${format.itag})")
+                }
+            } catch (e: Exception) {
+                Timber.tag(TAG).e("Failed to fetch from ${client.clientName}", e)
+            }
+        }
+
+        // Sort by bitrate (highest first), then by codec (M4A before OPUS for same bitrate)
+        val sorted = allFormats.sortedWith(compareByDescending<AudioFormatOption> { it.bitrate }.thenBy { it.codec })
+        Timber.tag(TAG).d("=== Total unique formats: ${sorted.size} ===")
+        sorted
+    }
+
     private fun findFormat(
         playerResponse: PlayerResponse,
         audioQuality: AudioQuality,
@@ -692,7 +780,21 @@ object YTPlayerUtils {
         maxVideoBitrateKbps: Int?,
         forDownload: Boolean = false,
         targetBitrateKbps: Int = 0, // 0 = use audioQuality, >0 = target specific bitrate
+        targetItag: Int = 0, // 0 = auto, >0 = exact itag
     ): PlayerResponse.StreamingData.Format? {
+        // If exact itag requested, find it directly (for user-selected quality downloads)
+        if (targetItag > 0) {
+            val exactFormat = playerResponse.streamingData?.adaptiveFormats
+                ?.find { it.itag == targetItag }
+            if (exactFormat != null) {
+                Timber.tag(TAG).i("Found exact itag=$targetItag: mime=${exactFormat.mimeType}, bitrate=${exactFormat.bitrate/1000}kbps")
+                return exactFormat
+            }
+            // Don't fall back to quality selection - return null to try next client
+            // This ensures user's exact format choice is respected
+            Timber.tag(TAG).d("Exact itag=$targetItag not found in this client, trying next client")
+            return null
+        }
         if (preferVideo) {
             val progressive = playerResponse.streamingData?.formats.orEmpty()
                 .filter { it.mimeType.startsWith("video") && (it.audioQuality != null || it.audioChannels != null) }
@@ -711,13 +813,14 @@ object YTPlayerUtils {
             return null
         }
 
-        // For downloads: exclude webm (MediaStore doesn't support it)
+        // For downloads: exclude webm UNLESS user explicitly selected a format (targetItag > 0)
         // For streaming: prefer opus (webm) for better quality
         val audioFormats = playerResponse.streamingData?.adaptiveFormats
             ?.filter { it.isAudio && it.isOriginal }
             ?.let { formats ->
-                if (forDownload) {
-                    // Exclude webm for downloads - MediaStore only supports mp4/m4a
+                if (forDownload && targetItag == 0) {
+                    // Exclude webm for auto downloads - MediaStore doesn't categorize it well
+                    // But if user explicitly chose a format (targetItag > 0), allow any codec
                     formats.filter { !it.mimeType.startsWith("audio/webm") }.ifEmpty { formats }
                 } else {
                     formats

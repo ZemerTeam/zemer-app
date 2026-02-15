@@ -2,6 +2,7 @@
 
 package com.jtech.zemer.utils
 
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
@@ -36,11 +37,13 @@ class MediaStoreHelper(private val context: Context) {
         private const val MAX_FILENAME_LENGTH = 200
 
         // Supported audio MIME types
+        // Note: audio/webm is not supported by MediaStore on many devices
+        // Use audio/ogg for webm/opus files which is more widely accepted
         private val MIME_TYPE_MAP = mapOf(
-            "opus" to "audio/opus",
+            "opus" to "audio/ogg",
             "m4a" to "audio/mp4",
             "mp4" to "audio/mp4",
-            "webm" to "audio/webm",
+            "webm" to "audio/ogg",  // MediaStore doesn't accept audio/webm on many devices
             "ogg" to "audio/ogg",
             "mp3" to "audio/mpeg",
             "aac" to "audio/aac",
@@ -102,9 +105,14 @@ class MediaStoreHelper(private val context: Context) {
             // Organize files: Music/Zemer/{Artist}/{Album}/Song.mp3 or Music/Zemer/{Artist}/Song.mp3
             val targetFile = buildLegacyFile(relativePath, sanitizedFileName)
 
+            // Get MediaStore-compatible MIME type based on extension
+            // MediaStore rejects some MIME types like audio/webm, so we map them
+            val extension = sanitizedFileName.substringAfterLast('.', "mp3")
+            val mediaStoreMimeType = getMimeType(extension)
+
             val contentValues = ContentValues().apply {
                 put(MediaStore.Audio.Media.DISPLAY_NAME, sanitizedFileName)
-                put(MediaStore.Audio.Media.MIME_TYPE, mimeType)
+                put(MediaStore.Audio.Media.MIME_TYPE, mediaStoreMimeType)
                 put(MediaStore.Audio.Media.TITLE, title)
                 put(MediaStore.Audio.Media.ARTIST, artist)
                 album?.let { put(MediaStore.Audio.Media.ALBUM, it) }
@@ -130,11 +138,14 @@ class MediaStoreHelper(private val context: Context) {
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
             }
 
+            Timber.tag("MediaStore").d("Inserting into MediaStore: fileName=$sanitizedFileName, mimeType=$mediaStoreMimeType (from $mimeType), relativePath=$relativePath")
             val audioUri = contentResolver.insert(audioCollection, contentValues)
 
             if (audioUri == null) {
+                Timber.tag("MediaStore").e("MediaStore insert returned null for $sanitizedFileName (mimeType=$mediaStoreMimeType from $mimeType)")
                 return@withContext null
             }
+            Timber.tag("MediaStore").d("Insert succeeded: $audioUri")
 
             // Write the actual file content
             contentResolver.openOutputStream(audioUri)?.use { outputStream ->
@@ -155,6 +166,7 @@ class MediaStoreHelper(private val context: Context) {
             audioUri
 
         } catch (e: Exception) {
+            Timber.tag("MediaStore").e(e, "saveToMediaStore failed: ${e.message}")
             null
         }
     }
@@ -366,6 +378,7 @@ class MediaStoreHelper(private val context: Context) {
 
             // Only save to custom path if one is configured, otherwise use MediaStore
             val hasCustomPath = context.dataStore[customDownloadPathKey]?.isNotBlank() == true
+            Timber.tag("MediaStore").d("saveFileToMediaStore: fileName=$sanitizedFileName, mimeType=$mimeType, hasCustomPath=$hasCustomPath, fileSize=$fileSize")
 
             if (hasCustomPath) {
                 // Save to custom path only
@@ -391,8 +404,143 @@ class MediaStoreHelper(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
+            Timber.tag("MediaStore").e(e, "saveFileToMediaStore failed: ${e.message}")
             null
         }
+    }
+
+    /**
+     * Save cover art image to the same folder as audio files.
+     * Used for formats that don't support embedded artwork (e.g., WebM/OPUS).
+     *
+     * @param tempFile The temporary image file
+     * @param fileName Desired filename (e.g., "Song Title.jpg")
+     * @param mimeType Image MIME type (image/jpeg or image/png)
+     * @param artist Artist name (used for folder organization)
+     * @param album Album name (optional, used for folder organization)
+     * @return Uri of saved file, or null on failure
+     */
+    suspend fun saveCoverArtToMediaStore(
+        tempFile: File,
+        fileName: String,
+        mimeType: String,
+        artist: String,
+        album: String?
+    ): Uri? = withContext(Dispatchers.IO) {
+        try {
+            if (!tempFile.exists() || tempFile.length() == 0L) {
+                return@withContext null
+            }
+
+            val sanitizedFileName = sanitizeFileName(fileName)
+            val sanitizedArtist = sanitizeFolderName(artist)
+            val sanitizedAlbum = album?.takeIf { it.isNotBlank() }?.let { sanitizeFolderName(it) }
+
+            // Check for custom download path
+            val hasCustomPath = context.dataStore[customDownloadPathKey]?.isNotBlank() == true
+
+            if (hasCustomPath) {
+                // Save to custom path alongside audio
+                saveCoverToCustomPath(tempFile, sanitizedFileName, sanitizedArtist, sanitizedAlbum)
+            } else {
+                // Save to Pictures/Zemer/{Artist}/{Album}/ for better organization
+                saveCoverToMediaStorePictures(tempFile, sanitizedFileName, mimeType, sanitizedArtist, sanitizedAlbum)
+            }
+        } catch (e: Exception) {
+            Timber.tag("MediaStore").e(e, "saveCoverArtToMediaStore failed: ${e.message}")
+            null
+        }
+    }
+
+    private suspend fun saveCoverToMediaStorePictures(
+        tempFile: File,
+        fileName: String,
+        mimeType: String,
+        artist: String,
+        album: String?
+    ): Uri? = withContext(Dispatchers.IO) {
+        // Save cover art in the same folder as audio files (Music/Zemer/Artist/Album)
+        // Use song title as filename so each track has its own cover
+        val baseDownloadPath = getBaseDownloadPath()
+        val relativePath = buildRelativePath(baseDownloadPath, artist, album)
+
+        // Use sanitized song title for cover filename (e.g., "SongTitle.jpg")
+        val sanitizedFileName = sanitizeFileName(fileName)
+
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, sanitizedFileName)
+            put(MediaStore.Images.Media.MIME_TYPE, mimeType)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Images.Media.RELATIVE_PATH, relativePath)
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+        }
+
+        val imageCollection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        } else {
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        }
+
+        val imageUri = context.contentResolver.insert(imageCollection, contentValues)
+            ?: return@withContext null
+
+        context.contentResolver.openOutputStream(imageUri)?.use { outputStream ->
+            tempFile.inputStream().use { inputStream ->
+                inputStream.copyTo(outputStream)
+            }
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            contentValues.clear()
+            contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+            context.contentResolver.update(imageUri, contentValues, null, null)
+        }
+
+        Timber.tag("MediaStore").d("Cover art saved: $imageUri ($sanitizedFileName) in $relativePath")
+        imageUri
+    }
+
+    private fun saveCoverToCustomPath(
+        tempFile: File,
+        fileName: String,
+        artist: String,
+        album: String?
+    ): Uri? {
+        val customDownloadUri = context.dataStore[customDownloadPathKey]
+            ?.takeIf { it.isNotBlank() }
+            ?.let(Uri::parse)
+            ?: return null
+
+        val rootDocument = DocumentFile.fromTreeUri(context, customDownloadUri) ?: return null
+
+        // Navigate to or create artist folder
+        val artistFolder = rootDocument.findFile(artist)
+            ?: rootDocument.createDirectory(artist)
+            ?: return null
+
+        // Navigate to or create album folder if specified
+        val targetFolder = if (album != null) {
+            artistFolder.findFile(album) ?: artistFolder.createDirectory(album) ?: artistFolder
+        } else {
+            artistFolder
+        }
+
+        // Delete existing file with same name
+        targetFolder.findFile(fileName)?.delete()
+
+        // Create new file
+        val mimeType = if (fileName.endsWith(".jpg", true)) "image/jpeg" else "image/png"
+        val newFile = targetFolder.createFile(mimeType, fileName) ?: return null
+
+        context.contentResolver.openOutputStream(newFile.uri)?.use { outputStream ->
+            tempFile.inputStream().use { inputStream ->
+                inputStream.copyTo(outputStream)
+            }
+        }
+
+        Timber.tag("MediaStore").d("Cover art saved to custom path: ${newFile.uri}")
+        return newFile.uri
     }
 
     /**

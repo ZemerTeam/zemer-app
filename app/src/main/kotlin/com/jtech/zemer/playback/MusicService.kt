@@ -257,6 +257,9 @@ class MusicService :
     // Use shared URL cache from DownloadUtil for consistency between playback and downloads
     private val songUrlCache get() = DownloadUtil.sharedUrlCache
 
+    // Flag to bypass player cache when quality/client changes - maps mediaId to bypass flag
+    private val bypassCacheForQualityChange = mutableSetOf<String>()
+
     override fun onCreate() {
         super.onCreate()
         // Media3's MediaLibraryService handles foreground notification automatically
@@ -337,11 +340,14 @@ class MusicService :
             audioQualityFlow.collect { quality ->
                 val previousQuality = audioQuality
                 audioQuality = quality
-                Timber.tag("AudioQuality").i("MusicService: quality preference updated: $previousQuality -> $quality")
+                Timber.tag("QualitySwitch").i("*** QUALITY CHANGED: $previousQuality -> $quality (isFirstEmit=$isFirstEmit, hasMediaItem=${player.currentMediaItem != null})")
 
                 // Reload current song if quality changed (skip first emit which is initialization)
                 if (!isFirstEmit && previousQuality != quality && player.currentMediaItem != null) {
+                    Timber.tag("QualitySwitch").i("Triggering reload for quality change")
                     reloadCurrentSong("quality changed to $quality")
+                } else {
+                    Timber.tag("QualitySwitch").i("NOT reloading: isFirstEmit=$isFirstEmit, sameQuality=${previousQuality == quality}")
                 }
                 isFirstEmit = false
             }
@@ -353,11 +359,14 @@ class MusicService :
             audioBitrateFlow.collect { bitrate ->
                 val previousBitrate = audioBitrate
                 audioBitrate = bitrate
-                Timber.tag("AudioQuality").i("MusicService: bitrate preference updated: ${previousBitrate}kbps -> ${bitrate}kbps")
+                Timber.tag("QualitySwitch").i("*** BITRATE CHANGED: ${previousBitrate}kbps -> ${bitrate}kbps (isFirstEmit=$isFirstEmit)")
 
                 // Reload current song if bitrate changed (skip first emit which is initialization)
                 if (!isFirstEmit && previousBitrate != bitrate && player.currentMediaItem != null) {
+                    Timber.tag("QualitySwitch").i("Triggering reload for bitrate change")
                     reloadCurrentSong("bitrate changed to ${bitrate}kbps")
+                } else {
+                    Timber.tag("QualitySwitch").i("NOT reloading: isFirstEmit=$isFirstEmit, sameBitrate=${previousBitrate == bitrate}")
                 }
                 isFirstEmit = false
             }
@@ -369,11 +378,14 @@ class MusicService :
             preferredClientFlow.collect { client ->
                 val previousClient = preferredClient
                 preferredClient = client
-                Timber.tag("AudioQuality").i("MusicService: client preference updated: $previousClient -> $client")
+                Timber.tag("QualitySwitch").i("*** CLIENT CHANGED: $previousClient -> $client (isFirstEmit=$isFirstEmit)")
 
                 // Reload current song if client changed (skip first emit which is initialization)
                 if (!isFirstEmit && previousClient != client && player.currentMediaItem != null) {
+                    Timber.tag("QualitySwitch").i("Triggering reload for client change")
                     reloadCurrentSong("client changed to $client")
+                } else {
+                    Timber.tag("QualitySwitch").i("NOT reloading: isFirstEmit=$isFirstEmit, sameClient=${previousClient == client}")
                 }
                 isFirstEmit = false
             }
@@ -1341,7 +1353,11 @@ class MusicService :
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 
-            // Check for MediaStore URI first (local playback)
+            // Check if we need to bypass cache for quality change
+            val shouldBypassCache = bypassCacheForQualityChange.contains(mediaId)
+            Timber.tag("QualitySwitch").d("ResolvingDataSource called for $mediaId, quality=$audioQuality, bitrate=$audioBitrate, client=$preferredClient, bypassCache=$shouldBypassCache")
+
+            // Check for MediaStore URI first (local playback) - but not if bypassing for quality change
             // Only use local file if starting from beginning (position 0) to avoid
             // switching sources mid-stream when a download completes during playback
             // Use a blocking call here because ResolvingDataSource.Factory requires synchronous code
@@ -1349,26 +1365,36 @@ class MusicService :
                 database.song(mediaId).first()
             }
 
-            if (song?.song?.mediaStoreUri != null && dataSpec.position == 0L) {
+            if (!shouldBypassCache && song?.song?.mediaStoreUri != null && dataSpec.position == 0L) {
+                Timber.tag("QualitySwitch").d("Using MediaStore URI for $mediaId (local file)")
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                 return@Factory dataSpec.withUri(song.song.mediaStoreUri.toUri())
             }
 
-            if (downloadCache.isCached(
-                    mediaId,
-                    dataSpec.position,
-                    if (dataSpec.length >= 0) dataSpec.length else 1
-                ) ||
-                playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)
-            ) {
-                scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                return@Factory dataSpec
+            // Skip cache check if bypassing for quality change
+            if (!shouldBypassCache) {
+                if (downloadCache.isCached(
+                        mediaId,
+                        dataSpec.position,
+                        if (dataSpec.length >= 0) dataSpec.length else 1
+                    ) ||
+                    playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)
+                ) {
+                    Timber.tag("QualitySwitch").d("Using cached data for $mediaId (download or player cache)")
+                    scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
+                    return@Factory dataSpec
+                }
+
+                songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
+                    Timber.tag("QualitySwitch").d("Using URL cache for $mediaId - NOT fetching new quality!")
+                    scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
+                    return@Factory dataSpec.withUri(it.first.toUri())
+                }
+            } else {
+                Timber.tag("QualitySwitch").d("BYPASSING CACHE for $mediaId due to quality/client change")
             }
 
-            songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
-                scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                return@Factory dataSpec.withUri(it.first.toUri())
-            }
+            Timber.tag("QualitySwitch").d("Fetching fresh stream for $mediaId with quality=$audioQuality, bitrate=$audioBitrate, client=$preferredClient")
 
             // Validate current authentication state before fetching stream
             val currentAuthCookie = YouTube.cookie
@@ -1413,8 +1439,15 @@ class MusicService :
             val nonNullPlayback = requireNotNull(playbackData) {
                 getString(R.string.error_unknown)
             }
+
+            // Clear the bypass flag now that we've fetched fresh stream
+            if (bypassCacheForQualityChange.remove(mediaId)) {
+                Timber.tag("QualitySwitch").d("Cleared bypass cache flag for $mediaId after fetching fresh stream")
+            }
+
             run {
                 val format = nonNullPlayback.format
+                Timber.tag("QualitySwitch").d("Got stream for $mediaId: itag=${format.itag}, bitrate=${format.bitrate}, quality=${format.audioQuality}, sampleRate=${format.audioSampleRate}")
 
                 val contentLength = format.contentLength ?: -1L
                 database.query {
@@ -1580,22 +1613,31 @@ class MusicService :
      */
     private fun reloadCurrentSong(reason: String) {
         val mediaId = player.currentMediaItem?.mediaId ?: return
-        Timber.tag("AudioQuality").i("MusicService: reloading song $mediaId ($reason)")
+        Timber.tag("QualitySwitch").i("=== RELOAD START === mediaId=$mediaId reason=$reason")
+        Timber.tag("QualitySwitch").i("Current settings: quality=$audioQuality, bitrate=$audioBitrate, client=$preferredClient")
         val currentPosition = player.currentPosition
         val wasPlaying = player.isPlaying
         val currentIndex = player.currentMediaItemIndex
 
         // Clear cached URL to force new stream fetch
+        val hadCachedUrl = songUrlCache.containsKey(mediaId)
         songUrlCache.remove(mediaId)
+        Timber.tag("QualitySwitch").i("Cleared URL cache for $mediaId (had cached URL: $hadCachedUrl)")
+
+        // Set flag to bypass player cache for this song
+        bypassCacheForQualityChange.add(mediaId)
+        Timber.tag("QualitySwitch").i("Set bypass cache flag for $mediaId")
 
         // Stop and restart to force new stream resolution
+        Timber.tag("QualitySwitch").i("Stopping player, position=$currentPosition, wasPlaying=$wasPlaying")
         player.stop()
         player.seekTo(currentIndex, currentPosition)
+        Timber.tag("QualitySwitch").i("Calling prepare() - this should trigger ResolvingDataSource")
         player.prepare()
         if (wasPlaying) {
             player.play()
         }
-        Timber.tag("AudioQuality").i("MusicService: reload triggered for $mediaId")
+        Timber.tag("QualitySwitch").i("=== RELOAD END === mediaId=$mediaId")
     }
 
     override fun onDestroy() {

@@ -166,6 +166,39 @@ constructor(
         }
     }
 
+    // Target itag for downloads when user selects a specific format
+    private val targetItagOverride = mutableMapOf<String, Int>()
+
+    /**
+     * Start downloading a song with a specific itag (exact format).
+     * Bypasses cache and fetches the exact format user selected.
+     * Can be used to re-download with different quality (overwrites existing file).
+     *
+     * @param song The song to download
+     * @param itag The YouTube format itag
+     * @param overwrite If true, deletes existing download first
+     */
+    fun downloadSongWithItag(song: Song, itag: Int, overwrite: Boolean = false) {
+        Timber.tag("DownloadQuality").i("=== DOWNLOAD START: ${song.song.title} ===")
+        Timber.tag("DownloadQuality").i("Target itag: $itag, overwrite=$overwrite")
+
+        scope.launch {
+            // If overwriting, delete existing download first
+            if (overwrite) {
+                Timber.tag("DownloadQuality").i("Deleting existing download for ${song.id}")
+                deleteDownloaded(song.id)
+            }
+
+            // Store the target itag for this download
+            targetItagOverride[song.id] = itag
+            // Invalidate any cached URL to force fresh fetch
+            DownloadUtil.invalidateUrl(song.id)
+            Timber.tag("DownloadQuality").i("Cache invalidated, starting download...")
+            // Start the download
+            downloadSong(song)
+        }
+    }
+
     /**
      * Start downloading a song
      *
@@ -181,6 +214,7 @@ constructor(
             if (currentState?.status == DownloadState.Status.DOWNLOADING ||
                 currentState?.status == DownloadState.Status.COMPLETED
             ) {
+                Timber.tag("DownloadQuality").d("Skipping download - already ${currentState?.status}")
                 return@launch
             }
 
@@ -207,6 +241,7 @@ constructor(
                 artist = checkArtist
             )
             if (existingFile != null) {
+                Timber.tag("DownloadQuality").i("Existing file found: $existingFile - marking as completed")
                 updateDownloadState(
                     audioSong.id,
                     DownloadState(
@@ -307,6 +342,7 @@ constructor(
      * Delete a downloaded song (or cancel and clear pending state) and remove it from MediaStore/DB.
      */
     suspend fun deleteDownloaded(songId: String) {
+        Timber.d("deleteDownloaded: songId=$songId")
         // Cancel active work and purge queue
         activeDownloads[songId]?.cancel()
         activeDownloads.remove(songId)
@@ -316,8 +352,13 @@ constructor(
 
         val song = database.song(songId).first()
         val uriString = song?.song?.mediaStoreUri
+        Timber.d("deleteDownloaded: song found=${song != null}, mediaStoreUri=$uriString, isDownloaded=${song?.song?.isDownloaded}")
+
         if (uriString != null) {
-            runCatching { mediaStoreHelper.deleteFromMediaStore(Uri.parse(uriString)) }
+            val deleteResult = runCatching {
+                mediaStoreHelper.deleteFromMediaStore(Uri.parse(uriString))
+            }
+            Timber.d("deleteDownloaded: MediaStore delete result=${deleteResult.getOrNull()}, error=${deleteResult.exceptionOrNull()?.message}")
         }
 
         song?.let {
@@ -330,10 +371,12 @@ constructor(
                     )
                 )
             }
+            Timber.d("deleteDownloaded: Database flags cleared for $songId")
         }
 
         // Clear state entry
         _downloadStates.value = _downloadStates.value - songId
+        Timber.d("deleteDownloaded: State cleared for $songId")
     }
 
     /**
@@ -398,17 +441,29 @@ constructor(
                 DownloadQuality.HIGH -> AudioQuality.HIGH
                 DownloadQuality.LOW -> AudioQuality.LOW
             }
-            Timber.d("Starting download for ${if (isVideoDownload) "video" else "song"} ${song.id}: ${song.song.title}, preferVideo=${isVideoDownload}, quality=$downloadQuality")
+            // Check if user selected a specific itag (format)
+            // Use get() instead of remove() - we'll remove after successful download
+            // This prevents a race where a second download request loses the itag
+            val targetItag = targetItagOverride[song.id] ?: 0
+            Timber.tag("DownloadQuality").i("Fetching stream: videoId=${song.id}, targetItag=${if (targetItag > 0) targetItag else "auto (${downloadQuality})"}")
             val playbackData = YTPlayerUtils.playerResponseForPlayback(
                 videoId = song.id,
                 audioQuality = audioQualityForDownload,
                 connectivityManager = connectivityManager,
                 preferVideo = isVideoDownload,
                 forDownload = true,
+                targetItag = targetItag,
             ).getOrThrow()
 
             val format = playbackData.format
             val downloadUrl = playbackData.streamUrl
+
+            Timber.tag("DownloadQuality").i("=== FORMAT SELECTED ===")
+            Timber.tag("DownloadQuality").i("Requested itag: $targetItag")
+            Timber.tag("DownloadQuality").i("Got itag: ${format.itag}")
+            Timber.tag("DownloadQuality").i("Mime: ${format.mimeType}")
+            Timber.tag("DownloadQuality").i("Bitrate: ${format.bitrate/1000}kbps")
+            Timber.tag("DownloadQuality").i("Match: ${targetItag == format.itag || targetItag == 0}")
 
             // Only update shared cache if there's no valid entry - don't overwrite player's URL
             // Different fetches return different URL signatures, overwriting breaks playback
@@ -421,6 +476,7 @@ constructor(
 
             // Create temporary file for download
             val mimeTypeRaw = format.mimeType.substringBefore(";").trim()
+            Timber.tag("DownloadQuality").i("MimeType raw: '$mimeTypeRaw'")
             val extension = if (isVideoDownload) {
                 // For video downloads, keep video extensions
                 when {
@@ -431,20 +487,25 @@ constructor(
                 }
             } else {
                 // For audio downloads, convert to audio extensions
+                // Note: OPUS from YouTube comes in WebM container (audio/webm; codecs="opus")
+                // WebM uses Matroska container - metadata embedding not supported
                 when {
                     mimeTypeRaw.contains("webm") -> "webm"
                     mimeTypeRaw.contains("mp4") -> "m4a"
                     mimeTypeRaw.contains("ogg") -> "ogg"
-                    mimeTypeRaw.contains("opus") -> "opus"
+                    mimeTypeRaw.contains("opus") -> "ogg"
                     mimeTypeRaw.contains("mpeg") -> "mp3"
                     else -> mimeTypeRaw.substringAfterLast("/")
                 }
             }
+            Timber.tag("DownloadQuality").i("Extension determined: '$extension'")
             val tempFile = File(context.cacheDir, "temp_${song.id}.$extension")
 
             try {
                 // Download to temp file
+                Timber.tag("DownloadQuality").i("Starting file download to: ${tempFile.name}")
                 downloadFile(downloadUrl, tempFile, song.id)
+                Timber.tag("DownloadQuality").i("File download complete, size: ${tempFile.length()} bytes")
 
                 if (!tempFile.exists() || tempFile.length() == 0L) {
                     throw Exception("Download failed - temp file not created or empty")
@@ -468,8 +529,10 @@ constructor(
                 val duration = song.song.duration.takeIf { it > 0 }?.times(1000L) // Convert to milliseconds
 
                 // Embed metadata if format supports it (audio only)
-                if (!isVideoDownload && CoverArtEmbedder.supportsEmbedding(extension)) {
-                    CoverArtEmbedder.embedMetadataIntoFile(
+                val supportsEmbed = CoverArtEmbedder.supportsEmbedding(extension)
+                Timber.tag("CoverArt").d("Extension: $extension, supportsEmbedding: $supportsEmbed, isVideo: $isVideoDownload")
+                if (!isVideoDownload && supportsEmbed) {
+                    val embedSuccess = CoverArtEmbedder.embedMetadataIntoFile(
                         context = context,
                         audioFile = tempFile,
                         thumbnailUrl = song.song.thumbnailUrl,
@@ -477,12 +540,17 @@ constructor(
                         title = title,
                         artist = artist,
                         album = album,
-                        year = year
+                        year = year,
+                        durationMs = duration
                     )
+                    Timber.tag("CoverArt").d("Metadata embedding result: $embedSuccess")
                 }
 
                 val fileName = "$title.$extension"
                 val uri: Uri?
+
+                // For formats that don't support embedding (WebM/OPUS), save cover art as separate file
+                val shouldSaveSeparateCover = !isVideoDownload && !supportsEmbed && !song.song.thumbnailUrl.isNullOrBlank()
 
                 if (isVideoDownload) {
                     // Save video to Movies/Zemer folder
@@ -512,7 +580,18 @@ constructor(
                 }
                 Timber.d("MediaStore save result: $uri")
 
+                // Save cover art as separate file for formats that don't support embedding
+                if (uri != null && shouldSaveSeparateCover) {
+                    try {
+                        saveCoverArt(song, title, artist, album)
+                    } catch (e: Exception) {
+                        Timber.tag("CoverArt").w(e, "Failed to save separate cover art")
+                    }
+                }
+
                 if (uri != null) {
+                    Timber.tag("DownloadQuality").i("=== DOWNLOAD SUCCESS ===")
+                    Timber.tag("DownloadQuality").i("Saved to: $uri")
                     // Mark as completed
                     updateDownloadState(
                         song.id,
@@ -525,6 +604,9 @@ constructor(
 
                     // Update database with MediaStore URI (preserving isVideo flag)
                     markSongAsDownloaded(song, uri.toString())
+
+                    // Clear the itag override now that download is complete
+                    targetItagOverride.remove(song.id)
                 } else {
                     throw Exception("Failed to save file to MediaStore")
                 }
@@ -536,7 +618,7 @@ constructor(
             }
 
         } catch (e: Exception) {
-            Timber.e(e, "Download failed for song ${song.id}: ${e.message}")
+            Timber.tag("DownloadQuality").e(e, "Download FAILED: ${e.message}")
             // Retry logic with exponential backoff
             if (retryAttempt < MAX_RETRY_ATTEMPTS) {
                 val delayMs: Long = (INITIAL_RETRY_DELAY_MS * RETRY_BACKOFF_MULTIPLIER.pow(retryAttempt)).toLong()
@@ -554,7 +636,8 @@ constructor(
                 delay(delayMs)
                 performDownload(song, retryAttempt + 1)
             } else {
-                // Max retries reached
+                // Max retries reached - clear itag override
+                targetItagOverride.remove(song.id)
                 updateDownloadState(
                     song.id,
                     DownloadState(
@@ -648,6 +731,63 @@ constructor(
      */
     private fun updateDownloadState(songId: String, state: DownloadState) {
         _downloadStates.value = _downloadStates.value + (songId to state)
+    }
+
+    /**
+     * Save cover art as a separate image file for formats that don't support embedding.
+     * Saves to the same folder as the audio file.
+     */
+    private suspend fun saveCoverArt(
+        song: Song,
+        title: String,
+        artist: String,
+        album: String?
+    ) {
+        val thumbnailUrl = song.song.thumbnailUrl ?: return
+
+        try {
+            // Download cover art
+            val request = okhttp3.Request.Builder()
+                .url(thumbnailUrl)
+                .header("User-Agent", "Mozilla/5.0")
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                Timber.tag("CoverArt").w("Failed to download cover art: ${response.code}")
+                return
+            }
+
+            val imageData = response.body?.bytes() ?: return
+            if (imageData.size < 1000) {
+                Timber.tag("CoverArt").w("Cover art too small: ${imageData.size} bytes")
+                return
+            }
+
+            // Determine image format from data
+            val isJpeg = imageData.size > 2 && imageData[0] == 0xFF.toByte() && imageData[1] == 0xD8.toByte()
+            val extension = if (isJpeg) "jpg" else "png"
+            val mimeType = if (isJpeg) "image/jpeg" else "image/png"
+
+            // Save to temp file
+            val tempFile = File(context.cacheDir, "cover_${song.id}.$extension")
+            tempFile.writeBytes(imageData)
+
+            // Save to MediaStore in same folder as audio
+            val coverFileName = "$title.$extension"
+            mediaStoreHelper.saveCoverArtToMediaStore(
+                tempFile = tempFile,
+                fileName = coverFileName,
+                mimeType = mimeType,
+                artist = artist,
+                album = album
+            )
+
+            tempFile.delete()
+            Timber.tag("CoverArt").d("Saved separate cover art: $coverFileName")
+        } catch (e: Exception) {
+            Timber.tag("CoverArt").w(e, "Failed to save cover art")
+        }
     }
 
     /**
