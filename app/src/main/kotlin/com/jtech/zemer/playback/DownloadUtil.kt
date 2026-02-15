@@ -316,6 +316,18 @@ constructor(
     }
 
     /**
+     * Download a song with a specific itag (exact format).
+     * Bypasses cache and fetches the exact format user selected.
+     *
+     * @param song The song to download
+     * @param itag The YouTube format itag (determines exact quality and codec)
+     * @param overwrite If true, deletes existing download first (for re-downloading with different quality)
+     */
+    fun downloadToMediaStoreWithItag(song: com.jtech.zemer.db.entities.Song, itag: Int, overwrite: Boolean = false) {
+        mediaStoreDownloadManager.downloadSongWithItag(song, itag, overwrite)
+    }
+
+    /**
      * Download a video to MediaStore (Movies/Zemer folder)
      * This downloads the actual video file (mp4), not just audio.
      */

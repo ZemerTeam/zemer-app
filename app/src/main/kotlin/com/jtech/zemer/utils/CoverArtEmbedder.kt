@@ -15,6 +15,9 @@ import java.io.File
  * Uses native Bento4 library for reliable DASH/fragmented file support.
  * Supports embedding: cover art, title, artist, album, year.
  * All text is stored as UTF-8 (supports Hebrew, Arabic, and all Unicode).
+ *
+ * Note: WebM/OPUS files from YouTube use Matroska container which doesn't
+ * support metadata embedding without remuxing to OGG (requires FFmpeg).
  */
 object CoverArtEmbedder {
 
@@ -22,7 +25,7 @@ object CoverArtEmbedder {
     private const val ARTWORK_SIZE = 500
     private const val ARTWORK_DOWNLOAD_TIMEOUT_MS = 10_000L
 
-    // Only M4A/MP4 supported
+    // Only M4A/MP4 supported (Bento4)
     private val SUPPORTED_EXTENSIONS = setOf("m4a", "mp4")
 
     fun supportsEmbedding(extension: String): Boolean {
@@ -41,7 +44,8 @@ object CoverArtEmbedder {
         title: String? = null,
         artist: String? = null,
         album: String? = null,
-        year: Int? = null
+        year: Int? = null,
+        durationMs: Long? = null
     ): Boolean = withContext(Dispatchers.IO) {
         var tempFile: File? = null
         var outputFile: File? = null
