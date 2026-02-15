@@ -1251,11 +1251,26 @@ class MusicService :
 
     override fun onPlayerError(error: PlaybackException) {
         super.onPlayerError(error)
-        Timber.w(error, "Player error occurred: ${error.message}")
+        val mediaId = player.currentMediaItem?.mediaId ?: "unknown"
+
+        // Detailed error logging
+        Timber.tag("PlaybackError").e("=== PLAYBACK ERROR ===")
+        Timber.tag("PlaybackError").e("MediaId: $mediaId")
+        Timber.tag("PlaybackError").e("ErrorCode: ${error.errorCode} (${getErrorCodeName(error.errorCode)})")
+        Timber.tag("PlaybackError").e("Message: ${error.message}")
+        Timber.tag("PlaybackError").e("Cause: ${error.cause?.javaClass?.simpleName}: ${error.cause?.message}")
+        error.cause?.cause?.let { innerCause ->
+            Timber.tag("PlaybackError").e("InnerCause: ${innerCause.javaClass.simpleName}: ${innerCause.message}")
+        }
+        getHttpResponseCode(error)?.let { code ->
+            Timber.tag("PlaybackError").e("HTTP Response Code: $code")
+        }
+        Timber.tag("PlaybackError").e("NetworkConnected: ${isNetworkConnected.value}")
+        Timber.tag("PlaybackError").e("======================")
 
         // Check for expired URL (403 error) - needs immediate URL refresh
         if (isExpiredUrlError(error)) {
-            Timber.d("Expired URL detected (403), refreshing stream URL")
+            Timber.tag("PlaybackError").i("Expired URL detected (403), refreshing stream URL")
             handleExpiredUrlError()
             return
         }
@@ -1265,6 +1280,7 @@ class MusicService :
 
         // Don't treat 403 as network error - it needs URL refresh, not network wait
         if (!isNetworkConnected.value || isConnectionError) {
+            Timber.tag("PlaybackError").i("Network error - waiting for connection")
             waitOnNetworkError()
             return
         }
@@ -1469,8 +1485,9 @@ class MusicService :
 
                 val streamUrl = nonNullPlayback.streamUrl
 
-                songUrlCache[mediaId] =
-                    streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
+                val expiresAt = System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
+                songUrlCache[mediaId] = streamUrl to expiresAt
+                Timber.tag("StreamCache").i("CACHED new URL for $mediaId (expires in ${nonNullPlayback.streamExpiresInSeconds}s)")
                 return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
         }
@@ -1609,7 +1626,7 @@ class MusicService :
 
     /**
      * Reloads the current song with new quality/bitrate settings.
-     * Clears the cached URL and restarts playback from current position.
+     * Clears the cached URL and player cache, then restarts playback from current position.
      */
     private fun reloadCurrentSong(reason: String) {
         val mediaId = player.currentMediaItem?.mediaId ?: return
@@ -1620,16 +1637,53 @@ class MusicService :
         val currentIndex = player.currentMediaItemIndex
 
         // Clear cached URL to force new stream fetch
-        val hadCachedUrl = songUrlCache.containsKey(mediaId)
+        val cachedEntry = songUrlCache[mediaId]
+        val hadCachedUrl = cachedEntry != null
+        if (hadCachedUrl) {
+            val remainingSec = (cachedEntry!!.second - System.currentTimeMillis()) / 1000
+            Timber.tag("StreamCache").i("CLEARING cache for $mediaId due to quality change (had ${remainingSec}s remaining)")
+        }
         songUrlCache.remove(mediaId)
         Timber.tag("QualitySwitch").i("Cleared URL cache for $mediaId (had cached URL: $hadCachedUrl)")
 
-        // Set flag to bypass player cache for this song
+        // CRITICAL: Clear BOTH player cache AND download cache for this mediaId to prevent parsing errors
+        // When switching quality/client, the cached bytes are from a different stream format
+        // (e.g., OPUS vs M4A) and will cause PARSING_CONTAINER_UNSUPPORTED errors if reused
+        // Must be synchronous (runBlocking) to ensure cache is cleared BEFORE prepare() is called
+        runBlocking(Dispatchers.IO) {
+            try {
+                // Clear player cache (streaming buffer)
+                val playerSpans = playerCache.getCachedSpans(mediaId)
+                if (playerSpans.isNotEmpty()) {
+                    val totalBytes = playerSpans.sumOf { it.length }
+                    playerCache.removeResource(mediaId)
+                    Timber.tag("QualitySwitch").i("Evicted player cache for $mediaId (${playerSpans.size} spans, $totalBytes bytes)")
+                } else {
+                    Timber.tag("QualitySwitch").d("No player cache to evict for $mediaId")
+                }
+
+                // Also clear download cache (ExoPlayer download cache, not MediaStore)
+                // This prevents serving old format data from a previous streaming session
+                val downloadSpans = downloadCache.getCachedSpans(mediaId)
+                if (downloadSpans.isNotEmpty()) {
+                    val totalBytes = downloadSpans.sumOf { it.length }
+                    downloadCache.removeResource(mediaId)
+                    Timber.tag("QualitySwitch").i("Evicted download cache for $mediaId (${downloadSpans.size} spans, $totalBytes bytes)")
+                } else {
+                    Timber.tag("QualitySwitch").d("No download cache to evict for $mediaId")
+                }
+            } catch (e: Exception) {
+                Timber.tag("QualitySwitch").e(e, "Failed to evict cache for $mediaId")
+            }
+        }
+
+        // Set flag to bypass player cache for this song (for ResolvingDataSource)
         bypassCacheForQualityChange.add(mediaId)
         Timber.tag("QualitySwitch").i("Set bypass cache flag for $mediaId")
 
-        // Stop and restart to force new stream resolution
-        Timber.tag("QualitySwitch").i("Stopping player, position=$currentPosition, wasPlaying=$wasPlaying")
+        // Stop and restart from current position
+        // Position is preserved since different streams have same time-to-byte mapping
+        Timber.tag("QualitySwitch").i("Stopping player, restarting from position=$currentPosition, wasPlaying=$wasPlaying")
         player.stop()
         player.seekTo(currentIndex, currentPosition)
         Timber.tag("QualitySwitch").i("Calling prepare() - this should trigger ResolvingDataSource")
@@ -1679,6 +1733,47 @@ class MusicService :
     inner class MusicBinder : Binder() {
         val service: MusicService
             get() = this@MusicService
+    }
+
+    /**
+     * Returns a human-readable name for PlaybackException error codes.
+     */
+    private fun getErrorCodeName(errorCode: Int): String = when (errorCode) {
+        PlaybackException.ERROR_CODE_UNSPECIFIED -> "UNSPECIFIED"
+        PlaybackException.ERROR_CODE_REMOTE_ERROR -> "REMOTE_ERROR"
+        PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW -> "BEHIND_LIVE_WINDOW"
+        PlaybackException.ERROR_CODE_TIMEOUT -> "TIMEOUT"
+        PlaybackException.ERROR_CODE_FAILED_RUNTIME_CHECK -> "FAILED_RUNTIME_CHECK"
+        PlaybackException.ERROR_CODE_IO_UNSPECIFIED -> "IO_UNSPECIFIED"
+        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> "IO_NETWORK_CONNECTION_FAILED"
+        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> "IO_NETWORK_CONNECTION_TIMEOUT"
+        PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE -> "IO_INVALID_HTTP_CONTENT_TYPE"
+        PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> "IO_BAD_HTTP_STATUS"
+        PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> "IO_FILE_NOT_FOUND"
+        PlaybackException.ERROR_CODE_IO_NO_PERMISSION -> "IO_NO_PERMISSION"
+        PlaybackException.ERROR_CODE_IO_CLEARTEXT_NOT_PERMITTED -> "IO_CLEARTEXT_NOT_PERMITTED"
+        PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE -> "IO_READ_POSITION_OUT_OF_RANGE"
+        PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED -> "PARSING_CONTAINER_MALFORMED"
+        PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED -> "PARSING_MANIFEST_MALFORMED"
+        PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED -> "PARSING_CONTAINER_UNSUPPORTED"
+        PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED -> "PARSING_MANIFEST_UNSUPPORTED"
+        PlaybackException.ERROR_CODE_DECODER_INIT_FAILED -> "DECODER_INIT_FAILED"
+        PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED -> "DECODER_QUERY_FAILED"
+        PlaybackException.ERROR_CODE_DECODING_FAILED -> "DECODING_FAILED"
+        PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES -> "DECODING_FORMAT_EXCEEDS_CAPABILITIES"
+        PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED -> "DECODING_FORMAT_UNSUPPORTED"
+        PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED -> "AUDIO_TRACK_INIT_FAILED"
+        PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED -> "AUDIO_TRACK_WRITE_FAILED"
+        PlaybackException.ERROR_CODE_DRM_UNSPECIFIED -> "DRM_UNSPECIFIED"
+        PlaybackException.ERROR_CODE_DRM_SCHEME_UNSUPPORTED -> "DRM_SCHEME_UNSUPPORTED"
+        PlaybackException.ERROR_CODE_DRM_PROVISIONING_FAILED -> "DRM_PROVISIONING_FAILED"
+        PlaybackException.ERROR_CODE_DRM_CONTENT_ERROR -> "DRM_CONTENT_ERROR"
+        PlaybackException.ERROR_CODE_DRM_LICENSE_ACQUISITION_FAILED -> "DRM_LICENSE_ACQUISITION_FAILED"
+        PlaybackException.ERROR_CODE_DRM_DISALLOWED_OPERATION -> "DRM_DISALLOWED_OPERATION"
+        PlaybackException.ERROR_CODE_DRM_SYSTEM_ERROR -> "DRM_SYSTEM_ERROR"
+        PlaybackException.ERROR_CODE_DRM_DEVICE_REVOKED -> "DRM_DEVICE_REVOKED"
+        PlaybackException.ERROR_CODE_DRM_LICENSE_EXPIRED -> "DRM_LICENSE_EXPIRED"
+        else -> "UNKNOWN($errorCode)"
     }
 
     companion object {

@@ -196,6 +196,35 @@ class App : Application(), SingletonImageLoader.Factory {
                 ?: it.substringAfter("||")
         }
 
+        // Migration: Detect login method for existing users who don't have it set
+        val loginMethod = settings[LoginMethodKey]
+        val userCookie = settings[InnerTubeCookieKey]
+        if (loginMethod.isNullOrEmpty() && !userCookie.isNullOrEmpty() && "SAPISID" in parseCookieString(userCookie)) {
+            // User is logged in but doesn't have login method set - detect by comparing with anonymous token
+            applicationScope.launch(Dispatchers.IO) {
+                try {
+                    val httpClient = HttpClient()
+                    val responseText = httpClient.get(
+                        "https://ytzemer-token.usheraweiss.workers.dev/api/token"
+                    ).bodyAsText()
+                    httpClient.close()
+
+                    val json = kotlinx.serialization.json.Json.parseToJsonElement(responseText)
+                    val anonVisitorData = json.jsonObject["visitorData"]?.jsonPrimitive?.content
+                    val userVisitorData = settings[VisitorDataKey]
+
+                    // If visitor data matches anonymous token, user is anonymous
+                    val detectedMethod = if (anonVisitorData == userVisitorData) "anonymous" else "google"
+                    dataStore.edit { it[LoginMethodKey] = detectedMethod }
+                    Log.d("App", "Login method migration: detected as $detectedMethod")
+                } catch (e: Exception) {
+                    // On error, default to anonymous (safer - more restrictive)
+                    dataStore.edit { it[LoginMethodKey] = "anonymous" }
+                    Log.w("App", "Login method migration failed, defaulting to anonymous: ${e.message}")
+                }
+            }
+        }
+
         // Ensure floating mini player defaults to ON if unset
         if (!settings.contains(FloatingMiniPlayerKey)) {
             dataStore.edit { it[FloatingMiniPlayerKey] = true }
@@ -392,6 +421,7 @@ class App : Application(), SingletonImageLoader.Factory {
                 settings.remove(AccountNameKey)
                 settings.remove(AccountEmailKey)
                 settings.remove(AccountChannelHandleKey)
+                settings.remove(LoginMethodKey)
             }
 
             // Clear YouTube object to prevent stale authentication state
