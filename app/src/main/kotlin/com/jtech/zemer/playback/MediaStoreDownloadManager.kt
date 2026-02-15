@@ -5,7 +5,8 @@ import android.net.ConnectivityManager
 import android.net.Uri
 import androidx.core.content.getSystemService
 import com.jtech.zemer.constants.AudioQuality
-import com.jtech.zemer.constants.AudioQualityKey
+import com.jtech.zemer.constants.DownloadQuality
+import com.jtech.zemer.constants.DownloadQualityKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.db.entities.SongAlbumMap
@@ -64,7 +65,7 @@ constructor(
     private val mediaStoreHelper = MediaStoreHelper(context)
     private val connectivityManager = context.getSystemService<ConnectivityManager>()
         ?: throw IllegalStateException("ConnectivityManager not available on this device")
-    private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
+    private val downloadQuality by enumPreference(context, DownloadQualityKey, DownloadQuality.HIGH)
     private val httpClient = OkHttpClient.Builder()
         .dns(ResilientDns())
         .proxy(YouTube.proxy)
@@ -392,10 +393,15 @@ constructor(
 
             // Get playback URL from YouTube using YTPlayerUtils
             // For videos, request video stream with preferVideo=true
-            Timber.d("Starting download for ${if (isVideoDownload) "video" else "song"} ${song.id}: ${song.song.title}, preferVideo=${isVideoDownload}")
+            // Convert DownloadQuality to AudioQuality for the player utils
+            val audioQualityForDownload = when (downloadQuality) {
+                DownloadQuality.HIGH -> AudioQuality.HIGH
+                DownloadQuality.LOW -> AudioQuality.LOW
+            }
+            Timber.d("Starting download for ${if (isVideoDownload) "video" else "song"} ${song.id}: ${song.song.title}, preferVideo=${isVideoDownload}, quality=$downloadQuality")
             val playbackData = YTPlayerUtils.playerResponseForPlayback(
                 videoId = song.id,
-                audioQuality = audioQuality,
+                audioQuality = audioQualityForDownload,
                 connectivityManager = connectivityManager,
                 preferVideo = isVideoDownload,
                 forDownload = true,

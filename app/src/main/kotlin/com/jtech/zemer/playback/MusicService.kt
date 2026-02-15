@@ -72,7 +72,9 @@ import com.jtech.zemer.MainActivity
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.AudioOffload
+import com.jtech.zemer.constants.AudioBitrateKey
 import com.jtech.zemer.constants.AudioQualityKey
+import com.jtech.zemer.constants.PreferredClientKey
 import com.jtech.zemer.constants.AutoDownloadOnLikeKey
 import com.jtech.zemer.constants.AutoLoadMoreKey
 import com.jtech.zemer.constants.AutoSkipNextOnErrorKey
@@ -125,6 +127,7 @@ import com.jtech.zemer.utils.hasNotificationPermission
 import com.jtech.zemer.widget.MusicWidget
 import com.jtech.zemer.utils.enumPreference
 import com.jtech.zemer.utils.enumPreferenceFlow
+import com.jtech.zemer.utils.preferenceFlow
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.utils.parseCookieString
@@ -202,6 +205,16 @@ class MusicService :
         com.jtech.zemer.constants.AudioQuality.AUTO
     )
     private var audioQuality = com.jtech.zemer.constants.AudioQuality.AUTO
+
+    private val audioBitrateFlow = preferenceFlow(this, AudioBitrateKey, 0)
+    private var audioBitrate = 0 // 0 = auto (highest), >0 = target kbps
+
+    private val preferredClientFlow = enumPreferenceFlow(
+        this,
+        PreferredClientKey,
+        com.jtech.zemer.constants.PreferredClient.AUTO
+    )
+    private var preferredClient = com.jtech.zemer.constants.PreferredClient.AUTO
 
     private var currentQueue: Queue = EmptyQueue
     var queueTitle: String? = null
@@ -318,10 +331,51 @@ class MusicService :
             ?: throw IllegalStateException("ConnectivityManager not available on this device")
         connectivityObserver = NetworkConnectivityObserver(this)
 
-        // Initialize audioQuality from preference
+        // Initialize audioQuality from preference and reload on change
         scope.launch {
+            var isFirstEmit = true
             audioQualityFlow.collect { quality ->
+                val previousQuality = audioQuality
                 audioQuality = quality
+                Timber.tag("AudioQuality").i("MusicService: quality preference updated: $previousQuality -> $quality")
+
+                // Reload current song if quality changed (skip first emit which is initialization)
+                if (!isFirstEmit && previousQuality != quality && player.currentMediaItem != null) {
+                    reloadCurrentSong("quality changed to $quality")
+                }
+                isFirstEmit = false
+            }
+        }
+
+        // Initialize audioBitrate from preference and reload on change
+        scope.launch {
+            var isFirstEmit = true
+            audioBitrateFlow.collect { bitrate ->
+                val previousBitrate = audioBitrate
+                audioBitrate = bitrate
+                Timber.tag("AudioQuality").i("MusicService: bitrate preference updated: ${previousBitrate}kbps -> ${bitrate}kbps")
+
+                // Reload current song if bitrate changed (skip first emit which is initialization)
+                if (!isFirstEmit && previousBitrate != bitrate && player.currentMediaItem != null) {
+                    reloadCurrentSong("bitrate changed to ${bitrate}kbps")
+                }
+                isFirstEmit = false
+            }
+        }
+
+        // Initialize preferredClient from preference and reload on change
+        scope.launch {
+            var isFirstEmit = true
+            preferredClientFlow.collect { client ->
+                val previousClient = preferredClient
+                preferredClient = client
+                Timber.tag("AudioQuality").i("MusicService: client preference updated: $previousClient -> $client")
+
+                // Reload current song if client changed (skip first emit which is initialization)
+                if (!isFirstEmit && previousClient != client && player.currentMediaItem != null) {
+                    reloadCurrentSong("client changed to $client")
+                }
+                isFirstEmit = false
             }
         }
 
@@ -1325,6 +1379,8 @@ class MusicService :
                     mediaId,
                     audioQuality = audioQuality,
                     connectivityManager = connectivityManager,
+                    targetBitrateKbps = audioBitrate,
+                    preferredClient = preferredClient,
                 )
             }.getOrElse { throwable ->
                 when (throwable) {
@@ -1516,6 +1572,30 @@ class MusicService :
         }.onFailure {
             reportException(it)
         }
+    }
+
+    /**
+     * Reloads the current song with new quality/bitrate settings.
+     * Clears the cached URL and restarts playback from current position.
+     */
+    private fun reloadCurrentSong(reason: String) {
+        val mediaId = player.currentMediaItem?.mediaId ?: return
+        Timber.tag("AudioQuality").i("MusicService: reloading song $mediaId ($reason)")
+        val currentPosition = player.currentPosition
+        val wasPlaying = player.isPlaying
+        val currentIndex = player.currentMediaItemIndex
+
+        // Clear cached URL to force new stream fetch
+        songUrlCache.remove(mediaId)
+
+        // Stop and restart to force new stream resolution
+        player.stop()
+        player.seekTo(currentIndex, currentPosition)
+        player.prepare()
+        if (wasPlaying) {
+            player.play()
+        }
+        Timber.tag("AudioQuality").i("MusicService: reload triggered for $mediaId")
     }
 
     override fun onDestroy() {

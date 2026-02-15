@@ -4,6 +4,7 @@ import android.net.ConnectivityManager
 import androidx.core.net.toUri
 import androidx.media3.common.PlaybackException
 import com.jtech.zemer.constants.AudioQuality
+import com.jtech.zemer.constants.PreferredClient
 
 import timber.log.Timber
 import com.metrolist.innertube.NewPipeUtils
@@ -20,6 +21,7 @@ import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_61_48
 import com.metrolist.innertube.models.YouTubeClient.Companion.IOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.IPADOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.MOBILE
+import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
@@ -42,6 +44,7 @@ object YTPlayerUtils {
     private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
 
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
+        TVHTML5,
         ANDROID_VR_1_43_32,
         IOS,
         IPADOS,
@@ -73,12 +76,19 @@ object YTPlayerUtils {
         preferVideo: Boolean = false,
         maxVideoBitrateKbps: Int? = null,
         forDownload: Boolean = false,
+        targetBitrateKbps: Int = 0, // 0 = use audioQuality, >0 = target specific bitrate
+        preferredClient: PreferredClient = PreferredClient.AUTO,
     ): Result<PlaybackData> = runCatching {
-        val mainClient = MAIN_CLIENT
-        val fallbackClients = STREAM_FALLBACK_CLIENTS
+        // Select client based on preference
+        val (mainClient, fallbackClients) = when (preferredClient) {
+            PreferredClient.AUTO -> MAIN_CLIENT to STREAM_FALLBACK_CLIENTS
+            PreferredClient.WEB_REMIX -> WEB_REMIX to arrayOf(TVHTML5, ANDROID_VR_1_43_32)
+            PreferredClient.TVHTML5 -> TVHTML5 to arrayOf(WEB_REMIX, ANDROID_VR_1_43_32)
+            PreferredClient.ANDROID_VR -> ANDROID_VR_1_43_32 to arrayOf(ANDROID_VR_1_61_48, ANDROID_VR_NO_AUTH)
+        }
 
         Timber.tag(TAG).d( "=== Stream resolution START for videoId=$videoId ===")
-        Timber.tag(TAG).d( "Main client: ${mainClient.clientName}, audioQuality=$audioQuality, preferVideo=$preferVideo")
+        Timber.tag(TAG).d( "Main client: ${mainClient.clientName}, preferredClient=$preferredClient, audioQuality=$audioQuality, targetBitrate=${if (targetBitrateKbps > 0) "${targetBitrateKbps}kbps" else "auto"}, preferVideo=$preferVideo")
 
         val defaultStreamTtlSeconds = 6 * 60 * 60 // 6 hours
         val signatureTimestamp = getSignatureTimestampOrNull(videoId)
@@ -168,6 +178,7 @@ object YTPlayerUtils {
                         preferVideo,
                         maxVideoBitrateKbps,
                         forDownload,
+                        targetBitrateKbps,
                     )
 
                 if (format == null) {
@@ -348,6 +359,100 @@ object YTPlayerUtils {
         return YouTube.player(videoId, playlistId, client = WEB_REMIX) // ANDROID_VR does not work with history
     }
 
+    /**
+     * Data class representing an available audio format option.
+     */
+    data class AudioFormatOption(
+        val itag: Int,
+        val bitrate: Int,
+        val bitrateKbps: Int,
+        val mimeType: String,
+        val codec: String,
+    ) {
+        val displayName: String
+            get() = "${bitrateKbps}kbps ${codec.uppercase()}"
+    }
+
+    /**
+     * Fetches available audio formats for a video.
+     * Returns a list of AudioFormatOption sorted by bitrate (highest first).
+     * Uses proper authentication (signatureTimestamp, poToken) to get streaming data.
+     */
+    suspend fun getAvailableAudioFormats(
+        videoId: String,
+        preferredClient: PreferredClient = PreferredClient.AUTO
+    ): Result<List<AudioFormatOption>> = runCatching {
+        // Select client based on preference
+        val client = when (preferredClient) {
+            PreferredClient.AUTO -> WEB_REMIX
+            PreferredClient.WEB_REMIX -> WEB_REMIX
+            PreferredClient.TVHTML5 -> TVHTML5
+            PreferredClient.ANDROID_VR -> ANDROID_VR_1_43_32
+        }
+
+        Timber.tag(TAG).d("Fetching available formats for $videoId using ${client.clientName}")
+
+        // Get signature timestamp (required for streaming data)
+        val signatureTimestamp = getSignatureTimestampOrNull(videoId)
+
+        // Check login status
+        val currentAuthCookie = YouTube.cookie
+        val isLoggedIn = currentAuthCookie != null && "SAPISID" in parseCookieString(currentAuthCookie)
+
+        // Get session ID for PoToken
+        val sessionId = if (isLoggedIn) {
+            YouTube.dataSyncId ?: YouTube.visitorData
+        } else {
+            YouTube.visitorData
+        }
+
+        // Generate PoToken for web clients
+        val poTokenResult: PoTokenResult? = if (client.useWebPoTokens) {
+            try {
+                if (sessionId == null) {
+                    Timber.tag(TAG).d("PoToken SKIPPED for formats: sessionId is null")
+                    null
+                } else {
+                    poTokenGenerator.getWebClientPoToken(videoId, sessionId)
+                }
+            } catch (e: Exception) {
+                Timber.tag(TAG).e("PoToken generation EXCEPTION for formats", e)
+                null
+            }
+        } else null
+
+        // Make authenticated player request
+        val response = YouTube.player(
+            videoId = videoId,
+            client = client,
+            signatureTimestamp = signatureTimestamp,
+            webPlayerPot = if (client.useWebPoTokens) poTokenResult?.playerRequestPoToken else null
+        ).getOrThrow()
+
+        val formats = response.streamingData?.adaptiveFormats
+            ?.filter { it.isAudio && it.isOriginal }
+            ?.map { format ->
+                val codec = when {
+                    format.mimeType.contains("opus") -> "opus"
+                    format.mimeType.contains("mp4a") -> "m4a"
+                    else -> format.mimeType.substringAfter("audio/").substringBefore(";")
+                }
+                AudioFormatOption(
+                    itag = format.itag,
+                    bitrate = format.bitrate,
+                    bitrateKbps = format.bitrate / 1000,
+                    mimeType = format.mimeType,
+                    codec = codec,
+                )
+            }
+            ?.sortedByDescending { it.bitrate }
+            ?: emptyList()
+
+        Timber.tag(TAG).d("Found ${formats.size} audio formats for $videoId")
+        formats.forEach { Timber.tag(TAG).d("  Format: ${it.displayName} (itag=${it.itag})") }
+        formats
+    }
+
     private fun findFormat(
         playerResponse: PlayerResponse,
         audioQuality: AudioQuality,
@@ -355,6 +460,7 @@ object YTPlayerUtils {
         preferVideo: Boolean,
         maxVideoBitrateKbps: Int?,
         forDownload: Boolean = false,
+        targetBitrateKbps: Int = 0, // 0 = use audioQuality, >0 = target specific bitrate
     ): PlayerResponse.StreamingData.Format? {
         if (preferVideo) {
             val progressive = playerResponse.streamingData?.formats.orEmpty()
@@ -387,13 +493,43 @@ object YTPlayerUtils {
                 }
             }
 
-        val audioFormat = audioFormats?.maxByOrNull {
-            it.bitrate * when (audioQuality) {
-                AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
-                AudioQuality.HIGH -> 1
-                AudioQuality.LOW -> -1
-            } + (if (!forDownload && it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus for streaming only
+        audioFormats?.forEach { format ->
+            Timber.tag(TAG).d("  Available format: itag=${format.itag}, mime=${format.mimeType}, bitrate=${format.bitrate/1000}kbps")
         }
+
+        val audioFormat: PlayerResponse.StreamingData.Format?
+
+        // If target bitrate specified, find closest match
+        if (targetBitrateKbps > 0) {
+            Timber.tag(TAG).i("Format selection: targetBitrate=${targetBitrateKbps}kbps, availableFormats=${audioFormats?.size ?: 0}")
+
+            // Find format with closest bitrate to target, preferring opus for streaming
+            audioFormat = audioFormats?.minByOrNull { format ->
+                val bitrateKbps = format.bitrate / 1000
+                val distance = kotlin.math.abs(bitrateKbps - targetBitrateKbps)
+                // Slight preference for opus (subtract 5 from distance for opus)
+                if (!forDownload && format.mimeType.startsWith("audio/webm")) distance - 5 else distance
+            }
+        } else {
+            // Legacy: use audioQuality enum
+            val isMetered = connectivityManager.isActiveNetworkMetered
+            val effectiveQuality = when (audioQuality) {
+                AudioQuality.AUTO -> if (isMetered) "LOW (metered)" else "HIGH (unmetered)"
+                AudioQuality.HIGH -> "HIGH"
+                AudioQuality.LOW -> "LOW"
+            }
+            Timber.tag(TAG).i("Format selection: audioQuality=$audioQuality, effectiveQuality=$effectiveQuality, availableFormats=${audioFormats?.size ?: 0}")
+
+            audioFormat = audioFormats?.maxByOrNull {
+                it.bitrate * when (audioQuality) {
+                    AudioQuality.AUTO -> if (isMetered) -1 else 1
+                    AudioQuality.HIGH -> 1
+                    AudioQuality.LOW -> -1
+                } + (if (!forDownload && it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus for streaming only
+            }
+        }
+
+        Timber.tag(TAG).i("Selected format: itag=${audioFormat?.itag}, mime=${audioFormat?.mimeType}, bitrate=${audioFormat?.bitrate?.div(1000)}kbps")
 
         return audioFormat
     }

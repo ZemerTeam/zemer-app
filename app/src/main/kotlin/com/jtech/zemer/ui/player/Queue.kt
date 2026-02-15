@@ -29,6 +29,9 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -91,6 +94,12 @@ import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.AudioBitrateKey
+import com.jtech.zemer.constants.AudioQuality
+import com.jtech.zemer.constants.AudioQualityKey
+import com.jtech.zemer.constants.InnerTubeCookieKey
+import com.jtech.zemer.constants.PreferredClient
+import com.jtech.zemer.constants.PreferredClientKey
 import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.constants.QueueEditLockKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
@@ -108,14 +117,19 @@ import com.jtech.zemer.ui.component.MediaMetadataListItem
 import com.jtech.zemer.ui.menu.PlayerMenu
 import com.jtech.zemer.ui.menu.SelectionMediaMetadataMenu
 import com.jtech.zemer.ui.utils.ShowMediaInfo
+import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.makeTimeString
+import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import timber.log.Timber
 import kotlin.math.roundToInt
 
 @Suppress("unused")
@@ -170,6 +184,17 @@ fun Queue(
 
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var sleepTimerValue by remember { mutableFloatStateOf(30f) }
+
+    var showQualityDialog by remember { mutableStateOf(false) }
+    var availableFormats by remember { mutableStateOf<List<YTPlayerUtils.AudioFormatOption>>(emptyList()) }
+    var isLoadingFormats by remember { mutableStateOf(false) }
+    val (audioBitrate, onAudioBitrateChange) = rememberPreference(AudioBitrateKey, defaultValue = 0)
+    val (preferredClient, onPreferredClientChange) = rememberEnumPreference(PreferredClientKey, defaultValue = PreferredClient.AUTO)
+    val (innerTubeCookie, _) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
+    val isGoogleLoggedIn = remember(innerTubeCookie) {
+        "SAPISID" in com.metrolist.innertube.utils.parseCookieString(innerTubeCookie)
+    }
+    val coroutineScope = rememberCoroutineScope()
     val sleepTimerEnabled = remember(
         playerConnection.service.sleepTimer.triggerTime,
         playerConnection.service.sleepTimer.pauseWhenSongEnd
@@ -305,6 +330,64 @@ fun Queue(
                             modifier = Modifier.size(iconSize),
                             tint = TextBackgroundColor
                         )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(buttonSize)
+                            .clip(RoundedCornerShape(5.dp))
+                            .border(1.dp, borderColor, RoundedCornerShape(5.dp))
+                            .clickable {
+                                // Fetch available formats for current song using selected client
+                                val videoId = mediaMetadata?.id
+                                if (videoId != null) {
+                                    isLoadingFormats = true
+                                    coroutineScope.launch {
+                                        val result = withContext(Dispatchers.IO) {
+                                            YTPlayerUtils.getAvailableAudioFormats(videoId, preferredClient)
+                                        }
+                                        result.onSuccess { formats ->
+                                            availableFormats = formats
+                                            isLoadingFormats = false
+                                            showQualityDialog = true
+                                        }.onFailure {
+                                            Timber.tag("AudioQuality").e(it, "Failed to fetch formats")
+                                            isLoadingFormats = false
+                                            // Show dialog anyway with empty list
+                                            showQualityDialog = true
+                                        }
+                                    }
+                                } else {
+                                    showQualityDialog = true
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isLoadingFormats) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                modifier = Modifier.size(iconSize),
+                                strokeWidth = 2.dp,
+                                color = TextBackgroundColor
+                            )
+                        } else {
+                            // Show current bitrate or icon
+                            if (audioBitrate > 0) {
+                                Text(
+                                    text = "${audioBitrate}k",
+                                    color = TextBackgroundColor,
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    textAlign = TextAlign.Center
+                                )
+                            } else {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.graphic_eq),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(iconSize),
+                                    tint = TextBackgroundColor
+                                )
+                            }
+                        }
                     }
 
                     Box(
@@ -557,6 +640,180 @@ fun Queue(
                                 }
                             ) {
                                 Text(stringResource(R.string.end_of_song))
+                            }
+                        }
+                    }
+                )
+            }
+
+            if (showQualityDialog) {
+                ActionPromptDialog(
+                    titleBar = {
+                        Text(
+                            text = stringResource(R.string.audio_quality),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                    },
+                    onDismiss = { showQualityDialog = false },
+                    onConfirm = { showQualityDialog = false },
+                    onCancel = { showQualityDialog = false },
+                    content = {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 300.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            // Bitrate section
+                            Text(
+                                text = "Bitrate",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            // Auto option
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onAudioBitrateChange(0)
+                                        showQualityDialog = false
+                                    }
+                                    .padding(vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                androidx.compose.material3.RadioButton(
+                                    selected = audioBitrate == 0,
+                                    onClick = {
+                                        onAudioBitrateChange(0)
+                                        showQualityDialog = false
+                                    },
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = stringResource(R.string.audio_quality_auto),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(start = 4.dp)
+                                )
+                            }
+
+                            // Format options
+                            if (availableFormats.isNotEmpty()) {
+                                availableFormats.forEach { format ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                onAudioBitrateChange(format.bitrateKbps)
+                                                showQualityDialog = false
+                                            }
+                                            .padding(vertical = 2.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        androidx.compose.material3.RadioButton(
+                                            selected = audioBitrate == format.bitrateKbps,
+                                            onClick = {
+                                                onAudioBitrateChange(format.bitrateKbps)
+                                                showQualityDialog = false
+                                            },
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Text(
+                                            text = format.displayName,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            modifier = Modifier.padding(start = 4.dp)
+                                        )
+                                    }
+                                }
+                            } else if (isLoadingFormats) {
+                                Row(
+                                    modifier = Modifier.padding(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    androidx.compose.material3.CircularProgressIndicator(
+                                        modifier = Modifier.size(12.dp),
+                                        strokeWidth = 1.5.dp
+                                    )
+                                    Text(
+                                        text = "Loading...",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(start = 4.dp)
+                                    )
+                                }
+                            }
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                            // Client section (WEB_REMIX/TVHTML5 require Google login)
+                            val availableClients = if (isGoogleLoggedIn) {
+                                PreferredClient.entries
+                            } else {
+                                listOf(PreferredClient.AUTO, PreferredClient.ANDROID_VR)
+                            }
+
+                            Text(
+                                text = "Client",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            availableClients.forEach { client ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onAudioBitrateChange(0) // Reset to AUTO
+                                            onPreferredClientChange(client)
+                                            val videoId = mediaMetadata?.id
+                                            if (videoId != null) {
+                                                isLoadingFormats = true
+                                                coroutineScope.launch {
+                                                    val result = withContext(Dispatchers.IO) {
+                                                        YTPlayerUtils.getAvailableAudioFormats(videoId, client)
+                                                    }
+                                                    result.onSuccess { formats ->
+                                                        availableFormats = formats
+                                                        isLoadingFormats = false
+                                                    }.onFailure {
+                                                        availableFormats = emptyList()
+                                                        isLoadingFormats = false
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        .padding(vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    androidx.compose.material3.RadioButton(
+                                        selected = preferredClient == client,
+                                        onClick = {
+                                            onAudioBitrateChange(0) // Reset to AUTO
+                                            onPreferredClientChange(client)
+                                            val videoId = mediaMetadata?.id
+                                            if (videoId != null) {
+                                                isLoadingFormats = true
+                                                coroutineScope.launch {
+                                                    val result = withContext(Dispatchers.IO) {
+                                                        YTPlayerUtils.getAvailableAudioFormats(videoId, client)
+                                                    }
+                                                    result.onSuccess { formats ->
+                                                        availableFormats = formats
+                                                        isLoadingFormats = false
+                                                    }.onFailure {
+                                                        availableFormats = emptyList()
+                                                        isLoadingFormats = false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Text(
+                                        text = client.name.replace("_", " "),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(start = 4.dp)
+                                    )
+                                }
                             }
                         }
                     }

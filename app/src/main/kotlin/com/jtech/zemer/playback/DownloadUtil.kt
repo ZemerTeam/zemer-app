@@ -18,7 +18,8 @@ import androidx.media3.exoplayer.offline.DownloadService
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.utils.ResilientDns
 import com.jtech.zemer.constants.AudioQuality
-import com.jtech.zemer.constants.AudioQualityKey
+import com.jtech.zemer.constants.DownloadQuality
+import com.jtech.zemer.constants.DownloadQualityKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.FormatEntity
 import com.jtech.zemer.db.entities.SongEntity
@@ -28,6 +29,7 @@ import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.enumPreferenceFlow
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
+import timber.log.Timber
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -65,8 +67,8 @@ constructor(
         get() = databaseLazy.get()
     private val connectivityManager = appContext.getSystemService<ConnectivityManager>()
         ?: throw IllegalStateException("ConnectivityManager not available on this device")
-    private val audioQualityFlow = enumPreferenceFlow(appContext, AudioQualityKey, AudioQuality.AUTO)
-    private var audioQuality = AudioQuality.AUTO
+    private val downloadQualityFlow = enumPreferenceFlow(appContext, DownloadQualityKey, DownloadQuality.HIGH)
+    private var downloadQuality = DownloadQuality.HIGH
 
     companion object {
         /**
@@ -132,12 +134,17 @@ constructor(
                 return@Factory dataSpec.withUri(it.first.toUri())
             }
 
-            // Use currently loaded audioQuality (initialized in init block)
-            val currentQuality = audioQuality.takeIf { it != AudioQuality.AUTO } ?: AudioQuality.AUTO
+            // Use currently loaded downloadQuality (initialized in init block)
+            // Convert DownloadQuality to AudioQuality for the player utils
+            val audioQualityForDownload = when (downloadQuality) {
+                DownloadQuality.HIGH -> AudioQuality.HIGH
+                DownloadQuality.LOW -> AudioQuality.LOW
+            }
+            Timber.tag("DownloadQuality").d("Download using quality: $downloadQuality -> $audioQualityForDownload")
             val playbackData = runBlocking(Dispatchers.IO) {
                 YTPlayerUtils.playerResponseForPlayback(
                     mediaId,
-                    audioQuality = currentQuality,
+                    audioQuality = audioQualityForDownload,
                     connectivityManager = connectivityManager,
                 )
             }.getOrThrow()
@@ -246,10 +253,11 @@ constructor(
         }
         downloads.value = result
 
-        // Initialize audioQuality from preference
+        // Initialize downloadQuality from preference
         scope.launch {
-            audioQualityFlow.collect { quality ->
-                audioQuality = quality
+            downloadQualityFlow.collect { quality ->
+                Timber.tag("DownloadQuality").d("DownloadUtil: download quality updated to $quality")
+                downloadQuality = quality
             }
         }
     }
