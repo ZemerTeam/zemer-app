@@ -70,9 +70,25 @@ val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 val LastWhitelistVersionKey = longPreferencesKey("lastWhitelistVersion")
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")
+val DownloadQualityKey = stringPreferencesKey("downloadQuality")
+val AudioBitrateKey = intPreferencesKey("audioBitrate") // 0 = auto (highest), else target kbps
+val PreferredClientKey = stringPreferencesKey("preferredClient") // AUTO, WEB_REMIX, TVHTML5, ANDROID_VR
 
 enum class AudioQuality {
     AUTO,
+    HIGH,
+    LOW,
+}
+
+// Clients ordered by quality (best to least):
+enum class PreferredClient {
+    AUTO,       // Default fallback chain
+    WEB_REMIX,  // ~280kbps opus (highest tier)
+    TVHTML5,    // ~280kbps opus (highest tier)
+    ANDROID_VR, // ~140kbps opus (no highest tier, more reliable)
+}
+
+enum class DownloadQuality {
     HIGH,
     LOW,
 }

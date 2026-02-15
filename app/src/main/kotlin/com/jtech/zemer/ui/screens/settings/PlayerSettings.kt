@@ -25,6 +25,8 @@ import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.AudioOffload
 import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.AudioQualityKey
+import com.jtech.zemer.constants.DownloadQuality
+import com.jtech.zemer.constants.DownloadQualityKey
 import com.jtech.zemer.constants.AutoDownloadOnLikeKey
 import com.jtech.zemer.constants.AutoLoadMoreKey
 import com.jtech.zemer.constants.AutoSkipNextOnErrorKey
@@ -52,6 +54,10 @@ fun PlayerSettings(
     val (audioQuality, onAudioQualityChange) = rememberEnumPreference(
         AudioQualityKey,
         defaultValue = AudioQuality.AUTO
+    )
+    val (downloadQuality, onDownloadQualityChange) = rememberEnumPreference(
+        DownloadQualityKey,
+        defaultValue = DownloadQuality.HIGH
     )
     val (persistentQueue, onPersistentQueueChange) = rememberPreference(
         PersistentQueueKey,
@@ -131,6 +137,19 @@ fun PlayerSettings(
                 }
             },
             modifier = Modifier.focusRequester(firstFocus),
+        )
+
+        EnumListPreference(
+            title = { Text(stringResource(R.string.download_quality)) },
+            icon = { Icon(painterResource(R.drawable.download), null) },
+            selectedValue = downloadQuality,
+            onValueSelected = onDownloadQualityChange,
+            valueText = {
+                when (it) {
+                    DownloadQuality.HIGH -> stringResource(R.string.audio_quality_high)
+                    DownloadQuality.LOW -> stringResource(R.string.audio_quality_low)
+                }
+            },
         )
 
         SliderPreference(
