@@ -10,7 +10,7 @@ import org.json.JSONObject
 
 object Updater {
     private val client = HttpClient()
-    private const val PROJECT_ID = "zemer-7f5f1"
+    private const val PROJECT_ID = "zemer-app"
     private const val DOC_URL =
         "https://firestore.googleapis.com/v1/projects/$PROJECT_ID/databases/(default)/documents/appUpdates/latest"
 

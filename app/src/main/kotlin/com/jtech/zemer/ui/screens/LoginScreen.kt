@@ -34,6 +34,7 @@ import com.jtech.zemer.constants.AccountEmailKey
 import com.jtech.zemer.constants.AccountNameKey
 import com.jtech.zemer.constants.DataSyncIdKey
 import com.jtech.zemer.constants.InnerTubeCookieKey
+import com.jtech.zemer.constants.LoginMethodKey
 import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.utils.backToMain
@@ -56,6 +57,7 @@ fun LoginScreen(
     var accountName by rememberPreference(AccountNameKey, "")
     var accountEmail by rememberPreference(AccountEmailKey, "")
     var accountChannelHandle by rememberPreference(AccountChannelHandleKey, "")
+    var loginMethod by rememberPreference(LoginMethodKey, "")
     var hasCompletedLogin by remember { mutableStateOf(false) }
 
     var webView: WebView? = null
@@ -122,6 +124,7 @@ fun LoginScreen(
                                             accountName = it.name
                                             accountEmail = it.email.orEmpty()
                                             accountChannelHandle = it.channelHandle.orEmpty()
+                                            loginMethod = "google"
                                             // Clean up WebView to prevent showing YouTube Music
                                             cleanupWebView(webView)
 

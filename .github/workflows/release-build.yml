@@ -39,6 +39,9 @@ jobs:
       - name: Configure Android SDK path
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 
+      - name: Configure Firebase
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d > app/google-services.json
+
       - name: Configure release keystore
         run: |
           mkdir -p app/keystore
@@ -56,16 +59,8 @@ jobs:
       - name: Assemble signed release
         run: ./gradlew --no-daemon --parallel --build-cache assembleRelease
 
-      - name: Prepare release tag
-        if: github.event_name != 'pull_request'
-        run: echo "RELEASE_TAG=v${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
-
-      - name: Publish GitHub release
-        if: github.event_name != 'pull_request'
-        uses: softprops/action-gh-release@v2
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: Release ${{ env.RELEASE_TAG }}
-          body: |
-            Automated release build. Download the attached APK from the assets below.
-          files: app/build/outputs/apk/release/*.apk
+          name: release-apk
+          path: app/build/outputs/apk/release/*.apk

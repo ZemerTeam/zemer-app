@@ -83,7 +83,14 @@ constructor(
          * Call this when a stream URL is known to be expired or invalid.
          */
         fun invalidateUrl(mediaId: String) {
-            sharedUrlCache.remove(mediaId)
+            val hadEntry = sharedUrlCache.containsKey(mediaId)
+            val oldEntry = sharedUrlCache.remove(mediaId)
+            if (hadEntry) {
+                val wasExpired = oldEntry?.second?.let { it < System.currentTimeMillis() } ?: true
+                Timber.tag("StreamCache").i("INVALIDATED cache for $mediaId (wasExpired=$wasExpired)")
+            } else {
+                Timber.tag("StreamCache").d("INVALIDATE called for $mediaId but no cache entry existed")
+            }
         }
     }
 
@@ -127,10 +134,13 @@ constructor(
             val length = if (dataSpec.length >= 0) dataSpec.length else 1
 
             if (playerCache.isCached(mediaId, dataSpec.position, length)) {
+                Timber.tag("DownloadStream").d("[$mediaId] Using player cache (pos=${dataSpec.position}, len=$length)")
                 return@Factory dataSpec
             }
 
             songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
+                val remainingSec = (it.second - System.currentTimeMillis()) / 1000
+                Timber.tag("DownloadStream").d("[$mediaId] Using cached URL (expires in ${remainingSec}s)")
                 return@Factory dataSpec.withUri(it.first.toUri())
             }
 
@@ -140,7 +150,8 @@ constructor(
                 DownloadQuality.HIGH -> AudioQuality.HIGH
                 DownloadQuality.LOW -> AudioQuality.LOW
             }
-            Timber.tag("DownloadQuality").d("Download using quality: $downloadQuality -> $audioQualityForDownload")
+            Timber.tag("DownloadStream").i("=== DOWNLOAD STREAM START: $mediaId ===")
+            Timber.tag("DownloadStream").i("[$mediaId] Download quality: $downloadQuality -> $audioQualityForDownload")
             val playbackData = runBlocking(Dispatchers.IO) {
                 YTPlayerUtils.playerResponseForPlayback(
                     mediaId,
@@ -149,8 +160,10 @@ constructor(
                 )
             }.getOrThrow()
             val format = playbackData.format
+            Timber.tag("DownloadStream").i("[$mediaId] Got format: itag=${format.itag}, mime=${format.mimeType}, bitrate=${format.bitrate/1000}kbps")
 
             val contentLength = format.contentLength ?: -1L
+            Timber.tag("DownloadStream").d("[$mediaId] Content length: $contentLength bytes")
             val now = LocalDateTime.now()
             val existing = database.getSongByIdBlocking(mediaId)?.song
 
@@ -190,7 +203,12 @@ constructor(
             val baseStreamUrl = playbackData.streamUrl
             val existingEntry = songUrlCache[mediaId]
             if (existingEntry == null || existingEntry.second < System.currentTimeMillis()) {
-                songUrlCache[mediaId] = baseStreamUrl to (System.currentTimeMillis() + playbackData.streamExpiresInSeconds * 1000L)
+                val expiresAt = System.currentTimeMillis() + playbackData.streamExpiresInSeconds * 1000L
+                songUrlCache[mediaId] = baseStreamUrl to expiresAt
+                Timber.tag("StreamCache").i("[$mediaId] Download CACHED URL (expires in ${playbackData.streamExpiresInSeconds}s)")
+            } else {
+                val remainingSec = (existingEntry.second - System.currentTimeMillis()) / 1000
+                Timber.tag("StreamCache").d("[$mediaId] Download NOT updating cache - valid entry exists (${remainingSec}s remaining)")
             }
 
             // Add range parameter only for this download request (full file)
@@ -351,16 +369,30 @@ constructor(
      * Remove a download and clean DB flags.
      */
     suspend fun removeDownload(songId: String) = withContext(Dispatchers.IO) {
+        Timber.tag("DownloadRemoval").i("=== REMOVE DOWNLOAD START: $songId ===")
+
         // Cancel queued/active MediaStore download and delete file/flags
-        runCatching { mediaStoreDownloadManager.deleteDownloaded(songId) }
+        runCatching {
+            mediaStoreDownloadManager.deleteDownloaded(songId)
+            Timber.tag("DownloadRemoval").d("[$songId] MediaStore delete completed")
+        }.onFailure {
+            Timber.tag("DownloadRemoval").e(it, "[$songId] MediaStore delete failed")
+        }
 
         // Remove legacy ExoPlayer cache download if present
-        runCatching { downloadManager.removeDownload(songId) }
+        runCatching {
+            downloadManager.removeDownload(songId)
+            Timber.tag("DownloadRemoval").d("[$songId] ExoPlayer cache removal completed")
+        }.onFailure {
+            Timber.tag("DownloadRemoval").e(it, "[$songId] ExoPlayer cache removal failed")
+        }
 
         downloads.update { it - songId }
+        Timber.tag("DownloadRemoval").d("[$songId] Removed from downloads state flow")
 
         runCatching {
             database.song(songId).firstOrNull()?.let { song ->
+                Timber.tag("DownloadRemoval").d("[$songId] Clearing DB flags: wasDownloaded=${song.song.isDownloaded}, uri=${song.song.mediaStoreUri}")
                 database.query {
                     upsert(
                         song.song.copy(
@@ -370,8 +402,13 @@ constructor(
                         )
                     )
                 }
-            }
+                Timber.tag("DownloadRemoval").i("[$songId] DB flags cleared successfully")
+            } ?: Timber.tag("DownloadRemoval").w("[$songId] Song not found in database")
+        }.onFailure {
+            Timber.tag("DownloadRemoval").e(it, "[$songId] DB update failed")
         }
+
+        Timber.tag("DownloadRemoval").i("=== REMOVE DOWNLOAD END: $songId ===")
     }
 
     fun release() {

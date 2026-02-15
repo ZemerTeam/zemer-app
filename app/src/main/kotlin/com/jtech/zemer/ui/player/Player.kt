@@ -39,6 +39,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -47,8 +49,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -63,6 +68,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -110,20 +116,26 @@ import coil3.request.allowHardware
 import coil3.toBitmap
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.AudioBitrateKey
 import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
+import com.jtech.zemer.constants.LoginMethodKey
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.PlayerButtonsStyle
 import com.jtech.zemer.constants.PlayerButtonsStyleKey
 import com.jtech.zemer.constants.PlayerHorizontalPadding
+import com.jtech.zemer.constants.PreferredClient
+import com.jtech.zemer.constants.PreferredClientKey
 import com.jtech.zemer.constants.QueuePeekHeight
 import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
+import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.ui.component.ActionPromptDialog
 import com.jtech.zemer.ui.component.BottomSheet
 import com.jtech.zemer.ui.component.BottomSheetState
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
@@ -136,11 +148,15 @@ import com.jtech.zemer.ui.screens.settings.DarkMode
 import com.jtech.zemer.ui.theme.PlayerColorExtractor
 import com.jtech.zemer.ui.theme.PlayerSliderColors
 import com.jtech.zemer.ui.utils.ShowMediaInfo
+import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -327,6 +343,24 @@ fun BottomSheetPlayer(
     var sleepTimerValue by remember {
         mutableFloatStateOf(30f)
     }
+
+    // Audio quality dialog state
+    var showQualityDialog by remember { mutableStateOf(false) }
+    var availableFormats by remember { mutableStateOf<List<YTPlayerUtils.AudioFormatOption>>(emptyList()) }
+    var isLoadingFormats by remember { mutableStateOf(false) }
+    val loginMethod by remember {
+        context.dataStore.data.map { it[LoginMethodKey] ?: "" }
+    }.collectAsState(initial = "")
+    // Google login: all clients, Anonymous: only VR
+    val availableClients = if (loginMethod == "anonymous") {
+        listOf(PreferredClient.AUTO, PreferredClient.ANDROID_VR)
+    } else {
+        // "google" or empty (legacy users default to full access)
+        listOf(PreferredClient.AUTO, PreferredClient.WEB_REMIX, PreferredClient.TVHTML5, PreferredClient.ANDROID_VR)
+    }
+    val (audioBitrate, onAudioBitrateChange) = rememberPreference(AudioBitrateKey, defaultValue = 0)
+    val (preferredClient, onPreferredClientChange) = rememberEnumPreference(PreferredClientKey, defaultValue = PreferredClient.AUTO)
+    val qualityCoroutineScope = rememberCoroutineScope()
     if (showSleepTimerDialog) {
         AlertDialog(
             properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -387,6 +421,174 @@ fun BottomSheetPlayer(
                     }
                 }
             },
+        )
+    }
+
+    if (showQualityDialog) {
+        ActionPromptDialog(
+            titleBar = {
+                Text(
+                    text = stringResource(R.string.audio_quality),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+            },
+            onDismiss = { showQualityDialog = false },
+            onConfirm = { showQualityDialog = false },
+            onCancel = { showQualityDialog = false },
+            content = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    // Bitrate section
+                    Text(
+                        text = "Bitrate",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    // Auto option
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onAudioBitrateChange(0)
+                                showQualityDialog = false
+                            }
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = audioBitrate == 0,
+                            onClick = {
+                                onAudioBitrateChange(0)
+                                showQualityDialog = false
+                            },
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.audio_quality_auto),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
+
+                    // Format options
+                    if (availableFormats.isNotEmpty()) {
+                        availableFormats.forEach { format ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onAudioBitrateChange(format.bitrateKbps)
+                                        showQualityDialog = false
+                                    }
+                                    .padding(vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = audioBitrate == format.bitrateKbps,
+                                    onClick = {
+                                        onAudioBitrateChange(format.bitrateKbps)
+                                        showQualityDialog = false
+                                    },
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = format.displayName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(start = 4.dp)
+                                )
+                            }
+                        }
+                    } else if (isLoadingFormats) {
+                        Row(
+                            modifier = Modifier.padding(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(12.dp),
+                                strokeWidth = 1.5.dp
+                            )
+                            Text(
+                                text = "Loading...",
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    // Client section
+                    Text(
+                        text = "Client",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+
+                    availableClients.forEach { client ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onAudioBitrateChange(0)
+                                    onPreferredClientChange(client)
+                                    val videoId = mediaMetadata?.id
+                                    if (videoId != null) {
+                                        isLoadingFormats = true
+                                        qualityCoroutineScope.launch {
+                                            val result = withContext(Dispatchers.IO) {
+                                                YTPlayerUtils.getAvailableAudioFormats(videoId, client)
+                                            }
+                                            result.onSuccess { formats ->
+                                                availableFormats = formats
+                                                isLoadingFormats = false
+                                            }.onFailure {
+                                                availableFormats = emptyList()
+                                                isLoadingFormats = false
+                                            }
+                                        }
+                                    }
+                                }
+                                .padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = preferredClient == client,
+                                onClick = {
+                                    onAudioBitrateChange(0)
+                                    onPreferredClientChange(client)
+                                    val videoId = mediaMetadata?.id
+                                    if (videoId != null) {
+                                        isLoadingFormats = true
+                                        qualityCoroutineScope.launch {
+                                            val result = withContext(Dispatchers.IO) {
+                                                YTPlayerUtils.getAvailableAudioFormats(videoId, client)
+                                            }
+                                            result.onSuccess { formats ->
+                                                availableFormats = formats
+                                                isLoadingFormats = false
+                                            }.onFailure {
+                                                availableFormats = emptyList()
+                                                isLoadingFormats = false
+                                            }
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = client.name.replace("_", " "),
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
         )
     }
 
@@ -704,64 +906,109 @@ fun BottomSheetPlayer(
                         label = "fav_focus"
                     )
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(shareShape)
-                                .background(textButtonColor)
-                                .border(3.dp, shareBorderColor.value, shareShape)
-                                .focusable()
-                                .onFocusChanged { shareFocused.value = it.isFocused }
-                                .clickable {
-                                    val intent = Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        type = "text/plain"
-                                        putExtra(
-                                            Intent.EXTRA_TEXT,
-                                            "https://music.zemer.io/watch?v=${mediaMetadata.id}"
-                                        )
-                                    }
-                                    context.startActivity(Intent.createChooser(intent, null))
-                                }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Image(
-                                painter = painterResource(R.drawable.share),
-                                contentDescription = null,
-                                colorFilter = ColorFilter.tint(iconButtonColor),
+                            Box(
                                 modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .size(24.dp)
-                            )
+                                    .size(42.dp)
+                                    .clip(shareShape)
+                                    .background(textButtonColor)
+                                    .border(3.dp, shareBorderColor.value, shareShape)
+                                    .focusable()
+                                    .onFocusChanged { shareFocused.value = it.isFocused }
+                                    .clickable {
+                                        val intent = Intent().apply {
+                                            action = Intent.ACTION_SEND
+                                            type = "text/plain"
+                                            putExtra(
+                                                Intent.EXTRA_TEXT,
+                                                "https://music.zemer.io/watch?v=${mediaMetadata.id}"
+                                            )
+                                        }
+                                        context.startActivity(Intent.createChooser(intent, null))
+                                    }
+                            ) {
+                                Image(
+                                    painter = painterResource(R.drawable.share),
+                                    contentDescription = null,
+                                    colorFilter = ColorFilter.tint(iconButtonColor),
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .size(24.dp)
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(favShape)
+                                    .background(textButtonColor)
+                                    .border(3.dp, favBorderColor.value, favShape)
+                                    .focusable()
+                                    .onFocusChanged { favFocused.value = it.isFocused }
+                                    .clickable {
+                                        playerConnection.toggleLike()
+                                    }
+                            ) {
+                                Image(
+                                    painter = painterResource(
+                                        if (currentSong?.song?.liked == true)
+                                            R.drawable.favorite
+                                        else R.drawable.favorite_border
+                                    ),
+                                    contentDescription = null,
+                                    colorFilter = ColorFilter.tint(iconButtonColor),
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .size(24.dp)
+                                )
+                            }
                         }
 
+                        // Quality button
                         Box(
                             modifier = Modifier
-                                .size(42.dp)
-                                .clip(favShape)
+                                .clip(RoundedCornerShape(16.dp))
                                 .background(textButtonColor)
-                                .border(3.dp, favBorderColor.value, favShape)
-                                .focusable()
-                                .onFocusChanged { favFocused.value = it.isFocused }
                                 .clickable {
-                                    playerConnection.toggleLike()
+                                    val videoId = mediaMetadata.id
+                                    isLoadingFormats = true
+                                    qualityCoroutineScope.launch {
+                                        val result = withContext(Dispatchers.IO) {
+                                            YTPlayerUtils.getAvailableAudioFormats(videoId, preferredClient)
+                                        }
+                                        result.onSuccess { formats ->
+                                            availableFormats = formats
+                                            isLoadingFormats = false
+                                            showQualityDialog = true
+                                        }.onFailure {
+                                            isLoadingFormats = false
+                                            showQualityDialog = true
+                                        }
+                                    }
                                 }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Image(
-                                painter = painterResource(
-                                    if (currentSong?.song?.liked == true)
-                                        R.drawable.favorite
-                                    else R.drawable.favorite_border
-                                ),
-                                contentDescription = null,
-                                colorFilter = ColorFilter.tint(iconButtonColor),
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .size(24.dp)
-                            )
+                            if (isLoadingFormats) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp,
+                                    color = iconButtonColor
+                                )
+                            } else {
+                                Text(
+                                    text = if (audioBitrate > 0) "${audioBitrate}k" else stringResource(R.string.audio_quality),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = iconButtonColor
+                                )
+                            }
                         }
                     }
                 } else {

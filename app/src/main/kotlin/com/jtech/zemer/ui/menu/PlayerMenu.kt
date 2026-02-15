@@ -594,7 +594,6 @@ fun PlayerMenu(
                             coroutineScope.launch {
                                 downloadUtil.removeDownload(mediaMetadata.id)
                                 Toast.makeText(context, context.getString(R.string.download_removed), Toast.LENGTH_SHORT).show()
-                                onDismiss()
                             }
                         }
                     )
@@ -643,7 +642,6 @@ fun PlayerMenu(
                                     coroutineScope.launch {
                                         downloadUtil.removeDownload(mediaMetadata.id)
                                         Toast.makeText(context, context.getString(R.string.download_removed), Toast.LENGTH_SHORT).show()
-                                        onDismiss()
                                     }
                                 }
                             )
@@ -662,7 +660,6 @@ fun PlayerMenu(
                                     coroutineScope.launch {
                                         downloadUtil.removeDownload(mediaMetadata.id)
                                         Toast.makeText(context, context.getString(R.string.download_removed), Toast.LENGTH_SHORT).show()
-                                        onDismiss()
                                     }
                                 }
                             )

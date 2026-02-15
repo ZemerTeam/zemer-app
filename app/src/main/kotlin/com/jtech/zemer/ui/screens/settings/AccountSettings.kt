@@ -64,6 +64,7 @@ import com.jtech.zemer.constants.AccountEmailKey
 import com.jtech.zemer.constants.AccountNameKey
 import com.jtech.zemer.constants.DataSyncIdKey
 import com.jtech.zemer.constants.InnerTubeCookieKey
+import com.jtech.zemer.constants.LoginMethodKey
 import com.jtech.zemer.constants.UseLoginForBrowse
 import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.constants.YtmSyncKey
@@ -94,6 +95,7 @@ fun AccountSettings(
     val (innerTubeCookie, onInnerTubeCookieChange) = rememberPreference(InnerTubeCookieKey, "")
     val (visitorData, onVisitorDataChange) = rememberPreference(VisitorDataKey, "")
     val (dataSyncId, onDataSyncIdChange) = rememberPreference(DataSyncIdKey, "")
+    val (_, onLoginMethodChange) = rememberPreference(LoginMethodKey, "")
 
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
@@ -229,6 +231,7 @@ fun AccountSettings(
                                 fetchedAccountName?.let { onAccountNameChange(it) }
                                 fetchedAccountEmail?.let { onAccountEmailChange(it) }
                                 fetchedAccountChannelHandle?.let { onAccountChannelHandleChange(it) }
+                                onLoginMethodChange("anonymous")
                                 tokenTestResult = "success"
                                 android.util.Log.i("TokenTest", "✓ Anonymous token valid!")
                                 Toast.makeText(
