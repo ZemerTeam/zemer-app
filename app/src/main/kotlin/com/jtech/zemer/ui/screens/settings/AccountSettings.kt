@@ -191,7 +191,7 @@ fun AccountSettings(
                         try {
                             val httpClient = HttpClient()
                             val responseText = httpClient.get(
-                                "https://ytzemer-token.usheraweiss.workers.dev/api/token"
+                                "https://mc.alltech.dev/credentials?refresh=1"
                             ).bodyAsText()
 
                             val json = kotlinx.serialization.json.Json.parseToJsonElement(responseText)
@@ -232,8 +232,10 @@ fun AccountSettings(
                                 fetchedAccountEmail?.let { onAccountEmailChange(it) }
                                 fetchedAccountChannelHandle?.let { onAccountChannelHandleChange(it) }
                                 onLoginMethodChange("anonymous")
+                                // Enable anon login mode for stream validation skip
+                                YouTube.isAnonLogin = true
                                 tokenTestResult = "success"
-                                android.util.Log.i("TokenTest", "✓ Anonymous token valid!")
+                                android.util.Log.i("TokenTest", "✓ Anonymous token valid! isAnonLogin=${YouTube.isAnonLogin}")
                                 Toast.makeText(
                                     context,
                                     context.getString(R.string.login_success_restart),

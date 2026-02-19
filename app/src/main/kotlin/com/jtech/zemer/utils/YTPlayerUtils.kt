@@ -269,8 +269,21 @@ object YTPlayerUtils {
                     continue
                 }
 
-                if (clientIndex == fallbackClients.size - 1) {
-                    Timber.tag(TAG).d( "Last fallback — skipping validation: ${client.clientName}")
+                // Skip validation for: last fallback client, or WEB_REMIX with anon login
+                // (anon login HEAD requests return 403 but actual playback works)
+                val skipValidation = when {
+                    clientIndex == fallbackClients.size - 1 -> {
+                        Timber.tag(TAG).d("Last fallback — skipping validation: ${client.clientName}")
+                        true
+                    }
+                    client.clientName == "WEB_REMIX" && YouTube.isAnonLogin -> {
+                        Timber.tag(TAG).d("WEB_REMIX + anon login — skipping validation (HEAD returns 403 but playback works)")
+                        true
+                    }
+                    else -> false
+                }
+
+                if (skipValidation) {
                     successClient = client.clientName
                     break
                 }
