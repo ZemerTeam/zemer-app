@@ -109,6 +109,7 @@ fun SongMenu(
     playlistBrowseId: String? = null,
     onDismiss: () -> Unit,
     isFromCache: Boolean = false,
+    isLive: Boolean = false, // For live performances, show both song and video download options
 ) {
     val context = LocalContext.current
     val database = LocalDatabase.current
@@ -146,7 +147,7 @@ fun SongMenu(
             } else {
                 downloadUtil.downloadToMediaStore(song)
             }
-            onDismiss()
+            // Don't dismiss - keep menu open to show download progress
         } else {
             // Permissions denied - show error message
             android.widget.Toast.makeText(
@@ -746,6 +747,52 @@ fun SongMenu(
                     // Skip showing download option for videos when blocked
                     if (isVideo && blockVideos) {
                         null
+                    } else if (isLive && !blockVideos) {
+                        // For live performances, show both song and video download options
+                        Column {
+                            // Download as song option
+                            ListItem(
+                                headlineContent = {
+                                    Text(text = stringResource(R.string.download_song))
+                                },
+                                leadingContent = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.download),
+                                        contentDescription = null,
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    pendingVideoDownload = false
+                                    if (PermissionHelper.hasMediaStoreWritePermission(context)) {
+                                        downloadUtil.downloadToMediaStore(song)
+                                        // Don't dismiss - keep menu open to show download progress
+                                    } else {
+                                        permissionLauncher.launch(PermissionHelper.getRequiredWritePermissions())
+                                    }
+                                }
+                            )
+                            // Download as video option
+                            ListItem(
+                                headlineContent = {
+                                    Text(text = stringResource(R.string.download_video_to_device))
+                                },
+                                leadingContent = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.slow_motion_video),
+                                        contentDescription = null,
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    pendingVideoDownload = true
+                                    if (PermissionHelper.hasMediaStoreWritePermission(context)) {
+                                        downloadUtil.downloadVideoToMediaStore(song)
+                                        // Don't dismiss - keep menu open to show download progress
+                                    } else {
+                                        permissionLauncher.launch(PermissionHelper.getRequiredWritePermissions())
+                                    }
+                                }
+                            )
+                        }
                     } else {
                         ListItem(
                             headlineContent = {
@@ -769,7 +816,7 @@ fun SongMenu(
                                     } else {
                                         downloadUtil.downloadToMediaStore(song)
                                     }
-                                    onDismiss()
+                                    // Don't dismiss - keep menu open to show download progress
                                 } else {
                                     val permissions = PermissionHelper.getRequiredWritePermissions()
                                     permissionLauncher.launch(permissions)

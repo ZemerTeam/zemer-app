@@ -107,6 +107,7 @@ fun YouTubeSongMenu(
     onDismiss: () -> Unit,
     onHistoryRemoved: () -> Unit = {},
     isVideo: Boolean = false,
+    isLive: Boolean = false, // For live performances, show both song and video download options
 ) {
     val context = LocalContext.current
     val auth = remember { FirebaseAuth.getInstance() }
@@ -651,6 +652,56 @@ fun YouTubeSongMenu(
                             // Skip showing download option for videos when blocked
                             if (isVideo && blockVideos) {
                                 null
+                            } else if (isLive && !blockVideos) {
+                                // For live performances, show both song and video download options
+                                Column {
+                                    // Download as song option
+                                    ListItem(
+                                        headlineContent = {
+                                            Text(text = stringResource(R.string.download_song))
+                                        },
+                                        leadingContent = {
+                                            Icon(
+                                                painter = painterResource(R.drawable.download),
+                                                contentDescription = null,
+                                            )
+                                        },
+                                        modifier = Modifier.clickable {
+                                            coroutineScope.launch(Dispatchers.IO) {
+                                                val metadata = song.toMediaMetadata().copy(isVideo = false)
+                                                database.transaction {
+                                                    insert(metadata)
+                                                    setIsVideo(song.id, false)
+                                                }
+                                                val dbSong = database.song(song.id).first()
+                                                dbSong?.let { downloadUtil.downloadToMediaStore(it) }
+                                            }
+                                        }
+                                    )
+                                    // Download as video option
+                                    ListItem(
+                                        headlineContent = {
+                                            Text(text = stringResource(R.string.download_video_to_device))
+                                        },
+                                        leadingContent = {
+                                            Icon(
+                                                painter = painterResource(R.drawable.slow_motion_video),
+                                                contentDescription = null,
+                                            )
+                                        },
+                                        modifier = Modifier.clickable {
+                                            coroutineScope.launch(Dispatchers.IO) {
+                                                val metadata = song.toMediaMetadata().copy(isVideo = true)
+                                                database.transaction {
+                                                    insert(metadata)
+                                                    setIsVideo(song.id, true)
+                                                }
+                                                val dbSong = database.song(song.id).first()
+                                                dbSong?.let { downloadUtil.downloadVideoToMediaStore(it) }
+                                            }
+                                        }
+                                    )
+                                }
                             } else {
                                 ListItem(
                                     headlineContent = {

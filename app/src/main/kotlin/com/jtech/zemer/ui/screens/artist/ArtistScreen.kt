@@ -111,7 +111,10 @@ import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.screens.videoRoute
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.fadingEdge
 import com.jtech.zemer.ui.utils.resize
@@ -153,6 +156,11 @@ fun ArtistScreen(
     val lazyListState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showLocal by rememberSaveable { mutableStateOf(false) }
+
+    // Live performance dialog state
+    var showLivePlaybackDialog by remember { mutableStateOf(false) }
+    var selectedLiveItem by remember { mutableStateOf<SongItem?>(null) }
+
     val density = LocalDensity.current
 
     // Calculate the offset value outside of the offset lambda
@@ -175,6 +183,97 @@ fun ArtistScreen(
     LaunchedEffect(artistPage, libraryArtist, showLocal) {
         if (artistPage != null || libraryArtist != null || showLocal) {
             firstFocus.requestFocus()
+        }
+    }
+
+    // Live performance playback type dialog
+    if (showLivePlaybackDialog && selectedLiveItem != null) {
+        DefaultDialog(
+            onDismiss = {
+                showLivePlaybackDialog = false
+                selectedLiveItem = null
+            },
+            title = { Text(stringResource(R.string.live_performance)) },
+            buttons = {
+                TextButton(onClick = {
+                    showLivePlaybackDialog = false
+                    selectedLiveItem = null
+                }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Play as song option
+                Surface(
+                    onClick = {
+                        selectedLiveItem?.let { item ->
+                            playerConnection.playQueue(
+                                YouTubeQueue(
+                                    WatchEndpoint(videoId = item.id),
+                                    item.toMediaMetadata(isLive = true),
+                                    database
+                                ),
+                            )
+                        }
+                        showLivePlaybackDialog = false
+                        selectedLiveItem = null
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.music_note),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = stringResource(R.string.play_as_song),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                }
+
+                // Play as video option
+                Surface(
+                    onClick = {
+                        selectedLiveItem?.let { item ->
+                            val artistDisplay = item.artists.joinToString(" • ") { it.name }
+                            navController.navigate(videoRoute(item.id, item.title, artistDisplay))
+                        }
+                        showLivePlaybackDialog = false
+                        selectedLiveItem = null
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.slow_motion_video),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = stringResource(R.string.play_as_video),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -591,16 +690,18 @@ fun ArtistScreen(
                 } else {
                     artistPage?.sections?.fastForEach { section ->
                         val distinctItems = section.items.distinctBy { it.id }
+                        // Detect if this is a video or live section
                         val isVideoSection = section.title.contains("video", ignoreCase = true) ||
                             section.title.contains("short", ignoreCase = true)
+                        val isLiveSection = section.title.contains("live", ignoreCase = true)
 
-                        // Skip video sections entirely if videos are blocked
-                        if (isVideoSection && blockVideos) {
+                        // Skip video/live sections entirely if videos are blocked
+                        if ((isVideoSection || isLiveSection) && blockVideos) {
                             return@fastForEach
                         }
 
                         val visibleCount = visibleCounts.getOrPut(section.title) {
-                            if (isVideoSection) minOf(8, distinctItems.size) else distinctItems.size
+                            if (isVideoSection || isLiveSection) minOf(8, distinctItems.size) else distinctItems.size
                         }
                         val displayItems = distinctItems.take(visibleCount)
 
@@ -667,10 +768,14 @@ fun ArtistScreen(
                                     modifier = Modifier
                                         .combinedClickable(
                                             onClick = {
-                                                if (isVideoSection && !blockVideos) {
+                                                if (isLiveSection && !blockVideos) {
+                                                    // Show dialog to choose between song and video playback
+                                                    selectedLiveItem = song
+                                                    showLivePlaybackDialog = true
+                                                } else if (isVideoSection && !blockVideos) {
                                                     val artistDisplay = song.artists.joinToString(" • ") { it.name }
                                                     navController.navigate(videoRoute(song.id, song.title, artistDisplay))
-                                                } else if (!isVideoSection) {
+                                                } else if (!isVideoSection && !isLiveSection) {
                                                     if (song.id == mediaMetadata?.id) {
                                                         playerConnection.player.togglePlayPause()
                                                     } else {
@@ -691,6 +796,7 @@ fun ArtistScreen(
                                                         song = song,
                                                         navController = navController,
                                                         onDismiss = menuState::dismiss,
+                                                        isLive = isLiveSection,
                                                     )
                                                 }
                                             },
@@ -707,7 +813,7 @@ fun ArtistScreen(
                                         items = displayItems,
                                         key = { index, item -> "youtube_album_${item.id}_$index" },
                                     ) { index, item ->
-                                        if (isVideoSection && index >= displayItems.size - 3 && visibleCount < distinctItems.size) {
+                                        if ((isVideoSection || isLiveSection) && index >= displayItems.size - 3 && visibleCount < distinctItems.size) {
                                             visibleCounts[section.title] = minOf(visibleCount + 6, distinctItems.size)
                                         }
                                         YouTubeGridItem(
@@ -720,14 +826,18 @@ fun ArtistScreen(
                                             },
                                             isPlaying = isPlaying,
                                             coroutineScope = coroutineScope,
-                                            thumbnailRatio = if (isVideoSection) 1f else if (item is SongItem) 16f / 9 else 1f,
+                                            thumbnailRatio = if (isVideoSection || isLiveSection) 1f else if (item is SongItem) 16f / 9 else 1f,
                                             modifier = Modifier
                                                 .combinedClickable(
                                                     onClick = {
-                                                        if (isVideoSection && item is SongItem && !blockVideos) {
+                                                        if (isLiveSection && item is SongItem && !blockVideos) {
+                                                            // Show dialog to choose between song and video playback
+                                                            selectedLiveItem = item
+                                                            showLivePlaybackDialog = true
+                                                        } else if (isVideoSection && item is SongItem && !blockVideos) {
                                                             val artistDisplay = item.artists.joinToString(" • ") { it.name }
                                                             navController.navigate(videoRoute(item.id, item.title, artistDisplay))
-                                                        } else if (!isVideoSection) {
+                                                        } else if (!isVideoSection && !isLiveSection) {
                                                             when (item) {
                                                                 is SongItem -> {
                                                                     playerConnection.playQueue(
@@ -754,6 +864,7 @@ fun ArtistScreen(
                                                                         navController = navController,
                                                                         onDismiss = menuState::dismiss,
                                                                         isVideo = isVideoSection,
+                                                                        isLive = isLiveSection,
                                                                     )
 
                                                                 is AlbumItem ->
