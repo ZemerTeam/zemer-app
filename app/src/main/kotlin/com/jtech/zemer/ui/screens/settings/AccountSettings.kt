@@ -318,22 +318,46 @@ fun AccountSettings(
             TextFieldDialog(
                 initialTextFieldValue = TextFieldValue(text),
                 onDone = { data ->
+                    // Collect all values first to avoid race conditions with separate DataStore writes
+                    var newCookie = ""
+                    var newVisitorData = ""
+                    var newDataSyncId = ""
+                    var newAccountName = ""
+                    var newAccountEmail = ""
+                    var newAccountChannelHandle = ""
+
                     data.split("\n").forEach {
                         when {
-                            it.startsWith("***INNERTUBE COOKIE*** =") -> onInnerTubeCookieChange(it.substringAfter("="))
-                            it.startsWith("***VISITOR DATA*** =") -> onVisitorDataChange(it.substringAfter("="))
-                            it.startsWith("***DATASYNC ID*** =") -> onDataSyncIdChange(it.substringAfter("="))
-                            it.startsWith("***ACCOUNT NAME*** =") -> onAccountNameChange(it.substringAfter("="))
-                            it.startsWith("***ACCOUNT EMAIL*** =") -> onAccountEmailChange(it.substringAfter("="))
-                            it.startsWith("***ACCOUNT CHANNEL HANDLE*** =") -> onAccountChannelHandleChange(it.substringAfter("="))
+                            it.startsWith("***INNERTUBE COOKIE*** =") -> newCookie = it.substringAfter("=")
+                            it.startsWith("***VISITOR DATA*** =") -> newVisitorData = it.substringAfter("=")
+                            it.startsWith("***DATASYNC ID*** =") -> newDataSyncId = it.substringAfter("=")
+                            it.startsWith("***ACCOUNT NAME*** =") -> newAccountName = it.substringAfter("=")
+                            it.startsWith("***ACCOUNT EMAIL*** =") -> newAccountEmail = it.substringAfter("=")
+                            it.startsWith("***ACCOUNT CHANNEL HANDLE*** =") -> newAccountChannelHandle = it.substringAfter("=")
                         }
                     }
+
+                    // Atomically save all credentials and restart app
+                    accountSettingsViewModel.saveTokenAndRestart(
+                        context = context,
+                        cookie = newCookie,
+                        visitorData = newVisitorData,
+                        dataSyncId = newDataSyncId,
+                        accountName = newAccountName,
+                        accountEmail = newAccountEmail,
+                        accountChannelHandle = newAccountChannelHandle,
+                    )
                 },
                 onDismiss = { showTokenEditor = false },
                 singleLine = false,
                 maxLines = 20,
-                isInputValid = {
-                    it.isNotEmpty() && "SAPISID" in parseCookieString(it)
+                isInputValid = { input ->
+                    // Extract only the cookie line for validation (don't pass entire template)
+                    val cookieLine = input.split("\n")
+                        .find { it.startsWith("***INNERTUBE COOKIE*** =") }
+                        ?.substringAfter("=")
+                        ?: ""
+                    cookieLine.isNotEmpty() && "SAPISID" in parseCookieString(cookieLine)
                 },
                 extraContent = {
                     InfoLabel(text = stringResource(R.string.token_adv_login_description))

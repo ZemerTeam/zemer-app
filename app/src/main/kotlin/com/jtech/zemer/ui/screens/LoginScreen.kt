@@ -1,7 +1,7 @@
 package com.jtech.zemer.ui.screens
 
 import android.annotation.SuppressLint
-import android.content.Context
+import android.content.Intent
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
@@ -125,18 +125,20 @@ fun LoginScreen(
                                             accountEmail = it.email.orEmpty()
                                             accountChannelHandle = it.channelHandle.orEmpty()
                                             loginMethod = "google"
-                                            // Clean up WebView to prevent showing YouTube Music
+
+                                            android.util.Log.d("LoginScreen", "Successfully logged in as ${it.name}, restarting app...")
+
+                                            // Clean up WebView before restart
                                             cleanupWebView(webView)
 
-                                            // CRITICAL: Navigate to homescreen instead of navigateUp()
-                                            navController.navigate("home") {
-                                                popUpTo(navController.graph.startDestinationId) {
-                                                    inclusive = true
-                                                }
-                                                launchSingleTop = true
-                                            }
+                                            // Small delay to ensure preferences are saved
+                                            kotlinx.coroutines.delay(300)
 
-                                            android.util.Log.d("LoginScreen", "Successfully logged in and navigated to homescreen")
+                                            // Restart app to apply login state throughout all components
+                                            val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                                            intent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                                            context.startActivity(intent)
+                                            Runtime.getRuntime().exit(0)
                                         }.onFailure { exception ->
                                             // Clear invalid credentials and show error
                                             android.util.Log.e("LoginScreen", "Authentication validation failed: ${exception.message}")
