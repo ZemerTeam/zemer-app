@@ -6,8 +6,8 @@ import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
-import com.jtech.zemer.utils.cipher.CipherDeobfuscator
-import com.jtech.zemer.utils.cipher.PlayerJsFetcher
+import com.zemer.cipher.CipherDeobfuscator
+import com.zemer.cipher.PlayerJsFetcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.suspendCancellableCoroutine
