@@ -801,27 +801,29 @@ class MusicService :
             ?: (playbackData?.videoDetails ?: YTPlayerUtils.playerResponseForMetadata(mediaId)
                 .getOrNull()?.videoDetails)?.lengthSeconds?.toInt()
             ?: -1
-        database.query {
-            if (song == null) insert(mediaMetadata.copy(duration = duration))
-            else if (song.song.duration == -1) update(song.song.copy(duration = duration))
-        }
-        if (!database.hasRelatedSongs(mediaId)) {
+
+        // Fetch related songs data outside of transaction
+        val relatedSongsToInsert = if (!database.hasRelatedSongs(mediaId)) {
             val relatedEndpoint =
                 YouTube.next(WatchEndpoint(videoId = mediaId)).getOrNull()?.relatedEndpoint
-                    ?: return
-            val relatedPage = YouTube.related(relatedEndpoint).getOrNull() ?: return
-            val filteredSongs = relatedPage.songs.filterWhitelisted(database).filterIsInstance<SongItem>()
-            database.query {
-                filteredSongs
-                    .map(SongItem::toMediaMetadata)
-                    .onEach(::insert)
-                    .map {
-                        RelatedSongMap(
-                            songId = mediaId,
-                            relatedSongId = it.id
-                        )
-                    }
-                    .forEach(::insert)
+            val relatedPage = relatedEndpoint?.let { YouTube.related(it).getOrNull() }
+            relatedPage?.songs?.filterWhitelisted(database)?.filterIsInstance<SongItem>()
+                ?.map(SongItem::toMediaMetadata)
+        } else null
+
+        // Do ALL inserts in a single transaction to avoid foreign key issues
+        database.query {
+            // First ensure the main song exists
+            if (song == null) insert(mediaMetadata.copy(duration = duration))
+            else if (song.song.duration == -1) update(song.song.copy(duration = duration))
+
+            // Then insert related songs and their mappings
+            relatedSongsToInsert?.forEach { relatedMetadata ->
+                insert(relatedMetadata)
+                insert(RelatedSongMap(
+                    songId = mediaId,
+                    relatedSongId = relatedMetadata.id
+                ))
             }
         }
     }
