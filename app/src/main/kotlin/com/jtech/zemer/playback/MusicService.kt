@@ -475,6 +475,45 @@ class MusicService :
                 }
         }
 
+        // Observe visitor data changes
+        scope.launch {
+            dataStore.data
+                .map { it[com.jtech.zemer.constants.VisitorDataKey] }
+                .distinctUntilChanged()
+                .collect { visitorData ->
+                    YouTube.visitorData = visitorData?.takeIf { it != "null" }
+                    songUrlCache.clear()
+                    android.util.Log.d("MusicService", "Visitor data changed: ${visitorData?.take(20)}...")
+                }
+        }
+
+        // Observe data sync ID changes
+        scope.launch {
+            dataStore.data
+                .map { it[com.jtech.zemer.constants.DataSyncIdKey] }
+                .distinctUntilChanged()
+                .collect { dataSyncId ->
+                    YouTube.dataSyncId = dataSyncId?.let {
+                        it.takeIf { !it.contains("||") }
+                            ?: it.takeIf { it.endsWith("||") }?.substringBefore("||")
+                            ?: it.substringAfter("||")
+                    }
+                    android.util.Log.d("MusicService", "DataSyncId changed")
+                }
+        }
+
+        // Observe login method changes to update isAnonLogin flag
+        scope.launch {
+            dataStore.data
+                .map { it[com.jtech.zemer.constants.LoginMethodKey] }
+                .distinctUntilChanged()
+                .collect { loginMethod ->
+                    YouTube.isAnonLogin = loginMethod == "anonymous"
+                    songUrlCache.clear()
+                    android.util.Log.d("MusicService", "Login method changed: $loginMethod, isAnonLogin=${YouTube.isAnonLogin}")
+                }
+        }
+
         if (dataStore.get(PersistentQueueKey, true)) {
             runCatching {
                 filesDir.resolve(PERSISTENT_QUEUE_FILE).inputStream().use { fis ->

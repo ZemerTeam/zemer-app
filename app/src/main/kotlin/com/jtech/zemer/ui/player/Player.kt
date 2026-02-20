@@ -351,13 +351,13 @@ fun BottomSheetPlayer(
     val loginMethod by remember {
         context.dataStore.data.map { it[LoginMethodKey] ?: "" }
     }.collectAsState(initial = "")
-    // Google login: all clients, Anonymous: only VR
-    val availableClients = if (loginMethod == "anonymous") {
-        listOf(PreferredClient.AUTO, PreferredClient.ANDROID_VR)
-    } else {
-        // "google" or empty (legacy users default to full access)
-        listOf(PreferredClient.AUTO, PreferredClient.WEB_REMIX, PreferredClient.TVHTML5, PreferredClient.ANDROID_VR)
-    }
+    // All clients available for both Google and Anonymous login
+    val availableClients = listOf(
+        PreferredClient.AUTO,
+        PreferredClient.WEB_REMIX,
+        PreferredClient.TVHTML5,
+        PreferredClient.ANDROID_VR
+    )
     val (audioBitrate, onAudioBitrateChange) = rememberPreference(AudioBitrateKey, defaultValue = 0)
     val (preferredClient, onPreferredClientChange) = rememberEnumPreference(PreferredClientKey, defaultValue = PreferredClient.AUTO)
     val qualityCoroutineScope = rememberCoroutineScope()
