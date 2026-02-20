@@ -95,6 +95,30 @@ class App : Application(), SingletonImageLoader.Factory {
                 IsraeliArtistRegistry.ensureLoaded()
                 Timber.d("App: IsraeliArtistRegistry pre-loaded")
             }
+            // Pre-warm for faster first playback: fetch player.js and warm HTTP connections
+            launch(Dispatchers.IO) {
+                try {
+                    // Pre-fetch player.js (used for cipher/signature operations)
+                    com.zemer.cipher.PlayerJsFetcher.getPlayerJs()
+                    Timber.d("App: Player.js pre-fetched")
+                } catch (e: Exception) {
+                    Timber.e(e, "App: Player.js warmup failed")
+                }
+            }
+            launch(Dispatchers.IO) {
+                // Pre-warm HTTP connections to YouTube
+                try {
+                    val client = okhttp3.OkHttpClient.Builder().build()
+                    listOf("https://www.youtube.com/", "https://music.youtube.com/").forEach { url ->
+                        runCatching {
+                            client.newCall(okhttp3.Request.Builder().url(url).head().build()).execute().close()
+                        }
+                    }
+                    Timber.d("App: HTTP connections pre-warmed")
+                } catch (e: Exception) {
+                    Timber.d("App: HTTP warmup failed: ${e.message}")
+                }
+            }
             // Removed auto-fetch of anonymous token; user must trigger login manually.
         }
     }
