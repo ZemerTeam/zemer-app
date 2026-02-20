@@ -225,6 +225,7 @@ fun BottomSheetPlayer(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
+    val currentFormat by playerConnection.currentFormat.collectAsState(initial = null)
     val automix by playerConnection.service.automixItems.collectAsState()
     val repeatMode by playerConnection.repeatMode.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
@@ -474,9 +475,14 @@ fun BottomSheetPlayer(
                         )
                     }
 
-                    // Format options
+                    // Format options - show what's actually playing based on currentFormat
+                    // Convert current format bitrate from bps to kbps for comparison
+                    val actualPlayingBitrateKbps = currentFormat?.bitrate?.div(1000) ?: 0
                     if (availableFormats.isNotEmpty()) {
                         availableFormats.forEach { format ->
+                            // Check if this format is actually playing (within 10% tolerance for rounding)
+                            val isActuallyPlaying = actualPlayingBitrateKbps > 0 &&
+                                kotlin.math.abs(actualPlayingBitrateKbps - format.bitrateKbps) < (format.bitrateKbps * 0.1)
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -488,7 +494,7 @@ fun BottomSheetPlayer(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
-                                    selected = audioBitrate == format.bitrateKbps,
+                                    selected = isActuallyPlaying,
                                     onClick = {
                                         onAudioBitrateChange(format.bitrateKbps)
                                         showQualityDialog = false
@@ -1003,8 +1009,10 @@ fun BottomSheetPlayer(
                                     color = iconButtonColor
                                 )
                             } else {
+                                // Show actual playing bitrate, not just the preference
+                                val actualBitrateKbps = currentFormat?.bitrate?.div(1000) ?: 0
                                 Text(
-                                    text = if (audioBitrate > 0) "${audioBitrate}k" else stringResource(R.string.audio_quality),
+                                    text = if (actualBitrateKbps > 0) "${actualBitrateKbps}k" else stringResource(R.string.audio_quality),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = iconButtonColor
                                 )
