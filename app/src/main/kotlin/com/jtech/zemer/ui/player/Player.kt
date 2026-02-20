@@ -544,6 +544,7 @@ fun BottomSheetPlayer(
                                     onPreferredClientChange(client)
                                     val videoId = mediaMetadata?.id
                                     if (videoId != null) {
+                                        availableFormats = emptyList() // Clear to show loading indicator
                                         isLoadingFormats = true
                                         qualityCoroutineScope.launch {
                                             val result = withContext(Dispatchers.IO) {
@@ -569,6 +570,7 @@ fun BottomSheetPlayer(
                                     onPreferredClientChange(client)
                                     val videoId = mediaMetadata?.id
                                     if (videoId != null) {
+                                        availableFormats = emptyList() // Clear to show loading indicator
                                         isLoadingFormats = true
                                         qualityCoroutineScope.launch {
                                             val result = withContext(Dispatchers.IO) {
