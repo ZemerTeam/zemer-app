@@ -72,7 +72,42 @@ jobs:
         run: ./gradlew assembleRelease
 
       - name: Upload APK artifact
+        id: upload-artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
           path: app/build/outputs/apk/release/*.apk
+
+      - name: Send Telegram notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            STATUS="Success"
+          else
+            STATUS="Failed"
+          fi
+
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            TITLE="${{ github.event.pull_request.title }}"
+            REF="PR #${{ github.event.pull_request.number }}"
+            LINK="${{ github.event.pull_request.html_url }}"
+          else
+            TITLE=$(echo "${{ github.event.head_commit.message }}" | head -n 1)
+            REF="${{ github.ref_name }}"
+            LINK="${{ github.event.head_commit.url }}"
+          fi
+
+          MESSAGE=$(printf "Android Release Build\n\nStatus: %s\nBranch/PR: %s\nCommit: %s\n\nView Commit/PR: %s" "$STATUS" "$REF" "$TITLE" "$LINK")
+
+          APK_FILE=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+
+          if [ -n "$APK_FILE" ] && [ -f "$APK_FILE" ]; then
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
+              -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -F document=@"$APK_FILE" \
+              -F caption="$MESSAGE"
+          else
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+              -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+              --data-urlencode "text=${MESSAGE}"
+          fi
