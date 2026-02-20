@@ -1720,17 +1720,32 @@ class MusicService :
         bypassCacheForQualityChange.add(mediaId)
         Timber.tag("QualitySwitch").i("Set bypass cache flag for $mediaId")
 
-        // Stop and restart from current position
-        // Position is preserved since different streams have same time-to-byte mapping
-        Timber.tag("QualitySwitch").i("Stopping player, restarting from position=$currentPosition, wasPlaying=$wasPlaying")
+        // Completely kill and restart the player to force fresh URL fetch
+        // Simply calling stop()/prepare() may not re-fetch the URL if media item is cached internally
+        Timber.tag("QualitySwitch").i("Killing player, will restart from position=$currentPosition, wasPlaying=$wasPlaying")
+
+        // Get the current media item to re-add it
+        val currentMediaItem = player.currentMediaItem
+        if (currentMediaItem == null) {
+            Timber.tag("QualitySwitch").e("No current media item to reload!")
+            return
+        }
+
+        // Stop the player completely
         player.stop()
-        player.seekTo(currentIndex, currentPosition)
-        Timber.tag("QualitySwitch").i("Calling prepare() - this should trigger ResolvingDataSource")
+
+        // Remove and re-add the media item to force ExoPlayer to re-resolve the URL
+        player.removeMediaItem(currentIndex)
+        player.addMediaItem(currentIndex, currentMediaItem)
+
+        // Prepare and seek to saved position
         player.prepare()
+        player.seekTo(currentIndex, currentPosition)
+
         if (wasPlaying) {
             player.play()
         }
-        Timber.tag("QualitySwitch").i("=== RELOAD END === mediaId=$mediaId")
+        Timber.tag("QualitySwitch").i("=== RELOAD END === mediaId=$mediaId, restarting at position=$currentPosition")
     }
 
     override fun onDestroy() {
