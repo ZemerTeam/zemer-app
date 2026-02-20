@@ -478,11 +478,14 @@ fun BottomSheetPlayer(
                     // Format options - show what's actually playing based on currentFormat
                     // Convert current format bitrate from bps to kbps for comparison
                     val actualPlayingBitrateKbps = currentFormat?.bitrate?.div(1000) ?: 0
+                    // Find the closest matching format to avoid selecting multiple
+                    val closestFormat = if (actualPlayingBitrateKbps > 0 && availableFormats.isNotEmpty()) {
+                        availableFormats.minByOrNull { kotlin.math.abs(it.bitrateKbps - actualPlayingBitrateKbps) }
+                    } else null
                     if (availableFormats.isNotEmpty()) {
                         availableFormats.forEach { format ->
-                            // Check if this format is actually playing (within 10% tolerance for rounding)
-                            val isActuallyPlaying = actualPlayingBitrateKbps > 0 &&
-                                kotlin.math.abs(actualPlayingBitrateKbps - format.bitrateKbps) < (format.bitrateKbps * 0.1)
+                            // Only select the single closest matching format
+                            val isActuallyPlaying = format == closestFormat
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
