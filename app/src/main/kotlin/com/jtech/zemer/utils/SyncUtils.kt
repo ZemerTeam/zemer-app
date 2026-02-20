@@ -85,6 +85,45 @@ class SyncUtils @Inject constructor(
         }
     }
 
+    private val _isPushingToRemote = MutableStateFlow(false)
+    val isPushingToRemote: StateFlow<Boolean> = _isPushingToRemote.asStateFlow()
+
+    /**
+     * Push local data to YouTube account.
+     * For users who were previously logged in anonymously.
+     */
+    suspend fun pushLocalToYouTube(): Result<Int> = withContext(Dispatchers.IO) {
+        if (_isPushingToRemote.value) return@withContext Result.failure(Exception("Sync in progress"))
+        if (YouTube.isAnonLogin) return@withContext Result.failure(Exception("Login required"))
+
+        _isPushingToRemote.value = true
+        var count = 0
+
+        try {
+            // Push liked songs
+            database.likedSongsByNameAsc().first().forEach { song ->
+                YouTube.likeVideo(song.id, true).onSuccess { count++ }
+            }
+
+            // Push subscribed artists
+            database.artistsBookmarkedByNameAsc().first().forEach { artist ->
+                val channelId = artist.artist.channelId ?: YouTube.getChannelId(artist.id).takeIf { it.isNotEmpty() }
+                channelId?.let { YouTube.subscribeChannel(it, true).onSuccess { count++ } }
+            }
+
+            // Push liked albums
+            database.albumsLikedByNameAsc().first().forEach { album ->
+                album.album.playlistId?.let { YouTube.likePlaylist(it, true).onSuccess { count++ } }
+            }
+
+            Result.success(count)
+        } catch (e: Exception) {
+            Result.failure(e)
+        } finally {
+            _isPushingToRemote.value = false
+        }
+    }
+
     suspend fun syncLikedSongs() {
         if (isSyncingLikedSongs.value) return
         isSyncingLikedSongs.value = true

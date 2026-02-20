@@ -122,6 +122,24 @@ object YouTube {
             innerTube.appVisitorData = value
         }
 
+    /**
+     * Exception thrown when an account-related operation is attempted while in anonymous mode.
+     * Anonymous users can still use local features, but remote account sync is disabled.
+     */
+    class AccountOperationDisabledException : Exception("Account operation disabled in anonymous mode")
+
+    /**
+     * Helper to guard account-related operations.
+     * Returns failure with AccountOperationDisabledException when in anonymous mode.
+     */
+    private inline fun <T> requireAccount(block: () -> T): Result<T> {
+        return if (isAnonLogin) {
+            Result.failure(AccountOperationDisabledException())
+        } else {
+            runCatching { block() }
+        }
+    }
+
     suspend fun searchSuggestions(query: String): Result<SearchSuggestions> = runCatching {
         val response = innerTube.getSearchSuggestions(WEB_REMIX, query).body<GetSearchSuggestionsResponse>()
         SearchSuggestions(
@@ -600,7 +618,7 @@ object YouTube {
         )
     }
 
-    suspend fun library(browseId: String, tabIndex: Int = 0) = runCatching {
+    suspend fun library(browseId: String, tabIndex: Int = 0) = requireAccount {
         val response = innerTube.browse(
             client = WEB_REMIX,
             browseId = browseId,
@@ -637,7 +655,7 @@ object YouTube {
         }
     }
 
-    suspend fun libraryContinuation(continuation: String) = runCatching {
+    suspend fun libraryContinuation(continuation: String) = requireAccount {
         val response = innerTube.browse(
             client = WEB_REMIX,
             continuation = continuation,
@@ -667,7 +685,7 @@ object YouTube {
         }
     }
 
-    suspend fun libraryRecentActivity(): Result<LibraryPage> = runCatching {
+    suspend fun libraryRecentActivity(): Result<LibraryPage> = requireAccount {
         val continuation = LibraryFilter.FILTER_RECENT_ACTIVITY.value
 
         val response = innerTube.browse(
@@ -870,7 +888,7 @@ object YouTube {
         }
     }
 
-    suspend fun musicHistory() = runCatching {
+    suspend fun musicHistory() = requireAccount {
         val response = innerTube.browse(
             client = WEB_REMIX,
             browseId = "FEmusic_history",
@@ -888,21 +906,21 @@ object YouTube {
         )
     }
 
-    suspend fun likeVideo(videoId: String, like: Boolean) = runCatching {
+    suspend fun likeVideo(videoId: String, like: Boolean) = requireAccount {
         if (like)
             innerTube.likeVideo(WEB_REMIX, videoId)
         else
             innerTube.unlikeVideo(WEB_REMIX, videoId)
     }
 
-    suspend fun likePlaylist(playlistId: String, like: Boolean) = runCatching {
+    suspend fun likePlaylist(playlistId: String, like: Boolean) = requireAccount {
         if (like)
             innerTube.likePlaylist(WEB_REMIX, playlistId)
         else
             innerTube.unlikePlaylist(WEB_REMIX, playlistId)
     }
 
-    suspend fun subscribeChannel(channelId: String, subscribe: Boolean) = runCatching {
+    suspend fun subscribeChannel(channelId: String, subscribe: Boolean) = requireAccount {
         if (subscribe)
             innerTube.subscribeChannel(WEB_REMIX, channelId)
         else
@@ -916,19 +934,19 @@ object YouTube {
         return ""
     }
 
-    suspend fun addToPlaylist(playlistId: String, videoId: String) = runCatching {
+    suspend fun addToPlaylist(playlistId: String, videoId: String) = requireAccount {
         innerTube.addToPlaylist(WEB_REMIX, playlistId, videoId)
     }
 
-    suspend fun addPlaylistToPlaylist(playlistId: String, addPlaylistId: String) = runCatching {
+    suspend fun addPlaylistToPlaylist(playlistId: String, addPlaylistId: String) = requireAccount {
         innerTube.addPlaylistToPlaylist(WEB_REMIX, playlistId, addPlaylistId)
     }
 
-    suspend fun removeFromPlaylist(playlistId: String, videoId: String, setVideoId: String) = runCatching {
+    suspend fun removeFromPlaylist(playlistId: String, videoId: String, setVideoId: String) = requireAccount {
         innerTube.removeFromPlaylist(WEB_REMIX, playlistId, videoId, setVideoId)
     }
 
-    suspend fun moveSongPlaylist(playlistId: String, setVideoId: String, successorSetVideoId: String?) = runCatching {
+    suspend fun moveSongPlaylist(playlistId: String, setVideoId: String, successorSetVideoId: String?) = requireAccount {
         innerTube.moveSongPlaylist(WEB_REMIX, playlistId, setVideoId, successorSetVideoId)
     }
 
@@ -936,7 +954,7 @@ object YouTube {
         innerTube.createPlaylist(WEB_REMIX, title).body<CreatePlaylistResponse>().playlistId
     }
 
-    suspend fun renamePlaylist(playlistId: String, name: String) = runCatching {
+    suspend fun renamePlaylist(playlistId: String, name: String) = requireAccount {
         innerTube.renamePlaylist(WEB_REMIX, playlistId, name)
     }
 
@@ -951,11 +969,11 @@ object YouTube {
         innerTube.setThumbnailPlaylist(WEB_REMIX, playlistId, blobId).body<EditPlaylistResponse>().newHeader?.musicEditablePlaylistDetailHeaderRenderer?.header?.musicResponsiveHeaderRenderer?.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl()
     }
 
-    suspend fun removeThumbnailPlaylist(playlistId: String) = runCatching {
+    suspend fun removeThumbnailPlaylist(playlistId: String) = requireAccount {
         innerTube.removeThumbnailPlaylist(WEB_REMIX, playlistId).body<EditPlaylistResponse>().newHeader?.musicEditablePlaylistDetailHeaderRenderer?.header?.musicResponsiveHeaderRenderer?.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl()
     }
 
-    suspend fun deletePlaylist(playlistId: String) = runCatching {
+    suspend fun deletePlaylist(playlistId: String) = requireAccount {
         innerTube.deletePlaylist(WEB_REMIX, playlistId)
     }
 
@@ -1100,14 +1118,14 @@ object YouTube {
 //    }
 // --Commented out by Inspection STOP (12/1/25, 12:23 PM)
 
-    suspend fun accountInfo(): Result<AccountInfo> = runCatching {
+    suspend fun accountInfo(): Result<AccountInfo> = requireAccount {
         innerTube.accountMenu(WEB_REMIX).body<AccountMenuResponse>()
             .actions[0].openPopupAction.popup.multiPageMenuRenderer
             .header?.activeAccountHeaderRenderer
             ?.toAccountInfo()!!
     }
 
-    suspend fun feedback(tokens: List<String>): Result<Boolean> = runCatching {
+    suspend fun feedback(tokens: List<String>): Result<Boolean> = requireAccount {
         innerTube.feedback(WEB_REMIX, tokens).body<FeedbackResponse>().feedbackResponses.all { it.isProcessed }
     }
 

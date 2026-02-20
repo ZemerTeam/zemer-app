@@ -76,6 +76,7 @@ import com.jtech.zemer.utils.Updater
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.AccountSettingsViewModel
 import com.jtech.zemer.viewmodels.HomeViewModel
+import com.jtech.zemer.LocalSyncUtils
 import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.innertube.YouTube
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
@@ -115,6 +116,11 @@ fun AccountSettings(
     var tokenTestResult by remember { mutableStateOf<String?>(null) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    // Sync local to YouTube
+    val syncUtils = LocalSyncUtils.current
+    val isPushingToRemote by syncUtils.isPushingToRemote.collectAsState()
+    var pushSyncResult by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -419,6 +425,47 @@ fun AccountSettings(
                     .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.surface)
             )
+
+            // Only show for non-anonymous logged in users
+            if (!YouTube.isAnonLogin) {
+                Spacer(Modifier.height(4.dp))
+
+                PreferenceEntry(
+                    title = {
+                        Text(
+                            if (isPushingToRemote) stringResource(R.string.syncing)
+                            else stringResource(R.string.sync_local_to_youtube)
+                        )
+                    },
+                    description = pushSyncResult ?: stringResource(R.string.sync_local_to_youtube_desc),
+                    icon = {
+                        if (isPushingToRemote) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(painterResource(R.drawable.backup), null)
+                        }
+                    },
+                    onClick = {
+                        if (!isPushingToRemote) {
+                            scope.launch {
+                                pushSyncResult = null
+                                syncUtils.pushLocalToYouTube().onSuccess { count ->
+                                    pushSyncResult = "Synced $count items"
+                                }.onFailure { e ->
+                                    pushSyncResult = "Failed: ${e.message}"
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                )
+            }
         }
 
         Spacer(Modifier.height(12.dp))
