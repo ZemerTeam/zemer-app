@@ -9,9 +9,9 @@ import com.jtech.zemer.constants.PreferredClient
 import timber.log.Timber
 import com.metrolist.innertube.NewPipeUtils
 import com.metrolist.innertube.YouTube
-import com.jtech.zemer.utils.cipher.CipherDeobfuscator
-import com.jtech.zemer.utils.potoken.PoTokenGenerator
-import com.jtech.zemer.utils.potoken.PoTokenResult
+import com.zemer.cipher.CipherDeobfuscator
+import com.zemer.cipher.potoken.PoTokenGenerator
+import com.zemer.cipher.potoken.PoTokenResult
 import com.jtech.zemer.utils.sabr.EjsNTransformSolver
 import com.metrolist.innertube.models.YouTubeClient
 import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_CREATOR

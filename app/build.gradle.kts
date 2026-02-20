@@ -185,6 +185,8 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 }
 
 dependencies {
+    implementation("com.zemer:cipher")
+
     implementation(libs.guava)
     implementation(libs.concurrent.futures)
 

@@ -28,7 +28,7 @@ import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.SyncUtils
-import com.jtech.zemer.utils.cipher.CipherDeobfuscator
+import com.zemer.cipher.ZemerCipher
 import timber.log.Timber
 import com.jtech.zemer.utils.UpdateChecker
 import com.jtech.zemer.utils.dataStore
@@ -78,8 +78,12 @@ class App : Application(), SingletonImageLoader.Factory {
             Timber.plant(Timber.DebugTree())
         }
 
-        // Initialize cipher deobfuscator for WEB_REMIX streaming
-        CipherDeobfuscator.initialize(this)
+        // Initialize cipher library for WEB_REMIX streaming
+        ZemerCipher.initialize(
+            context = this,
+            proxy = YouTube.proxy,
+            debugLogging = BuildConfig.DEBUG
+        )
 
         // تهيئة إعدادات التطبيق عند الإقلاع
         applicationScope.launch {

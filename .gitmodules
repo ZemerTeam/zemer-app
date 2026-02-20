@@ -1,3 +1,6 @@
 [submodule "app/src/main/cpp/bento4"]
 	path = app/src/main/cpp/bento4
 	url = https://github.com/ZemerTeam/zemer-bento4.git
+[submodule "cipher"]
+	path = cipher
+	url = https://github.com/ZemerTeam/zemer-cipher.git
