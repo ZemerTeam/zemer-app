@@ -96,7 +96,7 @@ fun AccountSettings(
     val (innerTubeCookie, onInnerTubeCookieChange) = rememberPreference(InnerTubeCookieKey, "")
     val (visitorData, onVisitorDataChange) = rememberPreference(VisitorDataKey, "")
     val (dataSyncId, onDataSyncIdChange) = rememberPreference(DataSyncIdKey, "")
-    val (_, onLoginMethodChange) = rememberPreference(LoginMethodKey, "")
+    val (loginMethod, onLoginMethodChange) = rememberPreference(LoginMethodKey, "")
 
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
@@ -413,21 +413,21 @@ fun AccountSettings(
                     .background(MaterialTheme.colorScheme.surface)
             )
 
-            Spacer(Modifier.height(4.dp))
+            // Only show sync options for non-anonymous logged in users (use persisted loginMethod, not static flag)
+            if (loginMethod != "anonymous") {
+                Spacer(Modifier.height(4.dp))
 
-            SwitchPreference(
-                title = { Text(stringResource(R.string.yt_sync)) },
-                icon = { Icon(painterResource(R.drawable.cached), null) },
-                checked = ytmSync,
-                onCheckedChange = onYtmSyncChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-            )
+                SwitchPreference(
+                    title = { Text(stringResource(R.string.yt_sync)) },
+                    icon = { Icon(painterResource(R.drawable.cached), null) },
+                    checked = ytmSync,
+                    onCheckedChange = onYtmSyncChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                )
 
-            // Only show for non-anonymous logged in users
-            if (!YouTube.isAnonLogin) {
                 Spacer(Modifier.height(4.dp))
 
                 PreferenceEntry(
