@@ -675,8 +675,10 @@ object YTPlayerUtils {
             webPlayerPot = if (client.useWebPoTokens) poTokenResult?.playerRequestPoToken else null
         ).getOrThrow()
 
+        // Only include formats that have a URL (direct or via signatureCipher)
+        // This filters out unusable formats without restricting by login type
         val formats = response.streamingData?.adaptiveFormats
-            ?.filter { it.isAudio && it.isOriginal }
+            ?.filter { it.isAudio && it.isOriginal && (it.url != null || it.signatureCipher != null) }
             ?.map { format ->
                 val codec = when {
                     format.mimeType.contains("opus") -> "opus"
