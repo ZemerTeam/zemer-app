@@ -413,8 +413,9 @@ fun AccountSettings(
                     .background(MaterialTheme.colorScheme.surface)
             )
 
-            // Only show sync options for non-anonymous logged in users (use persisted loginMethod, not static flag)
-            if (loginMethod != "anonymous") {
+            // Only show sync options for non-anonymous logged in users
+            // Check both: static flag (immediate effect during session) AND persisted preference (after restart)
+            if (loginMethod != "anonymous" && !YouTube.isAnonLogin) {
                 Spacer(Modifier.height(4.dp))
 
                 SwitchPreference(
