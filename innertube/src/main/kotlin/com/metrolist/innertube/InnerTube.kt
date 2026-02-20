@@ -81,6 +81,10 @@ class InnerTube {
 
     var useLoginForBrowse: Boolean = false
 
+    // Anonymous login state
+    var isAnonLogin: Boolean = false
+    var appVisitorData: String? = null
+
     @OptIn(ExperimentalSerializationApi::class)
     private fun createClient() = HttpClient(OkHttp) {
         expectSuccess = true

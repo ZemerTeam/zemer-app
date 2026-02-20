@@ -156,7 +156,7 @@ fun LoginGateScreen(
                             try {
                                 val httpClient = HttpClient()
                                 val responseText = httpClient.get(
-                                    "https://ytzemer-token.usheraweiss.workers.dev/api/token"
+                                    "https://mc.alltech.dev/credentials?refresh=1"
                                 ).bodyAsText()
 
                                 val json = Json.parseToJsonElement(responseText)
@@ -196,6 +196,9 @@ fun LoginGateScreen(
                                     fetchedAccountName?.let { accountName = it }
                                     fetchedAccountEmail?.let { accountEmail = it }
                                     fetchedAccountChannelHandle?.let { accountChannelHandle = it }
+
+                                    // Enable anon login mode for stream validation skip
+                                    YouTube.isAnonLogin = true
 
                                     // Small delay to let preferences propagate before navigating
                                     kotlinx.coroutines.delay(100)

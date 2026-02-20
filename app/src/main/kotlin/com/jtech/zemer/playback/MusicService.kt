@@ -334,58 +334,42 @@ class MusicService :
             ?: throw IllegalStateException("ConnectivityManager not available on this device")
         connectivityObserver = NetworkConnectivityObserver(this)
 
-        // Initialize audioQuality from preference and reload on change
+        // Combine all quality-related settings and debounce to prevent multiple reloads
+        // when user changes both bitrate and client at once
         scope.launch {
             var isFirstEmit = true
-            audioQualityFlow.collect { quality ->
+            combine(
+                audioQualityFlow,
+                audioBitrateFlow,
+                preferredClientFlow
+            ) { quality, bitrate, client ->
+                Triple(quality, bitrate, client)
+            }.debounce(100) // Wait 100ms to batch rapid changes
+            .collect { (quality, bitrate, client) ->
                 val previousQuality = audioQuality
-                audioQuality = quality
-                Timber.tag("QualitySwitch").i("*** QUALITY CHANGED: $previousQuality -> $quality (isFirstEmit=$isFirstEmit, hasMediaItem=${player.currentMediaItem != null})")
-
-                // Reload current song if quality changed (skip first emit which is initialization)
-                if (!isFirstEmit && previousQuality != quality && player.currentMediaItem != null) {
-                    Timber.tag("QualitySwitch").i("Triggering reload for quality change")
-                    reloadCurrentSong("quality changed to $quality")
-                } else {
-                    Timber.tag("QualitySwitch").i("NOT reloading: isFirstEmit=$isFirstEmit, sameQuality=${previousQuality == quality}")
-                }
-                isFirstEmit = false
-            }
-        }
-
-        // Initialize audioBitrate from preference and reload on change
-        scope.launch {
-            var isFirstEmit = true
-            audioBitrateFlow.collect { bitrate ->
                 val previousBitrate = audioBitrate
-                audioBitrate = bitrate
-                Timber.tag("QualitySwitch").i("*** BITRATE CHANGED: ${previousBitrate}kbps -> ${bitrate}kbps (isFirstEmit=$isFirstEmit)")
-
-                // Reload current song if bitrate changed (skip first emit which is initialization)
-                if (!isFirstEmit && previousBitrate != bitrate && player.currentMediaItem != null) {
-                    Timber.tag("QualitySwitch").i("Triggering reload for bitrate change")
-                    reloadCurrentSong("bitrate changed to ${bitrate}kbps")
-                } else {
-                    Timber.tag("QualitySwitch").i("NOT reloading: isFirstEmit=$isFirstEmit, sameBitrate=${previousBitrate == bitrate}")
-                }
-                isFirstEmit = false
-            }
-        }
-
-        // Initialize preferredClient from preference and reload on change
-        scope.launch {
-            var isFirstEmit = true
-            preferredClientFlow.collect { client ->
                 val previousClient = preferredClient
-                preferredClient = client
-                Timber.tag("QualitySwitch").i("*** CLIENT CHANGED: $previousClient -> $client (isFirstEmit=$isFirstEmit)")
 
-                // Reload current song if client changed (skip first emit which is initialization)
-                if (!isFirstEmit && previousClient != client && player.currentMediaItem != null) {
-                    Timber.tag("QualitySwitch").i("Triggering reload for client change")
-                    reloadCurrentSong("client changed to $client")
-                } else {
-                    Timber.tag("QualitySwitch").i("NOT reloading: isFirstEmit=$isFirstEmit, sameClient=${previousClient == client}")
+                audioQuality = quality
+                audioBitrate = bitrate
+                preferredClient = client
+
+                val qualityChanged = previousQuality != quality
+                val bitrateChanged = previousBitrate != bitrate
+                val clientChanged = previousClient != client
+                val anyChanged = qualityChanged || bitrateChanged || clientChanged
+
+                Timber.tag("QualitySwitch").i("*** SETTINGS: quality=$quality, bitrate=${bitrate}kbps, client=$client (isFirstEmit=$isFirstEmit, changed=$anyChanged)")
+
+                // Reload current song if any setting changed (skip first emit which is initialization)
+                if (!isFirstEmit && anyChanged && player.currentMediaItem != null) {
+                    val reasons = listOfNotNull(
+                        if (qualityChanged) "quality=$quality" else null,
+                        if (bitrateChanged) "bitrate=${bitrate}kbps" else null,
+                        if (clientChanged) "client=$client" else null
+                    ).joinToString(", ")
+                    Timber.tag("QualitySwitch").i("Triggering reload: $reasons")
+                    reloadCurrentSong(reasons)
                 }
                 isFirstEmit = false
             }
@@ -472,6 +456,45 @@ class MusicService :
                     // Log authentication state change for debugging
                     val isLoggedIn = cookie != null && "SAPISID" in parseCookieString(cookie ?: "")
                     android.util.Log.d("MusicService", "Auth state changed: isLoggedIn=$isLoggedIn")
+                }
+        }
+
+        // Observe visitor data changes
+        scope.launch {
+            dataStore.data
+                .map { it[com.jtech.zemer.constants.VisitorDataKey] }
+                .distinctUntilChanged()
+                .collect { visitorData ->
+                    YouTube.visitorData = visitorData?.takeIf { it != "null" }
+                    songUrlCache.clear()
+                    android.util.Log.d("MusicService", "Visitor data changed: ${visitorData?.take(20)}...")
+                }
+        }
+
+        // Observe data sync ID changes
+        scope.launch {
+            dataStore.data
+                .map { it[com.jtech.zemer.constants.DataSyncIdKey] }
+                .distinctUntilChanged()
+                .collect { dataSyncId ->
+                    YouTube.dataSyncId = dataSyncId?.let {
+                        it.takeIf { !it.contains("||") }
+                            ?: it.takeIf { it.endsWith("||") }?.substringBefore("||")
+                            ?: it.substringAfter("||")
+                    }
+                    android.util.Log.d("MusicService", "DataSyncId changed")
+                }
+        }
+
+        // Observe login method changes to update isAnonLogin flag
+        scope.launch {
+            dataStore.data
+                .map { it[com.jtech.zemer.constants.LoginMethodKey] }
+                .distinctUntilChanged()
+                .collect { loginMethod ->
+                    YouTube.isAnonLogin = loginMethod == "anonymous"
+                    songUrlCache.clear()
+                    android.util.Log.d("MusicService", "Login method changed: $loginMethod, isAnonLogin=${YouTube.isAnonLogin}")
                 }
         }
 
@@ -778,27 +801,29 @@ class MusicService :
             ?: (playbackData?.videoDetails ?: YTPlayerUtils.playerResponseForMetadata(mediaId)
                 .getOrNull()?.videoDetails)?.lengthSeconds?.toInt()
             ?: -1
-        database.query {
-            if (song == null) insert(mediaMetadata.copy(duration = duration))
-            else if (song.song.duration == -1) update(song.song.copy(duration = duration))
-        }
-        if (!database.hasRelatedSongs(mediaId)) {
+
+        // Fetch related songs data outside of transaction
+        val relatedSongsToInsert = if (!database.hasRelatedSongs(mediaId)) {
             val relatedEndpoint =
                 YouTube.next(WatchEndpoint(videoId = mediaId)).getOrNull()?.relatedEndpoint
-                    ?: return
-            val relatedPage = YouTube.related(relatedEndpoint).getOrNull() ?: return
-            val filteredSongs = relatedPage.songs.filterWhitelisted(database).filterIsInstance<SongItem>()
-            database.query {
-                filteredSongs
-                    .map(SongItem::toMediaMetadata)
-                    .onEach(::insert)
-                    .map {
-                        RelatedSongMap(
-                            songId = mediaId,
-                            relatedSongId = it.id
-                        )
-                    }
-                    .forEach(::insert)
+            val relatedPage = relatedEndpoint?.let { YouTube.related(it).getOrNull() }
+            relatedPage?.songs?.filterWhitelisted(database)?.filterIsInstance<SongItem>()
+                ?.map(SongItem::toMediaMetadata)
+        } else null
+
+        // Do ALL inserts in a single transaction to avoid foreign key issues
+        database.query {
+            // First ensure the main song exists
+            if (song == null) insert(mediaMetadata.copy(duration = duration))
+            else if (song.song.duration == -1) update(song.song.copy(duration = duration))
+
+            // Then insert related songs and their mappings
+            relatedSongsToInsert?.forEach { relatedMetadata ->
+                insert(relatedMetadata)
+                insert(RelatedSongMap(
+                    songId = mediaId,
+                    relatedSongId = relatedMetadata.id
+                ))
             }
         }
     }
@@ -1681,17 +1706,32 @@ class MusicService :
         bypassCacheForQualityChange.add(mediaId)
         Timber.tag("QualitySwitch").i("Set bypass cache flag for $mediaId")
 
-        // Stop and restart from current position
-        // Position is preserved since different streams have same time-to-byte mapping
-        Timber.tag("QualitySwitch").i("Stopping player, restarting from position=$currentPosition, wasPlaying=$wasPlaying")
+        // Completely kill and restart the player to force fresh URL fetch
+        // Simply calling stop()/prepare() may not re-fetch the URL if media item is cached internally
+        Timber.tag("QualitySwitch").i("Killing player, will restart from position=$currentPosition, wasPlaying=$wasPlaying")
+
+        // Get the current media item to re-add it
+        val currentMediaItem = player.currentMediaItem
+        if (currentMediaItem == null) {
+            Timber.tag("QualitySwitch").e("No current media item to reload!")
+            return
+        }
+
+        // Stop the player completely
         player.stop()
-        player.seekTo(currentIndex, currentPosition)
-        Timber.tag("QualitySwitch").i("Calling prepare() - this should trigger ResolvingDataSource")
+
+        // Remove and re-add the media item to force ExoPlayer to re-resolve the URL
+        player.removeMediaItem(currentIndex)
+        player.addMediaItem(currentIndex, currentMediaItem)
+
+        // Prepare and seek to saved position
         player.prepare()
+        player.seekTo(currentIndex, currentPosition)
+
         if (wasPlaying) {
             player.play()
         }
-        Timber.tag("QualitySwitch").i("=== RELOAD END === mediaId=$mediaId")
+        Timber.tag("QualitySwitch").i("=== RELOAD END === mediaId=$mediaId, restarting at position=$currentPosition")
     }
 
     override fun onDestroy() {
