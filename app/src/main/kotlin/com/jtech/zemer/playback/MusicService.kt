@@ -334,58 +334,42 @@ class MusicService :
             ?: throw IllegalStateException("ConnectivityManager not available on this device")
         connectivityObserver = NetworkConnectivityObserver(this)
 
-        // Initialize audioQuality from preference and reload on change
+        // Combine all quality-related settings and debounce to prevent multiple reloads
+        // when user changes both bitrate and client at once
         scope.launch {
             var isFirstEmit = true
-            audioQualityFlow.collect { quality ->
+            combine(
+                audioQualityFlow,
+                audioBitrateFlow,
+                preferredClientFlow
+            ) { quality, bitrate, client ->
+                Triple(quality, bitrate, client)
+            }.debounce(100) // Wait 100ms to batch rapid changes
+            .collect { (quality, bitrate, client) ->
                 val previousQuality = audioQuality
-                audioQuality = quality
-                Timber.tag("QualitySwitch").i("*** QUALITY CHANGED: $previousQuality -> $quality (isFirstEmit=$isFirstEmit, hasMediaItem=${player.currentMediaItem != null})")
-
-                // Reload current song if quality changed (skip first emit which is initialization)
-                if (!isFirstEmit && previousQuality != quality && player.currentMediaItem != null) {
-                    Timber.tag("QualitySwitch").i("Triggering reload for quality change")
-                    reloadCurrentSong("quality changed to $quality")
-                } else {
-                    Timber.tag("QualitySwitch").i("NOT reloading: isFirstEmit=$isFirstEmit, sameQuality=${previousQuality == quality}")
-                }
-                isFirstEmit = false
-            }
-        }
-
-        // Initialize audioBitrate from preference and reload on change
-        scope.launch {
-            var isFirstEmit = true
-            audioBitrateFlow.collect { bitrate ->
                 val previousBitrate = audioBitrate
-                audioBitrate = bitrate
-                Timber.tag("QualitySwitch").i("*** BITRATE CHANGED: ${previousBitrate}kbps -> ${bitrate}kbps (isFirstEmit=$isFirstEmit)")
-
-                // Reload current song if bitrate changed (skip first emit which is initialization)
-                if (!isFirstEmit && previousBitrate != bitrate && player.currentMediaItem != null) {
-                    Timber.tag("QualitySwitch").i("Triggering reload for bitrate change")
-                    reloadCurrentSong("bitrate changed to ${bitrate}kbps")
-                } else {
-                    Timber.tag("QualitySwitch").i("NOT reloading: isFirstEmit=$isFirstEmit, sameBitrate=${previousBitrate == bitrate}")
-                }
-                isFirstEmit = false
-            }
-        }
-
-        // Initialize preferredClient from preference and reload on change
-        scope.launch {
-            var isFirstEmit = true
-            preferredClientFlow.collect { client ->
                 val previousClient = preferredClient
-                preferredClient = client
-                Timber.tag("QualitySwitch").i("*** CLIENT CHANGED: $previousClient -> $client (isFirstEmit=$isFirstEmit)")
 
-                // Reload current song if client changed (skip first emit which is initialization)
-                if (!isFirstEmit && previousClient != client && player.currentMediaItem != null) {
-                    Timber.tag("QualitySwitch").i("Triggering reload for client change")
-                    reloadCurrentSong("client changed to $client")
-                } else {
-                    Timber.tag("QualitySwitch").i("NOT reloading: isFirstEmit=$isFirstEmit, sameClient=${previousClient == client}")
+                audioQuality = quality
+                audioBitrate = bitrate
+                preferredClient = client
+
+                val qualityChanged = previousQuality != quality
+                val bitrateChanged = previousBitrate != bitrate
+                val clientChanged = previousClient != client
+                val anyChanged = qualityChanged || bitrateChanged || clientChanged
+
+                Timber.tag("QualitySwitch").i("*** SETTINGS: quality=$quality, bitrate=${bitrate}kbps, client=$client (isFirstEmit=$isFirstEmit, changed=$anyChanged)")
+
+                // Reload current song if any setting changed (skip first emit which is initialization)
+                if (!isFirstEmit && anyChanged && player.currentMediaItem != null) {
+                    val reasons = listOfNotNull(
+                        if (qualityChanged) "quality=$quality" else null,
+                        if (bitrateChanged) "bitrate=${bitrate}kbps" else null,
+                        if (clientChanged) "client=$client" else null
+                    ).joinToString(", ")
+                    Timber.tag("QualitySwitch").i("Triggering reload: $reasons")
+                    reloadCurrentSong(reasons)
                 }
                 isFirstEmit = false
             }
