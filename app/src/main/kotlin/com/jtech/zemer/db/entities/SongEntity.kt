@@ -49,6 +49,8 @@ data class SongEntity(
     val isDownloaded: Boolean = false,
     @ColumnInfo(name = "mediaStoreUri", defaultValue = "NULL")
     val mediaStoreUri: String? = null,
+    @ColumnInfo(name = "videoMediaStoreUri", defaultValue = "NULL")
+    val videoMediaStoreUri: String? = null,
     @ColumnInfo(name = "isUploaded", defaultValue = false.toString())
     val isUploaded: Boolean = false,
     @ColumnInfo(name = "isVideo", defaultValue = "0")

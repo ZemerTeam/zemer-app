@@ -525,19 +525,19 @@ interface DatabaseDao {
     fun videos(): Flow<List<Song>>
 
     @Transaction
-    @Query("SELECT * FROM song WHERE isVideo = 1 AND isDownloaded = 1")
+    @Query("SELECT * FROM song WHERE videoMediaStoreUri IS NOT NULL")
     fun downloadedVideos(): Flow<List<Song>>
 
     @Transaction
-    @Query("SELECT * FROM song WHERE isVideo = 1 AND isDownloaded = 1 ORDER BY dateDownload")
+    @Query("SELECT * FROM song WHERE videoMediaStoreUri IS NOT NULL ORDER BY dateDownload")
     fun downloadedVideosByCreateDateAsc(): Flow<List<Song>>
 
     @Transaction
-    @Query("SELECT * FROM song WHERE isVideo = 1 AND isDownloaded = 1 ORDER BY title")
+    @Query("SELECT * FROM song WHERE videoMediaStoreUri IS NOT NULL ORDER BY title")
     fun downloadedVideosByNameAsc(): Flow<List<Song>>
 
     @Transaction
-    @Query("SELECT * FROM song WHERE isVideo = 1 AND isDownloaded = 1 ORDER BY totalPlayTime")
+    @Query("SELECT * FROM song WHERE videoMediaStoreUri IS NOT NULL ORDER BY totalPlayTime")
     fun downloadedVideosByPlayTimeAsc(): Flow<List<Song>>
 
     fun downloadedVideosSorted(
@@ -1065,8 +1065,21 @@ interface DatabaseDao {
     @Query("SELECT * FROM song WHERE isDownloaded = 1 AND isVideo = 0 ORDER BY totalPlayTime")
     fun downloadedSongsByPlayTimeAsc(): Flow<List<Song>>
 
-    @Query("UPDATE song SET isDownloaded = :downloaded, dateDownload = :date WHERE id = :songId")
+    // When audio is downloaded, also set isVideo = false to ensure it appears in downloaded music
+    // (even if a video was downloaded first, this song now has an audio download)
+    @Query("UPDATE song SET isDownloaded = :downloaded, dateDownload = :date, isVideo = CASE WHEN :downloaded = 1 THEN 0 ELSE isVideo END WHERE id = :songId")
     fun updateDownloadedInfo(songId: String, downloaded: Boolean, date: LocalDateTime?)
+
+    @Query("UPDATE song SET isDownloaded = :downloaded, dateDownload = :date, isVideo = :isVideo, mediaStoreUri = :mediaStoreUri WHERE id = :songId")
+    fun updateVideoDownloadInfo(songId: String, downloaded: Boolean, date: LocalDateTime?, isVideo: Boolean, mediaStoreUri: String?)
+
+    // Update only mediaStoreUri without changing isVideo flag (for live performances that can be both audio and video)
+    @Query("UPDATE song SET mediaStoreUri = :mediaStoreUri WHERE id = :songId")
+    fun updateMediaStoreUri(songId: String, mediaStoreUri: String?)
+
+    // Update videoMediaStoreUri for video downloads (separate from audio downloads)
+    @Query("UPDATE song SET videoMediaStoreUri = :videoMediaStoreUri WHERE id = :songId")
+    fun updateVideoMediaStoreUri(songId: String, videoMediaStoreUri: String?)
 
     @Query("UPDATE song SET isVideo = :isVideo WHERE id = :songId")
     fun setIsVideo(songId: String, isVideo: Boolean)

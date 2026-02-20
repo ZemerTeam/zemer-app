@@ -441,6 +441,43 @@ constructor(
     }
 
     /**
+     * Delete a downloaded video and remove it from MediaStore/DB.
+     * This only removes the video download, not the audio download.
+     */
+    suspend fun deleteDownloadedVideo(songId: String) {
+        Timber.tag("DownloadRemoval").i("=== deleteDownloadedVideo START: $songId ===")
+
+        var song = database.song(songId).first()
+        val videoUriString = song?.song?.videoMediaStoreUri
+        Timber.tag("DownloadRemoval").d("[$songId] Video DB state: found=${song != null}, videoUri=$videoUriString")
+
+        // Delete by stored video URI
+        if (videoUriString != null) {
+            Timber.tag("DownloadRemoval").d("[$songId] Deleting video from MediaStore by URI: $videoUriString")
+            val deleteResult = runCatching {
+                mediaStoreHelper.deleteFromMediaStore(Uri.parse(videoUriString))
+            }
+            if (deleteResult.isSuccess) {
+                Timber.tag("DownloadRemoval").i("[$songId] Video MediaStore delete SUCCESS: ${deleteResult.getOrNull()}")
+            } else {
+                Timber.tag("DownloadRemoval").e("[$songId] Video MediaStore delete FAILED: ${deleteResult.exceptionOrNull()?.message}")
+            }
+        } else {
+            Timber.tag("DownloadRemoval").d("[$songId] No video MediaStore URI stored")
+        }
+
+        // Clear only videoMediaStoreUri (keep audio download intact)
+        song?.let {
+            database.query {
+                updateVideoMediaStoreUri(songId, null)
+            }
+            Timber.tag("DownloadRemoval").d("[$songId] Video URI cleared from database")
+        }
+
+        Timber.tag("DownloadRemoval").i("=== deleteDownloadedVideo END: $songId ===")
+    }
+
+    /**
      * Process the download queue
      */
     private suspend fun processQueue() {
@@ -858,19 +895,30 @@ constructor(
     }
 
     /**
-     * Mark a song as downloaded in the database with MediaStore URI
+     * Mark a song as downloaded in the database with MediaStore URI.
+     * For video downloads: Updates videoMediaStoreUri (separate from audio downloads).
+     * For audio downloads: Updates isDownloaded, isVideo=false, and mediaStoreUri.
+     * This allows dual downloads where a song can have both audio AND video files.
      */
     private suspend fun markSongAsDownloaded(song: Song, mediaStoreUri: String) {
         ensureSongPersisted(song)
 
         database.query {
-            database.upsert(
-                song.song.copy(
-                    isDownloaded = true,
-                    dateDownload = LocalDateTime.now(),
-                    mediaStoreUri = mediaStoreUri
+            if (song.song.isVideo) {
+                // Video download: Update videoMediaStoreUri (separate from audio's mediaStoreUri)
+                // This allows a song to have both audio AND video downloads
+                database.updateVideoMediaStoreUri(song.id, mediaStoreUri)
+            } else {
+                // Audio download: Full update with mediaStoreUri
+                database.upsert(
+                    song.song.copy(
+                        isDownloaded = true,
+                        dateDownload = LocalDateTime.now(),
+                        mediaStoreUri = mediaStoreUri,
+                        isVideo = false
+                    )
                 )
-            )
+            }
         }
     }
 

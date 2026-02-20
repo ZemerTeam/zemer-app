@@ -411,6 +411,24 @@ constructor(
         Timber.tag("DownloadRemoval").i("=== REMOVE DOWNLOAD END: $songId ===")
     }
 
+    /**
+     * Remove a video download only (keeps audio download intact).
+     * Used for dual downloads where a song can have both audio and video.
+     */
+    suspend fun removeVideoDownload(songId: String) = withContext(Dispatchers.IO) {
+        Timber.tag("DownloadRemoval").i("=== REMOVE VIDEO DOWNLOAD START: $songId ===")
+
+        // Delete video file from MediaStore and clear videoMediaStoreUri
+        runCatching {
+            mediaStoreDownloadManager.deleteDownloadedVideo(songId)
+            Timber.tag("DownloadRemoval").d("[$songId] Video delete completed")
+        }.onFailure {
+            Timber.tag("DownloadRemoval").e(it, "[$songId] Video delete failed")
+        }
+
+        Timber.tag("DownloadRemoval").i("=== REMOVE VIDEO DOWNLOAD END: $songId ===")
+    }
+
     fun release() {
         scope.cancel()
     }

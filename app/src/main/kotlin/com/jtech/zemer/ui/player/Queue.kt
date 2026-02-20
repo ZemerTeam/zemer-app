@@ -366,6 +366,7 @@ fun Queue(
                                         mediaMetadata = mediaMetadata,
                                         navController = navController,
                                         playerBottomSheetState = playerBottomSheetState,
+                                        isLive = mediaMetadata?.isVideo == true, // Live performances can download both audio and video
                                         onShowDetailsDialog = {
                                             mediaMetadata?.id?.let {
                                                 bottomSheetPageState.show {
@@ -737,6 +738,7 @@ fun Queue(
                                                         navController = navController,
                                                         playerBottomSheetState = playerBottomSheetState,
                                                         isQueueTrigger = true,
+                                                        isLive = window.mediaItem.metadata?.isVideo == true, // Live performances can download both audio and video
                                                         onShowDetailsDialog = {
                                                             window.mediaItem.mediaId.let {
                                                                 bottomSheetPageState.show {
@@ -875,6 +877,7 @@ fun Queue(
                                                     navController = navController,
                                                     playerBottomSheetState = playerBottomSheetState,
                                                     isQueueTrigger = true,
+                                                    isLive = item.metadata?.isVideo == true, // Live performances can download both audio and video
                                                     onShowDetailsDialog = {
                                                         item.mediaId.let {
                                                             bottomSheetPageState.show {

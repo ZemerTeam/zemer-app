@@ -1073,6 +1073,7 @@ fun BottomSheetPlayer(
                                         mediaMetadata = mediaMetadata,
                                         navController = navController,
                                         playerBottomSheetState = state,
+                                        isLive = mediaMetadata.isVideo, // Live performances can download both audio and video
                                         onShowDetailsDialog = {
                                             mediaMetadata.id.let {
                                                 bottomSheetPageState.show {

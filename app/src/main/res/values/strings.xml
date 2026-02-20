@@ -111,8 +111,8 @@
 
     <!-- MediaStore downloads -->
     <string name="download_to_device">Download</string>
-    <string name="download_video_to_device">Download Video</string>
     <string name="download_song">Download Song</string>
+    <string name="download_video_to_device">Download Video</string>
     <string name="downloading_to_device">Downloading</string>
     <string name="downloaded_to_device">Downloaded</string>
     <string name="download_failed">Download failed</string>

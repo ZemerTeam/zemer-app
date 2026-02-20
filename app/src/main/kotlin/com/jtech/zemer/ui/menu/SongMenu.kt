@@ -147,7 +147,7 @@ fun SongMenu(
             } else {
                 downloadUtil.downloadToMediaStore(song)
             }
-            // Don't dismiss - keep menu open to show download progress
+            onDismiss()
         } else {
             // Permissions denied - show error message
             android.widget.Toast.makeText(
@@ -671,9 +671,15 @@ fun SongMenu(
                 )
             }
         }
-        item {
-            when (mediaStoreDownload?.status) {
-                com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> {
+        // Download section - for live performances (isLive=true), show both song and video download options
+        if (isLive) {
+            // Live performance - check audio download status
+            val hasAudioDownload = song.song.isDownloaded && song.song.mediaStoreUri != null
+            val hasVideoDownload = song.song.videoMediaStoreUri != null
+
+            // Show "Download Song" option (audio)
+            item {
+                if (hasAudioDownload) {
                     ListItem(
                         headlineContent = {
                             Text(
@@ -688,118 +694,94 @@ fun SongMenu(
                             )
                         },
                         modifier = Modifier.clickable {
-                            // TODO: Option to remove from MediaStore
-                            onDismiss()
+                            // Remove audio download
+                            coroutineScope.launch {
+                                downloadUtil.removeDownload(song.id)
+                            }
                         }
                     )
-                }
-                com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING,
-                com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED -> {
-                    val downloadState = mediaStoreDownload!!
+                } else {
                     ListItem(
-                        headlineContent = {
-                            Text(text = stringResource(R.string.downloading_to_device))
-                        },
-                        supportingContent = {
-                            Text(text = "${(downloadState.progress * 100).toInt()}%")
-                        },
-                        leadingContent = {
-                            CircularProgressIndicator(
-                                progress = { downloadState.progress },
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            downloadUtil.cancelMediaStoreDownload(song.id)
-                            onDismiss()
-                        }
-                    )
-                }
-                com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.FAILED -> {
-                    val downloadState = mediaStoreDownload!!
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                text = stringResource(R.string.download_failed),
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        },
-                        supportingContent = {
-                            Text(text = downloadState.error ?: "Unknown error")
-                        },
+                        headlineContent = { Text(text = stringResource(R.string.download_song)) },
                         leadingContent = {
                             Icon(
-                                painter = painterResource(R.drawable.info),
+                                painter = painterResource(R.drawable.download),
                                 contentDescription = null,
                             )
                         },
                         modifier = Modifier.clickable {
-                            downloadUtil.retryMediaStoreDownload(song.id)
-                            onDismiss()
+                            pendingVideoDownload = false
+                            if (PermissionHelper.hasMediaStoreWritePermission(context)) {
+                                downloadUtil.downloadToMediaStore(song)
+                                // Don't dismiss - keep menu open
+                            } else {
+                                val permissions = PermissionHelper.getRequiredWritePermissions()
+                                permissionLauncher.launch(permissions)
+                            }
                         }
                     )
                 }
-                else -> {
-                    // Check if this is a video - if so, offer video download (unless videos are blocked)
-                    val isVideo = song.song.isVideo
+            }
 
-                    // Skip showing download option for videos when blocked
-                    if (isVideo && blockVideos) {
-                        null
-                    } else if (isLive && !blockVideos) {
-                        // For live performances, show both song and video download options
-                        Column {
-                            // Download as song option
-                            ListItem(
-                                headlineContent = {
-                                    Text(text = stringResource(R.string.download_song))
-                                },
-                                leadingContent = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.download),
-                                        contentDescription = null,
-                                    )
-                                },
-                                modifier = Modifier.clickable {
-                                    pendingVideoDownload = false
-                                    if (PermissionHelper.hasMediaStoreWritePermission(context)) {
-                                        downloadUtil.downloadToMediaStore(song)
-                                        // Don't dismiss - keep menu open to show download progress
-                                    } else {
-                                        permissionLauncher.launch(PermissionHelper.getRequiredWritePermissions())
-                                    }
-                                }
-                            )
-                            // Download as video option
-                            ListItem(
-                                headlineContent = {
-                                    Text(text = stringResource(R.string.download_video_to_device))
-                                },
-                                leadingContent = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.slow_motion_video),
-                                        contentDescription = null,
-                                    )
-                                },
-                                modifier = Modifier.clickable {
-                                    pendingVideoDownload = true
-                                    if (PermissionHelper.hasMediaStoreWritePermission(context)) {
-                                        downloadUtil.downloadVideoToMediaStore(song)
-                                        // Don't dismiss - keep menu open to show download progress
-                                    } else {
-                                        permissionLauncher.launch(PermissionHelper.getRequiredWritePermissions())
-                                    }
-                                }
-                            )
-                        }
-                    } else {
+            // Show "Download Video" option (video) - unless videos are blocked
+            if (!blockVideos) {
+                item {
+                    if (hasVideoDownload) {
                         ListItem(
                             headlineContent = {
-                                Text(text = if (isVideo)
-                                    stringResource(R.string.download_video_to_device)
-                                else
-                                    stringResource(R.string.download_to_device))
+                                Text(
+                                    text = stringResource(R.string.downloaded_to_device),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            supportingContent = { Text("Video") },
+                            leadingContent = {
+                                Icon(
+                                    painter = painterResource(R.drawable.slow_motion_video),
+                                    contentDescription = null,
+                                )
+                            },
+                            modifier = Modifier.clickable {
+                                // Remove video download
+                                coroutineScope.launch {
+                                    downloadUtil.removeVideoDownload(song.id)
+                                }
+                            }
+                        )
+                    } else {
+                        ListItem(
+                            headlineContent = { Text(text = stringResource(R.string.download_video_to_device)) },
+                            leadingContent = {
+                                Icon(
+                                    painter = painterResource(R.drawable.slow_motion_video),
+                                    contentDescription = null,
+                                )
+                            },
+                            modifier = Modifier.clickable {
+                                pendingVideoDownload = true
+                                if (PermissionHelper.hasMediaStoreWritePermission(context)) {
+                                    downloadUtil.downloadVideoToMediaStore(song)
+                                    // Don't dismiss - keep menu open
+                                } else {
+                                    val permissions = PermissionHelper.getRequiredWritePermissions()
+                                    permissionLauncher.launch(permissions)
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        } else {
+            // Standard download - single option based on content type
+            item {
+                when (mediaStoreDownload?.status) {
+                    com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> {
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    text = stringResource(R.string.downloaded_to_device),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             },
                             leadingContent = {
                                 Icon(
@@ -808,21 +790,96 @@ fun SongMenu(
                                 )
                             },
                             modifier = Modifier.clickable {
-                                // Track the user's download choice for permission callback
-                                pendingVideoDownload = isVideo
-                                if (PermissionHelper.hasMediaStoreWritePermission(context)) {
-                                    if (isVideo) {
-                                        downloadUtil.downloadVideoToMediaStore(song)
-                                    } else {
-                                        downloadUtil.downloadToMediaStore(song)
-                                    }
-                                    // Don't dismiss - keep menu open to show download progress
-                                } else {
-                                    val permissions = PermissionHelper.getRequiredWritePermissions()
-                                    permissionLauncher.launch(permissions)
+                                // Remove download
+                                coroutineScope.launch {
+                                    downloadUtil.removeDownload(song.id)
                                 }
                             }
                         )
+                    }
+                    com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING,
+                    com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED -> {
+                        val downloadState = mediaStoreDownload!!
+                        ListItem(
+                            headlineContent = {
+                                Text(text = stringResource(R.string.downloading_to_device))
+                            },
+                            supportingContent = {
+                                Text(text = "${(downloadState.progress * 100).toInt()}%")
+                            },
+                            leadingContent = {
+                                CircularProgressIndicator(
+                                    progress = { downloadState.progress },
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            },
+                            modifier = Modifier.clickable {
+                                downloadUtil.cancelMediaStoreDownload(song.id)
+                            }
+                        )
+                    }
+                    com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.FAILED -> {
+                        val downloadState = mediaStoreDownload!!
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    text = stringResource(R.string.download_failed),
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            },
+                            supportingContent = {
+                                Text(text = downloadState.error ?: "Unknown error")
+                            },
+                            leadingContent = {
+                                Icon(
+                                    painter = painterResource(R.drawable.info),
+                                    contentDescription = null,
+                                )
+                            },
+                            modifier = Modifier.clickable {
+                                downloadUtil.retryMediaStoreDownload(song.id)
+                            }
+                        )
+                    }
+                    else -> {
+                        // Check if this is a video - if so, offer video download (unless videos are blocked)
+                        val isVideo = song.song.isVideo
+
+                        // Skip showing download option for videos when blocked
+                        if (isVideo && blockVideos) {
+                            null
+                        } else {
+                            ListItem(
+                                headlineContent = {
+                                    Text(text = if (isVideo)
+                                        stringResource(R.string.download_video_to_device)
+                                    else
+                                        stringResource(R.string.download_to_device))
+                                },
+                                leadingContent = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.download),
+                                        contentDescription = null,
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    // Track the user's download choice for permission callback
+                                    pendingVideoDownload = isVideo
+                                    if (PermissionHelper.hasMediaStoreWritePermission(context)) {
+                                        if (isVideo) {
+                                            downloadUtil.downloadVideoToMediaStore(song)
+                                        } else {
+                                            downloadUtil.downloadToMediaStore(song)
+                                        }
+                                        // Don't dismiss - keep menu open
+                                    } else {
+                                        val permissions = PermissionHelper.getRequiredWritePermissions()
+                                        permissionLauncher.launch(permissions)
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }

@@ -90,6 +90,7 @@ fun PlayerMenu(
     navController: NavController,
     playerBottomSheetState: BottomSheetState,
     isQueueTrigger: Boolean? = false,
+    isLive: Boolean = false, // For live performances, show both song and video download options
     onShowDetailsDialog: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -457,6 +458,9 @@ fun PlayerMenu(
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
+    // Live performance support - query song state for dual download tracking
+    val librarySong by database.song(mediaMetadata.id).collectAsState(initial = null)
+
     LazyColumn(
         userScrollEnabled = !isPortrait,
         contentPadding = PaddingValues(
@@ -573,20 +577,24 @@ fun PlayerMenu(
                 )
             }
         }
-        item {
-            when (mediaStoreDownload?.status) {
-                MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> {
-                    // Show "Remove Download" option
+        // Download section - for live performances (isLive=true), show both song and video download options
+        if (isLive) {
+            val hasAudioDownload = librarySong?.song?.isDownloaded == true && librarySong?.song?.mediaStoreUri != null
+            val hasVideoDownload = librarySong?.song?.videoMediaStoreUri != null
+
+            // Show "Download Song" option (audio)
+            item {
+                if (hasAudioDownload) {
                     ListItem(
                         headlineContent = {
                             Text(
-                                text = stringResource(R.string.remove_download),
-                                color = MaterialTheme.colorScheme.error
+                                text = stringResource(R.string.downloaded_to_device),
+                                color = MaterialTheme.colorScheme.primary
                             )
                         },
                         leadingContent = {
                             Icon(
-                                painter = painterResource(R.drawable.offline),
+                                painter = painterResource(R.drawable.download),
                                 contentDescription = null,
                             )
                         },
@@ -597,96 +605,197 @@ fun PlayerMenu(
                             }
                         }
                     )
-                }
-
-                MediaStoreDownloadManager.DownloadState.Status.QUEUED,
-                MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING -> {
-                    val progress = mediaStoreDownload?.progress ?: 0f
+                } else {
                     ListItem(
-                        headlineContent = { Text(text = stringResource(R.string.downloading)) },
-                        supportingContent = { Text(text = "${(progress * 100).toInt()}%") },
+                        headlineContent = { Text(text = stringResource(R.string.download_song)) },
                         leadingContent = {
-                            CircularProgressIndicator(
-                                progress = { progress.coerceIn(0f, 1f) },
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
+                            Icon(
+                                painter = painterResource(R.drawable.download),
+                                contentDescription = null,
+                            )
+                        },
+                        modifier = Modifier.clickable {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                database.transaction {
+                                    insert(mediaMetadata)
+                                }
+                                val song = database.song(mediaMetadata.id).first()
+                                song?.let {
+                                    downloadUtil.downloadToMediaStore(it)
+                                }
+                            }
+                            // Don't dismiss - keep menu open
+                        }
+                    )
+                }
+            }
+
+            // Show "Download Video" option
+            item {
+                if (hasVideoDownload) {
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                text = stringResource(R.string.downloaded_to_device),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        supportingContent = { Text("Video") },
+                        leadingContent = {
+                            Icon(
+                                painter = painterResource(R.drawable.slow_motion_video),
+                                contentDescription = null,
                             )
                         },
                         modifier = Modifier.clickable {
                             coroutineScope.launch {
-                                downloadUtil.cancelMediaStoreDownload(mediaMetadata.id)
+                                downloadUtil.removeVideoDownload(mediaMetadata.id)
+                                Toast.makeText(context, context.getString(R.string.download_removed), Toast.LENGTH_SHORT).show()
                             }
                         }
                     )
+                } else {
+                    ListItem(
+                        headlineContent = { Text(text = stringResource(R.string.download_video_to_device)) },
+                        leadingContent = {
+                            Icon(
+                                painter = painterResource(R.drawable.slow_motion_video),
+                                contentDescription = null,
+                            )
+                        },
+                        modifier = Modifier.clickable {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                database.transaction {
+                                    insert(mediaMetadata)
+                                }
+                                val song = database.song(mediaMetadata.id).first()
+                                song?.let {
+                                    downloadUtil.downloadVideoToMediaStore(it)
+                                }
+                            }
+                            // Don't dismiss - keep menu open
+                        }
+                    )
                 }
-
-                MediaStoreDownloadManager.DownloadState.Status.FAILED,
-                MediaStoreDownloadManager.DownloadState.Status.CANCELLED,
-                null -> {
-                    when (download?.state) {
-                        Download.STATE_COMPLETED -> {
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        text = stringResource(R.string.remove_download),
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                },
-                                leadingContent = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.offline),
-                                        contentDescription = null,
-                                    )
-                                },
-                                modifier = Modifier.clickable {
-                                    coroutineScope.launch {
-                                        downloadUtil.removeDownload(mediaMetadata.id)
-                                        Toast.makeText(context, context.getString(R.string.download_removed), Toast.LENGTH_SHORT).show()
-                                    }
+            }
+        } else {
+            // Standard download section - single option based on content type
+            item {
+                when (mediaStoreDownload?.status) {
+                    MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> {
+                        // Show "Remove Download" option
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    text = stringResource(R.string.remove_download),
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    painter = painterResource(R.drawable.offline),
+                                    contentDescription = null,
+                                )
+                            },
+                            modifier = Modifier.clickable {
+                                coroutineScope.launch {
+                                    downloadUtil.removeDownload(mediaMetadata.id)
+                                    Toast.makeText(context, context.getString(R.string.download_removed), Toast.LENGTH_SHORT).show()
                                 }
-                            )
-                        }
+                            }
+                        )
+                    }
 
-                        Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
-                            ListItem(
-                                headlineContent = { Text(text = stringResource(R.string.downloading)) },
-                                leadingContent = {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(24.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                },
-                                modifier = Modifier.clickable {
-                                    coroutineScope.launch {
-                                        downloadUtil.removeDownload(mediaMetadata.id)
-                                        Toast.makeText(context, context.getString(R.string.download_removed), Toast.LENGTH_SHORT).show()
-                                    }
+                    MediaStoreDownloadManager.DownloadState.Status.QUEUED,
+                    MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING -> {
+                        val progress = mediaStoreDownload?.progress ?: 0f
+                        ListItem(
+                            headlineContent = { Text(text = stringResource(R.string.downloading)) },
+                            supportingContent = { Text(text = "${(progress * 100).toInt()}%") },
+                            leadingContent = {
+                                CircularProgressIndicator(
+                                    progress = { progress.coerceIn(0f, 1f) },
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            },
+                            modifier = Modifier.clickable {
+                                coroutineScope.launch {
+                                    downloadUtil.cancelMediaStoreDownload(mediaMetadata.id)
                                 }
-                            )
-                        }
+                            }
+                        )
+                    }
 
-                        else -> {
-                            // Quick download with current quality settings
-                            ListItem(
-                                headlineContent = { Text(text = stringResource(R.string.action_download)) },
-                                leadingContent = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.download),
-                                        contentDescription = null,
-                                    )
-                                },
-                                modifier = Modifier.clickable {
-                                    coroutineScope.launch(Dispatchers.IO) {
-                                        database.transaction {
-                                            insert(mediaMetadata)
+                    MediaStoreDownloadManager.DownloadState.Status.FAILED,
+                    MediaStoreDownloadManager.DownloadState.Status.CANCELLED,
+                    null -> {
+                        when (download?.state) {
+                            Download.STATE_COMPLETED -> {
+                                ListItem(
+                                    headlineContent = {
+                                        Text(
+                                            text = stringResource(R.string.remove_download),
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    },
+                                    leadingContent = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.offline),
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    modifier = Modifier.clickable {
+                                        coroutineScope.launch {
+                                            downloadUtil.removeDownload(mediaMetadata.id)
+                                            Toast.makeText(context, context.getString(R.string.download_removed), Toast.LENGTH_SHORT).show()
                                         }
-                                        val song = database.song(mediaMetadata.id).first()
-                                        song?.let {
-                                            downloadUtil.downloadToMediaStore(it)
+                                    }
+                                )
+                            }
+
+                            Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
+                                ListItem(
+                                    headlineContent = { Text(text = stringResource(R.string.downloading)) },
+                                    leadingContent = {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    },
+                                    modifier = Modifier.clickable {
+                                        coroutineScope.launch {
+                                            downloadUtil.removeDownload(mediaMetadata.id)
+                                            Toast.makeText(context, context.getString(R.string.download_removed), Toast.LENGTH_SHORT).show()
                                         }
                                     }
-                                }
-                            )
+                                )
+                            }
+
+                            else -> {
+                                // Quick download with current quality settings
+                                ListItem(
+                                    headlineContent = { Text(text = stringResource(R.string.action_download)) },
+                                    leadingContent = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.download),
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    modifier = Modifier.clickable {
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            database.transaction {
+                                                insert(mediaMetadata)
+                                            }
+                                            val song = database.song(mediaMetadata.id).first()
+                                            song?.let {
+                                                downloadUtil.downloadToMediaStore(it)
+                                            }
+                                        }
+                                        // Don't dismiss - keep menu open
+                                    }
+                                )
+                            }
                         }
                     }
                 }
