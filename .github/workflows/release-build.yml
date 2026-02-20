@@ -2,6 +2,23 @@ name: Android Release Build
 
 on:
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'quick'
+        type: choice
+        options:
+          - quick
+          - production
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DISABLE_LTO: ${{ github.event.inputs.build_type != 'production' }}
+  USE_PREBUILT_NATIVE: true
 
 jobs:
   assemble-release:
@@ -23,14 +40,12 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Cache NDK/CMake outputs
-        uses: actions/cache@v4
-        with:
-          path: |
-            app/.cxx
-            ~/.cmake
-          key: ndk-${{ runner.os }}-${{ hashFiles('app/src/main/cpp/**') }}
-          restore-keys: ndk-${{ runner.os }}-
+      - name: Download prebuilt native libs
+        run: |
+          gh release download v1.0.0 --repo ZemerTeam/zemer-bento4 --pattern 'bento4-libs.zip'
+          unzip bento4-libs.zip -d app/src/main
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Configure Android SDK path
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties

@@ -138,14 +138,16 @@ android {
     //     }
     // }
 
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
+    // Skip native build when using prebuilt libs (CI sets USE_PREBUILT_NATIVE=true)
+    if (System.getenv("USE_PREBUILT_NATIVE") != "true") {
+        externalNativeBuild {
+            cmake {
+                path = file("src/main/cpp/CMakeLists.txt")
+                version = "3.22.1"
+            }
         }
+        ndkVersion = "27.0.12077973"
     }
-
-    ndkVersion = "27.0.12077973"
 
     packaging {
         jniLibs {

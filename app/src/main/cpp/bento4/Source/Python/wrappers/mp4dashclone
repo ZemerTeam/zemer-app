@@ -1,3 +1,0 @@
-#! /bin/bash
-BASEDIR=$(dirname $0)
-exec python3 "$BASEDIR/../utils/mp4-dash-clone.py" "$@"
