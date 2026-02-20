@@ -1,13 +1,16 @@
-name: Android Release Build
+name: PR Debug Build
 
 on:
-  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+
+env:
+  # Disable LTO for faster CI builds
+  DISABLE_LTO: true
 
 jobs:
-  assemble-release:
+  build-debug:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout repository
@@ -29,8 +32,8 @@ jobs:
           path: |
             app/.cxx
             ~/.cmake
-          key: ndk-${{ runner.os }}-${{ hashFiles('app/src/main/cpp/**') }}
-          restore-keys: ndk-${{ runner.os }}-
+          key: ndk-debug-${{ runner.os }}-${{ hashFiles('app/src/main/cpp/**') }}
+          restore-keys: ndk-debug-${{ runner.os }}-
 
       - name: Configure Android SDK path
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
@@ -38,25 +41,14 @@ jobs:
       - name: Configure Firebase
         run: echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d > app/google-services.json
 
-      - name: Configure release keystore
-        run: |
-          mkdir -p app/keystore
-          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > app/keystore/release.keystore
-
-          {
-            echo "STORE_PASSWORD=${{ secrets.STORE_PASSWORD }}"
-            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"
-            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}"
-          } >> "$GITHUB_ENV"
-
       - name: Make Gradle executable
         run: chmod +x gradlew
 
-      - name: Assemble signed release
-        run: ./gradlew --no-daemon --parallel --build-cache assembleRelease
+      - name: Assemble debug build
+        run: ./gradlew --no-daemon --parallel --build-cache assembleDebug
 
-      - name: Upload APK artifact
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
-          path: app/build/outputs/apk/release/*.apk
+          name: debug-apk
+          path: app/build/outputs/apk/debug/*.apk
