@@ -202,6 +202,12 @@ class App : Application(), SingletonImageLoader.Factory {
 
         // Migration: Detect login method for existing users who don't have it set
         val loginMethod = settings[LoginMethodKey]
+
+        // Restore isAnonLogin flag from persisted login method
+        if (loginMethod == "anonymous") {
+            YouTube.isAnonLogin = true
+        }
+
         val userCookie = settings[InnerTubeCookieKey]
         if (loginMethod.isNullOrEmpty() && !userCookie.isNullOrEmpty() && "SAPISID" in parseCookieString(userCookie)) {
             // User is logged in but doesn't have login method set - detect by comparing with anonymous token
@@ -432,6 +438,7 @@ class App : Application(), SingletonImageLoader.Factory {
             YouTube.cookie = null
             YouTube.visitorData = null
             YouTube.dataSyncId = null
+            YouTube.isAnonLogin = false
 
             Log.d("App", "Account forgotten - cookies cleared for new account login")
         }
