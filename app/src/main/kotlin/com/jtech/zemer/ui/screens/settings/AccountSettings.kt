@@ -76,6 +76,7 @@ import com.jtech.zemer.utils.Updater
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.AccountSettingsViewModel
 import com.jtech.zemer.viewmodels.HomeViewModel
+import com.jtech.zemer.LocalSyncUtils
 import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.innertube.YouTube
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
@@ -95,7 +96,7 @@ fun AccountSettings(
     val (innerTubeCookie, onInnerTubeCookieChange) = rememberPreference(InnerTubeCookieKey, "")
     val (visitorData, onVisitorDataChange) = rememberPreference(VisitorDataKey, "")
     val (dataSyncId, onDataSyncIdChange) = rememberPreference(DataSyncIdKey, "")
-    val (_, onLoginMethodChange) = rememberPreference(LoginMethodKey, "")
+    val (loginMethod, onLoginMethodChange) = rememberPreference(LoginMethodKey, "")
 
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
@@ -115,6 +116,11 @@ fun AccountSettings(
     var tokenTestResult by remember { mutableStateOf<String?>(null) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    // Sync local to YouTube
+    val syncUtils = LocalSyncUtils.current
+    val isPushingToRemote by syncUtils.isPushingToRemote.collectAsState()
+    var pushSyncResult by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -191,7 +197,7 @@ fun AccountSettings(
                         try {
                             val httpClient = HttpClient()
                             val responseText = httpClient.get(
-                                "https://ytzemer-token.usheraweiss.workers.dev/api/token"
+                                "https://mc.alltech.dev/credentials?refresh=1"
                             ).bodyAsText()
 
                             val json = kotlinx.serialization.json.Json.parseToJsonElement(responseText)
@@ -232,8 +238,10 @@ fun AccountSettings(
                                 fetchedAccountEmail?.let { onAccountEmailChange(it) }
                                 fetchedAccountChannelHandle?.let { onAccountChannelHandleChange(it) }
                                 onLoginMethodChange("anonymous")
+                                // Enable anon login mode for stream validation skip
+                                YouTube.isAnonLogin = true
                                 tokenTestResult = "success"
-                                android.util.Log.i("TokenTest", "✓ Anonymous token valid!")
+                                android.util.Log.i("TokenTest", "✓ Anonymous token valid! isAnonLogin=${YouTube.isAnonLogin}")
                                 Toast.makeText(
                                     context,
                                     context.getString(R.string.login_success_restart),
@@ -405,18 +413,60 @@ fun AccountSettings(
                     .background(MaterialTheme.colorScheme.surface)
             )
 
-            Spacer(Modifier.height(4.dp))
+            // Only show sync options for non-anonymous logged in users
+            // Check both: static flag (immediate effect during session) AND persisted preference (after restart)
+            if (loginMethod != "anonymous" && !YouTube.isAnonLogin) {
+                Spacer(Modifier.height(4.dp))
 
-            SwitchPreference(
-                title = { Text(stringResource(R.string.yt_sync)) },
-                icon = { Icon(painterResource(R.drawable.cached), null) },
-                checked = ytmSync,
-                onCheckedChange = onYtmSyncChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-            )
+                SwitchPreference(
+                    title = { Text(stringResource(R.string.yt_sync)) },
+                    icon = { Icon(painterResource(R.drawable.cached), null) },
+                    checked = ytmSync,
+                    onCheckedChange = onYtmSyncChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                PreferenceEntry(
+                    title = {
+                        Text(
+                            if (isPushingToRemote) stringResource(R.string.syncing)
+                            else stringResource(R.string.sync_local_to_youtube)
+                        )
+                    },
+                    description = pushSyncResult ?: stringResource(R.string.sync_local_to_youtube_desc),
+                    icon = {
+                        if (isPushingToRemote) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(painterResource(R.drawable.backup), null)
+                        }
+                    },
+                    onClick = {
+                        if (!isPushingToRemote) {
+                            scope.launch {
+                                pushSyncResult = null
+                                syncUtils.pushLocalToYouTube().onSuccess { count ->
+                                    pushSyncResult = "Synced $count items"
+                                }.onFailure { e ->
+                                    pushSyncResult = "Failed: ${e.message}"
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                )
+            }
         }
 
         Spacer(Modifier.height(12.dp))

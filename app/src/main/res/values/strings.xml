@@ -561,4 +561,9 @@
     <string name="widget_name">Zemer Music</string>
     <string name="widget_description">Control your music playback</string>
     <string name="widget_tap_to_open">Tap to open</string>
+
+    <!-- Sync local to YouTube -->
+    <string name="sync_local_to_youtube">Sync local library to YouTube</string>
+    <string name="sync_local_to_youtube_desc">For users who were previously logged in anonymously</string>
+    <string name="syncing">Syncing…</string>
 </resources>

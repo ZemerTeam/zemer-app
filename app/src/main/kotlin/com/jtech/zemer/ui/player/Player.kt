@@ -225,6 +225,7 @@ fun BottomSheetPlayer(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
+    val currentFormat by playerConnection.currentFormat.collectAsState(initial = null)
     val automix by playerConnection.service.automixItems.collectAsState()
     val repeatMode by playerConnection.repeatMode.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
@@ -351,13 +352,13 @@ fun BottomSheetPlayer(
     val loginMethod by remember {
         context.dataStore.data.map { it[LoginMethodKey] ?: "" }
     }.collectAsState(initial = "")
-    // Google login: all clients, Anonymous: only VR
-    val availableClients = if (loginMethod == "anonymous") {
-        listOf(PreferredClient.AUTO, PreferredClient.ANDROID_VR)
-    } else {
-        // "google" or empty (legacy users default to full access)
-        listOf(PreferredClient.AUTO, PreferredClient.WEB_REMIX, PreferredClient.TVHTML5, PreferredClient.ANDROID_VR)
-    }
+    // All clients available for both Google and Anonymous login
+    val availableClients = listOf(
+        PreferredClient.AUTO,
+        PreferredClient.WEB_REMIX,
+        PreferredClient.TVHTML5,
+        PreferredClient.ANDROID_VR
+    )
     val (audioBitrate, onAudioBitrateChange) = rememberPreference(AudioBitrateKey, defaultValue = 0)
     val (preferredClient, onPreferredClientChange) = rememberEnumPreference(PreferredClientKey, defaultValue = PreferredClient.AUTO)
     val qualityCoroutineScope = rememberCoroutineScope()
@@ -474,9 +475,17 @@ fun BottomSheetPlayer(
                         )
                     }
 
-                    // Format options
+                    // Format options - show what's actually playing based on currentFormat
+                    // Convert current format bitrate from bps to kbps for comparison
+                    val actualPlayingBitrateKbps = currentFormat?.bitrate?.div(1000) ?: 0
+                    // Find the closest matching format to avoid selecting multiple
+                    val closestFormat = if (actualPlayingBitrateKbps > 0 && availableFormats.isNotEmpty()) {
+                        availableFormats.minByOrNull { kotlin.math.abs(it.bitrateKbps - actualPlayingBitrateKbps) }
+                    } else null
                     if (availableFormats.isNotEmpty()) {
                         availableFormats.forEach { format ->
+                            // Only select the single closest matching format
+                            val isActuallyPlaying = format == closestFormat
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -488,7 +497,7 @@ fun BottomSheetPlayer(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
-                                    selected = audioBitrate == format.bitrateKbps,
+                                    selected = isActuallyPlaying,
                                     onClick = {
                                         onAudioBitrateChange(format.bitrateKbps)
                                         showQualityDialog = false
@@ -538,6 +547,7 @@ fun BottomSheetPlayer(
                                     onPreferredClientChange(client)
                                     val videoId = mediaMetadata?.id
                                     if (videoId != null) {
+                                        availableFormats = emptyList() // Clear to show loading indicator
                                         isLoadingFormats = true
                                         qualityCoroutineScope.launch {
                                             val result = withContext(Dispatchers.IO) {
@@ -563,6 +573,7 @@ fun BottomSheetPlayer(
                                     onPreferredClientChange(client)
                                     val videoId = mediaMetadata?.id
                                     if (videoId != null) {
+                                        availableFormats = emptyList() // Clear to show loading indicator
                                         isLoadingFormats = true
                                         qualityCoroutineScope.launch {
                                             val result = withContext(Dispatchers.IO) {
@@ -1003,8 +1014,10 @@ fun BottomSheetPlayer(
                                     color = iconButtonColor
                                 )
                             } else {
+                                // Show actual playing bitrate, not just the preference
+                                val actualBitrateKbps = currentFormat?.bitrate?.div(1000) ?: 0
                                 Text(
-                                    text = if (audioBitrate > 0) "${audioBitrate}k" else stringResource(R.string.audio_quality),
+                                    text = if (actualBitrateKbps > 0) "${actualBitrateKbps}k" else stringResource(R.string.audio_quality),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = iconButtonColor
                                 )
