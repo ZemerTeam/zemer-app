@@ -4,7 +4,9 @@ import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.ArtistWhitelistEntity
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
 import timber.log.Timber
@@ -161,6 +163,10 @@ suspend fun List<YTItem>.filterWhitelisted(
         runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
         allowedEntries = WhitelistCache.allowedEntries(config)
     }
+    // Also ensure podcast whitelist cache is loaded for filtering podcasts/episodes
+    if (PodcastWhitelistCache.isEmpty()) {
+        runCatching { PodcastWhitelistCache.updateAll(database.getPodcastWhitelistEntriesSync()) }
+    }
     val allowedIds: Set<String>? = allowedEntries.takeIf { it.isNotEmpty() }?.map { it.artistId }?.toSet()
     val artistCache = mutableMapOf<String, ArtistWhitelistEntity?>()
     val filtered = mutableListOf<Pair<YTItem, Boolean>>()
@@ -192,6 +198,19 @@ suspend fun List<YTItem>.filterWhitelisted(
             }
             is PlaylistItem -> item.isWhitelisted(database, allowedIds, artistCache, config).also {
                 Timber.d("WhitelistFilter: PlaylistItem '${item.title}' - allowed=${it.allowed}")
+            }
+            // Podcasts are filtered by PodcastWhitelistCache, not artist whitelist
+            is PodcastItem -> {
+                val allowed = PodcastWhitelistCache.isAllowed(item.id)
+                Timber.d("WhitelistFilter: PodcastItem '${item.title}' (${item.id}) - allowed=$allowed")
+                ArtistFilterDecision(allowed = allowed, isChasidish = false)
+            }
+            is EpisodeItem -> {
+                // Episodes are allowed if their podcast is whitelisted
+                val podcastId = item.podcast?.id
+                val allowed = podcastId != null && PodcastWhitelistCache.isAllowed(podcastId)
+                Timber.d("WhitelistFilter: EpisodeItem '${item.title}' (podcast: $podcastId) - allowed=$allowed")
+                ArtistFilterDecision(allowed = allowed, isChasidish = false)
             }
         }
         if (decision.allowed) {

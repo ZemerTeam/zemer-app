@@ -131,6 +131,9 @@ fun YouTubeSongMenu(
             }
         }
     }
+    // Check if this is a podcast episode
+    val isEpisode = remember { song.isEpisode }
+    val isPodcast = remember { song.album?.id?.startsWith("MPSP") == true }
 
     if (showReportDialog) {
         val reasons = listOf(
@@ -338,30 +341,87 @@ fun YouTubeSongMenu(
                 )
             }
         },
-        trailingContent = {  
-            IconButton(  
-                onClick = {  
-                    database.transaction {  
-                        librarySong.let { librarySong ->  
-                            val s: SongEntity  
-                            if (librarySong == null) {  
-                                insert(song.toMediaMetadata(), SongEntity::toggleLike)  
-                                s = song.toMediaMetadata().toSongEntity().let(SongEntity::toggleLike)  
-                            } else {  
-                                s = librarySong.song.toggleLike()  
-                                update(s)  
-                            }  
-                            syncUtils.likeSong(s)  
-                        }  
-                    }  
-                },  
-            ) {  
-                Icon(  
-                    painter = painterResource(if (librarySong?.song?.liked == true) R.drawable.favorite else R.drawable.favorite_border),  
-                    tint = if (librarySong?.song?.liked == true) MaterialTheme.colorScheme.error else LocalContentColor.current,  
-                    contentDescription = null,  
-                )  
-            }  
+        trailingContent = {
+            // For episodes, show saved state and toggle save for later
+            val isFavorite = if (isEpisode) librarySong?.song?.inLibrary != null else librarySong?.song?.liked == true
+            IconButton(
+                onClick = {
+                    if (isEpisode) {
+                        // Episode: toggle save for later (server-first)
+                        val currentLibrarySong = librarySong
+                        val isCurrentlySaved = currentLibrarySong?.song?.inLibrary != null
+
+                        coroutineScope.launch(Dispatchers.IO) {
+                            if (YouTube.isAnonLogin) {
+                                // Anonymous: just update local
+                                database.query {
+                                    if (currentLibrarySong != null) {
+                                        update(currentLibrarySong.song.copy(inLibrary = if (isCurrentlySaved) null else LocalDateTime.now()))
+                                    } else {
+                                        insert(song.toMediaMetadata().toSongEntity().copy(inLibrary = LocalDateTime.now(), isEpisode = true))
+                                    }
+                                }
+                            } else if (isCurrentlySaved) {
+                                // Remove from saved episodes - server first
+                                val setVideoId = song.setVideoId ?: database.getSetVideoId(song.id)?.setVideoId
+                                if (setVideoId != null) {
+                                    YouTube.removeEpisodeFromSavedEpisodes(song.id, setVideoId)
+                                        .onSuccess {
+                                            database.query {
+                                                if (currentLibrarySong != null) {
+                                                    update(currentLibrarySong.song.copy(inLibrary = null))
+                                                }
+                                            }
+                                        }
+                                        .onFailure {
+                                            kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                                Toast.makeText(context, R.string.error_episode_remove, Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                }
+                            } else {
+                                // Add to saved episodes - server first
+                                YouTube.addEpisodeToSavedEpisodes(song.id)
+                                    .onSuccess {
+                                        database.query {
+                                            if (currentLibrarySong != null) {
+                                                update(currentLibrarySong.song.copy(inLibrary = LocalDateTime.now()))
+                                            } else {
+                                                insert(song.toMediaMetadata().toSongEntity().copy(inLibrary = LocalDateTime.now(), isEpisode = true))
+                                            }
+                                        }
+                                    }
+                                    .onFailure {
+                                        kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, R.string.error_episode_save, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                            }
+                        }
+                    } else {
+                        // Regular song: toggle like
+                        database.transaction {
+                            librarySong.let { librarySong ->
+                                val s: SongEntity
+                                if (librarySong == null) {
+                                    insert(song.toMediaMetadata(), SongEntity::toggleLike)
+                                    s = song.toMediaMetadata().toSongEntity().let(SongEntity::toggleLike)
+                                } else {
+                                    s = librarySong.song.toggleLike()
+                                    update(s)
+                                }
+                                syncUtils.likeSong(s)
+                            }
+                        }
+                    }
+                },
+            ) {
+                Icon(
+                    painter = painterResource(if (isFavorite) R.drawable.favorite else R.drawable.favorite_border),
+                    tint = if (isFavorite) MaterialTheme.colorScheme.error else LocalContentColor.current,
+                    contentDescription = null,
+                )
+            }
         },  
     )  
 
@@ -487,6 +547,56 @@ fun YouTubeSongMenu(
                     showReportDialog = true
                 }
             )
+        }
+        // Save/Remove for Later option for podcast episodes
+        if (isEpisode) {
+            item {
+                val isCurrentlySaved = librarySong?.song?.inLibrary != null
+                ListItem(
+                    headlineContent = {
+                        Text(text = stringResource(if (isCurrentlySaved) R.string.remove_from_saved_episodes else R.string.save_for_later))
+                    },
+                    leadingContent = {
+                        Icon(
+                            painter = painterResource(if (isCurrentlySaved) R.drawable.remove else R.drawable.playlist_add),
+                            contentDescription = null,
+                        )
+                    },
+                    modifier = Modifier.clickable {
+                        coroutineScope.launch(Dispatchers.IO) {
+                            // Optimistic UI update
+                            database.query {
+                                if (librarySong != null) {
+                                    update(librarySong!!.song.copy(inLibrary = if (isCurrentlySaved) null else LocalDateTime.now()))
+                                } else {
+                                    insert(song.toMediaMetadata().toSongEntity().copy(inLibrary = LocalDateTime.now(), isEpisode = true))
+                                }
+                            }
+                            // Skip API sync for anonymous users
+                            if (!YouTube.isAnonLogin) {
+                                if (isCurrentlySaved) {
+                                    val setVideoId = song.setVideoId ?: database.getSetVideoId(song.id)?.setVideoId
+                                    if (setVideoId != null) {
+                                        YouTube.removeEpisodeFromSavedEpisodes(song.id, setVideoId).onFailure {
+                                            kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                                Toast.makeText(context, R.string.error_episode_remove, Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // setVideoId will be obtained during sync from episodesForLater()
+                                    YouTube.addEpisodeToSavedEpisodes(song.id).onFailure {
+                                        kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, R.string.error_episode_save, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        onDismiss()
+                    }
+                )
+            }
         }
         if (song.historyRemoveToken != null) {
             item {
@@ -691,7 +801,8 @@ fun YouTubeSongMenu(
                 }
             }
         }
-        if (artists.isNotEmpty()) {
+        // Don't show "View Artist" for podcast episodes
+        if (artists.isNotEmpty() && !isPodcast) {
             item {
                 ListItem(
                     headlineContent = { Text(text = stringResource(R.string.view_artist)) },
@@ -715,15 +826,21 @@ fun YouTubeSongMenu(
         song.album?.let { album ->
             item {
                 ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.view_album)) },
+                    headlineContent = {
+                        Text(text = stringResource(if (isPodcast) R.string.go_to_podcast else R.string.view_album))
+                    },
                     leadingContent = {
                         Icon(
-                            painter = painterResource(R.drawable.album),
+                            painter = painterResource(if (isPodcast) R.drawable.podcast else R.drawable.album),
                             contentDescription = null,
                         )
                     },
                     modifier = Modifier.clickable {
-                        navController.navigate("album/${album.id}")
+                        if (isPodcast) {
+                            navController.navigate("online_podcast/${album.id}")
+                        } else {
+                            navController.navigate("album/${album.id}")
+                        }
                         onDismiss()
                     }
                 )

@@ -20,6 +20,7 @@ import java.time.LocalDateTime
         Index(value = ["inLibrary"]),
         Index(value = ["liked"]),
         Index(value = ["isVideo"]),
+        Index(value = ["isEpisode"]),
     ]
 )
 data class SongEntity(
@@ -52,7 +53,9 @@ data class SongEntity(
     @ColumnInfo(name = "isUploaded", defaultValue = false.toString())
     val isUploaded: Boolean = false,
     @ColumnInfo(name = "isVideo", defaultValue = "0")
-    val isVideo: Boolean = false
+    val isVideo: Boolean = false,
+    @ColumnInfo(name = "isEpisode", defaultValue = "0")
+    val isEpisode: Boolean = false,
 ) {
     fun localToggleLike() = copy(
         liked = !liked,

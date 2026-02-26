@@ -9,5 +9,6 @@ enum class LibraryFilter {
     ARTISTS,
     ALBUMS,
     PLAYLISTS,
+    PODCASTS,
     LIBRARY
 }

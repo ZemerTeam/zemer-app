@@ -967,11 +967,20 @@ fun BottomSheetPlayer(
                                         playerConnection.toggleLike()
                                     }
                             ) {
+                                // Show different icon for episodes (bookmark) vs songs (heart)
+                                val isEpisode = currentSong?.song?.isEpisode == true
+                                val isActive = if (isEpisode) {
+                                    currentSong?.song?.inLibrary != null
+                                } else {
+                                    currentSong?.song?.liked == true
+                                }
                                 Image(
                                     painter = painterResource(
-                                        if (currentSong?.song?.liked == true)
-                                            R.drawable.favorite
-                                        else R.drawable.favorite_border
+                                        if (isEpisode) {
+                                            if (isActive) R.drawable.bookmark_filled else R.drawable.bookmark
+                                        } else {
+                                            if (isActive) R.drawable.favorite else R.drawable.favorite_border
+                                        }
                                     ),
                                     contentDescription = null,
                                     colorFilter = ColorFilter.tint(iconButtonColor),
@@ -1479,9 +1488,21 @@ fun BottomSheetPlayer(
                     }
 
                     Box(modifier = Modifier.weight(1f)) {
+                        // Show different icon for episodes (bookmark) vs songs (heart)
+                        val isEpisode = currentSong?.song?.isEpisode == true
+                        val isActive = if (isEpisode) {
+                            currentSong?.song?.inLibrary != null
+                        } else {
+                            currentSong?.song?.liked == true
+                        }
+                        val icon = if (isEpisode) {
+                            if (isActive) R.drawable.bookmark_filled else R.drawable.bookmark
+                        } else {
+                            if (isActive) R.drawable.favorite else R.drawable.favorite_border
+                        }
                         ResizableIconButton(
-                            icon = if (currentSong?.song?.liked == true) R.drawable.favorite else R.drawable.favorite_border,
-                            color = if (currentSong?.song?.liked == true) MaterialTheme.colorScheme.error else TextBackgroundColor,
+                            icon = icon,
+                            color = if (isActive) MaterialTheme.colorScheme.error else TextBackgroundColor,
                             modifier =
                             Modifier
                                 .size(32.dp)

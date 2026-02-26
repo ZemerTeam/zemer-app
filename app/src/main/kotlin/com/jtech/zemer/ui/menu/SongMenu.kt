@@ -419,22 +419,71 @@ fun SongMenu(
         }
     }
 
+    // Determine if this is an episode (for different like/save behavior)
+    val isEpisode = song.song.isEpisode
+    val isActive = if (isEpisode) song.song.inLibrary != null else song.song.liked
+
     SongListItem(
         song = song,
         badges = {},
         trailingContent = {
             IconButton(
                 onClick = {
-                    val s = song.song.toggleLike()
-                    database.query {
-                        update(s)
+                    if (isEpisode) {
+                        // Episode: toggle save for later (server-first)
+                        val isCurrentlySaved = song.song.inLibrary != null
+
+                        coroutineScope.launch(Dispatchers.IO) {
+                            if (YouTube.isAnonLogin) {
+                                // Anonymous: just update local
+                                val updatedSong = song.song.copy(
+                                    inLibrary = if (isCurrentlySaved) null else java.time.LocalDateTime.now()
+                                )
+                                database.query { update(updatedSong) }
+                            } else if (isCurrentlySaved) {
+                                // Remove from saved episodes - server first
+                                val setVideoId = database.getSetVideoId(song.id)?.setVideoId
+                                if (setVideoId != null) {
+                                    YouTube.removeEpisodeFromSavedEpisodes(song.id, setVideoId)
+                                        .onSuccess {
+                                            database.query { update(song.song.copy(inLibrary = null)) }
+                                        }
+                                        .onFailure {
+                                            kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                                Toast.makeText(context, R.string.error_episode_remove, Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                }
+                            } else {
+                                // Add to saved episodes - server first
+                                YouTube.addEpisodeToSavedEpisodes(song.id)
+                                    .onSuccess {
+                                        database.query { update(song.song.copy(inLibrary = java.time.LocalDateTime.now())) }
+                                    }
+                                    .onFailure {
+                                        kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, R.string.error_episode_save, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                            }
+                        }
+                    } else {
+                        // Regular song: toggle like
+                        val s = song.song.toggleLike()
+                        database.query { update(s) }
+                        syncUtils.likeSong(s)
                     }
-                    syncUtils.likeSong(s)
                 },
             ) {
                 Icon(
-                    painter = painterResource(if (song.song.liked) R.drawable.favorite else R.drawable.favorite_border),
-                    tint = if (song.song.liked) MaterialTheme.colorScheme.error else LocalContentColor.current,
+                    painter = painterResource(
+                        if (isEpisode) {
+                            if (isActive) R.drawable.bookmark_filled else R.drawable.bookmark
+                        } else {
+                            if (isActive) R.drawable.favorite else R.drawable.favorite_border
+                        }
+                    ),
+                    tint = if (isActive) MaterialTheme.colorScheme.error else LocalContentColor.current,
                     contentDescription = null,
                 )
             }

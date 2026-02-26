@@ -1723,9 +1723,10 @@ private fun LegalOverlay(
 fun LoadingScreen(
     onFinished: () -> Unit,
     shouldStartSync: Boolean = true,
+    progressFlow: kotlinx.coroutines.flow.StateFlow<com.jtech.zemer.utils.WhitelistSyncProgress>? = null,
 ) {
     val syncUtils = com.jtech.zemer.LocalSyncUtils.current
-    val progress by syncUtils.whitelistSyncProgress.collectAsState()
+    val progress by (progressFlow ?: syncUtils.whitelistSyncProgress).collectAsState()
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.loading_dots_blue))
     val lottieColors = rememberLottieDynamicProperties(
         rememberLottieDynamicProperty(
@@ -1745,6 +1746,7 @@ fun LoadingScreen(
     LaunchedEffect(Unit) {
         if (shouldStartSync) {
             syncUtils.syncArtistWhitelist(forceSync = true)
+            syncUtils.syncPodcastWhitelist(forceSync = true)
         }
     }
 

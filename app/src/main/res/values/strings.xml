@@ -12,6 +12,7 @@
     <string name="back_to_top">Back to top</string>
     <string name="songs">Songs</string>
     <string name="artists">Artists</string>
+    <string name="podcasts">Podcasts</string>
     <string name="kid_zone">Kid Zone</string>
     <string name="albums">Albums</string>
     <string name="playlists">Playlists</string>
@@ -51,6 +52,7 @@
     <string name="search_yt_music">Search Zemer...</string>
     <string name="search_library">Search library…</string>
     <string name="search_artists">Search artists…</string>
+    <string name="search_podcasts">Search podcasts…</string>
     <string name="filter_library">Library</string>
     <string name="filter_liked">Liked</string>
     <string name="filter_downloaded">Downloaded</string>
@@ -60,10 +62,12 @@
     <string name="filter_albums">Albums</string>
     <string name="filter_artists">Artists</string>
     <string name="filter_playlists">Playlists</string>
+    <string name="filter_podcasts">Podcasts</string>
     <string name="filter_community_playlists">Community playlists</string>
     <string name="filter_featured_playlists">Featured playlists</string>
     <string name="filter_bookmarked">Bookmarked</string>
     <string name="no_results_found">No results found</string>
+    <string name="no_episodes">No episodes available</string>
     <string name="download_complete">Download complete</string>
     <!-- storage_permission_required defined once below -->
 
@@ -72,6 +76,17 @@
     <string name="library_artist_empty">Library artists will show up here</string>
     <string name="library_album_empty">Library albums will show up here</string>
     <string name="library_playlist_empty">Your playlists will show up here</string>
+    <string name="library_podcast_empty">Your podcasts will show up here</string>
+    <string name="subscribed_channels">Subscribed Channels</string>
+    <string name="new_episodes">New Episodes</string>
+    <string name="episodes_for_later">Episodes for Later</string>
+    <string name="save_for_later">Save for later</string>
+    <string name="saved">Saved</string>
+    <string name="remove_from_saved_episodes">Remove from saved</string>
+    <string name="error_episode_save">Failed to save episode</string>
+    <string name="error_episode_remove">Failed to remove episode</string>
+    <string name="error_podcast_subscribe">Failed to subscribe to podcast</string>
+    <string name="error_podcast_unsubscribe">Failed to unsubscribe from podcast</string>
     <string name="kid_zone_empty">No kids artists available</string>
 
     <!-- Artist screen -->
@@ -127,6 +142,7 @@
     <string name="add_to_playlist">Add to playlist</string>
     <string name="view_artist">View artist</string>
     <string name="view_album">View album</string>
+    <string name="go_to_podcast">Go to podcast</string>
     <string name="refetch">Refetch</string>
     <string name="share">Share</string>
     <string name="default_link_handler">Open links with Zemer by default</string>
@@ -205,6 +221,14 @@
     <plurals name="n_playlist">
         <item quantity="one">%d playlist</item>
         <item quantity="other">%d playlists</item>
+    </plurals>
+    <plurals name="n_podcast">
+        <item quantity="one">%d podcast</item>
+        <item quantity="other">%d podcasts</item>
+    </plurals>
+    <plurals name="n_episode">
+        <item quantity="one">%d episode</item>
+        <item quantity="other">%d episodes</item>
     </plurals>
     <plurals name="n_week">
         <item quantity="one">%d week</item>
@@ -529,6 +553,7 @@
     <string name="ok">OK</string>
     <string name="now_playing_label">Now playing</string>
     <string name="refresh_artists">Refresh artists</string>
+    <string name="refresh_podcasts">Refresh podcasts</string>
     <string name="version_short">v%1$s</string>
     <string name="radio_empty_message">Nothing to play yet. Try adding or playing something first.</string>
     <string name="splash_syncing_title">Setting up your music</string>

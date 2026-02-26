@@ -50,7 +50,9 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.NavigationTitle
@@ -68,7 +70,9 @@ import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.YouTubeBrowseViewModel
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -219,6 +223,15 @@ fun YouTubeBrowseScreen(
                                                         is AlbumItem -> navController.navigate("album/${item.id}")
                                                         is ArtistItem -> navController.navigate("artist/${item.id}")
                                                         is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                                                        is PodcastItem -> navController.navigate("online_podcast/${item.id}")
+                                                        is EpisodeItem -> {
+                                                            playerConnection.playQueue(
+                                                                ListQueue(
+                                                                    title = item.title,
+                                                                    items = listOf(item.asSongItem().toMediaItem()),
+                                                                )
+                                                            )
+                                                        }
                                                         else -> item
                                                     }
                                                 },
@@ -250,6 +263,20 @@ fun YouTubeBrowseScreen(
                                                                 YouTubePlaylistMenu(
                                                                     playlist = item,
                                                                     coroutineScope = coroutineScope,
+                                                                    onDismiss = menuState::dismiss,
+                                                                )
+
+                                                            is PodcastItem ->
+                                                                YouTubePlaylistMenu(
+                                                                    playlist = item.asPlaylistItem(),
+                                                                    coroutineScope = coroutineScope,
+                                                                    onDismiss = menuState::dismiss,
+                                                                )
+
+                                                            is EpisodeItem ->
+                                                                YouTubeSongMenu(
+                                                                    song = item.asSongItem(),
+                                                                    navController = navController,
                                                                     onDismiss = menuState::dismiss,
                                                                 )
                                                         }

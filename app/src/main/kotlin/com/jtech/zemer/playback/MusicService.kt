@@ -1034,19 +1034,59 @@ class MusicService :
     }
 
     fun toggleLike() {
-        database.query {
-            currentSong.value?.let {
-                val song = it.song.toggleLike()
+        val songData = currentSong.value ?: return
+
+        // Handle episodes differently - toggle save for later instead of like (server-first)
+        if (songData.song.isEpisode) {
+            val isCurrentlySaved = songData.song.inLibrary != null
+
+            scope.launch(Dispatchers.IO) {
+                if (YouTube.isAnonLogin) {
+                    // Anonymous: just update local
+                    database.query {
+                        update(songData.song.copy(
+                            inLibrary = if (isCurrentlySaved) null else java.time.LocalDateTime.now()
+                        ))
+                    }
+                } else if (isCurrentlySaved) {
+                    // Remove from saved episodes - server first
+                    val setVideoId = database.getSetVideoId(songData.song.id)?.setVideoId
+                    if (setVideoId != null) {
+                        YouTube.removeEpisodeFromSavedEpisodes(songData.song.id, setVideoId)
+                            .onSuccess {
+                                database.query { update(songData.song.copy(inLibrary = null)) }
+                            }
+                            .onFailure { e ->
+                                timber.log.Timber.e(e, "[EPISODE_REMOVE] Failed to remove episode: ${songData.song.id}")
+                            }
+                    }
+                } else {
+                    // Add to saved episodes - server first
+                    YouTube.addEpisodeToSavedEpisodes(songData.song.id)
+                        .onSuccess {
+                            database.query {
+                                update(songData.song.copy(inLibrary = java.time.LocalDateTime.now()))
+                            }
+                        }
+                        .onFailure { e ->
+                            timber.log.Timber.e(e, "[EPISODE_SAVE] Failed to save episode: ${songData.song.id}")
+                        }
+                }
+            }
+        } else {
+            // Regular song - toggle like
+            database.query {
+                val song = songData.song.toggleLike()
                 update(song)
                 syncUtils.likeSong(song)
 
                 // Check if auto-download on like is enabled and the song is now liked
                 if (dataStore.get(AutoDownloadOnLikeKey, false) && song.liked) {
                     // Trigger download for the liked song (use video download if isVideo)
-                    if (it.song.isVideo) {
-                        downloadUtil.downloadVideoToMediaStore(it)
+                    if (songData.song.isVideo) {
+                        downloadUtil.downloadVideoToMediaStore(songData)
                     } else {
-                        downloadUtil.downloadToMediaStore(it)
+                        downloadUtil.downloadToMediaStore(songData)
                     }
                 }
             }

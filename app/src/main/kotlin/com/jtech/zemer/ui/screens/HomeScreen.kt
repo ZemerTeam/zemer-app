@@ -67,8 +67,10 @@ import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.LocalAlbumRadio
+import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.ArtistGridItem
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
@@ -94,7 +96,9 @@ import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.HomeViewModel
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.YTItem
@@ -230,6 +234,8 @@ fun HomeScreen(
                 is PlaylistItem -> luckyItem.playEndpoint?.let {
                     playerConnection.playQueue(YouTubeQueue(it, preloadItem = null, database))
                 }
+                is PodcastItem -> {} // Not used in home shuffle
+                is EpisodeItem -> {} // Not used in home shuffle
             }
         }
     }
@@ -347,6 +353,15 @@ fun HomeScreen(
                             is AlbumItem -> navController.navigate("album/${item.id}")
                             is ArtistItem -> navController.navigate("artist/${item.id}")
                             is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                            is PodcastItem -> navController.navigate("online_podcast/${item.id}")
+                            is EpisodeItem -> {
+                                playerConnection.playQueue(
+                                    ListQueue(
+                                        title = item.title,
+                                        items = listOf(item.asSongItem().toMediaItem()),
+                                    )
+                                )
+                            }
                         }
                     },
                     onLongClick = {
@@ -373,6 +388,18 @@ fun HomeScreen(
                                 is PlaylistItem -> YouTubePlaylistMenu(
                                     playlist = item,
                                     coroutineScope = scope,
+                                    onDismiss = menuState::dismiss
+                                )
+
+                                is PodcastItem -> YouTubePlaylistMenu(
+                                    playlist = item.asPlaylistItem(),
+                                    coroutineScope = scope,
+                                    onDismiss = menuState::dismiss
+                                )
+
+                                is EpisodeItem -> YouTubeSongMenu(
+                                    song = item.asSongItem(),
+                                    navController = navController,
                                     onDismiss = menuState::dismiss
                                 )
                             }

@@ -24,6 +24,7 @@ import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
+import com.jtech.zemer.utils.PodcastWhitelistCache
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.getSuspend
@@ -31,7 +32,9 @@ import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.filterExplicit
 import com.metrolist.innertube.pages.ExplorePage
@@ -948,6 +951,10 @@ class HomeViewModel @Inject constructor(
                 if (WhitelistCache.snapshot().isEmpty()) {
                     runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
                 }
+                // Also load podcast whitelist cache
+                if (PodcastWhitelistCache.isEmpty()) {
+                    runCatching { PodcastWhitelistCache.updateAll(database.getPodcastWhitelistEntriesSync()) }
+                }
                 // Don't force artist profiles - use cache + background check for updates
                 // Only clear memory cache on force refresh, DataStore cache remains for instant load
                 if (force) {
@@ -1148,6 +1155,8 @@ class HomeViewModel @Inject constructor(
                             is AlbumItem -> item.takeUnless { it.isBlocked(profileById, allowFemale) }
                             is ArtistItem -> item.takeUnless { it.isBlocked(profileById, allowFemale) }
                             is PlaylistItem -> item.takeUnless { it.isBlocked(profileById, allowFemale) }
+                            is PodcastItem -> null // Podcasts filtered separately
+                            is EpisodeItem -> null // Episodes filtered separately
                         }
                     }
                     if (filteredItems.isEmpty()) return@mapNotNull null
@@ -1284,6 +1293,8 @@ class HomeViewModel @Inject constructor(
                             is AlbumItem -> collectAlbumItems(listOf(item))
                             is ArtistItem -> collectArtistItems(listOf(item))
                             is PlaylistItem -> collectPlaylistItems(listOf(item))
+                            is PodcastItem -> {} // Podcasts don't contribute to artist tracking
+                            is EpisodeItem -> {} // Episodes don't contribute to artist tracking
                         }
                     }
                 }
@@ -1417,6 +1428,9 @@ class HomeViewModel @Inject constructor(
                                         } == true
                                         blockedByProfile || IsraeliArtistRegistry.isIsraeli(item.author?.id)
                                     }
+
+                                    is PodcastItem -> true // Filter out podcasts from home sections
+                                    is EpisodeItem -> true // Filter out episodes from home sections
                                 }
                             }
                         if (filteredItems.isEmpty()) null else section.copy(items = filteredItems)

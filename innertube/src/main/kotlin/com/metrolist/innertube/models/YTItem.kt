@@ -32,7 +32,8 @@ data class SongItem(
     val setVideoId: String? = null,
     val libraryAddToken: String? = null,
     val libraryRemoveToken: String? = null,
-    val historyRemoveToken: String? = null
+    val historyRemoveToken: String? = null,
+    val isEpisode: Boolean = false
 ) : YTItem() {
     override val shareLink: String
         get() = "https://music.zemer.io/watch?v=$id"
@@ -82,6 +83,70 @@ data class ArtistItem(
         get() = false
     override val shareLink: String
         get() = "https://music.zemer.io/channel/$id"
+}
+
+data class PodcastItem(
+    override val id: String,
+    override val title: String,
+    val author: Artist?,
+    val episodeCountText: String?,
+    override val thumbnail: String?,
+    val playEndpoint: WatchEndpoint?,
+    val shuffleEndpoint: WatchEndpoint?,
+    val libraryAddToken: String? = null,
+    val libraryRemoveToken: String? = null,
+    val channelId: String? = null,
+    val categories: List<String> = emptyList(),
+) : YTItem() {
+    override val explicit: Boolean
+        get() = false
+    override val shareLink: String
+        get() = "https://music.zemer.io/playlist?list=$id"
+
+    fun asPlaylistItem() = PlaylistItem(
+        id = id,
+        title = title,
+        author = author,
+        songCountText = episodeCountText,
+        thumbnail = thumbnail,
+        playEndpoint = playEndpoint,
+        shuffleEndpoint = shuffleEndpoint,
+        radioEndpoint = null,
+        isEditable = false
+    )
+}
+
+data class EpisodeItem(
+    override val id: String,
+    override val title: String,
+    val author: Artist?,
+    val podcast: Album? = null,
+    val duration: Int? = null,
+    val publishDateText: String? = null,
+    override val thumbnail: String,
+    override val explicit: Boolean = false,
+    val endpoint: WatchEndpoint? = null,
+    val libraryAddToken: String? = null,
+    val libraryRemoveToken: String? = null,
+    val markAsPlayedToken: String? = null,
+    val markAsUnplayedToken: String? = null,
+) : YTItem() {
+    override val shareLink: String
+        get() = "https://music.zemer.io/watch?v=$id"
+
+    fun asSongItem() = SongItem(
+        id = id,
+        title = title,
+        artists = listOfNotNull(author),
+        album = podcast,
+        duration = duration,
+        thumbnail = thumbnail,
+        explicit = explicit,
+        endpoint = endpoint,
+        libraryAddToken = libraryAddToken,
+        libraryRemoveToken = libraryRemoveToken,
+        isEpisode = true
+    )
 }
 
 fun <T : YTItem> List<T>.filterExplicit(enabled: Boolean = true) =

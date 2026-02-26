@@ -531,10 +531,15 @@ private fun NewMiniPlayer(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Favorite button (right side)
+                // Favorite button (right side) - shows bookmark for episodes, heart for songs
                 mediaMetadata?.let { metadata ->
                     val librarySong by database.song(metadata.id).collectAsState(initial = null)
-                    val isLiked = librarySong?.song?.liked == true
+                    val isEpisode = librarySong?.song?.isEpisode == true
+                    val isActive = if (isEpisode) {
+                        librarySong?.song?.inLibrary != null
+                    } else {
+                        librarySong?.song?.liked == true
+                    }
 
                     Box(
                         contentAlignment = Alignment.Center,
@@ -543,16 +548,16 @@ private fun NewMiniPlayer(
                             .clip(CircleShape)
                             .border(
                                 width = 1.dp,
-                                color = if (isLiked)
+                                color = if (isActive)
                                     MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
                                 else
                                     MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                                 shape = CircleShape
                             )
                             .background(
-                                color = if (isLiked)
+                                color = if (isActive)
                                     MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
-                                else 
+                                else
                                     Color.Transparent,
                                 shape = CircleShape
                             )
@@ -573,10 +578,14 @@ private fun NewMiniPlayer(
                     ) {
                         Icon(
                             painter = painterResource(
-                                if (isLiked) R.drawable.favorite else R.drawable.favorite_border
+                                if (isEpisode) {
+                                    if (isActive) R.drawable.bookmark_filled else R.drawable.bookmark
+                                } else {
+                                    if (isActive) R.drawable.favorite else R.drawable.favorite_border
+                                }
                             ),
                             contentDescription = null,
-                            tint = if (isLiked)
+                            tint = if (isActive)
                                 MaterialTheme.colorScheme.error
                             else
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
