@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.constants.LastWhitelistSyncTimeKey
 import com.jtech.zemer.constants.LastWhitelistVersionKey
+import com.jtech.zemer.constants.LastPodcastWhitelistSyncTimeKey
+import com.jtech.zemer.constants.LastPodcastWhitelistVersionKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.db.entities.PlaylistEntity
@@ -59,16 +61,22 @@ class SyncUtils @Inject constructor(
     private val isSyncingArtists = MutableStateFlow(false)
     private val isSyncingPlaylists = MutableStateFlow(false)
     private val isSyncingWhitelist = MutableStateFlow(false)
+    private val isSyncingPodcastWhitelist = MutableStateFlow(false)
     private val isBackfillingThumbs = MutableStateFlow(false)
 
     val isWhitelistSyncing: StateFlow<Boolean> = isSyncingWhitelist.asStateFlow()
+    val isPodcastWhitelistSyncing: StateFlow<Boolean> = isSyncingPodcastWhitelist.asStateFlow()
 
     private val _whitelistSyncProgress = MutableStateFlow(WhitelistSyncProgress())
     val whitelistSyncProgress: StateFlow<WhitelistSyncProgress> = _whitelistSyncProgress.asStateFlow()
 
+    private val _podcastWhitelistSyncProgress = MutableStateFlow(WhitelistSyncProgress())
+    val podcastWhitelistSyncProgress: StateFlow<WhitelistSyncProgress> = _podcastWhitelistSyncProgress.asStateFlow()
+
     fun runAllSyncs() {
         syncScope.launch {
             syncArtistWhitelist()
+            syncPodcastWhitelist()
             syncLikedSongs()
             syncLibrarySongs()
             syncUploadedSongs()
@@ -76,6 +84,8 @@ class SyncUtils @Inject constructor(
             syncUploadedAlbums()
             syncArtistsSubscriptions()
             syncSavedPlaylists()
+            syncPodcastSubscriptions()
+            syncEpisodesForLater()
         }
     }
 
@@ -646,6 +656,80 @@ class SyncUtils @Inject constructor(
         }
     }
 
+    suspend fun syncPodcastWhitelist(forceSync: Boolean = false) {
+        withContext(Dispatchers.IO) {
+            if (isSyncingPodcastWhitelist.value) return@withContext
+
+            isSyncingPodcastWhitelist.value = true
+
+            _podcastWhitelistSyncProgress.value = WhitelistSyncProgress()
+
+            try {
+                val remoteVersion = WhitelistFetcher.fetchPodcastVersion().getOrNull()
+                val localVersion = context.dataStore.get(LastPodcastWhitelistVersionKey, 0L)
+                val existingPodcastIds = database.getAllWhitelistedPodcastIdsSync()
+                val localEmpty = existingPodcastIds.isEmpty()
+
+                // Always fetch at least once per version. Subsequent runs skip if already synced.
+                if (!forceSync && remoteVersion != null && remoteVersion <= localVersion && !localEmpty) {
+                    runCatching { PodcastWhitelistCache.updateAll(database.getPodcastWhitelistEntriesSync()) }
+                    _podcastWhitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
+                    return@withContext
+                }
+
+                val whitelistEntries = WhitelistFetcher.fetchPodcastWhitelist { processed, total ->
+                    _podcastWhitelistSyncProgress.value = WhitelistSyncProgress(
+                        current = processed,
+                        total = total
+                    )
+                }.getOrThrow()
+
+                _podcastWhitelistSyncProgress.value = WhitelistSyncProgress(
+                    current = whitelistEntries.size,
+                    total = whitelistEntries.size
+                )
+
+                // Preserve existing thumbnails before clearing
+                val existingThumbnails = database.getPodcastWhitelistEntriesSync()
+                    .associate { it.podcastId to it.thumbnailUrl }
+
+                // Merge existing thumbnails into new entries
+                val entriesWithThumbnails = whitelistEntries.map { entry ->
+                    val existingThumb = existingThumbnails[entry.podcastId]
+                    if (existingThumb != null && entry.thumbnailUrl.isNullOrBlank()) {
+                        entry.copy(thumbnailUrl = existingThumb)
+                    } else {
+                        entry
+                    }
+                }
+
+                database.transaction {
+                    clearPodcastWhitelist()
+                    insertPodcastWhitelist(entriesWithThumbnails)
+                }
+                PodcastWhitelistCache.updateAll(entriesWithThumbnails)
+
+                _podcastWhitelistSyncProgress.value = WhitelistSyncProgress(
+                    current = whitelistEntries.size,
+                    total = whitelistEntries.size,
+                    isComplete = true
+                )
+
+                context.dataStore.edit { settings ->
+                    settings[LastPodcastWhitelistSyncTimeKey] = System.currentTimeMillis()
+                    remoteVersion?.let { settings[LastPodcastWhitelistVersionKey] = it }
+                }
+
+                android.util.Log.d("SyncUtils", "Podcast whitelist synced with ${whitelistEntries.size} podcasts")
+            } catch (e: Exception) {
+                android.util.Log.e("SyncUtils", "Error syncing podcast whitelist: ${e.message}")
+                _podcastWhitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
+            } finally {
+                isSyncingPodcastWhitelist.value = false
+            }
+        }
+    }
+
     fun backfillMissingArtistThumbs(limit: Int = 150) {
         if (isBackfillingThumbs.value) return
         isBackfillingThumbs.value = true
@@ -704,6 +788,234 @@ class SyncUtils @Inject constructor(
                 }
             }
         } catch (e: Exception) {
+        }
+    }
+
+    /**
+     * Sync subscribed podcasts from YouTube Music to local database.
+     * Updates PodcastEntity table with user's podcast subscriptions.
+     * Uses both savedPodcastShows() and libraryPodcastChannels() like Metrolist.
+     * Skips sync for anonymous users.
+     */
+    suspend fun syncPodcastSubscriptions() {
+        // Skip sync for anonymous users
+        if (YouTube.isAnonLogin) {
+            Log.d("SyncUtils", "Skipping podcast subscriptions sync - anonymous login")
+            return
+        }
+        withContext(Dispatchers.IO) {
+            try {
+                // Ensure whitelist cache is loaded before syncing
+                if (PodcastWhitelistCache.isEmpty()) {
+                    PodcastWhitelistCache.loadFromDatabase(database)
+                }
+
+                // Skip sync if whitelist cache is still empty (no whitelist data available)
+                if (PodcastWhitelistCache.isEmpty()) {
+                    Log.d("SyncUtils", "Skipping podcast subscriptions sync - whitelist cache is empty")
+                    return@withContext
+                }
+
+                val allRemoteIds = mutableSetOf<String>()
+
+                // Sync saved podcast shows (most common - saved via likePlaylist)
+                Log.d("SyncUtils", "Calling savedPodcastShows API...")
+                YouTube.savedPodcastShows().onSuccess { allPodcasts ->
+                    // Log all podcasts for debugging
+                    Log.d("SyncUtils", "savedPodcastShows: Found ${allPodcasts.size} total podcasts")
+                    allPodcasts.forEach { podcast ->
+                        val isAllowed = PodcastWhitelistCache.isAllowed(podcast.id)
+                        Log.d("SyncUtils", "Podcast: '${podcast.title}' | id=${podcast.id} | author=${podcast.author?.name} | allowed=$isAllowed")
+                    }
+
+                    // Filter to only whitelisted podcasts
+                    val podcasts = allPodcasts.filter { PodcastWhitelistCache.isAllowed(it.id) }
+                    Log.d("SyncUtils", "savedPodcastShows: Filtered ${allPodcasts.size} podcasts to ${podcasts.size} whitelisted")
+                    allRemoteIds.addAll(podcasts.map { it.id })
+
+                    // Add/update podcasts from YouTube (already filtered)
+                    podcasts.forEach { podcastItem ->
+                        val existing = database.podcast(podcastItem.id).first()
+                        if (existing == null) {
+                            database.upsertPodcast(
+                                com.jtech.zemer.db.entities.PodcastEntity(
+                                    id = podcastItem.id,
+                                    title = podcastItem.title,
+                                    author = podcastItem.author?.name,
+                                    thumbnailUrl = podcastItem.thumbnail,
+                                    bookmarkedAt = LocalDateTime.now(),
+                                )
+                            )
+                        } else if (existing.bookmarkedAt == null) {
+                            database.upsertPodcast(existing.copy(
+                                title = podcastItem.title,
+                                author = podcastItem.author?.name,
+                                thumbnailUrl = podcastItem.thumbnail,
+                                bookmarkedAt = LocalDateTime.now(),
+                                lastUpdateTime = LocalDateTime.now()
+                            ))
+                        }
+                    }
+                    Log.d("SyncUtils", "Synced ${podcasts.size} whitelisted saved podcast shows")
+                }.onFailure {
+                    Log.e("SyncUtils", "Failed to fetch saved podcast shows: ${it.message}")
+                }
+
+                // Also sync subscribed podcast channels (subscribed via subscribeChannel API)
+                Log.d("SyncUtils", "Calling libraryPodcastChannels API...")
+                YouTube.libraryPodcastChannels().onSuccess { page ->
+                    Log.d("SyncUtils", "libraryPodcastChannels: page has ${page.items.size} total items")
+                    val allPodcasts = page.items.filterIsInstance<com.metrolist.innertube.models.PodcastItem>()
+                    // Log all podcast channels for debugging
+                    Log.d("SyncUtils", "libraryPodcastChannels: Found ${allPodcasts.size} total podcast channels")
+                    allPodcasts.forEach { podcast ->
+                        val isAllowed = PodcastWhitelistCache.isAllowed(podcast.id)
+                        Log.d("SyncUtils", "PodcastChannel: '${podcast.title}' | id=${podcast.id} | author=${podcast.author?.name} | allowed=$isAllowed")
+                    }
+
+                    // Filter to only whitelisted podcasts
+                    val podcasts = allPodcasts.filter { PodcastWhitelistCache.isAllowed(it.id) }
+                    Log.d("SyncUtils", "libraryPodcastChannels: Filtered ${allPodcasts.size} podcasts to ${podcasts.size} whitelisted")
+                    allRemoteIds.addAll(podcasts.map { it.id })
+
+                    // Add/update podcasts from YouTube channels
+                    podcasts.forEach { podcastItem ->
+                        val existing = database.podcast(podcastItem.id).first()
+                        if (existing == null) {
+                            database.upsertPodcast(
+                                com.jtech.zemer.db.entities.PodcastEntity(
+                                    id = podcastItem.id,
+                                    title = podcastItem.title,
+                                    author = podcastItem.author?.name,
+                                    thumbnailUrl = podcastItem.thumbnail,
+                                    bookmarkedAt = LocalDateTime.now(),
+                                )
+                            )
+                        } else if (existing.bookmarkedAt == null) {
+                            database.upsertPodcast(existing.copy(
+                                title = podcastItem.title,
+                                author = podcastItem.author?.name,
+                                thumbnailUrl = podcastItem.thumbnail,
+                                bookmarkedAt = LocalDateTime.now(),
+                                lastUpdateTime = LocalDateTime.now()
+                            ))
+                        }
+                    }
+                    Log.d("SyncUtils", "Synced ${podcasts.size} whitelisted subscribed podcast channels")
+                }.onFailure {
+                    Log.e("SyncUtils", "Failed to fetch subscribed podcast channels: ${it.message}")
+                }
+
+                // Cleanup: Remove local podcasts that are no longer subscribed on YouTube Music
+                if (allRemoteIds.isNotEmpty()) {
+                    val localPodcasts = database.subscribedPodcasts().first()
+                    val localOnlyPodcasts = localPodcasts.filterNot { it.id in allRemoteIds }
+                    Log.d("SyncUtils", "Cleanup: removing ${localOnlyPodcasts.size} podcasts not on YTM")
+
+                    localOnlyPodcasts.forEach { podcast ->
+                        database.upsertPodcast(podcast.copy(bookmarkedAt = null))
+                        Log.d("SyncUtils", "Unsubscribed from local podcast: ${podcast.id}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("SyncUtils", "Error syncing podcast subscriptions: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Sync "Episodes for Later" (SE playlist) from YouTube Music to local database.
+     * Uses episodesForLater() API which returns proper setVideoId for removal.
+     * Episodes are stored in song table with isEpisode=true and inLibrary set.
+     * Skips sync for anonymous users.
+     */
+    suspend fun syncEpisodesForLater() {
+        // Skip sync for anonymous users
+        if (YouTube.isAnonLogin) {
+            Log.d("SyncUtils", "Skipping episodes for later sync - anonymous login")
+            return
+        }
+        withContext(Dispatchers.IO) {
+            try {
+                // Ensure whitelist cache is loaded before syncing
+                if (PodcastWhitelistCache.isEmpty()) {
+                    PodcastWhitelistCache.loadFromDatabase(database)
+                }
+
+                // Skip sync if whitelist cache is still empty (no whitelist data available)
+                if (PodcastWhitelistCache.isEmpty()) {
+                    Log.d("SyncUtils", "Skipping episodes for later sync - whitelist cache is empty")
+                    return@withContext
+                }
+
+                YouTube.episodesForLater().onSuccess { allEpisodes ->
+                    // Log all episodes with their artist info for debugging
+                    Log.d("SyncUtils", "episodesForLater: Found ${allEpisodes.size} total episodes")
+                    allEpisodes.forEach { episode ->
+                        val allArtists = episode.artists.map { "${it.name}=${it.id}" }
+                        Log.d("SyncUtils", "Episode: '${episode.title}' | artists=$allArtists")
+                    }
+
+                    // Filter to only episodes from whitelisted podcasts
+                    // Check all artist IDs - could be MPSP (podcast), UC (channel), or other
+                    val remoteEpisodes = allEpisodes.filter { episode ->
+                        val podcastId = episode.album?.id
+
+                        // Check if any artist ID matches whitelist (by podcastId or channelId)
+                        val allowed = episode.artists.any { artist ->
+                            val id = artist.id ?: return@any false
+                            // Direct podcast ID match (MPSP...)
+                            PodcastWhitelistCache.isAllowed(id) ||
+                            // Channel ID match (UC... or other)
+                            PodcastWhitelistCache.isAllowedByChannelId(id)
+                        } || (podcastId != null && PodcastWhitelistCache.isAllowed(podcastId))
+
+                        if (!allowed) {
+                            val artistIds = episode.artists.map { it.id }
+                            Log.d("SyncUtils", "FILTERED OUT: ${episode.title} - artistIds=$artistIds not in whitelist")
+                        }
+                        allowed
+                    }
+                    Log.d("SyncUtils", "episodesForLater: Filtered ${allEpisodes.size} episodes to ${remoteEpisodes.size} from whitelisted podcasts")
+
+                    val remoteIds = remoteEpisodes.map { it.id }.toSet()
+                    val localEpisodes = database.savedEpisodes().first()
+
+                    // Remove episodes that are no longer saved or not from whitelisted podcasts
+                    localEpisodes
+                        .filter { it.id !in remoteIds }
+                        .forEach { episode ->
+                            database.transaction {
+                                update(episode.song.copy(inLibrary = null))
+                            }
+                            Log.d("SyncUtils", "Removed local episode not on YTM: ${episode.id}")
+                        }
+
+                    // Add/update episodes from YouTube (already filtered to whitelisted)
+                    remoteEpisodes.forEach { episode ->
+                        val existing = database.song(episode.id).firstOrNull()
+                        database.transaction {
+                            if (existing == null) {
+                                Log.d("SyncUtils", "Inserting new episode: ${episode.id}")
+                                insert(episode.toMediaMetadata()) { it.copy(isEpisode = true, inLibrary = LocalDateTime.now()) }
+                            } else if (!existing.song.isEpisode || existing.song.inLibrary == null) {
+                                Log.d("SyncUtils", "Updating existing song to episode in library: ${episode.id}")
+                                update(existing.song.copy(isEpisode = true, inLibrary = existing.song.inLibrary ?: LocalDateTime.now()))
+                            }
+                            // Store setVideoId for removal capability
+                            episode.setVideoId?.let { setVideoId ->
+                                Log.d("SyncUtils", "Storing setVideoId for ${episode.id}: $setVideoId")
+                                upsertSetVideoId(com.jtech.zemer.db.entities.SetVideoIdEntity(episode.id, setVideoId))
+                            }
+                        }
+                    }
+                    Log.d("SyncUtils", "Synced ${remoteEpisodes.size} whitelisted episodes for later from YouTube Music")
+                }.onFailure {
+                    Log.e("SyncUtils", "Failed to sync episodes for later: ${it.message}")
+                }
+            } catch (e: Exception) {
+                Log.e("SyncUtils", "Error syncing episodes for later: ${e.message}")
+            }
         }
     }
 

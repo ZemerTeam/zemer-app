@@ -24,6 +24,8 @@ import com.jtech.zemer.db.entities.AlbumWithSongs
 import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.db.entities.ArtistWhitelistEntity
+import com.jtech.zemer.db.entities.PodcastEntity
+import com.jtech.zemer.db.entities.PodcastWhitelistEntity
 import com.jtech.zemer.db.entities.Event
 import com.jtech.zemer.db.entities.EventWithSong
 import com.jtech.zemer.db.entities.FormatEntity
@@ -601,6 +603,9 @@ interface DatabaseDao {
 
     @Query("SELECT * FROM set_video_id WHERE videoId = :videoId")
     suspend fun getSetVideoId(videoId: String): SetVideoIdEntity?
+
+    @Upsert
+    fun upsertSetVideoId(entity: SetVideoIdEntity)
 
     @Transaction
     @Query("SELECT * FROM format WHERE id = :id")
@@ -1675,4 +1680,72 @@ interface DatabaseDao {
 
     @Query("DELETE FROM artist WHERE id IN (:artistIds)")
     suspend fun deleteArtistsByIds(artistIds: List<String>)
+
+    // Podcast Whitelist methods
+    @Upsert
+    fun upsertPodcastWhitelist(whitelist: PodcastWhitelistEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertPodcastWhitelist(whitelistEntries: List<PodcastWhitelistEntity>)
+
+    @Query("SELECT podcastId FROM podcast_whitelist")
+    fun getAllWhitelistedPodcastIds(): Flow<List<String>>
+
+    @Query("SELECT podcastId FROM podcast_whitelist")
+    suspend fun getAllWhitelistedPodcastIdsSync(): List<String>
+
+    @Query("SELECT * FROM podcast_whitelist")
+    fun getAllWhitelistedPodcasts(): Flow<List<PodcastWhitelistEntity>>
+
+    @Query("SELECT * FROM podcast_whitelist ORDER BY podcastName COLLATE NOCASE")
+    fun allWhitelistedPodcastsByName(): Flow<List<PodcastWhitelistEntity>>
+
+    @Query("SELECT * FROM podcast_whitelist WHERE podcastId = :podcastId LIMIT 1")
+    suspend fun getPodcastWhitelistEntry(podcastId: String): PodcastWhitelistEntity?
+
+    @Query("SELECT * FROM podcast_whitelist")
+    suspend fun getPodcastWhitelistEntriesSync(): List<PodcastWhitelistEntity>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM podcast_whitelist WHERE podcastId = :podcastId)")
+    suspend fun isPodcastWhitelisted(podcastId: String): Boolean
+
+    @Query("DELETE FROM podcast_whitelist")
+    fun clearPodcastWhitelist()
+
+    @Query("DELETE FROM podcast_whitelist WHERE podcastId = :podcastId")
+    fun removeFromPodcastWhitelist(podcastId: String)
+
+    // Saved/Subscribed Podcast methods (PodcastEntity - different from whitelist)
+    @Query("SELECT * FROM podcast WHERE bookmarkedAt IS NOT NULL ORDER BY bookmarkedAt DESC")
+    fun subscribedPodcasts(): Flow<List<PodcastEntity>>
+
+    @Query("SELECT * FROM podcast WHERE id = :id")
+    fun podcast(id: String): Flow<PodcastEntity?>
+
+    @Upsert
+    fun upsertPodcast(podcast: PodcastEntity)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    fun insertPodcast(podcast: PodcastEntity)
+
+    @Update
+    fun updatePodcast(podcast: PodcastEntity)
+
+    @Delete
+    fun deletePodcast(podcast: PodcastEntity)
+
+    @Query("DELETE FROM podcast WHERE id = :podcastId")
+    fun deletePodcastById(podcastId: String)
+
+    // Saved Episodes (songs with isEpisode = true and inLibrary not null)
+    @Transaction
+    @Query("SELECT * FROM song WHERE isEpisode = 1 AND inLibrary IS NOT NULL ORDER BY inLibrary DESC")
+    fun savedEpisodes(): Flow<List<Song>>
+
+    @Transaction
+    @Query("SELECT COUNT(*) FROM song WHERE isEpisode = 1 AND inLibrary IS NOT NULL")
+    fun savedEpisodesCount(): Flow<Int>
+
+    @Query("UPDATE song SET isEpisode = :isEpisode WHERE id = :songId")
+    fun setIsEpisode(songId: String, isEpisode: Boolean)
 }

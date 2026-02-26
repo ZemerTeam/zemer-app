@@ -45,15 +45,20 @@ import com.jtech.zemer.playback.DownloadUtil
 import com.jtech.zemer.repositories.CachedSongsRepository
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
+import com.jtech.zemer.utils.PodcastWhitelistCache
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.SongItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -459,4 +464,71 @@ class LibraryViewModel
 constructor() : ViewModel() {
     private val curScreen = mutableStateOf(LibraryFilter.LIBRARY)
     val filter: MutableState<LibraryFilter> = curScreen
+}
+
+@HiltViewModel
+class LibraryPodcastsViewModel
+@Inject
+constructor(
+    private val database: MusicDatabase,
+    private val syncUtils: SyncUtils,
+) : ViewModel() {
+    // Filter subscribed podcasts by whitelist for extra safety
+    val subscribedPodcasts = database.subscribedPodcasts()
+        .map { podcasts -> podcasts.filter { PodcastWhitelistCache.isAllowed(it.id) } }
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    val savedEpisodes = database.savedEpisodes()
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    // New Episodes from official API (VLRDPN)
+    private val _newEpisodes = MutableStateFlow<List<SongItem>>(emptyList())
+    val newEpisodes: StateFlow<List<SongItem>> = _newEpisodes.asStateFlow()
+
+    private val _isLoadingNewEpisodes = MutableStateFlow(false)
+    val isLoadingNewEpisodes: StateFlow<Boolean> = _isLoadingNewEpisodes.asStateFlow()
+
+    init {
+        // Fetch new episodes when screen is opened
+        fetchNewEpisodes()
+        // Sync episodes for later from YouTube Music
+        syncEpisodesForLater()
+        // Sync subscribed podcasts from YouTube Music
+        syncPodcastSubscriptions()
+    }
+
+    fun fetchNewEpisodes() {
+        // Skip for anonymous users
+        if (YouTube.isAnonLogin) return
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoadingNewEpisodes.value = true
+            YouTube.newEpisodes().onSuccess { allEpisodes ->
+                // Filter to only episodes from whitelisted podcasts
+                _newEpisodes.value = allEpisodes.filter { episode ->
+                    val podcastId = episode.album?.id
+                    podcastId != null && PodcastWhitelistCache.isAllowed(podcastId)
+                }
+            }
+            _isLoadingNewEpisodes.value = false
+        }
+    }
+
+    fun syncPodcastSubscriptions() {
+        viewModelScope.launch(Dispatchers.IO) {
+            syncUtils.syncPodcastSubscriptions()
+        }
+    }
+
+    fun syncEpisodesForLater() {
+        viewModelScope.launch(Dispatchers.IO) {
+            syncUtils.syncEpisodesForLater()
+        }
+    }
+
+    suspend fun refreshAll() {
+        // Sync subscriptions first, then episodes, then fetch new episodes
+        syncUtils.syncPodcastSubscriptions()
+        syncUtils.syncEpisodesForLater()
+        fetchNewEpisodes()
+    }
 }

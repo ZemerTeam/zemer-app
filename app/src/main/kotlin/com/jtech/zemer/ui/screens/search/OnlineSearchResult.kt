@@ -46,7 +46,9 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.ui.component.AppStateView
@@ -69,7 +71,9 @@ import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_SONG
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_VIDEO
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.YTItem
@@ -158,6 +162,20 @@ fun OnlineSearchResult(
                             coroutineScope = coroutineScope,
                             onDismiss = menuState::dismiss,
                         )
+
+                    is PodcastItem ->
+                        YouTubePlaylistMenu(
+                            playlist = item.asPlaylistItem(),
+                            coroutineScope = coroutineScope,
+                            onDismiss = menuState::dismiss,
+                        )
+
+                    is EpisodeItem ->
+                        YouTubeSongMenu(
+                            song = item.asSongItem(),
+                            navController = navController,
+                            onDismiss = menuState::dismiss,
+                        )
                 }
             }
         }
@@ -210,6 +228,15 @@ fun OnlineSearchResult(
                                 is AlbumItem -> navController.navigate("album/${item.id}")
                                 is ArtistItem -> navController.navigate("artist/${item.id}")
                                 is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                                is PodcastItem -> navController.navigate("online_podcast/${item.id}")
+                                is EpisodeItem -> {
+                                    playerConnection.playQueue(
+                                        ListQueue(
+                                            title = item.title,
+                                            items = listOf(item.asSongItem().toMediaItem()),
+                                        )
+                                    )
+                                }
                             }
                             true
                         }
@@ -240,6 +267,15 @@ fun OnlineSearchResult(
                             is AlbumItem -> navController.navigate("album/${item.id}")
                             is ArtistItem -> navController.navigate("artist/${item.id}")
                             is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                            is PodcastItem -> navController.navigate("online_podcast/${item.id}")
+                            is EpisodeItem -> {
+                                playerConnection.playQueue(
+                                    ListQueue(
+                                        title = item.title,
+                                        items = listOf(item.asSongItem().toMediaItem()),
+                                    )
+                                )
+                            }
                         }
                     },
                     onLongClick = longClick,
@@ -438,4 +474,6 @@ private fun mapItemToFilter(item: YTItem): com.metrolist.innertube.YouTube.Searc
         is AlbumItem -> FILTER_ALBUM
         is ArtistItem -> FILTER_ARTIST
         is PlaylistItem -> FILTER_COMMUNITY_PLAYLIST
+        is PodcastItem -> null // Podcasts don't have a search filter
+        is EpisodeItem -> null // Episodes don't have a search filter
     }

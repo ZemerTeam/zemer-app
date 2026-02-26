@@ -13,6 +13,7 @@ const val CONTENT_TYPE_SONG = 2
 const val CONTENT_TYPE_ARTIST = 3
 const val CONTENT_TYPE_ALBUM = 4
 const val CONTENT_TYPE_PLAYLIST = 5
+const val CONTENT_TYPE_PODCAST = 6
 
 val NavigationBarHeight = 80.dp
 val SlimNavBarHeight = 64.dp

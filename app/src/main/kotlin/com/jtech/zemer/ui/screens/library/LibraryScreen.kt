@@ -23,9 +23,9 @@ fun LibraryScreen(navController: NavController) {
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
 
     val availableFilters = if (blockVideos) {
-        listOf(LibraryFilter.SONGS, LibraryFilter.ARTISTS, LibraryFilter.ALBUMS, LibraryFilter.PLAYLISTS, LibraryFilter.LIBRARY)
+        listOf(LibraryFilter.SONGS, LibraryFilter.ARTISTS, LibraryFilter.ALBUMS, LibraryFilter.PLAYLISTS, LibraryFilter.PODCASTS, LibraryFilter.LIBRARY)
     } else {
-        listOf(LibraryFilter.SONGS, LibraryFilter.VIDEOS, LibraryFilter.ARTISTS, LibraryFilter.ALBUMS, LibraryFilter.PLAYLISTS, LibraryFilter.LIBRARY)
+        listOf(LibraryFilter.SONGS, LibraryFilter.VIDEOS, LibraryFilter.ARTISTS, LibraryFilter.ALBUMS, LibraryFilter.PLAYLISTS, LibraryFilter.PODCASTS, LibraryFilter.LIBRARY)
     }
 
     val filterContent = @Composable {
@@ -39,6 +39,7 @@ fun LibraryScreen(navController: NavController) {
                         LibraryFilter.VIDEOS -> stringResource(R.string.videos)
                         LibraryFilter.ALBUMS -> stringResource(R.string.filter_albums)
                         LibraryFilter.ARTISTS -> stringResource(R.string.filter_artists)
+                        LibraryFilter.PODCASTS -> stringResource(R.string.filter_podcasts)
                         LibraryFilter.LIBRARY -> ""
                     }
                 }.filterKeys { it != LibraryFilter.LIBRARY }.toList(),
@@ -82,6 +83,10 @@ fun LibraryScreen(navController: NavController) {
                 // Fallback to LIBRARY if videos are blocked
                 LibraryMixScreen(navController, filterContent)
             }
+
+            LibraryFilter.PODCASTS -> LibraryPodcastsScreen(
+                navController,
+                { filterType = LibraryFilter.LIBRARY })
         }
     }
 }

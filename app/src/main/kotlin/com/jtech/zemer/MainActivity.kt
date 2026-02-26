@@ -233,6 +233,7 @@ import com.jtech.zemer.utils.tryStartForegroundService
 import com.jtech.zemer.viewmodels.HomeViewModel
 import com.jtech.zemer.viewmodels.KidZoneViewModel
 import com.jtech.zemer.viewmodels.WhitelistedArtistsViewModel
+import com.jtech.zemer.viewmodels.WhitelistedPodcastsViewModel
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
@@ -853,6 +854,7 @@ class MainActivity : ComponentActivity() {
                             listOf(
                                 Screens.Home.route,
                                 Screens.Artists.route,
+                                Screens.Podcasts.route,
                                 Screens.KidZone.route,
                                 Screens.Search.route,
                                 Screens.Library.route,
@@ -1121,6 +1123,7 @@ class MainActivity : ComponentActivity() {
                         when (navBackStackEntry?.destination?.route) {
                             Screens.Home.route -> R.string.home
                             Screens.Artists.route -> R.string.artists
+                            Screens.Podcasts.route -> R.string.podcasts
                             Screens.KidZone.route -> R.string.kid_zone
                             Screens.Search.route -> R.string.search
                             Screens.Library.route -> R.string.filter_library
@@ -1492,6 +1495,23 @@ class MainActivity : ComponentActivity() {
                                                         Icon(
                                                             painter = painterResource(R.drawable.sync),
                                                             contentDescription = stringResource(R.string.refresh_artists)
+                                                        )
+                                                    }
+                                                }
+
+                                                if (currentRoute == Screens.Podcasts.route && navBackStackEntry != null) {
+                                                    val whitelistedPodcastsViewModel: WhitelistedPodcastsViewModel =
+                                                        hiltViewModel(navBackStackEntry!!)
+                                                    IconButton(
+                                                        onClick = { whitelistedPodcastsViewModel.sync() },
+                                                        colors = IconButtonDefaults.iconButtonColors(
+                                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                                        ),
+                                                        modifier = Modifier.clip(CircleShape)
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.sync),
+                                                            contentDescription = stringResource(R.string.refresh_podcasts)
                                                         )
                                                     }
                                                 }

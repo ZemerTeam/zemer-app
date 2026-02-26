@@ -20,6 +20,8 @@ import com.jtech.zemer.db.entities.AlbumArtistMap
 import com.jtech.zemer.db.entities.AlbumEntity
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.db.entities.ArtistWhitelistEntity
+import com.jtech.zemer.db.entities.PodcastEntity
+import com.jtech.zemer.db.entities.PodcastWhitelistEntity
 import com.jtech.zemer.db.entities.Event
 import com.jtech.zemer.db.entities.FormatEntity
 import com.jtech.zemer.db.entities.LyricsEntity
@@ -84,14 +86,16 @@ class MusicDatabase(
         RelatedSongMap::class,
         SetVideoIdEntity::class,
         PlayCountEntity::class,
-        ArtistWhitelistEntity::class
+        ArtistWhitelistEntity::class,
+        PodcastWhitelistEntity::class,
+        PodcastEntity::class,
     ],
     views = [
         SortedSongArtistMap::class,
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 31,
+    version = 32,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -134,7 +138,7 @@ abstract class InternalDatabase : RoomDatabase() {
             val builtDb = try {
                 Room
                     .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
-                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32)
                     .setJournalMode(JournalMode.TRUNCATE)
                     .enableMultiInstanceInvalidation()
                     .build().also {
@@ -406,6 +410,43 @@ val MIGRATION_30_31 =
             db.execSQL("CREATE INDEX IF NOT EXISTS index_song_isVideo ON song(isVideo)")
             // Add timestamp index for event table (time-range queries)
             db.execSQL("CREATE INDEX IF NOT EXISTS index_event_timestamp ON event(timestamp)")
+        }
+    }
+
+val MIGRATION_31_32 =
+    object : Migration(31, 32) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create podcast_whitelist table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `podcast_whitelist` (
+                    `podcastId` TEXT NOT NULL PRIMARY KEY,
+                    `podcastName` TEXT NOT NULL,
+                    `thumbnailUrl` TEXT,
+                    `channelId` TEXT,
+                    `addedAt` INTEGER NOT NULL,
+                    `source` TEXT NOT NULL DEFAULT 'firestore',
+                    `lastSyncedAt` INTEGER NOT NULL
+                )
+            """.trimIndent())
+
+            // Create podcast table for saved/subscribed podcasts
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS `podcast` (
+                    `id` TEXT NOT NULL PRIMARY KEY,
+                    `title` TEXT NOT NULL,
+                    `author` TEXT,
+                    `thumbnailUrl` TEXT,
+                    `channelId` TEXT,
+                    `bookmarkedAt` INTEGER,
+                    `lastUpdateTime` INTEGER NOT NULL
+                )
+            """.trimIndent())
+
+            // Add isEpisode column to song table
+            db.execSQL("ALTER TABLE song ADD COLUMN isEpisode INTEGER NOT NULL DEFAULT 0")
+
+            // Add index for isEpisode column
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_song_isEpisode ON song(isEpisode)")
         }
     }
 

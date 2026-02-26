@@ -68,6 +68,8 @@ val LastWhitelistSyncTimeKey = longPreferencesKey("lastWhitelistSyncTime")  // T
 val CheckForUpdatesKey = booleanPreferencesKey("checkForUpdates")
 val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 val LastWhitelistVersionKey = longPreferencesKey("lastWhitelistVersion")
+val LastPodcastWhitelistSyncTimeKey = longPreferencesKey("lastPodcastWhitelistSyncTime")
+val LastPodcastWhitelistVersionKey = longPreferencesKey("lastPodcastWhitelistVersion")
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")
 val DownloadQualityKey = stringPreferencesKey("downloadQuality")
@@ -152,6 +154,7 @@ val ArtistProfilesCacheTimestampKey = longPreferencesKey("artist_profiles_cache_
 val ArtistViewTypeKey = stringPreferencesKey("artistViewType")
 val AlbumViewTypeKey = stringPreferencesKey("albumViewType")
 val PlaylistViewTypeKey = stringPreferencesKey("playlistViewType")
+val PodcastViewTypeKey = stringPreferencesKey("podcastViewType")
 
 val PlaylistEditLockKey = booleanPreferencesKey("playlistEditLock")
 val QuickPicksKey = stringPreferencesKey("discover")

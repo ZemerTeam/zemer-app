@@ -107,7 +107,9 @@ import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
 import kotlinx.coroutines.CoroutineScope
@@ -872,6 +874,8 @@ fun YouTubeListItem(
                 is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
                 is ArtistItem -> null
                 is PlaylistItem -> joinByBullet(item.author?.name, item.songCountText)
+                is PodcastItem -> joinByBullet(item.author?.name, item.episodeCountText)
+                is EpisodeItem -> joinByBullet(item.publishDateText, item.duration?.let { makeTimeString(it.times(1000L)) })
             },
             badges = badges,
             thumbnailContent = {
@@ -901,6 +905,38 @@ fun YouTubeListItem(
     } else {
         content()
     }
+}
+
+@Composable
+fun EpisodeListItem(
+    episode: EpisodeItem,
+    modifier: Modifier = Modifier,
+    isActive: Boolean = false,
+    isPlaying: Boolean = false,
+    trailingContent: @Composable RowScope.() -> Unit = {},
+) {
+    ListItem(
+        title = episode.title,
+        subtitle = joinByBullet(
+            episode.publishDateText,
+            episode.duration?.let { makeTimeString(it.times(1000L)) }
+        ),
+        badges = {
+            if (episode.explicit) Icon.Explicit()
+        },
+        thumbnailContent = {
+            ItemThumbnail(
+                thumbnailUrl = episode.thumbnail,
+                isActive = isActive,
+                isPlaying = isPlaying,
+                shape = RoundedCornerShape(ThumbnailCornerRadius),
+                modifier = Modifier.size(ListThumbnailSize)
+            )
+        },
+        trailingContent = trailingContent,
+        modifier = modifier,
+        isActive = isActive
+    )
 }
 
 @Composable
@@ -951,6 +987,8 @@ fun YouTubeGridItem(
             is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
             is ArtistItem -> null
             is PlaylistItem -> joinByBullet(item.author?.name, item.songCountText)
+            is PodcastItem -> joinByBullet(item.author?.name, item.episodeCountText)
+            is EpisodeItem -> joinByBullet(item.publishDateText, item.duration?.let { makeTimeString(it.times(1000L)) })
         }
         if (subtitle != null) {
             Text(

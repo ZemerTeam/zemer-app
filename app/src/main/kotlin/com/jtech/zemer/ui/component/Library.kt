@@ -23,9 +23,11 @@ import coil3.request.ImageRequest
 import coil3.size.Scale
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListThumbnailSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.db.entities.Playlist
+import com.jtech.zemer.db.entities.PodcastWhitelistEntity
 import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.ArtistMenu
 import com.jtech.zemer.ui.menu.PlaylistMenu
@@ -405,6 +407,89 @@ fun LibraryPlaylistGridItem(
                         }
                     }
                 }
+            }
+        )
+)
+
+@Composable
+fun WhitelistedPodcastListItem(
+    navController: NavController,
+    podcast: PodcastWhitelistEntity,
+    onRequestThumb: () -> Unit = {},
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
+) = ListItem(
+    title = podcast.podcastName,
+    subtitle = "",
+    badges = {},
+    thumbnailContent = {
+        if (podcast.thumbnailUrl.isNullOrBlank()) {
+            LaunchedEffect(podcast.podcastId) { onRequestThumb() }
+        }
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(podcast.thumbnailUrl)
+                .scale(Scale.FILL)
+                .size(ListThumbnailSize.value.toInt())
+                .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .build(),
+            contentDescription = null,
+            modifier = Modifier
+                .size(ListThumbnailSize)
+                .clip(RoundedCornerShape(8)),
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.Center,
+            placeholder = painterResource(R.drawable.podcast),
+            error = painterResource(R.drawable.podcast),
+        )
+    },
+    trailingContent = {},
+    modifier = modifier
+        .fillMaxWidth()
+        .clickable {
+            navController.navigate("online_podcast/${podcast.podcastId}")
+        }
+)
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun WhitelistedPodcastGridItem(
+    navController: NavController,
+    podcast: PodcastWhitelistEntity,
+    onRequestThumb: () -> Unit = {},
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
+) = GridItem(
+    title = podcast.podcastName,
+    subtitle = "",
+    badges = {},
+    thumbnailContent = {
+        if (podcast.thumbnailUrl.isNullOrBlank()) {
+            LaunchedEffect(podcast.podcastId) { onRequestThumb() }
+        }
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(podcast.thumbnailUrl)
+                .scale(Scale.FILL)
+                .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .build(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(8)),
+            placeholder = painterResource(R.drawable.podcast),
+            error = painterResource(R.drawable.podcast),
+        )
+    },
+    fillMaxWidth = true,
+    modifier = modifier
+        .fillMaxWidth()
+        .combinedClickable(
+            onClick = {
+                navController.navigate("online_podcast/${podcast.podcastId}")
             }
         )
 )

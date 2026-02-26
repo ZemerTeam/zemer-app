@@ -3,6 +3,7 @@ package com.jtech.zemer.utils
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.QuerySnapshot
 import com.jtech.zemer.db.entities.ArtistWhitelistEntity
+import com.jtech.zemer.db.entities.PodcastWhitelistEntity
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDateTime
 import timber.log.Timber
@@ -67,6 +68,60 @@ object WhitelistFetcher {
 
             lastFetchTime = System.currentTimeMillis()
             Timber.d("WhitelistFetcher: completed fetch with $processed artists")
+            whitelistEntities
+        }
+
+    var lastPodcastFetchTime = -1L
+        private set
+
+    suspend fun fetchPodcastVersion(): Result<Long> =
+        runCatching {
+            val doc = firestore.collection("podcastDatabaseNumber").document("latest").get().await()
+            val updatedAt = doc.getTimestamp("updatedAt")?.toDate()?.time
+            val update = doc.getString("update") ?: doc.getLong("update")
+            val value = (updatedAt ?: update)?.toString()?.toLongOrNull()
+                ?: error("Missing or invalid update value in podcastDatabaseNumber/latest")
+            value
+        }
+
+    suspend fun fetchPodcastWhitelist(onProgress: (current: Int, total: Int) -> Unit = { _, _ -> }): Result<List<PodcastWhitelistEntity>> =
+        runCatching {
+            val now = LocalDateTime.now()
+            val whitelistEntities = mutableListOf<PodcastWhitelistEntity>()
+            Timber.d("WhitelistFetcher: starting full fetch of podcastsWhitelist...")
+
+            val snapshot: QuerySnapshot = firestore.collection("podcastsWhitelist")
+                .get()
+                .await()
+            val total = snapshot.size()
+
+            var processed = 0
+            snapshot.documents.forEach { doc ->
+                val podcastId = (doc.getString("id") ?: doc.getString("podcastId")) ?: return@forEach
+                val podcastName = (doc.getString("name") ?: doc.getString("podcastName")) ?: return@forEach
+                val thumbnailUrl = doc.getString("thumbnailUrl")
+                val channelId = doc.getString("channelId")
+
+                whitelistEntities.add(
+                    PodcastWhitelistEntity(
+                        podcastId = podcastId,
+                        podcastName = podcastName,
+                        thumbnailUrl = thumbnailUrl,
+                        channelId = channelId,
+                        addedAt = now,
+                        source = "firestore",
+                        lastSyncedAt = now
+                    )
+                )
+                processed++
+                onProgress(processed, total)
+                if (processed % 50 == 0) {
+                    Timber.d("WhitelistFetcher: fetched $processed/$total podcasts so far")
+                }
+            }
+
+            lastPodcastFetchTime = System.currentTimeMillis()
+            Timber.d("WhitelistFetcher: completed fetch with $processed podcasts")
             whitelistEntities
         }
 }

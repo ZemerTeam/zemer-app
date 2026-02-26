@@ -116,6 +116,11 @@ fun PlayerMenu(
             mediaMetadata.artists.filter { it.id != null }
         }
 
+    // Check if this is a podcast episode (album ID starts with MPSP)
+    val isPodcast = remember(mediaMetadata.album) {
+        mediaMetadata.album?.id?.startsWith("MPSP") == true
+    }
+
     var showChoosePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
     }
@@ -533,7 +538,8 @@ fun PlayerMenu(
             )
         }
 
-        if (artists.isNotEmpty()) {
+        // Don't show "View Artist" for podcast episodes
+        if (artists.isNotEmpty() && !isPodcast) {
             item {
                 ListItem(
                     headlineContent = { Text(text = stringResource(R.string.view_artist)) },
@@ -555,18 +561,25 @@ fun PlayerMenu(
                 )
             }
         }
+        // Show "View Podcast" for podcast episodes, "View Album" for regular songs
         if (mediaMetadata.album != null) {
             item {
                 ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.view_album)) },
+                    headlineContent = {
+                        Text(text = stringResource(if (isPodcast) R.string.go_to_podcast else R.string.view_album))
+                    },
                     leadingContent = {
                         Icon(
-                            painter = painterResource(R.drawable.album),
+                            painter = painterResource(if (isPodcast) R.drawable.podcast else R.drawable.album),
                             contentDescription = null,
                         )
                     },
                     modifier = Modifier.clickable {
-                        navController.navigate("album/${mediaMetadata.album.id}")
+                        if (isPodcast) {
+                            navController.navigate("online_podcast/${mediaMetadata.album.id}")
+                        } else {
+                            navController.navigate("album/${mediaMetadata.album.id}")
+                        }
                         playerBottomSheetState.collapseSoft()
                         onDismiss()
                     }

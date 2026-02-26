@@ -3,6 +3,7 @@ package com.jtech.zemer.extensions
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_MUSIC
+import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.SongItem
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.MediaMetadata
@@ -46,6 +47,25 @@ fun SongItem.toMediaItem() =
                 .setArtist(artists.joinToString { it.name })
                 .setArtworkUri(thumbnail.resize(544, 544).toUri())
                 .setAlbumTitle(album?.name)
+                .setMediaType(MEDIA_TYPE_MUSIC)
+                .build(),
+        ).build()
+
+fun EpisodeItem.toMediaItem() =
+    MediaItem
+        .Builder()
+        .setMediaId(id)
+        .setUri(id)
+        .setCustomCacheKey(id)
+        .setTag(toMediaMetadata())
+        .setMediaMetadata(
+            androidx.media3.common.MediaMetadata
+                .Builder()
+                .setTitle(title)
+                .setSubtitle(author?.name ?: "")
+                .setArtist(author?.name ?: "")
+                .setArtworkUri(thumbnail.resize(544, 544).toUri())
+                .setAlbumTitle(podcast?.name)
                 .setMediaType(MEDIA_TYPE_MUSIC)
                 .build(),
         ).build()
