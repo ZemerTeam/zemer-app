@@ -326,6 +326,7 @@ private fun WelcomeScreen(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
                 .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
                 .padding(vertical = 48.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
