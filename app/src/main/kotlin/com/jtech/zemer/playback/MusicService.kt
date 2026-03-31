@@ -193,7 +193,7 @@ class MusicService :
     lateinit var mediaLibrarySessionCallback: MediaLibrarySessionCallback
 
     private lateinit var deviceDiscoverer: NsdDeviceDiscoverer
-    private val discoveryHandler = FCastDiscoveryHandler()
+    val discoveryHandler = FCastDiscoveryHandler()
 
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null

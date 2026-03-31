@@ -557,4 +557,9 @@
     <string name="widget_name">Zemer Music</string>
     <string name="widget_description">Control your music playback</string>
     <string name="widget_tap_to_open">Tap to open</string>
+
+    <!-- FCast -->
+    <string name="cast_button_description">Cast to device</string>
+    <string name="cast_dialog_title">Cast to</string>
+    <string name="cast_no_devices">No devices found on network</string>
 </resources>
