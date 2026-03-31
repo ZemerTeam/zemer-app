@@ -182,7 +182,7 @@ private fun NewMiniPlayer(
     val currentService = playerConnection.service
     val discoveredDevices = currentService.discoveryHandler.discoveredDevices
     val devices = discoveredDevices.values.toList()
-    val isConnected = currentService.discoveryHandler.connectedDevice != null
+    val connectedDevice = currentService.discoveryHandler.connectedDevice
     var showCastSheet by remember { mutableStateOf(false) }
 
     LocalView.current
@@ -267,8 +267,12 @@ private fun NewMiniPlayer(
     if (showCastSheet) {
         CastBottomSheet(
             devices = devices,
+            connectedDevice = connectedDevice,
             onDeviceSelected = { deviceInfo ->
                 currentService.discoveryHandler.connectTo(deviceInfo)
+            },
+            onDisconnect = {
+                currentService.discoveryHandler.disconnect()
             },
             onDismiss = { showCastSheet = false }
         )
@@ -610,14 +614,14 @@ private fun NewMiniPlayer(
                             .clip(CircleShape)
                             .border(
                                 width = 1.dp,
-                                color = if (isConnected)
+                                color = if (connectedDevice != null)
                                     MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                                 else
                                     MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                                 shape = CircleShape
                             )
                             .background(
-                                color = if (isConnected)
+                                color = if (connectedDevice != null)
                                     MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                                 else
                                     Color.Transparent,
@@ -626,9 +630,9 @@ private fun NewMiniPlayer(
                             .clickable { showCastSheet = true }
                     ) {
                         Icon(
-                            imageVector = if (isConnected) Icons.Default.CastConnected else Icons.Default.Cast,
+                            imageVector = if (connectedDevice != null) Icons.Default.CastConnected else Icons.Default.Cast,
                             contentDescription = stringResource(R.string.cast_button_description),
-                            tint = if (isConnected)
+                            tint = if (connectedDevice != null)
                                 MaterialTheme.colorScheme.primary
                             else
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
@@ -790,7 +794,7 @@ private fun LegacyMiniPlayer(
     val currentService = playerConnection.service
     val discoveredDevices = currentService.discoveryHandler.discoveredDevices
     val devices = discoveredDevices.values.toList()
-    val isConnected = currentService.discoveryHandler.connectedDevice != null
+    val connectedDevice = currentService.discoveryHandler.connectedDevice
     var showCastSheet by remember { mutableStateOf(false) }
 
     LocalView.current
@@ -821,8 +825,12 @@ private fun LegacyMiniPlayer(
     if (showCastSheet) {
         CastBottomSheet(
             devices = devices,
+            connectedDevice = connectedDevice,
             onDeviceSelected = { deviceInfo ->
                 currentService.discoveryHandler.connectTo(deviceInfo)
+            },
+            onDisconnect = {
+                currentService.discoveryHandler.disconnect()
             },
             onDismiss = { showCastSheet = false }
         )
@@ -958,14 +966,14 @@ private fun LegacyMiniPlayer(
                 }
             }
 
-            if (discoveredDevices.isNotEmpty()) {
+            if (devices.isNotEmpty()) {
                 IconButton(
                     onClick = { showCastSheet = true },
                 ) {
                     Icon(
-                        imageVector = if (isConnected) Icons.Default.CastConnected else Icons.Default.Cast,
+                        imageVector = if (connectedDevice != null) Icons.Default.CastConnected else Icons.Default.Cast,
                         contentDescription = stringResource(R.string.cast_button_description),
-                        tint = if (isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        tint = if (connectedDevice != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     )
                 }
             }
