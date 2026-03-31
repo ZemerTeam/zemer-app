@@ -351,9 +351,9 @@ fun Queue(
                             tint = TextBackgroundColor
                         )
                     }
-                    val currentService = playerConnection.service
-                    val devices = currentService.discoveryHandler.discoveredDevices.values.toList()
-                    val isConnected = currentService.discoveryHandler.connectedDevice != null
+                    val service = playerConnection.service
+                    val devices = service.discoveryHandler.discoveredDevices.values.toList()
+                    val connectedDevice = service.discoveryHandler.connectedDevice
                     var showCastSheet by remember { mutableStateOf(false) }
 
                     if (devices.isNotEmpty()) {
@@ -366,10 +366,10 @@ fun Queue(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = if (isConnected) Icons.Default.CastConnected else Icons.Default.Cast,
+                                imageVector = if (connectedDevice != null) Icons.Default.CastConnected else Icons.Default.Cast,
                                 contentDescription = stringResource(R.string.cast_button_description),
                                 modifier = Modifier.size(iconSize),
-                                tint = if (isConnected) MaterialTheme.colorScheme.primary else TextBackgroundColor
+                                tint = if (connectedDevice != null) MaterialTheme.colorScheme.primary else TextBackgroundColor
                             )
                         }
                     }
@@ -377,8 +377,12 @@ fun Queue(
                     if (showCastSheet) {
                         CastBottomSheet(
                             devices = devices,
+                            connectedDevice = connectedDevice,
                             onDeviceSelected = { deviceInfo ->
-                                currentService.discoveryHandler.connectTo(deviceInfo)
+                                service.discoveryHandler.connectTo(deviceInfo)
+                            },
+                            onDisconnect = {
+                                service.discoveryHandler.disconnect()
                             },
                             onDismiss = { showCastSheet = false }
                         )
