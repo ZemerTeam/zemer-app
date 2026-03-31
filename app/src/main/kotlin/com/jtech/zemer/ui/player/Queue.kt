@@ -115,6 +115,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.CastConnected
+import androidx.compose.runtime.*
 import kotlin.math.roundToInt
 
 @Suppress("unused")
@@ -345,6 +349,38 @@ fun Queue(
                                 .size(iconSize)
                                 .alpha(if (repeatMode == Player.REPEAT_MODE_OFF) 0.5f else 1f),
                             tint = TextBackgroundColor
+                        )
+                    }
+                    val currentService = playerConnection.service
+                    val devices = currentService.discoveryHandler.discoveredDevices.values.toList()
+                    val isConnected = currentService.discoveryHandler.connectedDevice != null
+                    var showCastSheet by remember { mutableStateOf(false) }
+
+                    if (devices.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .size(buttonSize)
+                                .clip(RoundedCornerShape(5.dp))
+                                .border(1.dp, borderColor, RoundedCornerShape(5.dp))
+                                .clickable { showCastSheet = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isConnected) Icons.Default.CastConnected else Icons.Default.Cast,
+                                contentDescription = stringResource(R.string.cast_button_description),
+                                modifier = Modifier.size(iconSize),
+                                tint = if (isConnected) MaterialTheme.colorScheme.primary else TextBackgroundColor
+                            )
+                        }
+                    }
+
+                    if (showCastSheet) {
+                        CastBottomSheet(
+                            devices = devices,
+                            onDeviceSelected = { deviceInfo ->
+                                currentService.discoveryHandler.connectTo(deviceInfo)
+                            },
+                            onDismiss = { showCastSheet = false }
                         )
                     }
 

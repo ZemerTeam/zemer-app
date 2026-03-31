@@ -1,25 +1,17 @@
 package com.jtech.zemer.playback
 
-import android.content.Context
 import android.util.Log
 import org.fcast.sender_sdk.*
 
-// Handles events from a connected casting device
 class DevEventHandler(
     val device: CastingDevice
 ) : DeviceEventHandler {
-
     override fun connectionStateChanged(state: DeviceConnectionState) {
         Log.d("FCast", "Connection state: $state")
-        if (state is DeviceConnectionState.Connected) {
-            // Device is ready — you can now call device.load(...) here
-        }
     }
-
     override fun playbackStateChanged(state: PlaybackState) {
         Log.d("FCast", "Playback state: $state")
     }
-
     override fun timeChanged(time: Double) {}
     override fun volumeChanged(volume: Double) {}
     override fun durationChanged(duration: Double) {}
@@ -32,16 +24,34 @@ class DevEventHandler(
     }
 }
 
-// Handles discovery of FCast-compatible devices on the local network
 class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     val castContext = CastContext()
     val discoveredDevices = mutableMapOf<String, DeviceInfo>()
-    var device: CastingDevice? = null
+    var connectedDevice: CastingDevice? = null
 
+    fun connectTo(deviceInfo: DeviceInfo) {
+        connectedDevice?.disconnect()
+        val newDevice = castContext.createDeviceFromInfo(deviceInfo)
+        newDevice.connect(null, DevEventHandler(newDevice), 1000u)
+        connectedDevice = newDevice
+    }
 
-    override fun deviceAvailable(deviceInfo: DeviceInfo) { discoveredDevices[deviceInfo.name] = deviceInfo }
-    override fun deviceChanged(deviceInfo: DeviceInfo) { discoveredDevices[deviceInfo.name] = deviceInfo }
+    fun disconnect() {
+        connectedDevice?.disconnect()
+        connectedDevice = null
+    }
+
+    override fun deviceAvailable(deviceInfo: DeviceInfo) {
+        discoveredDevices[deviceInfo.name] = deviceInfo
+    }
+
+    override fun deviceChanged(deviceInfo: DeviceInfo) {
+        discoveredDevices[deviceInfo.name] = deviceInfo
+    }
+
     override fun deviceRemoved(deviceName: String) {
-        device = null
+        discoveredDevices.remove(deviceName)
+        if (connectedDevice == null) return
+        connectedDevice = null
     }
 }

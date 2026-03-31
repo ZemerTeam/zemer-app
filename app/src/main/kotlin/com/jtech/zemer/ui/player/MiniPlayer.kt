@@ -37,6 +37,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.CastConnected
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -70,6 +74,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -174,6 +179,12 @@ private fun NewMiniPlayer(
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
 
+    val currentService = playerConnection.service
+    val discoveredDevices = currentService.discoveryHandler.discoveredDevices
+    val devices = discoveredDevices.values.toList()
+    val isConnected = currentService.discoveryHandler.connectedDevice != null
+    var showCastSheet by remember { mutableStateOf(false) }
+
     LocalView.current
     val layoutDirection = LocalLayoutDirection.current
     val coroutineScope = rememberCoroutineScope()
@@ -252,6 +263,16 @@ private fun NewMiniPlayer(
     val subtitleColor =
         if (lightContent) Color.White.copy(alpha = 0.7f)
         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+
+    if (showCastSheet) {
+        CastBottomSheet(
+            devices = devices,
+            onDeviceSelected = { deviceInfo ->
+                currentService.discoveryHandler.connectTo(deviceInfo)
+            },
+            onDismiss = { showCastSheet = false }
+        )
+    }
 
     Box(
         modifier = modifier
@@ -580,6 +601,42 @@ private fun NewMiniPlayer(
                     }
                 }
 
+                if (discoveredDevices.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .border(
+                                width = 1.dp,
+                                color = if (isConnected)
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                else
+                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                shape = CircleShape
+                            )
+                            .background(
+                                color = if (isConnected)
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                                else
+                                    Color.Transparent,
+                                shape = CircleShape
+                            )
+                            .clickable { showCastSheet = true }
+                    ) {
+                        Icon(
+                            imageVector = if (isConnected) Icons.Default.CastConnected else Icons.Default.Cast,
+                            contentDescription = stringResource(R.string.cast_button_description),
+                            tint = if (isConnected)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.width(12.dp))
 
                 // Subscribe/Subscribed button
@@ -730,6 +787,12 @@ private fun LegacyMiniPlayer(
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
 
+    val currentService = playerConnection.service
+    val discoveredDevices = currentService.discoveryHandler.discoveredDevices
+    val devices = discoveredDevices.values.toList()
+    val isConnected = currentService.discoveryHandler.connectedDevice != null
+    var showCastSheet by remember { mutableStateOf(false) }
+
     LocalView.current
     val layoutDirection = LocalLayoutDirection.current
     val coroutineScope = rememberCoroutineScope()
@@ -754,6 +817,16 @@ private fun LegacyMiniPlayer(
         return (600 / (1f + kotlin.math.exp(-(-11.44748 * swipeSensitivity + 9.04945)))).roundToInt()
     }
     val autoSwipeThreshold = calculateAutoSwipeThreshold(swipeSensitivity)
+
+    if (showCastSheet) {
+        CastBottomSheet(
+            devices = devices,
+            onDeviceSelected = { deviceInfo ->
+                currentService.discoveryHandler.connectTo(deviceInfo)
+            },
+            onDismiss = { showCastSheet = false }
+        )
+    }
 
     Box(
         modifier = modifier
@@ -881,6 +954,18 @@ private fun LegacyMiniPlayer(
                         error = error,
                         pureBlack = pureBlack,
                         modifier = Modifier.padding(horizontal = 6.dp),
+                    )
+                }
+            }
+
+            if (discoveredDevices.isNotEmpty()) {
+                IconButton(
+                    onClick = { showCastSheet = true },
+                ) {
+                    Icon(
+                        imageVector = if (isConnected) Icons.Default.CastConnected else Icons.Default.Cast,
+                        contentDescription = stringResource(R.string.cast_button_description),
+                        tint = if (isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     )
                 }
             }
