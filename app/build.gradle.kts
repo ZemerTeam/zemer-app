@@ -285,4 +285,5 @@ dependencies {
         exclude(group = "net.java.dev.jna")
     }
     implementation("net.java.dev.jna:jna:5.13.0@aar")
+    implementation("androidx.compose.material:material-icons-extended")
 }
