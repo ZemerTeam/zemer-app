@@ -167,6 +167,7 @@ import java.util.concurrent.Executor
 import java.time.LocalDateTime
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.seconds
+import org.fcast.sender_sdk.*
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @AndroidEntryPoint
@@ -190,6 +191,9 @@ class MusicService :
 
     @Inject
     lateinit var mediaLibrarySessionCallback: MediaLibrarySessionCallback
+
+    private lateinit var deviceDiscoverer: NsdDeviceDiscoverer
+    private val discoveryHandler = FCastDiscoveryHandler()
 
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -256,6 +260,7 @@ class MusicService :
 
     override fun onCreate() {
         super.onCreate()
+        deviceDiscoverer = NsdDeviceDiscoverer(this, discoveryHandler)
         // Media3's MediaLibraryService handles foreground notification automatically
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider(
