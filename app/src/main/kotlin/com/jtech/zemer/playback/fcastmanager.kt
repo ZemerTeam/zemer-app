@@ -4,10 +4,27 @@ import android.util.Log
 import org.fcast.sender_sdk.*
 
 class DevEventHandler(
-    val device: CastingDevice
+    val device: CastingDevice,
+    private val streamUrl: String?,
+    private val contentType: String?
 ) : DeviceEventHandler {
     override fun connectionStateChanged(state: DeviceConnectionState) {
-        Log.d("FCast", "Connection state: $state")
+        if (state is DeviceConnectionState.Connected) {
+            if (streamUrl != null && contentType != null) {
+                Log.d("FCast", "Attempting to load URL: $streamUrl with type: $contentType")
+                device.load(
+                    LoadRequest.Url(
+                        url = streamUrl,
+                        contentType = contentType,
+                        resumePosition = 0.0,
+                        speed = null,
+                        volume = null,
+                        metadata = null,
+                        requestHeaders = null
+                    )
+                )
+            }
+        }
     }
     override fun playbackStateChanged(state: PlaybackState) {
         Log.d("FCast", "Playback state: $state")
@@ -29,10 +46,10 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     val discoveredDevices = mutableMapOf<String, DeviceInfo>()
     var connectedDevice: CastingDevice? = null
 
-    fun connectTo(deviceInfo: DeviceInfo) {
+    fun connectTo(deviceInfo: DeviceInfo, streamUrl: String? = null, contentType: String? = null) {
         connectedDevice?.disconnect()
         val newDevice = castContext.createDeviceFromInfo(deviceInfo)
-        newDevice.connect(null, DevEventHandler(newDevice), 1000u)
+        newDevice.connect(null, DevEventHandler(newDevice, streamUrl, contentType), 1000u)
         connectedDevice = newDevice
     }
 
