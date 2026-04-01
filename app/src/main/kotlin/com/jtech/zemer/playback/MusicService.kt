@@ -249,6 +249,12 @@ class MusicService :
 
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
 
+    val currentStreamUrl: String?
+        get() = player.currentMediaItem?.mediaId?.let { songUrlCache[it]?.first }
+
+    val currentContentType: String?
+        get() = player.audioFormat?.sampleMimeType ?: "audio/mp4"
+
     private var consecutivePlaybackErr = 0
 
     // Use shared URL cache from DownloadUtil for consistency between playback and downloads
@@ -1623,7 +1629,7 @@ class MusicService :
             !dataStore.get(PauseListenHistoryKey, false)
         ) {
             database.query {
-                incrementTotalPlayTime(mediaItem.mediaId, playbackStats.totalPlayTimeMs)
+                incrementTotalPlayTime(songId = mediaItem.mediaId, playTime = playbackStats.totalPlayTimeMs)
                 try {
                     insert(
                         Event(

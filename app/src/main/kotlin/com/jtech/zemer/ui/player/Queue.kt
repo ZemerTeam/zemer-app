@@ -378,8 +378,10 @@ fun Queue(
                         CastBottomSheet(
                             devices = devices,
                             connectedDevice = connectedDevice,
-                            onDeviceSelected = { deviceInfo ->
-                                service.discoveryHandler.connectTo(deviceInfo)
+                            streamUrl = service.currentStreamUrl,
+                            contentType = service.currentContentType,
+                            onDeviceSelected = { deviceInfo, url, type ->
+                                service.discoveryHandler.connectTo(deviceInfo, url, type)
                             },
                             onDisconnect = {
                                 service.discoveryHandler.disconnect()
