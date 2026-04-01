@@ -381,7 +381,7 @@ fun Queue(
                             streamUrl = service.currentStreamUrl,
                             contentType = service.currentContentType,
                             onDeviceSelected = { deviceInfo, url, type ->
-                                service.discoveryHandler.connectTo(deviceInfo, url, type)
+                                service.discoveryHandler.connectTo(deviceInfo, url, type, playerConnection.player.currentPosition / 1000.0)
                             },
                             onDisconnect = {
                                 service.discoveryHandler.disconnect()
