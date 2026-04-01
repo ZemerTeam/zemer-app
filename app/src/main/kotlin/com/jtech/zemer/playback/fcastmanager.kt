@@ -6,7 +6,8 @@ import org.fcast.sender_sdk.*
 class DevEventHandler(
     val device: CastingDevice,
     private val streamUrl: String?,
-    private val contentType: String?
+    private val contentType: String?,
+    private val resumePosition: Double = 0.0
 ) : DeviceEventHandler {
     override fun connectionStateChanged(state: DeviceConnectionState) {
         if (state is DeviceConnectionState.Connected) {
@@ -16,7 +17,7 @@ class DevEventHandler(
                     LoadRequest.Url(
                         url = streamUrl,
                         contentType = contentType,
-                        resumePosition = 0.0,
+                        resumePosition = resumePosition,
                         speed = null,
                         volume = null,
                         metadata = null,
@@ -46,10 +47,10 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     val discoveredDevices = mutableMapOf<String, DeviceInfo>()
     var connectedDevice: CastingDevice? = null
 
-    fun connectTo(deviceInfo: DeviceInfo, streamUrl: String? = null, contentType: String? = null) {
+    fun connectTo(deviceInfo: DeviceInfo, streamUrl: String? = null, contentType: String? = null, resumePosition: Double = 0.0) {
         connectedDevice?.disconnect()
         val newDevice = castContext.createDeviceFromInfo(deviceInfo)
-        newDevice.connect(null, DevEventHandler(newDevice, streamUrl, contentType), 1000u)
+        newDevice.connect(null, DevEventHandler(newDevice, streamUrl, contentType, resumePosition), 1000u)
         connectedDevice = newDevice
     }
 
