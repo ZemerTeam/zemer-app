@@ -268,8 +268,10 @@ private fun NewMiniPlayer(
         CastBottomSheet(
             devices = devices,
             connectedDevice = connectedDevice,
-            onDeviceSelected = { deviceInfo ->
-                currentService.discoveryHandler.connectTo(deviceInfo)
+            streamUrl = currentService.currentStreamUrl,
+            contentType = currentService.currentContentType,
+            onDeviceSelected = { deviceInfo, url, type ->
+                currentService.discoveryHandler.connectTo(deviceInfo, url, type)
             },
             onDisconnect = {
                 currentService.discoveryHandler.disconnect()
@@ -826,8 +828,10 @@ private fun LegacyMiniPlayer(
         CastBottomSheet(
             devices = devices,
             connectedDevice = connectedDevice,
-            onDeviceSelected = { deviceInfo ->
-                currentService.discoveryHandler.connectTo(deviceInfo)
+            streamUrl = currentService.currentStreamUrl,
+            contentType = currentService.currentContentType,
+            onDeviceSelected = { deviceInfo, url, type ->
+                currentService.discoveryHandler.connectTo(deviceInfo, url, type)
             },
             onDisconnect = {
                 currentService.discoveryHandler.disconnect()

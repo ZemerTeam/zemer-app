@@ -22,7 +22,9 @@ import org.fcast.sender_sdk.DeviceInfo
 fun CastBottomSheet(
     devices: List<DeviceInfo>,
     connectedDevice: CastingDevice?,
-    onDeviceSelected: (DeviceInfo) -> Unit,
+    streamUrl: String? = null,
+    contentType: String? = null,
+    onDeviceSelected: (DeviceInfo, String?, String?) -> Unit,
     onDisconnect: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -74,7 +76,7 @@ fun CastBottomSheet(
                             )
                         },
                         modifier = Modifier.clickable {
-                            onDeviceSelected(device)
+                            onDeviceSelected(device, streamUrl, contentType)
                             onDismiss()
                         }
                     )
