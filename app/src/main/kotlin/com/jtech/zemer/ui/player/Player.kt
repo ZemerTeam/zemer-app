@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.jtech.zemer.ui.player
 
 import android.annotation.SuppressLint
@@ -226,10 +228,10 @@ fun BottomSheetPlayer(
     val unifiedPosition by playerConnection.currentPosition.collectAsState()
     val unifiedDuration by playerConnection.duration.collectAsState()
 
-    var position by rememberSaveable(playbackState, isCasting) {
+    var position by remember {
         mutableLongStateOf(unifiedPosition)
     }
-    var duration by rememberSaveable(playbackState, isCasting) {
+    var duration by remember {
         mutableLongStateOf(unifiedDuration)
     }
     var sliderPosition by remember {
@@ -404,12 +406,20 @@ fun BottomSheetPlayer(
         )
     }
 
-    LaunchedEffect(playbackState, isCasting) {
+    LaunchedEffect(playbackState, isCasting, isPlaying) {
         if (playbackState == STATE_READY || isCasting) {
             while (isActive) {
+                position = if (isCasting) {
+                    (playerConnection.service.discoveryHandler.remoteTime.value * 1000).toLong()
+                } else {
+                    playerConnection.player.currentPosition
+                }
+                duration = if (isCasting) {
+                    (playerConnection.service.discoveryHandler.remoteDuration.value * 1000).toLong()
+                } else {
+                    playerConnection.player.duration
+                }
                 delay(500)
-                position = playerConnection.currentPosition.value
-                duration = playerConnection.duration.value
             }
         }
     }
