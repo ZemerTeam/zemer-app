@@ -54,15 +54,16 @@ class PlayerConnection(
             player.playWhenReady && player.playbackState != STATE_ENDED
         )
 
-    val currentPosition = combine(isCasting, service.discoveryHandler.remoteTime) { casting, remoteTime ->
+    val mediaMetadata = MutableStateFlow(player.currentMetadata)
+
+    val currentPosition = combine(isCasting, service.discoveryHandler.remoteTime, mediaMetadata) { casting, remoteTime, _ ->
         if (casting) (remoteTime * 1000).toLong() else player.currentPosition
     }.stateIn(scope, SharingStarted.Lazily, player.currentPosition)
 
-    val duration = combine(isCasting, service.discoveryHandler.remoteDuration) { casting, remoteDuration ->
+    val duration = combine(isCasting, service.discoveryHandler.remoteDuration, mediaMetadata) { casting, remoteDuration, _ ->
         if (casting) (remoteDuration * 1000).toLong() else player.duration
     }.stateIn(scope, SharingStarted.Lazily, player.duration)
 
-    val mediaMetadata = MutableStateFlow(player.currentMetadata)
     val currentSong =
         mediaMetadata.flatMapLatest {
             database.song(it?.id)
