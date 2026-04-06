@@ -40,6 +40,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -88,6 +91,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.navigation.NavController
+import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListItemHeight
@@ -115,10 +119,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cast
-import androidx.compose.material.icons.filled.CastConnected
-import androidx.compose.runtime.*
 import kotlin.math.roundToInt
 
 @Suppress("unused")
@@ -353,7 +353,7 @@ fun Queue(
                     }
                     val service = playerConnection.service
                     val devices = service.discoveryHandler.discoveredDevices.values.toList()
-                    val connectedDevice = service.discoveryHandler.connectedDevice
+                    val isCasting by playerConnection.isCasting.collectAsState()
                     var showCastSheet by remember { mutableStateOf(false) }
 
                     if (devices.isNotEmpty()) {
@@ -366,10 +366,10 @@ fun Queue(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = if (connectedDevice != null) Icons.Default.CastConnected else Icons.Default.Cast,
+                                imageVector = if (isCasting) Icons.Default.CastConnected else Icons.Default.Cast,
                                 contentDescription = stringResource(R.string.cast_button_description),
                                 modifier = Modifier.size(iconSize),
-                                tint = if (connectedDevice != null) MaterialTheme.colorScheme.primary else TextBackgroundColor
+                                tint = if (isCasting) MaterialTheme.colorScheme.primary else TextBackgroundColor
                             )
                         }
                     }
@@ -377,11 +377,17 @@ fun Queue(
                     if (showCastSheet) {
                         CastBottomSheet(
                             devices = devices,
-                            connectedDevice = connectedDevice,
+                            connectedDevice = service.discoveryHandler.connectedDevice,
                             streamUrl = service.currentStreamUrl,
                             contentType = service.currentContentType,
                             onDeviceSelected = { deviceInfo, url, type ->
-                                service.discoveryHandler.connectTo(deviceInfo, url, type, playerConnection.player.currentPosition / 1000.0)
+                                playerConnection.player.pause()
+                                service.discoveryHandler.connectTo(
+                                    deviceInfo,
+                                    url,
+                                    type,
+                                    playerConnection.player.currentPosition / 1000.0
+                                )
                             },
                             onDisconnect = {
                                 service.discoveryHandler.disconnect()

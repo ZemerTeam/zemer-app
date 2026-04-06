@@ -49,6 +49,9 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CastConnected
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -211,6 +214,7 @@ fun BottomSheetPlayer(
 
     val playbackState by playerConnection.playbackState.collectAsState()
     val isPlaying by playerConnection.isPlaying.collectAsState()
+    val isCasting by playerConnection.isCasting.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
     val automix by playerConnection.service.automixItems.collectAsState()
@@ -219,11 +223,14 @@ fun BottomSheetPlayer(
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
 
-    var position by rememberSaveable(playbackState) {
-        mutableLongStateOf(playerConnection.player.currentPosition)
+    val unifiedPosition by playerConnection.currentPosition.collectAsState()
+    val unifiedDuration by playerConnection.duration.collectAsState()
+
+    var position by rememberSaveable(playbackState, isCasting) {
+        mutableLongStateOf(unifiedPosition)
     }
-    var duration by rememberSaveable(playbackState) {
-        mutableLongStateOf(playerConnection.player.duration)
+    var duration by rememberSaveable(playbackState, isCasting) {
+        mutableLongStateOf(unifiedDuration)
     }
     var sliderPosition by remember {
         mutableStateOf<Long?>(null)
@@ -397,12 +404,12 @@ fun BottomSheetPlayer(
         )
     }
 
-    LaunchedEffect(playbackState) {
-        if (playbackState == STATE_READY) {
+    LaunchedEffect(playbackState, isCasting) {
+        if (playbackState == STATE_READY || isCasting) {
             while (isActive) {
                 delay(500)
-                position = playerConnection.player.currentPosition
-                duration = playerConnection.player.duration
+                position = playerConnection.currentPosition.value
+                duration = playerConnection.duration.value
             }
         }
     }
@@ -582,6 +589,53 @@ fun BottomSheetPlayer(
                                     )
                                 ,
                             )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AnimatedContent(
+                                targetState = mediaMetadata.title,
+                                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                                label = "",
+                                modifier = Modifier.weight(1f)
+                            ) { title ->
+                                Text(
+                                    text = title,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = TextBackgroundColor,
+                                    modifier =
+                                    Modifier
+                                        .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
+                                        .combinedClickable(
+                                            enabled = true,
+                                            indication = null,
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            onClick = {
+                                                if (mediaMetadata.album != null) {
+                                                    navController.navigate("album/${mediaMetadata.album.id}")
+                                                    state.collapseSoft()
+                                                }
+                                            },
+                                            onLongClick = {
+                                                val clip = ClipData.newPlainText("Copied Title", title)
+                                                clipboardManager.setPrimaryClip(clip)
+                                                Toast
+                                                    .makeText(context, "Copied Title", Toast.LENGTH_SHORT)
+                                                    .show()
+                                            }
+                                        )
+                                    ,
+                                )
+                            }
+                            if (isCasting) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.Default.CastConnected,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
 
@@ -854,13 +908,13 @@ fun BottomSheetPlayer(
                     SliderStyle.DEFAULT -> {
                         Slider(
                             value = (sliderPosition ?: position).toFloat(),
-                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET || duration == 0L) 0f else duration.toFloat()),
                             onValueChange = {
                                 sliderPosition = it.toLong()
                             },
                             onValueChangeFinished = {
                                 sliderPosition?.let {
-                                    playerConnection.player.seekTo(it)
+                                    playerConnection.seekTo(it)
                                     position = it
                                 }
                                 sliderPosition = null
@@ -873,13 +927,13 @@ fun BottomSheetPlayer(
                     SliderStyle.SQUIGGLY -> {
                         SquigglySlider(
                             value = (sliderPosition ?: position).toFloat(),
-                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET || duration == 0L) 0f else duration.toFloat()),
                             onValueChange = {
                                 sliderPosition = it.toLong()
                             },
                             onValueChangeFinished = {
                                 sliderPosition?.let {
-                                    playerConnection.player.seekTo(it)
+                                    playerConnection.seekTo(it)
                                     position = it
                                 }
                                 sliderPosition = null
@@ -897,13 +951,13 @@ fun BottomSheetPlayer(
                     SliderStyle.SLIM -> {
                         Slider(
                             value = (sliderPosition ?: position).toFloat(),
-                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET || duration == 0L) 0f else duration.toFloat()),
                             onValueChange = {
                                 sliderPosition = it.toLong()
                             },
                             onValueChangeFinished = {
                                 sliderPosition?.let {
-                                    playerConnection.player.seekTo(it)
+                                    playerConnection.seekTo(it)
                                     position = it
                                 }
                                 sliderPosition = null
@@ -940,7 +994,7 @@ fun BottomSheetPlayer(
                 )
 
                 Text(
-                    text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "",
+                    text = if (duration != C.TIME_UNSET && duration != 0L) makeTimeString(duration) else "",
                     style = MaterialTheme.typography.labelMedium,
                     color = TextBackgroundColor,
                     maxLines = 1,
@@ -999,10 +1053,9 @@ fun BottomSheetPlayer(
                         FilledIconButton(
                             onClick = {
                                 if (playbackState == STATE_ENDED) {
-                                    playerConnection.player.seekTo(0, 0)
-                                    playerConnection.player.playWhenReady = true
+                                    playerConnection.seekTo(0)
                                 } else {
-                                    playerConnection.player.togglePlayPause()
+                                    playerConnection.playPause()
                                 }
                             },
                             interactionSource = playPauseInteraction,
@@ -1122,10 +1175,9 @@ fun BottomSheetPlayer(
                             .onFocusChanged { landscapePlayFocused.value = it.isFocused }
                             .clickable {
                                 if (playbackState == STATE_ENDED) {
-                                    playerConnection.player.seekTo(0, 0)
-                                    playerConnection.player.playWhenReady = true
+                                    playerConnection.seekTo(0)
                                 } else {
-                                    playerConnection.player.togglePlayPause()
+                                    playerConnection.playPause()
                                 }
                             },
                     ) {

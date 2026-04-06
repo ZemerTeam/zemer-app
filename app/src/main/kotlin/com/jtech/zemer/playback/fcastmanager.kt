@@ -1,15 +1,18 @@
 package com.jtech.zemer.playback
 
 import android.util.Log
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.fcast.sender_sdk.*
 
 class DevEventHandler(
+    private val handler: FCastDiscoveryHandler,
     val device: CastingDevice,
     private val streamUrl: String?,
     private val contentType: String?,
     private val resumePosition: Double = 0.0
 ) : DeviceEventHandler {
     override fun connectionStateChanged(state: DeviceConnectionState) {
+        handler.remoteConnectionState.value = state
         if (state is DeviceConnectionState.Connected) {
             if (streamUrl != null && contentType != null) {
                 Log.d("FCast", "Attempting to load URL: $streamUrl with type: $contentType")
@@ -25,14 +28,28 @@ class DevEventHandler(
                     )
                 )
             }
+        } else if (state is DeviceConnectionState.Disconnected) {
+            handler.onConnectionDisconnected()
         }
     }
+
     override fun playbackStateChanged(state: PlaybackState) {
         Log.d("FCast", "Playback state: $state")
+        handler.remotePlaybackState.value = state
     }
-    override fun timeChanged(time: Double) {}
-    override fun volumeChanged(volume: Double) {}
-    override fun durationChanged(duration: Double) {}
+
+    override fun timeChanged(time: Double) {
+        handler.remoteTime.value = time
+    }
+
+    override fun volumeChanged(volume: Double) {
+        handler.remoteVolume.value = volume
+    }
+
+    override fun durationChanged(duration: Double) {
+        handler.remoteDuration.value = duration
+    }
+
     override fun speedChanged(speed: Double) {}
     override fun sourceChanged(source: Source) {}
     override fun keyEvent(event: KeyEvent) {}
@@ -46,17 +63,53 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     val castContext = CastContext()
     val discoveredDevices = mutableMapOf<String, DeviceInfo>()
     var connectedDevice: CastingDevice? = null
+    var onDisconnect: ((Long) -> Unit)? = null
+
+    // We initialize with a safe default if possible, or make it nullable
+    val remotePlaybackState = MutableStateFlow<PlaybackState?>(null)
+    val remoteTime = MutableStateFlow(0.0)
+    val remoteDuration = MutableStateFlow(0.0)
+    val remoteVolume = MutableStateFlow(1.0)
+    val remoteConnectionState = MutableStateFlow<DeviceConnectionState>(DeviceConnectionState.Disconnected)
 
     fun connectTo(deviceInfo: DeviceInfo, streamUrl: String? = null, contentType: String? = null, resumePosition: Double = 0.0) {
         connectedDevice?.disconnect()
         val newDevice = castContext.createDeviceFromInfo(deviceInfo)
-        newDevice.connect(null, DevEventHandler(newDevice, streamUrl, contentType, resumePosition), 1000u)
+        newDevice.connect(null, DevEventHandler(this, newDevice, streamUrl, contentType, resumePosition), 1000u)
         connectedDevice = newDevice
+    }
+
+    fun onConnectionDisconnected() {
+        val lastPos = (remoteTime.value * 1000).toLong()
+        connectedDevice = null
+        remotePlaybackState.value = null
+        remoteConnectionState.value = DeviceConnectionState.Disconnected
+        onDisconnect?.invoke(lastPos)
     }
 
     fun disconnect() {
         connectedDevice?.disconnect()
-        connectedDevice = null
+        onConnectionDisconnected()
+    }
+
+    fun play() {
+        connectedDevice?.resumePlayback()
+    }
+
+    fun pause() {
+        connectedDevice?.pausePlayback()
+    }
+
+    fun seek(position: Double) {
+        connectedDevice?.seek(position)
+    }
+
+    fun stop() {
+        connectedDevice?.stopPlayback()
+    }
+
+    fun setVolume(volume: Double) {
+        connectedDevice?.changeVolume(volume)
     }
 
     override fun deviceAvailable(deviceInfo: DeviceInfo) {
@@ -69,7 +122,9 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
 
     override fun deviceRemoved(deviceName: String) {
         discoveredDevices.remove(deviceName)
-        if (connectedDevice == null) return
-        connectedDevice = null
+        // Identification is usually done by name in fcast.
+        if (connectedDevice?.name() == deviceName) {
+            disconnect()
+        }
     }
 }
