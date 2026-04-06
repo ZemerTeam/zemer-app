@@ -20,11 +20,9 @@ import com.jtech.zemer.playback.queues.Queue
 import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
+import org.fcast.sender_sdk.PlaybackState
+import org.fcast.sender_sdk.DeviceConnectionState
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlayerConnection(
@@ -38,14 +36,32 @@ class PlayerConnection(
 
     val playbackState = MutableStateFlow(player.playbackState)
     private val playWhenReady = MutableStateFlow(player.playWhenReady)
+
+    val isCasting = service.discoveryHandler.remoteConnectionState.map { connectionState: DeviceConnectionState ->
+        connectionState is org.fcast.sender_sdk.DeviceConnectionState.Connected
+    }.stateIn(scope, SharingStarted.Lazily, false)
+
     val isPlaying =
-        combine(playbackState, playWhenReady) { playbackState, playWhenReady ->
-            playWhenReady && playbackState != STATE_ENDED
+        combine(playbackState, playWhenReady, isCasting, service.discoveryHandler.remotePlaybackState) { playbackState, playWhenReady, casting, remoteState ->
+            if (casting && remoteState != null) {
+                remoteState.toString().contains("Playing", ignoreCase = true)
+            } else {
+                playWhenReady && playbackState != STATE_ENDED
+            }
         }.stateIn(
             scope,
             SharingStarted.Lazily,
             player.playWhenReady && player.playbackState != STATE_ENDED
         )
+
+    val currentPosition = combine(isCasting, service.discoveryHandler.remoteTime) { casting, remoteTime ->
+        if (casting) (remoteTime * 1000).toLong() else player.currentPosition
+    }.stateIn(scope, SharingStarted.Lazily, player.currentPosition)
+
+    val duration = combine(isCasting, service.discoveryHandler.remoteDuration) { casting, remoteDuration ->
+        if (casting) (remoteDuration * 1000).toLong() else player.duration
+    }.stateIn(scope, SharingStarted.Lazily, player.duration)
+
     val mediaMetadata = MutableStateFlow(player.currentMetadata)
     val currentSong =
         mediaMetadata.flatMapLatest {
@@ -85,6 +101,10 @@ class PlayerConnection(
         currentMediaItemIndex.value = player.currentMediaItemIndex
         shuffleModeEnabled.value = player.shuffleModeEnabled
         repeatMode.value = player.repeatMode
+
+        service.discoveryHandler.onDisconnect = { lastRemotePos ->
+            player.seekTo(lastRemotePos)
+        }
     }
 
     fun playQueue(queue: Queue) {
@@ -109,6 +129,31 @@ class PlayerConnection(
 
     fun toggleLike() {
         service.toggleLike()
+    }
+
+    fun playPause() {
+        if (isCasting.value) {
+            val remoteState = service.discoveryHandler.remotePlaybackState.value
+            if (remoteState != null && remoteState.toString().contains("Playing", ignoreCase = true)) {
+                service.discoveryHandler.pause()
+            } else {
+                service.discoveryHandler.play()
+            }
+        } else {
+            if (player.isPlaying) {
+                player.pause()
+            } else {
+                player.play()
+            }
+        }
+    }
+
+    fun seekTo(positionMs: Long) {
+        if (isCasting.value) {
+            service.discoveryHandler.seek(positionMs / 1000.0)
+        } else {
+            player.seekTo(positionMs)
+        }
     }
 
     fun seekToNext() {
