@@ -36,6 +36,19 @@ private object WhitelistEntryCache {
     }
 }
 
+private fun matchArtistByName(
+    artistName: String,
+    allowedEntries: List<ArtistWhitelistEntity>,
+    config: ContentFilterConfig,
+): ArtistWhitelistEntity? {
+    return allowedEntries.firstOrNull { entry ->
+        if (config.filtersEnabled && !config.allowFemaleSingers && entry.isFemale) {
+            return@firstOrNull false
+        }
+        artistName.contains(entry.artistName, ignoreCase = true)
+    }
+}
+
 private suspend fun SongItem.isWhitelisted(
     database: MusicDatabase,
     allowedIds: Set<String>?,
@@ -56,7 +69,17 @@ private suspend fun SongItem.isWhitelisted(
     var allAllowed = true
     var isChasidish = false
     for (artist in artists) {
-        val artistId = artist.id ?: continue
+        val artistId = artist.id
+        if (artistId == null) {
+            val matchedEntry = matchArtistByName(artist.name, WhitelistCache.allowedEntries(config), config)
+            if (matchedEntry != null) {
+                anyAllowed = true
+                if (matchedEntry.isChasid) isChasidish = true
+            } else {
+                allAllowed = false
+            }
+            continue
+        }
         val decision = database.artistMatchesFilters(artistId, allowedIds, artistCache, config)
         if (decision.allowed) {
             anyAllowed = true
@@ -97,7 +120,17 @@ private suspend fun AlbumItem.isWhitelisted(
     var allAllowed = true
     var isChasidish = false
     for (artist in albumArtists) {
-        val artistId = artist.id ?: continue
+        val artistId = artist.id
+        if (artistId == null) {
+            val matchedEntry = matchArtistByName(artist.name, WhitelistCache.allowedEntries(config), config)
+            if (matchedEntry != null) {
+                anyAllowed = true
+                if (matchedEntry.isChasid) isChasidish = true
+            } else {
+                allAllowed = false
+            }
+            continue
+        }
         val decision = database.artistMatchesFilters(artistId, allowedIds, artistCache, config)
         if (decision.allowed) {
             anyAllowed = true
