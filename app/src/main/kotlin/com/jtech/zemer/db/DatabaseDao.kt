@@ -1264,6 +1264,9 @@ interface DatabaseDao {
     @Query("SELECT * FROM artist WHERE artist.name = :name")
     fun artistByName(name: String): ArtistEntity?
 
+    @Query("SELECT * FROM artist WHERE artist.id IN (SELECT artistId FROM artist_whitelist) AND INSTR(:combinedName, artist.name) > 0 LIMIT 1")
+    fun whitelistedArtistByPartialName(combinedName: String): ArtistEntity?
+
     @Query("SELECT * FROM artist WHERE artist.id = :id LIMIT 1")
     fun getArtistById(id: String): ArtistEntity?
 
@@ -1319,7 +1322,7 @@ interface DatabaseDao {
 
         // Always create artist mappings (uses IGNORE so duplicates are fine)
         mediaMetadata.artists.forEachIndexed { index, artist ->
-            val artistId = artist.id ?: artistByName(artist.name)?.id ?: ArtistEntity.generateArtistId()
+            val artistId = artist.id ?: artistByName(artist.name)?.id ?: whitelistedArtistByPartialName(artist.name)?.id ?: ArtistEntity.generateArtistId()
 
             insert(
                 ArtistEntity(
@@ -1372,6 +1375,7 @@ interface DatabaseDao {
             ?.map { artist ->
                 ArtistEntity(
                     id = artist.id ?: artistByName(artist.name)?.id
+                    ?: whitelistedArtistByPartialName(artist.name)?.id
                     ?: ArtistEntity.generateArtistId(),
                     name = artist.name,
                 )
@@ -1403,7 +1407,7 @@ interface DatabaseDao {
         )
         songArtistMap(song.id).forEach(::delete)
         mediaMetadata.artists.forEachIndexed { index, artist ->
-            val artistId = artist.id ?: artistByName(artist.name)?.id ?: ArtistEntity.generateArtistId()
+            val artistId = artist.id ?: artistByName(artist.name)?.id ?: whitelistedArtistByPartialName(artist.name)?.id ?: ArtistEntity.generateArtistId()
             
             insert(
                 ArtistEntity(
