@@ -21,15 +21,17 @@ import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import org.fcast.sender_sdk.PlaybackState
 import org.fcast.sender_sdk.DeviceConnectionState
+import org.fcast.sender_sdk.Metadata
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlayerConnection(
     context: Context,
     binder: MusicBinder,
     val database: MusicDatabase,
-    scope: CoroutineScope,
+    val scope: CoroutineScope,
 ) : Player.Listener {
     val service = binder.service
     val player = service.player
@@ -158,23 +160,31 @@ class PlayerConnection(
     }
 
     fun seekToNext() {
-        if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)) {
-            try {
-                player.seekToNext()
-                player.prepare()
-                player.playWhenReady = true
-            } catch (e: Exception) {
+        if (isCasting.value) {
+            player.seekToNext()
+        } else {
+            if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)) {
+                try {
+                    player.seekToNext()
+                    player.prepare()
+                    player.playWhenReady = true
+                } catch (e: Exception) {
+                }
             }
         }
     }
 
     fun seekToPrevious() {
-        if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) {
-            try {
-                player.seekToPrevious()
-                player.prepare()
-                player.playWhenReady = true
-            } catch (e: Exception) {
+        if (isCasting.value) {
+            player.seekToPrevious()
+        } else {
+            if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) {
+                try {
+                    player.seekToPrevious()
+                    player.prepare()
+                    player.playWhenReady = true
+                } catch (e: Exception) {
+                }
             }
         }
     }
@@ -199,6 +209,24 @@ class PlayerConnection(
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()
+
+        if (isCasting.value && (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK || reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)) {
+            player.pause() // Stop local playback immediately
+            scope.launch {
+                val mediaId = mediaItem?.mediaId ?: return@launch
+                val url = service.resolveStreamUrl(mediaId)
+                val contentType = service.currentContentType
+                val metadata = mediaItem.metadata?.let {
+                    Metadata(
+                        title = "${it.title} - ${it.artists.joinToString(", ") { a -> a.name }}",
+                        thumbnailUrl = it.thumbnailUrl
+                    )
+                }
+                if (url != null && contentType != null) {
+                    service.discoveryHandler.load(url, contentType, metadata)
+                }
+            }
+        }
     }
 
     override fun onTimelineChanged(
