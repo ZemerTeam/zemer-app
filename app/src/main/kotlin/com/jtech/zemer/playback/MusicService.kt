@@ -1220,6 +1220,27 @@ class MusicService :
         )
     }
 
+    suspend fun resolveStreamUrl(mediaId: String): String? {
+        songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
+            return it.first
+        }
+
+        return withContext(Dispatchers.IO) {
+            val playbackData = YTPlayerUtils.playerResponseForPlayback(
+                mediaId,
+                audioQuality = audioQuality,
+                connectivityManager = connectivityManager,
+            ).getOrNull()
+
+            val streamUrl = playbackData?.streamUrl
+            if (streamUrl != null) {
+                songUrlCache[mediaId] =
+                    streamUrl to System.currentTimeMillis() + (playbackData.streamExpiresInSeconds * 1000L)
+            }
+            streamUrl
+        }
+    }
+
     override fun onMediaItemTransition(
         mediaItem: MediaItem?,
         reason: Int,

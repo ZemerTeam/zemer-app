@@ -117,6 +117,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.fcast.sender_sdk.Metadata
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.math.roundToInt
@@ -380,13 +381,20 @@ fun Queue(
                             connectedDevice = service.discoveryHandler.connectedDevice,
                             streamUrl = service.currentStreamUrl,
                             contentType = service.currentContentType,
-                            onDeviceSelected = { deviceInfo, url, type ->
+                            metadata = mediaMetadata?.let {
+                                Metadata(
+                                    title = "${it.title} - ${it.artists.joinToString(", ") { a -> a.name }}",
+                                    thumbnailUrl = it.thumbnailUrl
+                                )
+                            },
+                            onDeviceSelected = { deviceInfo, url, type, metadata ->
                                 playerConnection.player.pause()
                                 service.discoveryHandler.connectTo(
-                                    deviceInfo,
-                                    url,
-                                    type,
-                                    playerConnection.player.currentPosition / 1000.0
+                                    deviceInfo = deviceInfo,
+                                    streamUrl = url,
+                                    contentType = type,
+                                    metadata = metadata,
+                                    resumePosition = playerConnection.player.currentPosition / 1000.0
                                 )
                             },
                             onDisconnect = {
