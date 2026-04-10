@@ -99,6 +99,7 @@ import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import androidx.compose.ui.graphics.toArgb
 import kotlinx.coroutines.launch
+import org.fcast.sender_sdk.Metadata
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
@@ -270,8 +271,20 @@ private fun NewMiniPlayer(
             connectedDevice = connectedDevice,
             streamUrl = currentService.currentStreamUrl,
             contentType = currentService.currentContentType,
-            onDeviceSelected = { deviceInfo, url, type ->
-                currentService.discoveryHandler.connectTo(deviceInfo, url, type)
+            metadata = mediaMetadata?.let {
+                Metadata(
+                    title = "${it.title} - ${it.artists.joinToString(", ") { a -> a.name }}",
+                    thumbnailUrl = it.thumbnailUrl
+                )
+            },
+            onDeviceSelected = { deviceInfo, url, type, metadata ->
+                currentService.discoveryHandler.connectTo(
+                    deviceInfo = deviceInfo,
+                    streamUrl = url,
+                    contentType = type,
+                    metadata = metadata,
+                    resumePosition = playerConnection.player.currentPosition / 1000.0
+                )
             },
             onDisconnect = {
                 currentService.discoveryHandler.disconnect()
@@ -334,9 +347,9 @@ private fun NewMiniPlayer(
                                     val isRightSwipe = currentOffset > 0
 
                                     if (isRightSwipe && canSkipPrevious) {
-                                        playerConnection.player.seekToPreviousMediaItem()
+                                        playerConnection.seekToPrevious()
                                     } else if (!isRightSwipe && canSkipNext) {
-                                        playerConnection.player.seekToNext()
+                                        playerConnection.seekToNext()
                                     }
                                 }
 
@@ -502,7 +515,7 @@ private fun NewMiniPlayer(
                                     playerConnection.player.seekTo(0, 0)
                                     playerConnection.player.playWhenReady = true
                                 } else {
-                                    playerConnection.player.togglePlayPause()
+                                    playerConnection.playPause()
                                 }
                             }
                     ) {
@@ -607,7 +620,7 @@ private fun NewMiniPlayer(
                     }
                 }
 
-                if (discoveredDevices.isNotEmpty()) {
+                if (devices.isNotEmpty()) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         contentAlignment = Alignment.Center,
@@ -830,8 +843,20 @@ private fun LegacyMiniPlayer(
             connectedDevice = connectedDevice,
             streamUrl = currentService.currentStreamUrl,
             contentType = currentService.currentContentType,
-            onDeviceSelected = { deviceInfo, url, type ->
-                currentService.discoveryHandler.connectTo(deviceInfo, url, type)
+            metadata = mediaMetadata?.let {
+                Metadata(
+                    title = "${it.title} - ${it.artists.joinToString(", ") { a -> a.name }}",
+                    thumbnailUrl = it.thumbnailUrl
+                )
+            },
+            onDeviceSelected = { deviceInfo, url, type, metadata ->
+                currentService.discoveryHandler.connectTo(
+                    deviceInfo = deviceInfo,
+                    streamUrl = url,
+                    contentType = type,
+                    metadata = metadata,
+                    resumePosition = playerConnection.player.currentPosition / 1000.0
+                )
             },
             onDisconnect = {
                 currentService.discoveryHandler.disconnect()
@@ -909,9 +934,9 @@ private fun LegacyMiniPlayer(
                                     val isRightSwipe = currentOffset > 0
 
                                     if (isRightSwipe && canSkipPrevious) {
-                                        playerConnection.player.seekToPreviousMediaItem()
+                                        playerConnection.seekToPrevious()
                                     } else if (!isRightSwipe && canSkipNext) {
-                                        playerConnection.player.seekToNext()
+                                        playerConnection.seekToNext()
                                     }
                                 }
 
@@ -988,7 +1013,7 @@ private fun LegacyMiniPlayer(
                         playerConnection.player.seekTo(0, 0)
                         playerConnection.player.playWhenReady = true
                     } else {
-                        playerConnection.player.togglePlayPause()
+                        playerConnection.playPause()
                     }
                 },
             ) {

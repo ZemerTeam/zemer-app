@@ -9,6 +9,7 @@ class DevEventHandler(
     val device: CastingDevice,
     private val streamUrl: String?,
     private val contentType: String?,
+    private val metadata: Metadata?,
     private val resumePosition: Double = 0.0
 ) : DeviceEventHandler {
     override fun connectionStateChanged(state: DeviceConnectionState) {
@@ -23,7 +24,7 @@ class DevEventHandler(
                         resumePosition = resumePosition,
                         speed = null,
                         volume = null,
-                        metadata = null,
+                        metadata = metadata,
                         requestHeaders = null
                     )
                 )
@@ -72,11 +73,31 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     val remoteVolume = MutableStateFlow(1.0)
     val remoteConnectionState = MutableStateFlow<DeviceConnectionState>(DeviceConnectionState.Disconnected)
 
-    fun connectTo(deviceInfo: DeviceInfo, streamUrl: String? = null, contentType: String? = null, resumePosition: Double = 0.0) {
+    fun connectTo(
+        deviceInfo: DeviceInfo,
+        streamUrl: String? = null,
+        contentType: String? = null,
+        metadata: Metadata? = null,
+        resumePosition: Double = 0.0
+    ) {
         connectedDevice?.disconnect()
         val newDevice = castContext.createDeviceFromInfo(deviceInfo)
-        newDevice.connect(null, DevEventHandler(this, newDevice, streamUrl, contentType, resumePosition), 1000u)
+        newDevice.connect(null, DevEventHandler(this, newDevice, streamUrl, contentType, metadata, resumePosition), 1000u)
         connectedDevice = newDevice
+    }
+
+    fun load(streamUrl: String, contentType: String, metadata: Metadata? = null, resumePosition: Double = 0.0) {
+        connectedDevice?.load(
+            LoadRequest.Url(
+                url = streamUrl,
+                contentType = contentType,
+                resumePosition = resumePosition,
+                speed = null,
+                volume = null,
+                metadata = metadata,
+                requestHeaders = null
+            )
+        )
     }
 
     fun onConnectionDisconnected() {

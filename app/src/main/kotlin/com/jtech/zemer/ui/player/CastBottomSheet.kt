@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import org.fcast.sender_sdk.CastingDevice
 import org.fcast.sender_sdk.DeviceInfo
+import org.fcast.sender_sdk.Metadata
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,7 +25,8 @@ fun CastBottomSheet(
     connectedDevice: CastingDevice?,
     streamUrl: String? = null,
     contentType: String? = null,
-    onDeviceSelected: (DeviceInfo, String?, String?) -> Unit,
+    metadata: Metadata? = null,
+    onDeviceSelected: (DeviceInfo, String?, String?, Metadata?) -> Unit,
     onDisconnect: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -76,7 +78,7 @@ fun CastBottomSheet(
                             )
                         },
                         modifier = Modifier.clickable {
-                            onDeviceSelected(device, streamUrl, contentType)
+                            onDeviceSelected(device, streamUrl, contentType, metadata)
                             onDismiss()
                         }
                     )
