@@ -27,6 +27,8 @@ import org.fcast.sender_sdk.PlaybackState
 import org.fcast.sender_sdk.DeviceConnectionState
 import org.fcast.sender_sdk.Metadata
 import android.util.Log
+import org.fcast.sender_sdk.CastingDevice
+import org.fcast.sender_sdk.DeviceEventHandler
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlayerConnection(
@@ -112,6 +114,8 @@ class PlayerConnection(
 
         service.discoveryHandler.onDisconnect = { lastRemotePos ->
             player.seekTo(lastRemotePos)
+            player.prepare()
+            player.playWhenReady = false
         }
 
         scope.launch {
@@ -142,6 +146,7 @@ class PlayerConnection(
     fun playQueue(queue: Queue) {
         service.playQueue(queue)
         if (isCasting.value) {
+            player.pause()
             triggerRemoteLoad(player.currentMediaItem)
         }
     }
