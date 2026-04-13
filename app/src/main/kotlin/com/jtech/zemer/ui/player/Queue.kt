@@ -394,7 +394,11 @@ fun Queue(
                                     streamUrl = url,
                                     contentType = type,
                                     metadata = metadata,
-                                    resumePosition = playerConnection.player.currentPosition / 1000.0
+                                    resumePosition = playerConnection.player.currentPosition / 1000.0,
+                                    onTrackEnded = {
+                                        playerConnection.seekToNext()
+                                        playerConnection.player.play()
+                                    }
                                 )
                             },
                             onDisconnect = {
