@@ -10,7 +10,8 @@ class DevEventHandler(
     private val streamUrl: String?,
     private val contentType: String?,
     private val metadata: Metadata?,
-    private val resumePosition: Double = 0.0
+    private val resumePosition: Double = 0.0,
+    private val onTrackEnded: (() -> Unit)? = null
 ) : DeviceEventHandler {
     override fun connectionStateChanged(state: DeviceConnectionState) {
         handler.remoteConnectionState.value = state
@@ -54,7 +55,11 @@ class DevEventHandler(
     override fun speedChanged(speed: Double) {}
     override fun sourceChanged(source: Source) {}
     override fun keyEvent(event: KeyEvent) {}
-    override fun mediaEvent(event: MediaEvent) {}
+    override fun mediaEvent(event: MediaEvent) {
+        if (event.type == MediaItemEventType.END) {
+            onTrackEnded?.invoke()
+        }
+    }
     override fun playbackError(message: String) {
         Log.e("FCast", "Playback error: $message")
     }
@@ -73,17 +78,22 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     val remoteVolume = MutableStateFlow(1.0)
     val remoteConnectionState = MutableStateFlow<DeviceConnectionState>(DeviceConnectionState.Disconnected)
 
+    val discoveredDevicesFlow = MutableStateFlow<List<DeviceInfo>>(emptyList())
+    val connectedDeviceFlow = MutableStateFlow<CastingDevice?>(null)
+
     fun connectTo(
         deviceInfo: DeviceInfo,
         streamUrl: String? = null,
         contentType: String? = null,
         metadata: Metadata? = null,
-        resumePosition: Double = 0.0
+        resumePosition: Double = 0.0,
+        onTrackEnded: (() -> Unit)? = null
     ) {
         connectedDevice?.disconnect()
         val newDevice = castContext.createDeviceFromInfo(deviceInfo)
-        newDevice.connect(null, DevEventHandler(this, newDevice, streamUrl, contentType, metadata, resumePosition), 1000u)
+        newDevice.connect(null, DevEventHandler(this, newDevice, streamUrl, contentType, metadata, resumePosition, onTrackEnded), 1000u)
         connectedDevice = newDevice
+        connectedDeviceFlow.value = newDevice
     }
 
     fun load(streamUrl: String, contentType: String, metadata: Metadata? = null, resumePosition: Double = 0.0) {
@@ -103,6 +113,7 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     fun onConnectionDisconnected() {
         val lastPos = (remoteTime.value * 1000).toLong()
         connectedDevice = null
+        connectedDeviceFlow.value = null
         remotePlaybackState.value = null
         remoteConnectionState.value = DeviceConnectionState.Disconnected
         onDisconnect?.invoke(lastPos)
@@ -135,14 +146,17 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
 
     override fun deviceAvailable(deviceInfo: DeviceInfo) {
         discoveredDevices[deviceInfo.name] = deviceInfo
+        discoveredDevicesFlow.value = discoveredDevices.values.toList()
     }
 
     override fun deviceChanged(deviceInfo: DeviceInfo) {
         discoveredDevices[deviceInfo.name] = deviceInfo
+        discoveredDevicesFlow.value = discoveredDevices.values.toList()
     }
 
     override fun deviceRemoved(deviceName: String) {
         discoveredDevices.remove(deviceName)
+        discoveredDevicesFlow.value = discoveredDevices.values.toList()
         // Identification is usually done by name in fcast.
         if (connectedDevice?.name() == deviceName) {
             disconnect()

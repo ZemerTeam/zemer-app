@@ -8,6 +8,7 @@ import androidx.media3.common.Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM
 import androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
 import androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM
 import androidx.media3.common.Player.REPEAT_MODE_OFF
+import androidx.media3.common.Player.REPEAT_MODE_ONE
 import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Timeline
 import com.jtech.zemer.db.MusicDatabase
@@ -25,6 +26,7 @@ import kotlinx.coroutines.launch
 import org.fcast.sender_sdk.PlaybackState
 import org.fcast.sender_sdk.DeviceConnectionState
 import org.fcast.sender_sdk.Metadata
+import android.util.Log
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlayerConnection(
@@ -92,6 +94,9 @@ class PlayerConnection(
     val error = MutableStateFlow<PlaybackException?>(null)
     val waitingForNetworkConnection = service.waitingForNetworkConnection
 
+    private var lastTransitionTime = 0L
+    private var lastRemotePosition = 0.0
+
     init {
         player.addListener(this)
 
@@ -108,10 +113,37 @@ class PlayerConnection(
         service.discoveryHandler.onDisconnect = { lastRemotePos ->
             player.seekTo(lastRemotePos)
         }
+
+        scope.launch {
+            service.discoveryHandler.remoteTime.collect { time ->
+                if (time > 0) lastRemotePosition = time
+            }
+        }
+        scope.launch {
+            var lastState = service.discoveryHandler.remotePlaybackState.value
+            service.discoveryHandler.remotePlaybackState.collect { state ->
+                if (isCasting.value && state == PlaybackState.IDLE && lastState == PlaybackState.PLAYING) {
+                    val dur = service.discoveryHandler.remoteDuration.value
+                    // If we're near the end, transition to next song
+                    if (dur > 0 && lastRemotePosition >= dur - 2.0 && System.currentTimeMillis() - lastTransitionTime > 2000) {
+                        if (player.repeatMode == REPEAT_MODE_ONE) {
+                            player.seekTo(player.currentMediaItemIndex, 0)
+                            triggerRemoteLoad(player.currentMediaItem)
+                        } else if (canSkipNext.value) {
+                            seekToNext()
+                        }
+                    }
+                }
+                lastState = state
+            }
+        }
     }
 
     fun playQueue(queue: Queue) {
         service.playQueue(queue)
+        if (isCasting.value) {
+            triggerRemoteLoad(player.currentMediaItem)
+        }
     }
 
     fun startRadioSeamlessly() {
@@ -201,31 +233,40 @@ class PlayerConnection(
         playWhenReady.value = newPlayWhenReady
     }
 
+    private fun triggerRemoteLoad(mediaItem: MediaItem?) {
+        val mediaId = mediaItem?.mediaId ?: return
+        scope.launch {
+            val url = service.resolveStreamUrl(mediaId)
+            val contentType = service.currentContentType
+            val metadata = mediaItem.metadata?.let {
+                Metadata(
+                    title = "${it.title} - ${it.artists.joinToString(", ") { a -> a.name }}",
+                    thumbnailUrl = it.thumbnailUrl
+                )
+            }
+            if (url != null && contentType != null) {
+                service.discoveryHandler.load(url, contentType, metadata)
+            }
+        }
+    }
+
     override fun onMediaItemTransition(
+
         mediaItem: MediaItem?,
         reason: Int,
     ) {
+        Log.d("FCast", "onMediaItemTransition reason=$reason isCasting=${isCasting.value}")
+        lastTransitionTime = System.currentTimeMillis()
         mediaMetadata.value = mediaItem?.metadata
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()
 
-        if (isCasting.value && (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK || reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)) {
+        if (isCasting.value && (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK ||
+                               reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
+                               reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT)) {
             player.pause() // Stop local playback immediately
-            scope.launch {
-                val mediaId = mediaItem?.mediaId ?: return@launch
-                val url = service.resolveStreamUrl(mediaId)
-                val contentType = service.currentContentType
-                val metadata = mediaItem.metadata?.let {
-                    Metadata(
-                        title = "${it.title} - ${it.artists.joinToString(", ") { a -> a.name }}",
-                        thumbnailUrl = it.thumbnailUrl
-                    )
-                }
-                if (url != null && contentType != null) {
-                    service.discoveryHandler.load(url, contentType, metadata)
-                }
-            }
+            triggerRemoteLoad(mediaItem)
         }
     }
 

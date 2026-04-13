@@ -283,8 +283,13 @@ private fun NewMiniPlayer(
                     streamUrl = url,
                     contentType = type,
                     metadata = metadata,
-                    resumePosition = playerConnection.player.currentPosition / 1000.0
+                    resumePosition = playerConnection.player.currentPosition / 1000.0,
+                    onTrackEnded = {
+                        playerConnection.seekToNext()
+                        playerConnection.player.play()
+                    }
                 )
+                playerConnection.player.pause()
             },
             onDisconnect = {
                 currentService.discoveryHandler.disconnect()
@@ -855,8 +860,13 @@ private fun LegacyMiniPlayer(
                     streamUrl = url,
                     contentType = type,
                     metadata = metadata,
-                    resumePosition = playerConnection.player.currentPosition / 1000.0
+                    resumePosition = playerConnection.player.currentPosition / 1000.0,
+                    onTrackEnded = {
+                        playerConnection.seekToNext()
+                        playerConnection.player.play()
+                    }
                 )
+                playerConnection.player.pause()
             },
             onDisconnect = {
                 currentService.discoveryHandler.disconnect()
