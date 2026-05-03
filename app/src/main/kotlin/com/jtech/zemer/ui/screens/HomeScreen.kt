@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -68,7 +69,10 @@ import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.LocalAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
+import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.ArtistGridItem
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
@@ -98,8 +102,10 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.YTItem
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.min
 import kotlin.random.Random
 
@@ -133,6 +139,7 @@ fun HomeScreen(
     val featuredVideos = homeUiState.featuredVideos
     val recentReleaseAlbums = homeUiState.recentReleaseAlbums
     val recentReleaseSongs = homeUiState.recentReleaseSongs
+    val recentReleaseSongsDisplayCount = homeUiState.recentReleaseSongsDisplayCount
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     homeUiState.isNewUser
 
@@ -157,6 +164,7 @@ fun HomeScreen(
     val uniqueFeaturedPlaylists = remember(featuredPlaylists) { featuredPlaylists.distinctBy { it.id } }
     val uniqueForgottenFavorites = remember(forgottenFavorites) { forgottenFavorites.distinctBy { it.id } }
     val uniqueRecentReleaseSongs = remember(recentReleaseSongs) { recentReleaseSongs.distinctBy { it.id } }
+    val visibleRecentSongs = remember(uniqueRecentReleaseSongs, recentReleaseSongsDisplayCount) { uniqueRecentReleaseSongs.take(recentReleaseSongsDisplayCount) }
     val uniqueRecentReleaseAlbums = remember(recentReleaseAlbums) { recentReleaseAlbums.distinctBy { it.id } }
     val uniqueFeaturedArtists = remember(featuredArtists) { featuredArtists.distinctBy { it.id } }
     val uniqueFeaturedAlbums = remember(featuredAlbums) { featuredAlbums.distinctBy { it.id } }
@@ -716,35 +724,16 @@ fun HomeScreen(
                                 .asPaddingValues()
                         ) {
                             items(
-                                items = uniqueRecentReleaseSongs,
+                                items = visibleRecentSongs,
                                 key = { "recent_song_${it.id}" },
                                 contentType = { "yt_song" }
                             ) { song ->
-                                YouTubeListItem(
+                                YouTubeGridItem(
                                     item = song,
                                     isActive = mediaMetadata?.id == song.id,
                                     isPlaying = isPlaying,
-                                    trailingContent = {
-                                        IconButton(
-                                            onClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                menuState.show {
-                                                    YouTubeSongMenu(
-                                                        song = song,
-                                                        navController = navController,
-                                                        onDismiss = menuState::dismiss,
-                                                    )
-                                                }
-                                            }
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.more_vert),
-                                                contentDescription = null,
-                                            )
-                                        }
-                                    },
+                                    coroutineScope = scope,
                                     modifier = Modifier
-                                        .width(horizontalLazyGridItemWidth)
                                         .padding(horizontal = 8.dp)
                                         .combinedClickable(
                                             onClick = {
@@ -768,6 +757,19 @@ fun HomeScreen(
                                             }
                                         )
                                 )
+                            }
+                        }
+                    }
+                    if (uniqueRecentReleaseSongs.size > recentReleaseSongsDisplayCount) {
+                        item(key = "recent_releases_songs_view_more", contentType = "button") {
+                            TextButton(
+                                onClick = { viewModel.loadMoreRecentSongs() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                                    .animateItem()
+                            ) {
+                                Text(stringResource(R.string.view_more))
                             }
                         }
                     }
@@ -1025,6 +1027,32 @@ fun HomeScreen(
                 }
             }
         }
+
+        HideOnScrollFAB(
+            lazyListState = lazylistState,
+            icon = R.drawable.shuffle,
+            onClick = {
+                scope.launch {
+                    val artist = withContext(Dispatchers.IO) { viewModel.getRandomWhitelistedArtist() }
+                    val shuffleEndpoint = artist?.shuffleEndpoint
+                    if (shuffleEndpoint != null) {
+                        playerConnection.playQueue(
+                            YouTubeQueue(shuffleEndpoint, preloadItem = null, database = database)
+                        )
+                    } else {
+                        val songs = withContext(Dispatchers.IO) { database.allSongs().first() }
+                        if (songs.isNotEmpty()) {
+                            playerConnection.playQueue(
+                                ListQueue(
+                                    title = context.getString(R.string.shuffle_all),
+                                    items = songs.shuffled().map { it.toMediaItem() }
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        )
 
         Indicator(
             isRefreshing = isRefreshing,

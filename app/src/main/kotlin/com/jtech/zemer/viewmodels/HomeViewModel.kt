@@ -85,6 +85,7 @@ class HomeViewModel @Inject constructor(
         val forgottenFavorites: List<Song> = emptyList(),
         val recentReleaseAlbums: List<AlbumItem> = emptyList(),
         val recentReleaseSongs: List<SongItem> = emptyList(),
+        val recentReleaseSongsDisplayCount: Int = 10,
         val featuredAlbums: List<AlbumItem> = emptyList(),
         val featuredArtists: List<ArtistItem> = emptyList(),
         val featuredVideos: List<SongItem> = emptyList(),
@@ -379,6 +380,17 @@ class HomeViewModel @Inject constructor(
             Timber.w(it, "HomeViewModel: Failed to load recent releases")
             emptyList<AlbumItem>() to emptyList()
         }
+    }
+
+    fun loadMoreRecentSongs() {
+        uiState.update { it.copy(recentReleaseSongsDisplayCount = it.recentReleaseSongsDisplayCount + 25) }
+    }
+
+    suspend fun getRandomWhitelistedArtist(): ArtistItem? {
+        val filters = ContentFilterState.state.value
+        val allowedEntries = WhitelistCache.allowedEntries(database, filters)
+        val randomEntry = allowedEntries.randomOrNull() ?: return null
+        return YouTube.artist(randomEntry.artistId).getOrNull()?.artist
     }
 
     private suspend fun loadHomeArtistProfiles(force: Boolean = false): List<HomeArtistProfile> {

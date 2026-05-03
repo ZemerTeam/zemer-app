@@ -543,6 +543,8 @@
     <string name="new_release_title">Recent releases</string>
     <string name="new_release_songs_title">Latest singles</string>
     <string name="new_release_albums_title">Latest albums</string>
+    <string name="view_more">View More</string>
+    <string name="shuffle_all">Shuffle All</string>
     <string name="mood_and_genres_error_title">Could not load moods &amp; genres</string>
     <string name="mood_and_genres_empty_title">No moods &amp; genres found</string>
     <string name="mood_and_genres_empty_subtitle">Try refreshing to pull fresh categories.</string>
