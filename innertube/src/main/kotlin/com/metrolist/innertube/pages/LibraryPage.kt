@@ -75,7 +75,7 @@ data class LibraryPage(
         fun fromMusicResponsiveListItemRenderer(renderer: MusicResponsiveListItemRenderer): YTItem? {
             return when {
                 renderer.isSong -> SongItem(
-                    id = renderer.playlistItemData?.videoId ?: return null,
+                    id = renderer.videoId ?: return null,
                     title = renderer.flexColumns.firstOrNull()
                         ?.musicResponsiveListItemFlexColumnRenderer?.text
                         ?.runs?.firstOrNull()?.text ?: return null,
