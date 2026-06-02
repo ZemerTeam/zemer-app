@@ -188,11 +188,10 @@ fun LoginGateScreen(
                                             innerTubeCookie = it
                                             runCatching { YouTube.cookie = it }
                                         }
-                                    fetchedDataSyncId?.let {
-                                        val clean = it.substringBefore("||")
-                                        dataSyncId = clean
-                                        YouTube.dataSyncId = clean
-                                    }
+                                    // Anonymous login must NOT set dataSyncId — the pooled
+                                    // account's onBehalfOfUser breaks the player request (HTTP 400).
+                                    dataSyncId = ""
+                                    YouTube.dataSyncId = null
                                     fetchedAccountName?.let { accountName = it }
                                     fetchedAccountEmail?.let { accountEmail = it }
                                     fetchedAccountChannelHandle?.let { accountChannelHandle = it }

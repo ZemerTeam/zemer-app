@@ -221,11 +221,9 @@ fun AccountSettings(
                                         onInnerTubeCookieChange(it)
                                         runCatching { YouTube.cookie = it }
                                     }
-                                fetchedDataSyncId?.let {
-                                    val clean = it.substringBefore("||")
-                                    onDataSyncIdChange(clean)
-                                    YouTube.dataSyncId = clean
-                                }
+                                // Anonymous login must NOT set dataSyncId (breaks playback).
+                                onDataSyncIdChange("")
+                                YouTube.dataSyncId = null
                                 fetchedAccountName?.let { onAccountNameChange(it) }
                                 fetchedAccountEmail?.let { onAccountEmailChange(it) }
                                 fetchedAccountChannelHandle?.let { onAccountChannelHandleChange(it) }

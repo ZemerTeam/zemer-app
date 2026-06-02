@@ -154,7 +154,8 @@ class App : Application(), SingletonImageLoader.Factory {
                         cookie
                             ?.takeIf { parseCookieString(it).containsKey("SAPISID") }
                             ?.let { prefs[InnerTubeCookieKey] = it }
-                        dataSyncId?.let { prefs[DataSyncIdKey] = it.substringBefore("||") }
+                        // Anonymous login must not set dataSyncId (onBehalfOfUser breaks playback).
+                        prefs[DataSyncIdKey] = ""
                         accountName?.let { prefs[AccountNameKey] = it }
                         accountEmail?.let { prefs[AccountEmailKey] = it }
                         accountChannelHandle?.let { prefs[AccountChannelHandleKey] = it }
@@ -162,7 +163,7 @@ class App : Application(), SingletonImageLoader.Factory {
                     cookie
                         ?.takeIf { parseCookieString(it).containsKey("SAPISID") }
                         ?.let { YouTube.cookie = it }
-                    dataSyncId?.let { YouTube.dataSyncId = it.substringBefore("||") }
+                    YouTube.dataSyncId = null
                     YouTube.visitorData = visitorData
                     val expiresIn = if (expiresAt != null) {
                         val minutesLeft = (expiresAt - (timestamp ?: System.currentTimeMillis())) / 60000
@@ -194,7 +195,7 @@ class App : Application(), SingletonImageLoader.Factory {
         // IMPORTANT: Initialize YouTube authentication data FIRST before anything else
         YouTube.cookie = settings[InnerTubeCookieKey]
         YouTube.visitorData = settings[VisitorDataKey]?.takeIf { it != "null" }
-        YouTube.dataSyncId = settings[DataSyncIdKey]?.let {
+        YouTube.dataSyncId = settings[DataSyncIdKey]?.takeIf { it.isNotBlank() }?.let {
             it.takeIf { !it.contains("||") }
                 ?: it.takeIf { it.endsWith("||") }?.substringBefore("||")
                 ?: it.substringAfter("||")
