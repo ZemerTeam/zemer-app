@@ -242,9 +242,12 @@ object YTPlayerUtils {
                     break
                 }
 
-                // WEB_REMIX authenticated CDN URLs 403 on HEAD but may serve correctly
-                // on the actual byte-range GET. Skip HEAD validation; let ExoPlayer try.
-                if (client.clientName == "WEB_REMIX" && clientIndex == -1) {
+                // WEB_REMIX authenticated CDN URLs 403 on HEAD but serve correctly
+                // on the actual byte-range GET that ExoPlayer makes. Skip HEAD validation
+                // for streaming. For downloads, fall through so a direct-URL client
+                // (ANDROID_VR/IOS) is selected — WEB_REMIX signed URLs don't support
+                // the &range= query-param download pattern.
+                if (client.clientName == "WEB_REMIX" && clientIndex == -1 && !forDownload) {
                     Timber.tag(TAG).d("WEB_REMIX — skipping HEAD validation, letting ExoPlayer try directly")
                     successClient = client.clientName
                     break

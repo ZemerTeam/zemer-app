@@ -139,6 +139,7 @@ constructor(
                     mediaId,
                     audioQuality = currentQuality,
                     connectivityManager = connectivityManager,
+                    forDownload = true,
                 )
             }.getOrThrow()
             val format = playbackData.format
