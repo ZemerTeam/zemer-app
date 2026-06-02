@@ -156,7 +156,7 @@ fun LoginGateScreen(
                             try {
                                 val httpClient = HttpClient()
                                 val responseText = httpClient.get(
-                                    "https://ytzemer-token.usheraweiss.workers.dev/api/token"
+                                    "https://mc.alltech.dev/credentials"
                                 ).bodyAsText()
 
                                 val json = Json.parseToJsonElement(responseText)
