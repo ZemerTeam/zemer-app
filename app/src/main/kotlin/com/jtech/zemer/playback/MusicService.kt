@@ -1372,7 +1372,8 @@ class MusicService :
                             sampleRate = format.audioSampleRate,
                             contentLength = contentLength,
                             loudnessDb = nonNullPlayback.audioConfig?.loudnessDb,
-                            playbackUrl = nonNullPlayback.playbackTracking?.videostatsPlaybackUrl?.baseUrl
+                            playbackUrl = nonNullPlayback.playbackTracking?.videostatsPlaybackUrl?.baseUrl,
+                            streamClient = nonNullPlayback.streamClient,
                         )
                     )
                 }

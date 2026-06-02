@@ -91,7 +91,7 @@ class MusicDatabase(
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 31,
+    version = 32,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -134,7 +134,7 @@ abstract class InternalDatabase : RoomDatabase() {
             val builtDb = try {
                 Room
                     .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
-                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32)
                     .setJournalMode(JournalMode.TRUNCATE)
                     .enableMultiInstanceInvalidation()
                     .build().also {
@@ -406,6 +406,13 @@ val MIGRATION_30_31 =
             db.execSQL("CREATE INDEX IF NOT EXISTS index_song_isVideo ON song(isVideo)")
             // Add timestamp index for event table (time-range queries)
             db.execSQL("CREATE INDEX IF NOT EXISTS index_event_timestamp ON event(timestamp)")
+        }
+    }
+
+val MIGRATION_31_32 =
+    object : Migration(31, 32) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE format ADD COLUMN streamClient TEXT")
         }
     }
 

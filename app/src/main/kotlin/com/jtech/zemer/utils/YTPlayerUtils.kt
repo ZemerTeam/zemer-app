@@ -61,6 +61,7 @@ object YTPlayerUtils {
         val format: PlayerResponse.StreamingData.Format,
         val streamUrl: String,
         val streamExpiresInSeconds: Int,
+        val streamClient: String = "unknown",
     )
     /**
      * Custom player response intended to use for playback.
@@ -211,11 +212,11 @@ object YTPlayerUtils {
                             streamUrl = EjsNTransformSolver.transformNParamInUrl(originalUrl)
                         }
 
-                        // Append pot= parameter AFTER n-transform
+                        // Append pot= parameter AFTER n-transform (URI-encode to handle base64 padding)
                         if (client.useWebPoTokens && poTokenResult?.streamingDataPoToken != null) {
                             Timber.tag(TAG).d("Appending pot= parameter to stream URL")
                             val separator = if ("?" in streamUrl) "&" else "?"
-                            streamUrl = "${streamUrl}${separator}pot=${poTokenResult.streamingDataPoToken}"
+                            streamUrl = "${streamUrl}${separator}pot=${android.net.Uri.encode(poTokenResult.streamingDataPoToken)}"
                         }
                     } catch (e: Exception) {
                         Timber.tag(TAG).e(e, "N-transform or pot append failed: ${e.message}")
@@ -237,6 +238,14 @@ object YTPlayerUtils {
 
                 if (clientIndex == fallbackClients.size - 1) {
                     Timber.tag(TAG).d( "Last fallback — skipping validation: ${client.clientName}")
+                    successClient = client.clientName
+                    break
+                }
+
+                // WEB_REMIX authenticated CDN URLs 403 on HEAD but may serve correctly
+                // on the actual byte-range GET. Skip HEAD validation; let ExoPlayer try.
+                if (client.clientName == "WEB_REMIX" && clientIndex == -1) {
+                    Timber.tag(TAG).d("WEB_REMIX — skipping HEAD validation, letting ExoPlayer try directly")
                     successClient = client.clientName
                     break
                 }
@@ -311,6 +320,7 @@ object YTPlayerUtils {
             format,
             streamUrl,
             streamExpiresInSeconds,
+            streamClient = successClient ?: "unknown",
         )
     }
     /**
@@ -390,6 +400,7 @@ object YTPlayerUtils {
                 .head()
                 .url(validatedUrl)
                 .header("User-Agent", YouTubeClient.USER_AGENT_WEB)
+            YouTube.cookie?.let { requestBuilder.addHeader("Cookie", it) }
             val request = try {
                 requestBuilder.build()
             } catch (e: Exception) {

@@ -124,6 +124,7 @@ fun ShowMediaInfo(videoId: String) {
                     val extendedList = baseList + if (currentFormat != null) {
                         listOf(
                             "Itag" to currentFormat?.itag?.toString(),
+                            "Stream client" to currentFormat?.streamClient,
                             stringResource(R.string.mime_type) to currentFormat?.mimeType,
                             stringResource(R.string.codecs) to currentFormat?.codecs,
                             stringResource(R.string.bitrate) to currentFormat?.bitrate?.let { "${it / 1000} Kbps" },
