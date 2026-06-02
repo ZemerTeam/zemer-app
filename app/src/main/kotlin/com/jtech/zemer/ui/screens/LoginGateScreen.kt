@@ -161,6 +161,7 @@ fun LoginGateScreen(
 
                                 val json = Json.parseToJsonElement(responseText)
                                 val fetchedVisitorData = json.jsonObject["visitorData"]?.jsonPrimitive?.content
+                                    ?.let { android.net.Uri.decode(it) }
                                 val fetchedCookie = run {
                                     val raw = json.jsonObject["cookie"]?.jsonPrimitive?.content
                                         ?: json.jsonObject["innerTubeCookie"]?.jsonPrimitive?.content

@@ -132,6 +132,7 @@ class App : Application(), SingletonImageLoader.Factory {
 
             val json = kotlinx.serialization.json.Json.parseToJsonElement(responseText)
             val visitorData = json.jsonObject["visitorData"]?.jsonPrimitive?.content
+                ?.let { android.net.Uri.decode(it) }
             val clientVersion = json.jsonObject["clientVersion"]?.jsonPrimitive?.content
             val timestamp = json.jsonObject["timestamp"]?.jsonPrimitive?.content?.toLongOrNull()
             val expiresAt = json.jsonObject["expiresAt"]?.jsonPrimitive?.content?.toLongOrNull()
@@ -195,6 +196,7 @@ class App : Application(), SingletonImageLoader.Factory {
         // IMPORTANT: Initialize YouTube authentication data FIRST before anything else
         YouTube.cookie = settings[InnerTubeCookieKey]
         YouTube.visitorData = settings[VisitorDataKey]?.takeIf { it != "null" }
+            ?.let { android.net.Uri.decode(it) }
         YouTube.dataSyncId = settings[DataSyncIdKey]?.takeIf { it.isNotBlank() }?.let {
             it.takeIf { !it.contains("||") }
                 ?: it.takeIf { it.endsWith("||") }?.substringBefore("||")

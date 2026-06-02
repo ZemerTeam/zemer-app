@@ -212,9 +212,10 @@ fun AccountSettings(
                             val fetchedAccountEmail = json.jsonObject["accountEmail"]?.jsonPrimitive?.content
                             val fetchedAccountChannelHandle = json.jsonObject["accountChannelHandle"]?.jsonPrimitive?.content
 
-                            if (!fetchedVisitorData.isNullOrEmpty() && fetchedVisitorData.startsWith("Cg") && fetchedVisitorData.length > 20) {
-                                onVisitorDataChange(fetchedVisitorData)
-                                YouTube.visitorData = fetchedVisitorData
+                            val decodedVisitorData = fetchedVisitorData?.let { android.net.Uri.decode(it) }
+                            if (!decodedVisitorData.isNullOrEmpty() && decodedVisitorData.startsWith("Cg") && decodedVisitorData.length > 20) {
+                                onVisitorDataChange(decodedVisitorData)
+                                YouTube.visitorData = decodedVisitorData
                                 fetchedCookie
                                     ?.takeIf { parseCookieString(it).containsKey("SAPISID") }
                                     ?.let {
