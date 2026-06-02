@@ -162,20 +162,13 @@ object YTPlayerUtils {
             if (streamPlayerResponse?.playabilityStatus?.status == "OK") {
                 Timber.tag(TAG).d( "Status OK for ${client.clientName}")
 
-                // Pre-process response with NewPipe to get direct URLs (like Metrolist)
-                val responseToUse = try {
-                    val newPipeResponse = YouTube.newPipePlayer(videoId, streamPlayerResponse)
-                    if (newPipeResponse != null) {
-                        Timber.tag(TAG).d("NewPipe pre-processing succeeded for ${client.clientName}")
-                        newPipeResponse
-                    } else {
-                        Timber.tag(TAG).d("NewPipe pre-processing returned null, using original response")
-                        streamPlayerResponse
-                    }
-                } catch (e: Exception) {
-                    Timber.tag(TAG).e(e, "NewPipe pre-processing failed: ${e.message}")
-                    streamPlayerResponse
-                }
+                // Use the player response as-is. The old NewPipe StreamInfo.getInfo
+                // pre-processing ran a full second extraction for EVERY song (fetch watch
+                // page + decipher all ~18 formats) — slow with the bundled extractor and
+                // redundant. Direct-url clients (IOS/ANDROID_VR/IPADOS/VISIONOS) already
+                // carry playable URLs; web clients are deciphered per-format by the Zemer
+                // cipher in findUrlOrNull (sig) + transformNParamInUrl (n) below.
+                val responseToUse = streamPlayerResponse
 
                 format =
                     findFormat(
