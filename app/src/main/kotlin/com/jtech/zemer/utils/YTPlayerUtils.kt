@@ -40,6 +40,16 @@ object YTPlayerUtils {
 
     private val poTokenGenerator = PoTokenGenerator()
 
+    // Track videoIds where WEB_REMIX stream URLs 403 on ExoPlayer GET, so the next
+    // resolution falls through to TVHTML5/ANDROID_VR instead of looping.
+    private val webRemixFailedIds = java.util.Collections.newSetFromMap(
+        java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+    )
+
+    fun markWebRemixFailed(videoId: String) {
+        webRemixFailedIds.add(videoId)
+    }
+
     private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
 
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
@@ -244,10 +254,12 @@ object YTPlayerUtils {
 
                 // WEB_REMIX authenticated CDN URLs 403 on HEAD but serve correctly
                 // on the actual byte-range GET that ExoPlayer makes. Skip HEAD validation
-                // for streaming. For downloads, fall through so a direct-URL client
-                // (ANDROID_VR/IOS) is selected — WEB_REMIX signed URLs don't support
+                // for streaming UNLESS this videoId already failed on GET (tracked in
+                // webRemixFailedIds), in which case fall through to TVHTML5/ANDROID_VR.
+                // For downloads, always fall through — WEB_REMIX signed URLs don't support
                 // the &range= query-param download pattern.
-                if (client.clientName == "WEB_REMIX" && clientIndex == -1 && !forDownload) {
+                if (client.clientName == "WEB_REMIX" && clientIndex == -1
+                    && !forDownload && !webRemixFailedIds.contains(videoId)) {
                     Timber.tag(TAG).d("WEB_REMIX — skipping HEAD validation, letting ExoPlayer try directly")
                     successClient = client.clientName
                     break

@@ -1240,10 +1240,12 @@ class MusicService :
     private fun handleExpiredUrlError() {
         val mediaId = player.currentMediaItem?.mediaId
         if (mediaId != null) {
+            // If this was a WEB_REMIX stream that 403d on GET, mark it so the next
+            // resolution skips WEB_REMIX and falls through to TVHTML5/ANDROID_VR.
+            YTPlayerUtils.markWebRemixFailed(mediaId)
             // Clear the cached URL so it will be refreshed on next request
-            // Using DownloadUtil.invalidateUrl ensures both playback and download see the invalidation
             DownloadUtil.invalidateUrl(mediaId)
-            Timber.d("Cleared cached URL for $mediaId")
+            Timber.d("Cleared cached URL for $mediaId, marked WEB_REMIX as failed")
         }
 
         // Seek to current position to force URL re-resolution
