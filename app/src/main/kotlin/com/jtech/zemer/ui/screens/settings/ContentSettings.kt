@@ -62,13 +62,17 @@ import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.ContentCountryKey
 import com.jtech.zemer.constants.ContentLanguageKey
 import com.jtech.zemer.constants.CountryCodeToName
+import com.jtech.zemer.constants.EnableBetterLyricsKey
 import com.jtech.zemer.constants.EnableContentFiltersKey
+import com.jtech.zemer.constants.EnableKugouKey
 import com.jtech.zemer.constants.EnableLrcLibKey
+import com.jtech.zemer.constants.LyricsProviderOrderKey
 import com.jtech.zemer.constants.LanguageCodeToName
 import com.jtech.zemer.constants.QuickPicks
 import com.jtech.zemer.constants.QuickPicksKey
 import com.jtech.zemer.constants.SYSTEM_DEFAULT
 import com.jtech.zemer.constants.TopSize
+import com.jtech.zemer.lyrics.LyricsProviderRegistry
 import com.jtech.zemer.sync.SyncState
 import com.jtech.zemer.sync.SyncStatus
 import com.jtech.zemer.ui.component.EditTextPreference
@@ -193,6 +197,9 @@ fun ContentSettings(
     val (contentLanguage, onContentLanguageChange) = rememberPreference(key = ContentLanguageKey, defaultValue = "system")
     val (contentCountry, onContentCountryChange) = rememberPreference(key = ContentCountryKey, defaultValue = "system")
     val (enableLrclib, onEnableLrclibChange) = rememberPreference(key = EnableLrcLibKey, defaultValue = true)
+    val (enableBetterLyrics, onEnableBetterLyricsChange) = rememberPreference(key = EnableBetterLyricsKey, defaultValue = true)
+    val (enableKugou, onEnableKugouChange) = rememberPreference(key = EnableKugouKey, defaultValue = true)
+    val (lyricsProviderOrder, onLyricsProviderOrderChange) = rememberPreference(key = LyricsProviderOrderKey, defaultValue = "")
     val (lengthTop, onLengthTopChange) = rememberPreference(key = TopSize, defaultValue = "50")
     val (quickPicks, onQuickPicksChange) = rememberEnumPreference(key = QuickPicksKey, defaultValue = QuickPicks.QUICK_PICKS)
     val (enableContentFilters, onEnableContentFiltersChange) = rememberPreference(key = EnableContentFiltersKey, defaultValue = true)
@@ -310,11 +317,40 @@ fun ContentSettings(
         }
 
         PreferenceGroupTitle(title = stringResource(R.string.lyrics))
+        val lyricsProviderNames = LyricsProviderRegistry.providerNames
+        val selectedLyricsProvider = LyricsProviderRegistry
+            .deserializeProviderOrder(lyricsProviderOrder)
+            .firstOrNull()
+            ?: LyricsProviderRegistry.getDefaultProviderOrder().first()
+        ListPreference(
+            title = { Text(stringResource(R.string.set_first_lyrics_provider)) },
+            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            selectedValue = selectedLyricsProvider,
+            values = lyricsProviderNames,
+            valueText = { it },
+            onValueSelected = { selectedProvider ->
+                val reorderedProviders = listOf(selectedProvider) +
+                    lyricsProviderNames.filterNot { it == selectedProvider }
+                onLyricsProviderOrderChange(LyricsProviderRegistry.serializeProviderOrder(reorderedProviders))
+            },
+        )
+        SwitchPreference(
+            title = { Text(stringResource(R.string.enable_betterlyrics)) },
+            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            checked = enableBetterLyrics,
+            onCheckedChange = onEnableBetterLyricsChange,
+        )
         SwitchPreference(
             title = { Text(stringResource(R.string.enable_lrclib)) },
             icon = { Icon(painterResource(R.drawable.lyrics), null) },
             checked = enableLrclib,
             onCheckedChange = onEnableLrclibChange,
+        )
+        SwitchPreference(
+            title = { Text(stringResource(R.string.enable_kugou)) },
+            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            checked = enableKugou,
+            onCheckedChange = onEnableKugouChange,
         )
 
         PreferenceGroupTitle(title = stringResource(R.string.content_filters))

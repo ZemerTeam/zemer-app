@@ -243,6 +243,8 @@ dependencies {
     implementation(project(":innertube"))
     implementation(project(":lrclib"))
     implementation(project(":simpmusic"))
+    implementation(project(":betterlyrics"))
+    implementation(project(":kugou"))
 
     // No external dependencies for cover art - using native Bento4 library
 

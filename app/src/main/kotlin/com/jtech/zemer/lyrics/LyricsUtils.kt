@@ -778,4 +778,24 @@ object LyricsUtils {
     private fun isCyrillicVowel(char: Char): Boolean {
         return "АаЕеЄєИиІіЇїОоУуЮюЯяЫыЭэ".contains(char)
     }
+    fun cleanTitleForSearch(title: String): String = title
+        .replace(Regex("\\s*\\(.*?(official|video|audio|lyrics|lyric|visualizer|hd|hq|4k|remaster|remix|live|acoustic|version|edit|extended|radio|clean|explicit).*?\\)", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("\\s*\\[.*?(official|video|audio|lyrics|lyric|visualizer|hd|hq|4k|remaster|remix|live|acoustic|version|edit|extended|radio|clean|explicit).*?\\]", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("\\s*-\\s*(official|video|audio|lyrics|lyric|visualizer).*$", RegexOption.IGNORE_CASE), "")
+        .trim()
+        .ifBlank { title }
+
+    fun filterLyricsCreditLines(lyrics: String): String {
+        val creditPatterns = listOf(
+            Regex("^\\s*(lyrics?|lyricist|writer|composer|produced|provided|synced|translated|romanized|copyright|©|℗)\\b.*", RegexOption.IGNORE_CASE),
+            Regex("^\\s*(作词|作詞|作曲|編曲|编曲|歌词|歌詞|翻译|翻譯|罗马音|羅馬音)[:：].*", RegexOption.IGNORE_CASE),
+        )
+
+        return lyrics.lines()
+            .filterNot { line -> creditPatterns.any { it.containsMatchIn(line) } }
+            .joinToString("\n")
+            .trim()
+            .ifBlank { lyrics }
+    }
+
 }

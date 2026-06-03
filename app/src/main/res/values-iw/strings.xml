@@ -268,6 +268,7 @@
     <string name="use_login_for_browse_desc">זה יכול להשפיע על התוכן שתראו, לדוגמה, יציג אלבומים למשתמשי פרימיום בלבד אם אתם מחוברים לחשבון פרימיום</string>
     <string name="disable_screenshot">השבתת צילום מסך</string>
     <string name="disable_screenshot_desc">כאשר אפשרות זו מופעלת, צילומי מסך ותצוגת האפליקציה תחת \'אחרונים\' מושבתות.</string>
+    <string name="enable_betterlyrics">הפעל את ספק המילים של BetterLyrics</string>
     <string name="enable_lrclib">הפעל את ספק המילים של LrcLib</string>
     <string name="enable_kugou">הפעלת ספק מילות השיר KuGou</string>
     <string name="hide_explicit">הסתר תוכן בוטה</string>

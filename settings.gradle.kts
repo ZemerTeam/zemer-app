@@ -31,6 +31,8 @@ include(":app")
 include(":innertube")
 include(":lrclib")
 include(":simpmusic")
+include(":betterlyrics")
+include(":kugou")
 
 // Cipher library (submodule)
 includeBuild("cipher") {
