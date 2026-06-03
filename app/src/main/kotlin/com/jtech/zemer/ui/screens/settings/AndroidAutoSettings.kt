@@ -159,7 +159,13 @@ fun AndroidAutoSettings(
             items = listOf(
                 Material3SettingsItem(
                     title = {},
-                    description = { Text(stringResource(R.string.android_auto_reorder_hint)) },
+                    description = {
+                        Text(
+                            text = stringResource(R.string.android_auto_reorder_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
                     onClick = null
                 )
             )
