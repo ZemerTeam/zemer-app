@@ -335,6 +335,10 @@ constructor(
                                     .filterIsInstance<PlaylistItem>()
                                     .filterNot { it.id in savedBrowseIds }
                                     .distinctBy { it.id }
+                                    // Whitelist edition: only surface playlists whose author
+                                    // is a whitelisted artist (songs are filtered separately too).
+                                    .filterWhitelisted(database)
+                                    .filterIsInstance<PlaylistItem>()
 
                                 playlists.map { playlist ->
                                     browsableMediaItem(
