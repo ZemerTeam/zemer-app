@@ -17,6 +17,7 @@ import android.media.audiofx.AudioEffect
 import android.media.audiofx.LoudnessEnhancer
 import android.net.ConnectivityManager
 import android.os.Binder
+import android.widget.Toast
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import androidx.datastore.preferences.core.edit
@@ -70,6 +71,7 @@ import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.jtech.zemer.MainActivity
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.AndroidAutoTargetPlaylistKey
 import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.AudioOffload
 import com.jtech.zemer.constants.AudioQualityKey
@@ -79,6 +81,8 @@ import com.jtech.zemer.constants.AutoSkipNextOnErrorKey
 import com.jtech.zemer.constants.DisableLoadMoreWhenRepeatAllKey
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.HistoryDuration
+import com.jtech.zemer.constants.MediaSessionConstants
+import com.jtech.zemer.constants.MediaSessionConstants.CommandAddToTargetPlaylist
 import com.jtech.zemer.constants.MediaSessionConstants.CommandToggleLike
 import com.jtech.zemer.constants.MediaSessionConstants.CommandToggleRepeatMode
 import com.jtech.zemer.constants.MediaSessionConstants.CommandToggleShuffle
@@ -290,6 +294,7 @@ class MusicService :
             toggleLike = ::toggleLike
             toggleStartRadio = ::toggleStartRadio
             toggleLibrary = ::toggleLibrary
+            addToTargetPlaylist = ::addToTargetPlaylist
         }
         mediaSession =
             MediaLibrarySession
@@ -715,6 +720,12 @@ class MusicService :
                     .setSessionCommand(CommandToggleStartRadio)
                     .setEnabled(currentSong.value != null)
                     .build(),
+                CommandButton.Builder()
+                    .setDisplayName(getString(R.string.android_auto_target_playlist))
+                    .setIconResId(R.drawable.playlist_add)
+                    .setSessionCommand(CommandAddToTargetPlaylist)
+                    .setEnabled(currentSong.value != null)
+                    .build(),
             ),
         )
     }
@@ -984,6 +995,33 @@ class MusicService :
 
     fun toggleStartRadio() {
         startRadioSeamlessly()
+    }
+
+    fun addToTargetPlaylist() {
+        scope.launch {
+            val current = currentSong.value ?: return@launch
+            val targetPlaylistId = dataStore.get(
+                AndroidAutoTargetPlaylistKey,
+                MediaSessionConstants.TARGET_PLAYLIST_AUTO,
+            )
+
+            if (targetPlaylistId == MediaSessionConstants.TARGET_PLAYLIST_AUTO) {
+                Toast.makeText(
+                    this@MusicService,
+                    getString(R.string.android_auto_target_playlist_not_set),
+                    Toast.LENGTH_SHORT,
+                ).show()
+                return@launch
+            }
+
+            val targetPlaylist = withContext(Dispatchers.IO) {
+                database.playlist(targetPlaylistId).first()
+            } ?: return@launch
+
+            database.query {
+                addSongToPlaylist(targetPlaylist, listOf(current.id))
+            }
+        }
     }
 
     private fun setupLoudnessEnhancer() {
@@ -1588,7 +1626,9 @@ class MusicService :
         const val ARTIST = "artist"
         const val ALBUM = "album"
         const val PLAYLIST = "playlist"
+        const val YOUTUBE_PLAYLIST = "youtube_playlist"
         const val SEARCH = "search"
+        const val SHUFFLE_ACTION = "__shuffle__"
 
         const val CHANNEL_ID = "music_channel_01"
         const val NOTIFICATION_ID = 888

@@ -56,6 +56,16 @@ fun SettingsScreen(
     LocalUriHandler.current
     val context = LocalContext.current
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val hasAndroidAuto = remember {
+        try {
+            context.packageManager.getPackageInfo(
+                "com.google.android.projection.gearhead", 0
+            )
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
     val firebaseAuth = remember { FirebaseAuth.getInstance() }
     var isLoggedIn by remember { mutableStateOf(firebaseAuth.currentUser != null) }
 
@@ -158,7 +168,21 @@ fun SettingsScreen(
             route = "settings/about"
         )
     )
-    val allSettings = baseSettings + if (isLoggedIn) {
+    val androidAutoSettings = if (hasAndroidAuto) {
+        listOf(
+            SettingItem(
+                id = "android_auto",
+                title = stringResource(R.string.android_auto),
+                description = "Customize browsing & quick-add",
+                icon = R.drawable.ic_android_auto,
+                section = "Player & Content",
+                route = "settings/android_auto"
+            )
+        )
+    } else {
+        emptyList()
+    }
+    val allSettings = baseSettings + androidAutoSettings + if (isLoggedIn) {
         listOf(
             SettingItem(
                 id = "logout",

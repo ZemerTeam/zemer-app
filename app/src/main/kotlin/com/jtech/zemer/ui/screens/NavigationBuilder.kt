@@ -27,6 +27,7 @@ import com.jtech.zemer.ui.screens.playlist.OnlinePlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.TopPlaylistScreen
 import com.jtech.zemer.ui.screens.search.OnlineSearchResult
 import com.jtech.zemer.ui.screens.settings.AboutScreen
+import com.jtech.zemer.ui.screens.settings.AndroidAutoSettings
 import com.jtech.zemer.ui.screens.settings.AppearanceSettings
 import com.jtech.zemer.ui.screens.settings.BackupAndRestore
 import com.jtech.zemer.ui.screens.settings.ButtonSetupScreen
@@ -296,6 +297,9 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("settings") {
         SettingsScreen(navController, scrollBehavior, latestVersionName)
+    }
+    composable("settings/android_auto") {
+        AndroidAutoSettings(navController, scrollBehavior)
     }
     composable("settings/appearance") {
         AppearanceSettings(navController, scrollBehavior)
