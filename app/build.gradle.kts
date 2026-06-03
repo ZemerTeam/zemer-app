@@ -249,6 +249,8 @@ dependencies {
     // No external dependencies for cover art - using native Bento4 library
 
     implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.json)
 
     coreLibraryDesugaring(libs.desugaring)

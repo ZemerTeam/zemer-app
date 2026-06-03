@@ -12,6 +12,7 @@ object BetterLyricsProvider : LyricsProvider {
     override fun isEnabled(context: Context): Boolean = context.dataStore[EnableBetterLyricsKey] ?: true
 
     override suspend fun getLyrics(
+        context: Context,
         id: String,
         title: String,
         artist: String,

@@ -380,9 +380,18 @@
     <string name="use_login_for_browse_desc">This can influence what content you see and for example shows premium-only albums if you are logged in with a Premium account</string>
     <string name="disable_screenshot">Disable screenshot</string>
     <string name="disable_screenshot_desc">When this option is on, screenshots and the app\'s view in Recents are disabled.</string>
+    <string name="lyrics_provider_selection">Lyrics provider selection</string>
+    <string name="lyrics_provider_selection_desc">Enable or disable lyrics providers.</string>
+    <string name="lyrics_provider_priority">Lyrics provider priority</string>
+    <string name="lyrics_provider_priority_desc">Drag enabled providers to choose the lookup order.</string>
     <string name="enable_betterlyrics">Enable BetterLyrics lyrics provider</string>
+    <string name="enable_betterlyrics_desc">Better Lyrics word-synced lyrics provider.</string>
     <string name="enable_lrclib">Enable LrcLib lyrics provider</string>
+    <string name="enable_lrclib_desc">Community lyrics from LRCLIB.</string>
     <string name="enable_kugou">Enable KuGou lyrics provider</string>
+    <string name="enable_kugou_desc">KuGou synced lyrics provider.</string>
+    <string name="enable_lyricsplus">Enable LyricsPlus lyrics provider</string>
+    <string name="enable_lyricsplus_desc">LyricsPlus word-synced lyrics provider.</string>
     <string name="hide_explicit">Hide explicit content</string>
 
     <string name="backup_restore">Backup and restore</string>

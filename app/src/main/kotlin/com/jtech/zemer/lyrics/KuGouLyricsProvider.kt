@@ -7,11 +7,12 @@ import com.jtech.zemer.utils.get
 import com.metrolist.kugou.KuGou
 
 object KuGouLyricsProvider : LyricsProvider {
-    override val name = "KuGou"
+    override val name = "Kugou"
 
     override fun isEnabled(context: Context): Boolean = context.dataStore[EnableKugouKey] ?: true
 
     override suspend fun getLyrics(
+        context: Context,
         id: String,
         title: String,
         artist: String,
@@ -20,6 +21,7 @@ object KuGouLyricsProvider : LyricsProvider {
     ): Result<String> = KuGou.getLyrics(title, artist, duration, album)
 
     override suspend fun getAllLyrics(
+        context: Context,
         id: String,
         title: String,
         artist: String,

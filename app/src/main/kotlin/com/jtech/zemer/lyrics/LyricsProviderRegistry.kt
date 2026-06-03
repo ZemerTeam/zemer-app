@@ -6,6 +6,7 @@ object LyricsProviderRegistry {
         "SimpMusic" to SimpMusicLyricsProvider,
         "LrcLib" to LrcLibLyricsProvider,
         "KuGou" to KuGouLyricsProvider,
+        "LyricsPlus" to LyricsPlusProvider,
         "YouTubeSubtitle" to YouTubeSubtitleLyricsProvider,
         "YouTube" to YouTubeLyricsProvider,
     )
@@ -13,6 +14,9 @@ object LyricsProviderRegistry {
     val providerNames: List<String> = providerMap.keys.toList()
 
     fun getProviderByName(name: String): LyricsProvider? = providerMap[name]
+
+    fun getProviderName(provider: LyricsProvider): String? =
+        providerMap.entries.find { it.value == provider }?.key
 
     fun deserializeProviderOrder(orderString: String): List<String> =
         if (orderString.isBlank()) {
@@ -29,6 +33,7 @@ object LyricsProviderRegistry {
         "SimpMusic",
         "LrcLib",
         "KuGou",
+        "LyricsPlus",
         "YouTubeSubtitle",
         "YouTube",
     )

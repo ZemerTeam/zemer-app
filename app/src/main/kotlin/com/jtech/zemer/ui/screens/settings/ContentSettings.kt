@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -65,6 +66,7 @@ import com.jtech.zemer.constants.CountryCodeToName
 import com.jtech.zemer.constants.EnableBetterLyricsKey
 import com.jtech.zemer.constants.EnableContentFiltersKey
 import com.jtech.zemer.constants.EnableKugouKey
+import com.jtech.zemer.constants.EnableLyricsPlus
 import com.jtech.zemer.constants.EnableLrcLibKey
 import com.jtech.zemer.constants.LyricsProviderOrderKey
 import com.jtech.zemer.constants.LanguageCodeToName
@@ -75,6 +77,8 @@ import com.jtech.zemer.constants.TopSize
 import com.jtech.zemer.lyrics.LyricsProviderRegistry
 import com.jtech.zemer.sync.SyncState
 import com.jtech.zemer.sync.SyncStatus
+import com.jtech.zemer.ui.component.DraggableLyricsProviderItem
+import com.jtech.zemer.ui.component.DraggableLyricsProviderList
 import com.jtech.zemer.ui.component.EditTextPreference
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.ListPreference
@@ -199,7 +203,11 @@ fun ContentSettings(
     val (enableLrclib, onEnableLrclibChange) = rememberPreference(key = EnableLrcLibKey, defaultValue = true)
     val (enableBetterLyrics, onEnableBetterLyricsChange) = rememberPreference(key = EnableBetterLyricsKey, defaultValue = true)
     val (enableKugou, onEnableKugouChange) = rememberPreference(key = EnableKugouKey, defaultValue = true)
-    val (lyricsProviderOrder, onLyricsProviderOrderChange) = rememberPreference(key = LyricsProviderOrderKey, defaultValue = "")
+    val (enableLyricsPlus, onEnableLyricsPlusChange) = rememberPreference(key = EnableLyricsPlus, defaultValue = true)
+    val (lyricsProviderOrder, onLyricsProviderOrderChange) = rememberPreference(
+        key = LyricsProviderOrderKey,
+        defaultValue = LyricsProviderRegistry.serializeProviderOrder(LyricsProviderRegistry.getDefaultProviderOrder())
+    )
     val (lengthTop, onLengthTopChange) = rememberPreference(key = TopSize, defaultValue = "50")
     val (quickPicks, onQuickPicksChange) = rememberEnumPreference(key = QuickPicksKey, defaultValue = QuickPicks.QUICK_PICKS)
     val (enableContentFilters, onEnableContentFiltersChange) = rememberPreference(key = EnableContentFiltersKey, defaultValue = true)
@@ -213,6 +221,127 @@ fun ContentSettings(
             filtersEnabled = enableContentFilters,
             allowFemaleSingers = allowFemaleSingers,
             blockVideos = blockVideos
+        )
+    }
+
+    val providerDisplayNames = mapOf(
+        "BetterLyrics" to "Better Lyrics",
+        "SimpMusic" to "SimpMusic",
+        "LrcLib" to "LrcLib",
+        "KuGou" to "KuGou",
+        "LyricsPlus" to "LyricsPlus",
+        "YouTubeSubtitle" to "YouTube Subtitles",
+        "YouTube" to "YouTube",
+    )
+
+    var showProviderSelectionDialog by remember { mutableStateOf(false) }
+    var showProviderPriorityDialog by remember { mutableStateOf(false) }
+
+    if (showProviderSelectionDialog) {
+        AlertDialog(
+            onDismissRequest = { showProviderSelectionDialog = false },
+            title = { Text(stringResource(R.string.lyrics_provider_selection)) },
+            text = {
+                Column {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.enable_betterlyrics)) },
+                        description = stringResource(R.string.enable_betterlyrics_desc),
+                        checked = enableBetterLyrics,
+                        onCheckedChange = onEnableBetterLyricsChange,
+                    )
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.enable_lrclib)) },
+                        description = stringResource(R.string.enable_lrclib_desc),
+                        checked = enableLrclib,
+                        onCheckedChange = onEnableLrclibChange,
+                    )
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.enable_kugou)) },
+                        description = stringResource(R.string.enable_kugou_desc),
+                        checked = enableKugou,
+                        onCheckedChange = onEnableKugouChange,
+                    )
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.enable_lyricsplus)) },
+                        description = stringResource(R.string.enable_lyricsplus_desc),
+                        checked = enableLyricsPlus,
+                        onCheckedChange = onEnableLyricsPlusChange,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showProviderSelectionDialog = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            },
+        )
+    }
+
+    if (showProviderPriorityDialog) {
+        val currentOrder = LyricsProviderRegistry.deserializeProviderOrder(lyricsProviderOrder)
+        val defaultOrder = LyricsProviderRegistry.getDefaultProviderOrder()
+        val normalizedOrder = currentOrder.filter { it in defaultOrder } + defaultOrder.filter { it !in currentOrder }
+        val enabledProviders = setOf(
+            "BetterLyrics".takeIf { enableBetterLyrics },
+            "SimpMusic",
+            "LrcLib".takeIf { enableLrclib },
+            "KuGou".takeIf { enableKugou },
+            "LyricsPlus".takeIf { enableLyricsPlus },
+            "YouTubeSubtitle",
+            "YouTube",
+        ).filterNotNull().toSet()
+        val lyricsIcon = painterResource(R.drawable.lyrics)
+        val draggableItems = remember { mutableStateListOf<DraggableLyricsProviderItem>() }
+
+        LaunchedEffect(normalizedOrder, enableBetterLyrics, enableLrclib, enableKugou, enableLyricsPlus) {
+            val orderedEnabledProviders = normalizedOrder.filter { it in enabledProviders }
+            draggableItems.clear()
+            draggableItems.addAll(
+                orderedEnabledProviders.map { providerName ->
+                    DraggableLyricsProviderItem(
+                        id = providerName,
+                        name = providerDisplayNames[providerName] ?: providerName,
+                        icon = lyricsIcon,
+                    )
+                }
+            )
+        }
+
+        AlertDialog(
+            onDismissRequest = { showProviderPriorityDialog = false },
+            title = { Text(stringResource(R.string.lyrics_provider_priority)) },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.lyrics_provider_priority_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    DraggableLyricsProviderList(
+                        items = draggableItems,
+                        onItemsReordered = { reorderedItems ->
+                            val enabledOrder = reorderedItems.map { it.id }
+                            val disabledOrder = normalizedOrder.filter { it !in enabledProviders }
+                            onLyricsProviderOrderChange(
+                                LyricsProviderRegistry.serializeProviderOrder(enabledOrder + disabledOrder)
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showProviderPriorityDialog = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            },
         )
     }
 
@@ -317,40 +446,17 @@ fun ContentSettings(
         }
 
         PreferenceGroupTitle(title = stringResource(R.string.lyrics))
-        val lyricsProviderNames = LyricsProviderRegistry.providerNames
-        val selectedLyricsProvider = LyricsProviderRegistry
-            .deserializeProviderOrder(lyricsProviderOrder)
-            .firstOrNull()
-            ?: LyricsProviderRegistry.getDefaultProviderOrder().first()
-        ListPreference(
-            title = { Text(stringResource(R.string.set_first_lyrics_provider)) },
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.lyrics_provider_selection)) },
+            description = stringResource(R.string.lyrics_provider_selection_desc),
             icon = { Icon(painterResource(R.drawable.lyrics), null) },
-            selectedValue = selectedLyricsProvider,
-            values = lyricsProviderNames,
-            valueText = { it },
-            onValueSelected = { selectedProvider ->
-                val reorderedProviders = listOf(selectedProvider) +
-                    lyricsProviderNames.filterNot { it == selectedProvider }
-                onLyricsProviderOrderChange(LyricsProviderRegistry.serializeProviderOrder(reorderedProviders))
-            },
+            onClick = { showProviderSelectionDialog = true },
         )
-        SwitchPreference(
-            title = { Text(stringResource(R.string.enable_betterlyrics)) },
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.lyrics_provider_priority)) },
+            description = stringResource(R.string.lyrics_provider_priority_desc),
             icon = { Icon(painterResource(R.drawable.lyrics), null) },
-            checked = enableBetterLyrics,
-            onCheckedChange = onEnableBetterLyricsChange,
-        )
-        SwitchPreference(
-            title = { Text(stringResource(R.string.enable_lrclib)) },
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
-            checked = enableLrclib,
-            onCheckedChange = onEnableLrclibChange,
-        )
-        SwitchPreference(
-            title = { Text(stringResource(R.string.enable_kugou)) },
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
-            checked = enableKugou,
-            onCheckedChange = onEnableKugouChange,
+            onClick = { showProviderPriorityDialog = true },
         )
 
         PreferenceGroupTitle(title = stringResource(R.string.content_filters))

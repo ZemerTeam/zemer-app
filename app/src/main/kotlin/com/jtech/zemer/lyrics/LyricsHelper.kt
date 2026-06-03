@@ -15,6 +15,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -27,17 +28,31 @@ constructor(
     @ApplicationContext private val context: Context,
     private val networkConnectivity: NetworkConnectivityObserver,
 ) {
+    val preferred = context.dataStore.data
+        .map { preferences ->
+            val providerOrder = preferences[LyricsProviderOrderKey].orEmpty()
+            if (providerOrder.isNotBlank()) {
+                LyricsProviderRegistry.getOrderedProviders(providerOrder)
+            } else {
+                LyricsProviderRegistry.getDefaultProviderOrder()
+                    .mapNotNull { LyricsProviderRegistry.getProviderByName(it) }
+            }
+        }
+        .distinctUntilChanged()
+
     private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
     private var currentLyricsJob: Job? = null
 
-    suspend fun getLyrics(mediaMetadata: MediaMetadata): String {
+    suspend fun getLyrics(mediaMetadata: MediaMetadata): String = getLyricsWithProvider(mediaMetadata).lyrics
+
+    suspend fun getLyricsWithProvider(mediaMetadata: MediaMetadata): LyricsWithProvider {
         currentLyricsJob?.cancel()
 
         val videoId = mediaMetadata.setVideoId ?: mediaMetadata.id
 
         val cached = cache.get(mediaMetadata.id)?.firstOrNull()
         if (cached != null) {
-            return cached.lyrics
+            return LyricsWithProvider(cached.lyrics, cached.providerName)
         }
 
         // Check network connectivity before making network requests
@@ -51,7 +66,7 @@ constructor(
         
         if (!isNetworkAvailable) {
             // Still proceed but return not found to avoid hanging
-            return LYRICS_NOT_FOUND
+            return LyricsWithProvider(LYRICS_NOT_FOUND, PROVIDER_NONE)
         }
 
         val orderedProviders = resolveLyricsProviders()
@@ -61,6 +76,7 @@ constructor(
                 val result = try {
                     withTimeoutOrNull(PER_PROVIDER_TIMEOUT_MS) {
                         provider.getLyrics(
+                            context,
                             videoId,
                             cleanedTitle,
                             mediaMetadata.artists.joinToString { it.name },
@@ -76,11 +92,14 @@ constructor(
                 }
 
                 if (result != null && result.isSuccess) {
-                    return@withTimeoutOrNull LyricsUtils.filterLyricsCreditLines(result.getOrThrow())
+                    return@withTimeoutOrNull LyricsWithProvider(
+                        LyricsUtils.filterLyricsCreditLines(result.getOrThrow()),
+                        provider.name,
+                    )
                 }
             }
-            LYRICS_NOT_FOUND
-        } ?: LYRICS_NOT_FOUND
+            LyricsWithProvider(LYRICS_NOT_FOUND, PROVIDER_NONE)
+        } ?: LyricsWithProvider(LYRICS_NOT_FOUND, PROVIDER_NONE)
     }
 
     suspend fun getAllLyrics(
@@ -118,19 +137,47 @@ constructor(
         val allResult = mutableListOf<LyricsResult>()
         currentLyricsJob = CoroutineScope(SupervisorJob()).launch {
             val cleanedTitle = LyricsUtils.cleanTitleForSearch(songTitle)
-            resolveLyricsProviders().filter { it.isEnabled(context) }.forEach { provider ->
-                try {
-                    provider.getAllLyrics(mediaId, cleanedTitle, songArtists, duration, album) { lyrics ->
-                        val result = LyricsResult(provider.name, LyricsUtils.filterLyricsCreditLines(lyrics))
-                        allResult += result
-                        callback(result)
+            val enabledProviders = resolveLyricsProviders().filter { it.isEnabled(context) }
+            val otherProviders = enabledProviders.filter { it.name != "LyricsPlus" }
+            val lyricsPlusProvider = enabledProviders.find { it.name == "LyricsPlus" }
+            val callbackMutex = Any()
+
+            val otherJobs = otherProviders.map { provider ->
+                launch {
+                    try {
+                        provider.getAllLyrics(context, mediaId, cleanedTitle, songArtists, duration, album) { lyrics ->
+                            val result = LyricsResult(provider.name, LyricsUtils.filterLyricsCreditLines(lyrics))
+                            synchronized(callbackMutex) {
+                                allResult += result
+                                callback(result)
+                            }
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        reportException(e)
                     }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    // Catch network-related exceptions like UnresolvedAddressException
-                    reportException(e)
                 }
+            }
+            otherJobs.forEach { it.join() }
+
+            val otherLyricsCount = allResult.count { it.providerName != "LyricsPlus" }
+            if (lyricsPlusProvider != null && otherLyricsCount <= 2) {
+                launch {
+                    try {
+                        lyricsPlusProvider.getAllLyrics(context, mediaId, cleanedTitle, songArtists, duration, album) { lyrics ->
+                            val result = LyricsResult(lyricsPlusProvider.name, LyricsUtils.filterLyricsCreditLines(lyrics))
+                            synchronized(callbackMutex) {
+                                allResult += result
+                                callback(result)
+                            }
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        reportException(e)
+                    }
+                }.join()
             }
             cache.put(cacheKey, allResult)
         }
@@ -159,10 +206,16 @@ constructor(
         private const val MAX_CACHE_SIZE = 3
         private const val MAX_LYRICS_FETCH_MS = 25000L
         private const val PER_PROVIDER_TIMEOUT_MS = 8000L
+        private const val PROVIDER_NONE = ""
     }
 }
 
 data class LyricsResult(
     val providerName: String,
     val lyrics: String,
+)
+
+data class LyricsWithProvider(
+    val lyrics: String,
+    val provider: String,
 )
