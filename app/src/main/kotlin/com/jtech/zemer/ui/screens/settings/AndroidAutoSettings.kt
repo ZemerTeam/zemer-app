@@ -1,6 +1,7 @@
 package com.jtech.zemer.ui.screens.settings
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -168,7 +169,8 @@ fun AndroidAutoSettings(
             state = lazyListState,
             modifier = Modifier
                 .fillMaxWidth()
-                .height((sections.size * 80).dp),
+                .height((sections.size * 88).dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             userScrollEnabled = false,
         ) {
             items(sections, key = { (section, _) -> section.id }) { (section, enabled) ->
