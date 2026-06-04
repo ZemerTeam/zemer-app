@@ -334,11 +334,13 @@ class MusicService :
                 if (prefs[com.jtech.zemer.constants.StreamSourceAndroidVRKey] == false) {
                     disabled += "ANDROID_VR"
                 }
-                if (prefs[com.jtech.zemer.constants.StreamSourceIOSKey]       == false) disabled += "IOS"
-                if (prefs[com.jtech.zemer.constants.StreamSourceIPadOSKey]    == false) disabled += "IOS" // IPADOS uses IOS clientName
+                // IOS/IPADOS are spc-gated and ANDROID_CREATOR needs DroidGuard — proven unfixable,
+                // so they default OFF (`!= true`: unset or false both disable; only explicit on enables).
+                if (prefs[com.jtech.zemer.constants.StreamSourceIOSKey]       != true)  disabled += "IOS"
+                if (prefs[com.jtech.zemer.constants.StreamSourceIPadOSKey]    != true)  disabled += "IOS" // IPADOS uses IOS clientName
                 if (prefs[com.jtech.zemer.constants.StreamSourceVisionOSKey]  == false) disabled += "VISIONOS"
                 if (prefs[com.jtech.zemer.constants.StreamSourceWebCreatorKey] == false) disabled += "WEB_CREATOR"
-                if (prefs[com.jtech.zemer.constants.StreamSourceAndroidCreatorKey] == false) disabled += "ANDROID_CREATOR"
+                if (prefs[com.jtech.zemer.constants.StreamSourceAndroidCreatorKey] != true)  disabled += "ANDROID_CREATOR"
                 YTPlayerUtils.disabledStreamClients = disabled
             }
         }

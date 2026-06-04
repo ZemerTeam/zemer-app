@@ -77,13 +77,13 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `696`
+- Files counted: `698`
 - By extension:
   - `.kt`: `395`
   - `.xml`: `182`
   - `.json`: `35`
+  - `.mjs`: `19`
   - `.md`: `17`
-  - `.mjs`: `17`
   - `.webp`: `15`
   - `[none]`: `7`
   - `.kts`: `6`
@@ -107,7 +107,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | --- | ---: | --- |
 | `.github/workflows/player-monitor.yml` | 131 lines | `.yml` |
 | `.github/workflows/release-build.yml` | 113 lines | `.yml` |
-| `.gitignore` | 103 lines | `[none]` |
+| `.gitignore` | 106 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 11 lines | `.md` |
@@ -237,7 +237,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 655 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 728 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 307 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 1608 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 1610 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 207 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/SleepTimer.kt` | 68 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/EmptyQueue.kt` | 14 lines | `.kt` |
@@ -411,7 +411,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | 40 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 72 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | 262 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/YTPlayerUtils.kt` | 547 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/YTPlayerUtils.kt` | 548 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/ZemerLinkBuilder.kt` | 16 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/sabr/EjsNTransformSolver.kt` | 307 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/sabr/SabrException.kt` | 3 lines | `.kt` |
@@ -661,9 +661,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/generate.py` | 270 lines | `.py` |
 | `docs/innertube/README.md` | 183 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 418 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 294 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 296 lines | `.md` |
 | `docs/reference/resource-index.md` | 288 lines | `.md` |
-| `docs/repository-map.md` | 803 lines | `.md` |
+| `docs/repository-map.md` | 805 lines | `.md` |
 | `docs/ui/README.md` | 329 lines | `.md` |
 | `docs/whitelist/README.md` | 181 lines | `.md` |
 | `gradle.properties` | 40 lines | `.properties` |
@@ -795,7 +795,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/potoken.mjs` | 132 lines | `.mjs` |
 | `tests/re-apple.mjs` | 51 lines | `.mjs` |
 | `tests/re-compare.mjs` | 58 lines | `.mjs` |
+| `tests/re-deep.mjs` | 78 lines | `.mjs` |
 | `tests/re-ios.mjs` | 68 lines | `.mjs` |
+| `tests/re-oauth.mjs` | 111 lines | `.mjs` |
 | `tests/results.json` | 222 lines | `.json` |
 | `tests/retest-web.mjs` | 58 lines | `.mjs` |
 | `tests/run.mjs` | 181 lines | `.mjs` |

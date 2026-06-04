@@ -101,3 +101,6 @@ potoken.json
 
 # Node test harness deps
 tests/node_modules/
+
+# Transient OAuth device-flow artifacts (tests)
+tests/_oauth_*.json

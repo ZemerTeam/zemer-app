@@ -290,13 +290,13 @@
     <string name="stream_source_android_vr">Android VR</string>
     <string name="stream_source_android_vr_desc">Direct URL client — reliable fallback, no cipher needed</string>
     <string name="stream_source_ios">iOS</string>
-    <string name="stream_source_ios_desc">Direct URL client — Apple device client</string>
+    <string name="stream_source_ios_desc">Apple client — spc-gated past ~1 MiB; off by default, use visionOS</string>
     <string name="stream_source_ipad_os">iPadOS</string>
-    <string name="stream_source_ipad_os_desc">Direct URL client — iPad client</string>
+    <string name="stream_source_ipad_os_desc">Apple iPad client — spc-gated past ~1 MiB; off by default, use visionOS</string>
     <string name="stream_source_visionos">visionOS</string>
     <string name="stream_source_visionos_desc">Apple direct-URL client — streams full songs (unlike iOS/iPadOS)</string>
     <string name="stream_source_web_creator">WEB_CREATOR</string>
     <string name="stream_source_web_creator_desc">YouTube Studio web client</string>
     <string name="stream_source_android_creator">ANDROID_CREATOR</string>
-    <string name="stream_source_android_creator_desc">YouTube Studio mobile client — login required, often unavailable</string>
+    <string name="stream_source_android_creator_desc">YouTube Studio client — needs DroidGuard attestation; off by default</string>
 </resources>

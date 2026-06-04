@@ -44,11 +44,11 @@ fun StreamSourceSettings(
     val (webRemixEnabled, onWebRemixChange)     = rememberPreference(StreamSourceWebRemixKey,   defaultValue = true)
     val (tvhtml5Enabled, onTVHTML5Change)       = rememberPreference(StreamSourceTVHTML5Key,    defaultValue = true)
     val (androidVREnabled, onAndroidVRChange)   = rememberPreference(StreamSourceAndroidVRKey,  defaultValue = true)
-    val (iosEnabled, onIOSChange)               = rememberPreference(StreamSourceIOSKey,        defaultValue = true)
-    val (ipadosEnabled, onIPadOSChange)         = rememberPreference(StreamSourceIPadOSKey,     defaultValue = true)
+    val (iosEnabled, onIOSChange)               = rememberPreference(StreamSourceIOSKey,        defaultValue = false)
+    val (ipadosEnabled, onIPadOSChange)         = rememberPreference(StreamSourceIPadOSKey,     defaultValue = false)
     val (visionosEnabled, onVisionOSChange)     = rememberPreference(StreamSourceVisionOSKey,   defaultValue = true)
     val (webCreatorEnabled, onWebCreatorChange) = rememberPreference(StreamSourceWebCreatorKey, defaultValue = true)
-    val (androidCreatorEnabled, onAndroidCreatorChange) = rememberPreference(StreamSourceAndroidCreatorKey, defaultValue = true)
+    val (androidCreatorEnabled, onAndroidCreatorChange) = rememberPreference(StreamSourceAndroidCreatorKey, defaultValue = false)
 
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
