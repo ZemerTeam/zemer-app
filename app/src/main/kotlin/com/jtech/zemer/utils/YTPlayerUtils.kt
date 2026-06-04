@@ -139,15 +139,19 @@ object YTPlayerUtils {
         Timber.tag(TAG).d( "PoToken: ${if (poTokenResult != null) "generated" else "unavailable"}")
 
         Timber.tag(TAG).d( "Fetching main player response with client: ${mainClient.clientName}")
+        // Resilient: the chosen main client can fail outright (e.g. ANDROID_CREATOR returns
+        // HTTP 400 with login). Use getOrNull, not getOrThrow, so one bad client never kills the
+        // whole resolution — the stream loop below falls through to the next enabled client, and
+        // metadata is captured from the first client that returns OK.
         val mainPlayerResponse =
             YouTube.player(
                 videoId, playlistId, mainClient, signatureTimestamp,
                 webPlayerPot = if (mainClient.useWebPoTokens) poTokenResult?.playerRequestPoToken else null
-            ).getOrThrow()
-        Timber.tag(TAG).d( "Main response status: ${mainPlayerResponse.playabilityStatus.status}")
-        val audioConfig = mainPlayerResponse.playerConfig?.audioConfig
-        val videoDetails = mainPlayerResponse.videoDetails
-        val playbackTracking = mainPlayerResponse.playbackTracking
+            ).getOrNull()
+        Timber.tag(TAG).d( "Main response status: ${mainPlayerResponse?.playabilityStatus?.status ?: "request failed"}")
+        var audioConfig = mainPlayerResponse?.playerConfig?.audioConfig
+        var videoDetails = mainPlayerResponse?.videoDetails
+        var playbackTracking = mainPlayerResponse?.playbackTracking
         var format: PlayerResponse.StreamingData.Format? = null
         var streamUrl: String? = null
         var streamExpiresInSeconds: Int? = null
@@ -187,6 +191,11 @@ object YTPlayerUtils {
             // process current client response
             if (streamPlayerResponse?.playabilityStatus?.status == "OK") {
                 Timber.tag(TAG).d( "Status OK for ${client.clientName}")
+
+                // Capture metadata from the first OK client (main may have failed/returned null above).
+                if (audioConfig == null) audioConfig = streamPlayerResponse?.playerConfig?.audioConfig
+                if (videoDetails == null) videoDetails = streamPlayerResponse?.videoDetails
+                if (playbackTracking == null) playbackTracking = streamPlayerResponse?.playbackTracking
 
                 // Use the player response as-is. The old NewPipe StreamInfo.getInfo
                 // pre-processing ran a full second extraction for EVERY song (fetch watch

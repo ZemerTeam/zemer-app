@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.StreamSourceAndroidCreatorKey
 import com.jtech.zemer.constants.StreamSourceAndroidVRKey
 import com.jtech.zemer.constants.StreamSourceIOSKey
 import com.jtech.zemer.constants.StreamSourceIPadOSKey
@@ -45,6 +46,7 @@ fun StreamSourceSettings(
     val (iosEnabled, onIOSChange)               = rememberPreference(StreamSourceIOSKey,        defaultValue = true)
     val (ipadosEnabled, onIPadOSChange)         = rememberPreference(StreamSourceIPadOSKey,     defaultValue = true)
     val (webCreatorEnabled, onWebCreatorChange) = rememberPreference(StreamSourceWebCreatorKey, defaultValue = true)
+    val (androidCreatorEnabled, onAndroidCreatorChange) = rememberPreference(StreamSourceAndroidCreatorKey, defaultValue = true)
 
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
@@ -117,6 +119,14 @@ fun StreamSourceSettings(
             icon = { Icon(painterResource(R.drawable.play), null) },
             checked = webCreatorEnabled,
             onCheckedChange = onWebCreatorChange,
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.stream_source_android_creator)) },
+            description = stringResource(R.string.stream_source_android_creator_desc),
+            icon = { Icon(painterResource(R.drawable.play), null) },
+            checked = androidCreatorEnabled,
+            onCheckedChange = onAndroidCreatorChange,
         )
     }
 

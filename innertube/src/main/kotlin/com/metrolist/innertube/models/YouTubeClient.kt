@@ -76,6 +76,11 @@ data class YouTubeClient(
             loginSupported = true,
             loginRequired = true,
             useSignatureTimestamp = true,
+            // Verified against the live CDN (tests/web-creator-stream.mjs): WEB_CREATOR returns
+            // ciphered URLs that 403 past the 1 MiB free window unless a videoId-bound pot is
+            // appended (HEAD also 403s without it). Enabling poTokens makes it stream the whole
+            // song — without this it is a dead fallback.
+            useWebPoTokens = true,
         )
 
         val TVHTML5 = YouTubeClient(
