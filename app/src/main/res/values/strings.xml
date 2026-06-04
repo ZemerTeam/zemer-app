@@ -553,6 +553,25 @@
     <string name="setting_up_library_title">Setting up your library…</string>
     <string name="setting_up_library_progress">Setting up your library… %1$d%%</string>
 
+    <!-- Stream sources -->
+    <string name="stream_sources">Stream sources</string>
+    <string name="stream_sources_description">Enable/Disable streaming clients</string>
+    <string name="stream_source_web_clients">Web clients</string>
+    <string name="stream_source_native_clients">Native clients</string>
+    <string name="stream_source_creator_clients">Creator clients</string>
+    <string name="stream_source_web_remix">WEB_REMIX</string>
+    <string name="stream_source_web_remix_desc">YouTube Music web client — best quality, opus audio</string>
+    <string name="stream_source_tvhtml5">TVHTML5</string>
+    <string name="stream_source_tvhtml5_desc">YouTube TV web client — fallback for login-gated content</string>
+    <string name="stream_source_android_vr">Android VR</string>
+    <string name="stream_source_android_vr_desc">Direct URL client — reliable fallback, no cipher needed</string>
+    <string name="stream_source_ios">iOS</string>
+    <string name="stream_source_ios_desc">Direct URL client — Apple device client</string>
+    <string name="stream_source_ipad_os">iPadOS</string>
+    <string name="stream_source_ipad_os_desc">Direct URL client — iPad client</string>
+    <string name="stream_source_web_creator">WEB_CREATOR</string>
+    <string name="stream_source_web_creator_desc">YouTube Studio web client</string>
+
     <!-- Widget -->
     <string name="widget_name">Zemer Music</string>
     <string name="widget_description">Control your music playback</string>

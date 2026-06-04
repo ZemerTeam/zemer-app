@@ -86,6 +86,14 @@ fun SettingsScreen(
             route = "settings/player"
         ),
         SettingItem(
+            id = "stream_sources",
+            title = stringResource(R.string.stream_sources),
+            description = stringResource(R.string.stream_sources_description),
+            icon = R.drawable.play,
+            section = "Player & Content",
+            route = "settings/stream_sources"
+        ),
+        SettingItem(
             id = "content",
             title = stringResource(R.string.content),
             description = "Language, content settings",

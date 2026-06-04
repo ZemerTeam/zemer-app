@@ -325,6 +325,22 @@ class MusicService :
             }
         }
 
+        // Keep YTPlayerUtils in sync with the stream source toggles
+        scope.launch {
+            dataStore.data.collect { prefs ->
+                val disabled = mutableSetOf<String>()
+                if (prefs[com.jtech.zemer.constants.StreamSourceWebRemixKey] == false) disabled += "WEB_REMIX"
+                if (prefs[com.jtech.zemer.constants.StreamSourceTVHTML5Key]   == false) disabled += "TVHTML5"
+                if (prefs[com.jtech.zemer.constants.StreamSourceAndroidVRKey] == false) {
+                    disabled += "ANDROID_VR"
+                }
+                if (prefs[com.jtech.zemer.constants.StreamSourceIOSKey]       == false) disabled += "IOS"
+                if (prefs[com.jtech.zemer.constants.StreamSourceIPadOSKey]    == false) disabled += "IOS" // IPADOS uses IOS clientName
+                if (prefs[com.jtech.zemer.constants.StreamSourceWebCreatorKey] == false) disabled += "WEB_CREATOR"
+                YTPlayerUtils.disabledStreamClients = disabled
+            }
+        }
+
         scope.launch {
             connectivityObserver.networkStatus.collect { isConnected ->
                 isNetworkConnected.value = isConnected

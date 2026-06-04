@@ -36,6 +36,7 @@ import com.jtech.zemer.ui.screens.settings.PlayerSettings
 import com.jtech.zemer.ui.screens.settings.PrivacySettings
 import com.jtech.zemer.ui.screens.settings.SettingsScreen
 import com.jtech.zemer.ui.screens.settings.StorageSettings
+import com.jtech.zemer.ui.screens.settings.StreamSourceSettings
 import com.jtech.zemer.ui.screens.settings.UpdaterScreen
 import com.jtech.zemer.ui.screens.settings.integrations.IntegrationScreen
 import com.jtech.zemer.viewmodels.HomeViewModel
@@ -304,6 +305,9 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("settings/player") {
         PlayerSettings(navController, scrollBehavior)
+    }
+    composable("settings/stream_sources") {
+        StreamSourceSettings(navController, scrollBehavior)
     }
     composable("settings/general") {
         GeneralSettings(navController, scrollBehavior)

@@ -4,6 +4,12 @@ import android.net.ConnectivityManager
 import androidx.core.net.toUri
 import androidx.media3.common.PlaybackException
 import com.jtech.zemer.constants.AudioQuality
+import com.jtech.zemer.constants.StreamSourceAndroidVRKey
+import com.jtech.zemer.constants.StreamSourceIOSKey
+import com.jtech.zemer.constants.StreamSourceIPadOSKey
+import com.jtech.zemer.constants.StreamSourceTVHTML5Key
+import com.jtech.zemer.constants.StreamSourceWebRemixKey
+import kotlinx.coroutines.flow.first
 
 import timber.log.Timber
 import com.metrolist.innertube.NewPipeUtils
@@ -50,9 +56,12 @@ object YTPlayerUtils {
         webRemixFailedIds.add(videoId)
     }
 
+    /** Client names disabled by the user in Settings → Stream sources. Updated by MusicService. */
+    var disabledStreamClients: Set<String> = emptySet()
+
     private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
 
-    private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
+    private val ALL_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
         TVHTML5,
         ANDROID_VR_1_43_32,
         IOS,
@@ -64,6 +73,9 @@ object YTPlayerUtils {
         WEB,
         WEB_CREATOR
     )
+
+    private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient>
+        get() = ALL_FALLBACK_CLIENTS.filter { it.clientName !in disabledStreamClients }.toTypedArray()
     data class PlaybackData(
         val audioConfig: PlayerResponse.PlayerConfig.AudioConfig?,
         val videoDetails: PlayerResponse.VideoDetails?,
@@ -87,8 +99,13 @@ object YTPlayerUtils {
         maxVideoBitrateKbps: Int? = null,
         forDownload: Boolean = false,
     ): Result<PlaybackData> = runCatching {
-        val mainClient = MAIN_CLIENT
-        val fallbackClients = STREAM_FALLBACK_CLIENTS
+        val mainClient = if (MAIN_CLIENT.clientName in disabledStreamClients) {
+            STREAM_FALLBACK_CLIENTS.firstOrNull()
+                ?: throw PlaybackException("All stream sources are disabled", null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
+        } else {
+            MAIN_CLIENT
+        }
+        val fallbackClients = STREAM_FALLBACK_CLIENTS.filter { it.clientName != mainClient.clientName }.toTypedArray()
 
         Timber.tag(TAG).d( "=== Stream resolution START for videoId=$videoId ===")
         Timber.tag(TAG).d( "Main client: ${mainClient.clientName}, audioQuality=$audioQuality, preferVideo=$preferVideo")
