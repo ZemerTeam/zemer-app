@@ -25,6 +25,7 @@ import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_43_32
 import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_61_48
 import com.metrolist.innertube.models.YouTubeClient.Companion.IOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.IPADOS
+import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.MOBILE
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB
 import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5
@@ -64,6 +65,11 @@ object YTPlayerUtils {
     private val ALL_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
         TVHTML5,
         ANDROID_VR_1_43_32,
+        // VISIONOS is the Apple-ecosystem client whose CDN URL has no `spc` gate, so it streams
+        // the whole song. IOS/IPADOS below ARE spc-gated and 403 past the 1 MiB free window
+        // (the web poToken can't satisfy iOS attestation) — verified via tests/re-apple.mjs — so
+        // VISIONOS is preferred for Apple coverage; IOS/IPADOS stay only as last-ditch attempts.
+        VISIONOS,
         IOS,
         IPADOS,
         ANDROID_VR_1_61_48,

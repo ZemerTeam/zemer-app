@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `284`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `288`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -242,7 +242,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 300 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 302 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 560 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 14 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
@@ -273,6 +273,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/INVESTIGATION.md` | 269 lines | text `.md` |
 | `tests/README.md` | 154 lines | text `.md` |
 | `tests/analyze-player.mjs` | 53 lines | text `.mjs` |
+| `tests/broken-clients.mjs` | 142 lines | text `.mjs` |
 | `tests/cipher-check.mjs` | 67 lines | text `.mjs` |
 | `tests/cipher.mjs` | 205 lines | text `.mjs` |
 | `tests/client-fulldownload.mjs` | 104 lines | text `.mjs` |
@@ -283,6 +284,9 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/package.json` | 7 lines | text `.json`; JSON keys `dependencies` |
 | `tests/pot-probe.mjs` | 139 lines | text `.mjs` |
 | `tests/potoken.mjs` | 132 lines | text `.mjs` |
+| `tests/re-apple.mjs` | 51 lines | text `.mjs` |
+| `tests/re-compare.mjs` | 58 lines | text `.mjs` |
+| `tests/re-ios.mjs` | 68 lines | text `.mjs` |
 | `tests/results.json` | 222 lines | text `.json` |
 | `tests/retest-web.mjs` | 58 lines | text `.mjs` |
 | `tests/run.mjs` | 181 lines | text `.mjs` |

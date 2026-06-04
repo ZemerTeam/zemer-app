@@ -25,6 +25,7 @@ import com.jtech.zemer.constants.StreamSourceAndroidCreatorKey
 import com.jtech.zemer.constants.StreamSourceAndroidVRKey
 import com.jtech.zemer.constants.StreamSourceIOSKey
 import com.jtech.zemer.constants.StreamSourceIPadOSKey
+import com.jtech.zemer.constants.StreamSourceVisionOSKey
 import com.jtech.zemer.constants.StreamSourceTVHTML5Key
 import com.jtech.zemer.constants.StreamSourceWebCreatorKey
 import com.jtech.zemer.constants.StreamSourceWebRemixKey
@@ -45,6 +46,7 @@ fun StreamSourceSettings(
     val (androidVREnabled, onAndroidVRChange)   = rememberPreference(StreamSourceAndroidVRKey,  defaultValue = true)
     val (iosEnabled, onIOSChange)               = rememberPreference(StreamSourceIOSKey,        defaultValue = true)
     val (ipadosEnabled, onIPadOSChange)         = rememberPreference(StreamSourceIPadOSKey,     defaultValue = true)
+    val (visionosEnabled, onVisionOSChange)     = rememberPreference(StreamSourceVisionOSKey,   defaultValue = true)
     val (webCreatorEnabled, onWebCreatorChange) = rememberPreference(StreamSourceWebCreatorKey, defaultValue = true)
     val (androidCreatorEnabled, onAndroidCreatorChange) = rememberPreference(StreamSourceAndroidCreatorKey, defaultValue = true)
 
@@ -107,6 +109,14 @@ fun StreamSourceSettings(
             icon = { Icon(painterResource(R.drawable.play), null) },
             checked = ipadosEnabled,
             onCheckedChange = onIPadOSChange,
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.stream_source_visionos)) },
+            description = stringResource(R.string.stream_source_visionos_desc),
+            icon = { Icon(painterResource(R.drawable.play), null) },
+            checked = visionosEnabled,
+            onCheckedChange = onVisionOSChange,
         )
 
         PreferenceGroupTitle(

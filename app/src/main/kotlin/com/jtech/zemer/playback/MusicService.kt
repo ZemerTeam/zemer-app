@@ -336,6 +336,7 @@ class MusicService :
                 }
                 if (prefs[com.jtech.zemer.constants.StreamSourceIOSKey]       == false) disabled += "IOS"
                 if (prefs[com.jtech.zemer.constants.StreamSourceIPadOSKey]    == false) disabled += "IOS" // IPADOS uses IOS clientName
+                if (prefs[com.jtech.zemer.constants.StreamSourceVisionOSKey]  == false) disabled += "VISIONOS"
                 if (prefs[com.jtech.zemer.constants.StreamSourceWebCreatorKey] == false) disabled += "WEB_CREATOR"
                 if (prefs[com.jtech.zemer.constants.StreamSourceAndroidCreatorKey] == false) disabled += "ANDROID_CREATOR"
                 YTPlayerUtils.disabledStreamClients = disabled
