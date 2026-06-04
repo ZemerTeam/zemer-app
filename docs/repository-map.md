@@ -77,12 +77,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `698`
+- Files counted: `699`
 - By extension:
   - `.kt`: `395`
   - `.xml`: `182`
   - `.json`: `35`
-  - `.mjs`: `19`
+  - `.mjs`: `20`
   - `.md`: `17`
   - `.webp`: `15`
   - `[none]`: `7`
@@ -661,9 +661,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/generate.py` | 270 lines | `.py` |
 | `docs/innertube/README.md` | 183 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 418 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 296 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 297 lines | `.md` |
 | `docs/reference/resource-index.md` | 288 lines | `.md` |
-| `docs/repository-map.md` | 805 lines | `.md` |
+| `docs/repository-map.md` | 806 lines | `.md` |
 | `docs/ui/README.md` | 329 lines | `.md` |
 | `docs/whitelist/README.md` | 181 lines | `.md` |
 | `gradle.properties` | 40 lines | `.properties` |
@@ -788,6 +788,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/client-fulldownload.mjs` | 104 lines | `.mjs` |
 | `tests/clients.mjs` | 69 lines | `.mjs` |
 | `tests/cred.mjs` | 82 lines | `.mjs` |
+| `tests/discover-clients.mjs` | 116 lines | `.mjs` |
 | `tests/full-stream.mjs` | 87 lines | `.mjs` |
 | `tests/package-lock.json` | 554 lines | `.json` |
 | `tests/package.json` | 7 lines | `.json` |

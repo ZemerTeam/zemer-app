@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `290`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `291`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -279,6 +279,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/client-fulldownload.mjs` | 104 lines | text `.mjs` |
 | `tests/clients.mjs` | 69 lines | text `.mjs` |
 | `tests/cred.mjs` | 82 lines | text `.mjs` |
+| `tests/discover-clients.mjs` | 116 lines | text `.mjs` |
 | `tests/full-stream.mjs` | 87 lines | text `.mjs` |
 | `tests/package-lock.json` | 554 lines | text `.json`; JSON keys `name, lockfileVersion, requires, packages` |
 | `tests/package.json` | 7 lines | text `.json`; JSON keys `dependencies` |
