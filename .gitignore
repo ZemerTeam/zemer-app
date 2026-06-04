@@ -92,3 +92,12 @@ output-metadata.json
 google-services.json
 *.jks
 *.keystore
+
+# Local credentials / secrets — never commit
+innertube_cookie.txt
+*.cookie.txt
+po_token.json
+potoken.json
+
+# Node test harness deps
+tests/node_modules/

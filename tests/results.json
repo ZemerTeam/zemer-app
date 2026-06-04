@@ -1,0 +1,222 @@
+[
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "WEB",
+    "mode": "anon",
+    "http": 200,
+    "playability": "UNPLAYABLE",
+    "reason": "Video unavailable",
+    "formats": 0,
+    "audio": "none",
+    "stream": ""
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "WEB_REMIX",
+    "mode": "anon",
+    "http": 200,
+    "playability": "UNPLAYABLE",
+    "reason": "Video unavailable",
+    "formats": 0,
+    "audio": "none",
+    "stream": ""
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "WEB_REMIX",
+    "mode": "auth",
+    "http": 200,
+    "playability": "UNPLAYABLE",
+    "reason": "Video unavailable",
+    "formats": 0,
+    "audio": "none",
+    "stream": ""
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "WEB_CREATOR",
+    "mode": "anon",
+    "http": 200,
+    "playability": "LOGIN_REQUIRED",
+    "reason": "Please sign in",
+    "formats": 0,
+    "audio": "none",
+    "stream": ""
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "WEB_CREATOR",
+    "mode": "auth",
+    "http": 200,
+    "playability": "UNPLAYABLE",
+    "reason": "The page needs to be reloaded.",
+    "formats": 0,
+    "audio": "none",
+    "stream": ""
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "TVHTML5",
+    "mode": "anon",
+    "http": 200,
+    "playability": "UNPLAYABLE",
+    "reason": "The page needs to be reloaded.",
+    "formats": 0,
+    "audio": "none",
+    "stream": ""
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "TVHTML5",
+    "mode": "auth",
+    "http": 200,
+    "playability": "UNPLAYABLE",
+    "reason": "The page needs to be reloaded.",
+    "formats": 0,
+    "audio": "none",
+    "stream": ""
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
+    "mode": "anon",
+    "http": 200,
+    "playability": "ERROR",
+    "reason": "YouTube is no longer supported in this application or device.",
+    "formats": 0,
+    "audio": "none",
+    "stream": ""
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
+    "mode": "auth",
+    "http": 200,
+    "playability": "ERROR",
+    "reason": "YouTube is no longer supported in this application or device.",
+    "formats": 0,
+    "audio": "none",
+    "stream": ""
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "IOS",
+    "mode": "anon",
+    "http": 200,
+    "playability": "OK",
+    "reason": "",
+    "formats": 23,
+    "audio": "direct",
+    "stream": "206"
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "ANDROID",
+    "mode": "anon",
+    "http": 200,
+    "playability": "OK",
+    "reason": "",
+    "formats": 22,
+    "audio": "no-url",
+    "stream": ""
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "ANDROID",
+    "mode": "auth",
+    "http": 400,
+    "playability": "-",
+    "reason": "",
+    "formats": 0,
+    "audio": "none",
+    "stream": ""
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "ANDROID_NO_SDK",
+    "mode": "anon",
+    "http": 200,
+    "playability": "OK",
+    "reason": "",
+    "formats": 22,
+    "audio": "no-url",
+    "stream": ""
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "ANDROID_VR_NO_AUTH",
+    "mode": "anon",
+    "http": 200,
+    "playability": "OK",
+    "reason": "",
+    "formats": 22,
+    "audio": "direct",
+    "stream": "206"
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "ANDROID_VR_1_61_48",
+    "mode": "anon",
+    "http": 200,
+    "playability": "OK",
+    "reason": "",
+    "formats": 22,
+    "audio": "direct",
+    "stream": "206"
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "ANDROID_VR_1_43_32",
+    "mode": "anon",
+    "http": 200,
+    "playability": "OK",
+    "reason": "",
+    "formats": 16,
+    "audio": "direct",
+    "stream": "206"
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "ANDROID_CREATOR",
+    "mode": "anon",
+    "http": 200,
+    "playability": "LOGIN_REQUIRED",
+    "reason": "Please sign in",
+    "formats": 0,
+    "audio": "none",
+    "stream": ""
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "ANDROID_CREATOR",
+    "mode": "auth",
+    "http": 400,
+    "playability": "-",
+    "reason": "",
+    "formats": 0,
+    "audio": "none",
+    "stream": ""
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "VISIONOS",
+    "mode": "anon",
+    "http": 200,
+    "playability": "OK",
+    "reason": "",
+    "formats": 17,
+    "audio": "direct",
+    "stream": "206"
+  },
+  {
+    "videoId": "_n4qgos_dZc",
+    "client": "IPADOS",
+    "mode": "anon",
+    "http": 200,
+    "playability": "OK",
+    "reason": "",
+    "formats": 23,
+    "audio": "direct",
+    "stream": "206"
+  }
+]
