@@ -16,6 +16,7 @@ This documentation is code-derived. It records facts visible in tracked reposito
 | [`whitelist/README.md`](whitelist/README.md) | Artist whitelist storage, Firebase fetch path, filtering rules, sync integration points, UI entry points, and database queries. |
 | [`innertube/README.md`](innertube/README.md) | `:innertube` module architecture, request wrapper APIs, parser pages, models, dependencies, and consumers in the app module. |
 | [`ui/README.md`](ui/README.md) | Compose UI structure, navigation routes, screen files, reusable components, player UI, settings UI, and theme utilities. |
+| [`ui/standards.md`](ui/standards.md) | UI standards and rules: settings-screen skeleton, the standard `Preference.kt` widgets, preferences and state, strings policy, lists and reordering, dialogs, theme and color roles, and icons. |
 | [`reference/kotlin-files.md`](reference/kotlin-files.md) | Every tracked Kotlin file with line count, package, composable flag, declaration list, import count, and top external import roots. |
 | [`reference/non-kotlin-files.md`](reference/non-kotlin-files.md) | Every tracked non-Kotlin file with line/byte count and file-type-specific metadata for XML, JSON, Gradle, scripts, assets, resources, and gitlinks. |
 | [`reference/resource-index.md`](reference/resource-index.md) | Android resource directory/file inventory with XML roots and resource names where parseable. |
