@@ -284,6 +284,8 @@
     <string name="install_failed_generic">Installation failed</string>
     <string name="install">Install</string>
     <string name="installing">Installing…</string>
+    <string name="installing_note_restart">The app will restart automatically once the update is installed.</string>
+    <string name="installing_note_reopen">The app will close to finish installing. Reopen it to use the new version.</string>
 
     <!-- Offload -->
     <string name="audio_offload">Enable offload</string>

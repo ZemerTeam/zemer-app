@@ -294,6 +294,20 @@ fun UpdaterScreen(
                                     text = stringResource(R.string.installing),
                                     style = MaterialTheme.typography.labelMedium
                                 )
+                                // Heads-up: a silent install closes/restarts the app
+                                val installNote = when (installerType) {
+                                    InstallerType.ROOT -> R.string.installing_note_restart
+                                    InstallerType.SHIZUKU -> R.string.installing_note_reopen
+                                    InstallerType.NATIVE -> null
+                                }
+                                installNote?.let {
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = stringResource(it),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                             val errorText = installError?.let { stringResource(R.string.install_failed, it) } ?: downloadError
                             if (errorText != null) {

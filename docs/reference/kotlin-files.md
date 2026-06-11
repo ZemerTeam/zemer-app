@@ -215,7 +215,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/SettingsScreen.kt` | 264 | `com.jtech.zemer.ui.screens.settings` | yes | 36 | 21 | android.os, android.widget, androidx.compose, androidx.navigation, com.google |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/StorageSettings.kt` | 440 | `com.jtech.zemer.ui.screens.settings` | yes | 66 | 35 | android.annotation, android.content, android.net, android.provider, androidx.activity, androidx.compose, androidx.navigation, coil3.annotation, coil3.imageLoader, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/StreamSourceSettings.kt` | 218 | `com.jtech.zemer.ui.screens.settings` | yes | 46 | 20 | androidx.compose, androidx.navigation |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/UpdaterSettings.kt` | 394 | `com.jtech.zemer.ui.screens.settings` | yes | 62 | 28 | android.content, androidx.compose, androidx.navigation, java.io, kotlinx.coroutines, rikka.shizuku |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/UpdaterSettings.kt` | 408 | `com.jtech.zemer.ui.screens.settings` | yes | 62 | 29 | android.content, androidx.compose, androidx.navigation, java.io, kotlinx.coroutines, rikka.shizuku |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/integrations/IntegrationScreen.kt` | 49 | `com.jtech.zemer.ui.screens.settings.integrations` | yes | 17 | 1 | androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/PlayerColorExtractor.kt` | 159 | `com.jtech.zemer.ui.theme` | no | 5 | 42 | androidx.compose, androidx.palette, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/PlayerSliderColors.kt` | 146 | `com.jtech.zemer.ui.theme` | yes | 6 | 12 | androidx.compose |
@@ -268,10 +268,10 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/utils/ZemerLinkBuilder.kt` | 16 | `com.jtech.zemer.utils` | no | 0 | 6 |  |
 | `app/src/main/kotlin/com/jtech/zemer/utils/sabr/EjsNTransformSolver.kt` | 307 | `com.jtech.zemer.utils.sabr` | no | 17 | 37 | android.content, android.net, android.webkit, com.zemer, java.io, kotlin.coroutines, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/sabr/SabrException.kt` | 3 | `com.jtech.zemer.utils.sabr` | no | 0 | 1 |  |
-| `app/src/main/kotlin/com/jtech/zemer/utils/updater/ApkInstallController.kt` | 81 | `com.jtech.zemer.utils.updater` | yes | 12 | 13 | androidx.activity, androidx.compose, java.io, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/utils/updater/ApkInstallController.kt` | 89 | `com.jtech.zemer.utils.updater` | yes | 13 | 14 | androidx.activity, androidx.compose, java.io, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/utils/updater/AppInstaller.kt` | 248 | `com.jtech.zemer.utils.updater` | no | 26 | 39 | android.app, android.content, android.net, android.os, android.provider, androidx.core, com.topjohnwu, dev.rikka, java.io, kotlinx.coroutines, rikka.shizuku |
-| `app/src/main/kotlin/com/jtech/zemer/utils/updater/AppRestarter.kt` | 55 | `com.jtech.zemer.utils.updater` | no | 3 | 8 | android.content, rikka.shizuku |
-| `app/src/main/kotlin/com/jtech/zemer/utils/updater/InstallReceiver.kt` | 62 | `com.jtech.zemer.utils.updater` | no | 7 | 5 | android.content, android.os, android.widget |
+| `app/src/main/kotlin/com/jtech/zemer/utils/updater/AppRestarter.kt` | 30 | `com.jtech.zemer.utils.updater` | no | 1 | 4 | android.content |
+| `app/src/main/kotlin/com/jtech/zemer/utils/updater/InstallReceiver.kt` | 61 | `com.jtech.zemer.utils.updater` | no | 7 | 5 | android.content, android.os, android.widget |
 | `app/src/main/kotlin/com/jtech/zemer/utils/updater/Installer.kt` | 22 | `com.jtech.zemer.utils.updater` | no | 2 | 3 | androidx.annotation |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/AccountSettingsViewModel.kt` | 42 | `com.jtech.zemer.viewmodels` | no | 9 | 4 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/AccountViewModel.kt` | 81 | `com.jtech.zemer.viewmodels` | no | 15 | 11 | androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |

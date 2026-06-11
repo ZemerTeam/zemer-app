@@ -11,7 +11,7 @@ Updating has two stages. This feature owns the second one:
 
   UpdateChecker.checkForUpdates               ApkInstallController
   UpdateChecker.downloadUpdate                  -> AppInstaller.install
-  (emits DownloadState.Downloaded)              -> AppRestarter.scheduleRestart
+  (emits DownloadState.Downloaded)              (root chains its own am-start relaunch)
 ```
 
 The acquire stage already existed. The install stage used to be a single
@@ -48,8 +48,10 @@ Both obtain a controller from `rememberApkInstallController(installerType, onRes
 1. If the method is `NATIVE` and `canInstallPackages()` is false, launches the
    "install unknown apps" settings intent and retries once it returns
    (`rememberLauncherForActivityResult`).
-2. Otherwise calls `AppInstaller.install(context, apkFile, installerType)` on a coroutine.
-3. On `InstallResult.Success` (root), calls `AppRestarter.scheduleRestart(context)`.
+2. For a silent method (root/Shizuku), waits `SILENT_INSTALL_HEADS_UP_MS` so the
+   "installing…" heads-up renders before the install kills the process ([03](03-restart.md)).
+3. Calls `AppInstaller.install(context, apkFile, installerType)` on a coroutine. Root
+   relaunches itself by chaining `am start` onto its commit; Shizuku does not auto-restart.
 4. Hands the `InstallResult` back to the caller via `onResult` so each screen maps it to its
    own UI state (`Success` → reset, `RequiresUserAction` → let the system UI take over,
    `Error` → show the message).

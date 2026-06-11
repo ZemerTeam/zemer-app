@@ -32,11 +32,10 @@ class InstallReceiver : BroadcastReceiver() {
             }
 
             PackageInstaller.STATUS_SUCCESS -> {
+                // Shizuku's silent install replaces our package and the OS kills this
+                // process; we can't reliably relaunch from here (the Shizuku remote process
+                // is reaped with us), so we just confirm and let the user reopen.
                 Toast.makeText(context, R.string.install_success, Toast.LENGTH_SHORT).show()
-                // Only the Shizuku install path routes through this receiver, and a
-                // successful silent install replaces our package — relaunch via the Shizuku
-                // shell (an activity start from this dying process would be blocked).
-                AppRestarter.relaunchViaShizuku(context)
             }
 
             PackageInstaller.STATUS_FAILURE,

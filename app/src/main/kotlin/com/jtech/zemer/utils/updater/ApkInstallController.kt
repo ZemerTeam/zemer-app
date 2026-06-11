@@ -10,8 +10,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
+
+/** How long the "installing…" heads-up shows before a silent install kills the process. */
+private const val SILENT_INSTALL_HEADS_UP_MS = 1200L
 
 /**
  * Drives an APK install from a Composable: gates the Standard installer behind
@@ -48,9 +52,13 @@ fun rememberApkInstallController(
     fun runInstall(apkFile: File) {
         scope.launch {
             controller.isInstalling = true
-            // The silent methods relaunch the app themselves once the swap completes: root
-            // chains `am start` onto its commit, Shizuku restarts from InstallReceiver. Both
-            // run through a privileged shell because our process is killed by the replace.
+            // Silent installs (root/Shizuku) kill this process the moment the package is
+            // replaced, so the UI would vanish with no warning. Give the "installing…"
+            // heads-up a beat to render first — root then restarts itself (chained am start);
+            // Shizuku closes and the user reopens.
+            if (installerType != InstallerType.NATIVE) {
+                delay(SILENT_INSTALL_HEADS_UP_MS)
+            }
             val result = AppInstaller.install(context, apkFile, installerType)
             controller.isInstalling = false
             onResult(result)

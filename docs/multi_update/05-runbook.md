@@ -34,11 +34,12 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | Method | What you should see |
 |---|---|
 | Standard | system installer UI opens; if "install unknown apps" is off, the app sends you to grant it, then retries; finishes with the OS "Open" button |
-| Root | Magisk/SuperSU grant prompt the first time Root is *selected*; install is silent; **app relaunches itself** ~0.6 s after success |
-| Shizuku | needs Shizuku installed + running; permission prompt if not yet granted; install is silent; **app relaunches** from the `STATUS_SUCCESS` broadcast |
+| Root | Magisk/SuperSU grant prompt the first time Root is *selected*; "Installing…" heads-up; install is silent; **app relaunches itself** shortly after success |
+| Shizuku | needs Shizuku installed + running; permission prompt if not yet granted; "Installing…" heads-up; install is silent; **app closes** with a success toast — reopen it manually |
 
-A silent install that succeeds will replace and relaunch the app mid-update — that is the
-expected behaviour ([03](03-restart.md)), not a crash.
+A silent install closes the app mid-update — that is expected ([03](03-restart.md)), not a
+crash. The "Installing…" note warns the user first; root then comes back on its own, Shizuku
+is reopened by hand.
 
 ## Verifying
 
@@ -58,7 +59,8 @@ expected behaviour ([03](03-restart.md)), not a crash.
 | Root: "Root access not available" | `Shell.getShell().isRoot` false (denied / no su) | `AppInstaller.installRoot` |
 | Shizuku: "not running" / "permission required" | service down or grant missing | `isShizukuAlive` / `hasShizukuPermission`; the `DisposableEffect` listener |
 | Shizuku: "not supported on this Android version" | hidden-constructor signature changed (Android 16+) | the `NoSuchMethodError` catch in `installShizuku` |
-| Silent install works but app doesn't relaunch | launcher activity unresolved, or `am start` blocked | `AppRestarter.relaunchCommand`; root chains `am start` onto the commit, Shizuku uses `relaunchViaShizuku` |
+| Root install works but app doesn't relaunch | launcher activity unresolved, or `am start` failed | `AppRestarter.relaunchCommand`; root chains it onto the commit |
+| Shizuku install works but app doesn't relaunch | expected — Shizuku has no auto-restart | reopen manually; success toast confirms ([03](03-restart.md)) |
 | Crash reaching Shizuku hidden APIs on release only | a missing ProGuard keep rule | `app/proguard-rules.pro` |
 
 ## Known edge cases (not bugs to "fix" blindly)

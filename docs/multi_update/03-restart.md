@@ -1,60 +1,70 @@
-# 03 — Auto-restart after a silent update
-
-## Why the relaunch must run through a privileged shell
+# 03 — After a silent update: restart and heads-up
 
 A silent install (root or Shizuku) replaces our own package while the app is running. As
-part of that swap the OS **kills our process**. So the app cannot "install and then relaunch
-itself" inline — the code that would do the relaunching is in the process that is about to
-die.
+part of that swap the OS **kills our process**. Two consequences follow: the app cannot
+relaunch itself inline (the code that would do it is in the dying process), and from the
+user's view the app simply vanishes. This page covers how each is handled.
 
-The obvious approach — schedule an `AlarmManager` `PendingIntent.getActivity` and let the
-process die — **does not work**, and was the first (broken) implementation. Starting an
-activity from the background is blocked on Android 10+ (background-activity-launch
-restrictions); the alarm fires but the system silently refuses to launch the activity, so
-the user has to reopen the app manually.
+## Root auto-restarts; Shizuku does not
 
-The working approach uses the **privileged shell we already hold** for the silent methods.
-`am start` issued as root or as the Shizuku shell user is exempt from the background-launch
-restriction. `AppRestarter` (`utils/updater/AppRestarter.kt`) builds that command:
+| Method | Auto-restart? | Why |
+|---|---|---|
+| ROOT | **yes** | the root shell is an independent process, so the relaunch chained onto the commit survives our death |
+| SHIZUKU | **no** | its privileged process is bound to ours and is reaped together with us — the relaunch can't be made to fire reliably |
+| NATIVE | n/a | the system installer UI offers its own "Open" button |
+
+### Why the relaunch must run through a privileged shell
+
+Starting an activity from the background — e.g. via an `AlarmManager`
+`PendingIntent.getActivity` — is blocked on Android 10+ (background-activity-launch
+restrictions). That was the first implementation, and it never fired: the alarm triggered
+but the system silently refused the launch, leaving the user to reopen by hand. `am start`
+issued as **root**, by contrast, is exempt. `AppRestarter.relaunchCommand` builds it:
 
 ```kotlin
 fun relaunchCommand(context: Context): String? {
     val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
     val component = launchIntent.component?.flattenToShortString() ?: return null
-    return "am start -n $component"   // no sleep here; the caller adds a settle if needed
+    return "am start -n $component"   // caller adds any settle delay
 }
 ```
 
-## The two success signals (one per install model)
+### Root: chain it onto the commit
 
-The two silent methods finish on different timelines and hold different shells, so each
-relaunches itself at the point it knows it succeeded:
+`installRoot` runs the relaunch as part of the same root-shell command:
 
-| Method | Completion model | How it relaunches |
-|---|---|---|
-| ROOT | synchronous — `installRoot` returns `InstallResult.Success` | the relaunch is **chained onto the commit**: `pm install-commit <sid> && sleep 1 && am start -n <component>`, run as one root-shell command |
-| SHIZUKU | asynchronous — `installShizuku` returns `RequiresUserAction`; the real result is a `PackageInstaller` broadcast | `InstallReceiver`, on `STATUS_SUCCESS`, calls `AppRestarter.relaunchViaShizuku` |
+```
+pm install-commit <sid> && sleep 1 && am start -n <component>
+```
 
-**Root chains the relaunch into one shell command** on purpose: `pm install-commit` kills our
-process, but the root shell is a *separate* process that runs the whole `&&` sequence to
-completion, so the trailing `am start` still fires after we are gone. Splitting it into a
-second `Shell.cmd(...)` call from Kotlin would race the kill.
+`pm install-commit` kills our process, but the root shell is a *separate* process that runs
+the whole `&&` sequence to completion, so the trailing `am start` still fires after we are
+gone (the `sleep 1` lets PackageManager register the freshly installed activity first).
+Splitting it into a second `Shell.cmd(...)` call from Kotlin would race the kill.
 
-**Shizuku** can't chain (its result is a broadcast), so it relaunches from `InstallReceiver`
-via `Shizuku.newProcess(["sh","-c", cmd], …)`. Its command **must not sleep**: unlike the
-root daemon, the `ShizukuRemoteProcess` is bound to our (dying) process, so a sleeping
-command is reaped during the package replace before `am start` fires — which is exactly why
-a sleeping Shizuku relaunch silently failed while root worked. With no sleep, `am start`
-resolves immediately (the package is already installed at `STATUS_SUCCESS`) and hands the
-launch to `system_server` before we die. `newProcess` is hidden in the Shizuku API, so it is
-called reflectively; failure is caught and reported, never fatal.
+### Shizuku: no auto-restart (and why the attempts failed)
 
-The Standard (`NATIVE`) method never reaches either path — it returns `RequiresUserAction`
-and the system installer UI offers its own "Open" button.
+Shizuku's result is an async `PackageInstaller` broadcast, so there is nothing to chain onto.
+Two approaches were tried and removed:
 
-## Caveat
+- An `AlarmManager` activity start — blocked by the background-launch restriction (above).
+- `Shizuku.newProcess(["sh","-c","am start …"])` from `InstallReceiver` — the
+  `ShizukuRemoteProcess` is bound to our process, so it is reaped the instant the replace
+  kills us, before `am start` lands. Even with no `sleep` the race was unreliable.
 
-If the launcher activity can't be resolved (`relaunchCommand` returns null), the silent
-install still completes — it just doesn't relaunch, falling back to the manual-reopen
-behaviour. The `sleep 1` gives PackageManager a moment to register the freshly installed
-activity before `am start` resolves it.
+So Shizuku does not auto-restart: `InstallReceiver` on `STATUS_SUCCESS` shows the success
+toast and the user reopens the app. (If a future fix wants a reliable Shizuku restart it
+needs a Shizuku `UserService` that outlives the app, not a one-shot remote process.)
+
+## Making the silent kill less abrupt
+
+Because a silent install kills the app with no system UI in front of it, the install flow
+warns the user first instead of just disappearing:
+
+- The install dialog shows an "Installing…" indicator with a per-method note
+  (`UpdaterSettings.kt`): root -> *"The app will restart automatically once the update is
+  installed."*; Shizuku -> *"The app will close to finish installing. Reopen it to use the
+  new version."*
+- `rememberApkInstallController` waits `SILENT_INSTALL_HEADS_UP_MS` (1.2 s) before launching
+  a non-`NATIVE` install, so that note actually renders before the process is killed. The
+  Standard method has no delay (nothing kills the UI).

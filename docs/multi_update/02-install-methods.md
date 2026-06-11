@@ -94,5 +94,5 @@ listener is disposed and the selection is lost (rare — see [05](05-runbook.md)
 `PackageInstaller` session status — **only the Shizuku path routes through it**:
 
 - `STATUS_PENDING_USER_ACTION` → launch the confirm intent.
-- `STATUS_SUCCESS` → toast, then `AppRestarter.scheduleRestart(context)` ([03](03-restart.md)).
+- `STATUS_SUCCESS` → success toast (Shizuku does **not** auto-restart — see [03](03-restart.md)).
 - any `STATUS_FAILURE*` → localized failure toast.
