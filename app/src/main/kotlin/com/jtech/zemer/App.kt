@@ -52,6 +52,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Credentials
 import okhttp3.OkHttpClient
+import org.lsposed.hiddenapibypass.HiddenApiBypass
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -86,6 +87,16 @@ class App : Application(), SingletonImageLoader.Factory {
         )
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
+        }
+
+        // Lift hidden-API restrictions so the Shizuku install method can reach
+        // the hidden PackageInstaller constructors (Android 9+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            runCatching {
+                HiddenApiBypass.addHiddenApiExemptions("I", "L")
+            }.onFailure {
+                Timber.w(it, "Hidden API bypass unavailable; Shizuku install method will not work")
+            }
         }
 
         // Initialize cipher library for WEB_REMIX streaming

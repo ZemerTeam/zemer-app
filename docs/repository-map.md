@@ -117,9 +117,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 11 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
-| `app/build.gradle.kts` | 270 lines | `.kts` |
+| `app/build.gradle.kts` | 279 lines | `.kts` |
 | `app/lint.xml` | 12 lines | `.xml` |
-| `app/proguard-rules.pro` | 240 lines | `.pro` |
+| `app/proguard-rules.pro` | 257 lines | `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | `.json` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/10.json` | 814 lines | `.json` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/11.json` | 796 lines | `.json` |
@@ -154,7 +154,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/9.json` | 840 lines | `.json` |
 | `app/src/debug/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/debug/res/xml-v25/shortcuts.xml` | 23 lines | `.xml` |
-| `app/src/main/AndroidManifest.xml` | 265 lines | `.xml` |
+| `app/src/main/AndroidManifest.xml` | 286 lines | `.xml` |
 | `app/src/main/assets/solver/astring.js` | 3 lines | `.js` |
 | `app/src/main/assets/solver/meriyah.js` | 9210 lines | `.js` |
 | `app/src/main/assets/solver/yt.solver.core.js` | 603 lines | `.js` |
@@ -164,8 +164,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/dpi/BaseLifecycleContentProvider.kt` | 36 lines | `.kt` |
 | `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 87 lines | `.kt` |
 | `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 46 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/App.kt` | 422 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2162 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/App.kt` | 433 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2172 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/accessibility/ButtonMapperAccessibilityService.kt` | 45 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/auth/AuthState.kt` | 57 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/auth/UserAuthManager.kt` | 145 lines | `.kt` |
@@ -174,7 +174,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/constants/HistorySource.kt` | 7 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/constants/LibraryFilter.kt` | 13 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/constants/MediaSessionConstants.kt` | 23 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 567 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 568 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/constants/StatPeriod.kt` | 97 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/Converters.kt` | 20 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` | 1681 lines | `.kt` |
@@ -369,7 +369,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/SettingsScreen.kt` | 264 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/StorageSettings.kt` | 440 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/StreamSourceSettings.kt` | 218 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/UpdaterSettings.kt` | 278 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/UpdaterSettings.kt` | 416 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/integrations/IntegrationScreen.kt` | 49 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/PlayerColorExtractor.kt` | 159 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/PlayerSliderColors.kt` | 146 lines | `.kt` |
@@ -410,7 +410,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/PermissionHelper.kt` | 247 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/StringUtils.kt` | 31 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 724 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/UpdateChecker.kt` | 181 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/UpdateChecker.kt` | 160 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/Updater.kt` | 55 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/UrlValidator.kt` | 109 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/Utils.kt` | 30 lines | `.kt` |
@@ -659,7 +659,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/utils/CrashReportingTreeTest.kt` | 64 lines | `.kt` |
 | `app/universal/release/baselineProfiles/0/app-universal-release.dm` | 10017 bytes | `.dm` |
 | `app/universal/release/baselineProfiles/1/app-universal-release.dm` | 9981 bytes | `.dm` |
-| `build.gradle.kts` | 36 lines | `.kts` |
+| `build.gradle.kts` | 37 lines | `.kts` |
 | `docs/README.md` | 29 lines | `.md` |
 | `docs/app/README.md` | 132 lines | `.md` |
 | `docs/app/database.md` | 567 lines | `.md` |
@@ -685,7 +685,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/ui/standards.md` | 157 lines | `.md` |
 | `docs/whitelist/README.md` | 181 lines | `.md` |
 | `gradle.properties` | 40 lines | `.properties` |
-| `gradle/libs.versions.toml` | 146 lines | `.toml` |
+| `gradle/libs.versions.toml` | 159 lines | `.toml` |
 | `gradle/wrapper/gradle-wrapper.jar` | 45457 bytes | `.jar` |
 | `gradle/wrapper/gradle-wrapper.properties` | 8 lines | `.properties` |
 | `gradlew` | 248 lines | `[none]` |

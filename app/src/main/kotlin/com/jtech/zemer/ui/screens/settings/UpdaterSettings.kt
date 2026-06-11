@@ -1,5 +1,8 @@
 package com.jtech.zemer.ui.screens.settings
 
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +25,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,14 +46,23 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.CheckForUpdatesKey
+import com.jtech.zemer.constants.InstallerTypeKey
 import com.jtech.zemer.ui.component.IconButton
+import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.UpdateChecker
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.utils.updater.AppInstaller
+import com.jtech.zemer.utils.updater.InstallResult
+import com.jtech.zemer.utils.updater.InstallerType
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import rikka.shizuku.Shizuku
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,11 +73,17 @@ fun UpdaterScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val (checkForUpdates, onCheckForUpdatesChange) = rememberPreference(CheckForUpdatesKey, false)
+    val (installerTypeOrdinal, onInstallerTypeChange) = rememberPreference(InstallerTypeKey, InstallerType.NATIVE.ordinal)
+    val installerType = InstallerType.fromOrdinal(installerTypeOrdinal)
 
     var isChecking by remember { mutableStateOf(false) }
     var showResultDialog by remember { mutableStateOf(false) }
     var updateResult by remember { mutableStateOf<UpdateChecker.UpdateResult?>(null) }
     var downloadState by remember { mutableStateOf<UpdateChecker.DownloadState>(UpdateChecker.DownloadState.Idle) }
+    var isInstalling by remember { mutableStateOf(false) }
+    var installError by remember { mutableStateOf<String?>(null) }
+    var installerSelectionError by remember { mutableStateOf<String?>(null) }
+    var pendingApk by remember { mutableStateOf<File?>(null) }
 
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
@@ -73,11 +92,90 @@ fun UpdaterScreen(
         firstFocus.requestFocus()
     }
 
+    fun install(apkFile: File) {
+        scope.launch {
+            isInstalling = true
+            installError = null
+            when (val result = AppInstaller.install(context, apkFile, installerType)) {
+                is InstallResult.Success -> downloadState = UpdateChecker.DownloadState.Idle
+                is InstallResult.RequiresUserAction -> Unit // the system installer UI takes over
+                is InstallResult.Error -> installError = result.message
+            }
+            isInstalling = false
+        }
+    }
+
+    // The Standard method needs the "install unknown apps" permission; retry once granted
+    val installPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        val apkFile = pendingApk
+        pendingApk = null
+        if (apkFile != null && AppInstaller.canInstallPackages(context)) {
+            install(apkFile)
+        }
+    }
+
+    fun installWithPermissionCheck(apkFile: File) {
+        if (installerType == InstallerType.NATIVE && !AppInstaller.canInstallPackages(context)) {
+            pendingApk = apkFile
+            installPermissionLauncher.launch(AppInstaller.getInstallPermissionIntent(context))
+        } else {
+            install(apkFile)
+        }
+    }
+
+    // Persist the Shizuku choice only once its permission is actually granted
+    DisposableEffect(Unit) {
+        val listener = Shizuku.OnRequestPermissionResultListener { _, grantResult ->
+            if (grantResult == PackageManager.PERMISSION_GRANTED) {
+                installerSelectionError = null
+                onInstallerTypeChange(InstallerType.SHIZUKU.ordinal)
+            } else {
+                installerSelectionError = context.getString(R.string.shizuku_permission_required)
+            }
+        }
+        runCatching { Shizuku.addRequestPermissionResultListener(listener) }
+        onDispose {
+            runCatching { Shizuku.removeRequestPermissionResultListener(listener) }
+        }
+    }
+
+    fun selectInstaller(type: InstallerType) {
+        installerSelectionError = null
+        when (type) {
+            InstallerType.NATIVE -> onInstallerTypeChange(type.ordinal)
+
+            InstallerType.ROOT -> scope.launch {
+                // Opens the root shell, which shows the Magisk/SuperSU grant prompt
+                val hasRoot = withContext(Dispatchers.IO) { AppInstaller.hasRootAccess() }
+                if (hasRoot) {
+                    onInstallerTypeChange(type.ordinal)
+                } else {
+                    installerSelectionError = context.getString(R.string.installer_root_unavailable)
+                }
+            }
+
+            InstallerType.SHIZUKU -> when {
+                !AppInstaller.hasShizukuOrSui(context) ->
+                    installerSelectionError = context.getString(R.string.installer_shizuku_not_installed)
+
+                !AppInstaller.isShizukuAlive() ->
+                    installerSelectionError = context.getString(R.string.shizuku_not_running)
+
+                AppInstaller.hasShizukuPermission() -> onInstallerTypeChange(type.ordinal)
+
+                else -> runCatching { Shizuku.requestPermission(0) }.onFailure {
+                    installerSelectionError = context.getString(R.string.shizuku_permission_required)
+                }
+            }
+        }
+    }
+
     // Auto-install when download completes
     LaunchedEffect(downloadState) {
         if (downloadState is UpdateChecker.DownloadState.Downloaded) {
-            val apkFile = (downloadState as UpdateChecker.DownloadState.Downloaded).apkFile
-            UpdateChecker.installApk(context, apkFile)
+            installWithPermissionCheck((downloadState as UpdateChecker.DownloadState.Downloaded).apkFile)
         }
     }
 
@@ -106,6 +204,27 @@ fun UpdaterScreen(
                     .fillMaxWidth()
                     .focusRequester(firstFocus)
             )
+
+            Spacer(Modifier.height(4.dp))
+
+            ListPreference(
+                title = { Text(stringResource(R.string.installer_method)) },
+                icon = { Icon(painterResource(R.drawable.download), null) },
+                selectedValue = installerType,
+                values = InstallerType.entries.toList(),
+                valueText = { stringResource(it.title) },
+                onValueSelected = ::selectInstaller,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            installerSelectionError?.let { error ->
+                Text(
+                    text = error,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+            }
 
             Spacer(Modifier.height(4.dp))
 
@@ -147,9 +266,10 @@ fun UpdaterScreen(
 
                 AlertDialog(
                     onDismissRequest = {
-                        if (!isDownloading) {
+                        if (!isDownloading && !isInstalling) {
                             showResultDialog = false
                             downloadState = UpdateChecker.DownloadState.Idle
+                            installError = null
                         }
                     },
                     title = { Text(stringResource(R.string.update_available)) },
@@ -190,10 +310,18 @@ fun UpdaterScreen(
                                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                                 }
                             }
-                            if (downloadError != null) {
+                            if (isInstalling) {
+                                Spacer(Modifier.height(16.dp))
+                                Text(
+                                    text = stringResource(R.string.installing),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                            val errorText = installError?.let { stringResource(R.string.install_failed, it) } ?: downloadError
+                            if (errorText != null) {
                                 Spacer(Modifier.height(12.dp))
                                 Text(
-                                    text = downloadError,
+                                    text = errorText,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.error
                                 )
@@ -201,24 +329,34 @@ fun UpdaterScreen(
                         }
                     },
                     confirmButton = {
-                        if (!isDownloading) {
-                            TextButton(onClick = {
-                                downloadState = UpdateChecker.DownloadState.Downloading(0f)
-                                scope.launch {
-                                    UpdateChecker.downloadUpdate(context).collectLatest { state ->
-                                        downloadState = state
-                                    }
+                        if (!isDownloading && !isInstalling) {
+                            val downloadedApk = (downloadState as? UpdateChecker.DownloadState.Downloaded)?.apkFile
+                            if (downloadedApk != null) {
+                                // Download finished but install failed or needs retry
+                                TextButton(onClick = { installWithPermissionCheck(downloadedApk) }) {
+                                    Text(stringResource(R.string.install))
                                 }
-                            }) {
-                                Text(stringResource(R.string.download_and_install))
+                            } else {
+                                TextButton(onClick = {
+                                    downloadState = UpdateChecker.DownloadState.Downloading(0f)
+                                    installError = null
+                                    scope.launch {
+                                        UpdateChecker.downloadUpdate(context).collectLatest { state ->
+                                            downloadState = state
+                                        }
+                                    }
+                                }) {
+                                    Text(stringResource(R.string.download_and_install))
+                                }
                             }
                         }
                     },
                     dismissButton = {
-                        if (!isDownloading) {
+                        if (!isDownloading && !isInstalling) {
                             TextButton(onClick = {
                                 showResultDialog = false
                                 downloadState = UpdateChecker.DownloadState.Idle
+                                installError = null
                             }) {
                                 Text(stringResource(R.string.later))
                             }

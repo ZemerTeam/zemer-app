@@ -3,8 +3,6 @@ package com.jtech.zemer.utils
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
-import androidx.core.content.FileProvider
 import com.jtech.zemer.BuildConfig
 import io.ktor.client.*
 import io.ktor.client.request.*
@@ -134,25 +132,6 @@ object UpdateChecker {
             emit(DownloadState.Error(e.message ?: "Download failed"))
         }
     }.flowOn(Dispatchers.IO)
-
-    fun installApk(context: Context, apkFile: File) {
-        val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.FileProvider",
-                apkFile
-            )
-        } else {
-            Uri.fromFile(apkFile)
-        }
-
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        context.startActivity(intent)
-    }
 
     private fun isNewerVersion(latest: String, current: String): Boolean {
         try {

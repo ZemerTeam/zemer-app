@@ -14,9 +14,9 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 11 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
-| `app/build.gradle.kts` | 270 lines | text `.kts`; plugins `com.android.application, android, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics` |
+| `app/build.gradle.kts` | 279 lines | text `.kts`; plugins `com.android.application, android, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
 | `app/lint.xml` | 12 lines | text `.xml`; XML root `lint` |
-| `app/proguard-rules.pro` | 240 lines | text `.pro` |
+| `app/proguard-rules.pro` | 257 lines | text `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/10.json` | 814 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/11.json` | 796 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -51,7 +51,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/9.json` | 840 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/src/debug/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/debug/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
-| `app/src/main/AndroidManifest.xml` | 265 lines | text `.xml`; XML root `manifest` |
+| `app/src/main/AndroidManifest.xml` | 286 lines | text `.xml`; XML root `manifest` |
 | `app/src/main/assets/solver/astring.js` | 3 lines | text `.js` |
 | `app/src/main/assets/solver/meriyah.js` | 9210 lines | text `.js` |
 | `app/src/main/assets/solver/yt.solver.core.js` | 603 lines | text `.js` |
@@ -259,10 +259,10 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/xml/provider_paths.xml` | 12 lines | text `.xml`; XML root `paths` |
 | `app/universal/release/baselineProfiles/0/app-universal-release.dm` | 10017 bytes | binary `.dm` |
 | `app/universal/release/baselineProfiles/1/app-universal-release.dm` | 9981 bytes | binary `.dm` |
-| `build.gradle.kts` | 36 lines | text `.kts`; plugins `hilt, kotlin.ksp, google.gms.google.services, firebase.crashlytics` |
+| `build.gradle.kts` | 37 lines | text `.kts`; plugins `hilt, kotlin.ksp, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
 | `cipher` | gitlink/non-file | tracked path is not a regular file in this checkout |
 | `gradle.properties` | 40 lines | text `.properties` |
-| `gradle/libs.versions.toml` | 146 lines | text `.toml` |
+| `gradle/libs.versions.toml` | 159 lines | text `.toml` |
 | `gradle/wrapper/gradle-wrapper.jar` | 45457 bytes | binary `.jar` |
 | `gradle/wrapper/gradle-wrapper.properties` | 8 lines | text `.properties` |
 | `gradlew` | 248 lines | text `[none]` |

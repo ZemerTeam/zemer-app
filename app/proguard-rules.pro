@@ -238,3 +238,20 @@
 -keepattributes SourceFile,LineNumberTable
 -keepattributes LocalVariableTable
 -keepattributes LocalVariableTypeTable
+
+## Shizuku & hidden Android APIs for the self-update installer
+-keep class rikka.shizuku.** { *; }
+-keep class moe.shizuku.** { *; }
+-keep class dev.rikka.tools.refine.** { *; }
+-keep class android.content.pm.IPackageManager { *; }
+-keep class android.content.pm.IPackageManager$Stub { *; }
+-keep class android.content.pm.IPackageInstaller { *; }
+-keep class android.content.pm.IPackageInstaller$Stub { *; }
+-keep class android.content.pm.IPackageInstallerSession { *; }
+-keep class android.content.pm.IPackageInstallerSession$Stub { *; }
+-keep class android.content.pm.PackageInstallerHidden { *; }
+-keep class android.content.pm.PackageInstallerHidden$* { *; }
+-keep class android.content.pm.PackageManagerHidden { *; }
+
+## libsu for the root install method
+-keep class com.topjohnwu.superuser.** { *; }

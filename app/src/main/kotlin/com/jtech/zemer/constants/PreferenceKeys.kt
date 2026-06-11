@@ -67,6 +67,7 @@ val YtmSyncKey = booleanPreferencesKey("ytmSync")
 val LastWhitelistSyncTimeKey = longPreferencesKey("lastWhitelistSyncTime")  // Timestamp in milliseconds
 val CheckForUpdatesKey = booleanPreferencesKey("checkForUpdates")
 val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
+val InstallerTypeKey = intPreferencesKey("installerType") // InstallerType ordinal
 val LastWhitelistVersionKey = longPreferencesKey("lastWhitelistVersion")
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")

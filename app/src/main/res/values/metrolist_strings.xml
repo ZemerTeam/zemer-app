@@ -268,6 +268,25 @@
     <string name="later">Later</string>
     <string name="whats_new">What\'s new:</string>
     <string name="error">Error</string>
+    <string name="installer_method">Installation method</string>
+    <string name="installer_native_title">Standard</string>
+    <string name="installer_native_desc">Opens the system package installer</string>
+    <string name="installer_root_title">Root</string>
+    <string name="installer_root_desc">Silent installation using root access</string>
+    <string name="installer_shizuku_title">Shizuku</string>
+    <string name="installer_shizuku_desc">Silent installation using Shizuku</string>
+    <string name="installer_root_unavailable">Root access not available</string>
+    <string name="installer_shizuku_not_installed">Shizuku is not installed on this device</string>
+    <string name="shizuku_not_running">Shizuku is not running</string>
+    <string name="shizuku_permission_required">Shizuku permission required</string>
+    <string name="shizuku_not_supported_version">Shizuku installer is not supported on this Android version</string>
+    <string name="installer_launch_failed">Failed to launch installer</string>
+    <string name="installer_session_id_failed">Failed to create install session</string>
+    <string name="install_success">Update installed successfully</string>
+    <string name="install_failed">Installation failed: %1$s</string>
+    <string name="install_failed_generic">Installation failed</string>
+    <string name="install">Install</string>
+    <string name="installing">Installing…</string>
 
     <!-- Offload -->
     <string name="audio_offload">Enable offload</string>
