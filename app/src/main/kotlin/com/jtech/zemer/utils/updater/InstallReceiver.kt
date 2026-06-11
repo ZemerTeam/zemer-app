@@ -33,6 +33,9 @@ class InstallReceiver : BroadcastReceiver() {
 
             PackageInstaller.STATUS_SUCCESS -> {
                 Toast.makeText(context, R.string.install_success, Toast.LENGTH_SHORT).show()
+                // Only the Shizuku install path routes through this receiver, and a
+                // successful silent install replaces our package — relaunch the app.
+                AppRestarter.scheduleRestart(context)
             }
 
             PackageInstaller.STATUS_FAILURE,

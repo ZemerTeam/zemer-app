@@ -79,7 +79,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 - Files counted: `754`
 - By extension:
-  - `.kt`: `398`
+  - `.kt`: `402`
   - `.xml`: `183`
   - `.mjs`: `54`
   - `.json`: `35`
@@ -165,7 +165,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 87 lines | `.kt` |
 | `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 46 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/App.kt` | 433 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2172 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2174 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/accessibility/ButtonMapperAccessibilityService.kt` | 45 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/auth/AuthState.kt` | 57 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/auth/UserAuthManager.kt` | 145 lines | `.kt` |
@@ -369,7 +369,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/SettingsScreen.kt` | 264 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/StorageSettings.kt` | 440 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/StreamSourceSettings.kt` | 218 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/UpdaterSettings.kt` | 416 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/UpdaterSettings.kt` | 394 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/integrations/IntegrationScreen.kt` | 49 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/PlayerColorExtractor.kt` | 159 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/PlayerSliderColors.kt` | 146 lines | `.kt` |
@@ -410,7 +410,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/PermissionHelper.kt` | 247 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/StringUtils.kt` | 31 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 724 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/UpdateChecker.kt` | 160 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/UpdateChecker.kt` | 155 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/Updater.kt` | 55 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/UrlValidator.kt` | 109 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/Utils.kt` | 30 lines | `.kt` |
@@ -422,6 +422,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/ZemerLinkBuilder.kt` | 16 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/sabr/EjsNTransformSolver.kt` | 307 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/sabr/SabrException.kt` | 3 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/updater/AppInstaller.kt` | 241 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/updater/InstallReceiver.kt` | 61 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/updater/Installer.kt` | 22 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/AccountSettingsViewModel.kt` | 42 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/AccountViewModel.kt` | 81 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/AlbumViewModel.kt` | 58 lines | `.kt` |
@@ -657,6 +660,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/xml/music_widget_info.xml` | 18 lines | `.xml` |
 | `app/src/main/res/xml/provider_paths.xml` | 12 lines | `.xml` |
 | `app/src/test/kotlin/com/jtech/zemer/utils/CrashReportingTreeTest.kt` | 64 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/utils/updater/InstallerTest.kt` | 43 lines | `.kt` |
 | `app/universal/release/baselineProfiles/0/app-universal-release.dm` | 10017 bytes | `.dm` |
 | `app/universal/release/baselineProfiles/1/app-universal-release.dm` | 9981 bytes | `.dm` |
 | `build.gradle.kts` | 37 lines | `.kts` |

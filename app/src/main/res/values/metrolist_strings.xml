@@ -270,11 +270,8 @@
     <string name="error">Error</string>
     <string name="installer_method">Installation method</string>
     <string name="installer_native_title">Standard</string>
-    <string name="installer_native_desc">Opens the system package installer</string>
     <string name="installer_root_title">Root</string>
-    <string name="installer_root_desc">Silent installation using root access</string>
     <string name="installer_shizuku_title">Shizuku</string>
-    <string name="installer_shizuku_desc">Silent installation using Shizuku</string>
     <string name="installer_root_unavailable">Root access not available</string>
     <string name="installer_shizuku_not_installed">Shizuku is not installed on this device</string>
     <string name="shizuku_not_running">Shizuku is not running</string>

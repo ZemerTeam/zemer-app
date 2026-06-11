@@ -230,9 +230,9 @@ import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.hasNotificationPermission
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
-import com.jtech.zemer.utils.updater.AppInstaller
 import com.jtech.zemer.utils.updater.InstallResult
 import com.jtech.zemer.utils.updater.InstallerType
+import com.jtech.zemer.utils.updater.rememberApkInstallController
 import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.setAppLocale
 import com.jtech.zemer.utils.tryStartForegroundService
@@ -757,18 +757,20 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // Auto-install when download completes, honoring the chosen install method
+                        // Auto-install when download completes, honoring the chosen install method.
+                        // Shared controller gates the Standard installer's permission and restarts
+                        // the app after a silent update — same behaviour as the Updater screen.
                         val (installerTypeOrdinal) = rememberPreference(InstallerTypeKey, defaultValue = InstallerType.NATIVE.ordinal)
+                        val installController = rememberApkInstallController(InstallerType.fromOrdinal(installerTypeOrdinal)) { result ->
+                            when (result) {
+                                is InstallResult.Success -> downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle
+                                is InstallResult.RequiresUserAction -> Unit // system installer UI takes over
+                                is InstallResult.Error -> downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Error(result.message)
+                            }
+                        }
                         LaunchedEffect(downloadState) {
                             val downloaded = downloadState as? com.jtech.zemer.utils.UpdateChecker.DownloadState.Downloaded ?: return@LaunchedEffect
-                            val result = AppInstaller.install(
-                                this@MainActivity,
-                                downloaded.apkFile,
-                                InstallerType.fromOrdinal(installerTypeOrdinal),
-                            )
-                            if (result is InstallResult.Error) {
-                                downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Error(result.message)
-                            }
+                            installController.install(downloaded.apkFile)
                         }
 
                         if (showUpdateDialog && pendingUpdateVersion != null) {

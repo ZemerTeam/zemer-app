@@ -82,21 +82,16 @@ object UpdateChecker {
         try {
             val httpClient = HttpClient()
 
-            // First, do a HEAD request to get the actual content length after redirects
-            var contentLength = -1L
-            try {
-                val headResponse = httpClient.head(DOWNLOAD_URL)
-                contentLength = headResponse.contentLength() ?: -1L
-            } catch (_: Exception) {
-                // HEAD request failed, will try to get from GET response
-            }
-
             val response = httpClient.prepareGet(DOWNLOAD_URL).execute()
 
-            // If HEAD didn't work, try from the GET response
-            if (contentLength <= 0) {
-                contentLength = response.contentLength() ?: -1L
-            }
+            // Size of the actual body we'll read, taken after redirects. A separate HEAD
+            // is unreliable here: /download redirects through a worker + CDN, so a HEAD can
+            // be answered by a different hop (e.g. a challenge page) whose Content-Length is
+            // not the APK's, which would make the progress bar scale to the wrong total.
+            // If the body is gzip-encoded the header is the compressed size and won't match
+            // the decoded bytes we count, so treat that as unknown.
+            val isEncoded = response.headers[HttpHeaders.ContentEncoding]?.isNotBlank() == true
+            val contentLength = if (isEncoded) -1L else response.contentLength() ?: -1L
 
             val apkFile = File(context.cacheDir, APK_FILENAME)
 

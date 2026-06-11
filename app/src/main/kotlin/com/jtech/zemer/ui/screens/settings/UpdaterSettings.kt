@@ -1,8 +1,6 @@
 package com.jtech.zemer.ui.screens.settings
 
 import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -57,6 +55,7 @@ import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.updater.AppInstaller
 import com.jtech.zemer.utils.updater.InstallResult
 import com.jtech.zemer.utils.updater.InstallerType
+import com.jtech.zemer.utils.updater.rememberApkInstallController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -80,49 +79,28 @@ fun UpdaterScreen(
     var showResultDialog by remember { mutableStateOf(false) }
     var updateResult by remember { mutableStateOf<UpdateChecker.UpdateResult?>(null) }
     var downloadState by remember { mutableStateOf<UpdateChecker.DownloadState>(UpdateChecker.DownloadState.Idle) }
-    var isInstalling by remember { mutableStateOf(false) }
     var installError by remember { mutableStateOf<String?>(null) }
     var installerSelectionError by remember { mutableStateOf<String?>(null) }
-    var pendingApk by remember { mutableStateOf<File?>(null) }
+
+    val installController = rememberApkInstallController(installerType) { result ->
+        when (result) {
+            is InstallResult.Success -> downloadState = UpdateChecker.DownloadState.Idle
+            is InstallResult.RequiresUserAction -> Unit // the system installer UI takes over
+            is InstallResult.Error -> installError = result.message
+        }
+    }
+    val isInstalling = installController.isInstalling
+
+    fun installWithPermissionCheck(apkFile: File) {
+        installError = null
+        installController.install(apkFile)
+    }
 
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
         firstFocus.requestFocus()
-    }
-
-    fun install(apkFile: File) {
-        scope.launch {
-            isInstalling = true
-            installError = null
-            when (val result = AppInstaller.install(context, apkFile, installerType)) {
-                is InstallResult.Success -> downloadState = UpdateChecker.DownloadState.Idle
-                is InstallResult.RequiresUserAction -> Unit // the system installer UI takes over
-                is InstallResult.Error -> installError = result.message
-            }
-            isInstalling = false
-        }
-    }
-
-    // The Standard method needs the "install unknown apps" permission; retry once granted
-    val installPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) {
-        val apkFile = pendingApk
-        pendingApk = null
-        if (apkFile != null && AppInstaller.canInstallPackages(context)) {
-            install(apkFile)
-        }
-    }
-
-    fun installWithPermissionCheck(apkFile: File) {
-        if (installerType == InstallerType.NATIVE && !AppInstaller.canInstallPackages(context)) {
-            pendingApk = apkFile
-            installPermissionLauncher.launch(AppInstaller.getInstallPermissionIntent(context))
-        } else {
-            install(apkFile)
-        }
     }
 
     // Persist the Shizuku choice only once its permission is actually granted

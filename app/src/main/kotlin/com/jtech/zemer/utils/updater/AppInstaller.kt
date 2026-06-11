@@ -144,8 +144,10 @@ object AppInstaller {
             val sessionId = parseSessionId(createResult.out)
                 ?: return InstallResult.Error(context.getString(R.string.installer_session_id_failed))
 
+            // Pass the APK path directly — pm reads the file itself, avoiding a full
+            // copy of the APK through a shell pipe.
             val writeResult = Shell.cmd(
-                "cat \"${apkFile.absolutePath}\" | pm install-write -S ${apkFile.length()} $sessionId \"${apkFile.name}\"",
+                "pm install-write -S ${apkFile.length()} $sessionId \"${apkFile.name}\" \"${apkFile.absolutePath}\"",
             ).exec()
             if (!writeResult.isSuccess) {
                 return InstallResult.Error(writeResult.errorOr(context))
