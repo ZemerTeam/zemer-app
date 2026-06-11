@@ -48,12 +48,10 @@ fun rememberApkInstallController(
     fun runInstall(apkFile: File) {
         scope.launch {
             controller.isInstalling = true
+            // The silent methods relaunch the app themselves once the swap completes: root
+            // chains `am start` onto its commit, Shizuku restarts from InstallReceiver. Both
+            // run through a privileged shell because our process is killed by the replace.
             val result = AppInstaller.install(context, apkFile, installerType)
-            // Root installs report success synchronously; restart immediately.
-            // (Shizuku returns RequiresUserAction and restarts from InstallReceiver.)
-            if (result is InstallResult.Success) {
-                AppRestarter.scheduleRestart(context)
-            }
             controller.isInstalling = false
             onResult(result)
         }

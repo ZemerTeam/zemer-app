@@ -153,7 +153,14 @@ object AppInstaller {
                 return InstallResult.Error(writeResult.errorOr(context))
             }
 
-            val commitResult = Shell.cmd("pm install-commit $sessionId").exec()
+            // Chain the relaunch onto the commit in one root-shell command: install-commit
+            // replaces our package and the OS kills this process, but the root shell is a
+            // separate process and runs the trailing `am start` (which, as root, is exempt
+            // from background-activity-launch limits) — so the app comes back on its own.
+            val relaunch = AppRestarter.relaunchCommand(context)
+            val commitCommand = "pm install-commit $sessionId" +
+                if (relaunch != null) " && $relaunch" else ""
+            val commitResult = Shell.cmd(commitCommand).exec()
             if (commitResult.isSuccess) {
                 InstallResult.Success
             } else {

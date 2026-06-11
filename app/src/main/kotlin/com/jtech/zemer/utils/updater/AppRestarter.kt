@@ -1,45 +1,51 @@
 package com.jtech.zemer.utils.updater
 
-import android.app.AlarmManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import com.jtech.zemer.utils.reportException
+import rikka.shizuku.Shizuku
 
 /**
  * Relaunches the app after a silent self-update (root / Shizuku).
  *
- * A silent install replaces our own package, so the OS kills this process as
- * part of the swap. We therefore schedule the relaunch through [AlarmManager]
- * with a [PendingIntent], which survives the kill, rather than trying to start
- * an activity from a process that is about to die.
+ * The relaunch must run through the **privileged shell**, not an activity start from our own
+ * (about-to-die) process: a silent install replaces our package and the OS kills us, and
+ * starting an activity from the background — e.g. via an AlarmManager PendingIntent — is
+ * blocked on Android 10+, so the app would never actually come back. `am start` issued as
+ * root or as the Shizuku shell user is exempt from that restriction.
  */
 object AppRestarter {
-    private const val RESTART_REQUEST_CODE = 0x2E57 // "ZE5T"
-    private const val RESTART_DELAY_MS = 600L
 
-    fun scheduleRestart(context: Context) {
+    /**
+     * Shell command that relaunches our launcher activity, or null if it can't be resolved.
+     * Root chains this onto `pm install-commit`; Shizuku runs it from [relaunchViaShizuku].
+     */
+    fun relaunchCommand(context: Context): String? {
         val launchIntent = context.packageManager
-            .getLaunchIntentForPackage(context.packageName)
-            ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK) }
-            ?: return
+            .getLaunchIntentForPackage(context.packageName) ?: return null
+        val component = launchIntent.component?.flattenToShortString() ?: return null
+        // A short settle lets PackageManager register the freshly installed activity.
+        return "sleep 1 && am start -n $component"
+    }
 
+    /**
+     * Relaunch through Shizuku's privileged shell. Called from [InstallReceiver] on
+     * STATUS_SUCCESS — the Shizuku process runs the command, so it survives our death.
+     * `newProcess` is hidden in the Shizuku API, hence reflection; failure is non-fatal
+     * (the user just reopens manually).
+     */
+    fun relaunchViaShizuku(context: Context) {
+        val command = relaunchCommand(context) ?: return
         runCatching {
-            val pendingIntent = PendingIntent.getActivity(
-                context,
-                RESTART_REQUEST_CODE,
-                launchIntent,
-                PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
-            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            // Inexact is fine — we only need the app back shortly after the swap.
-            alarmManager.set(
-                AlarmManager.RTC,
-                System.currentTimeMillis() + RESTART_DELAY_MS,
-                pendingIntent,
-            )
+            val newProcess = Shizuku::class.java.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java,
+            ).apply { isAccessible = true }
+            val process = newProcess.invoke(null, arrayOf("sh", "-c", command), null, null)
+            process?.javaClass?.getMethod("waitFor")?.invoke(process)
         }.onFailure {
-            reportException(it, "Schedule app restart after update")
+            reportException(it, "Relaunch via Shizuku after update")
         }
     }
 }

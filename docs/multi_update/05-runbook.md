@@ -58,7 +58,7 @@ expected behaviour ([03](03-restart.md)), not a crash.
 | Root: "Root access not available" | `Shell.getShell().isRoot` false (denied / no su) | `AppInstaller.installRoot` |
 | Shizuku: "not running" / "permission required" | service down or grant missing | `isShizukuAlive` / `hasShizukuPermission`; the `DisposableEffect` listener |
 | Shizuku: "not supported on this Android version" | hidden-constructor signature changed (Android 16+) | the `NoSuchMethodError` catch in `installShizuku` |
-| Silent install works but app doesn't relaunch | OEM didn't kill the process / alarm blocked | `AppRestarter.scheduleRestart`; it is inexact `AlarmManager.set` |
+| Silent install works but app doesn't relaunch | launcher activity unresolved, or `am start` blocked | `AppRestarter.relaunchCommand`; root chains `am start` onto the commit, Shizuku uses `relaunchViaShizuku` |
 | Crash reaching Shizuku hidden APIs on release only | a missing ProGuard keep rule | `app/proguard-rules.pro` |
 
 ## Known edge cases (not bugs to "fix" blindly)
