@@ -424,7 +424,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/sabr/SabrException.kt` | 3 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/updater/ApkInstallController.kt` | 81 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/updater/AppInstaller.kt` | 248 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/updater/AppRestarter.kt` | 51 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/updater/AppRestarter.kt` | 55 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/updater/InstallReceiver.kt` | 62 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/updater/Installer.kt` | 22 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/AccountSettingsViewModel.kt` | 42 lines | `.kt` |

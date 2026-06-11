@@ -159,7 +159,7 @@ object AppInstaller {
             // from background-activity-launch limits) — so the app comes back on its own.
             val relaunch = AppRestarter.relaunchCommand(context)
             val commitCommand = "pm install-commit $sessionId" +
-                if (relaunch != null) " && $relaunch" else ""
+                if (relaunch != null) " && sleep 1 && $relaunch" else ""
             val commitResult = Shell.cmd(commitCommand).exec()
             if (commitResult.isSuccess) {
                 InstallResult.Success

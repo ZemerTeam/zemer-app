@@ -21,7 +21,7 @@ restriction. `AppRestarter` (`utils/updater/AppRestarter.kt`) builds that comman
 fun relaunchCommand(context: Context): String? {
     val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
     val component = launchIntent.component?.flattenToShortString() ?: return null
-    return "sleep 1 && am start -n $component"   // short settle, then relaunch
+    return "am start -n $component"   // no sleep here; the caller adds a settle if needed
 }
 ```
 
@@ -41,9 +41,13 @@ completion, so the trailing `am start` still fires after we are gone. Splitting 
 second `Shell.cmd(...)` call from Kotlin would race the kill.
 
 **Shizuku** can't chain (its result is a broadcast), so it relaunches from `InstallReceiver`
-via `Shizuku.newProcess(["sh","-c", cmd], …)` — run in the Shizuku server process, so it
-also survives our death. `newProcess` is hidden in the Shizuku API, so it is called
-reflectively; failure is caught and reported, never fatal.
+via `Shizuku.newProcess(["sh","-c", cmd], …)`. Its command **must not sleep**: unlike the
+root daemon, the `ShizukuRemoteProcess` is bound to our (dying) process, so a sleeping
+command is reaped during the package replace before `am start` fires — which is exactly why
+a sleeping Shizuku relaunch silently failed while root worked. With no sleep, `am start`
+resolves immediately (the package is already installed at `STATUS_SUCCESS`) and hands the
+launch to `system_server` before we die. `newProcess` is hidden in the Shizuku API, so it is
+called reflectively; failure is caught and reported, never fatal.
 
 The Standard (`NATIVE`) method never reaches either path — it returns `RequiresUserAction`
 and the system installer UI offers its own "Open" button.

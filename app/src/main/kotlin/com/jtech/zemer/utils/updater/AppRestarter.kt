@@ -16,22 +16,26 @@ import rikka.shizuku.Shizuku
 object AppRestarter {
 
     /**
-     * Shell command that relaunches our launcher activity, or null if it can't be resolved.
-     * Root chains this onto `pm install-commit`; Shizuku runs it from [relaunchViaShizuku].
+     * `am start` command that relaunches our launcher activity, or null if it can't be
+     * resolved. No `sleep`: the caller decides whether a settle is needed. Root chains this
+     * onto `pm install-commit` (with its own settle); Shizuku runs it from
+     * [relaunchViaShizuku] immediately.
      */
     fun relaunchCommand(context: Context): String? {
         val launchIntent = context.packageManager
             .getLaunchIntentForPackage(context.packageName) ?: return null
         val component = launchIntent.component?.flattenToShortString() ?: return null
-        // A short settle lets PackageManager register the freshly installed activity.
-        return "sleep 1 && am start -n $component"
+        return "am start -n $component"
     }
 
     /**
      * Relaunch through Shizuku's privileged shell. Called from [InstallReceiver] on
-     * STATUS_SUCCESS — the Shizuku process runs the command, so it survives our death.
-     * `newProcess` is hidden in the Shizuku API, hence reflection; failure is non-fatal
-     * (the user just reopens manually).
+     * STATUS_SUCCESS — the package is already installed, so `am start` resolves at once and
+     * hands the launch to system_server before our process dies. It must NOT sleep first:
+     * the Shizuku remote process is bound to our (dying) process and would be reaped during
+     * the wait, before the launch fires — which is exactly why root works here and a sleeping
+     * Shizuku command did not. `newProcess` is hidden in the Shizuku API, hence reflection;
+     * failure is non-fatal (the user just reopens manually).
      */
     fun relaunchViaShizuku(context: Context) {
         val command = relaunchCommand(context) ?: return
