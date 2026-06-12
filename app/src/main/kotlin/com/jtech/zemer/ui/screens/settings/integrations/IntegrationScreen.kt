@@ -17,6 +17,7 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.utils.backToMain
+import androidx.compose.ui.res.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,7 +34,7 @@ fun IntegrationScreen(
     }
 
     TopAppBar(
-        title = { Text("Integrations") },
+        title = { Text(stringResource(R.string.integrations)) },
         navigationIcon = {
             IconButton(
                 onClick = navController::navigateUp,

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# UI standards audit (docs/ui/standards.md, section 8: theme & color).
+# UI standards audit (docs/ui/standards.md, sections 7-8: dialogs, theme & color).
 #
-# Ratcheting check: it FAILS only on NEW Rule 8 violations beyond the committed baseline
+# Ratcheting check: it FAILS only on NEW Rule 7/8 violations beyond the committed baseline
 # (scripts/ui-audit-baseline.tsv). The current known violations are allowlisted, so CI is green
 # today and the count can only shrink — fix some, then run --update to tighten the baseline.
 #
@@ -9,8 +9,10 @@
 #   bash scripts/ui-audit.sh --update   # rewrite the baseline to the current state
 #
 # Rules enforced over UI code (app/.../ui/, excluding ui/theme/):
-#   R8-fontsize  raw `fontSize = N.sp`   -> use MaterialTheme.typography (Type.kt)
-#   R8-hex       hardcoded `Color(0x..)` -> use MaterialTheme.colorScheme
+#   R8-fontsize    raw `fontSize = N.sp`   -> use MaterialTheme.typography (Type.kt)
+#   R8-hex         hardcoded `Color(0x..)` -> use MaterialTheme.colorScheme
+#   R7-alertdialog raw `AlertDialog(` / `BasicAlertDialog(` outside component/Dialog.kt
+#                  -> use the Dialog.kt helpers (DefaultDialog etc.); baseline is zero
 #
 # Genuine fixed-value exceptions (AMOLED pure-black, the lyric-image *export*, color-picker
 # swatches) are allowed: they live in the baseline. Keep them minimal; --update records them.
@@ -27,6 +29,8 @@ violations() {
     | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR8-fontsize/'
   grep -rnE "Color\(0x" "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR8-hex/'
+  grep -rnE "(^|[^.A-Za-z])(Basic)?AlertDialog\(" "$UI" --include=*.kt 2>/dev/null \
+    | grep -v "/theme/" | grep -v "component/Dialog.kt" | sed -E 's/:.*//' | sed 's/$/\tR7-alertdialog/'
 }
 
 # Aggregate to "<path>\t<rule>\t<count>", sorted.
@@ -61,17 +65,18 @@ improved="$(awk -F'\t' '
 ' <(printf "%s\n" "$cur") "$BASELINE")"
 
 if [ -n "$new" ]; then
-  echo "UI audit FAILED — new Rule 8 violations (docs/ui/standards.md section 8):"
+  echo "UI audit FAILED — new Rule 7/8 violations (docs/ui/standards.md sections 7-8):"
   echo "$new"
   echo
-  echo "Route font sizes through MaterialTheme.typography (Type.kt) and colors through"
-  echo "MaterialTheme.colorScheme. If a fixed value is genuinely required, keep it minimal and"
-  echo "record it with: bash scripts/ui-audit.sh --update"
+  echo "Route font sizes through MaterialTheme.typography (Type.kt), colors through"
+  echo "MaterialTheme.colorScheme, and dialogs through the Dialog.kt helpers (DefaultDialog etc.)."
+  echo "If a fixed value is genuinely required, keep it minimal and record it with:"
+  echo "  bash scripts/ui-audit.sh --update"
   exit 1
 fi
 
 total="$(violations | grep -c .)"
-echo "UI audit passed — no new Rule 8 violations (baseline: $total known, only allowed to shrink)."
+echo "UI audit passed — no new Rule 7/8 violations (baseline: $total known, only allowed to shrink)."
 if [ -n "$improved" ]; then
   echo "Burned down since the baseline — tighten it with \`bash scripts/ui-audit.sh --update\`:"
   echo "$improved"

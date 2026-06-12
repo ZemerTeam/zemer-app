@@ -336,4 +336,44 @@
 
     <!-- Onboarding privacy policy (supersedes onboarding_privacy_body: discloses Crashlytics) -->
     <string name="onboarding_privacy_body_crash_reporting">Preferences and logins stay on your device, and network calls only fetch what you choose to play. We don\'t collect personal data or usage analytics, and nothing is sold or shared for marketing.\n\nTo keep the app working, automatic crash and error reports are sent to Google Firebase Crashlytics. These reports contain device information (such as model and Android version) and recent technical logs from the app, and are used only to diagnose and fix problems.</string>
+
+    <!-- Logout confirmation -->
+    <string name="logout_keep_library_title">Keep library data?</string>
+    <string name="logout_keep_library_message">Do you want to keep your downloaded songs, playlists, and library data?</string>
+    <string name="logout_keep_library">Keep</string>
+    <string name="logout_clear_library">Clear</string>
+
+    <!-- Anonymous sync-account sign-in -->
+    <string name="sync_account_create_title">Create Sync Account</string>
+    <string name="sync_account_important_title">⚠️ Important - Read Carefully</string>
+    <string name="sync_account_creating">Creating account and locking your preferences…</string>
+    <string name="sync_account_warning_intro">Create an anonymous account to sync and backup your content filter settings.</string>
+    <string name="sync_account_warning_lock">This will permanently lock your preferences to prevent accidental changes.</string>
+    <string name="sync_account_warning_permanent">THIS CANNOT BE CHANGED ONCE SET, IT WILL PERSIST CLEARING DATA OR UNINSTALLATION OF THE APP!</string>
+    <plurals name="sync_account_wait_countdown">
+        <item quantity="one">Please wait %d second before continuing…</item>
+        <item quantity="other">Please wait %d seconds before continuing…</item>
+    </plurals>
+    <string name="sync_account_create_and_lock">Create Account &amp; Lock</string>
+    <string name="sync_account_create_and_sync">Create Account &amp; Sync</string>
+    <string name="sync_account_create">Create Account</string>
+    <string name="sync_account_please_wait">Please wait…</string>
+
+    <!-- Video player dialogs -->
+    <string name="video_download_title">Download video</string>
+    <string name="video_choose_quality">Choose a quality</string>
+    <string name="video_loading_qualities">Loading available qualities…</string>
+    <string name="video_playback_speed">Playback speed</string>
+    <string name="video_speed_normal">1.0x (Normal)</string>
+    <string name="video_quality">Video quality</string>
+    <string name="video_quality_current_auto">Current: Auto</string>
+    <string name="video_quality_auto">Auto</string>
+    <string name="video_quality_track">Track %d</string>
+
+    <!-- Lyrics image sharing -->
+    <string name="lyrics_image_failed">Failed to create image: %s</string>
+
+    <!-- Display density -->
+    <string name="display_density">Display Density</string>
+    <string name="display_density_custom">Custom Display Density</string>
 </resources>

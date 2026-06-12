@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -54,7 +53,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.exoplayer.offline.Download
 import androidx.navigation.NavController
@@ -65,19 +63,16 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.MediaStoreDownloadManager
+import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.BigSeekBar
 import com.jtech.zemer.ui.component.BottomSheetState
 import com.jtech.zemer.ui.component.ListDialog
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.metrolist.innertube.YouTube
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import kotlin.math.log2
 import kotlin.math.pow
 import kotlin.math.round
@@ -93,8 +88,6 @@ fun PlayerMenu(
 ) {
     mediaMetadata ?: return
     val context = LocalContext.current
-    val auth = remember { FirebaseAuth.getInstance() }
-    val firestore = remember { FirebaseFirestore.getInstance() }
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val playerVolume = playerConnection.service.playerVolume.collectAsState()
@@ -138,9 +131,6 @@ fun PlayerMenu(
         mutableStateOf(false)
     }
     var showReportDialog by remember { mutableStateOf(false) }
-    var selectedReason by remember { mutableStateOf("") }
-    var comment by remember { mutableStateOf("") }
-    var isSubmitting by remember { mutableStateOf(false) }
 
     if (showSelectArtistDialog) {
         ListDialog(
@@ -174,99 +164,14 @@ fun PlayerMenu(
     }
 
     if (showReportDialog) {
-        val reasons = listOf(
-            "female" to stringResource(R.string.report_reason_female),
-            "gentile" to stringResource(R.string.report_reason_gentile),
-            "bad_playlists" to stringResource(R.string.report_reason_bad_playlists),
-            "bad_images" to stringResource(R.string.report_reason_bad_images),
-            "other" to stringResource(R.string.report_reason_other),
-        )
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { if (!isSubmitting) showReportDialog = false },
-            title = { Text(stringResource(R.string.report_artist)) },
-            text = {
-                Column {
-                    reasons.forEach { (value, label) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { selectedReason = value }
-                                .padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            androidx.compose.material3.RadioButton(
-                                selected = selectedReason == value,
-                                onClick = { selectedReason = value }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = label)
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    androidx.compose.material3.OutlinedTextField(
-                        value = comment,
-                        onValueChange = { comment = it },
-                        label = { Text(stringResource(R.string.report_optional_comment)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = false,
-                        maxLines = 3
-                    )
-                }
-            },
-            confirmButton = {
-                androidx.compose.material3.Button(
-                    onClick = {
-                        if (selectedReason.isBlank()) {
-                            Toast.makeText(context, context.getString(R.string.report_choose_reason), Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
-                        coroutineScope.launch {
-                            isSubmitting = true
-                            try {
-                                val uid = auth.currentUser?.uid ?: "anon"
-                                val payload = hashMapOf(
-                                    "artistId" to (mediaMetadata.artists.firstOrNull()?.id ?: ""),
-                                    "artistName" to (mediaMetadata.artists.firstOrNull()?.name ?: ""),
-                                    "songId" to mediaMetadata.id,
-                                    "songTitle" to mediaMetadata.title,
-                                    "reason" to selectedReason,
-                                    "comment" to comment,
-                                    "status" to "pending",
-                                    "reporterUid" to uid,
-                                    "createdAt" to FieldValue.serverTimestamp()
-                                )
-                                firestore.collection("artistReports").add(payload).await()
-                                Toast.makeText(context, context.getString(R.string.report_success), Toast.LENGTH_SHORT).show()
-                                showReportDialog = false
-                                selectedReason = ""
-                                comment = ""
-                            } catch (e: Exception) {
-                                Toast.makeText(context, context.getString(R.string.report_failure), Toast.LENGTH_SHORT).show()
-                            } finally {
-                                isSubmitting = false
-                            }
-                        }
-                    },
-                    enabled = !isSubmitting
-                ) {
-                    if (isSubmitting) {
-                        androidx.compose.material3.CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(stringResource(R.string.report_submit))
-                    }
-                }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(
-                    onClick = { if (!isSubmitting) showReportDialog = false },
-                    enabled = !isSubmitting
-                ) {
-                    Text(stringResource(R.string.report_cancel))
-                }
-            }
+        ReportContentDialog(
+            subject = mapOf(
+                "artistId" to (mediaMetadata.artists.firstOrNull()?.id ?: ""),
+                "artistName" to (mediaMetadata.artists.firstOrNull()?.name ?: ""),
+                "songId" to mediaMetadata.id,
+                "songTitle" to mediaMetadata.title,
+            ),
+            onDismiss = { showReportDialog = false },
         )
     }
 
@@ -619,13 +524,36 @@ fun TempoPitchDialog(onDismiss: () -> Unit) {
             PlaybackParameters(tempo, 2f.pow(transposeValue.toFloat() / 12))
     }
 
-    AlertDialog(
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-        onDismissRequest = onDismiss,
+    DefaultDialog(
+        onDismiss = onDismiss,
+        horizontalAlignment = Alignment.Start,
         title = {
             Text(stringResource(R.string.tempo_and_pitch))
         },
-        dismissButton = {
+        content = {
+            ValueAdjuster(
+                icon = R.drawable.speed,
+                currentValue = tempo,
+                values = (0..35).map { round((0.25f + it * 0.05f) * 100) / 100 },
+                onValueUpdate = {
+                    tempo = it
+                    updatePlaybackParameters()
+                },
+                valueText = { "x$it" },
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
+            ValueAdjuster(
+                icon = R.drawable.discover_tune,
+                currentValue = transposeValue,
+                values = (-12..12).toList(),
+                onValueUpdate = {
+                    transposeValue = it
+                    updatePlaybackParameters()
+                },
+                valueText = { "${if (it > 0) "+" else ""}$it" },
+            )
+        },
+        buttons = {
             TextButton(
                 onClick = {
                     tempo = 1f
@@ -635,37 +563,11 @@ fun TempoPitchDialog(onDismiss: () -> Unit) {
             ) {
                 Text(stringResource(R.string.reset))
             }
-        },
-        confirmButton = {
+
             TextButton(
                 onClick = onDismiss,
             ) {
                 Text(stringResource(android.R.string.ok))
-            }
-        },
-        text = {
-            Column {
-                ValueAdjuster(
-                    icon = R.drawable.speed,
-                    currentValue = tempo,
-                    values = (0..35).map { round((0.25f + it * 0.05f) * 100) / 100 },
-                    onValueUpdate = {
-                        tempo = it
-                        updatePlaybackParameters()
-                    },
-                    valueText = { "x$it" },
-                    modifier = Modifier.padding(bottom = 12.dp),
-                )
-                ValueAdjuster(
-                    icon = R.drawable.discover_tune,
-                    currentValue = transposeValue,
-                    values = (-12..12).toList(),
-                    onValueUpdate = {
-                        transposeValue = it
-                        updatePlaybackParameters()
-                    },
-                    valueText = { "${if (it > 0) "+" else ""}$it" },
-                )
             }
         },
     )

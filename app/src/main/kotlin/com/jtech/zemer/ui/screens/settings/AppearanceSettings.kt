@@ -464,7 +464,7 @@ fun AppearanceSettings(
         }
 
         ListPreference(
-            title = { Text("Display Density") },
+            title = { Text(stringResource(R.string.display_density)) },
             icon = { Icon(painterResource(R.drawable.grid_view), null) },
             selectedValue = densityScale,
             values = DensityScale.entries.map { it.value },
@@ -794,7 +794,7 @@ fun AppearanceSettings(
     if (showCustomDensityDialog) {
         TextFieldDialog(
             onDismiss = { showCustomDensityDialog = false },
-            title = { Text("Custom Display Density") },
+            title = { Text(stringResource(R.string.display_density_custom)) },
             icon = { Icon(painterResource(R.drawable.grid_view), null) },
             initialTextFieldValue = androidx.compose.ui.text.input.TextFieldValue((customDensityValue * 100).toInt().toString()),
             keyboardType = KeyboardType.Decimal,

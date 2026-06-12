@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +39,7 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.constants.AndroidAutoSectionsOrderKey
 import com.jtech.zemer.constants.AndroidAutoTargetPlaylistKey
 import com.jtech.zemer.constants.MediaSessionConstants
@@ -221,10 +221,11 @@ fun AndroidAutoSettings(
     }
 
     if (showTargetPlaylistDialog) {
-        AlertDialog(
-            onDismissRequest = { showTargetPlaylistDialog = false },
+        DefaultDialog(
+            onDismiss = { showTargetPlaylistDialog = false },
+            horizontalAlignment = Alignment.Start,
             title = { Text(stringResource(R.string.android_auto_target_playlist)) },
-            text = {
+            content = {
                 LazyColumn {
                     items(playlistOptions) { value ->
                         Row(
@@ -247,8 +248,7 @@ fun AndroidAutoSettings(
                     }
                 }
             },
-            confirmButton = {},
-            dismissButton = {
+            buttons = {
                 TextButton(onClick = { showTargetPlaylistDialog = false }) {
                     Text(stringResource(android.R.string.cancel))
                 }

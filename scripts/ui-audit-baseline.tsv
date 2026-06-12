@@ -2,7 +2,7 @@ app/src/main/kotlin/com/jtech/zemer/ui/component/Dialog.kt	R8-hex	1
 app/src/main/kotlin/com/jtech/zemer/ui/component/Items.kt	R8-fontsize	2
 app/src/main/kotlin/com/jtech/zemer/ui/component/LyricsImageCard.kt	R8-fontsize	3
 app/src/main/kotlin/com/jtech/zemer/ui/component/LyricsImageCard.kt	R8-hex	1
-app/src/main/kotlin/com/jtech/zemer/ui/component/Lyrics.kt	R8-fontsize	6
+app/src/main/kotlin/com/jtech/zemer/ui/component/Lyrics.kt	R8-fontsize	2
 app/src/main/kotlin/com/jtech/zemer/ui/component/Lyrics.kt	R8-hex	4
 app/src/main/kotlin/com/jtech/zemer/ui/component/NewMenuComponents.kt	R8-fontsize	1
 app/src/main/kotlin/com/jtech/zemer/ui/component/SortHeader.kt	R8-fontsize	1

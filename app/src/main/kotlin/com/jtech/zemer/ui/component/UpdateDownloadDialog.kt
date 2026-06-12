@@ -1,15 +1,14 @@
 package com.jtech.zemer.ui.component
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -47,63 +46,67 @@ fun UpdateDownloadDialog(
     val downloadedApk = (downloadState as? UpdateChecker.DownloadState.Downloaded)?.apkFile
     val busy = isDownloading || isInstalling
 
-    AlertDialog(
-        onDismissRequest = { if (!busy) onDismiss() },
+    DefaultDialog(
+        onDismiss = { if (!busy) onDismiss() },
+        horizontalAlignment = Alignment.Start,
         title = { Text(stringResource(R.string.update_available)) },
-        text = {
-            Column {
-                Text(stringResource(R.string.update_available_message, currentVersion, latestVersion))
+        content = {
+            Text(
+                text = stringResource(R.string.update_available_message, currentVersion, latestVersion),
+                style = MaterialTheme.typography.bodyMedium,
+            )
 
-                if (!notes.isNullOrBlank()) {
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        text = stringResource(R.string.whats_new),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+            if (!notes.isNullOrBlank()) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.whats_new),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(text = notes, style = MaterialTheme.typography.bodySmall)
+            }
+
+            if (isDownloading) {
+                Spacer(Modifier.height(16.dp))
+                Text(stringResource(R.string.downloading_update), style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.height(8.dp))
+                if (downloadProgress >= 0) {
+                    LinearProgressIndicator(progress = { downloadProgress }, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(4.dp))
-                    Text(text = notes, style = MaterialTheme.typography.bodySmall)
+                    Text("${(downloadProgress * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+                } else {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
+            }
 
-                if (isDownloading) {
-                    Spacer(Modifier.height(16.dp))
-                    Text(stringResource(R.string.downloading_update), style = MaterialTheme.typography.labelMedium)
-                    Spacer(Modifier.height(8.dp))
-                    if (downloadProgress >= 0) {
-                        LinearProgressIndicator(progress = { downloadProgress }, modifier = Modifier.fillMaxWidth())
-                        Spacer(Modifier.height(4.dp))
-                        Text("${(downloadProgress * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
-                    } else {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    }
-                }
-
-                if (isInstalling) {
-                    Spacer(Modifier.height(16.dp))
-                    Text(stringResource(R.string.installing), style = MaterialTheme.typography.labelMedium)
-                    installerType.installingNote?.let { note ->
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = stringResource(note),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-
-                val errorText = installError?.let { stringResource(R.string.install_failed, it) } ?: downloadError
-                if (errorText != null) {
-                    Spacer(Modifier.height(12.dp))
+            if (isInstalling) {
+                Spacer(Modifier.height(16.dp))
+                Text(stringResource(R.string.installing), style = MaterialTheme.typography.labelMedium)
+                installerType.installingNote?.let { note ->
+                    Spacer(Modifier.height(4.dp))
                     Text(
-                        text = errorText,
+                        text = stringResource(note),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
+
+            val errorText = installError?.let { stringResource(R.string.install_failed, it) } ?: downloadError
+            if (errorText != null) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = errorText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
         },
-        confirmButton = {
+        buttons = {
             if (!busy) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.later)) }
+
                 if (downloadedApk != null) {
                     // Download finished — install (or retry a failed install) with the chosen method.
                     TextButton(onClick = { onInstall(downloadedApk) }) {
@@ -114,11 +117,6 @@ fun UpdateDownloadDialog(
                         Text(stringResource(R.string.download_and_install))
                     }
                 }
-            }
-        },
-        dismissButton = {
-            if (!busy) {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.later)) }
             }
         },
     )

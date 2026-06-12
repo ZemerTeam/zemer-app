@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -53,6 +52,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.utils.reportException
+import com.jtech.zemer.ui.component.SyncAccountWarning
+import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.auth.AuthState
 import com.jtech.zemer.auth.UserAuthManager
 import com.jtech.zemer.constants.AllowChasidishKey
@@ -388,29 +390,35 @@ fun ContentSettings(
     if (showSignInDialog) {
         var isLoading by remember { mutableStateOf(false) }
 
-        AlertDialog(
-            onDismissRequest = { if (!isLoading) showSignInDialog = false },
-            title = { Text("Create Sync Account") },
-            text = {
+        DefaultDialog(
+            onDismiss = { if (!isLoading) showSignInDialog = false },
+            horizontalAlignment = Alignment.Start,
+            title = { Text(stringResource(R.string.sync_account_create_title)) },
+            content = {
                 if (isLoading) {
-                    Text("Creating account and locking your preferences...")
+                    Text(
+                        text = stringResource(R.string.sync_account_creating),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 } else {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        Text("Create an anonymous account to sync and backup your content filter settings.")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("This will permanently lock your preferences to prevent accidental changes.", color = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("THIS CANNOT BE CHANGED ONCE SET, IT WILL PERSIST CLEARING DATA OR UNINSTALLATION OF THE APP!", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text("Please wait $signInDelaySeconds second${if (signInDelaySeconds != 1) "s" else ""} before continuing...", color = MaterialTheme.colorScheme.error)
-                    }
+                    SyncAccountWarning(
+                        delaySeconds = signInDelaySeconds,
+                        showCountdown = true,
+                    )
                 }
             },
-            confirmButton = {
+            buttons = {
+                if (!isLoading) {
+                    TextButton(
+                        onClick = {
+                            showSignInDialog = false
+                            signInDelaySeconds = 0
+                        }
+                    ) {
+                        Text(stringResource(android.R.string.cancel))
+                    }
+                }
+
                 Button(
                     onClick = {
                         if (signInDelaySeconds == 0) {
@@ -427,7 +435,7 @@ fun ContentSettings(
                                         viewModel.performManualSync()
                                     }
                                 } catch (e: Exception) {
-                                    // Handle error
+                                    reportException(e, "ContentSettings sync sign-in")
                                 } finally {
                                     isLoading = false
                                     showSignInDialog = false
@@ -445,19 +453,12 @@ fun ContentSettings(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Text(if (signInDelaySeconds == 0) "Create Account & Lock" else "Please wait...")
-                    }
-                }
-            },
-            dismissButton = {
-                if (!isLoading) {
-                    TextButton(
-                        onClick = {
-                            showSignInDialog = false
-                            signInDelaySeconds = 0
-                        }
-                    ) {
-                        Text("Cancel")
+                        Text(
+                            stringResource(
+                                if (signInDelaySeconds == 0) R.string.sync_account_create_and_lock
+                                else R.string.sync_account_please_wait
+                            )
+                        )
                     }
                 }
             }

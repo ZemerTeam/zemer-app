@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -42,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.constants.CheckForUpdatesKey
 import com.jtech.zemer.constants.InstallerTypeKey
 import com.jtech.zemer.ui.component.IconButton
@@ -275,13 +275,17 @@ fun UpdaterScreen(
                 )
             }
             is UpdateChecker.UpdateResult.UpToDate -> {
-                AlertDialog(
-                    onDismissRequest = { showResultDialog = false },
+                DefaultDialog(
+                    onDismiss = { showResultDialog = false },
+                    horizontalAlignment = Alignment.Start,
                     title = { Text(stringResource(R.string.up_to_date)) },
-                    text = {
-                        Text(stringResource(R.string.up_to_date_message, result.currentVersion))
+                    content = {
+                        Text(
+                            text = stringResource(R.string.up_to_date_message, result.currentVersion),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     },
-                    confirmButton = {
+                    buttons = {
                         TextButton(onClick = { showResultDialog = false }) {
                             Text(stringResource(android.R.string.ok))
                         }
@@ -289,13 +293,17 @@ fun UpdaterScreen(
                 )
             }
             is UpdateChecker.UpdateResult.Error -> {
-                AlertDialog(
-                    onDismissRequest = { showResultDialog = false },
+                DefaultDialog(
+                    onDismiss = { showResultDialog = false },
+                    horizontalAlignment = Alignment.Start,
                     title = { Text(stringResource(R.string.error)) },
-                    text = {
-                        Text(result.message)
+                    content = {
+                        Text(
+                            text = result.message,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     },
-                    confirmButton = {
+                    buttons = {
                         TextButton(onClick = { showResultDialog = false }) {
                             Text(stringResource(android.R.string.ok))
                         }

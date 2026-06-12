@@ -23,6 +23,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.auth.WebViewGoogleAuthManager
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.jtech.zemer.R
 
 /**
  * A simple dialog for creating an anonymous account for sync.
@@ -105,7 +107,7 @@ fun AnonymousAuthEmailDialog(
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Create Account & Sync")
+                    Text(stringResource(R.string.sync_account_create_and_sync))
                 }
 
                 TextButton(
@@ -113,7 +115,7 @@ fun AnonymousAuthEmailDialog(
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(android.R.string.cancel))
                 }
             }
         }

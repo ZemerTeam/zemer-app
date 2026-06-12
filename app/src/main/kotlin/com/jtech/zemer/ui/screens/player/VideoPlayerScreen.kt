@@ -36,7 +36,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -72,7 +71,6 @@ import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.IntOffset
@@ -91,6 +89,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.db.entities.SongEntity
@@ -606,7 +605,7 @@ fun VideoPlayerScreen(
                     ) {
                         Text(text = loadError ?: "Playback error", color = Color.White)
                         TextButton(onClick = { reloadKey++ }) {
-                            Text("Retry", color = MaterialTheme.colorScheme.primary)
+                            Text(stringResource(R.string.retry), color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -983,36 +982,34 @@ fun VideoPlayerScreen(
     }
 
     if (showDownloadDialog) {
-        AlertDialog(
-            onDismissRequest = { showDownloadDialog = false },
-            title = { Text("Download video") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Choose a quality", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    if (availableQualities.isNotEmpty()) {
-                        availableQualities.forEach { quality ->
-                            val bitrateKbps = quality.bitrate?.div(1000) ?: 4000
-                            TextButton(
-                                onClick = { downloadVideo(bitrateKbps) },
+        DefaultDialog(
+            onDismiss = { showDownloadDialog = false },
+            horizontalAlignment = Alignment.Start,
+            title = { Text(stringResource(R.string.video_download_title)) },
+            content = {
+                Text(stringResource(R.string.video_choose_quality), style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                if (availableQualities.isNotEmpty()) {
+                    availableQualities.forEach { quality ->
+                        val bitrateKbps = quality.bitrate?.div(1000) ?: 4000
+                        TextButton(
+                            onClick = { downloadVideo(bitrateKbps) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = quality.label,
                                 modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = quality.label,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
+                            )
                         }
-                    } else {
-                        // Fallback if qualities not yet loaded
-                        Text("Loading available qualities...", style = MaterialTheme.typography.bodySmall)
                     }
+                } else {
+                    // Fallback if qualities not yet loaded
+                    Text(stringResource(R.string.video_loading_qualities), style = MaterialTheme.typography.bodySmall)
                 }
             },
-            confirmButton = {},
-            dismissButton = {
+            buttons = {
                 TextButton(onClick = { showDownloadDialog = false }) {
-                    Text("Close")
+                    Text(stringResource(R.string.close))
                 }
             }
         )
@@ -1020,74 +1017,70 @@ fun VideoPlayerScreen(
 
     if (showSpeedDialog) {
         val speeds = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
-        AlertDialog(
-            onDismissRequest = { showSpeedDialog = false },
-            title = { Text("Playback speed") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    speeds.forEach { speed ->
-                        TextButton(onClick = {
-                            playerInstance?.setPlaybackSpeed(speed)
-                            showSpeedDialog = false
-                        }) {
-                            Text(if (speed == 1f) "1.0x (Normal)" else "${speed}x")
-                        }
+        DefaultDialog(
+            onDismiss = { showSpeedDialog = false },
+            horizontalAlignment = Alignment.Start,
+            title = { Text(stringResource(R.string.video_playback_speed)) },
+            content = {
+                speeds.forEach { speed ->
+                    TextButton(onClick = {
+                        playerInstance?.setPlaybackSpeed(speed)
+                        showSpeedDialog = false
+                    }) {
+                        Text(if (speed == 1f) stringResource(R.string.video_speed_normal) else "${speed}x")
                     }
                 }
             },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showSpeedDialog = false }) { Text("Close") }
+            buttons = {
+                TextButton(onClick = { showSpeedDialog = false }) { Text(stringResource(R.string.close)) }
             }
         )
     }
 
     if (showQualityDialog) {
-        AlertDialog(
-            onDismissRequest = { showQualityDialog = false },
-            title = { Text("Video quality") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = if (selectedQualityId == "auto") "Current: Auto" else availableQualities.firstOrNull { it.id == selectedQualityId }?.label
-                            ?: "Current: Auto",
-                        style = MaterialTheme.typography.labelMedium
-                    )
+        DefaultDialog(
+            onDismiss = { showQualityDialog = false },
+            horizontalAlignment = Alignment.Start,
+            title = { Text(stringResource(R.string.video_quality)) },
+            content = {
+                Text(
+                    text = if (selectedQualityId == "auto") stringResource(R.string.video_quality_current_auto) else availableQualities.firstOrNull { it.id == selectedQualityId }?.label
+                        ?: stringResource(R.string.video_quality_current_auto),
+                    style = MaterialTheme.typography.labelMedium
+                )
+                TextButton(onClick = {
+                    playerInstance?.let { player ->
+                        val params = player.trackSelectionParameters
+                            .buildUpon()
+                            .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
+                            .build()
+                        player.trackSelectionParameters = params
+                    }
+                    selectedQualityId = "auto"
+                    showQualityDialog = false
+                }) {
+                    Text(stringResource(R.string.video_quality_auto))
+                }
+                availableQualities.forEach { option ->
                     TextButton(onClick = {
                         playerInstance?.let { player ->
-                            val params = player.trackSelectionParameters
+                            val builder = player.trackSelectionParameters
                                 .buildUpon()
                                 .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
-                                .build()
-                            player.trackSelectionParameters = params
+                                .setOverrideForType(
+                                    TrackSelectionOverride(option.group, listOf(option.trackIndex))
+                                )
+                            player.trackSelectionParameters = builder.build()
+                            selectedQualityId = option.id
                         }
-                        selectedQualityId = "auto"
                         showQualityDialog = false
                     }) {
-                        Text("Auto")
-                    }
-                    availableQualities.forEach { option ->
-                        TextButton(onClick = {
-                            playerInstance?.let { player ->
-                                val builder = player.trackSelectionParameters
-                                    .buildUpon()
-                                    .clearOverridesOfType(C.TRACK_TYPE_VIDEO)
-                                    .setOverrideForType(
-                                        TrackSelectionOverride(option.group, listOf(option.trackIndex))
-                                    )
-                                player.trackSelectionParameters = builder.build()
-                                selectedQualityId = option.id
-                            }
-                            showQualityDialog = false
-                        }) {
-                            Text(option.label.ifBlank { "Track ${option.trackIndex + 1}" })
-                        }
+                        Text(option.label.ifBlank { stringResource(R.string.video_quality_track, option.trackIndex + 1) })
                     }
                 }
             },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showQualityDialog = false }) { Text("Close") }
+            buttons = {
+                TextButton(onClick = { showQualityDialog = false }) { Text(stringResource(R.string.close)) }
             }
         )
     }

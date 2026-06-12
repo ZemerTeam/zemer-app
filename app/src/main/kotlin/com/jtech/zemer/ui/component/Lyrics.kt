@@ -42,14 +42,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -111,6 +109,7 @@ import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
 import com.jtech.zemer.ui.screens.settings.DarkMode
 import com.jtech.zemer.ui.screens.settings.LyricsPosition
 import com.jtech.zemer.ui.utils.fadingEdge
+import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.ComposeToImage
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
@@ -683,127 +682,92 @@ fun Lyrics(
     }
 
     if (showProgressDialog) {
-        BasicAlertDialog(onDismissRequest = { /* Don't dismiss */ }) {
-            Card( // Use Card for better styling
-                shape = MaterialTheme.shapes.medium,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-            ) {
-                Box(modifier = Modifier.padding(32.dp)) {
-                    Text(
-                        text = stringResource(R.string.generating_image) + "\n" + stringResource(R.string.please_wait),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
+        DefaultDialog(onDismiss = { /* Don't dismiss */ }) {
+            Text(
+                text = stringResource(R.string.generating_image) + "\n" + stringResource(R.string.please_wait),
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 
     if (showShareDialog && shareDialogData != null) {
         val (lyricsText, songTitle, artists) = shareDialogData!! // Renamed 'lyrics' to 'lyricsText' for clarity
-        BasicAlertDialog(onDismissRequest = { showShareDialog = false }) {
-            Card(
-                shape = MaterialTheme.shapes.medium,
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(0.85f)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
+        DefaultDialog(
+            onDismiss = { showShareDialog = false },
+            horizontalAlignment = Alignment.Start,
+            title = { Text(stringResource(R.string.share_lyrics)) },
+            content = {
+                // Share as Text Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val shareIntent = Intent().apply {
+                                action = Intent.ACTION_SEND
+                                type = "text/plain"
+                                val songLink =
+                                    "https://music.zemer.io/watch?v=${mediaMetadata?.id}"
+                                // Use the potentially multi-line lyricsText here
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    "\"$lyricsText\"\n\n$songTitle - $artists\n$songLink"
+                                )
+                            }
+                            context.startActivity(
+                                Intent.createChooser(
+                                    shareIntent,
+                                    context.getString(R.string.share_lyrics)
+                                )
+                            )
+                            showShareDialog = false
+                        }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.share), // Use new share icon
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = stringResource(R.string.share_lyrics),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
+                        text = stringResource(R.string.share_as_text),
+                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    // Share as Text Row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                val shareIntent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    type = "text/plain"
-                                    val songLink =
-                                        "https://music.zemer.io/watch?v=${mediaMetadata?.id}"
-                                    // Use the potentially multi-line lyricsText here
-                                    putExtra(
-                                        Intent.EXTRA_TEXT,
-                                        "\"$lyricsText\"\n\n$songTitle - $artists\n$songLink"
-                                    )
-                                }
-                                context.startActivity(
-                                    Intent.createChooser(
-                                        shareIntent,
-                                        context.getString(R.string.share_lyrics)
-                                    )
-                                )
-                                showShareDialog = false
-                            }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.share), // Use new share icon
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = stringResource(R.string.share_as_text),
-                            fontSize = 16.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    // Share as Image Row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                // Pass the potentially multi-line lyrics to the color picker
-                                shareDialogData = Triple(lyricsText, songTitle, artists)
-                                showColorPickerDialog = true
-                                showShareDialog = false
-                            }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.share), // Use new share icon
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = stringResource(R.string.share_as_image),
-                            fontSize = 16.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    // Cancel Button Row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp, bottom = 4.dp),
-                        horizontalArrangement = Arrangement.End,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.cancel),
-                            fontSize = 16.sp,
-                            color = MaterialTheme.colorScheme.error,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier
-                                .clickable { showShareDialog = false }
-                                .padding(vertical = 8.dp, horizontal = 12.dp)
-                        )
-                    }
                 }
-            }
-        }
+                // Share as Image Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            // Pass the potentially multi-line lyrics to the color picker
+                            shareDialogData = Triple(lyricsText, songTitle, artists)
+                            showColorPickerDialog = true
+                            showShareDialog = false
+                        }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.share), // Use new share icon
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(R.string.share_as_image),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            },
+            buttons = {
+                TextButton(onClick = { showShareDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 
     if (showColorPickerDialog && shareDialogData != null) {
@@ -863,28 +827,20 @@ fun Lyrics(
             }
         }
 
-        BasicAlertDialog(onDismissRequest = { showColorPickerDialog = false }) {
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-            ) {
+        DefaultDialog(
+            onDismiss = { showColorPickerDialog = false },
+            title = {
+                Text(
+                    text = stringResource(id = R.string.customize_colors),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            content = {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .verticalScroll(rememberScrollState())
-                        .padding(20.dp)
+                    modifier = Modifier.verticalScroll(rememberScrollState())
                 ) {
-                    Text(
-                        text = stringResource(id = R.string.customize_colors),
-                        style = MaterialTheme.typography.headlineSmall,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -984,9 +940,10 @@ fun Lyrics(
                                         putExtra(Intent.EXTRA_STREAM, uri)
                                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                     }
-                                    context.startActivity(Intent.createChooser(shareIntent, "Share Lyrics"))
+                                    context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_lyrics)))
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Failed to create image: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    reportException(e, "Lyrics image share")
+                                    Toast.makeText(context, context.getString(R.string.lyrics_image_failed, e.message), Toast.LENGTH_SHORT).show()
                                 } finally {
                                     showProgressDialog = false
                                 }
@@ -997,8 +954,8 @@ fun Lyrics(
                         Text(stringResource(id = R.string.share))
                     }
                 }
-            }
-        }
+            },
+        )
         } // إغلاق else block
     }
 }

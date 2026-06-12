@@ -35,6 +35,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.jtech.zemer.R
 import com.jtech.zemer.auth.WebViewGoogleAuthManager
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
 
 /**
  * A dialog that shows a WebView for Google OAuth authentication.
@@ -113,14 +114,14 @@ fun WebViewAuthDialog(
                         },
                         enabled = !isLoading
                     ) {
-                        Text("Create Account & Sync")
+                        Text(stringResource(R.string.sync_account_create_and_sync))
                     }
 
                     TextButton(
                         onClick = onDismiss,
                         enabled = !isLoading
                     ) {
-                        Text("Cancel")
+                        Text(stringResource(android.R.string.cancel))
                     }
                 }
             }

@@ -23,7 +23,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -59,6 +58,7 @@ import coil3.compose.AsyncImage
 import com.jtech.zemer.App
 import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.constants.AccountChannelHandleKey
 import com.jtech.zemer.constants.AccountEmailKey
 import com.jtech.zemer.constants.AccountNameKey
@@ -371,25 +371,17 @@ fun AccountSettings(
 
         // Logout confirmation dialog
         if (showLogoutDialog) {
-            AlertDialog(
-                onDismissRequest = { showLogoutDialog = false },
-                title = { Text("Keep library data?") },
-                text = { Text("Do you want to keep your downloaded songs, playlists, and library data?") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            scope.launch {
-                                App.forgetAccount(context)
-                                Toast.makeText(context, context.getString(R.string.logged_out), Toast.LENGTH_SHORT).show()
-                                showLogoutDialog = false
-                                onClose()
-                            }
-                        }
-                    ) {
-                        Text("Keep")
-                    }
+            DefaultDialog(
+                onDismiss = { showLogoutDialog = false },
+                horizontalAlignment = Alignment.Start,
+                title = { Text(stringResource(R.string.logout_keep_library_title)) },
+                content = {
+                    Text(
+                        text = stringResource(R.string.logout_keep_library_message),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 },
-                dismissButton = {
+                buttons = {
                     TextButton(
                         onClick = {
                             scope.launch {
@@ -401,7 +393,20 @@ fun AccountSettings(
                             }
                         }
                     ) {
-                        Text("Clear")
+                        Text(stringResource(R.string.logout_clear_library))
+                    }
+
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                App.forgetAccount(context)
+                                Toast.makeText(context, context.getString(R.string.logged_out), Toast.LENGTH_SHORT).show()
+                                showLogoutDialog = false
+                                onClose()
+                            }
+                        }
+                    ) {
+                        Text(stringResource(R.string.logout_keep_library))
                     }
                 }
             )

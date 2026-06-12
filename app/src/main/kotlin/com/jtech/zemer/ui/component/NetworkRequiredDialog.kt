@@ -23,6 +23,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.extensions.isInternetConnected
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.jtech.zemer.R
 
 @Composable
 fun NetworkRequiredDialog(
@@ -90,7 +92,7 @@ fun NetworkRequiredDialog(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Retry")
+                    Text(stringResource(R.string.retry))
                 }
             }
         }
