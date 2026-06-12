@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` — a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline — they are not duplicated here.
 
-## `app` Kotlin files (304)
+## `app` Kotlin files (305)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -132,6 +132,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Preference.kt` | 367 | `com.jtech.zemer.ui.component` | yes | 47 | 12 | androidx.compose, kotlin.math |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/SearchBar.kt` | 367 | `com.jtech.zemer.ui.component` | yes | 78 | 30 | androidx.activity, androidx.compose, kotlin.math |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/SortHeader.kt` | 109 | `com.jtech.zemer.ui.component` | yes | 26 | 1 | androidx.compose |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/UpdateDownloadDialog.kt` | 125 | `com.jtech.zemer.ui.component` | yes | 17 | 7 | androidx.compose, java.io |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/WebViewAuthDialog.kt` | 129 | `com.jtech.zemer.ui.component` | yes | 35 | 4 | android.annotation, android.util, android.view, android.webkit, androidx.compose, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/shimmer/ButtonPlaceholder.kt` | 21 | `com.jtech.zemer.ui.component.shimmer` | yes | 9 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/shimmer/GridItemPlaceholder.kt` | 56 | `com.jtech.zemer.ui.component.shimmer` | yes | 17 | 1 | androidx.compose |

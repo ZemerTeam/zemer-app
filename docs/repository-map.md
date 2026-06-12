@@ -77,9 +77,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `766`
+- Files counted: `767`
 - By extension:
-  - `.kt`: `404`
+  - `.kt`: `405`
   - `.xml`: `183`
   - `.mjs`: `54`
   - `.json`: `35`
@@ -117,7 +117,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 11 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
-| `app/build.gradle.kts` | 281 lines | `.kts` |
+| `app/build.gradle.kts` | 279 lines | `.kts` |
 | `app/lint.xml` | 12 lines | `.xml` |
 | `app/proguard-rules.pro` | 257 lines | `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | `.json` |
@@ -286,6 +286,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Preference.kt` | 367 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/SearchBar.kt` | 367 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/SortHeader.kt` | 109 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/UpdateDownloadDialog.kt` | 125 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/WebViewAuthDialog.kt` | 129 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/shimmer/ButtonPlaceholder.kt` | 21 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/shimmer/GridItemPlaceholder.kt` | 56 lines | `.kt` |
@@ -681,7 +682,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/multi_update/04-wiring.md` | 95 lines | `.md` |
 | `docs/multi_update/05-runbook.md` | 83 lines | `.md` |
 | `docs/multi_update/README.md` | 77 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 427 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 428 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 340 lines | `.md` |
 | `docs/reference/resource-index.md` | 288 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
@@ -692,7 +693,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 99 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 110 lines | `.md` |
-| `docs/repository-map.md` | 875 lines | `.md` |
+| `docs/repository-map.md` | 876 lines | `.md` |
 | `docs/ui/README.md` | 329 lines | `.md` |
 | `docs/ui/standards.md` | 157 lines | `.md` |
 | `docs/whitelist/README.md` | 181 lines | `.md` |
