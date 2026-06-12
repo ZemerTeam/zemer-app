@@ -7,11 +7,20 @@ import android.content.pm.PackageInstaller
 import android.os.Build
 import android.widget.Toast
 import com.jtech.zemer.R
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 /** Receives PackageInstaller session status for Shizuku-based installs. */
 class InstallReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_INSTALL_STATUS = "com.jtech.zemer.INSTALL_STATUS"
+
+        // Shizuku installs finish asynchronously here, not in AppInstaller.install (which
+        // returns RequiresUserAction). Re-publish the real outcome so the install UI can show
+        // a failure in-dialog instead of only a toast. Buffered so a tryEmit never drops it.
+        private val _events = MutableSharedFlow<InstallResult>(extraBufferCapacity = 4)
+        val events: SharedFlow<InstallResult> = _events.asSharedFlow()
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -35,6 +44,7 @@ class InstallReceiver : BroadcastReceiver() {
                 // Shizuku's silent install replaces our package and the OS kills this
                 // process; we can't reliably relaunch from here (the Shizuku remote process
                 // is reaped with us), so we just confirm and let the user reopen.
+                _events.tryEmit(InstallResult.Success)
                 Toast.makeText(context, R.string.install_success, Toast.LENGTH_SHORT).show()
             }
 
@@ -47,12 +57,11 @@ class InstallReceiver : BroadcastReceiver() {
             PackageInstaller.STATUS_FAILURE_STORAGE,
             -> {
                 val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
+                    ?: context.getString(R.string.install_failed_generic)
+                _events.tryEmit(InstallResult.Error(message))
                 Toast.makeText(
                     context,
-                    context.getString(
-                        R.string.install_failed,
-                        message ?: context.getString(R.string.install_failed_generic),
-                    ),
+                    context.getString(R.string.install_failed, message),
                     Toast.LENGTH_LONG,
                 ).show()
             }

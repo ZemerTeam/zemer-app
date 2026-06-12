@@ -3,11 +3,13 @@ package com.jtech.zemer.utils.updater
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
@@ -82,6 +84,17 @@ fun rememberApkInstallController(
             permissionLauncher.launch(AppInstaller.getInstallPermissionIntent(context))
         } else {
             runInstall(apkFile)
+        }
+    }
+
+    // Shizuku finishes asynchronously in InstallReceiver (the install() call only commits the
+    // session and returns RequiresUserAction). Forward that real outcome so a failure shows in
+    // the UI instead of only as a toast.
+    val currentOnResult by rememberUpdatedState(onResult)
+    LaunchedEffect(Unit) {
+        InstallReceiver.events.collect { result ->
+            controller.isInstalling = false
+            currentOnResult(result)
         }
     }
 

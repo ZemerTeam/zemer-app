@@ -24,6 +24,8 @@ import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.jtech.zemer.R
 import com.jtech.zemer.utils.reportException
+import org.lsposed.hiddenapibypass.HiddenApiBypass
+import timber.log.Timber
 import com.topjohnwu.superuser.Shell
 import dev.rikka.tools.refine.Refine
 import kotlinx.coroutines.Dispatchers
@@ -45,6 +47,21 @@ sealed class InstallResult {
 
 object AppInstaller {
     private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
+
+    @Volatile
+    private var hiddenApiBypassApplied = false
+
+    /**
+     * Lift the hidden-API denylist so the Shizuku installer can reach the hidden
+     * PackageInstaller constructors (Android 9+). Applied lazily on first Shizuku install
+     * instead of at app startup, so users who never use Shizuku don't pay the cost.
+     */
+    private fun ensureHiddenApiBypass() {
+        if (hiddenApiBypassApplied || Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+        runCatching { HiddenApiBypass.addHiddenApiExemptions("I", "L") }
+            .onFailure { Timber.w(it, "Hidden API bypass unavailable; Shizuku install may fail") }
+        hiddenApiBypassApplied = true
+    }
 
     private fun IBinder.wrap() = ShizukuBinderWrapper(this)
 
@@ -144,10 +161,11 @@ object AppInstaller {
             val sessionId = parseSessionId(createResult.out)
                 ?: return InstallResult.Error(context.getString(R.string.installer_session_id_failed))
 
-            // Pass the APK path directly — pm reads the file itself, avoiding a full
-            // copy of the APK through a shell pipe.
+            // Pass the APK path directly — pm reads the file itself, avoiding a full copy of the
+            // APK through a shell pipe. The split name is just a session-internal label, so use a
+            // fixed safe string rather than interpolating the file name into the shell command.
             val writeResult = Shell.cmd(
-                "pm install-write -S ${apkFile.length()} $sessionId \"${apkFile.name}\" \"${apkFile.absolutePath}\"",
+                "pm install-write -S ${apkFile.length()} $sessionId base.apk \"${apkFile.absolutePath}\"",
             ).exec()
             if (!writeResult.isSuccess) {
                 return InstallResult.Error(writeResult.errorOr(context))
@@ -183,6 +201,7 @@ object AppInstaller {
         if (!hasShizukuPermission()) {
             return InstallResult.Error(context.getString(R.string.shizuku_permission_required))
         }
+        ensureHiddenApiBypass()
 
         return try {
             val iPackageManager = IPackageManager.Stub.asInterface(

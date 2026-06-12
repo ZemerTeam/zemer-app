@@ -16,7 +16,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,12 +45,14 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.CheckForUpdatesKey
 import com.jtech.zemer.constants.InstallerTypeKey
 import com.jtech.zemer.ui.component.IconButton
+import com.jtech.zemer.ui.component.UpdateDownloadDialog
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.UpdateChecker
 import com.jtech.zemer.utils.rememberPreference
+import timber.log.Timber
 import com.jtech.zemer.utils.updater.AppInstaller
 import com.jtech.zemer.utils.updater.InstallResult
 import com.jtech.zemer.utils.updater.InstallerType
@@ -113,7 +114,10 @@ fun UpdaterScreen(
                 installerSelectionError = context.getString(R.string.shizuku_permission_required)
             }
         }
+        // Benign if Shizuku isn't installed/running (the binder is absent) — log, don't crash
+        // or report (it's an expected state, not an error worth Crashlytics noise).
         runCatching { Shizuku.addRequestPermissionResultListener(listener) }
+            .onFailure { Timber.d(it, "Shizuku permission listener not registered (Shizuku unavailable)") }
         onDispose {
             runCatching { Shizuku.removeRequestPermissionResultListener(listener) }
         }
@@ -134,17 +138,24 @@ fun UpdaterScreen(
                 }
             }
 
-            InstallerType.SHIZUKU -> when {
-                !AppInstaller.hasShizukuOrSui(context) ->
+            // Shizuku's checks are binder IPC — run them off the main thread (the ROOT branch
+            // above already does this for its shell check). Persist the selection BEFORE the
+            // async permission grant so leaving the screen mid-grant can't lose it; the install
+            // path re-validates the permission and reports clearly if it is still missing.
+            InstallerType.SHIZUKU -> scope.launch {
+                if (!withContext(Dispatchers.IO) { AppInstaller.hasShizukuOrSui(context) }) {
                     installerSelectionError = context.getString(R.string.installer_shizuku_not_installed)
-
-                !AppInstaller.isShizukuAlive() ->
+                    return@launch
+                }
+                if (!withContext(Dispatchers.IO) { AppInstaller.isShizukuAlive() }) {
                     installerSelectionError = context.getString(R.string.shizuku_not_running)
-
-                AppInstaller.hasShizukuPermission() -> onInstallerTypeChange(type.ordinal)
-
-                else -> runCatching { Shizuku.requestPermission(0) }.onFailure {
-                    installerSelectionError = context.getString(R.string.shizuku_permission_required)
+                    return@launch
+                }
+                onInstallerTypeChange(type.ordinal)
+                if (!withContext(Dispatchers.IO) { AppInstaller.hasShizukuPermission() }) {
+                    runCatching { Shizuku.requestPermission(0) }.onFailure {
+                        installerSelectionError = context.getString(R.string.shizuku_permission_required)
+                    }
                 }
             }
         }
@@ -238,122 +249,29 @@ fun UpdaterScreen(
     if (showResultDialog) {
         when (val result = updateResult) {
             is UpdateChecker.UpdateResult.UpdateAvailable -> {
-                val isDownloading = downloadState is UpdateChecker.DownloadState.Downloading
-                val downloadProgress = (downloadState as? UpdateChecker.DownloadState.Downloading)?.progress ?: 0f
-                val downloadError = (downloadState as? UpdateChecker.DownloadState.Error)?.message
-
-                AlertDialog(
-                    onDismissRequest = {
-                        if (!isDownloading && !isInstalling) {
-                            showResultDialog = false
-                            downloadState = UpdateChecker.DownloadState.Idle
-                            installError = null
-                        }
-                    },
-                    title = { Text(stringResource(R.string.update_available)) },
-                    text = {
-                        Column {
-                            Text(stringResource(R.string.update_available_message, result.currentVersion, result.latestVersion))
-                            if (!result.notes.isNullOrBlank()) {
-                                Spacer(Modifier.height(12.dp))
-                                Text(
-                                    text = stringResource(R.string.whats_new),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = result.notes,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                            if (isDownloading) {
-                                Spacer(Modifier.height(16.dp))
-                                Text(
-                                    text = stringResource(R.string.downloading_update),
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                if (downloadProgress >= 0) {
-                                    LinearProgressIndicator(
-                                        progress = { downloadProgress },
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        text = "${(downloadProgress * 100).toInt()}%",
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                } else {
-                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                                }
-                            }
-                            if (isInstalling) {
-                                Spacer(Modifier.height(16.dp))
-                                Text(
-                                    text = stringResource(R.string.installing),
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                                // Heads-up: a silent install closes/restarts the app
-                                val installNote = when (installerType) {
-                                    InstallerType.ROOT -> R.string.installing_note_restart
-                                    InstallerType.SHIZUKU -> R.string.installing_note_reopen
-                                    InstallerType.NATIVE -> null
-                                }
-                                installNote?.let {
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        text = stringResource(it),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            val errorText = installError?.let { stringResource(R.string.install_failed, it) } ?: downloadError
-                            if (errorText != null) {
-                                Spacer(Modifier.height(12.dp))
-                                Text(
-                                    text = errorText,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error
-                                )
+                UpdateDownloadDialog(
+                    currentVersion = result.currentVersion,
+                    latestVersion = result.latestVersion,
+                    notes = result.notes,
+                    downloadState = downloadState,
+                    isInstalling = isInstalling,
+                    installError = installError,
+                    installerType = installerType,
+                    onDownload = {
+                        downloadState = UpdateChecker.DownloadState.Downloading(0f)
+                        installError = null
+                        scope.launch {
+                            UpdateChecker.downloadUpdate(context).collectLatest { state ->
+                                downloadState = state
                             }
                         }
                     },
-                    confirmButton = {
-                        if (!isDownloading && !isInstalling) {
-                            val downloadedApk = (downloadState as? UpdateChecker.DownloadState.Downloaded)?.apkFile
-                            if (downloadedApk != null) {
-                                // Download finished but install failed or needs retry
-                                TextButton(onClick = { installWithPermissionCheck(downloadedApk) }) {
-                                    Text(stringResource(R.string.install))
-                                }
-                            } else {
-                                TextButton(onClick = {
-                                    downloadState = UpdateChecker.DownloadState.Downloading(0f)
-                                    installError = null
-                                    scope.launch {
-                                        UpdateChecker.downloadUpdate(context).collectLatest { state ->
-                                            downloadState = state
-                                        }
-                                    }
-                                }) {
-                                    Text(stringResource(R.string.download_and_install))
-                                }
-                            }
-                        }
+                    onInstall = { apk -> installWithPermissionCheck(apk) },
+                    onDismiss = {
+                        showResultDialog = false
+                        downloadState = UpdateChecker.DownloadState.Idle
+                        installError = null
                     },
-                    dismissButton = {
-                        if (!isDownloading && !isInstalling) {
-                            TextButton(onClick = {
-                                showResultDialog = false
-                                downloadState = UpdateChecker.DownloadState.Idle
-                                installError = null
-                            }) {
-                                Text(stringResource(R.string.later))
-                            }
-                        }
-                    }
                 )
             }
             is UpdateChecker.UpdateResult.UpToDate -> {

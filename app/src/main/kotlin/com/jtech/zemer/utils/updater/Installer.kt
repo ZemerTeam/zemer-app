@@ -10,10 +10,12 @@ import com.jtech.zemer.R
  */
 enum class InstallerType(
     @StringRes val title: Int,
+    /** Heads-up shown while installing, warning the user the app will close/restart; null = none. */
+    @StringRes val installingNote: Int?,
 ) {
-    NATIVE(R.string.installer_native_title),
-    ROOT(R.string.installer_root_title),
-    SHIZUKU(R.string.installer_shizuku_title);
+    NATIVE(R.string.installer_native_title, installingNote = null),
+    ROOT(R.string.installer_root_title, installingNote = R.string.installing_note_restart),
+    SHIZUKU(R.string.installer_shizuku_title, installingNote = R.string.installing_note_reopen);
 
     companion object {
         /** Resolve a persisted ordinal, falling back to [NATIVE] for unknown values. */

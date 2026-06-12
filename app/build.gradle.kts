@@ -21,6 +21,8 @@ android {
         applicationId = "com.jtech.zemer"
         minSdk = 26
         targetSdk = 36
+        // TEMP — kept at 30 (below the published release) to exercise the in-app update flow.
+        // RESTORE to 31+ before release/merge; a released build must never go below the store version.
         versionCode = 30
         versionName = "30"
         buildConfigField("String", "ARCHITECTURE", "\"universal\"")
