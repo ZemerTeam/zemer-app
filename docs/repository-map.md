@@ -77,7 +77,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `772`
+- Files counted: `773`
 - By extension:
   - `.kt`: `410`
   - `.xml`: `183`
@@ -94,11 +94,11 @@ The following inventory is generated from repository files outside `.git`, `.gra
   - `.sh`: `3`
   - `.dm`: `2`
   - `.png`: `2`
+  - `.py`: `2`
   - `.backup`: `1`
   - `.bat`: `1`
   - `.jar`: `1`
   - `.pro`: `1`
-  - `.py`: `1`
   - `.toml`: `1`
   - `.tsv`: `1`
   - `.txt`: `1`
@@ -688,7 +688,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/multi_update/05-runbook.md` | 83 lines | `.md` |
 | `docs/multi_update/README.md` | 77 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 433 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 340 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 341 lines | `.md` |
 | `docs/reference/resource-index.md` | 288 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
 | `docs/remote_cipher_config/02-file-format.md` | 116 lines | `.md` |
@@ -698,7 +698,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 99 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 110 lines | `.md` |
-| `docs/repository-map.md` | 881 lines | `.md` |
+| `docs/repository-map.md` | 882 lines | `.md` |
 | `docs/ui/README.md` | 329 lines | `.md` |
 | `docs/ui/standards.md` | 172 lines | `.md` |
 | `docs/whitelist/README.md` | 181 lines | `.md` |
@@ -815,6 +815,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `scripts/telegram-chats.sh` | 38 lines | `.sh` |
 | `scripts/ui-audit-baseline.tsv` | 21 lines | `.tsv` |
 | `scripts/ui-audit.sh` | 92 lines | `.sh` |
+| `scripts/ui-strings-scan.py` | 96 lines | `.py` |
 | `settings.gradle.kts` | 56 lines | `.kts` |
 | `simpmusic/build.gradle.kts` | 15 lines | `.kts` |
 | `simpmusic/src/main/kotlin/com/metrolist/simpmusic/SimpMusicLyrics.kt` | 119 lines | `.kt` |
