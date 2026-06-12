@@ -87,6 +87,7 @@ import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
+import androidx.compose.ui.res.stringResource
 
 data class MiniPlayerFocusTargets(
     val play: FocusRequester,
@@ -445,7 +446,7 @@ private fun NewMiniPlayer(
                             exit = fadeOut(),
                         ) {
                             Text(
-                                text = "Error playing",
+                                text = stringResource(R.string.error_playing),
                                 color = MaterialTheme.colorScheme.error,
                                 fontSize = 10.sp,
                                 maxLines = 1,

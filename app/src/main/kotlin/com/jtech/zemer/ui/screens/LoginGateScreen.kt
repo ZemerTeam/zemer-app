@@ -112,7 +112,7 @@ fun LoginGateScreen(
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "Sign in to continue",
+                    text = stringResource(R.string.sign_in_to_continue),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center

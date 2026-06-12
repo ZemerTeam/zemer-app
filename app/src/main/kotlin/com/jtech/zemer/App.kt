@@ -265,7 +265,7 @@ class App : Application(), SingletonImageLoader.Factory {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@App, "Failed to parse proxy url.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@App, getString(R.string.proxy_url_parse_failed), Toast.LENGTH_SHORT).show()
                 }
                 reportException(e)
             }

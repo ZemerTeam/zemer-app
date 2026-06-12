@@ -76,19 +76,19 @@ fun WebViewAuthDialog(
                 if (isLoading) {
                     CircularProgressIndicator()
                     Text(
-                        text = "Signing in...",
+                        text = stringResource(R.string.signing_in),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(top = 16.dp)
                     )
                 } else {
                     Text(
-                        text = "Sync Your Settings",
+                        text = stringResource(R.string.sync_your_settings),
                         style = MaterialTheme.typography.headlineSmall,
                         textAlign = TextAlign.Center
                     )
 
                     Text(
-                        text = "Create an anonymous account to sync and backup your preferences across devices. You can link this to a Google account later.",
+                        text = stringResource(R.string.sync_account_intro_link_later),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(vertical = 16.dp)

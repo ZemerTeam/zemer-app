@@ -111,6 +111,7 @@ fun TopPlaylistScreen(
     val haptic = LocalHapticFeedback.current
     val focusManager = LocalFocusManager.current
     val playerConnection = LocalPlayerConnection.current ?: return
+    val autoPlaylistTitle = stringResource(R.string.queue_auto_playlist)
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val maxSize = viewModel.top
@@ -361,7 +362,7 @@ fun TopPlaylistScreen(
                                         onClick = {
                                             playerConnection.playQueue(
                                                 ListQueue(
-                                                    title = "Auto Playlist",
+                                                    title = autoPlaylistTitle,
                                                     items = songs!!.map { it.toMediaItem() },
                                                 ),
                                             )

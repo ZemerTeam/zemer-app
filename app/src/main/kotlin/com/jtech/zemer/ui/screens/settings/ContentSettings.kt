@@ -356,7 +356,7 @@ fun ContentSettings(
             isEnabled = enableContentFilters && togglesEnabled
         )
 
-        PreferenceGroupTitle(title = "Recommendations")
+        PreferenceGroupTitle(title = stringResource(R.string.recommendations))
         SwitchPreference(
             title = { Text(stringResource(R.string.i_am_chasidish)) },
             icon = { Icon(painterResource(R.drawable.person), null) },
@@ -520,7 +520,7 @@ private fun SyncStatusCard(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Text(
-                    text = "Content Filter Sync",
+                    text = stringResource(R.string.content_filter_sync),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f)
@@ -536,14 +536,14 @@ private fun SyncStatusCard(
                     authState.isSignedIn -> {
                         Icon(
                             painter = painterResource(R.drawable.check),
-                            contentDescription = "Signed in",
+                            contentDescription = stringResource(R.string.signed_in),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
                     else -> {
                         Icon(
                             painter = painterResource(R.drawable.person),
-                            contentDescription = "Not signed in",
+                            contentDescription = stringResource(R.string.not_signed_in),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -556,7 +556,7 @@ private fun SyncStatusCard(
                 isAutoRestored && restoredEmail != null -> {
                     // Auto-restored from server without sign-in
                     Text(
-                        text = "Content filter preferences have been automatically restored from your account.",
+                        text = stringResource(R.string.content_filters_restored),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -575,7 +575,7 @@ private fun SyncStatusCard(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Restored from: $restoredEmail",
+                            text = stringResource(R.string.restored_from, restoredEmail),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium
@@ -596,7 +596,7 @@ private fun SyncStatusCard(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Lock Settings")
+                            Text(stringResource(R.string.lock_settings))
                         }
                     }
                 }
@@ -641,7 +641,7 @@ private fun SyncStatusCard(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "ID: ${userInfo.second}",
+                                text = stringResource(R.string.user_id_format, userInfo.second),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontFamily = FontFamily.Monospace
@@ -652,7 +652,7 @@ private fun SyncStatusCard(
                 else -> {
                     // User is not signed in and not auto-restored
                     Text(
-                        text = "Create an account to sync your content filter preferences and restore them after app reinstallation.",
+                        text = stringResource(R.string.sync_account_create_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -671,7 +671,7 @@ private fun SyncStatusCard(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Create Account to Lock")
+                            Text(stringResource(R.string.create_account_to_lock))
                         }
                     }
                     // If locked, show no buttons - settings are permanently locked

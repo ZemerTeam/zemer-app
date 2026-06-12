@@ -78,6 +78,8 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.util.lerp
 import com.jtech.zemer.constants.AppBarHeight
 import kotlin.math.max
+import androidx.compose.ui.res.stringResource
+import com.jtech.zemer.R
 
 @ExperimentalMaterial3Api
 @Composable
@@ -254,6 +256,8 @@ private fun SearchBarInputField(
     downFocusRequester: FocusRequester? = null,
     trailingFocusRequester: FocusRequester? = null,
 ) {
+    val searchContentDescription = stringResource(R.string.search)
+    val suggestionsStateDescription = stringResource(R.string.cd_suggestions_available)
     val focused = interactionSource.collectIsFocusedAsState().value
     val textColor = LocalTextStyle.current.color.takeOrElse {
         if (focused) colors.focusedTextColor else colors.unfocusedTextColor
@@ -322,9 +326,9 @@ private fun SearchBarInputField(
                     }
                 }
                 .semantics {
-                    contentDescription = "Search"
+                    contentDescription = searchContentDescription
                     if (active) {
-                        stateDescription = "Suggestions available"
+                        stateDescription = suggestionsStateDescription
                     }
                 },
             enabled = enabled,

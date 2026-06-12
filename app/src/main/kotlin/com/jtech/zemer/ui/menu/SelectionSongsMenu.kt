@@ -70,6 +70,7 @@ fun SelectionSongMenu(
     val downloadUtil = LocalDownloadUtil.current
     val coroutineScope = rememberCoroutineScope()
     val playerConnection = LocalPlayerConnection.current ?: return
+    val selectionQueueTitle = stringResource(R.string.queue_selection)
     val syncUtils = LocalSyncUtils.current
     var showReportDialog by remember { mutableStateOf(false) }
     var targetSong by remember { mutableStateOf<Song?>(null) }
@@ -217,7 +218,7 @@ fun SelectionSongMenu(
                             onDismiss()
                             playerConnection.playQueue(
                                 ListQueue(
-                                    title = "Selection",
+                                    title = selectionQueueTitle,
                                     items = songSelection.map { it.toMediaItem() },
                                 ),
                             )
@@ -238,7 +239,7 @@ fun SelectionSongMenu(
                             onDismiss()
                             playerConnection.playQueue(
                                 ListQueue(
-                                    title = "Selection",
+                                    title = selectionQueueTitle,
                                     items = songSelection.shuffled().map { it.toMediaItem() },
                                 ),
                             )
@@ -294,7 +295,7 @@ fun SelectionSongMenu(
                     onDismiss()
                     playerConnection.playQueue(
                         ListQueue(
-                            title = "Selection",
+                            title = selectionQueueTitle,
                             items = songSelection.map { it.toMediaItem() },
                         ),
                     )
@@ -315,7 +316,7 @@ fun SelectionSongMenu(
                     onDismiss()
                     playerConnection.playQueue(
                         ListQueue(
-                            title = "Selection",
+                            title = selectionQueueTitle,
                             items = songSelection.shuffled().map { it.toMediaItem() },
                         ),
                     )
@@ -527,6 +528,7 @@ fun SelectionMediaMetadataMenu(
     val downloadUtil = LocalDownloadUtil.current
     val coroutineScope = rememberCoroutineScope()
     val playerConnection = LocalPlayerConnection.current ?: return
+    val selectionQueueTitle = stringResource(R.string.queue_selection)
 
     val allLiked by remember(songSelection) {
         mutableStateOf(songSelection.isNotEmpty() && songSelection.all { it.liked })
@@ -655,7 +657,7 @@ fun SelectionMediaMetadataMenu(
                     onDismiss()
                     playerConnection.playQueue(
                         ListQueue(
-                            title = "Selection",
+                            title = selectionQueueTitle,
                             items = songSelection.map { it.toMediaItem() },
                         ),
                     )
@@ -676,7 +678,7 @@ fun SelectionMediaMetadataMenu(
                     onDismiss()
                     playerConnection.playQueue(
                         ListQueue(
-                            title = "Selection",
+                            title = selectionQueueTitle,
                             items = songSelection.shuffled().map { it.toMediaItem() },
                         ),
                     )

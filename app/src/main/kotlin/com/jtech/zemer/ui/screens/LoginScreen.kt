@@ -83,7 +83,7 @@ fun LoginScreen(
                             android.util.Log.d("LoginScreen", "Blocked URL: $url")
                             // Show "Blocked" message
                             coroutineScope.launch {
-                                Toast.makeText(context, "Blocked", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.blocked), Toast.LENGTH_SHORT).show()
                             }
                             return true // Block the URL
                         }

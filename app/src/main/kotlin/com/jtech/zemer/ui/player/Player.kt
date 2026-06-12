@@ -575,10 +575,10 @@ fun BottomSheetPlayer(
                                             }
                                         },
                                         onLongClick = {
-                                            val clip = ClipData.newPlainText("Copied Title", title)
+                                            val clip = ClipData.newPlainText(context.getString(R.string.clip_label_title), title)
                                             clipboardManager.setPrimaryClip(clip)
                                             Toast
-                                                .makeText(context, "Copied Title", Toast.LENGTH_SHORT)
+                                                .makeText(context, context.getString(R.string.copied), Toast.LENGTH_SHORT)
                                                 .show()
                                         }
                                     )
@@ -660,7 +660,7 @@ fun BottomSheetPlayer(
                                         },
                                         onLongClick = {
                                             val clip =
-                                                ClipData.newPlainText("Copied Artist", annotatedString)
+                                                ClipData.newPlainText(context.getString(R.string.clip_label_artist), annotatedString)
                                             clipboardManager.setPrimaryClip(clip)
                                             Toast
                                                 .makeText(

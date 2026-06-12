@@ -83,7 +83,7 @@ fun SettingsScreen(
         SettingItem(
             id = "appearance",
             title = stringResource(R.string.appearance),
-            description = "Theme, colors, density",
+            description = stringResource(R.string.settings_desc_appearance),
             icon = R.drawable.palette,
             section = "Interface",
             route = "settings/appearance"
@@ -91,7 +91,7 @@ fun SettingsScreen(
         SettingItem(
             id = "player",
             title = stringResource(R.string.player_and_audio),
-            description = "Audio quality, playback",
+            description = stringResource(R.string.settings_desc_player),
             icon = R.drawable.play,
             section = "Player & Content",
             route = "settings/player"
@@ -107,7 +107,7 @@ fun SettingsScreen(
         SettingItem(
             id = "content",
             title = stringResource(R.string.content),
-            description = "Language, content settings",
+            description = stringResource(R.string.settings_desc_content),
             icon = R.drawable.language,
             section = "Player & Content",
             route = "settings/content"
@@ -115,7 +115,7 @@ fun SettingsScreen(
         SettingItem(
             id = "dpad",
             title = stringResource(R.string.settings_button_setup),
-            description = "D-pad configuration",
+            description = stringResource(R.string.settings_desc_dpad),
             icon = R.drawable.swipe,
             section = "Player & Content",
             route = "settings/dpad"
@@ -123,7 +123,7 @@ fun SettingsScreen(
         SettingItem(
             id = "general",
             title = stringResource(R.string.links),
-            description = "Link handling settings",
+            description = stringResource(R.string.settings_desc_links),
             icon = R.drawable.link,
             section = "Player & Content",
             route = "settings/general"
@@ -131,7 +131,7 @@ fun SettingsScreen(
         SettingItem(
             id = "privacy",
             title = stringResource(R.string.privacy),
-            description = "History, privacy settings",
+            description = stringResource(R.string.settings_desc_privacy),
             icon = R.drawable.security,
             section = "Privacy & Security",
             route = "settings/privacy"
@@ -139,7 +139,7 @@ fun SettingsScreen(
         SettingItem(
             id = "storage",
             title = stringResource(R.string.storage),
-            description = "Cache management",
+            description = stringResource(R.string.settings_desc_storage),
             icon = R.drawable.storage,
             section = "Storage & Data",
             route = "settings/storage"
@@ -147,7 +147,7 @@ fun SettingsScreen(
         SettingItem(
             id = "backup",
             title = stringResource(R.string.backup_restore),
-            description = "Backup your data",
+            description = stringResource(R.string.settings_desc_backup),
             icon = R.drawable.restore,
             section = "Storage & Data",
             route = "settings/backup_restore"
@@ -155,7 +155,7 @@ fun SettingsScreen(
         SettingItem(
             id = "updater",
             title = stringResource(R.string.updater),
-            description = "Check for app updates",
+            description = stringResource(R.string.settings_desc_updater),
             icon = R.drawable.update,
             section = "System & About",
             route = "settings/updater"
@@ -163,7 +163,7 @@ fun SettingsScreen(
         SettingItem(
             id = "about",
             title = stringResource(R.string.about),
-            description = "About Zemer",
+            description = stringResource(R.string.settings_desc_about),
             icon = R.drawable.info,
             section = "System & About",
             route = "settings/about"
@@ -174,7 +174,7 @@ fun SettingsScreen(
             SettingItem(
                 id = "android_auto",
                 title = stringResource(R.string.android_auto),
-                description = "Customize browsing & quick-add",
+                description = stringResource(R.string.settings_desc_android_auto),
                 icon = R.drawable.ic_android_auto,
                 section = "Android Auto",
                 route = "settings/android_auto"

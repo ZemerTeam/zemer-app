@@ -62,14 +62,14 @@ fun NetworkRequiredDialog(
             if (isRetrying) {
                 CircularProgressIndicator()
                 Text(
-                    text = "Checking connection...",
+                    text = stringResource(R.string.network_checking_connection),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 16.dp),
                     textAlign = TextAlign.Center
                 )
             } else {
                 Text(
-                    text = "Internet Connection Required",
+                    text = stringResource(R.string.network_required_title),
                     style = MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center
                 )
@@ -77,7 +77,7 @@ fun NetworkRequiredDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "Please connect to Wi-Fi or mobile data to continue. An internet connection is required to save your preferences and settings.",
+                    text = stringResource(R.string.network_required_message),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

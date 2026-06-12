@@ -465,7 +465,7 @@ fun VideoPlayerScreen(
                             )
                         )
                     }
-                    Toast.makeText(context, "Video saved to Movies/Zemer", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.video_saved), Toast.LENGTH_LONG).show()
                 } else {
                     error("Failed to save video to MediaStore")
                 }
@@ -511,10 +511,10 @@ fun VideoPlayerScreen(
                 true
             }
             if (!entered) {
-                Toast.makeText(context, "Unable to start PiP", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.pip_unable), Toast.LENGTH_SHORT).show()
             }
         } catch (e: IllegalStateException) {
-            Toast.makeText(context, "PiP unavailable: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.pip_unavailable, e.localizedMessage), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -603,7 +603,7 @@ fun VideoPlayerScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(text = loadError ?: "Playback error", color = Color.White)
+                        Text(text = loadError ?: stringResource(R.string.video_playback_error), color = Color.White)
                         TextButton(onClick = { reloadKey++ }) {
                             Text(stringResource(R.string.retry), color = MaterialTheme.colorScheme.primary)
                         }
@@ -743,7 +743,7 @@ fun VideoPlayerScreen(
                                         IconButton(
                                             onClick = {
                                                 markInteraction()
-                                                val clip = ClipData.newPlainText("Video link", VideoLinkBuilder.videoLink(videoId))
+                                                val clip = ClipData.newPlainText(context.getString(R.string.clip_label_video_link), VideoLinkBuilder.videoLink(videoId))
                                                 clipboard?.setPrimaryClip(clip)
                                                 Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
                                             },
@@ -791,7 +791,7 @@ fun VideoPlayerScreen(
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                             Text(
-                                                text = artistName ?: "Unknown artist",
+                                                text = artistName ?: stringResource(R.string.unknown_artist),
                                                 color = Color.LightGray,
                                                 style = MaterialTheme.typography.labelMedium,
                                                 maxLines = 1,
@@ -814,7 +814,7 @@ fun VideoPlayerScreen(
                                                 }) {
                                                     Icon(
                                                         painter = painterResource(R.drawable.download),
-                                                        contentDescription = "Download"
+                                                        contentDescription = stringResource(R.string.action_download)
                                                     )
                                                 }
                                             }
@@ -830,7 +830,7 @@ fun VideoPlayerScreen(
                                                 }) {
                                                     Icon(
                                                         painter = painterResource(R.drawable.ic_video_hd),
-                                                        contentDescription = "Quality"
+                                                        contentDescription = stringResource(R.string.video_quality)
                                                     )
                                                 }
                                             }
@@ -887,7 +887,7 @@ fun VideoPlayerScreen(
                                         ) {
                                             Icon(
                                                 painter = painterResource(R.drawable.ic_speedometer),
-                                                contentDescription = "Speed"
+                                                contentDescription = stringResource(R.string.video_playback_speed)
                                             )
                                         }
                                         OutlinedIconButton(
@@ -899,7 +899,7 @@ fun VideoPlayerScreen(
                                         ) {
                                             Icon(
                                                 painter = painterResource(R.drawable.skip_previous),
-                                                contentDescription = "Previous"
+                                                contentDescription = stringResource(R.string.cd_previous)
                                             )
                                         }
                                         OutlinedIconButton(
@@ -911,7 +911,7 @@ fun VideoPlayerScreen(
                                         ) {
                                             Icon(
                                                 painter = painterResource(if (isPlaying) R.drawable.pause else R.drawable.play),
-                                                contentDescription = if (isPlaying) "Pause" else "Play"
+                                                contentDescription = if (isPlaying) stringResource(R.string.cd_pause) else stringResource(R.string.play)
                                             )
                                         }
                                         OutlinedIconButton(
@@ -923,7 +923,7 @@ fun VideoPlayerScreen(
                                         ) {
                                             Icon(
                                                 painter = painterResource(R.drawable.skip_next),
-                                                contentDescription = "Next"
+                                                contentDescription = stringResource(R.string.cd_next)
                                             )
                                         }
                                         OutlinedIconButton(
@@ -935,7 +935,7 @@ fun VideoPlayerScreen(
                                         ) {
                                             Icon(
                                                 painter = painterResource(R.drawable.ic_fullscreen),
-                                                contentDescription = "Fullscreen"
+                                                contentDescription = stringResource(R.string.cd_fullscreen)
                                             )
                                         }
                                     }

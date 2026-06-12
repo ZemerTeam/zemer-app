@@ -826,7 +826,7 @@ fun AppearanceSettings(
             },
             extraContent = {
                 Text(
-                    text = "Enter a value between 50% and 120%.\n\nExamples: 85 or 0.85 for 85%",
+                    text = stringResource(R.string.density_custom_hint),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -853,7 +853,7 @@ fun AppearanceSettings(
                         Runtime.getRuntime().exit(0)
                     }
                 ) {
-                    Text(text = "Restart")
+                    Text(text = stringResource(R.string.restart))
                 }
             }
         ) {
@@ -861,11 +861,11 @@ fun AppearanceSettings(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Restart Required",
+                    text = stringResource(R.string.restart_required),
                     style = MaterialTheme.typography.titleLarge
                 )
                 Text(
-                    text = "The display density change will take effect after restarting the app. Do you want to restart now?",
+                    text = stringResource(R.string.restart_required_message),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -905,13 +905,13 @@ fun AppearanceSettings(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Bottom Navigation Items",
+                    text = stringResource(R.string.bottom_nav_items),
                     style = MaterialTheme.typography.titleMedium,
                     color = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurface
                 )
 
                 Text(
-                    text = "${currentSelectedItems.size}/5 selected",
+                    text = stringResource(R.string.bottom_nav_n_selected, currentSelectedItems.size),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (pureBlack) Color.LightGray else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.End)
@@ -979,7 +979,7 @@ fun AppearanceSettings(
 
                 if (currentSelectedItems.isEmpty()) {
                     Text(
-                        text = "Select at least 1 item",
+                        text = stringResource(R.string.bottom_nav_select_one),
                         color = if (pureBlack) Color.Red else MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall
                     )

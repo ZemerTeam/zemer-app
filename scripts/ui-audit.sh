@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# UI standards audit (docs/ui/standards.md, sections 7-8: dialogs, theme & color).
+# UI standards audit (docs/ui/standards.md, sections 5, 7-8: strings, dialogs, theme & color).
 #
-# Ratcheting check: it FAILS only on NEW Rule 7/8 violations beyond the committed baseline
+# Ratcheting check: it FAILS only on NEW Rule 5/7/8 violations beyond the committed baseline
 # (scripts/ui-audit-baseline.tsv). The current known violations are allowlisted, so CI is green
 # today and the count can only shrink — fix some, then run --update to tighten the baseline.
 #
@@ -13,6 +13,10 @@
 #   R8-hex         hardcoded `Color(0x..)` -> use MaterialTheme.colorScheme
 #   R7-alertdialog raw `AlertDialog(` / `BasicAlertDialog(` outside component/Dialog.kt
 #                  -> use the Dialog.kt helpers (DefaultDialog etc.); baseline is zero
+#   R5-hardcoded   hardcoded user-facing text (Text("..."), text = "...",
+#                  contentDescription = "...", Toast literals) -> stringResource /
+#                  context.getString with metrolist_strings.xml; baseline is zero.
+#                  Pure-interpolation strings ("${...}%") are not matched.
 #
 # Genuine fixed-value exceptions (AMOLED pure-black, the lyric-image *export*, color-picker
 # swatches) are allowed: they live in the baseline. Keep them minimal; --update records them.
@@ -31,6 +35,8 @@ violations() {
     | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR8-hex/'
   grep -rnE "(^|[^.A-Za-z])(Basic)?AlertDialog\(" "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | grep -v "component/Dialog.kt" | sed -E 's/:.*//' | sed 's/$/\tR7-alertdialog/'
+  grep -rnE "(^|[^A-Za-z])Text\([[:space:]]*\"[A-Za-z]|(^|[^A-Za-z])text[[:space:]]*=[[:space:]]*\"[A-Za-z]|contentDescription[[:space:]]*=[[:space:]]*\"[A-Za-z]|Toast\.makeText\([^,]+,[[:space:]]*\"[A-Za-z]" "$UI" --include=*.kt 2>/dev/null \
+    | grep -v "/theme/" | grep -vE "stringResource|getString" | sed -E 's/:[0-9]+:.*$//' | sed 's/$/\tR5-hardcoded/'
 }
 
 # Aggregate to "<path>\t<rule>\t<count>", sorted.
@@ -65,18 +71,19 @@ improved="$(awk -F'\t' '
 ' <(printf "%s\n" "$cur") "$BASELINE")"
 
 if [ -n "$new" ]; then
-  echo "UI audit FAILED — new Rule 7/8 violations (docs/ui/standards.md sections 7-8):"
+  echo "UI audit FAILED — new Rule 5/7/8 violations (docs/ui/standards.md sections 5, 7-8):"
   echo "$new"
   echo
   echo "Route font sizes through MaterialTheme.typography (Type.kt), colors through"
-  echo "MaterialTheme.colorScheme, and dialogs through the Dialog.kt helpers (DefaultDialog etc.)."
+  echo "MaterialTheme.colorScheme, dialogs through the Dialog.kt helpers (DefaultDialog etc.),"
+  echo "and user-facing text through stringResource() with metrolist_strings.xml."
   echo "If a fixed value is genuinely required, keep it minimal and record it with:"
   echo "  bash scripts/ui-audit.sh --update"
   exit 1
 fi
 
 total="$(violations | grep -c .)"
-echo "UI audit passed — no new Rule 7/8 violations (baseline: $total known, only allowed to shrink)."
+echo "UI audit passed — no new Rule 5/7/8 violations (baseline: $total known, only allowed to shrink)."
 if [ -n "$improved" ]; then
   echo "Burned down since the baseline — tighten it with \`bash scripts/ui-audit.sh --update\`:"
   echo "$improved"

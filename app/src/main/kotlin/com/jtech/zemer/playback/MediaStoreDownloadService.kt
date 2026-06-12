@@ -50,7 +50,6 @@ class MediaStoreDownloadService : Service() {
 
     companion object {
         private const val NOTIFICATION_CHANNEL_ID = "mediastore_download"
-        private const val NOTIFICATION_CHANNEL_NAME = "Music Downloads"
         private const val NOTIFICATION_ID = 100
 
         const val ACTION_CANCEL_DOWNLOAD = "com.jtech.zemer.CANCEL_DOWNLOAD"
@@ -156,10 +155,10 @@ class MediaStoreDownloadService : Service() {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             NOTIFICATION_CHANNEL_ID,
-            NOTIFICATION_CHANNEL_NAME,
+            getString(R.string.download_channel_name),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Notifications for music download progress"
+            description = getString(R.string.download_channel_desc)
             setShowBadge(false)
         }
         notificationManager.createNotificationChannel(channel)
@@ -167,7 +166,7 @@ class MediaStoreDownloadService : Service() {
 
     private fun createInitialNotification(): Notification {
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("Preparing downloads...")
+            .setContentTitle(getString(R.string.download_preparing))
             .setSmallIcon(R.drawable.download)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -288,7 +287,7 @@ class MediaStoreDownloadService : Service() {
 
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle(title)
-            .setContentText("Music downloads in progress")
+            .setContentText(getString(R.string.download_in_progress))
             .setSmallIcon(R.drawable.download)
             .setProgress(100, (avgProgress * 100).toInt(), avgProgress == 0f)
             .setOngoing(true)

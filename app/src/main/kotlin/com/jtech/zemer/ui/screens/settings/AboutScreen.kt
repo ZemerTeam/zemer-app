@@ -106,12 +106,12 @@ fun AboutScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Zemer",
+                        text = stringResource(R.string.app_name),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        text = "An audio-first YouTube Music experience",
+                        text = stringResource(R.string.about_tagline),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -124,7 +124,7 @@ fun AboutScreen(
                 ) {
                     AssistChip(
                         onClick = {},
-                        label = { Text("Version ${BuildConfig.VERSION_NAME}") },
+                        label = { Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME)) },
                         colors = AssistChipDefaults.assistChipColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
                             labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -139,14 +139,14 @@ fun AboutScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        text = "Created by Ars18 and TripleU",
+                        text = stringResource(R.string.about_created_by),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Medium,
                     )
                 }
 
                 Text(
-                    text = "Based on Metrolist by MO AGAMY",
+                    text = stringResource(R.string.about_based_on),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -163,7 +163,7 @@ fun AboutScreen(
                         contentDescription = null
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text("GitHub")
+                    Text(stringResource(R.string.github))
                 }
             }
         }

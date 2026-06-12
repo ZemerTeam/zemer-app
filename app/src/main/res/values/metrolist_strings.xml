@@ -376,4 +376,132 @@
     <!-- Display density -->
     <string name="display_density">Display Density</string>
     <string name="display_density_custom">Custom Display Density</string>
+    <string name="density_custom_hint" formatted="false">Enter a value between 50% and 120%.\n\nExamples: 85 or 0.85 for 85%</string>
+    <string name="restart_required_message">The display density change will take effect after restarting the app. Do you want to restart now?</string>
+
+    <!-- Network state -->
+    <string name="network_checking">Checking…</string>
+    <string name="network_checking_connection">Checking connection…</string>
+    <string name="network_checking_internet">Checking internet connection…</string>
+    <string name="network_connected">Connected to internet</string>
+    <string name="network_no_connection">No internet connection</string>
+    <string name="network_internet_required">Internet Required</string>
+    <string name="network_required_title">Internet Connection Required</string>
+    <string name="network_required_message">Please connect to Wi-Fi or mobile data to continue. An internet connection is required to save your preferences and settings.</string>
+    <string name="network_required_to_continue">An internet connection is required to continue.</string>
+    <string name="network_required_setup">An internet connection is required to continue with setup and save your preferences.</string>
+
+    <!-- Sync account (auth dialogs and status) -->
+    <string name="signing_in">Signing in…</string>
+    <string name="sync_your_settings">Sync Your Settings</string>
+    <string name="sync_account_creating_short">Creating account…</string>
+    <string name="sync_account_intro_no_google">Create an anonymous account to sync and backup your preferences across devices. No Google account required.</string>
+    <string name="sync_account_intro_link_later">Create an anonymous account to sync and backup your preferences across devices. You can link this to a Google account later.</string>
+    <string name="sync_account_lock_note">Your settings will be locked and backed up to prevent accidental changes.</string>
+    <string name="sync_account_create_desc">Create an account to sync your content filter preferences and restore them after app reinstallation.</string>
+    <string name="sync_account_created">Sync Account Created</string>
+    <string name="sync_account_optional_create">Optional: Create Sync Account</string>
+    <string name="sync_account_locked_backed_up">Settings will be locked and backed up</string>
+    <string name="sync_account_connect_to_lock">Connect to lock settings</string>
+    <string name="sync_account_active">Active</string>
+    <string name="sync_account_optional">Optional</string>
+    <string name="content_filter_sync">Content Filter Sync</string>
+    <string name="content_filters_restored">Content filter preferences have been automatically restored from your account.</string>
+    <string name="restored_from">Restored from: %s</string>
+    <string name="lock_settings">Lock Settings</string>
+    <string name="create_account_to_lock">Create Account to Lock</string>
+    <string name="user_id_format">ID: %s</string>
+    <string name="signed_in">Signed in</string>
+    <string name="not_signed_in">Not signed in</string>
+    <string name="sign_in_to_continue">Sign in to continue</string>
+    <string name="blocked">Blocked</string>
+    <string name="allowed">Allowed</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_restoring_filters">Restoring Content Filter Settings</string>
+    <string name="onboarding_checking_saved">Checking for saved preferences…</string>
+    <string name="onboarding_found_saved">Found your saved preferences</string>
+    <string name="onboarding_restored_settings">Restored Settings:</string>
+    <string name="onboarding_restored_filters_enabled">• Content Filters: Enabled</string>
+    <string name="onboarding_restored_female">• Female Singers: %s</string>
+    <string name="onboarding_restored_videos">• Videos: %s</string>
+    <string name="onboarding_continuing_auto">Continuing automatically…</string>
+    <string name="onboarding_filters_subtitle">Set up your content preferences (optional)</string>
+    <string name="onboarding_allow_female_title">Allow Female Singers</string>
+    <string name="onboarding_allow_female_desc">Include music by female artists</string>
+    <string name="onboarding_block_videos_title">Block Videos</string>
+    <string name="onboarding_block_videos_desc">Hide video content from results</string>
+    <string name="onboarding_nav_setup">Navigation Setup</string>
+    <string name="onboarding_nav_question">Would you like to enable the bottom navigation bar for quick access to your favorite screens?</string>
+    <string name="onboarding_nav_enable">Enable Bottom Navigation</string>
+    <string name="onboarding_nav_enable_desc">Show bottom navigation bar for quick access</string>
+    <string name="onboarding_nav_no_thanks">No thanks</string>
+    <string name="onboarding_nav_later">I can enable it later in appearance settings</string>
+    <string name="onboarding_nav_customize_later">You can customize which menu items appear later in appearance settings</string>
+
+    <!-- Settings hub descriptions -->
+    <string name="settings_desc_appearance">Theme, colors, density</string>
+    <string name="settings_desc_player">Audio quality, playback</string>
+    <string name="settings_desc_content">Language, content settings</string>
+    <string name="settings_desc_dpad">D-pad configuration</string>
+    <string name="settings_desc_links">Link handling settings</string>
+    <string name="settings_desc_privacy">History, privacy settings</string>
+    <string name="settings_desc_storage">Cache management</string>
+    <string name="settings_desc_backup">Backup your data</string>
+    <string name="settings_desc_updater">Check for app updates</string>
+    <string name="settings_desc_about">About Zemer</string>
+    <string name="settings_desc_android_auto">Customize browsing &amp; quick-add</string>
+    <string name="recommendations">Recommendations</string>
+
+    <!-- Bottom navigation customization -->
+    <string name="bottom_nav_items">Bottom Navigation Items</string>
+    <string name="bottom_nav_n_selected">%1$d/5 selected</string>
+    <string name="bottom_nav_select_one">Select at least 1 item</string>
+
+    <!-- About screen -->
+    <string name="about_tagline">An audio-first YouTube Music experience</string>
+    <string name="about_version">Version %s</string>
+    <string name="about_created_by">Created by Ars18 and TripleU</string>
+    <string name="about_based_on">Based on Metrolist by MO AGAMY</string>
+    <string name="github">GitHub</string>
+
+    <!-- Player / library misc -->
+    <string name="error_playing">Error playing</string>
+    <string name="progress_percent">Progress %d%%</string>
+    <string name="syncing">Syncing…</string>
+    <string name="sync_completed">Sync completed</string>
+    <string name="sync_failed">Sync failed: %s</string>
+    <string name="queue_selection">Selection</string>
+    <string name="queue_auto_playlist">Auto Playlist</string>
+    <string name="queue_cache_songs">Cache Songs</string>
+
+    <!-- Video player -->
+    <string name="video_saved">Video saved to Movies/Zemer</string>
+    <string name="video_playback_error">Playback error</string>
+    <string name="pip_unable">Unable to start PiP</string>
+    <string name="pip_unavailable">PiP unavailable: %s</string>
+
+    <!-- Accessibility content descriptions -->
+    <string name="cd_repeat">Repeat</string>
+    <string name="cd_play_pause">Play/Pause</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_previous">Previous</string>
+    <string name="cd_next">Next</string>
+    <string name="cd_fullscreen">Fullscreen</string>
+    <string name="cd_fetch_from_ytm">Fetch from YouTube Music</string>
+    <string name="cd_suggestions_available">Suggestions available</string>
+
+    <!-- Download notifications / proxy -->
+    <string name="download_channel_name">Music Downloads</string>
+    <string name="download_channel_desc">Notifications for music download progress</string>
+    <string name="download_preparing">Preparing downloads…</string>
+    <string name="download_in_progress">Music downloads in progress</string>
+    <string name="proxy_url_parse_failed">Failed to parse proxy url.</string>
+
+    <!-- Clipboard labels -->
+    <string name="clip_label_title">Title</string>
+    <string name="clip_label_artist">Artist</string>
+    <string name="clip_label_song_link">Song link</string>
+    <string name="clip_label_artist_link">Artist link</string>
+    <string name="clip_label_video_link">Video link</string>
 </resources>

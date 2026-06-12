@@ -280,17 +280,17 @@ fun LibraryMixScreen(
                         coroutineScope.launch {
                             isSyncing = true
                             // Show start toast
-                            Toast.makeText(context, "Syncing...", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.syncing), Toast.LENGTH_SHORT).show()
 
                             try {
                                 withContext(Dispatchers.IO) {
                                     viewModel.syncAllLibrary()
                                 }
                                 // Show success toast
-                                Toast.makeText(context, "Sync completed", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.sync_completed), Toast.LENGTH_SHORT).show()
                             } catch (e: Exception) {
                                 // Show error toast
-                                Toast.makeText(context, "Sync failed: ${e.message}", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, context.getString(R.string.sync_failed, e.message), Toast.LENGTH_LONG).show()
                             } finally {
                                 isSyncing = false
                             }
@@ -313,7 +313,7 @@ fun LibraryMixScreen(
                     )
                     Icon(
                         painter = painterResource(R.drawable.sync),
-                        contentDescription = "Syncing...",
+                        contentDescription = stringResource(R.string.syncing),
                         modifier = Modifier
                             .size(24.dp)
                             .rotate(rotation)
@@ -321,7 +321,7 @@ fun LibraryMixScreen(
                 } else {
                     Icon(
                         painter = painterResource(R.drawable.sync),
-                        contentDescription = "Fetch from YouTube Music",
+                        contentDescription = stringResource(R.string.cd_fetch_from_ytm),
                         modifier = Modifier.size(24.dp)
                     )
                 }

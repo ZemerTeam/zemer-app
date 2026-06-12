@@ -137,6 +137,7 @@ fun ArtistScreen(
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
     val playerConnection = LocalPlayerConnection.current ?: return
+    val unknownArtistTitle = stringResource(R.string.unknown_artist)
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val artistPage = viewModel.artistPage
@@ -317,7 +318,7 @@ fun ArtistScreen(
                             ) {
                                 // Artist Name
                                 Text(
-                                    text = artistName ?: "Unknown",
+                                    text = artistName ?: stringResource(R.string.unknown),
                                     style = MaterialTheme.typography.headlineLarge,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
@@ -417,7 +418,7 @@ fun ArtistScreen(
                                                 ) {
                                                     Icon(
                                                         painter = painterResource(R.drawable.shuffle),
-                                                        contentDescription = "Shuffle",
+                                                        contentDescription = stringResource(R.string.shuffle),
                                                         tint = MaterialTheme.colorScheme.onPrimary,
                                                         modifier = Modifier.size(20.dp)
                                                     )
@@ -430,7 +431,7 @@ fun ArtistScreen(
                                                     if (shuffledSongs.isNotEmpty()) {
                                                         playerConnection.playQueue(
                                                             ListQueue(
-                                                                title = libraryArtist?.artist?.name ?: "Unknown Artist",
+                                                                title = libraryArtist?.artist?.name ?: unknownArtistTitle,
                                                                 items = shuffledSongs.map { it.toMediaItem() }
                                                             )
                                                         )
@@ -445,7 +446,7 @@ fun ArtistScreen(
                                             ) {
                                                 Icon(
                                                     painter = painterResource(R.drawable.shuffle),
-                                                    contentDescription = "Shuffle",
+                                                    contentDescription = stringResource(R.string.shuffle),
                                                     tint = MaterialTheme.colorScheme.onPrimary,
                                                     modifier = Modifier.size(20.dp)
                                                 )
@@ -513,7 +514,7 @@ fun ArtistScreen(
                                             } else {
                                                 playerConnection.playQueue(
                                                     ListQueue(
-                                                        title = libraryArtist?.artist?.name ?: "Unknown Artist",
+                                                        title = libraryArtist?.artist?.name ?: unknownArtistTitle,
                                                         items = librarySongs.map { it.toMediaItem() },
                                                         startIndex = index
                                                     )
@@ -837,7 +838,7 @@ fun ArtistScreen(
                 onClick = {
                     viewModel.artistPage?.artist?.shareLink?.let { link ->
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("Artist Link", link)
+                        val clip = ClipData.newPlainText(context.getString(R.string.clip_label_artist_link), link)
                         clipboard.setPrimaryClip(clip)
                         Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
                     }

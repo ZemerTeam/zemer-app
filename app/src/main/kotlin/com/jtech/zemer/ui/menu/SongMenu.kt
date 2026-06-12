@@ -626,7 +626,7 @@ fun SongMenu(
                             )
                         },
                         supportingContent = {
-                            Text(text = downloadState.error ?: "Unknown error")
+                            Text(text = downloadState.error ?: stringResource(R.string.error_unknown))
                         },
                         leadingContent = {
                             Icon(

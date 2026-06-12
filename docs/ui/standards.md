@@ -108,8 +108,13 @@ Use these; do not hand-roll equivalents.
 - Add every new user-facing string to `app/src/main/res/values/metrolist_strings.xml`.
 - Never add strings to `app/src/main/res/values/strings.xml` — it is upstream InnerTune strings and
   is headed `Do not add new features here`.
-- No hardcoded user-facing text in Kotlin; always `stringResource(R.string.x)`. Technical
-  identifiers shown verbatim (client names, etc.) may be literals.
+- No hardcoded user-facing text in Kotlin; always `stringResource(R.string.x)` (or
+  `context.getString(...)` in non-composable contexts: toasts, notifications, clipboard labels,
+  queue titles built in click handlers — hoist a `val` from `stringResource` when the value is
+  needed inside a lambda). Technical identifiers shown verbatim (client names, animation labels,
+  URL parameters, pure-format strings like `"${'$'}{progress}%"`) may be literals.
+- Enforcement: `scripts/ui-audit.sh` fails CI on any new hardcoded `Text("...")`, `text = "..."`,
+  `contentDescription = "..."`, or Toast literal under `ui/` (R5-hardcoded, baseline zero).
 
 ## 6. Lists and reordering
 
