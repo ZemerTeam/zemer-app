@@ -16,40 +16,36 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.DefaultDialog
-import com.jtech.zemer.utils.reportException
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
+import com.jtech.zemer.viewmodels.ReportContentViewModel
 
 /**
  * Shared "report content" dialog used by every menu (song, album, artist, playlist).
- * [subject] carries the item-identifying fields (e.g. "songId"/"songTitle"); the reason,
- * comment, reporter and timestamp fields are appended on submit.
+ * [subject] carries the item-identifying fields (e.g. "songId"/"songTitle"); submission
+ * goes through [ReportContentViewModel] -> ContentReportRepository.
  */
 @Composable
 fun ReportContentDialog(
     subject: Map<String, Any?>,
     onDismiss: () -> Unit,
+    viewModel: ReportContentViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val isSubmitting by viewModel.isSubmitting.collectAsState()
     var selectedReason by remember { mutableStateOf("") }
     var comment by remember { mutableStateOf("") }
-    var isSubmitting by remember { mutableStateOf(false) }
 
     val reasons = listOf(
         "female" to stringResource(R.string.report_reason_female),
@@ -92,7 +88,7 @@ fun ReportContentDialog(
         },
         buttons = {
             TextButton(
-                onClick = { if (!isSubmitting) onDismiss() },
+                onClick = onDismiss,
                 enabled = !isSubmitting,
             ) {
                 Text(stringResource(R.string.report_cancel))
@@ -104,17 +100,12 @@ fun ReportContentDialog(
                         Toast.makeText(context, context.getString(R.string.report_choose_reason), Toast.LENGTH_SHORT).show()
                         return@Button
                     }
-                    scope.launch {
-                        isSubmitting = true
-                        try {
-                            submitContentReport(subject, selectedReason, comment)
+                    viewModel.submit(subject, selectedReason, comment) { success ->
+                        if (success) {
                             Toast.makeText(context, context.getString(R.string.report_success), Toast.LENGTH_SHORT).show()
                             onDismiss()
-                        } catch (e: Exception) {
-                            reportException(e, "ReportContentDialog")
+                        } else {
                             Toast.makeText(context, context.getString(R.string.report_failure), Toast.LENGTH_SHORT).show()
-                        } finally {
-                            isSubmitting = false
                         }
                     }
                 },
@@ -131,20 +122,4 @@ fun ReportContentDialog(
             }
         },
     )
-}
-
-private suspend fun submitContentReport(
-    subject: Map<String, Any?>,
-    reason: String,
-    comment: String,
-) {
-    val payload = hashMapOf<String, Any?>(
-        "reason" to reason,
-        "comment" to comment,
-        "status" to "pending",
-        "reporterUid" to (FirebaseAuth.getInstance().currentUser?.uid ?: "anon"),
-        "createdAt" to FieldValue.serverTimestamp(),
-    )
-    payload.putAll(subject)
-    FirebaseFirestore.getInstance().collection("artistReports").add(payload).await()
 }

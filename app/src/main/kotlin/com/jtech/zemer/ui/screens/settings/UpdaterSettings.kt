@@ -280,10 +280,7 @@ fun UpdaterScreen(
                     horizontalAlignment = Alignment.Start,
                     title = { Text(stringResource(R.string.up_to_date)) },
                     content = {
-                        Text(
-                            text = stringResource(R.string.up_to_date_message, result.currentVersion),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
+                        Text(stringResource(R.string.up_to_date_message, result.currentVersion))
                     },
                     buttons = {
                         TextButton(onClick = { showResultDialog = false }) {
@@ -298,10 +295,7 @@ fun UpdaterScreen(
                     horizontalAlignment = Alignment.Start,
                     title = { Text(stringResource(R.string.error)) },
                     content = {
-                        Text(
-                            text = result.message,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
+                        Text(result.message)
                     },
                     buttons = {
                         TextButton(onClick = { showResultDialog = false }) {

@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -27,35 +26,33 @@ fun SyncAccountWarning(
     showCountdown: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    ProvideTextStyle(MaterialTheme.typography.bodyMedium) {
-        Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-        ) {
-            Text(stringResource(R.string.sync_account_warning_intro))
-            Spacer(modifier = Modifier.height(8.dp))
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+    ) {
+        Text(stringResource(R.string.sync_account_warning_intro))
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.sync_account_warning_lock),
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.sync_account_warning_permanent),
+            color = MaterialTheme.colorScheme.error,
+            fontWeight = FontWeight.Bold,
+        )
+        if (showCountdown) {
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = stringResource(R.string.sync_account_warning_lock),
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.sync_account_warning_permanent),
+                text = pluralStringResource(
+                    R.plurals.sync_account_wait_countdown,
+                    delaySeconds,
+                    delaySeconds,
+                ),
                 color = MaterialTheme.colorScheme.error,
-                fontWeight = FontWeight.Bold,
             )
-            if (showCountdown) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = pluralStringResource(
-                        R.plurals.sync_account_wait_countdown,
-                        delaySeconds,
-                        delaySeconds,
-                    ),
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
         }
     }
 }

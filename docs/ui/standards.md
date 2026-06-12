@@ -129,15 +129,13 @@ Use these; do not hand-roll equivalents.
 ## 7. Dialogs
 
 - Use the app's `Dialog.kt` helpers (`DefaultDialog`, `ListDialog`, `TextFieldDialog`,
-  `ActionPromptDialog`) — never raw Material 3 `AlertDialog`/`BasicAlertDialog`. Only
-  `DefaultDialog` honors the AMOLED pure-black theme (`pureBlack` parameter) and keeps
-  title/button styling in one place; pass `pureBlack` when the screen already reads the
-  preference.
+  `ActionPromptDialog`) — never raw Material 3 `AlertDialog`/`BasicAlertDialog`. The helpers
+  derive the AMOLED pure-black surface themselves (`rememberPureBlack()` in `ui/theme/Theme.kt`:
+  preference AND dark theme active) — do not thread a pureBlack parameter through callers.
 - In `buttons`, Cancel comes first and the affirmative action last (matching M3's
   dismiss-then-confirm order). A pick-and-close list puts only Cancel there.
-- Dialog body text defaults to no style under `DefaultDialog`; set
-  `MaterialTheme.typography.bodyMedium`/`bodyLarge` explicitly, and
-  `horizontalAlignment = Alignment.Start` for prose dialogs.
+- `DefaultDialog` content defaults to `bodyMedium` (matching M3 `AlertDialog`); only set a style
+  when you want something else. Use `horizontalAlignment = Alignment.Start` for prose dialogs.
 - Enforcement: `scripts/ui-audit.sh` fails CI on any new raw `AlertDialog(`/`BasicAlertDialog(`
   under `ui/` outside `component/Dialog.kt` (ratcheted like Rule 8, baseline currently zero).
 

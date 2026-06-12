@@ -10,6 +10,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.SaverScope
@@ -18,12 +19,32 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.palette.graphics.Palette
+import com.jtech.zemer.constants.DarkModeKey
+import com.jtech.zemer.constants.PureBlackKey
+import com.jtech.zemer.ui.screens.settings.DarkMode
+import com.jtech.zemer.utils.rememberEnumPreference
+import com.jtech.zemer.utils.rememberPreference
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
 import com.materialkolor.score.Score
 
 val DefaultThemeColor = Color(0xFFED5564)
+
+/**
+ * Whether the UI should render AMOLED pure-black surfaces right now: the preference is on AND
+ * dark theme is active (same derivation as MainActivity's theme setup). Use this instead of
+ * reading PureBlackKey directly so light mode never goes pure-black.
+ */
+@Composable
+fun rememberPureBlack(): Boolean {
+    val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
+    val darkMode by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
+    val systemDark = isSystemInDarkTheme()
+    return remember(pureBlackEnabled, darkMode, systemDark) {
+        pureBlackEnabled && (if (darkMode == DarkMode.AUTO) systemDark else darkMode == DarkMode.ON)
+    }
+}
 
 @Composable
 fun ZemerTheme(

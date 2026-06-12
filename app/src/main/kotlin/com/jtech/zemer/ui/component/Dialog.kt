@@ -48,7 +48,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.theme.rememberPureBlack
 import kotlinx.coroutines.delay
+
+/** Dialog surface color: AMOLED pure black when the theme calls for it, M3 default otherwise. */
+@Composable
+private fun dialogContainerColor(): Color =
+    if (rememberPureBlack()) Color(0xFF0A0A0A) else AlertDialogDefaults.containerColor
 
 @Composable
 fun DefaultDialog(
@@ -58,7 +64,6 @@ fun DefaultDialog(
     title: (@Composable () -> Unit)? = null,
     buttons: (@Composable RowScope.() -> Unit)? = null,
     horizontalAlignment: Alignment.Horizontal = Alignment.CenterHorizontally,
-    pureBlack: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Dialog(
@@ -68,7 +73,7 @@ fun DefaultDialog(
         Surface(
             modifier = Modifier.padding(24.dp),
             shape = AlertDialogDefaults.shape,
-            color = if (pureBlack) Color(0xFF0A0A0A) else AlertDialogDefaults.containerColor,
+            color = dialogContainerColor(),
             tonalElevation = AlertDialogDefaults.TonalElevation
         ) {
             Column(
@@ -102,7 +107,9 @@ fun DefaultDialog(
                     Spacer(Modifier.height(16.dp))
                 }
 
-                content()
+                ProvideTextStyle(MaterialTheme.typography.bodyMedium) {
+                    content()
+                }
 
                 if (buttons != null) {
                     Spacer(Modifier.height(24.dp))
@@ -142,7 +149,7 @@ fun ActionPromptDialog(
         Surface(
             modifier = Modifier.padding(24.dp),
             shape = AlertDialogDefaults.shape,
-            color = AlertDialogDefaults.containerColor,
+            color = dialogContainerColor(),
             tonalElevation = AlertDialogDefaults.TonalElevation,
         ) {
             Column(
@@ -213,7 +220,7 @@ fun ListDialog(
         Surface(
             modifier = Modifier.padding(24.dp),
             shape = AlertDialogDefaults.shape,
-            color = AlertDialogDefaults.containerColor,
+            color = dialogContainerColor(),
             tonalElevation = AlertDialogDefaults.TonalElevation,
         ) {
             Column(

@@ -329,7 +329,6 @@ fun BottomSheetPlayer(
     if (showSleepTimerDialog) {
         DefaultDialog(
             onDismiss = { showSleepTimerDialog = false },
-            pureBlack = pureBlack,
             icon = {
                 Icon(
                     painter = painterResource(R.drawable.bedtime),

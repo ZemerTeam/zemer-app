@@ -987,7 +987,7 @@ fun VideoPlayerScreen(
             horizontalAlignment = Alignment.Start,
             title = { Text(stringResource(R.string.video_download_title)) },
             content = {
-                Text(stringResource(R.string.video_choose_quality), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.video_choose_quality))
                 Spacer(modifier = Modifier.height(8.dp))
                 if (availableQualities.isNotEmpty()) {
                     availableQualities.forEach { quality ->

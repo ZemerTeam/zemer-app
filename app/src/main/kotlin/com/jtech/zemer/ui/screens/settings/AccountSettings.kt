@@ -376,10 +376,7 @@ fun AccountSettings(
                 horizontalAlignment = Alignment.Start,
                 title = { Text(stringResource(R.string.logout_keep_library_title)) },
                 content = {
-                    Text(
-                        text = stringResource(R.string.logout_keep_library_message),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Text(stringResource(R.string.logout_keep_library_message))
                 },
                 buttons = {
                     TextButton(

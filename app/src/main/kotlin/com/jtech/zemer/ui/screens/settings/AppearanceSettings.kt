@@ -60,6 +60,7 @@ import androidx.navigation.NavController
 import java.util.Collections
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.theme.rememberPureBlack
 import com.jtech.zemer.constants.ChipSortTypeKey
 import com.jtech.zemer.constants.CustomDensityScaleKey
 import com.jtech.zemer.constants.DarkModeKey
@@ -876,12 +877,11 @@ fun AppearanceSettings(
     if (showBottomNavCustomizationDialog) {
         DefaultDialog(
             onDismiss = { showBottomNavCustomizationDialog = false },
-            pureBlack = pureBlack,
             buttons = {
                 TextButton(
                     onClick = { showBottomNavCustomizationDialog = false }
                 ) {
-                    Text(text = stringResource(android.R.string.cancel), color = if (pureBlack) Color.White else Color.Unspecified)
+                    Text(text = stringResource(android.R.string.cancel), color = if (rememberPureBlack()) Color.White else Color.Unspecified)
                 }
                 TextButton(
                     onClick = {
@@ -893,7 +893,7 @@ fun AppearanceSettings(
                         showBottomNavCustomizationDialog = false
                     }
                 ) {
-                    Text(text = stringResource(android.R.string.ok), color = if (pureBlack) Color.White else Color.Unspecified)
+                    Text(text = stringResource(android.R.string.ok), color = if (rememberPureBlack()) Color.White else Color.Unspecified)
                 }
             }
         ) {

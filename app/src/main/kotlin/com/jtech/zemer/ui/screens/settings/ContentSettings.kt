@@ -396,10 +396,7 @@ fun ContentSettings(
             title = { Text(stringResource(R.string.sync_account_create_title)) },
             content = {
                 if (isLoading) {
-                    Text(
-                        text = stringResource(R.string.sync_account_creating),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Text(stringResource(R.string.sync_account_creating))
                 } else {
                     SyncAccountWarning(
                         delaySeconds = signInDelaySeconds,

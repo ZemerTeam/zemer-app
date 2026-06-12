@@ -51,10 +51,7 @@ fun UpdateDownloadDialog(
         horizontalAlignment = Alignment.Start,
         title = { Text(stringResource(R.string.update_available)) },
         content = {
-            Text(
-                text = stringResource(R.string.update_available_message, currentVersion, latestVersion),
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            Text(stringResource(R.string.update_available_message, currentVersion, latestVersion))
 
             if (!notes.isNullOrBlank()) {
                 Spacer(Modifier.height(12.dp))
