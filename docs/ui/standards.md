@@ -113,8 +113,14 @@ Use these; do not hand-roll equivalents.
   queue titles built in click handlers — hoist a `val` from `stringResource` when the value is
   needed inside a lambda). Technical identifiers shown verbatim (client names, animation labels,
   URL parameters, pure-format strings like `"${'$'}{progress}%"`) may be literals.
-- Enforcement: `scripts/ui-audit.sh` fails CI on any new hardcoded `Text("...")`, `text = "..."`,
-  `contentDescription = "..."`, or Toast literal under `ui/` (R5-hardcoded, baseline zero).
+- To localize a display label that lives on an enum/constant (e.g. `DensityScale`), give it a
+  `@StringRes labelRes: Int` and resolve `stringResource(it.labelRes)` at the call site, rather
+  than holding the English text on the enum.
+- Enforcement: `scripts/ui-audit.sh` fails CI on any new hardcoded user-facing string under `ui/`
+  (R5-hardcoded, baseline zero). The check is a multi-line-aware scanner
+  (`scripts/ui-strings-scan.py`), not a line grep, so it also catches a literal that sits on a
+  different line from its `Text(`/`text =`/`Toast`/`section =` — the shape that used to slip
+  through.
 
 ## 6. Lists and reordering
 
@@ -139,6 +145,11 @@ Use these; do not hand-roll equivalents.
   dismiss-then-confirm order). A pick-and-close list puts only Cancel there.
 - `DefaultDialog` content defaults to `bodyMedium` (matching M3 `AlertDialog`); only set a style
   when you want something else. Use `horizontalAlignment = Alignment.Start` for prose dialogs.
+  (`TextFieldDialog` overrides its inputs back to `bodyLarge`, the M3 text-field size.)
+- `DefaultDialog` caps its height and gives the body a bounded weight, so tall content can't push
+  the buttons off-screen and a scrollable/lazy child (e.g. a `LazyColumn` of options) is measured
+  with a finite height instead of crashing. Content that can overflow should still bring its own
+  `verticalScroll`/`LazyColumn` — the cap bounds it, it does not scroll for you.
 - Enforcement: `scripts/ui-audit.sh` fails CI on any new raw `AlertDialog(`/`BasicAlertDialog(`
   under `ui/` outside `component/Dialog.kt` (ratcheted like Rule 8, baseline currently zero).
 
