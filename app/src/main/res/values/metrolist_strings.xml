@@ -514,4 +514,10 @@
     <string name="clip_label_song_link">Song link</string>
     <string name="clip_label_artist_link">Artist link</string>
     <string name="clip_label_video_link">Video link</string>
+
+    <!-- Song details sheet -->
+    <string name="format_itag">Itag</string>
+    <string name="format_stream_client">Stream client</string>
+    <string name="format_player_hash">Player hash</string>
+    <string name="format_cipher_support_added">Cipher support added</string>
 </resources>

@@ -8,12 +8,14 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
 ## 1. Reuse before building
 
 - Look in `app/src/main/kotlin/com/jtech/zemer/ui/component/` first. There are ready components for
-  settings rows (`Preference.kt`), dialogs (`Dialog.kt`, `*Dialog.kt`), bottom sheets
+  settings rows (`Preference.kt`), grouped settings cards (`Material3SettingsGroup.kt`), grouped
+  menu / detail rows (`Material3MenuItem.kt`), dialogs (`Dialog.kt`, `*Dialog.kt`), bottom sheets
   (`BottomSheet*.kt`), menus (`GridMenu.kt`, `NewMenuComponents.kt`), list items (`Items.kt`),
   icon buttons (`IconButton.kt`), chips (`ChipsRow.kt`), placeholders (`EmptyPlaceholder.kt`,
   `AppStateViews.kt`), and more.
 - Do not introduce a second component that duplicates one of these. (For example, settings rows use
-  the `Preference.kt` widgets below — do not add a parallel "settings group" widget set.)
+  the `Preference.kt` widgets below — do not add a parallel "settings group" widget set; grouped/
+  separated rows use the components in section 11 — do not hand-roll cards per row.)
 
 ## 2. Settings screens
 
@@ -181,3 +183,31 @@ Use these; do not hand-roll equivalents.
 
 - No emojis or decorative symbols anywhere in `docs/` — ASCII only. (Arrows like `->` over a glyph.)
 - Keep this file in sync when a shared UI convention changes.
+
+## 11. Grouped lists, menus and detail sheets
+
+For label/value or action rows grouped into sections, reuse one of these — do not hand-roll a card
+per row or a parallel group widget:
+
+- `Material3SettingsGroup(title, items)` + `Material3SettingsItem` (`Material3SettingsGroup.kt`) —
+  one rounded card with the items stacked inside, separated by hairline dividers. The icon is a
+  `Painter` and is rendered inside a tinted-primary chip by the component. This is the **settings**
+  idiom (the settings hub uses it).
+- `Material3MenuGroup(items)` + `Material3MenuItemData` (`Material3MenuItem.kt`) — each item is its
+  own card, 4dp apart, with adaptive corner radii (rounded outer ends, lightly-rounded middles):
+  the "expressive" separated-list look, built from standard M3 `Card`s (not the Material 3
+  Expressive library). The icon is a `@Composable` slot, so the caller controls it: render it bare
+  for a flat menu (e.g. `PlayerMenu`), or wrap it in a 40dp `RoundedCornerShape(12.dp)` box tinted
+  `primary @ 0.1` with the icon tinted `primary @ 0.9` for the richer chipped look (e.g. the
+  song-details sheet, `ShowMediaInfo`). Per-item `cardColors` carry a destructive/emphasis color.
+
+Rules for these and any new row component:
+
+- **D-pad (non-negotiable):** the row must be `.focusable()` with an animated focus background +
+  border (see `Material3MenuItemRow` / `Material3SettingsItemRow`). Metrolist's upstream rows omit
+  this; ours must not.
+- The row provides `titleMedium` for the title and `bodyMedium`/`onSurfaceVariant` for the
+  description. To shrink text (e.g. dense detail rows), pass an explicit `style` on your `Text` —
+  it overrides the row default — rather than editing the component.
+- Localize every label and format numbers with `numberFormatter` (locale grouping separator — do
+  not force a separator).

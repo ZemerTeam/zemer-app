@@ -5,6 +5,12 @@
 # (scripts/ui-audit-baseline.tsv). The current known violations are allowlisted, so CI is green
 # today and the count can only shrink — fix some, then run --update to tighten the baseline.
 #
+# NOT mechanically checked here (enforced by code review, see standards.md): the reuse rules
+# (section 1) and the grouped-list/menu components (section 11 — Material3SettingsGroup /
+# Material3MenuItem, plus the .focusable() D-pad requirement on any new row component). These are
+# reuse/structure judgments, not greppable patterns: e.g. a raw `ListItem(` is correct for a plain
+# song list but wrong for a grouped menu, so it cannot be ratcheted without false positives.
+#
 #   bash scripts/ui-audit.sh            # check; exit 1 if a file gained violations
 #   bash scripts/ui-audit.sh --update   # rewrite the baseline to the current state
 #
