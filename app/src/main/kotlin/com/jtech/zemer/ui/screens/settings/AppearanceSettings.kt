@@ -473,9 +473,9 @@ fun AppearanceSettings(
                 val densityEnum = DensityScale.fromValue(scale)
                 if (densityEnum == DensityScale.CUSTOM) {
                     // Show the actual custom percentage value
-                    "Custom (${(customDensityValue * 100).toInt()}%)"
+                    stringResource(R.string.density_label_custom_value, (customDensityValue * 100).toInt())
                 } else {
-                    densityEnum.label
+                    stringResource(densityEnum.labelRes)
                 }
             },
             onValueSelected = onDensityScaleChange,
@@ -875,13 +875,14 @@ fun AppearanceSettings(
 
     // Bottom Navigation Customization Dialog
     if (showBottomNavCustomizationDialog) {
+        val pureBlackActive = rememberPureBlack()
         DefaultDialog(
             onDismiss = { showBottomNavCustomizationDialog = false },
             buttons = {
                 TextButton(
                     onClick = { showBottomNavCustomizationDialog = false }
                 ) {
-                    Text(text = stringResource(android.R.string.cancel), color = if (rememberPureBlack()) Color.White else Color.Unspecified)
+                    Text(text = stringResource(android.R.string.cancel), color = if (pureBlackActive) Color.White else Color.Unspecified)
                 }
                 TextButton(
                     onClick = {
@@ -893,7 +894,7 @@ fun AppearanceSettings(
                         showBottomNavCustomizationDialog = false
                     }
                 ) {
-                    Text(text = stringResource(android.R.string.ok), color = if (rememberPureBlack()) Color.White else Color.Unspecified)
+                    Text(text = stringResource(android.R.string.ok), color = if (pureBlackActive) Color.White else Color.Unspecified)
                 }
             }
         ) {
@@ -901,19 +902,19 @@ fun AppearanceSettings(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
-                    .background(if (pureBlack) Color(0xFF0A0A0A) else Color.Transparent),
+                    .background(if (pureBlackActive) Color(0xFF0A0A0A) else Color.Transparent),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
                     text = stringResource(R.string.bottom_nav_items),
                     style = MaterialTheme.typography.titleMedium,
-                    color = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurface
+                    color = if (pureBlackActive) Color.White else MaterialTheme.colorScheme.onSurface
                 )
 
                 Text(
                     text = stringResource(R.string.bottom_nav_n_selected, currentSelectedItems.size),
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (pureBlack) Color.LightGray else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (pureBlackActive) Color.LightGray else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.End)
                 )
 
@@ -961,8 +962,8 @@ fun AppearanceSettings(
                                     }
                                 },
                                 colors = androidx.compose.material3.CheckboxDefaults.colors(
-                                    checkedColor = if (pureBlack) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary,
-                                    uncheckedColor = if (pureBlack) Color.Gray else Color.Unspecified,
+                                    checkedColor = if (pureBlackActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary,
+                                    uncheckedColor = if (pureBlackActive) Color.Gray else Color.Unspecified,
                                     checkmarkColor = Color.White
                                 )
                             )
@@ -970,7 +971,7 @@ fun AppearanceSettings(
                             Text(
                                 text = title,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurface
+                                color = if (pureBlackActive) Color.White else MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -980,7 +981,7 @@ fun AppearanceSettings(
                 if (currentSelectedItems.isEmpty()) {
                     Text(
                         text = stringResource(R.string.bottom_nav_select_one),
-                        color = if (pureBlack) Color.Red else MaterialTheme.colorScheme.error,
+                        color = if (pureBlackActive) Color.Red else MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }

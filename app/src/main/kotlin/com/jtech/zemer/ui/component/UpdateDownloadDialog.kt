@@ -1,6 +1,10 @@
 package com.jtech.zemer.ui.component
 
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.LinearProgressIndicator
@@ -61,7 +65,10 @@ fun UpdateDownloadDialog(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(text = notes, style = MaterialTheme.typography.bodySmall)
+                // Long release notes scroll within a bounded region so the action buttons stay reachable.
+                Column(Modifier.heightIn(max = 200.dp).verticalScroll(rememberScrollState())) {
+                    Text(text = notes, style = MaterialTheme.typography.bodySmall)
+                }
             }
 
             if (isDownloading) {
@@ -100,8 +107,10 @@ fun UpdateDownloadDialog(
                 )
             }
         },
-        buttons = {
-            if (!busy) {
+        // No buttons while busy (download/install in progress) — passing null avoids reserving an
+        // empty button row.
+        buttons = if (busy) null else {
+            {
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.later)) }
 
                 if (downloadedApk != null) {

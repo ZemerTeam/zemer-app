@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -79,6 +81,10 @@ fun DefaultDialog(
             Column(
                 horizontalAlignment = horizontalAlignment,
                 modifier = modifier
+                    // Cap the dialog so tall content can't push the buttons off-screen, and so a
+                    // scrollable/lazy child (e.g. a LazyColumn) is measured with a bounded height
+                    // instead of crashing on an infinite-height constraint.
+                    .heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.9f).dp)
                     .padding(24.dp)
             ) {
                 if (icon != null) {
@@ -107,8 +113,15 @@ fun DefaultDialog(
                     Spacer(Modifier.height(16.dp))
                 }
 
-                ProvideTextStyle(MaterialTheme.typography.bodyMedium) {
-                    content()
+                // The body takes the space left after the (fixed) title and buttons — bounded, so the
+                // buttons stay on screen and any lazy/scrollable child gets a finite height.
+                Column(
+                    horizontalAlignment = horizontalAlignment,
+                    modifier = Modifier.weight(weight = 1f, fill = false),
+                ) {
+                    ProvideTextStyle(MaterialTheme.typography.bodyMedium) {
+                        content()
+                    }
                 }
 
                 if (buttons != null) {
@@ -323,6 +336,7 @@ fun TextFieldDialog(
                         value = value,
                         onValueChange = { onTextFieldsChange?.invoke(index, it) },
                         placeholder = { Text(label) },
+                        textStyle = MaterialTheme.typography.bodyLarge,
                         singleLine = singleLine,
                         maxLines = maxLines,
                         colors = OutlinedTextFieldDefaults.colors(),
@@ -346,6 +360,7 @@ fun TextFieldDialog(
                 }
             } else {
                 TextField(
+                    textStyle = MaterialTheme.typography.bodyLarge,
                     value = legacyFieldState.value,
                     onValueChange = { legacyFieldState.value = it },
                     placeholder = placeholder,

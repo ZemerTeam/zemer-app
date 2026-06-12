@@ -97,6 +97,7 @@ import com.jtech.zemer.utils.MediaStoreHelper
 import com.jtech.zemer.utils.UrlValidator
 import com.jtech.zemer.utils.VideoLinkBuilder
 import com.jtech.zemer.utils.YTPlayerUtils
+import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.rememberPreference
 import com.metrolist.innertube.utils.ResilientDns
 import io.sanghun.compose.video.RepeatMode
@@ -470,11 +471,8 @@ fun VideoPlayerScreen(
                     error("Failed to save video to MediaStore")
                 }
             } catch (e: Exception) {
-                Toast.makeText(
-                    context,
-                    "Download failed: ${e.localizedMessage ?: "Unknown error"}",
-                    Toast.LENGTH_SHORT
-                ).show()
+                reportException(e, "VideoPlayerScreen download")
+                Toast.makeText(context, context.getString(R.string.video_download_failed), Toast.LENGTH_SHORT).show()
             }
         }
     }

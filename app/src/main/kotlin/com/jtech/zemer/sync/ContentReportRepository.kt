@@ -30,7 +30,11 @@ class ContentReportRepository @Inject constructor(
     }
 
     companion object {
-        /** Pure payload assembly, separated from the Firestore call so it is unit-testable. */
+        /**
+         * Pure payload assembly, separated from the Firestore call so it is unit-testable. The
+         * reserved fields are written AFTER the subject is merged in, so a stray subject key can
+         * never clobber a repository-controlled field (reason/comment/status/reporterUid/createdAt).
+         */
         fun buildReportPayload(
             subject: Map<String, Any?>,
             reason: String,
@@ -38,14 +42,12 @@ class ContentReportRepository @Inject constructor(
             reporterUid: String,
             createdAt: Any,
         ): HashMap<String, Any?> {
-            val payload = hashMapOf<String, Any?>(
-                "reason" to reason,
-                "comment" to comment,
-                "status" to "pending",
-                "reporterUid" to reporterUid,
-                "createdAt" to createdAt,
-            )
-            payload.putAll(subject)
+            val payload = HashMap<String, Any?>(subject)
+            payload["reason"] = reason
+            payload["comment"] = comment
+            payload["status"] = "pending"
+            payload["reporterUid"] = reporterUid
+            payload["createdAt"] = createdAt
             return payload
         }
     }

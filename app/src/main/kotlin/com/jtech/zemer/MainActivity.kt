@@ -217,6 +217,7 @@ import com.jtech.zemer.ui.theme.ColorSaver
 import com.jtech.zemer.ui.theme.DefaultThemeColor
 import com.jtech.zemer.ui.theme.ZemerTheme
 import com.jtech.zemer.ui.theme.extractThemeColor
+import com.jtech.zemer.ui.theme.rememberPureBlack
 import com.jtech.zemer.ui.utils.appBarScrollBehavior
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.resetHeightOffset
@@ -503,10 +504,7 @@ class MainActivity : ComponentActivity() {
                 setSystemBarAppearance(useDarkTheme)
             }
 
-            val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
-            val pureBlack = remember(pureBlackEnabled, useDarkTheme) {
-                pureBlackEnabled && useDarkTheme
-            }
+            val pureBlack = rememberPureBlack()
 
             val pauseListenHistory by rememberPreference(PauseListenHistoryKey, defaultValue = false)
             val eventCount by database.eventCount().collectAsStateWithLifecycle(initialValue = 0)

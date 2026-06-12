@@ -400,7 +400,7 @@ fun ContentSettings(
                 } else {
                     SyncAccountWarning(
                         delaySeconds = signInDelaySeconds,
-                        showCountdown = true,
+                        showCountdown = signInDelaySeconds > 0,
                     )
                 }
             },

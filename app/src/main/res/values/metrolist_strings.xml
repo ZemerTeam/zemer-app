@@ -377,6 +377,16 @@
     <string name="display_density">Display Density</string>
     <string name="display_density_custom">Custom Display Density</string>
     <string name="density_custom_hint" formatted="false">Enter a value between 50% and 120%.\n\nExamples: 85 or 0.85 for 85%</string>
+    <string name="density_label_native" formatted="false">Native (100%)</string>
+    <string name="density_label_compact" formatted="false">Compact (75%)</string>
+    <string name="density_label_very_compact" formatted="false">Very Compact (65%)</string>
+    <string name="density_label_ultra_compact" formatted="false">Ultra Compact (55%)</string>
+    <string name="density_label_custom">Custom</string>
+    <string name="density_label_custom_value">Custom (%d%%)</string>
+    <!-- Onboarding -->
+    <string name="onboarding_all_set">All set!</string>
+    <!-- Video download -->
+    <string name="video_download_failed">Download failed</string>
     <string name="restart_required_message">The display density change will take effect after restarting the app. Do you want to restart now?</string>
 
     <!-- Network state -->

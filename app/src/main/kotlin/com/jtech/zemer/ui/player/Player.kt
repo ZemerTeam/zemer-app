@@ -664,7 +664,7 @@ fun BottomSheetPlayer(
                                             Toast
                                                 .makeText(
                                                     context,
-                                                    "Copied Artist",
+                                                    context.getString(R.string.copied),
                                                     Toast.LENGTH_SHORT
                                                 )
                                                 .show()

@@ -16,10 +16,10 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +30,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.viewmodels.ReportContentViewModel
+import kotlinx.coroutines.launch
 
 /**
  * Shared "report content" dialog used by every menu (song, album, artist, playlist).
@@ -43,7 +44,8 @@ fun ReportContentDialog(
     viewModel: ReportContentViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val isSubmitting by viewModel.isSubmitting.collectAsState()
+    val scope = rememberCoroutineScope()
+    var isSubmitting by remember { mutableStateOf(false) }
     var selectedReason by remember { mutableStateOf("") }
     var comment by remember { mutableStateOf("") }
 
@@ -100,7 +102,10 @@ fun ReportContentDialog(
                         Toast.makeText(context, context.getString(R.string.report_choose_reason), Toast.LENGTH_SHORT).show()
                         return@Button
                     }
-                    viewModel.submit(subject, selectedReason, comment) { success ->
+                    scope.launch {
+                        isSubmitting = true
+                        val success = viewModel.submit(subject, selectedReason, comment)
+                        isSubmitting = false
                         if (success) {
                             Toast.makeText(context, context.getString(R.string.report_success), Toast.LENGTH_SHORT).show()
                             onDismiss()

@@ -2,6 +2,8 @@
 
 package com.jtech.zemer.constants
 
+import androidx.annotation.StringRes
+import com.jtech.zemer.R
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -34,12 +36,12 @@ val ButtonDpadUpKey = intPreferencesKey("buttonDpadUp")
 val ButtonDpadDownKey = intPreferencesKey("buttonDpadDown")
 val ButtonDpadCenterKey = intPreferencesKey("buttonDpadCenter")
 
-enum class DensityScale(val value: Float, val label: String) {
-    NATIVE(1.0f, "Native (100%)"),
-    COMPACT(0.75f, "Compact (75%)"),
-    VERY_COMPACT(0.65f, "Very Compact (65%)"),
-    ULTRA_COMPACT(0.55f, "Ultra Compact (55%)"),
-    CUSTOM(-1f, "Custom");
+enum class DensityScale(val value: Float, @StringRes val labelRes: Int) {
+    NATIVE(1.0f, R.string.density_label_native),
+    COMPACT(0.75f, R.string.density_label_compact),
+    VERY_COMPACT(0.65f, R.string.density_label_very_compact),
+    ULTRA_COMPACT(0.55f, R.string.density_label_ultra_compact),
+    CUSTOM(-1f, R.string.density_label_custom);
 
     companion object {
         fun fromValue(value: Float): DensityScale = entries.find { it.value == value } ?: CUSTOM

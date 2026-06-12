@@ -35,8 +35,9 @@ violations() {
     | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR8-hex/'
   grep -rnE "(^|[^.A-Za-z])(Basic)?AlertDialog\(" "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | grep -v "component/Dialog.kt" | sed -E 's/:.*//' | sed 's/$/\tR7-alertdialog/'
-  grep -rnE "(^|[^A-Za-z])Text\([[:space:]]*\"[A-Za-z]|(^|[^A-Za-z])text[[:space:]]*=[[:space:]]*\"[A-Za-z]|contentDescription[[:space:]]*=[[:space:]]*\"[A-Za-z]|Toast\.makeText\([^,]+,[[:space:]]*\"[A-Za-z]" "$UI" --include=*.kt 2>/dev/null \
-    | grep -v "/theme/" | grep -vE "stringResource|getString" | sed -E 's/:[0-9]+:.*$//' | sed 's/$/\tR5-hardcoded/'
+  # R5 is multi-line-aware (a Python scanner), since a grep can't see a literal that sits on a
+  # different line from its Text(/Toast call — the exact shape that has slipped through before.
+  python3 "$ROOT/scripts/ui-strings-scan.py" 2>/dev/null
 }
 
 # Aggregate to "<path>\t<rule>\t<count>", sorted.

@@ -78,14 +78,13 @@ fun SettingsScreen(
         onDispose { firebaseAuth.removeAuthStateListener(listener) }
     }
 
-    // Define all settings items without stringResource (use string literals)
     val baseSettings = listOf(
         SettingItem(
             id = "appearance",
             title = stringResource(R.string.appearance),
             description = stringResource(R.string.settings_desc_appearance),
             icon = R.drawable.palette,
-            section = "Interface",
+            section = stringResource(R.string.settings_section_ui),
             route = "settings/appearance"
         ),
         SettingItem(
@@ -93,7 +92,7 @@ fun SettingsScreen(
             title = stringResource(R.string.player_and_audio),
             description = stringResource(R.string.settings_desc_player),
             icon = R.drawable.play,
-            section = "Player & Content",
+            section = stringResource(R.string.settings_section_player_content),
             route = "settings/player"
         ),
         SettingItem(
@@ -101,7 +100,7 @@ fun SettingsScreen(
             title = stringResource(R.string.stream_sources),
             description = stringResource(R.string.stream_sources_description),
             icon = R.drawable.play,
-            section = "Player & Content",
+            section = stringResource(R.string.settings_section_player_content),
             route = "settings/stream_sources"
         ),
         SettingItem(
@@ -109,7 +108,7 @@ fun SettingsScreen(
             title = stringResource(R.string.content),
             description = stringResource(R.string.settings_desc_content),
             icon = R.drawable.language,
-            section = "Player & Content",
+            section = stringResource(R.string.settings_section_player_content),
             route = "settings/content"
         ),
         SettingItem(
@@ -117,7 +116,7 @@ fun SettingsScreen(
             title = stringResource(R.string.settings_button_setup),
             description = stringResource(R.string.settings_desc_dpad),
             icon = R.drawable.swipe,
-            section = "Player & Content",
+            section = stringResource(R.string.settings_section_player_content),
             route = "settings/dpad"
         ),
         SettingItem(
@@ -125,7 +124,7 @@ fun SettingsScreen(
             title = stringResource(R.string.links),
             description = stringResource(R.string.settings_desc_links),
             icon = R.drawable.link,
-            section = "Player & Content",
+            section = stringResource(R.string.settings_section_player_content),
             route = "settings/general"
         ),
         SettingItem(
@@ -133,7 +132,7 @@ fun SettingsScreen(
             title = stringResource(R.string.privacy),
             description = stringResource(R.string.settings_desc_privacy),
             icon = R.drawable.security,
-            section = "Privacy & Security",
+            section = stringResource(R.string.settings_section_privacy),
             route = "settings/privacy"
         ),
         SettingItem(
@@ -141,7 +140,7 @@ fun SettingsScreen(
             title = stringResource(R.string.storage),
             description = stringResource(R.string.settings_desc_storage),
             icon = R.drawable.storage,
-            section = "Storage & Data",
+            section = stringResource(R.string.settings_section_storage),
             route = "settings/storage"
         ),
         SettingItem(
@@ -149,7 +148,7 @@ fun SettingsScreen(
             title = stringResource(R.string.backup_restore),
             description = stringResource(R.string.settings_desc_backup),
             icon = R.drawable.restore,
-            section = "Storage & Data",
+            section = stringResource(R.string.settings_section_storage),
             route = "settings/backup_restore"
         ),
         SettingItem(
@@ -157,7 +156,7 @@ fun SettingsScreen(
             title = stringResource(R.string.updater),
             description = stringResource(R.string.settings_desc_updater),
             icon = R.drawable.update,
-            section = "System & About",
+            section = stringResource(R.string.settings_section_system),
             route = "settings/updater"
         ),
         SettingItem(
@@ -165,7 +164,7 @@ fun SettingsScreen(
             title = stringResource(R.string.about),
             description = stringResource(R.string.settings_desc_about),
             icon = R.drawable.info,
-            section = "System & About",
+            section = stringResource(R.string.settings_section_system),
             route = "settings/about"
         )
     )
@@ -176,7 +175,7 @@ fun SettingsScreen(
                 title = stringResource(R.string.android_auto),
                 description = stringResource(R.string.settings_desc_android_auto),
                 icon = R.drawable.ic_android_auto,
-                section = "Android Auto",
+                section = stringResource(R.string.android_auto),
                 route = "settings/android_auto"
             )
         )
@@ -190,7 +189,7 @@ fun SettingsScreen(
                 title = stringResource(R.string.action_logout),
                 description = stringResource(R.string.sign_out_description),
                 icon = R.drawable.person,
-                section = "System & About",
+                section = stringResource(R.string.settings_section_system),
                 route = null
             )
         )
@@ -228,12 +227,12 @@ fun SettingsScreen(
             val sections = allSettings.groupBy { it.section }
             // Fixed section order; "Android Auto" sits right after "Player & Content" (matches Metrolist).
             val sectionOrder = listOf(
-                "Interface",
-                "Player & Content",
-                "Android Auto",
-                "Privacy & Security",
-                "Storage & Data",
-                "System & About",
+                stringResource(R.string.settings_section_ui),
+                stringResource(R.string.settings_section_player_content),
+                stringResource(R.string.android_auto),
+                stringResource(R.string.settings_section_privacy),
+                stringResource(R.string.settings_section_storage),
+                stringResource(R.string.settings_section_system),
             )
             val orderedSectionTitles = sectionOrder.filter { sections.containsKey(it) } +
                 sections.keys.filterNot { it in sectionOrder }
@@ -251,7 +250,7 @@ fun SettingsScreen(
                                     navController.navigate(setting.route)
                                 } else if (setting.id == "logout") {
                                     FirebaseAuth.getInstance().signOut()
-                                    Toast.makeText(context, R.string.action_logout, Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, R.string.logged_out, Toast.LENGTH_SHORT).show()
                                 }
                             }
                         )

@@ -58,4 +58,24 @@ class ContentReportRepositoryTest {
         assertEquals(true, payload.containsKey("playlistName"))
         assertEquals(null, payload["playlistName"])
     }
+
+    @Test
+    fun `subject cannot clobber repository-controlled fields`() {
+        val payload = ContentReportRepository.buildReportPayload(
+            subject = mapOf(
+                "status" to "approved",
+                "reporterUid" to "someone-else",
+                "songId" to "abc",
+            ),
+            reason = "other",
+            comment = "",
+            reporterUid = "real-uid",
+            createdAt = "ts",
+        )
+        // Reserved fields win regardless of what the subject map carries.
+        assertEquals("pending", payload["status"])
+        assertEquals("real-uid", payload["reporterUid"])
+        // Legitimate subject fields still pass through.
+        assertEquals("abc", payload["songId"])
+    }
 }

@@ -567,9 +567,9 @@ private fun DensityScreen(
                             )
                             Text(
                                 text = if (density == DensityScale.CUSTOM && selectedDensity == DensityScale.CUSTOM) {
-                                    "Custom (${(customDensityValue * 100).toInt()}%)"
+                                    stringResource(R.string.density_label_custom_value, (customDensityValue * 100).toInt())
                                 } else {
-                                    density.label
+                                    stringResource(density.labelRes)
                                 },
                                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -1150,7 +1150,7 @@ private fun ContentFiltersScreen(
                                 )
                             ) {
                                 Text(
-                                    "Create Sync Account",
+                                    stringResource(R.string.sync_account_create_title),
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
                                 )
                             }
@@ -1431,7 +1431,7 @@ private fun PermissionsScreen(
                 )
                 Text(
                     text = if (allGranted) {
-                        "All set!"
+                        stringResource(R.string.onboarding_all_set)
                     } else {
                         stringResource(R.string.onboarding_permissions_subtitle)
                     },
