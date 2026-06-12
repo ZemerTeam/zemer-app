@@ -7,7 +7,6 @@ app/src/main/kotlin/com/jtech/zemer/ui/component/Lyrics.kt	R8-hex	4
 app/src/main/kotlin/com/jtech/zemer/ui/component/NewMenuComponents.kt	R8-fontsize	1
 app/src/main/kotlin/com/jtech/zemer/ui/component/SortHeader.kt	R8-fontsize	1
 app/src/main/kotlin/com/jtech/zemer/ui/menu/AlbumMenu.kt	R8-fontsize	1
-app/src/main/kotlin/com/jtech/zemer/ui/menu/LoadingScreen.kt	R8-fontsize	1
 app/src/main/kotlin/com/jtech/zemer/ui/menu/PlayerMenu.kt	R8-fontsize	1
 app/src/main/kotlin/com/jtech/zemer/ui/menu/SongMenu.kt	R8-fontsize	1
 app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeAlbumMenu.kt	R8-fontsize	1

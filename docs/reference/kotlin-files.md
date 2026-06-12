@@ -147,7 +147,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ArtistMenu.kt` | 265 | `com.jtech.zemer.ui.menu` | yes | 55 | 12 | android.content, android.widget, androidx.compose, coil3.compose, coil3.request, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/CustomThumbnailMenu.kt` | 70 | `com.jtech.zemer.ui.menu` | yes | 16 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ImportPlaylistDialog.kt` | 63 | `com.jtech.zemer.ui.menu` | yes | 18 | 7 | androidx.compose, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/LoadingScreen.kt` | 37 | `com.jtech.zemer.ui.menu` | yes | 10 | 1 | androidx.compose |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/LoadingScreen.kt` | 23 | `com.jtech.zemer.ui.menu` | yes | 6 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/LyricsMenu.kt` | 378 | `com.jtech.zemer.ui.menu` | yes | 60 | 18 | android.app, android.content, android.widget, androidx.compose, androidx.hilt |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlayerMenu.kt` | 627 | `com.jtech.zemer.ui.menu` | yes | 76 | 27 | android.content, android.media, android.widget, androidx.activity, androidx.annotation, androidx.compose, androidx.media3, androidx.navigation, kotlin.math, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlaylistMenu.kt` | 233 | `com.jtech.zemer.ui.menu` | yes | 53 | 11 | android.content, android.widget, androidx.compose, kotlinx.coroutines |

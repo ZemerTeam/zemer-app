@@ -132,6 +132,9 @@ Use these; do not hand-roll equivalents.
   `ActionPromptDialog`) — never raw Material 3 `AlertDialog`/`BasicAlertDialog`. The helpers
   derive the AMOLED pure-black surface themselves (`rememberPureBlack()` in `ui/theme/Theme.kt`:
   preference AND dark theme active) — do not thread a pureBlack parameter through callers.
+- The bare compose `Dialog` primitive is reserved for non-modal custom containers; the only
+  current case is `AccountSettingsDialog` (full-screen scrim with a top-anchored panel). Anything
+  shaped like a modal dialog goes through the helpers.
 - In `buttons`, Cancel comes first and the affirmative action last (matching M3's
   dismiss-then-confirm order). A pick-and-close list puts only Cancel there.
 - `DefaultDialog` content defaults to `bodyMedium` (matching M3 `AlertDialog`); only set a style
