@@ -274,7 +274,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `lrclib/build.gradle.kts` | 16 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
 | `scripts/check-16kb-alignment.sh` | 67 lines | text `.sh` |
 | `scripts/telegram-chats.sh` | 38 lines | text `.sh` |
-| `scripts/ui-audit-baseline.tsv` | 21 lines | text `.tsv` |
+| `scripts/ui-audit-baseline.tsv` | 15 lines | text `.tsv` |
 | `scripts/ui-audit.sh` | 92 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 56 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |

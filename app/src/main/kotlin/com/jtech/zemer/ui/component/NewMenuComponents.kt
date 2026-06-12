@@ -42,7 +42,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 // Enhanced Action Button - Material 3 Expressive Design
 @Composable
@@ -172,8 +171,7 @@ fun NewMenuSectionHeader(
     Text(
         text = text,
         style = MaterialTheme.typography.titleMedium.copy(
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 16.sp
+            fontWeight = FontWeight.SemiBold
         ),
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier.padding(horizontal = 20.dp, vertical = 12.dp)

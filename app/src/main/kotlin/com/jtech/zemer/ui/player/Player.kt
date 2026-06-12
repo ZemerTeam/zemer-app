@@ -593,7 +593,7 @@ fun BottomSheetPlayer(
                             mediaMetadata.artists.forEachIndexed { index, artist ->
                                 val tag = "artist_${artist.id.orEmpty()}"
                                 pushStringAnnotation(tag = tag, annotation = artist.id.orEmpty())
-                                withStyle(SpanStyle(color = TextBackgroundColor, fontSize = 16.sp)) {
+                                withStyle(SpanStyle(color = TextBackgroundColor, fontSize = MaterialTheme.typography.titleMedium.fontSize)) {
                                     append(artist.name)
                                 }
                                 pop()

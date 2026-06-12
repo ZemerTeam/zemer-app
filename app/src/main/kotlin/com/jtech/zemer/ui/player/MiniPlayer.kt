@@ -414,7 +414,7 @@ private fun NewMiniPlayer(
                             Text(
                                 text = title,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -431,7 +431,7 @@ private fun NewMiniPlayer(
                                 Text(
                                     text = artists,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                    fontSize = 12.sp,
+                                    style = MaterialTheme.typography.bodySmall,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp),
@@ -873,7 +873,7 @@ private fun LegacyMiniMediaInfo(
                 Text(
                     text = title,
                     color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -890,7 +890,7 @@ private fun LegacyMiniMediaInfo(
                     Text(
                         text = artists,
                         color = MaterialTheme.colorScheme.secondary,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

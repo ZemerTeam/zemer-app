@@ -75,7 +75,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -323,7 +322,6 @@ fun ArtistScreen(
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    fontSize = 32.sp,
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
 
@@ -367,7 +365,6 @@ fun ArtistScreen(
                                         val isSubscribed = libraryArtist?.artist?.bookmarkedAt != null
                                         Text(
                                             text = stringResource(if (isSubscribed) R.string.subscribed else R.string.subscribe),
-                                            fontSize = 14.sp,
                                             color = if (!isSubscribed) MaterialTheme.colorScheme.error else LocalContentColor.current
                                         )
                                     }
@@ -395,8 +392,7 @@ fun ArtistScreen(
                                                     )
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     Text(
-                                                        text = stringResource(R.string.radio),
-                                                        fontSize = 14.sp
+                                                        text = stringResource(R.string.radio)
                                                     )
                                                 }
                                             }
