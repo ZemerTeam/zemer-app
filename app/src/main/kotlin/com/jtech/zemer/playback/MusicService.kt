@@ -647,15 +647,17 @@ class MusicService :
         player.pause()
     }
 
+    private var widgetTickerJob: Job? = null
+
     private fun updateWidget() {
         scope.launch {
             val metadata = currentMediaMetadata.value
-            val song = currentSong.value
             val isPlaying = player.isPlaying
-            val isLiked = song?.song?.liked ?: false
             val title = metadata?.title ?: getString(R.string.app_name)
             val artist = metadata?.artists?.joinToString(", ") { it.name } ?: ""
             val albumArtUrl = metadata?.thumbnailUrl
+            val positionMs = player.currentPosition.coerceAtLeast(0L)
+            val durationMs = player.duration.takeIf { it > 0L } ?: 0L
 
             MusicWidget.updateWidget(
                 context = this@MusicService,
@@ -663,9 +665,25 @@ class MusicService :
                 artist = artist,
                 isPlaying = isPlaying,
                 albumArtUrl = albumArtUrl,
-                isLiked = isLiked
+                positionMs = positionMs,
+                durationMs = durationMs,
             )
         }
+    }
+
+    /** While playing, refresh the widget's seek bar/time once a second. Self-stops when paused. */
+    private fun startWidgetTicker() {
+        if (widgetTickerJob?.isActive == true) return
+        widgetTickerJob = scope.launch {
+            while (isActive && player.isPlaying) {
+                updateWidget()
+                delay(1000)
+            }
+        }
+    }
+
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        if (isPlaying) startWidgetTicker() else updateWidget()
     }
 
     private fun updateNotification() {
@@ -1602,7 +1620,6 @@ class MusicService :
             }
             MusicWidget.ACTION_NEXT -> player.seekToNext()
             MusicWidget.ACTION_PREV -> player.seekToPrevious()
-            MusicWidget.ACTION_LIKE -> toggleLike()
         }
         return super.onStartCommand(intent, flags, startId)
     }

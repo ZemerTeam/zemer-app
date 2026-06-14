@@ -3,27 +3,28 @@ package com.jtech.zemer.widget
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.BitmapImageProvider
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
-import androidx.glance.LocalSize
 import androidx.glance.action.Action
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.LinearProgressIndicator
 import androidx.glance.appwidget.SizeMode
+import androidx.glance.appwidget.action.actionStartActivity as actionStartActivityIntent
 import androidx.glance.appwidget.action.actionStartService
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
@@ -36,6 +37,7 @@ import androidx.glance.layout.Column
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -54,6 +56,7 @@ import coil3.toBitmap
 import com.jtech.zemer.MainActivity
 import com.jtech.zemer.R
 import com.jtech.zemer.playback.MusicService
+import com.jtech.zemer.ui.screens.recognition.RecognizeMusicDialogActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -61,278 +64,196 @@ class MusicWidget : GlanceAppWidget() {
 
     override val stateDefinition = PreferencesGlanceStateDefinition
 
-    override val sizeMode = SizeMode.Responsive(
-        setOf(
-            COMPACT_SIZE,
-            NORMAL_SIZE
-        )
-    )
+    // Exact: lay out for the real widget size so content always fits (no bucket-vs-actual clipping).
+    override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
             GlanceTheme {
-                val size = LocalSize.current
-                if (size.height < 80.dp) {
-                    CompactMusicWidgetContent(context)
-                } else {
-                    MusicWidgetContent(context)
-                }
+                MusicWidgetContent(context)
             }
         }
     }
 
-    @Composable
-    private fun CompactMusicWidgetContent(context: Context) {
-        val prefs = currentState<Preferences>()
-        val title = prefs[PREF_TITLE] ?: context.getString(R.string.app_name)
-        val artist = prefs[PREF_ARTIST] ?: ""
-        val isPlaying = prefs[PREF_IS_PLAYING] ?: false
-
-        val albumArtBitmap = cachedAlbumArtBitmap
-
-        Box(
-            modifier = GlanceModifier
-                .fillMaxSize()
-                .padding(2.dp)
-        ) {
-            Row(
-                modifier = GlanceModifier
-                    .fillMaxSize()
-                    .background(ColorProvider(R.color.widget_background))
-                    .cornerRadius(20.dp)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Album Art
-                Box(
-                    modifier = GlanceModifier
-                        .size(40.dp)
-                        .cornerRadius(10.dp)
-                        .background(ColorProvider(R.color.widget_album_bg))
-                        .clickable(actionStartActivity<MainActivity>()),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (albumArtBitmap != null) {
-                        Image(
-                            provider = BitmapImageProvider(albumArtBitmap),
-                            contentDescription = null,
-                            modifier = GlanceModifier.size(40.dp).cornerRadius(10.dp),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Image(
-                            provider = ImageProvider(R.mipmap.ic_launcher),
-                            contentDescription = null,
-                            modifier = GlanceModifier.size(28.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = GlanceModifier.width(8.dp))
-
-                // Song info
-                Column(
-                    modifier = GlanceModifier.defaultWeight(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = title,
-                        style = TextStyle(
-                            color = ColorProvider(R.color.widget_text_primary),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        ),
-                        maxLines = 1,
-                        modifier = GlanceModifier.clickable(actionStartActivity<MainActivity>())
-                    )
-                    Text(
-                        text = artist,
-                        style = TextStyle(
-                            color = ColorProvider(R.color.widget_text_secondary),
-                            fontSize = 10.sp
-                        ),
-                        maxLines = 1,
-                        modifier = GlanceModifier.clickable(actionStartActivity<MainActivity>())
-                    )
-                }
-
-                Spacer(modifier = GlanceModifier.width(4.dp))
-
-                // Compact controls
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    ControlButton(context, R.drawable.skip_previous, ACTION_PREV, 28)
-                    Spacer(modifier = GlanceModifier.width(2.dp))
-
-                    Box(
-                        modifier = GlanceModifier
-                            .size(36.dp)
-                            .cornerRadius(18.dp)
-                            .background(ColorProvider(R.color.widget_accent))
-                            .clickable(getServiceAction(context, ACTION_PLAY_PAUSE)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Image(
-                            provider = ImageProvider(if (isPlaying) R.drawable.pause else R.drawable.play),
-                            contentDescription = context.getString(R.string.play),
-                            modifier = GlanceModifier.size(20.dp)
-                        )
-                    }
-
-                    Spacer(modifier = GlanceModifier.width(2.dp))
-                    ControlButton(context, R.drawable.skip_next, ACTION_NEXT, 28)
-                }
-            }
-        }
-    }
-
-    @Composable
+    @androidx.compose.runtime.Composable
     private fun MusicWidgetContent(context: Context) {
         val prefs = currentState<Preferences>()
         val title = prefs[PREF_TITLE] ?: context.getString(R.string.app_name)
         val artist = prefs[PREF_ARTIST] ?: ""
         val isPlaying = prefs[PREF_IS_PLAYING] ?: false
-        val isLiked = prefs[PREF_IS_LIKED] ?: false
+        val albumArt = cachedAlbumArtBitmap
 
-        val albumArtBitmap = cachedAlbumArtBitmap
-
-        Box(
-            modifier = GlanceModifier
-                .fillMaxSize()
-                .padding(4.dp)
-        ) {
-            Row(
+        Box(GlanceModifier.fillMaxSize().padding(3.dp)) {
+            Column(
                 modifier = GlanceModifier
                     .fillMaxSize()
                     .background(ColorProvider(R.color.widget_background))
-                    .cornerRadius(28.dp)
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .cornerRadius(24.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
-                // Album Art
-                Box(
-                    modifier = GlanceModifier
-                        .size(88.dp)
-                        .cornerRadius(16.dp)
-                        .background(ColorProvider(R.color.widget_album_bg))
-                        .clickable(actionStartActivity<MainActivity>()),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (albumArtBitmap != null) {
-                        Image(
-                            provider = BitmapImageProvider(albumArtBitmap),
-                            contentDescription = null,
-                            modifier = GlanceModifier.size(88.dp).cornerRadius(16.dp),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Image(
-                            provider = ImageProvider(R.mipmap.ic_launcher),
-                            contentDescription = null,
-                            modifier = GlanceModifier.size(56.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = GlanceModifier.width(12.dp))
-
-                // Content Column
-                Column(
-                    modifier = GlanceModifier.defaultWeight(),
+                // Main row — fills the remaining height; album art fills that height so there's no
+                // whitespace, and the info column is weighted so nothing is ever cut off.
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalAlignment = Alignment.Start
                 ) {
-                    // Title row with app icon
-                    Row(
-                        modifier = GlanceModifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.Start,
-                        verticalAlignment = Alignment.CenterVertically
+                    Box(
+                        modifier = GlanceModifier
+                            .fillMaxHeight()
+                            .width(56.dp)
+                            .cornerRadius(12.dp)
+                            .background(ColorProvider(R.color.widget_album_bg))
+                            .clickable(actionStartActivity<MainActivity>()),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (albumArt != null) {
+                            Image(
+                                provider = BitmapImageProvider(albumArt),
+                                contentDescription = null,
+                                modifier = GlanceModifier.fillMaxSize().cornerRadius(12.dp),
+                                contentScale = ContentScale.Crop,
+                            )
+                        } else {
+                            Image(
+                                provider = ImageProvider(R.mipmap.ic_launcher),
+                                contentDescription = null,
+                                modifier = GlanceModifier.size(28.dp),
+                            )
+                        }
+                    }
+
+                    Spacer(GlanceModifier.width(10.dp))
+
+                    Column(
+                        modifier = GlanceModifier.defaultWeight(),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             text = title,
                             style = TextStyle(
                                 color = ColorProvider(R.color.widget_text_primary),
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
                             ),
                             maxLines = 1,
-                            modifier = GlanceModifier
-                                .defaultWeight()
-                                .clickable(actionStartActivity<MainActivity>())
+                            modifier = GlanceModifier.clickable(actionStartActivity<MainActivity>()),
                         )
-                        Spacer(modifier = GlanceModifier.width(8.dp))
-                        Image(
-                            provider = ImageProvider(R.mipmap.ic_launcher),
-                            contentDescription = context.getString(R.string.app_name),
-                            modifier = GlanceModifier.size(20.dp)
-                        )
+                        if (artist.isNotEmpty()) {
+                            Text(
+                                text = artist,
+                                style = TextStyle(
+                                    color = ColorProvider(R.color.widget_text_secondary),
+                                    fontSize = 11.sp,
+                                ),
+                                maxLines = 1,
+                                modifier = GlanceModifier.clickable(actionStartActivity<MainActivity>()),
+                            )
+                        }
                     }
 
-                    Spacer(modifier = GlanceModifier.height(2.dp))
+                    Spacer(GlanceModifier.width(6.dp))
 
-                    Text(
-                        text = artist,
-                        style = TextStyle(
-                            color = ColorProvider(R.color.widget_text_secondary),
-                            fontSize = 12.sp
-                        ),
-                        maxLines = 1,
-                        modifier = GlanceModifier.clickable(actionStartActivity<MainActivity>())
-                    )
-
-                    Spacer(modifier = GlanceModifier.height(10.dp))
-
-                    // Control buttons
-                    Row(
-                        modifier = GlanceModifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.Start,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        ControlButton(context, R.drawable.skip_previous, ACTION_PREV, 36)
-                        Spacer(modifier = GlanceModifier.width(4.dp))
-
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ControlButton(context, R.drawable.skip_previous, ACTION_PREV, 30)
+                        Spacer(GlanceModifier.width(2.dp))
                         Box(
                             modifier = GlanceModifier
-                                .size(40.dp)
-                                .cornerRadius(20.dp)
+                                .size(38.dp)
+                                .cornerRadius(19.dp)
                                 .background(ColorProvider(R.color.widget_accent))
                                 .clickable(getServiceAction(context, ACTION_PLAY_PAUSE)),
-                            contentAlignment = Alignment.Center
+                            contentAlignment = Alignment.Center,
                         ) {
                             Image(
                                 provider = ImageProvider(if (isPlaying) R.drawable.pause else R.drawable.play),
                                 contentDescription = context.getString(R.string.play),
-                                modifier = GlanceModifier.size(22.dp)
+                                modifier = GlanceModifier.size(20.dp),
+                                colorFilter = ColorFilter.tint(ColorProvider(R.color.widget_text_primary)),
                             )
                         }
-
-                        Spacer(modifier = GlanceModifier.width(4.dp))
-                        ControlButton(context, R.drawable.skip_next, ACTION_NEXT, 36)
-                        Spacer(modifier = GlanceModifier.width(4.dp))
-                        ControlButton(
-                            context,
-                            if (isLiked) R.drawable.favorite else R.drawable.favorite_border,
-                            ACTION_LIKE,
-                            32
-                        )
+                        Spacer(GlanceModifier.width(2.dp))
+                        ControlButton(context, R.drawable.skip_next, ACTION_NEXT, 30)
+                        Spacer(GlanceModifier.width(2.dp))
+                        RecognizeButton(context, 30)
                     }
                 }
+
+                Spacer(GlanceModifier.height(6.dp))
+                SeekRow(prefs)
             }
         }
     }
 
-    @Composable
+    /** Elapsed time · progress bar · total time. */
+    @androidx.compose.runtime.Composable
+    private fun SeekRow(prefs: Preferences) {
+        val position = prefs[PREF_POSITION] ?: 0L
+        val duration = prefs[PREF_DURATION] ?: 0L
+        val progress = if (duration > 0L) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
+
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = formatTime(position),
+                style = TextStyle(color = ColorProvider(R.color.widget_text_secondary), fontSize = 10.sp),
+                maxLines = 1,
+            )
+            Spacer(GlanceModifier.width(8.dp))
+            LinearProgressIndicator(
+                progress = progress,
+                modifier = GlanceModifier.defaultWeight().height(4.dp),
+                color = ColorProvider(R.color.widget_accent),
+                backgroundColor = ColorProvider(R.color.widget_text_secondary),
+            )
+            Spacer(GlanceModifier.width(8.dp))
+            Text(
+                text = formatTime(duration),
+                style = TextStyle(color = ColorProvider(R.color.widget_text_secondary), fontSize = 10.sp),
+                maxLines = 1,
+            )
+        }
+    }
+
+    @androidx.compose.runtime.Composable
     private fun ControlButton(context: Context, iconRes: Int, action: String, size: Int) {
         Box(
             modifier = GlanceModifier
                 .size(size.dp)
                 .cornerRadius((size / 2).dp)
                 .clickable(getServiceAction(context, action)),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
             Image(
                 provider = ImageProvider(iconRes),
                 contentDescription = null,
-                modifier = GlanceModifier.size((size - 8).dp)
+                modifier = GlanceModifier.size((size - 8).dp),
+                colorFilter = ColorFilter.tint(ColorProvider(R.color.widget_text_primary)),
+            )
+        }
+    }
+
+    /** Mic button that opens the Zemer-branded "Recognize music" popup over the home screen. */
+    @androidx.compose.runtime.Composable
+    private fun RecognizeButton(context: Context, size: Int) {
+        Box(
+            modifier = GlanceModifier
+                .size(size.dp)
+                .cornerRadius((size / 2).dp)
+                .clickable(
+                    actionStartActivityIntent(
+                        Intent(context, RecognizeMusicDialogActivity::class.java)
+                            .apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK },
+                    ),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                provider = ImageProvider(R.drawable.mic),
+                contentDescription = context.getString(R.string.recognize_music),
+                modifier = GlanceModifier.size((size - 8).dp),
+                colorFilter = ColorFilter.tint(ColorProvider(R.color.widget_text_primary)),
             )
         }
     }
@@ -345,14 +266,12 @@ class MusicWidget : GlanceAppWidget() {
     }
 
     companion object {
-        private val COMPACT_SIZE = DpSize(280.dp, 56.dp)
-        private val NORMAL_SIZE = DpSize(280.dp, 100.dp)
-
         private val PREF_TITLE = stringPreferencesKey("title")
         private val PREF_ARTIST = stringPreferencesKey("artist")
         private val PREF_IS_PLAYING = booleanPreferencesKey("is_playing")
-        private val PREF_IS_LIKED = booleanPreferencesKey("is_liked")
         private val PREF_ALBUM_ART_URL = stringPreferencesKey("album_art_url")
+        private val PREF_POSITION = longPreferencesKey("position_ms")
+        private val PREF_DURATION = longPreferencesKey("duration_ms")
 
         private var cachedAlbumArtBitmap: Bitmap? = null
         private var cachedAlbumArtUrl: String? = null
@@ -360,7 +279,14 @@ class MusicWidget : GlanceAppWidget() {
         const val ACTION_PLAY_PAUSE = "com.jtech.zemer.ACTION_PLAY"
         const val ACTION_NEXT = "com.jtech.zemer.ACTION_NEXT"
         const val ACTION_PREV = "com.jtech.zemer.ACTION_PREV"
-        const val ACTION_LIKE = "com.jtech.zemer.ACTION_LIKE"
+
+        private fun formatTime(ms: Long): String {
+            if (ms <= 0L) return "0:00"
+            val totalSeconds = ms / 1000
+            val minutes = totalSeconds / 60
+            val seconds = totalSeconds % 60
+            return "%d:%02d".format(minutes, seconds)
+        }
 
         suspend fun updateWidget(
             context: Context,
@@ -368,13 +294,15 @@ class MusicWidget : GlanceAppWidget() {
             artist: String,
             isPlaying: Boolean,
             albumArtUrl: String? = null,
-            isLiked: Boolean = false
+            positionMs: Long = 0L,
+            durationMs: Long = 0L,
         ) {
             try {
                 val manager = GlanceAppWidgetManager(context)
                 val glanceIds = manager.getGlanceIds(MusicWidget::class.java)
+                if (glanceIds.isEmpty()) return
 
-                // Load album art bitmap if URL changed
+                // Load album art bitmap if the URL changed
                 if (albumArtUrl != null && albumArtUrl != cachedAlbumArtUrl) {
                     try {
                         val bitmap = withContext(Dispatchers.IO) {
@@ -391,13 +319,15 @@ class MusicWidget : GlanceAppWidget() {
                                 } else {
                                     originalBitmap
                                 }
-                            } else null
+                            } else {
+                                null
+                            }
                         }
                         if (bitmap != null) {
                             cachedAlbumArtBitmap = bitmap
                             cachedAlbumArtUrl = albumArtUrl
                         }
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         // Failed to load album art
                     }
                 }
@@ -408,13 +338,14 @@ class MusicWidget : GlanceAppWidget() {
                             this[PREF_TITLE] = title
                             this[PREF_ARTIST] = artist
                             this[PREF_IS_PLAYING] = isPlaying
-                            this[PREF_IS_LIKED] = isLiked
+                            this[PREF_POSITION] = positionMs
+                            this[PREF_DURATION] = durationMs
                             albumArtUrl?.let { this[PREF_ALBUM_ART_URL] = it }
                         }
                     }
                     MusicWidget().update(context, glanceId)
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Widget may not be added
             }
         }
