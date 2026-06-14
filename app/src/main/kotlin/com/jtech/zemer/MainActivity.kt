@@ -248,6 +248,7 @@ import com.metrolist.innertube.utils.parseCookieString
 import com.valentinilk.shimmer.LocalShimmerTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -1014,9 +1015,12 @@ class MainActivity : ComponentActivity() {
                         if (active) {
                             searchBarScrollBehavior.state.resetHeightOffset()
                             topAppBarScrollBehavior.state.resetHeightOffset()
+                            // Programmatic focus alone doesn't raise the soft keyboard: when `active`
+                            // flips (e.g. tapping the Search tab), the text-input session isn't ready
+                            // the same frame, so a synchronous show() is a no-op. Request focus, let
+                            // the session start, then explicitly show the IME.
                             searchBarFocusRequester.requestFocus()
-                            // requestFocus() alone doesn't reliably raise the soft keyboard when focus
-                            // is requested programmatically (e.g. tapping the Search tab), so show it.
+                            delay(100)
                             keyboardController?.show()
                         }
                     }
