@@ -53,6 +53,7 @@ import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.MediaStoreDownloadManager
 import com.jtech.zemer.ui.component.DefaultDialog
@@ -112,8 +113,11 @@ fun PlayerMenu(
             database.transaction {
                 insert(mediaMetadata)
             }
-            coroutineScope.launch(Dispatchers.IO) {
-                playlist.playlist.browseId?.let { YouTube.addToPlaylist(it, mediaMetadata.id) }
+            // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+            if (isPersonalAccountSignedIn) {
+                coroutineScope.launch(Dispatchers.IO) {
+                    playlist.playlist.browseId?.let { YouTube.addToPlaylist(it, mediaMetadata.id) }
+                }
             }
             listOf(mediaMetadata.id)
         },

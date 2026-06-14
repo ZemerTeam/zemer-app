@@ -10,6 +10,7 @@ import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.db.entities.SongEntity
+import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toSQLiteQuery
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.utils.filterWhitelisted
@@ -80,12 +81,14 @@ class SyncUtils @Inject constructor(
     }
 
     fun likeSong(s: SongEntity) {
+        if (!isPersonalAccountSignedIn) return
         syncScope.launch {
             YouTube.likeVideo(s.id, s.liked)
         }
     }
 
     suspend fun syncLikedSongs() {
+        if (!isPersonalAccountSignedIn) return
         if (isSyncingLikedSongs.value) return
         isSyncingLikedSongs.value = true
         try {
@@ -123,6 +126,7 @@ class SyncUtils @Inject constructor(
     }
 
     suspend fun syncLibrarySongs() {
+        if (!isPersonalAccountSignedIn) return
         if (isSyncingLibrarySongs.value) return
         isSyncingLibrarySongs.value = true
         try {
@@ -170,6 +174,7 @@ class SyncUtils @Inject constructor(
     }
 
     suspend fun syncUploadedSongs() {
+        if (!isPersonalAccountSignedIn) return
         if (isSyncingUploadedSongs.value) return
         isSyncingUploadedSongs.value = true
         try {
@@ -202,6 +207,7 @@ class SyncUtils @Inject constructor(
     }
 
     suspend fun syncLikedAlbums() {
+        if (!isPersonalAccountSignedIn) return
         if (isSyncingLikedAlbums.value) return
         isSyncingLikedAlbums.value = true
         try {
@@ -237,6 +243,7 @@ class SyncUtils @Inject constructor(
     }
 
     suspend fun syncUploadedAlbums() {
+        if (!isPersonalAccountSignedIn) return
         if (isSyncingUploadedAlbums.value) return
         isSyncingUploadedAlbums.value = true
         try {
@@ -272,6 +279,7 @@ class SyncUtils @Inject constructor(
     }
 
     suspend fun syncArtistsSubscriptions() {
+        if (!isPersonalAccountSignedIn) return
         if (isSyncingArtists.value) return
         isSyncingArtists.value = true
         try {
@@ -311,6 +319,7 @@ class SyncUtils @Inject constructor(
     }
 
     suspend fun syncSavedPlaylists() {
+        if (!isPersonalAccountSignedIn) return
         if (isSyncingPlaylists.value) return
         isSyncingPlaylists.value = true
         try {

@@ -26,6 +26,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.db.entities.Playlist
+import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.ui.component.CreatePlaylistDialog
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.ListDialog
@@ -110,9 +111,12 @@ fun AddToPlaylistDialog(
                                 onDismiss()
                                 database.addSongToPlaylist(playlist, songIds!!)
 
-                                playlist.playlist.browseId?.let { plist ->
-                                    songIds?.forEach {
-                                        YouTube.addToPlaylist(plist, it)
+                                // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+                                if (isPersonalAccountSignedIn) {
+                                    playlist.playlist.browseId?.let { plist ->
+                                        songIds?.forEach {
+                                            YouTube.addToPlaylist(plist, it)
+                                        }
                                     }
                                 }
                             }

@@ -56,6 +56,7 @@ import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.db.entities.Event
 import com.jtech.zemer.db.entities.PlaylistSong
 import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.YouTubeQueue
@@ -216,9 +217,12 @@ fun SongMenu(
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
         onGetSong = { playlist ->
-            coroutineScope.launch(Dispatchers.IO) {
-                playlist.playlist.browseId?.let { browseId ->
-                    YouTube.addToPlaylist(browseId, song.id)
+            // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+            if (isPersonalAccountSignedIn) {
+                coroutineScope.launch(Dispatchers.IO) {
+                    playlist.playlist.browseId?.let { browseId ->
+                        YouTube.addToPlaylist(browseId, song.id)
+                    }
                 }
             }
             listOf(song.id)
@@ -401,9 +405,12 @@ fun SongMenu(
                                 val isInLibrary = currentSong.inLibrary != null
                                 val token = if (isInLibrary) currentSong.libraryRemoveToken else currentSong.libraryAddToken
 
-                                token?.let {
-                                    coroutineScope.launch {
-                                        YouTube.feedback(listOf(it))
+                                // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+                                if (isPersonalAccountSignedIn) {
+                                    token?.let {
+                                        coroutineScope.launch {
+                                            YouTube.feedback(listOf(it))
+                                        }
                                     }
                                 }
 
@@ -438,12 +445,15 @@ fun SongMenu(
                             title = { Text(stringResource(R.string.remove_from_playlist)) },
                             onClick = {
                                 database.transaction {
-                                    coroutineScope.launch {
-                                        playlistBrowseId?.let { playlistId ->
-                                            if (playlistSong.map.setVideoId != null) {
-                                                YouTube.removeFromPlaylist(
-                                                    playlistId, playlistSong.map.songId, playlistSong.map.setVideoId
-                                                )
+                                    // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+                                    if (isPersonalAccountSignedIn) {
+                                        coroutineScope.launch {
+                                            playlistBrowseId?.let { playlistId ->
+                                                if (playlistSong.map.setVideoId != null) {
+                                                    YouTube.removeFromPlaylist(
+                                                        playlistId, playlistSong.map.songId, playlistSong.map.setVideoId
+                                                    )
+                                                }
                                             }
                                         }
                                     }

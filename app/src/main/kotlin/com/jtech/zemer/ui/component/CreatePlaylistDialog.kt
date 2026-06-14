@@ -26,8 +26,8 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.PlaylistEntity
+import com.jtech.zemer.extensions.isPersonalAccountFlow
 import com.jtech.zemer.extensions.isSyncEnabledFlow
-import com.jtech.zemer.extensions.isUserLoggedInFlow
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
@@ -46,12 +46,14 @@ fun CreatePlaylistDialog(
     var syncedPlaylist by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    val isSignedIn by remember { context.isUserLoggedInFlow() }.collectAsState(false)
+    // A personal account (not the anonymous pooled account) is required to create a *synced*
+    // playlist; anonymous users can still create local playlists (the `else null` branch below).
+    val isSignedIn by remember { context.isPersonalAccountFlow() }.collectAsState(false)
     val isSyncEnabled by
         remember {
             combine(
                 context.isSyncEnabledFlow(),
-                context.isUserLoggedInFlow()
+                context.isPersonalAccountFlow()
             ) { syncEnabled, loggedIn -> syncEnabled && loggedIn }
         }.collectAsState(false)
 

@@ -53,6 +53,7 @@ import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.SongEntity
+import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.toMediaMetadata
@@ -126,15 +127,18 @@ fun YouTubeSongMenu(
     AddToPlaylistDialog(  
         isVisible = showChoosePlaylistDialog,  
         onGetSong = { playlist ->  
-            database.transaction {  
-                insert(song.toMediaMetadata())  
-            }  
-            coroutineScope.launch(Dispatchers.IO) {  
-                playlist.playlist.browseId?.let { browseId ->  
-                    YouTube.addToPlaylist(browseId, song.id)  
-                }  
-            }  
-            listOf(song.id)  
+            database.transaction {
+                insert(song.toMediaMetadata())
+            }
+            // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+            if (isPersonalAccountSignedIn) {
+                coroutineScope.launch(Dispatchers.IO) {
+                    playlist.playlist.browseId?.let { browseId ->
+                        YouTube.addToPlaylist(browseId, song.id)
+                    }
+                }
+            }
+            listOf(song.id)
         },  
         onDismiss = { showChoosePlaylistDialog = false }  
     )  
@@ -333,7 +337,10 @@ fun YouTubeSongMenu(
                                 title = { Text(stringResource(R.string.remove_from_history)) },
                                 onClick = {
                                     coroutineScope.launch {
-                                        YouTube.feedback(listOf(song.historyRemoveToken!!))
+                                        // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+                                        if (isPersonalAccountSignedIn) {
+                                            YouTube.feedback(listOf(song.historyRemoveToken!!))
+                                        }
 
                                         delay(500)
 
@@ -361,9 +368,12 @@ fun YouTubeSongMenu(
                                 val isInLibrary = librarySong?.song?.inLibrary != null
                                 val token = if (isInLibrary) song.libraryRemoveToken else song.libraryAddToken
 
-                                token?.let {
-                                    coroutineScope.launch {
-                                        YouTube.feedback(listOf(it))
+                                // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+                                if (isPersonalAccountSignedIn) {
+                                    token?.let {
+                                        coroutineScope.launch {
+                                            YouTube.feedback(listOf(it))
+                                        }
                                     }
                                 }
 

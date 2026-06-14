@@ -6,6 +6,7 @@ import androidx.compose.runtime.Immutable
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,12 +37,15 @@ data class ArtistEntity(
     )
 
     fun toggleLike() = localToggleLike().also {
-        CoroutineScope(Dispatchers.IO).launch {
-            if (channelId == null)
-                YouTube.subscribeChannel(YouTube.getChannelId(id), bookmarkedAt == null)
-            else
-                YouTube.subscribeChannel(channelId, bookmarkedAt == null)
-            this.cancel()
+        // Anonymous (pooled) sessions are local-only — only a personal account pushes to remote.
+        if (isPersonalAccountSignedIn) {
+            CoroutineScope(Dispatchers.IO).launch {
+                if (channelId == null)
+                    YouTube.subscribeChannel(YouTube.getChannelId(id), bookmarkedAt == null)
+                else
+                    YouTube.subscribeChannel(channelId, bookmarkedAt == null)
+                this.cancel()
+            }
         }
     }
 

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,10 +43,13 @@ data class AlbumEntity(
     )
 
     fun toggleLike() = localToggleLike().also {
-        CoroutineScope(Dispatchers.IO).launch {
-            if (playlistId != null)
-                YouTube.likePlaylist(playlistId, bookmarkedAt == null)
-            this.cancel()
+        // Anonymous (pooled) sessions are local-only — only a personal account pushes to remote.
+        if (isPersonalAccountSignedIn) {
+            CoroutineScope(Dispatchers.IO).launch {
+                if (playlistId != null)
+                    YouTube.likePlaylist(playlistId, bookmarkedAt == null)
+                this.cancel()
+            }
         }
     }
 }

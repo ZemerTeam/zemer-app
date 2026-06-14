@@ -39,6 +39,7 @@ import com.jtech.zemer.LocalSyncUtils
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.toMediaMetadata
@@ -120,10 +121,13 @@ fun SelectionSongMenu(
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
         onGetSong = { playlist ->
-            coroutineScope.launch(Dispatchers.IO) {
-                songSelection.forEach { song ->
-                    playlist.playlist.browseId?.let { browseId ->
-                        YouTube.addToPlaylist(browseId, song.id)
+            // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+            if (isPersonalAccountSignedIn) {
+                coroutineScope.launch(Dispatchers.IO) {
+                    songSelection.forEach { song ->
+                        playlist.playlist.browseId?.let { browseId ->
+                            YouTube.addToPlaylist(browseId, song.id)
+                        }
                     }
                 }
             }
@@ -361,10 +365,13 @@ fun SelectionSongMenu(
                                             inLibrary(song.id, null)
                                         }
                                     }
-                                    coroutineScope.launch {
-                                        val tokens = songSelection.mapNotNull { it.song.libraryRemoveToken }
-                                        tokens.chunked(20).forEach {
-                                            YouTube.feedback(it)
+                                    // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+                                    if (isPersonalAccountSignedIn) {
+                                        coroutineScope.launch {
+                                            val tokens = songSelection.mapNotNull { it.song.libraryRemoveToken }
+                                            tokens.chunked(20).forEach {
+                                                YouTube.feedback(it)
+                                            }
                                         }
                                     }
                                 } else {
@@ -374,10 +381,13 @@ fun SelectionSongMenu(
                                             inLibrary(song.id, LocalDateTime.now())
                                         }
                                     }
-                                    coroutineScope.launch {
-                                        val tokens = songSelection.filter {it.song.inLibrary == null}.mapNotNull { it.song.libraryAddToken }
-                                        tokens.chunked(20).forEach {
-                                            YouTube.feedback(it)
+                                    // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+                                    if (isPersonalAccountSignedIn) {
+                                        coroutineScope.launch {
+                                            val tokens = songSelection.filter {it.song.inLibrary == null}.mapNotNull { it.song.libraryAddToken }
+                                            tokens.chunked(20).forEach {
+                                                YouTube.feedback(it)
+                                            }
                                         }
                                     }
                                 }

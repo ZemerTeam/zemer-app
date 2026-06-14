@@ -5,6 +5,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -64,9 +65,12 @@ data class SongEntity(
         likedDate = if (!liked) LocalDateTime.now() else null,
         inLibrary = if (!liked) inLibrary ?: LocalDateTime.now() else inLibrary
     ).also {
-        CoroutineScope(Dispatchers.IO).launch {
-            YouTube.likeVideo(id, !liked)
-            this.cancel()
+        // Anonymous (pooled) sessions are local-only — only a personal account pushes to remote.
+        if (isPersonalAccountSignedIn) {
+            CoroutineScope(Dispatchers.IO).launch {
+                YouTube.likeVideo(id, !liked)
+                this.cancel()
+            }
         }
     }
 
