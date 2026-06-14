@@ -399,7 +399,7 @@ fun Lyrics(
             ) {
                 Text(
                     text = stringResource(R.string.lyrics_not_found),
-                    fontSize = 20.sp,
+                    style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.secondary,
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Bold,
@@ -572,7 +572,7 @@ fun Lyrics(
                     ) {
                         Text(
                             text = item.text,
-                            fontSize = 24.sp, // Uniform size for all lines matching latest enh version
+                            style = MaterialTheme.typography.headlineSmall, // Uniform size for all lines matching latest enh version
                             color = if (index == displayedCurrentLineIndex && isSynced) {
                                 textColor // Full color for active line
                             } else {

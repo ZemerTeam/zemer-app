@@ -1,15 +1,11 @@
 app/src/main/kotlin/com/jtech/zemer/ui/component/Dialog.kt	R8-hex	1
 app/src/main/kotlin/com/jtech/zemer/ui/component/LyricsImageCard.kt	R8-fontsize	3
 app/src/main/kotlin/com/jtech/zemer/ui/component/LyricsImageCard.kt	R8-hex	1
-app/src/main/kotlin/com/jtech/zemer/ui/component/Lyrics.kt	R8-fontsize	2
 app/src/main/kotlin/com/jtech/zemer/ui/component/Lyrics.kt	R8-hex	4
 app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialog.kt	R11-menu	1
 app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialogOnline.kt	R11-menu	2
 app/src/main/kotlin/com/jtech/zemer/ui/menu/ArtistMenu.kt	R11-menu	1
 app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubePlaylistMenu.kt	R11-menu	1
 app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeSongMenu.kt	R11-menu	1
-app/src/main/kotlin/com/jtech/zemer/ui/player/MiniPlayer.kt	R8-fontsize	1
 app/src/main/kotlin/com/jtech/zemer/ui/player/MiniPlayer.kt	R8-hex	1
-app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt	R8-fontsize	1
 app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AppearanceSettings.kt	R8-hex	1
-app/src/main/kotlin/com/jtech/zemer/ui/screens/SplashScreen.kt	R8-fontsize	1

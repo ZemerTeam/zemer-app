@@ -69,7 +69,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import coil3.compose.AsyncImage
@@ -448,7 +447,7 @@ private fun NewMiniPlayer(
                             Text(
                                 text = stringResource(R.string.error_playing),
                                 color = MaterialTheme.colorScheme.error,
-                                fontSize = 10.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
