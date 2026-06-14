@@ -77,13 +77,13 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `815`
+- Files counted: `822`
 - By extension:
   - `.kt`: `437`
   - `.xml`: `184`
   - `.mjs`: `66`
+  - `.md`: `42`
   - `.json`: `36`
-  - `.md`: `35`
   - `.webp`: `15`
   - `[none]`: `7`
   - `.kts`: `6`
@@ -716,6 +716,13 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/multi_update/04-wiring.md` | 95 lines | `.md` |
 | `docs/multi_update/05-runbook.md` | 83 lines | `.md` |
 | `docs/multi_update/README.md` | 77 lines | `.md` |
+| `docs/recognize_music/01-architecture-and-pipeline.md` | 92 lines | `.md` |
+| `docs/recognize_music/02-whitelist-guarantee.md` | 95 lines | `.md` |
+| `docs/recognize_music/03-entry-points-and-ui.md` | 72 lines | `.md` |
+| `docs/recognize_music/04-recognition-history.md` | 66 lines | `.md` |
+| `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
+| `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
+| `docs/recognize_music/README.md` | 71 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 460 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 356 lines | `.md` |
 | `docs/reference/resource-index.md` | 288 lines | `.md` |
@@ -727,7 +734,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 99 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 110 lines | `.md` |
-| `docs/repository-map.md` | 924 lines | `.md` |
+| `docs/repository-map.md` | 931 lines | `.md` |
 | `docs/ui/README.md` | 329 lines | `.md` |
 | `docs/ui/standards.md` | 240 lines | `.md` |
 | `docs/whitelist/README.md` | 181 lines | `.md` |
