@@ -3,13 +3,16 @@ package com.jtech.zemer.ui.menu
 import android.content.Intent
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
@@ -22,12 +25,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -35,11 +41,9 @@ import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ArtistSongSortType
-import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
-import com.jtech.zemer.ui.component.ListItem
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.NewAction
@@ -73,38 +77,45 @@ fun ArtistMenu(
         )
     }
 
-    // Artist menu header without song count
-    ListItem(
-        title = artist.artist.name,
-        subtitle = null, // Hide song count in menu
-        badges = {
-            if (artist.artist.bookmarkedAt != null) {
-                Icon(
-                    painter = painterResource(R.drawable.favorite),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier
-                        .size(18.dp)
-                        .padding(end = 2.dp),
-                )
-            }
-        },
-        thumbnailContent = {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(artist.artist.thumbnailUrl)
-                    .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
-                    .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
-                    .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
-                    .build(),
+    // Artist menu header — a roomy row so a long name and the avatar aren't cramped/clipped.
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+    ) {
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(artist.artist.thumbnailUrl)
+                .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .build(),
+            contentDescription = null,
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape),
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        if (artist.artist.bookmarkedAt != null) {
+            Icon(
+                painter = painterResource(R.drawable.favorite),
                 contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
                 modifier = Modifier
-                    .size(ListThumbnailSize)
-                    .clip(CircleShape),
+                    .size(18.dp)
+                    .padding(end = 4.dp),
             )
-        },
-        trailingContent = {},
-    )
+        }
+        Text(
+            text = artist.artist.name,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+    }
 
     HorizontalDivider()
 

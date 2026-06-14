@@ -117,6 +117,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
@@ -845,6 +846,7 @@ class MainActivity : ComponentActivity() {
 
                     val searchBarFocusRequester = remember { FocusRequester() }
                     val searchResultsFocusRequester = remember { FocusRequester() }
+                    val keyboardController = LocalSoftwareKeyboardController.current
 
                     val onSearch: (String) -> Unit = remember {
                         { searchQuery ->
@@ -1013,6 +1015,9 @@ class MainActivity : ComponentActivity() {
                             searchBarScrollBehavior.state.resetHeightOffset()
                             topAppBarScrollBehavior.state.resetHeightOffset()
                             searchBarFocusRequester.requestFocus()
+                            // requestFocus() alone doesn't reliably raise the soft keyboard when focus
+                            // is requested programmatically (e.g. tapping the Search tab), so show it.
+                            keyboardController?.show()
                         }
                     }
 

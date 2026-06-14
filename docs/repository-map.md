@@ -165,7 +165,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 87 lines | `.kt` |
 | `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 46 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/App.kt` | 424 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2117 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2122 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/accessibility/ButtonMapperAccessibilityService.kt` | 45 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/auth/AuthState.kt` | 57 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/auth/UserAuthManager.kt` | 145 lines | `.kt` |
@@ -301,7 +301,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialog.kt` | 191 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialogOnline.kt` | 207 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/AlbumMenu.kt` | 457 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/ArtistMenu.kt` | 259 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/ArtistMenu.kt` | 270 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/CustomThumbnailMenu.kt` | 63 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ImportPlaylistDialog.kt` | 63 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/LoadingScreen.kt` | 23 lines | `.kt` |
@@ -818,7 +818,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `lrclib/src/main/kotlin/com/metrolist/lrclib/models/Track.kt` | 137 lines | `.kt` |
 | `scripts/check-16kb-alignment.sh` | 67 lines | `.sh` |
 | `scripts/telegram-chats.sh` | 38 lines | `.sh` |
-| `scripts/ui-audit-baseline.tsv` | 11 lines | `.tsv` |
+| `scripts/ui-audit-baseline.tsv` | 10 lines | `.tsv` |
 | `scripts/ui-audit.sh` | 111 lines | `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | `.py` |
 | `settings.gradle.kts` | 56 lines | `.kts` |
