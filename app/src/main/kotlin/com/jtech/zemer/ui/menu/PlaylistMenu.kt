@@ -4,7 +4,6 @@ package com.jtech.zemer.ui.menu
 
 import android.content.Intent
 import android.content.res.Configuration
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -17,7 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -43,6 +41,8 @@ import com.jtech.zemer.db.entities.PlaylistSong
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.ui.component.Material3MenuGroup
+import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.PlaylistListItem
@@ -192,33 +192,29 @@ fun PlaylistMenu(
         }
 
         item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.add_to_queue)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.queue_music),
-                        contentDescription = null,
+            Material3MenuGroup(
+                modifier = Modifier.padding(horizontal = 4.dp),
+                items = buildList {
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.queue_music), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.add_to_queue)) },
+                            onClick = {
+                                songs.takeIf { it.isNotEmpty() }?.let {
+                                    playerConnection.addToQueue(it.map(Song::toMediaItem))
+                                }
+                                onDismiss()
+                            },
+                        )
+                    )
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.warning), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.report_artist)) },
+                            onClick = { showReportDialog = true },
+                        )
                     )
                 },
-                modifier = Modifier.clickable {
-                    songs.takeIf { it.isNotEmpty() }?.let {
-                        playerConnection.addToQueue(it.map(Song::toMediaItem))
-                    }
-                    onDismiss()
-                }
-            )
-        }
-
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.report_artist)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.warning),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable { showReportDialog = true }
             )
         }
     }

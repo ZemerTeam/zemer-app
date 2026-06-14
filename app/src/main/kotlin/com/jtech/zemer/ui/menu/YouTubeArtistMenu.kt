@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,6 +34,8 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.ui.component.Material3MenuGroup
+import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.YouTubeListItem
@@ -155,55 +156,55 @@ fun YouTubeArtistMenu(
         }
 
         item {
-            ListItem(
-                headlineContent = { 
-                    Text(text = if (libraryArtist?.artist?.bookmarkedAt != null) stringResource(R.string.subscribed) else stringResource(R.string.subscribe))
-                },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(
-                            if (libraryArtist?.artist?.bookmarkedAt != null) {
-                                R.drawable.subscribed
-                            } else {
-                                R.drawable.subscribe
-                            }
-                        ),
-                        contentDescription = null,
+            Material3MenuGroup(
+                modifier = Modifier.padding(horizontal = 4.dp),
+                items = buildList {
+                    add(
+                        Material3MenuItemData(
+                            icon = {
+                                Icon(
+                                    painterResource(
+                                        if (libraryArtist?.artist?.bookmarkedAt != null) {
+                                            R.drawable.subscribed
+                                        } else {
+                                            R.drawable.subscribe
+                                        }
+                                    ),
+                                    null,
+                                    Modifier.size(24.dp),
+                                )
+                            },
+                            title = {
+                                Text(text = if (libraryArtist?.artist?.bookmarkedAt != null) stringResource(R.string.subscribed) else stringResource(R.string.subscribe))
+                            },
+                            onClick = {
+                                database.query {
+                                    val libraryArtist = libraryArtist
+                                    if (libraryArtist != null) {
+                                        update(libraryArtist.artist.toggleLike())
+                                    } else {
+                                        insert(
+                                            ArtistEntity(
+                                                id = artist.id,
+                                                name = artist.title,
+                                                channelId = artist.channelId,
+                                                thumbnailUrl = artist.thumbnail,
+                                            ).toggleLike()
+                                        )
+                                    }
+                                }
+                            },
+                        )
+                    )
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.warning), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.report_artist)) },
+                            description = { Text(stringResource(R.string.report_artist_desc)) },
+                            onClick = { showReportDialog = true },
+                        )
                     )
                 },
-                modifier = Modifier.clickable {
-                    database.query {
-                        val libraryArtist = libraryArtist
-                        if (libraryArtist != null) {
-                            update(libraryArtist.artist.toggleLike())
-                        } else {
-                            insert(
-                                ArtistEntity(
-                                    id = artist.id,
-                                    name = artist.title,
-                                    channelId = artist.channelId,
-                                    thumbnailUrl = artist.thumbnail,
-                                ).toggleLike()
-                            )
-                        }
-                    }
-                }
-            )
-        }
-
-        item {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.report_artist)) },
-                supportingContent = { Text(stringResource(R.string.report_artist_desc)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.warning),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    showReportDialog = true
-                }
             )
         }
     }

@@ -76,6 +76,8 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.ui.component.ListDialog
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
+import com.jtech.zemer.ui.component.Material3MenuGroup
+import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.SongListItem
@@ -409,350 +411,279 @@ fun SongMenu(
         }
 
         item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.start_radio)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.radio),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    onDismiss()
-                    playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata(), database))
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.play_next)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.playlist_play),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    onDismiss()
-                    playerConnection.playNext(song.toMediaItem())
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.add_to_queue)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.queue_music),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    onDismiss()
-                    playerConnection.addToQueue(song.toMediaItem())
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = {
-                    Text(
-                        text = stringResource(
-                            if (song.song.inLibrary == null) R.string.add_to_library
-                            else R.string.remove_from_library
-                        )
-                    )
-                },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(
-                            if (song.song.inLibrary == null) R.drawable.library_add
-                            else R.drawable.library_add_check
-                        ),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    val currentSong = song.song
-                    val isInLibrary = currentSong.inLibrary != null
-                    val token = if (isInLibrary) currentSong.libraryRemoveToken else currentSong.libraryAddToken
-
-                    token?.let { 
-                        coroutineScope.launch {
-                            YouTube.feedback(listOf(it))
-                        }
-                    }
-
-                    database.query {
-                        update(song.song.toggleLibrary())
-                    }
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.report_artist)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.warning),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    showReportDialog = true
-                }
-            )
-        }
-        if (event != null) {
-            item {
-                ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.remove_from_history)) },
-                    leadingContent = {
-                        Icon(
-                            painter = painterResource(R.drawable.delete),
-                            contentDescription = null,
-                        )
-                    },
-                    modifier = Modifier.clickable {
-                        onDismiss()
-                        database.query {
-                            delete(event)
-                        }
-                    }
-                )
-            }
-        }
-        if (playlistSong != null) {
-            item {
-                ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.remove_from_playlist)) },
-                    leadingContent = {
-                        Icon(
-                            painter = painterResource(R.drawable.delete),
-                            contentDescription = null,
-                        )
-                    },
-                    modifier = Modifier.clickable {
-                        database.transaction {
-                            coroutineScope.launch {
-                                playlistBrowseId?.let { playlistId ->
-                                    if (playlistSong.map.setVideoId != null) {
-                                        YouTube.removeFromPlaylist(
-                                            playlistId, playlistSong.map.songId, playlistSong.map.setVideoId
-                                        )
-                                    }
-                                }
-                            }
-                            move(playlistSong.map.playlistId, playlistSong.map.position, Int.MAX_VALUE)
-                            delete(playlistSong.map.copy(position = Int.MAX_VALUE))
-                        }
-                        onDismiss()
-                    }
-                )
-            }
-        }
-        if (isFromCache) {
-            item {
-                ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.remove_from_cache)) },
-                    leadingContent = {
-                        Icon(
-                            painter = painterResource(R.drawable.delete),
-                            contentDescription = null,
-                        )
-                    },
-                    modifier = Modifier.clickable {
-                        onDismiss()
-                        cacheViewModel.removeSongFromCache(song.id)
-                    }
-                )
-            }
-        }
-        item {
-            when (mediaStoreDownload?.status) {
-                com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                text = stringResource(R.string.downloaded_to_device),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.download),
-                                contentDescription = null,
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            // TODO: Option to remove from MediaStore
-                            onDismiss()
-                        }
-                    )
-                }
-                com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING,
-                com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED -> {
-                    val downloadState = mediaStoreDownload!!
-                    ListItem(
-                        headlineContent = {
-                            Text(text = stringResource(R.string.downloading_to_device))
-                        },
-                        supportingContent = {
-                            Text(text = "${(downloadState.progress * 100).toInt()}%")
-                        },
-                        leadingContent = {
-                            CircularProgressIndicator(
-                                progress = { downloadState.progress },
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            downloadUtil.cancelMediaStoreDownload(song.id)
-                            onDismiss()
-                        }
-                    )
-                }
-                com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.FAILED -> {
-                    val downloadState = mediaStoreDownload!!
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                text = stringResource(R.string.download_failed),
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        },
-                        supportingContent = {
-                            Text(text = downloadState.error ?: stringResource(R.string.error_unknown))
-                        },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.info),
-                                contentDescription = null,
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            downloadUtil.retryMediaStoreDownload(song.id)
-                            onDismiss()
-                        }
-                    )
-                }
-                else -> {
-                    // Check if this is a video - if so, offer video download (unless videos are blocked)
-                    val isVideo = song.song.isVideo
-
-                    // Skip showing download option for videos when blocked
-                    if (isVideo && blockVideos) {
-                        null
-                    } else {
-                        ListItem(
-                            headlineContent = {
-                                Text(text = if (isVideo)
-                                    stringResource(R.string.download_video_to_device)
-                                else
-                                    stringResource(R.string.download_to_device))
+            Material3MenuGroup(
+                modifier = Modifier.padding(horizontal = 4.dp),
+                items = buildList {
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.radio), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.start_radio)) },
+                            onClick = {
+                                onDismiss()
+                                playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata(), database))
                             },
-                            leadingContent = {
+                        )
+                    )
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.playlist_play), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.play_next)) },
+                            onClick = {
+                                onDismiss()
+                                playerConnection.playNext(song.toMediaItem())
+                            },
+                        )
+                    )
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.queue_music), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.add_to_queue)) },
+                            onClick = {
+                                onDismiss()
+                                playerConnection.addToQueue(song.toMediaItem())
+                            },
+                        )
+                    )
+                    add(
+                        Material3MenuItemData(
+                            icon = {
                                 Icon(
-                                    painter = painterResource(R.drawable.download),
-                                    contentDescription = null,
+                                    painterResource(
+                                        if (song.song.inLibrary == null) R.drawable.library_add
+                                        else R.drawable.library_add_check
+                                    ),
+                                    null,
+                                    Modifier.size(24.dp),
                                 )
                             },
-                            modifier = Modifier.clickable {
-                                // Track the user's download choice for permission callback
-                                pendingVideoDownload = isVideo
-                                if (PermissionHelper.hasMediaStoreWritePermission(context)) {
-                                    if (isVideo) {
-                                        downloadUtil.downloadVideoToMediaStore(song)
-                                    } else {
-                                        downloadUtil.downloadToMediaStore(song)
+                            title = {
+                                Text(
+                                    stringResource(
+                                        if (song.song.inLibrary == null) R.string.add_to_library
+                                        else R.string.remove_from_library
+                                    )
+                                )
+                            },
+                            onClick = {
+                                val currentSong = song.song
+                                val isInLibrary = currentSong.inLibrary != null
+                                val token = if (isInLibrary) currentSong.libraryRemoveToken else currentSong.libraryAddToken
+
+                                token?.let {
+                                    coroutineScope.launch {
+                                        YouTube.feedback(listOf(it))
                                     }
-                                    onDismiss()
-                                } else {
-                                    val permissions = PermissionHelper.getRequiredWritePermissions()
-                                    permissionLauncher.launch(permissions)
                                 }
-                            }
+
+                                database.query {
+                                    update(song.song.toggleLibrary())
+                                }
+                            },
                         )
-                    }
-                }
-            }
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.view_artist)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.artist),
-                        contentDescription = null,
                     )
-                },
-                modifier = Modifier.clickable {
-                    if (song.artists.size == 1) {
-                        navController.navigate("artist/${song.artists[0].id}")
-                        onDismiss()
-                    } else {
-                        showSelectArtistDialog = true
-                    }
-                }
-            )
-        }
-        if (song.song.albumId != null) {
-            item {
-                ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.view_album)) },
-                    leadingContent = {
-                        Icon(
-                            painter = painterResource(R.drawable.album),
-                            contentDescription = null,
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.warning), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.report_artist)) },
+                            onClick = { showReportDialog = true },
                         )
-                    },
-                    modifier = Modifier.clickable {
-                        onDismiss()
-                        navController.navigate("album/${song.song.albumId}")
-                    }
-                )
-            }
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.refetch)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.sync),
-                        contentDescription = null,
-                        modifier = Modifier.graphicsLayer(rotationZ = rotationAnimation),
                     )
-                },
-                modifier = Modifier.clickable {
-                    refetchIconDegree -= 360
-                    scope.launch(Dispatchers.IO) {
-                        YouTube.queue(listOf(song.id)).onSuccess {
-                            val newSong = it.firstOrNull()
-                            if (newSong != null) {
+                    if (event != null) add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.delete), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.remove_from_history)) },
+                            onClick = {
+                                onDismiss()
+                                database.query {
+                                    delete(event)
+                                }
+                            },
+                        )
+                    )
+                    if (playlistSong != null) add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.delete), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.remove_from_playlist)) },
+                            onClick = {
                                 database.transaction {
-                                    update(song, newSong.toMediaMetadata())
+                                    coroutineScope.launch {
+                                        playlistBrowseId?.let { playlistId ->
+                                            if (playlistSong.map.setVideoId != null) {
+                                                YouTube.removeFromPlaylist(
+                                                    playlistId, playlistSong.map.songId, playlistSong.map.setVideoId
+                                                )
+                                            }
+                                        }
+                                    }
+                                    move(playlistSong.map.playlistId, playlistSong.map.position, Int.MAX_VALUE)
+                                    delete(playlistSong.map.copy(position = Int.MAX_VALUE))
                                 }
-                            }
+                                onDismiss()
+                            },
+                        )
+                    )
+                    if (isFromCache) add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.delete), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.remove_from_cache)) },
+                            onClick = {
+                                onDismiss()
+                                cacheViewModel.removeSongFromCache(song.id)
+                            },
+                        )
+                    )
+                    when (mediaStoreDownload?.status) {
+                        com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> add(
+                            Material3MenuItemData(
+                                icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
+                                title = {
+                                    Text(
+                                        stringResource(R.string.downloaded_to_device),
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                },
+                                onClick = {
+                                    // TODO: Option to remove from MediaStore
+                                    onDismiss()
+                                },
+                            )
+                        )
+                        com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING,
+                        com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED -> {
+                            val downloadState = mediaStoreDownload!!
+                            add(
+                                Material3MenuItemData(
+                                    icon = {
+                                        CircularProgressIndicator(
+                                            progress = { downloadState.progress },
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp,
+                                        )
+                                    },
+                                    title = { Text(stringResource(R.string.downloading_to_device)) },
+                                    description = { Text("${(downloadState.progress * 100).toInt()}%") },
+                                    onClick = {
+                                        downloadUtil.cancelMediaStoreDownload(song.id)
+                                        onDismiss()
+                                    },
+                                )
+                            )
+                        }
+                        com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.FAILED -> {
+                            val downloadState = mediaStoreDownload!!
+                            add(
+                                Material3MenuItemData(
+                                    icon = { Icon(painterResource(R.drawable.info), null, Modifier.size(24.dp)) },
+                                    title = {
+                                        Text(
+                                            stringResource(R.string.download_failed),
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    },
+                                    description = { Text(downloadState.error ?: stringResource(R.string.error_unknown)) },
+                                    onClick = {
+                                        downloadUtil.retryMediaStoreDownload(song.id)
+                                        onDismiss()
+                                    },
+                                )
+                            )
+                        }
+                        else -> {
+                            // Check if this is a video - if so, offer video download (unless videos are blocked)
+                            val isVideo = song.song.isVideo
+
+                            // Skip showing download option for videos when blocked
+                            if (!(isVideo && blockVideos)) add(
+                                Material3MenuItemData(
+                                    icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
+                                    title = {
+                                        Text(
+                                            if (isVideo) stringResource(R.string.download_video_to_device)
+                                            else stringResource(R.string.download_to_device)
+                                        )
+                                    },
+                                    onClick = {
+                                        // Track the user's download choice for permission callback
+                                        pendingVideoDownload = isVideo
+                                        if (PermissionHelper.hasMediaStoreWritePermission(context)) {
+                                            if (isVideo) {
+                                                downloadUtil.downloadVideoToMediaStore(song)
+                                            } else {
+                                                downloadUtil.downloadToMediaStore(song)
+                                            }
+                                            onDismiss()
+                                        } else {
+                                            val permissions = PermissionHelper.getRequiredWritePermissions()
+                                            permissionLauncher.launch(permissions)
+                                        }
+                                    },
+                                )
+                            )
                         }
                     }
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.details)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.info),
-                        contentDescription = null,
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.artist), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.view_artist)) },
+                            onClick = {
+                                if (song.artists.size == 1) {
+                                    navController.navigate("artist/${song.artists[0].id}")
+                                    onDismiss()
+                                } else {
+                                    showSelectArtistDialog = true
+                                }
+                            },
+                        )
                     )
-                },
-                modifier = Modifier.clickable {
-                    onDismiss()
-                    bottomSheetPageState.show {
-                        ShowMediaInfo(song.id)
-                    }
+                    if (song.song.albumId != null) add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.album), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.view_album)) },
+                            onClick = {
+                                onDismiss()
+                                navController.navigate("album/${song.song.albumId}")
+                            },
+                        )
+                    )
+                    add(
+                        Material3MenuItemData(
+                            icon = {
+                                Icon(
+                                    painterResource(R.drawable.sync),
+                                    null,
+                                    Modifier
+                                        .size(24.dp)
+                                        .graphicsLayer(rotationZ = rotationAnimation),
+                                )
+                            },
+                            title = { Text(stringResource(R.string.refetch)) },
+                            onClick = {
+                                refetchIconDegree -= 360
+                                scope.launch(Dispatchers.IO) {
+                                    YouTube.queue(listOf(song.id)).onSuccess {
+                                        val newSong = it.firstOrNull()
+                                        if (newSong != null) {
+                                            database.transaction {
+                                                update(song, newSong.toMediaMetadata())
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                        )
+                    )
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.info), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.details)) },
+                            onClick = {
+                                onDismiss()
+                                bottomSheetPageState.show {
+                                    ShowMediaInfo(song.id)
+                                }
+                            },
+                        )
+                    )
                 }
             )
         }

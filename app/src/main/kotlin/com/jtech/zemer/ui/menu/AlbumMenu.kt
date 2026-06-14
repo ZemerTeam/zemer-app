@@ -26,7 +26,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -68,6 +67,8 @@ import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.AlbumListItem
 import com.jtech.zemer.ui.component.ListDialog
 import com.jtech.zemer.ui.component.ListItem
+import com.jtech.zemer.ui.component.Material3MenuGroup
+import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.SongListItem
@@ -373,193 +374,148 @@ fun AlbumMenu(
         }
 
         item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.play_next)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.playlist_play),
-                        contentDescription = null,
+            Material3MenuGroup(
+                modifier = Modifier.padding(horizontal = 4.dp),
+                items = buildList {
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.playlist_play), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.play_next)) },
+                            onClick = {
+                                onDismiss()
+                                playerConnection.playNext(songs.map { it.toMediaItem() })
+                            },
+                        )
                     )
-                },
-                modifier = Modifier.clickable {
-                    onDismiss()
-                    playerConnection.playNext(songs.map { it.toMediaItem() })
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.add_to_queue)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.queue_music),
-                        contentDescription = null,
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.queue_music), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.add_to_queue)) },
+                            onClick = {
+                                onDismiss()
+                                playerConnection.addToQueue(songs.map { it.toMediaItem() })
+                            },
+                        )
                     )
-                },
-                modifier = Modifier.clickable {
-                    onDismiss()
-                    playerConnection.addToQueue(songs.map { it.toMediaItem() })
-                }
-            )
-        }
-
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.report_artist)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.warning),
-                        contentDescription = null,
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.warning), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.report_artist)) },
+                            onClick = { showReportDialog = true },
+                        )
                     )
-                },
-                modifier = Modifier.clickable {
-                    showReportDialog = true
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.add_to_playlist)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.playlist_add),
-                        contentDescription = null,
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.playlist_add), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.add_to_playlist)) },
+                            onClick = { showChoosePlaylistDialog = true },
+                        )
                     )
-                },
-                modifier = Modifier.clickable {
-                    showChoosePlaylistDialog = true
-                }
-            )
-        }
-        item {
-            when (mediaStoreDownloadState) {
-                is AlbumMediaStoreDownloadStatus.Completed -> {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                text = stringResource(R.string.downloaded_to_device),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.download),
-                                contentDescription = null,
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            // TODO: Option to remove from MediaStore
-                            onDismiss()
-                        }
-                    )
-                }
-                is AlbumMediaStoreDownloadStatus.Downloading -> {
-                    val progress = (mediaStoreDownloadState as AlbumMediaStoreDownloadStatus.Downloading).progress
-                    ListItem(
-                        headlineContent = {
-                            Text(text = stringResource(R.string.downloading_to_device))
-                        },
-                        supportingContent = {
-                            Text(text = "${(progress * 100).toInt()}%")
-                        },
-                        leadingContent = {
-                            CircularProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            songs.forEach { song ->
-                                downloadUtil.cancelMediaStoreDownload(song.id)
+                    add(
+                        when (mediaStoreDownloadState) {
+                            is AlbumMediaStoreDownloadStatus.Completed ->
+                                Material3MenuItemData(
+                                    icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
+                                    title = {
+                                        Text(
+                                            text = stringResource(R.string.downloaded_to_device),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    },
+                                    onClick = {
+                                        // TODO: Option to remove from MediaStore
+                                        onDismiss()
+                                    },
+                                )
+                            is AlbumMediaStoreDownloadStatus.Downloading -> {
+                                val progress = (mediaStoreDownloadState as AlbumMediaStoreDownloadStatus.Downloading).progress
+                                Material3MenuItemData(
+                                    icon = {
+                                        CircularProgressIndicator(
+                                            progress = { progress },
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    },
+                                    title = { Text(text = stringResource(R.string.downloading_to_device)) },
+                                    description = { Text(text = "${(progress * 100).toInt()}%") },
+                                    onClick = {
+                                        songs.forEach { song ->
+                                            downloadUtil.cancelMediaStoreDownload(song.id)
+                                        }
+                                        onDismiss()
+                                    },
+                                )
                             }
-                            onDismiss()
+                            is AlbumMediaStoreDownloadStatus.Failed ->
+                                Material3MenuItemData(
+                                    icon = { Icon(painterResource(R.drawable.info), null, Modifier.size(24.dp)) },
+                                    title = {
+                                        Text(
+                                            text = stringResource(R.string.download_failed),
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    },
+                                    description = { Text(text = stringResource(R.string.retry_download)) },
+                                    onClick = {
+                                        songs.forEach { song ->
+                                            downloadUtil.retryMediaStoreDownload(song.id)
+                                        }
+                                        onDismiss()
+                                    },
+                                )
+                            AlbumMediaStoreDownloadStatus.NotDownloaded ->
+                                Material3MenuItemData(
+                                    icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
+                                    title = { Text(text = stringResource(R.string.download_to_device)) },
+                                    onClick = {
+                                        songs.forEach { song ->
+                                            downloadUtil.downloadToMediaStore(song)
+                                        }
+                                        onDismiss()
+                                    },
+                                )
                         }
                     )
-                }
-                is AlbumMediaStoreDownloadStatus.Failed -> {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                text = stringResource(R.string.download_failed),
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        },
-                        supportingContent = {
-                            Text(text = stringResource(R.string.retry_download))
-                        },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.info),
-                                contentDescription = null,
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            songs.forEach { song ->
-                                downloadUtil.retryMediaStoreDownload(song.id)
-                            }
-                            onDismiss()
-                        }
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.artist), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.view_artist)) },
+                            onClick = {
+                                if (album.artists.size == 1) {
+                                    navController.navigate("artist/${album.artists[0].id}")
+                                    onDismiss()
+                                } else {
+                                    showSelectArtistDialog = true
+                                }
+                            },
+                        )
                     )
-                }
-                AlbumMediaStoreDownloadStatus.NotDownloaded -> {
-                    ListItem(
-                        headlineContent = { Text(text = stringResource(R.string.download_to_device)) },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.download),
-                                contentDescription = null,
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            songs.forEach { song ->
-                                downloadUtil.downloadToMediaStore(song)
-                            }
-                            onDismiss()
-                        }
-                    )
-                }
-            }
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.view_artist)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.artist),
-                        contentDescription = null,
+                    add(
+                        Material3MenuItemData(
+                            icon = {
+                                Icon(
+                                    painterResource(R.drawable.sync),
+                                    null,
+                                    Modifier
+                                        .size(24.dp)
+                                        .graphicsLayer(rotationZ = rotationAnimation),
+                                )
+                            },
+                            title = { Text(stringResource(R.string.refetch)) },
+                            onClick = {
+                                refetchIconDegree -= 360
+                                scope.launch(Dispatchers.IO) {
+                                    YouTube.album(album.id).onSuccess {
+                                        database.transaction {
+                                            update(album.album, it, album.artists)
+                                        }
+                                    }
+                                }
+                            },
+                        )
                     )
                 },
-                modifier = Modifier.clickable {
-                    if (album.artists.size == 1) {
-                        navController.navigate("artist/${album.artists[0].id}")
-                        onDismiss()
-                    } else {
-                        showSelectArtistDialog = true
-                    }
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.refetch)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.sync),
-                        contentDescription = null,
-                        modifier = Modifier.graphicsLayer(rotationZ = rotationAnimation),
-                    )
-                },
-                modifier = Modifier.clickable {
-                    refetchIconDegree -= 360
-                    scope.launch(Dispatchers.IO) {
-                        YouTube.album(album.id).onSuccess {
-                            database.transaction {
-                                update(album.album, it, album.artists)
-                            }
-                        }
-                    }
-                }
             )
         }
 

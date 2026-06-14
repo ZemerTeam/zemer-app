@@ -5,11 +5,15 @@
 # (scripts/ui-audit-baseline.tsv). The current known violations are allowlisted, so CI is green
 # today and the count can only shrink — fix some, then run --update to tighten the baseline.
 #
+# Section 11 (grouped lists / menus) is PARTLY checked: raw `ListItem(` inside ui/menu/ is ratcheted
+# (R11 below) — a grouped action menu must be built from Material3MenuGroup, not raw ListItem rows.
+# Scoping to ui/menu/ avoids the false positive the rest of the app would cause (a raw `ListItem(` is
+# correct for a plain song list, wrong for a grouped menu); the ratchet allowlists the legit dialog /
+# data-list ListItems that legitimately remain in menu files, so only NEW ones fail.
+#
 # NOT mechanically checked here (enforced by code review, see standards.md): the reuse rules
-# (section 1) and the grouped-list/menu components (section 11 — Material3SettingsGroup /
-# Material3MenuItem, plus the .focusable() D-pad requirement on any new row component). These are
-# reuse/structure judgments, not greppable patterns: e.g. a raw `ListItem(` is correct for a plain
-# song list but wrong for a grouped menu, so it cannot be ratcheted without false positives.
+# (section 1), the settings grouped-list component (Material3SettingsGroup), and the .focusable()
+# D-pad requirement on any new row component — reuse/structure judgments, not greppable patterns.
 #
 #   bash scripts/ui-audit.sh            # check; exit 1 if a file gained violations
 #   bash scripts/ui-audit.sh --update   # rewrite the baseline to the current state
@@ -23,6 +27,9 @@
 #                  contentDescription = "...", Toast literals) -> stringResource /
 #                  context.getString with metrolist_strings.xml; baseline is zero.
 #                  Pure-interpolation strings ("${...}%") are not matched.
+#   R11-menu       raw `ListItem(` inside ui/menu/ -> build grouped action menus from
+#                  Material3MenuGroup / Material3MenuItemData (section 11). Ratcheted: the
+#                  ListItems left in dialog/data-list rows are baselined; only new ones fail.
 #
 # Genuine fixed-value exceptions (AMOLED pure-black, the lyric-image *export*, color-picker
 # swatches) are allowed: they live in the baseline. Keep them minimal; --update records them.
@@ -44,6 +51,10 @@ violations() {
   # R5 is multi-line-aware (a Python scanner), since a grep can't see a literal that sits on a
   # different line from its Text(/Toast call — the exact shape that has slipped through before.
   python3 "$ROOT/scripts/ui-strings-scan.py" 2>/dev/null
+  # R11: raw `ListItem(` in menus. The `[^.A-Za-z]` guard skips method calls (`.ListItem(`) and
+  # composite components whose name ends in ListItem (SongListItem, AlbumListItem, …).
+  grep -rnE "(^|[^.A-Za-z])ListItem\(" "$UI/menu" --include=*.kt 2>/dev/null \
+    | sed -E 's/:.*//' | sed 's/$/\tR11-menu/'
 }
 
 # Aggregate to "<path>\t<rule>\t<count>", sorted.
@@ -78,19 +89,21 @@ improved="$(awk -F'\t' '
 ' <(printf "%s\n" "$cur") "$BASELINE")"
 
 if [ -n "$new" ]; then
-  echo "UI audit FAILED — new Rule 5/7/8 violations (docs/ui/standards.md sections 5, 7-8):"
+  echo "UI audit FAILED — new Rule 5/7/8/11 violations (docs/ui/standards.md sections 5, 7-8, 11):"
   echo "$new"
   echo
   echo "Route font sizes through MaterialTheme.typography (Type.kt), colors through"
   echo "MaterialTheme.colorScheme, dialogs through the Dialog.kt helpers (DefaultDialog etc.),"
-  echo "and user-facing text through stringResource() with metrolist_strings.xml."
-  echo "If a fixed value is genuinely required, keep it minimal and record it with:"
+  echo "user-facing text through stringResource() with metrolist_strings.xml, and grouped action"
+  echo "menus through Material3MenuGroup / Material3MenuItemData (not raw ListItem rows)."
+  echo "If a fixed value or a genuine dialog/data-list ListItem is required, keep it minimal and"
+  echo "record it with:"
   echo "  bash scripts/ui-audit.sh --update"
   exit 1
 fi
 
 total="$(violations | grep -c .)"
-echo "UI audit passed — no new Rule 5/7/8 violations (baseline: $total known, only allowed to shrink)."
+echo "UI audit passed — no new Rule 5/7/8/11 violations (baseline: $total known, only allowed to shrink)."
 if [ -n "$improved" ]; then
   echo "Burned down since the baseline — tighten it with \`bash scripts/ui-audit.sh --update\`:"
   echo "$improved"

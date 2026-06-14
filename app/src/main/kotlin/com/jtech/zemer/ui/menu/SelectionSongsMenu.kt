@@ -2,7 +2,6 @@ package com.jtech.zemer.ui.menu
 
 import android.annotation.SuppressLint
 import android.content.res.Configuration
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,6 +44,8 @@ import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.DefaultDialog
+import com.jtech.zemer.ui.component.Material3MenuGroup
+import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.metrolist.innertube.YouTube
@@ -281,234 +281,201 @@ fun SelectionSongMenu(
         }
 
         item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.play)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.play),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    onDismiss()
-                    playerConnection.playQueue(
-                        ListQueue(
-                            title = selectionQueueTitle,
-                            items = songSelection.map { it.toMediaItem() },
-                        ),
-                    )
-                    clearAction()
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.shuffle)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.shuffle),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    onDismiss()
-                    playerConnection.playQueue(
-                        ListQueue(
-                            title = selectionQueueTitle,
-                            items = songSelection.shuffled().map { it.toMediaItem() },
-                        ),
-                    )
-                    clearAction()
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.add_to_queue)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.queue_music),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    onDismiss()
-                    playerConnection.addToQueue(songSelection.map { it.toMediaItem() })
-                    clearAction()
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.add_to_playlist)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.playlist_add),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    showChoosePlaylistDialog = true
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = {
-                    Text(
-                        text = stringResource(
-                            if (allInLibrary) R.string.remove_from_library else R.string.add_to_library
+            Material3MenuGroup(
+                modifier = Modifier.padding(horizontal = 4.dp),
+                items = buildList {
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.play), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.play)) },
+                            onClick = {
+                                onDismiss()
+                                playerConnection.playQueue(
+                                    ListQueue(
+                                        title = selectionQueueTitle,
+                                        items = songSelection.map { it.toMediaItem() },
+                                    ),
+                                )
+                                clearAction()
+                            },
                         )
                     )
-                },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(
-                            if (allInLibrary) R.drawable.library_add_check else R.drawable.library_add
-                        ),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    if (allInLibrary) {
-                        database.query {
-                            songSelection.forEach { song ->
-                                inLibrary(song.id, null)
-                            }
-                        }
-                        coroutineScope.launch {
-                            val tokens = songSelection.mapNotNull { it.song.libraryRemoveToken }
-                            tokens.chunked(20).forEach {
-                                YouTube.feedback(it)
-                            }
-                        }
-                    } else {
-                        database.transaction {
-                            songSelection.forEach { song ->
-                                insert(song.toMediaMetadata())
-                                inLibrary(song.id, LocalDateTime.now())
-                            }
-                        }
-                        coroutineScope.launch {
-                            val tokens = songSelection.filter {it.song.inLibrary == null}.mapNotNull { it.song.libraryAddToken }
-                            tokens.chunked(20).forEach {
-                                YouTube.feedback(it)
-                            }
-                        }
-                    }
-                }
-            )
-        }
-        item {
-            when (downloadState) {
-                Download.STATE_COMPLETED -> {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                text = stringResource(R.string.remove_download),
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.offline),
-                                contentDescription = null,
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            showRemoveDownloadDialog = true
-                        }
-                    )
-                }
-                Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
-                    ListItem(
-                        headlineContent = { Text(text = stringResource(R.string.downloading)) },
-                        leadingContent = {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            showRemoveDownloadDialog = true
-                        }
-                    )
-                }
-                else -> {
-                    ListItem(
-                        headlineContent = { Text(text = stringResource(R.string.action_download)) },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.download),
-                                contentDescription = null,
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            songSelection.forEach { song ->
-                                downloadUtil.downloadToMediaStore(song)
-                            }
-                        }
-                    )
-                }
-            }
-        }
-        item {
-            ListItem(
-                headlineContent = {
-                    Text(
-                        text = stringResource(
-                            if (allLiked) R.string.dislike_all else R.string.like_all
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.shuffle), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.shuffle)) },
+                            onClick = {
+                                onDismiss()
+                                playerConnection.playQueue(
+                                    ListQueue(
+                                        title = selectionQueueTitle,
+                                        items = songSelection.shuffled().map { it.toMediaItem() },
+                                    ),
+                                )
+                                clearAction()
+                            },
                         )
                     )
-                },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(
-                            if (allLiked) R.drawable.favorite else R.drawable.favorite_border
-                        ),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    val allLiked = songSelection.all { it.song.liked }
-                    onDismiss()
-                    database.query {
-                        songSelection.forEach { song ->
-                            if ((!allLiked && !song.song.liked) || allLiked) {
-                                val s = song.song.toggleLike()
-                                update(s)
-                                syncUtils.likeSong(s)
-                            }
-                        }
-                    }
-                }
-            )
-        }
-        val isNotEmpty = false
-        if (isNotEmpty) {
-            item {
-                ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.delete)) },
-                    leadingContent = {
-                        Icon(
-                            painter = painterResource(R.drawable.delete),
-                            contentDescription = null,
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.queue_music), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.add_to_queue)) },
+                            onClick = {
+                                onDismiss()
+                                playerConnection.addToQueue(songSelection.map { it.toMediaItem() })
+                                clearAction()
+                            },
                         )
-                    },
-                    modifier = Modifier.clickable {
-                        onDismiss()
-                        var i = 0
-                        database.query {
-                            songPosition?.forEach { cur ->
-                                move(cur.playlistId, cur.position - i, Int.MAX_VALUE)
-                                delete(cur.copy(position = Int.MAX_VALUE))
-                                i++
-                            }
+                    )
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.playlist_add), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.add_to_playlist)) },
+                            onClick = {
+                                showChoosePlaylistDialog = true
+                            },
+                        )
+                    )
+                    add(
+                        Material3MenuItemData(
+                            icon = {
+                                Icon(
+                                    painterResource(
+                                        if (allInLibrary) R.drawable.library_add_check else R.drawable.library_add
+                                    ),
+                                    null,
+                                    Modifier.size(24.dp),
+                                )
+                            },
+                            title = {
+                                Text(
+                                    stringResource(
+                                        if (allInLibrary) R.string.remove_from_library else R.string.add_to_library
+                                    )
+                                )
+                            },
+                            onClick = {
+                                if (allInLibrary) {
+                                    database.query {
+                                        songSelection.forEach { song ->
+                                            inLibrary(song.id, null)
+                                        }
+                                    }
+                                    coroutineScope.launch {
+                                        val tokens = songSelection.mapNotNull { it.song.libraryRemoveToken }
+                                        tokens.chunked(20).forEach {
+                                            YouTube.feedback(it)
+                                        }
+                                    }
+                                } else {
+                                    database.transaction {
+                                        songSelection.forEach { song ->
+                                            insert(song.toMediaMetadata())
+                                            inLibrary(song.id, LocalDateTime.now())
+                                        }
+                                    }
+                                    coroutineScope.launch {
+                                        val tokens = songSelection.filter {it.song.inLibrary == null}.mapNotNull { it.song.libraryAddToken }
+                                        tokens.chunked(20).forEach {
+                                            YouTube.feedback(it)
+                                        }
+                                    }
+                                }
+                            },
+                        )
+                    )
+                    add(
+                        when (downloadState) {
+                            Download.STATE_COMPLETED ->
+                                Material3MenuItemData(
+                                    icon = { Icon(painterResource(R.drawable.offline), null, Modifier.size(24.dp)) },
+                                    title = {
+                                        Text(
+                                            stringResource(R.string.remove_download),
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    },
+                                    onClick = { showRemoveDownloadDialog = true },
+                                )
+                            Download.STATE_QUEUED, Download.STATE_DOWNLOADING ->
+                                Material3MenuItemData(
+                                    icon = {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp,
+                                        )
+                                    },
+                                    title = { Text(stringResource(R.string.downloading)) },
+                                    onClick = { showRemoveDownloadDialog = true },
+                                )
+                            else ->
+                                Material3MenuItemData(
+                                    icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
+                                    title = { Text(stringResource(R.string.action_download)) },
+                                    onClick = {
+                                        songSelection.forEach { song ->
+                                            downloadUtil.downloadToMediaStore(song)
+                                        }
+                                    },
+                                )
                         }
-                        clearAction()
+                    )
+                    add(
+                        Material3MenuItemData(
+                            icon = {
+                                Icon(
+                                    painterResource(
+                                        if (allLiked) R.drawable.favorite else R.drawable.favorite_border
+                                    ),
+                                    null,
+                                    Modifier.size(24.dp),
+                                )
+                            },
+                            title = {
+                                Text(
+                                    stringResource(
+                                        if (allLiked) R.string.dislike_all else R.string.like_all
+                                    )
+                                )
+                            },
+                            onClick = {
+                                val allLiked = songSelection.all { it.song.liked }
+                                onDismiss()
+                                database.query {
+                                    songSelection.forEach { song ->
+                                        if ((!allLiked && !song.song.liked) || allLiked) {
+                                            val s = song.song.toggleLike()
+                                            update(s)
+                                            syncUtils.likeSong(s)
+                                        }
+                                    }
+                                }
+                            },
+                        )
+                    )
+                    val isNotEmpty = false
+                    if (isNotEmpty) {
+                        add(
+                            Material3MenuItemData(
+                                icon = { Icon(painterResource(R.drawable.delete), null, Modifier.size(24.dp)) },
+                                title = { Text(stringResource(R.string.delete)) },
+                                onClick = {
+                                    onDismiss()
+                                    var i = 0
+                                    database.query {
+                                        songPosition?.forEach { cur ->
+                                            move(cur.playlistId, cur.position - i, Int.MAX_VALUE)
+                                            delete(cur.copy(position = Int.MAX_VALUE))
+                                            i++
+                                        }
+                                    }
+                                    clearAction()
+                                },
+                            )
+                        )
                     }
-                )
-            }
+                },
+            )
         }
     }
 }
@@ -619,186 +586,148 @@ fun SelectionMediaMetadataMenu(
             bottom = 8.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(),
         ),
     ) {
-        if (currentItems.isNotEmpty()) {
-            item {
-                ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.delete)) },
-                    leadingContent = {
-                        Icon(
-                            painter = painterResource(R.drawable.delete),
-                            contentDescription = null,
+        item {
+            Material3MenuGroup(
+                modifier = Modifier.padding(horizontal = 4.dp),
+                items = buildList {
+                    if (currentItems.isNotEmpty()) {
+                        add(
+                            Material3MenuItemData(
+                                icon = { Icon(painterResource(R.drawable.delete), null, Modifier.size(24.dp)) },
+                                title = { Text(stringResource(R.string.delete)) },
+                                onClick = {
+                                    onDismiss()
+                                    var i = 0
+                                    currentItems.forEach { cur ->
+                                        if (playerConnection.player.availableCommands.contains(Player.COMMAND_CHANGE_MEDIA_ITEMS)) {
+                                            playerConnection.player.removeMediaItem(cur.firstPeriodIndex - i++)
+                                        }
+                                    }
+                                    clearAction()
+                                },
+                            )
                         )
-                    },
-                    modifier = Modifier.clickable {
-                        onDismiss()
-                        var i = 0
-                        currentItems.forEach { cur ->
-                            if (playerConnection.player.availableCommands.contains(Player.COMMAND_CHANGE_MEDIA_ITEMS)) {
-                                playerConnection.player.removeMediaItem(cur.firstPeriodIndex - i++)
-                            }
-                        }
-                        clearAction()
                     }
-                )
-            }
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.play)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.play),
-                        contentDescription = null,
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.play), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.play)) },
+                            onClick = {
+                                onDismiss()
+                                playerConnection.playQueue(
+                                    ListQueue(
+                                        title = selectionQueueTitle,
+                                        items = songSelection.map { it.toMediaItem() },
+                                    ),
+                                )
+                                clearAction()
+                            },
+                        )
                     )
-                },
-                modifier = Modifier.clickable {
-                    onDismiss()
-                    playerConnection.playQueue(
-                        ListQueue(
-                            title = selectionQueueTitle,
-                            items = songSelection.map { it.toMediaItem() },
-                        ),
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.shuffle), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.shuffle)) },
+                            onClick = {
+                                onDismiss()
+                                playerConnection.playQueue(
+                                    ListQueue(
+                                        title = selectionQueueTitle,
+                                        items = songSelection.shuffled().map { it.toMediaItem() },
+                                    ),
+                                )
+                                clearAction()
+                            },
+                        )
                     )
-                    clearAction()
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.shuffle)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.shuffle),
-                        contentDescription = null,
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.queue_music), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.add_to_queue)) },
+                            onClick = {
+                                onDismiss()
+                                playerConnection.addToQueue(songSelection.map { it.toMediaItem() })
+                                clearAction()
+                            },
+                        )
                     )
-                },
-                modifier = Modifier.clickable {
-                    onDismiss()
-                    playerConnection.playQueue(
-                        ListQueue(
-                            title = selectionQueueTitle,
-                            items = songSelection.shuffled().map { it.toMediaItem() },
-                        ),
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.playlist_add), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.add_to_playlist)) },
+                            onClick = {
+                                showChoosePlaylistDialog = true
+                            },
+                        )
                     )
-                    clearAction()
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.add_to_queue)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.queue_music),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    onDismiss()
-                    playerConnection.addToQueue(songSelection.map { it.toMediaItem() })
-                    clearAction()
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.add_to_playlist)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.playlist_add),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    showChoosePlaylistDialog = true
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = {
-                    Text(
-                        text = stringResource(R.string.like_all)
-                    )
-                },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(
-                            if (allLiked) R.drawable.favorite else R.drawable.favorite_border
-                        ),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    database.query {
-                        if (allLiked) {
-                            songSelection.forEach { song ->
-                                update(song.toSongEntity().toggleLike())
-                            }
-                        } else {
-                            songSelection.filter { !it.liked }.forEach { song ->
-                                update(song.toSongEntity().toggleLike())
-                            }
-                        }
-                    }
-                }
-            )
-        }
-        item {
-            when (downloadState) {
-                Download.STATE_COMPLETED -> {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                text = stringResource(R.string.remove_download),
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.offline),
-                                contentDescription = null,
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            showRemoveDownloadDialog = true
-                        }
-                    )
-                }
-                Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
-                    ListItem(
-                        headlineContent = { Text(text = stringResource(R.string.downloading)) },
-                        leadingContent = {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            showRemoveDownloadDialog = true
-                        }
-                    )
-                }
-                else -> {
-                    ListItem(
-                        headlineContent = { Text(text = stringResource(R.string.action_download)) },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.download),
-                                contentDescription = null,
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            coroutineScope.launch(Dispatchers.IO) {
-                                songSelection.forEach { mediaMetadata ->
-                                    val song = database.song(mediaMetadata.id).first()
-                                    song?.let { downloadUtil.downloadToMediaStore(it) }
+                    add(
+                        Material3MenuItemData(
+                            icon = {
+                                Icon(
+                                    painterResource(
+                                        if (allLiked) R.drawable.favorite else R.drawable.favorite_border
+                                    ),
+                                    null,
+                                    Modifier.size(24.dp),
+                                )
+                            },
+                            title = { Text(stringResource(R.string.like_all)) },
+                            onClick = {
+                                database.query {
+                                    if (allLiked) {
+                                        songSelection.forEach { song ->
+                                            update(song.toSongEntity().toggleLike())
+                                        }
+                                    } else {
+                                        songSelection.filter { !it.liked }.forEach { song ->
+                                            update(song.toSongEntity().toggleLike())
+                                        }
+                                    }
                                 }
-                            }
+                            },
+                        )
+                    )
+                    add(
+                        when (downloadState) {
+                            Download.STATE_COMPLETED ->
+                                Material3MenuItemData(
+                                    icon = { Icon(painterResource(R.drawable.offline), null, Modifier.size(24.dp)) },
+                                    title = {
+                                        Text(
+                                            stringResource(R.string.remove_download),
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    },
+                                    onClick = { showRemoveDownloadDialog = true },
+                                )
+                            Download.STATE_QUEUED, Download.STATE_DOWNLOADING ->
+                                Material3MenuItemData(
+                                    icon = {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp,
+                                        )
+                                    },
+                                    title = { Text(stringResource(R.string.downloading)) },
+                                    onClick = { showRemoveDownloadDialog = true },
+                                )
+                            else ->
+                                Material3MenuItemData(
+                                    icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
+                                    title = { Text(stringResource(R.string.action_download)) },
+                                    onClick = {
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            songSelection.forEach { mediaMetadata ->
+                                                val song = database.song(mediaMetadata.id).first()
+                                                song?.let { downloadUtil.downloadToMediaStore(it) }
+                                            }
+                                        }
+                                    },
+                                )
                         }
                     )
-                }
-            }
+                },
+            )
         }
     }
 }

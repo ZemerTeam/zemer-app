@@ -41,6 +41,8 @@ import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.ListItem
+import com.jtech.zemer.ui.component.Material3MenuGroup
+import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import kotlinx.coroutines.CoroutineScope
@@ -222,36 +224,36 @@ fun ArtistMenu(
         }
 
         item {
-            androidx.compose.material3.ListItem(
-                headlineContent = {
-                    Text(text = if (artist.artist.bookmarkedAt != null) stringResource(R.string.subscribed) else stringResource(R.string.subscribe))
-                },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(if (artist.artist.bookmarkedAt != null) R.drawable.subscribed else R.drawable.subscribe),
-                        contentDescription = null,
+            Material3MenuGroup(
+                modifier = Modifier.padding(horizontal = 4.dp),
+                items = buildList {
+                    add(
+                        Material3MenuItemData(
+                            icon = {
+                                Icon(
+                                    painterResource(if (artist.artist.bookmarkedAt != null) R.drawable.subscribed else R.drawable.subscribe),
+                                    null,
+                                    Modifier.size(24.dp),
+                                )
+                            },
+                            title = {
+                                Text(text = if (artist.artist.bookmarkedAt != null) stringResource(R.string.subscribed) else stringResource(R.string.subscribe))
+                            },
+                            onClick = {
+                                database.transaction {
+                                    update(artist.artist.toggleLike())
+                                }
+                            },
+                        )
+                    )
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.warning), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.report_artist)) },
+                            onClick = { showReportDialog = true },
+                        )
                     )
                 },
-                modifier = Modifier.clickable {
-                    database.transaction {
-                        update(artist.artist.toggleLike())
-                    }
-                }
-            )
-        }
-
-        item {
-            androidx.compose.material3.ListItem(
-                headlineContent = { Text(stringResource(R.string.report_artist)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.warning),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    showReportDialog = true
-                }
             )
         }
     }

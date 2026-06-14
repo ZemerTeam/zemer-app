@@ -211,3 +211,9 @@ Rules for these and any new row component:
   it overrides the row default — rather than editing the component.
 - Localize every label and format numbers with `numberFormatter` (locale grouping separator — do
   not force a separator).
+- Enforcement: `scripts/ui-audit.sh` (ratcheting, rule `R11-menu`) fails CI on any *new* raw
+  `ListItem(` under `ui/menu/` — a grouped action menu must be built from `Material3MenuGroup` /
+  `Material3MenuItemData`, not raw `ListItem` rows. The check is scoped to `ui/menu/` (a raw
+  `ListItem` is fine for a plain song list elsewhere) and the legit dialog / data-list / header
+  `ListItem`s that remain in menu files are baselined in `scripts/ui-audit-baseline.tsv`; the count
+  can only shrink. If a genuine dialog/data-list `ListItem` is added, record it with `--update`.

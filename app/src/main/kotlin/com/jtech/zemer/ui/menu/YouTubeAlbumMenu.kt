@@ -65,6 +65,8 @@ import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.ui.component.ListDialog
+import com.jtech.zemer.ui.component.Material3MenuGroup
+import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.SongListItem
@@ -358,150 +360,115 @@ fun YouTubeAlbumMenu(
         }
 
         item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.play_next)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.playlist_play),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    album
-                        ?.songs
-                        ?.map { it.toMediaItem() }
-                        ?.let(playerConnection::playNext)
-                    onDismiss()
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.add_to_queue)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.queue_music),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    album
-                        ?.songs
-                        ?.map { it.toMediaItem() }
-                        ?.let(playerConnection::addToQueue)
-                    onDismiss()
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.add_to_playlist)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.playlist_add),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    showChoosePlaylistDialog = true
-                }
-            )
-        }
-        item {
-            ListItem(
-                headlineContent = { Text(text = stringResource(R.string.report_artist)) },
-                leadingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.warning),
-                        contentDescription = null,
-                    )
-                },
-                modifier = Modifier.clickable {
-                    showReportDialog = true
-                }
-            )
-        }
-        item {
-            when (downloadState) {
-                Download.STATE_COMPLETED -> {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                text = stringResource(R.string.remove_download),
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.offline),
-                                contentDescription = null,
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            album?.songs?.forEach { song ->
-                                coroutineScope.launch {
-                                    downloadUtil.removeDownload(song.id)
-                                }
-                            }
-                        }
-                    )
-                }
-                Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
-                    ListItem(
-                        headlineContent = { Text(text = stringResource(R.string.downloading)) },
-                        leadingContent = {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            album?.songs?.forEach { song ->
-                                coroutineScope.launch {
-                                    downloadUtil.removeDownload(song.id)
-                                }
-                            }
-                        }
-                    )
-                }
-                else -> {
-                    ListItem(
-                        headlineContent = { Text(text = stringResource(R.string.action_download)) },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.download),
-                                contentDescription = null,
-                            )
-                        },
-                        modifier = Modifier.clickable {
-                            album?.songs?.forEach { song ->
-                                downloadUtil.downloadToMediaStore(song)
-                            }
-                        }
-                    )
-                }
-            }
-        }
-        albumItem.artists?.let { artists ->
-            item {
-                ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.view_artist)) },
-                    leadingContent = {
-                        Icon(
-                            painter = painterResource(R.drawable.artist),
-                            contentDescription = null,
+            Material3MenuGroup(
+                modifier = Modifier.padding(horizontal = 4.dp),
+                items = buildList {
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.playlist_play), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.play_next)) },
+                            onClick = {
+                                album
+                                    ?.songs
+                                    ?.map { it.toMediaItem() }
+                                    ?.let(playerConnection::playNext)
+                                onDismiss()
+                            },
                         )
-                    },
-                    modifier = Modifier.clickable {
-                        if (artists.size == 1) {
-                            navController.navigate("artist/${artists[0].id}")
-                            onDismiss()
-                        } else {
-                            showSelectArtistDialog = true
+                    )
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.queue_music), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.add_to_queue)) },
+                            onClick = {
+                                album
+                                    ?.songs
+                                    ?.map { it.toMediaItem() }
+                                    ?.let(playerConnection::addToQueue)
+                                onDismiss()
+                            },
+                        )
+                    )
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.playlist_add), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.add_to_playlist)) },
+                            onClick = { showChoosePlaylistDialog = true },
+                        )
+                    )
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painterResource(R.drawable.warning), null, Modifier.size(24.dp)) },
+                            title = { Text(stringResource(R.string.report_artist)) },
+                            onClick = { showReportDialog = true },
+                        )
+                    )
+                    add(
+                        when (downloadState) {
+                            Download.STATE_COMPLETED ->
+                                Material3MenuItemData(
+                                    icon = { Icon(painterResource(R.drawable.offline), null, Modifier.size(24.dp)) },
+                                    title = {
+                                        Text(
+                                            text = stringResource(R.string.remove_download),
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    },
+                                    onClick = {
+                                        album?.songs?.forEach { song ->
+                                            coroutineScope.launch {
+                                                downloadUtil.removeDownload(song.id)
+                                            }
+                                        }
+                                    },
+                                )
+                            Download.STATE_QUEUED, Download.STATE_DOWNLOADING ->
+                                Material3MenuItemData(
+                                    icon = {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    },
+                                    title = { Text(stringResource(R.string.downloading)) },
+                                    onClick = {
+                                        album?.songs?.forEach { song ->
+                                            coroutineScope.launch {
+                                                downloadUtil.removeDownload(song.id)
+                                            }
+                                        }
+                                    },
+                                )
+                            else ->
+                                Material3MenuItemData(
+                                    icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
+                                    title = { Text(stringResource(R.string.action_download)) },
+                                    onClick = {
+                                        album?.songs?.forEach { song ->
+                                            downloadUtil.downloadToMediaStore(song)
+                                        }
+                                    },
+                                )
                         }
+                    )
+                    albumItem.artists?.let { artists ->
+                        add(
+                            Material3MenuItemData(
+                                icon = { Icon(painterResource(R.drawable.artist), null, Modifier.size(24.dp)) },
+                                title = { Text(stringResource(R.string.view_artist)) },
+                                onClick = {
+                                    if (artists.size == 1) {
+                                        navController.navigate("artist/${artists[0].id}")
+                                        onDismiss()
+                                    } else {
+                                        showSelectArtistDialog = true
+                                    }
+                                },
+                            )
+                        )
                     }
-                )
-            }
+                },
+            )
         }
 
     }
