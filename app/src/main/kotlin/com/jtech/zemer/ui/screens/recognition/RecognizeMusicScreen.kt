@@ -126,6 +126,17 @@ fun RecognizeMusicScreen(
                         )
                     }
                 },
+                actions = {
+                    IconButton(
+                        onClick = { navController.navigate("recognition_history") },
+                        onLongClick = {},
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.history),
+                            contentDescription = stringResource(R.string.recognition_history),
+                        )
+                    }
+                },
             )
         },
     ) { innerPadding ->

@@ -24,6 +24,7 @@ import com.jtech.zemer.db.entities.AlbumWithSongs
 import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.db.entities.ArtistWhitelistEntity
+import com.jtech.zemer.db.entities.RecognitionHistoryEntity
 import com.jtech.zemer.db.entities.Event
 import com.jtech.zemer.db.entities.EventWithSong
 import com.jtech.zemer.db.entities.FormatEntity
@@ -1631,6 +1632,22 @@ interface DatabaseDao {
 
     @Query("DELETE FROM artist_whitelist WHERE artistId = :artistId")
     fun removeFromWhitelist(artistId: String)
+
+    // Recognize-music history
+    @Query("SELECT * FROM recognition_history ORDER BY recognizedAt DESC")
+    fun recognitionHistory(): Flow<List<RecognitionHistoryEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertRecognitionHistory(entity: RecognitionHistoryEntity): Long
+
+    @Query("DELETE FROM recognition_history WHERE songId = :songId")
+    suspend fun deleteRecognitionHistoryBySong(songId: String)
+
+    @Delete
+    suspend fun deleteRecognitionHistory(entity: RecognitionHistoryEntity)
+
+    @Query("DELETE FROM recognition_history")
+    suspend fun clearRecognitionHistory()
 
     // Artist deletion methods
     @Query("SELECT id FROM song WHERE id IN (SELECT songId FROM song_artist_map WHERE artistId = :artistId)")

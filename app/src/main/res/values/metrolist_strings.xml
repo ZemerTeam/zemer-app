@@ -531,6 +531,11 @@
     <string name="recognize_music_fab_desc">Show a floating button above the navigation bar to identify a song</string>
     <string name="recognize_music_mic_button">Start listening</string>
     <string name="recognize_music_found">Found it</string>
+    <string name="recognition_history">Recognition history</string>
+    <string name="recognition_history_empty">No recognitions yet</string>
+    <string name="recognition_history_clear">Clear history</string>
+    <string name="recognition_history_clear_confirm">Clear all recognition history?</string>
+    <string name="recognition_history_delete">Remove</string>
     <string name="recognize_music_tap_to_start">Tap to identify a song</string>
     <string name="recognize_music_listening">Listening…</string>
     <string name="recognize_music_listening_hint">Make sure the music is playing clearly</string>
@@ -545,4 +550,5 @@
     <string name="recognize_music_grant_permission">Grant permission</string>
     <string name="recognize_music_play">Play</string>
     <string name="recognize_music_try_again">Try again</string>
+    <string name="recognize_music_close">Close</string>
 </resources>

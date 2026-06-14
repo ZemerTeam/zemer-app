@@ -1952,6 +1952,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            "recognize" -> navController.navigate("recognize_music")
+
             "browse" -> uri.lastPathSegment?.let { browseId ->
                 coroutineScope.launch(Dispatchers.IO) {
                     // Check if album exists and is whitelisted before navigating

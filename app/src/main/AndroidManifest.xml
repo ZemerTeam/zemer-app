@@ -282,7 +282,15 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/music_widget_info" />
-        </receiver>        
+        </receiver>
+
+        <activity
+            android:name=".ui.screens.recognition.RecognizeMusicDialogActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Zemer.Transparent" />
 
         <meta-data
             android:name="com.google.android.gms.car.application"
