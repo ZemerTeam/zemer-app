@@ -7,9 +7,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -46,11 +44,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.exoplayer.offline.Download
 import androidx.navigation.NavController
@@ -58,13 +53,13 @@ import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
-import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.MediaStoreDownloadManager
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.BigSeekBar
 import com.jtech.zemer.ui.component.BottomSheetState
-import com.jtech.zemer.ui.component.ListDialog
+import com.jtech.zemer.ui.component.ArtistChoice
+import com.jtech.zemer.ui.component.SelectArtistDialog
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.Material3MenuGroup
@@ -133,34 +128,16 @@ fun PlayerMenu(
     var showReportDialog by remember { mutableStateOf(false) }
 
     if (showSelectArtistDialog) {
-        ListDialog(
+        SelectArtistDialog(
+            artists = artists.map { ArtistChoice(it.id!!, it.name) },
             onDismiss = { showSelectArtistDialog = false },
-        ) {
-            items(artists) { artist ->
-                Box(
-                    contentAlignment = Alignment.CenterStart,
-                    modifier =
-                    Modifier
-                        .fillParentMaxWidth()
-                        .height(ListItemHeight)
-                        .clickable {
-                            navController.navigate("artist/${artist.id}")
-                            showSelectArtistDialog = false
-                            playerBottomSheetState.collapseSoft()
-                            onDismiss()
-                        }
-                        .padding(horizontal = 24.dp),
-                ) {
-                    Text(
-                        text = artist.name,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
+            onArtistClick = { artistId ->
+                navController.navigate("artist/$artistId")
+                showSelectArtistDialog = false
+                playerBottomSheetState.collapseSoft()
+                onDismiss()
+            },
+        )
     }
 
     if (showReportDialog) {

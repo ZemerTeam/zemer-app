@@ -3,14 +3,9 @@ package com.jtech.zemer.ui.menu
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -20,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -41,16 +35,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.media3.exoplayer.offline.Download
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
@@ -60,7 +50,6 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.LocalSyncUtils
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
-import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.SongEntity
@@ -69,13 +58,14 @@ import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.MediaStoreDownloadManager
 import com.jtech.zemer.playback.queues.YouTubeQueue
-import com.jtech.zemer.ui.component.ListDialog
+import com.jtech.zemer.ui.component.ArtistChoice
 import com.jtech.zemer.utils.VideoLinkBuilder
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
+import com.jtech.zemer.ui.component.SelectArtistDialog
 import com.jtech.zemer.ui.utils.ShowMediaInfo
 import com.jtech.zemer.ui.utils.resize
 import com.jtech.zemer.utils.joinByBullet
@@ -153,56 +143,15 @@ fun YouTubeSongMenu(
         mutableStateOf(false)  
     }  
 
-    if (showSelectArtistDialog) {  
-        ListDialog(  
-            onDismiss = { showSelectArtistDialog = false },  
-        ) {  
-            items(artists) { artist ->  
-                var isFocused by remember { mutableStateOf(false) }
-                val backgroundColor by animateColorAsState(
-                    targetValue = if (isFocused) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
-                    label = "artist_dialog_focus_bg"
-                )
-                Row(  
-                    verticalAlignment = Alignment.CenterVertically,  
-                    modifier =  
-                    Modifier  
-                        .height(ListItemHeight)
-                        .fillMaxWidth()
-                        .onFocusChanged { isFocused = it.isFocused }
-                        .focusable()
-                        .clickable {  
-                            navController.navigate("artist/${artist.id}")  
-                            showSelectArtistDialog = false  
-                            onDismiss()  
-                        }
-                        .background(backgroundColor)
-                        .padding(horizontal = 12.dp),  
-                ) {  
-                    Box(  
-                        contentAlignment = Alignment.CenterStart,  
-                        modifier =  
-                        Modifier  
-                            .fillParentMaxWidth()  
-                            .height(ListItemHeight)  
-                            .clickable {  
-                                navController.navigate("artist/${artist.id}")  
-                                showSelectArtistDialog = false  
-                                onDismiss()  
-                            }  
-                            .padding(horizontal = 24.dp),  
-                    ) {  
-                        Text(  
-                            text = artist.name,  
-                            fontSize = 18.sp,  
-                            fontWeight = FontWeight.Bold,  
-                            maxLines = 1,  
-                            overflow = TextOverflow.Ellipsis,  
-                        )  
-                    }  
-                }  
-            }  
-        }  
+    if (showSelectArtistDialog) {
+        SelectArtistDialog(
+            artists = artists.map { ArtistChoice(id = it.id!!, name = it.name) },
+            onDismiss = { showSelectArtistDialog = false },
+            onArtistClick = { artistId ->
+                navController.navigate("artist/$artistId")
+                onDismiss()
+            },
+        )
     }  
 
     ListItem(  

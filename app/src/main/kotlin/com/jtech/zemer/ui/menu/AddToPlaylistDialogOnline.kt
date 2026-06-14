@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,12 +16,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
@@ -35,7 +32,6 @@ import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.ui.component.CreatePlaylistDialog
-import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.ListDialog
 import com.jtech.zemer.ui.component.ListItem
 import com.jtech.zemer.ui.component.PlaylistListItem
@@ -66,19 +62,6 @@ fun AddToPlaylistDialogOnline(
 
     var showCreatePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
-    }
-
-    var showDuplicateDialog by remember {
-        mutableStateOf(false)
-    }
-    var selectedPlaylist by remember {
-        mutableStateOf<Playlist?>(null)
-    }
-    val songIds by remember {
-        mutableStateOf<List<String>?>(null) // list is not saveable
-    }
-    val duplicates by remember {
-        mutableStateOf(emptyList<String>())
     }
 
     suspend fun findFirstSong(song: Song): SongItem? {
@@ -156,7 +139,6 @@ fun AddToPlaylistDialogOnline(
                 PlaylistListItem(
                     playlist = playlist,
                     modifier = Modifier.clickable {
-                        selectedPlaylist = playlist
                         coroutineScope.launch {
                             onDismiss()
                             processSongs { firstSong ->
@@ -221,63 +203,5 @@ fun AddToPlaylistDialogOnline(
             initialTextFieldValue = initialTextFieldValue,
             allowSyncing = allowSyncing
         )
-    }
-
-    // duplicate songs warning
-    if (showDuplicateDialog) {
-        DefaultDialog(
-            title = { Text(stringResource(R.string.duplicates)) },
-            buttons = {
-                TextButton(
-                    onClick = {
-                        showDuplicateDialog = false
-                        onDismiss()
-                        database.transaction {
-                            addSongToPlaylist(
-                                selectedPlaylist!!,
-                                songIds!!.filter {
-                                    !duplicates.contains(it)
-                                }
-                            )
-                        }
-                    }
-                ) {
-                    Text(stringResource(R.string.skip_duplicates))
-                }
-
-                TextButton(
-                    onClick = {
-                        showDuplicateDialog = false
-                        onDismiss()
-                        database.transaction {
-                            addSongToPlaylist(selectedPlaylist!!, songIds!!)
-                        }
-                    }
-                ) {
-                    Text(stringResource(R.string.add_anyway))
-                }
-
-                TextButton(
-                    onClick = {
-                        showDuplicateDialog = false
-                    }
-                ) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
-            onDismiss = {
-                showDuplicateDialog = false
-            }
-        ) {
-            Text(
-                text = if (duplicates.size == 1) {
-                    stringResource(R.string.duplicates_description_single)
-                } else {
-                    stringResource(R.string.duplicates_description_multiple, duplicates.size)
-                },
-                textAlign = TextAlign.Start,
-                modifier = Modifier.align(Alignment.Start)
-            )
-        }
     }
 }

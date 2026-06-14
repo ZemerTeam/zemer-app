@@ -204,8 +204,10 @@ per row or a parallel group widget:
 Rules for these and any new row component:
 
 - **D-pad (non-negotiable):** the row must be `.focusable()` with an animated focus background +
-  border (see `Material3MenuItemRow` / `Material3SettingsItemRow`). Metrolist's upstream rows omit
-  this; ours must not.
+  border. Metrolist's upstream rows omit this; ours must not. For a bespoke clickable row/card
+  outside the shared group components, apply `Modifier.focusBorder()` (`FocusBorder.kt`) — the single
+  source of truth for that treatment — placed **before** `.clickable {}` in the chain so the ripple
+  is clipped (`Material3MenuItemRow` / `Material3SettingsItemRow` inline the same effect).
 - The row provides `titleMedium` for the title and `bodyMedium`/`onSurfaceVariant` for the
   description. To shrink text (e.g. dense detail rows), pass an explicit `style` on your `Text` —
   it overrides the row default — rather than editing the component.
@@ -217,3 +219,6 @@ Rules for these and any new row component:
   `ListItem` is fine for a plain song list elsewhere) and the legit dialog / data-list / header
   `ListItem`s that remain in menu files are baselined in `scripts/ui-audit-baseline.tsv`; the count
   can only shrink. If a genuine dialog/data-list `ListItem` is added, record it with `--update`.
+- Common menu dialogs are shared, not re-implemented per menu: `SelectArtistDialog` (the
+  multi-artist picker) and `AlreadyInPlaylistDialog` (`MenuDialogs.kt`). Reuse them rather than
+  hand-rolling a `ListDialog` copy.

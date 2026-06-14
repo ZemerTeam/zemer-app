@@ -2,7 +2,6 @@ package com.jtech.zemer.ui.menu
 
 import android.content.Intent
 import android.content.res.Configuration
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets

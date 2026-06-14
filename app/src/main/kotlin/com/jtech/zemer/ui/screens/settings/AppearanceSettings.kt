@@ -18,13 +18,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -57,7 +55,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.core.content.edit
 import androidx.navigation.NavController
-import java.util.Collections
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.theme.rememberPureBlack
@@ -106,6 +103,7 @@ import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.TextFieldDialog
+import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
@@ -317,6 +315,7 @@ fun AppearanceSettings(
                             if (sliderStyle == SliderStyle.DEFAULT) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                             RoundedCornerShape(16.dp)
                         )
+                        .focusBorder(RoundedCornerShape(16.dp))
                         .clickable {
                             onSliderStyleChange(SliderStyle.DEFAULT)
                             showSliderOptionDialog = false
@@ -351,6 +350,7 @@ fun AppearanceSettings(
                             if (sliderStyle == SliderStyle.SQUIGGLY) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                             RoundedCornerShape(16.dp)
                         )
+                        .focusBorder(RoundedCornerShape(16.dp))
                         .clickable {
                             onSliderStyleChange(SliderStyle.SQUIGGLY)
                             showSliderOptionDialog = false
@@ -385,6 +385,7 @@ fun AppearanceSettings(
                             if (sliderStyle == SliderStyle.SLIM) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                             RoundedCornerShape(16.dp)
                         )
+                        .focusBorder(RoundedCornerShape(16.dp))
                         .clickable {
                             onSliderStyleChange(SliderStyle.SLIM)
                             showSliderOptionDialog = false
@@ -942,6 +943,7 @@ fun AppearanceSettings(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .focusBorder()
                                 .clickable {
                                     if (isSelected && currentSelectedItems.size > 1) {
                                         currentSelectedItems = currentSelectedItems - key

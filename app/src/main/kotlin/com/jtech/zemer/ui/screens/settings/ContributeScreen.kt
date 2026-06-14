@@ -60,6 +60,7 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.viewmodels.ContributeArtist
 import com.jtech.zemer.viewmodels.ContributeUiState
 import com.jtech.zemer.viewmodels.ContributeViewModel
@@ -308,6 +309,7 @@ private fun ArtistTaskCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .focusBorder()
                 .clickable { onOpenArtist(artist.artistId) },
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
