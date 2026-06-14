@@ -39,6 +39,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -94,6 +95,16 @@ fun RecognizeMusicScreen(
             viewModel.start()
         } else {
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    // The screen is only reached by tapping the mic FAB, so begin listening immediately on entry.
+    // Guarded so it fires once per screen instance (not again on recomposition/rotation).
+    var hasAutoStarted by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!hasAutoStarted) {
+            hasAutoStarted = true
+            attempt()
         }
     }
 
