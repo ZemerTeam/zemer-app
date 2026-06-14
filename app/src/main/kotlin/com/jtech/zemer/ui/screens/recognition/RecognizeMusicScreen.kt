@@ -15,6 +15,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,9 +30,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,10 +51,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -61,7 +65,6 @@ import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
-import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.recognition.RecognitionAudioCapture
@@ -289,31 +292,69 @@ private fun ResultContent(
         verticalArrangement = Arrangement.Center,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        AsyncImage(
-            model = song.thumbnail.resize(720, 720),
-            contentDescription = null,
-            modifier = Modifier
-                .size(220.dp)
-                .clip(RoundedCornerShape(ThumbnailCornerRadius * 2)),
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painter = painterResource(R.drawable.check),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.size(6.dp))
+            Text(
+                text = stringResource(R.string.recognize_music_found),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            shadowElevation = 8.dp,
+            modifier = Modifier.size(240.dp),
+        ) {
+            AsyncImage(
+                model = song.thumbnail.resize(720, 720),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
 
         Spacer(Modifier.height(24.dp))
 
         Text(
             text = song.title,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(6.dp))
 
         Text(
             text = song.artists.joinToString(" • ") { it.name },
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
+
+        song.album?.name?.takeIf { it.isNotBlank() }?.let { album ->
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = album,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
 
         Spacer(Modifier.height(32.dp))
 
@@ -327,6 +368,7 @@ private fun ResultContent(
                     ),
                 )
             },
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(
                 painter = painterResource(R.drawable.play),
@@ -337,9 +379,12 @@ private fun ResultContent(
             Text(stringResource(R.string.recognize_music_play))
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(4.dp))
 
-        OutlinedButton(onClick = onTryAgain) {
+        TextButton(
+            onClick = onTryAgain,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Text(stringResource(R.string.recognize_music_try_again))
         }
     }
