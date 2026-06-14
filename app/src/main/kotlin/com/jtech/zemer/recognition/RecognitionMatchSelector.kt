@@ -30,4 +30,22 @@ object RecognitionMatchSelector {
         ) ?: return null
         return whitelistedCandidates[index]
     }
+
+    /**
+     * Hard, config-independent whitelist gate for a chosen [song]: true iff at least one of its
+     * artists is confirmed whitelisted by [isWhitelisted] (a direct `artist_whitelist` table check
+     * in production). Deliberately **fails closed** — a song with no artists, or whose artists all
+     * have null ids, returns false. This is the final guarantee that recognition cannot surface a
+     * song outside the whitelist, even if every upstream filter were disabled or bypassed.
+     */
+    suspend fun isWhitelistedResult(
+        song: SongItem,
+        isWhitelisted: suspend (artistId: String) -> Boolean,
+    ): Boolean {
+        for (artist in song.artists) {
+            val id = artist.id ?: continue
+            if (isWhitelisted(id)) return true
+        }
+        return false
+    }
 }

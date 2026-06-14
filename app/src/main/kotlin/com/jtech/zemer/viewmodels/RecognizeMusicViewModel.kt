@@ -7,6 +7,7 @@ import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.recognition.RecognitionAudioCapture
 import com.jtech.zemer.recognition.RecognitionMatchSelector
 import com.jtech.zemer.recognition.shazam.Shazam
+import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
@@ -85,8 +86,15 @@ class RecognizeMusicViewModel @Inject constructor(
 
     /**
      * The whitelist bridge: search YouTube Music for the recognized song, keep only whitelisted
-     * results, and pick the best match. Returns a [RecognizeUiState.Result] holding a filtered
+     * results, and pick the best match. Returns a [RecognizeUiState.Result] holding a whitelisted
      * [SongItem], or [RecognizeUiState.NoMatch] when nothing whitelisted corresponds.
+     *
+     * It is impossible for this to surface a song outside the whitelist, by two independent gates:
+     *  1. Candidates are produced by [filterWhitelisted] with content filtering FORCED on — so even
+     *     if the user has globally disabled content filters, recognition still filters.
+     *  2. The chosen song is then re-verified directly against the `artist_whitelist` table
+     *     ([isArtistWhitelisted]) — no dependence on config flags, caches, or [filterWhitelisted].
+     *     This fails closed: if a whitelisted artist can't be confirmed, the result is discarded.
      */
     private suspend fun resolveWhitelisted(title: String, artist: String): RecognizeUiState =
         withContext(Dispatchers.IO) {
@@ -98,12 +106,25 @@ class RecognizeMusicViewModel @Inject constructor(
                 return@withContext RecognizeUiState.Error
             }
 
+            // Gate 1: force whitelist filtering on regardless of the global content-filter toggle.
+            val forcedConfig = ContentFilterState.current.copy(filtersEnabled = true)
             val candidates = searchResult.items
-                .filterWhitelisted(database)
+                .filterWhitelisted(database, forcedConfig)
                 .filterIsInstance<SongItem>()
 
             val match = RecognitionMatchSelector.select(title, artist, candidates)
-            if (match != null) RecognizeUiState.Result(match) else RecognizeUiState.NoMatch
+                ?: return@withContext RecognizeUiState.NoMatch
+
+            // Gate 2: hard, config-independent re-check straight against the whitelist table.
+            val confirmedWhitelisted = RecognitionMatchSelector.isWhitelistedResult(match) { artistId ->
+                database.isArtistWhitelisted(artistId)
+            }
+            if (!confirmedWhitelisted) {
+                Timber.tag(TAG).w("Discarding result whose artist is not whitelisted: songId=%s", match.id)
+                return@withContext RecognizeUiState.NoMatch
+            }
+
+            RecognizeUiState.Result(match)
         }
 
     private fun errorStateFor(error: Throwable): RecognizeUiState {

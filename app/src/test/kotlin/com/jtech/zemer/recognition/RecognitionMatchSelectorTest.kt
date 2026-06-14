@@ -2,6 +2,8 @@ package com.jtech.zemer.recognition
 
 import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.SongItem
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -55,5 +57,50 @@ class RecognitionMatchSelectorTest {
         )
         val result = RecognitionMatchSelector.select("Daddy", "Whitelisted B", candidates)
         if (result != null) assertTrue(result in candidates)
+    }
+
+    // --- Hard gate: isWhitelistedResult must fail closed ---
+
+    @Test
+    fun `hard gate passes when an artist is whitelisted`() = runBlocking {
+        val s = song("v1", "Daddy", "Mordechai Shapiro") // artist id = "UC_Mordechai Shapiro"
+        assertTrue(RecognitionMatchSelector.isWhitelistedResult(s) { it == "UC_Mordechai Shapiro" })
+    }
+
+    @Test
+    fun `hard gate rejects when no artist is whitelisted`() = runBlocking {
+        val s = song("v1", "Daddy", "Mordechai Shapiro")
+        assertFalse(RecognitionMatchSelector.isWhitelistedResult(s) { false })
+    }
+
+    @Test
+    fun `hard gate fails closed for a song with no artists`() = runBlocking {
+        val s = SongItem(id = "v1", title = "Daddy", artists = emptyList(), thumbnail = "")
+        assertFalse(RecognitionMatchSelector.isWhitelistedResult(s) { true })
+    }
+
+    @Test
+    fun `hard gate fails closed when artist ids are null`() = runBlocking {
+        val s = SongItem(
+            id = "v1",
+            title = "Daddy",
+            artists = listOf(Artist(name = "Mordechai Shapiro", id = null)),
+            thumbnail = "",
+        )
+        assertFalse(RecognitionMatchSelector.isWhitelistedResult(s) { true })
+    }
+
+    @Test
+    fun `hard gate passes when only one of several artists is whitelisted`() = runBlocking {
+        val s = SongItem(
+            id = "v1",
+            title = "Collab",
+            artists = listOf(
+                Artist(name = "Non Whitelisted", id = "UC_non"),
+                Artist(name = "Whitelisted", id = "UC_yes"),
+            ),
+            thumbnail = "",
+        )
+        assertTrue(RecognitionMatchSelector.isWhitelistedResult(s) { it == "UC_yes" })
     }
 }
