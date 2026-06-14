@@ -524,4 +524,24 @@
     <string name="format_stream_client">Stream client</string>
     <string name="format_player_hash">Player hash</string>
     <string name="format_cipher_support_added">Cipher support added</string>
+
+    <!-- Recognize music (Shazam-style identification, whitelist-filtered) -->
+    <string name="recognize_music">Recognize music</string>
+    <string name="recognize_music_fab">Recognize music button</string>
+    <string name="recognize_music_fab_desc">Show a floating button above the navigation bar to identify a song</string>
+    <string name="recognize_music_mic_button">Start listening</string>
+    <string name="recognize_music_tap_to_start">Tap to identify a song</string>
+    <string name="recognize_music_listening">Listening…</string>
+    <string name="recognize_music_listening_hint">Make sure the music is playing clearly</string>
+    <string name="recognize_music_identifying">Identifying…</string>
+    <string name="recognize_music_searching">Finding it on Zemer…</string>
+    <string name="recognize_music_no_match">No match found</string>
+    <string name="recognize_music_no_match_hint">We couldn\'t find this song from a permitted artist. Try again with clearer audio.</string>
+    <string name="recognize_music_error">Recognition failed</string>
+    <string name="recognize_music_error_hint">Something went wrong. Please try again.</string>
+    <string name="recognize_music_permission_title">Microphone needed</string>
+    <string name="recognize_music_permission_rationale">Zemer needs microphone access to listen and identify the song playing around you.</string>
+    <string name="recognize_music_grant_permission">Grant permission</string>
+    <string name="recognize_music_play">Play</string>
+    <string name="recognize_music_try_again">Try again</string>
 </resources>

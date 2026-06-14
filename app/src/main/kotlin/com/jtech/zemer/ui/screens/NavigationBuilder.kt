@@ -25,6 +25,7 @@ import com.jtech.zemer.ui.screens.playlist.DownloadedVideosScreen
 import com.jtech.zemer.ui.screens.playlist.LocalPlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.OnlinePlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.TopPlaylistScreen
+import com.jtech.zemer.ui.screens.recognition.RecognizeMusicScreen
 import com.jtech.zemer.ui.screens.search.OnlineSearchResult
 import com.jtech.zemer.ui.screens.settings.AboutScreen
 import com.jtech.zemer.ui.screens.settings.AndroidAutoSettings
@@ -67,6 +68,9 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("history") {
         HistoryScreen(navController)
+    }
+    composable("recognize_music") {
+        RecognizeMusicScreen(navController)
     }
     composable("stats") {
         StatsScreen(navController)

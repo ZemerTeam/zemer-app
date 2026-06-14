@@ -91,6 +91,7 @@ import com.jtech.zemer.constants.SwipeThumbnailKey
 import com.jtech.zemer.constants.SwipeToRemoveSongKey
 import com.jtech.zemer.constants.SwipeToSongKey
 import com.jtech.zemer.constants.BottomNavigationBarEnabledKey
+import com.jtech.zemer.constants.RecognizeMusicFabKey
 import com.jtech.zemer.constants.BottomNavigationItemsKey
 import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
@@ -224,6 +225,11 @@ fun AppearanceSettings(
     val (slimNav, onSlimNavChange) = rememberPreference(
         SlimNavBarKey,
         defaultValue = false
+    )
+
+    val (recognizeMusicFab, onRecognizeMusicFabChange) = rememberPreference(
+        RecognizeMusicFabKey,
+        defaultValue = true
     )
 
     // Check SharedPreferences first for onboarding bottom nav items, then fallback to DataStore
@@ -753,6 +759,14 @@ fun AppearanceSettings(
                 onClick = { showBottomNavCustomizationDialog = true }
             )
         }
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.recognize_music_fab)) },
+            description = stringResource(R.string.recognize_music_fab_desc),
+            icon = { Icon(painterResource(R.drawable.mic), null) },
+            checked = recognizeMusicFab,
+            onCheckedChange = onRecognizeMusicFabChange
+        )
 
         EnumListPreference(
             title = { Text(stringResource(R.string.grid_cell_size)) },
