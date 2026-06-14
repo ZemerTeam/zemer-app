@@ -89,6 +89,16 @@ class RecognizeMusicDialogActivity : ComponentActivity() {
                         )
                         finish()
                     },
+                    onOpenHistory = {
+                        startActivity(
+                            Intent(this, com.jtech.zemer.MainActivity::class.java).apply {
+                                action = Intent.ACTION_VIEW
+                                data = "https://music.zemer.io/recognition_history".toUri()
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                            },
+                        )
+                        finish()
+                    },
                 )
             }
         }
@@ -99,6 +109,7 @@ class RecognizeMusicDialogActivity : ComponentActivity() {
 private fun RecognizeDialog(
     onDismiss: () -> Unit,
     onPlay: (SongItem) -> Unit,
+    onOpenHistory: () -> Unit,
     viewModel: RecognizeMusicViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -150,7 +161,7 @@ private fun RecognizeDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
             ) {
-                ZemerBrandHeader()
+                ZemerBrandHeader(onHistory = onOpenHistory)
                 Spacer(Modifier.height(24.dp))
                 when (val current = state) {
                     is RecognizeUiState.Result -> DialogResult(current.song, onPlay = { onPlay(current.song) }, onRetry = attempt)
@@ -162,8 +173,11 @@ private fun RecognizeDialog(
 }
 
 @Composable
-private fun ZemerBrandHeader() {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+private fun ZemerBrandHeader(onHistory: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         AsyncImage(
             model = R.mipmap.ic_launcher,
             contentDescription = null,
@@ -177,6 +191,16 @@ private fun ZemerBrandHeader() {
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = colorResource(R.color.widget_text_primary),
+        )
+        Spacer(Modifier.weight(1f))
+        Icon(
+            painter = painterResource(R.drawable.history),
+            contentDescription = stringResource(R.string.recognition_history),
+            tint = colorResource(R.color.widget_text_secondary),
+            modifier = Modifier
+                .size(22.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onHistory),
         )
     }
 }

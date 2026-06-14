@@ -201,6 +201,7 @@ import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.RecognizeMusicFab
+import com.jtech.zemer.ui.screens.recognition.RecognizeMusicDialogActivity
 import com.jtech.zemer.ui.component.TopSearch
 import com.jtech.zemer.ui.component.rememberBottomSheetState
 import com.jtech.zemer.ui.component.shimmer.ShimmerTheme
@@ -1837,7 +1838,11 @@ class MainActivity : ComponentActivity() {
                             navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }
                         ) {
                             RecognizeMusicFab(
-                                onClick = { navController.navigate("recognize_music") },
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(context, RecognizeMusicDialogActivity::class.java),
+                                    )
+                                },
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
                                     .padding(
@@ -1952,7 +1957,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            "recognize" -> navController.navigate("recognize_music")
+            "recognition_history" -> navController.navigate("recognition_history")
 
             "browse" -> uri.lastPathSegment?.let { browseId ->
                 coroutineScope.launch(Dispatchers.IO) {
