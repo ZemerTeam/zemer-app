@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 33,
-    "identityHash": "2e7c83987545d3bfa2c66a598a40e1d6",
+    "identityHash": "fb94b2155c84a34810f2b16b6a0192a9",
     "entities": [
       {
         "tableName": "song",
@@ -1135,7 +1135,7 @@
       },
       {
         "tableName": "recognition_history",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `songId` TEXT NOT NULL, `title` TEXT NOT NULL, `artist` TEXT NOT NULL, `thumbnailUrl` TEXT, `recognizedAt` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `songId` TEXT NOT NULL, `title` TEXT NOT NULL, `artist` TEXT NOT NULL, `thumbnailUrl` TEXT, `artistIds` TEXT NOT NULL, `recognizedAt` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -1167,6 +1167,12 @@
             "affinity": "TEXT"
           },
           {
+            "fieldPath": "artistIds",
+            "columnName": "artistIds",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
             "fieldPath": "recognizedAt",
             "columnName": "recognizedAt",
             "affinity": "INTEGER",
@@ -1178,7 +1184,27 @@
           "columnNames": [
             "id"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_recognition_history_songId",
+            "unique": false,
+            "columnNames": [
+              "songId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recognition_history_songId` ON `${TABLE_NAME}` (`songId`)"
+          },
+          {
+            "name": "index_recognition_history_recognizedAt",
+            "unique": false,
+            "columnNames": [
+              "recognizedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recognition_history_recognizedAt` ON `${TABLE_NAME}` (`recognizedAt`)"
+          }
+        ]
       }
     ],
     "views": [
@@ -1197,7 +1223,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2e7c83987545d3bfa2c66a598a40e1d6')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'fb94b2155c84a34810f2b16b6a0192a9')"
     ]
   }
 }

@@ -52,11 +52,20 @@ class RecognizeMusicViewModel @Inject constructor(
                 val fingerprint = RecognitionAudioCapture.capture(context)
 
                 _state.value = RecognizeUiState.Identifying
-                val recognition = Shazam.recognize(fingerprint.signature, fingerprint.sampleDurationMs)
-                    .getOrElse { error ->
-                        _state.value = errorStateFor(error)
+                val recognition = when (
+                    val outcome = Shazam.recognize(fingerprint.signature, fingerprint.sampleDurationMs)
+                ) {
+                    is Shazam.Outcome.Found -> outcome.result
+                    Shazam.Outcome.NoMatch -> {
+                        _state.value = RecognizeUiState.NoMatch
                         return@launch
                     }
+                    is Shazam.Outcome.Failed -> {
+                        Timber.tag(TAG).w(outcome.error, "Shazam recognition failed")
+                        _state.value = RecognizeUiState.Error
+                        return@launch
+                    }
+                }
 
                 _state.value = RecognizeUiState.Searching
                 _state.value = when (
@@ -81,16 +90,6 @@ class RecognizeMusicViewModel @Inject constructor(
         job?.cancel()
         job = null
         _state.value = RecognizeUiState.Idle
-    }
-
-    private fun errorStateFor(error: Throwable): RecognizeUiState {
-        val message = error.message.orEmpty()
-        return if (message.contains("No match", ignoreCase = true)) {
-            RecognizeUiState.NoMatch
-        } else {
-            Timber.tag(TAG).w(error, "Shazam recognition failed")
-            RecognizeUiState.Error
-        }
     }
 
     companion object {

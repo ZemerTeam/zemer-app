@@ -12,62 +12,50 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
 /**
- * Shazam music recognition with built-in rate limiting and queue management.
+ * Shazam music recognition with rate limiting and bounded concurrency.
  *
  * Ported from Metrolist's `shazamkit` module (no API key required — the public `amp.shazam.com`
  * discovery endpoint is used with spoofed user-agents and a randomized geolocation). Only the audio
  * fingerprint leaves the device, never raw audio.
+ *
+ * Concurrency is bounded by a [Semaphore] (callers suspend on a permit) and the per-request throttle
+ * by a [Mutex] — both cooperative with structured cancellation, so a cancelled caller (e.g. the user
+ * retrying) actually cancels its in-flight request instead of leaking it.
  */
 object Shazam {
     private const val TAG = "ShazamApi"
 
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
-    // Configuration
     private const val MAX_CONCURRENT_REQUESTS = 2
-
     private const val MIN_REQUEST_INTERVAL_MS = 1000L
-
     private const val MAX_RETRIES = 3
-
     private const val INITIAL_RETRY_DELAY_MS = 2000L
 
-    private const val CACHE_DURATION_MS = 300000L
+    /** Typed result of a recognition attempt, so callers never string-match on exception messages. */
+    sealed interface Outcome {
+        data class Found(val result: RecognitionResult) : Outcome
+        data object NoMatch : Outcome
+        data class Failed(val error: Throwable) : Outcome
+    }
 
-    private const val MAX_QUEUE_SIZE = 50
+    // Bounds in-flight requests without a hand-rolled queue; excess callers suspend on the permit.
+    private val concurrencyLimiter = Semaphore(MAX_CONCURRENT_REQUESTS)
 
-    // Internal State
-    private val activeRequests = AtomicInteger(0)
-
+    // Serializes the rate-limit window so two concurrent requests can't both skip the throttle.
+    private val rateLimitMutex = Mutex()
     private var lastRequestTime = 0L
 
-    private val requestMutex = Mutex()
-
-    private val requestQueue = ConcurrentLinkedQueue<PendingRequest>()
-
-    private val resultCache = ConcurrentHashMap<String, CachedResult>()
-
-    private var nextRequestId = 0L
-
-    private var isProcessingQueue = false
-
-    // HTTP Client Configuration
     private val client by lazy {
         HttpClient(CIO) {
             install(ContentNegotiation) {
@@ -105,141 +93,34 @@ object Shazam {
      *
      * @param signature Audio signature in Shazam DejaVu format
      * @param sampleDurationMs Sample duration in milliseconds
-     * @return Result containing recognition result or error
+     * @return a typed [Outcome]: a confirmed track, a clean "no match", or a failure.
      */
-    suspend fun recognize(signature: String, sampleDurationMs: Long): Result<RecognitionResult> {
-        val cacheKey = generateCacheKey(signature)
-        getCachedResult(cacheKey)?.let {
-            Timber.tag(TAG).d("Cache hit for key=%s", cacheKey)
-            return Result.success(it)
-        }
+    suspend fun recognize(signature: String, sampleDurationMs: Long): Outcome =
+        concurrencyLimiter.withPermit { executeWithRetry(signature, sampleDurationMs) }
 
-        Timber.tag(TAG).d("No cache hit, enqueueing request (pending=%d, active=%d)", requestQueue.size, activeRequests.get())
-        return enqueueRequest(signature, sampleDurationMs)
-    }
-
-    /** Number of pending requests in queue. */
-    fun getPendingRequestsCount(): Int = requestQueue.size
-
-    /** Number of active requests. */
-    fun getActiveRequestsCount(): Int = activeRequests.get()
-
-    /** Clear cache. */
-    fun clearCache() {
-        resultCache.clear()
-    }
-
-    /** Cancel all pending requests. */
-    fun cancelPendingRequests() {
-        requestQueue.clear()
-    }
-
-    /** Cleanup resources. */
-    fun cleanup() {
-        cancelPendingRequests()
-        clearCache()
-        client.close()
-    }
-
-    private suspend fun enqueueRequest(
-        signature: String,
-        sampleDurationMs: Long,
-    ): Result<RecognitionResult> = requestMutex.withLock {
-        if (requestQueue.size >= MAX_QUEUE_SIZE) {
-            Timber.tag(TAG).w("Request queue full (%d/%d), rejecting request", requestQueue.size, MAX_QUEUE_SIZE)
-            return Result.failure(Exception("Request queue is full. Please wait."))
-        }
-
-        val requestId = nextRequestId++
-        val request = PendingRequest(
-            id = requestId,
-            signature = signature,
-            sampleDurationMs = sampleDurationMs,
-        )
-
-        requestQueue.offer(request)
-        Timber.tag(TAG).d("Request #%d enqueued (queue size=%d)", requestId, requestQueue.size)
-
-        if (!isProcessingQueue) {
-            isProcessingQueue = true
-            Timber.tag(TAG).d("Starting queue processor")
-            processQueue()
-        }
-
-        return request.awaitResult()
-    }
-
-    private suspend fun processQueue() {
-        while (true) {
-            val request = requestQueue.poll() ?: break
-
-            while (activeRequests.get() >= MAX_CONCURRENT_REQUESTS) {
-                delay(100)
-            }
-
-            activeRequests.incrementAndGet()
-
-            scope.launch {
-                try {
-                    val result = executeRequest(request.signature, request.sampleDurationMs)
-                    request.completeWith(result)
-                } catch (e: Exception) {
-                    Timber.tag(TAG).w(e, "Request #%d failed in queue processor", request.id)
-                    request.completeWith(Result.failure(e))
-                } finally {
-                    activeRequests.decrementAndGet()
-                }
-            }
-
-            enforceRateLimit()
-        }
-
-        isProcessingQueue = false
-    }
-
-    private suspend fun executeRequest(
-        signature: String,
-        sampleDurationMs: Long,
-    ): Result<RecognitionResult> {
-        var lastException: Exception? = null
-
+    private suspend fun executeWithRetry(signature: String, sampleDurationMs: Long): Outcome {
+        var lastError: Throwable? = null
         for (attempt in 0 until MAX_RETRIES) {
+            enforceRateLimit()
             try {
-                enforceRateLimit()
-
-                val result = performRecognition(signature, sampleDurationMs)
-
-                val cacheKey = generateCacheKey(signature)
-                cacheResult(cacheKey, result)
-                Timber.tag(TAG).d("Request succeeded on attempt %d", attempt + 1)
-
-                return Result.success(result)
-            } catch (e: Exception) {
-                lastException = e
-                Timber.tag(TAG).w(e, "Request failed on attempt %d/%d: %s", attempt + 1, MAX_RETRIES, e.message)
-
-                if (e.message?.contains("429") == true ||
-                    e.message?.contains("Too many requests", ignoreCase = true) == true
-                ) {
-                    if (attempt < MAX_RETRIES - 1) {
-                        val delayTime = calculateBackoffDelay(attempt)
-                        Timber.tag(TAG).d("Rate limited, retrying in %dms (attempt %d/%d)", delayTime, attempt + 2, MAX_RETRIES)
-                        delay(delayTime)
-                        continue
-                    }
-                } else {
-                    throw e
+                return performRecognition(signature, sampleDurationMs)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: RetryableException) {
+                lastError = e
+                Timber.tag(TAG).w(e, "Retryable failure on attempt %d/%d", attempt + 1, MAX_RETRIES)
+                if (attempt < MAX_RETRIES - 1) {
+                    delay(INITIAL_RETRY_DELAY_MS * (1L shl attempt))
                 }
+            } catch (e: Exception) {
+                Timber.tag(TAG).w(e, "Recognition failed (non-retryable)")
+                return Outcome.Failed(e)
             }
         }
-
-        throw lastException ?: Exception("Recognition failed after $MAX_RETRIES attempts")
+        return Outcome.Failed(lastError ?: Exception("Recognition failed after $MAX_RETRIES attempts"))
     }
 
-    private suspend fun performRecognition(
-        signature: String,
-        sampleDurationMs: Long,
-    ): RecognitionResult {
+    private suspend fun performRecognition(signature: String, sampleDurationMs: Long): Outcome {
         val timestamp = System.currentTimeMillis() / 1000
         val uuid1 = UUID.randomUUID().toString().uppercase()
         val uuid2 = UUID.randomUUID().toString()
@@ -277,76 +158,31 @@ object Shazam {
         if (!response.status.isSuccess()) {
             val statusCode = response.status.value
             Timber.tag(TAG).w("Shazam API returned HTTP %d", statusCode)
-            when (statusCode) {
-                429 -> throw Exception("Too many requests")
-                404 -> throw Exception("No match found")
-                in 500..599 -> throw Exception("Shazam service temporarily unavailable")
-                else -> throw Exception("Recognition failed (error $statusCode)")
+            return when (statusCode) {
+                404 -> Outcome.NoMatch
+                429 -> throw RetryableException("Too many requests (429)")
+                in 500..599 -> throw RetryableException("Shazam service temporarily unavailable ($statusCode)")
+                else -> Outcome.Failed(Exception("Recognition failed (error $statusCode)"))
             }
         }
 
         val shazamResponse = response.body<ShazamResponseJson>()
         Timber.tag(TAG).d("Shazam API response received, hasTrack=%s", shazamResponse.track != null)
-        return shazamResponse.toRecognitionResult()
-            ?: throw Exception("No match found")
+        val result = shazamResponse.toRecognitionResult() ?: return Outcome.NoMatch
+        return Outcome.Found(result)
     }
 
-    private suspend fun enforceRateLimit() {
-        val currentTime = System.currentTimeMillis()
-        val timeSinceLastRequest = currentTime - lastRequestTime
-
-        if (timeSinceLastRequest < MIN_REQUEST_INTERVAL_MS) {
-            val delayTime = MIN_REQUEST_INTERVAL_MS - timeSinceLastRequest
-            delay(delayTime)
+    private suspend fun enforceRateLimit() = rateLimitMutex.withLock {
+        val now = System.currentTimeMillis()
+        val sinceLast = now - lastRequestTime
+        if (sinceLast < MIN_REQUEST_INTERVAL_MS) {
+            delay(MIN_REQUEST_INTERVAL_MS - sinceLast)
         }
-
         lastRequestTime = System.currentTimeMillis()
     }
 
-    private fun calculateBackoffDelay(attempt: Int): Long {
-        return INITIAL_RETRY_DELAY_MS * (1 shl attempt)
-    }
-
-    private fun generateCacheKey(signature: String): String {
-        return signature.hashCode().toString()
-    }
-
-    private fun getCachedResult(key: String): RecognitionResult? {
-        val cached = resultCache[key] ?: return null
-        val currentTime = System.currentTimeMillis()
-
-        if (currentTime - cached.timestamp > CACHE_DURATION_MS) {
-            resultCache.remove(key)
-            return null
-        }
-
-        return cached.result
-    }
-
-    private fun cacheResult(key: String, result: RecognitionResult) {
-        resultCache[key] = CachedResult(
-            timestamp = System.currentTimeMillis(),
-            result = result,
-        )
-        Timber.tag(TAG).d("Result cached for key=%s (cache size=%d)", key, resultCache.size)
-
-        cleanupCache()
-    }
-
-    private fun cleanupCache() {
-        if (resultCache.size < 100) return
-        Timber.tag(TAG).d("Cache cleanup: %d entries, pruning expired", resultCache.size)
-
-        val currentTime = System.currentTimeMillis()
-        val iterator = resultCache.entries.iterator()
-
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            if (currentTime - entry.value.timestamp > CACHE_DURATION_MS) {
-                iterator.remove()
-            }
-        }
-    }
+    /** A transient error (429 / 5xx) worth retrying with backoff, as opposed to a hard failure. */
+    private class RetryableException(message: String) : Exception(message)
 
     private fun ShazamResponseJson.toRecognitionResult(): RecognitionResult? {
         val track = this.track ?: return null
@@ -395,33 +231,4 @@ object Shazam {
             youtubeVideoId = youtubeVideoId,
         )
     }
-
-    private class PendingRequest(
-        val id: Long,
-        val signature: String,
-        val sampleDurationMs: Long,
-    ) {
-        @Volatile
-        private var result: Result<RecognitionResult>? = null
-
-        @Volatile
-        private var isCompleted = false
-
-        suspend fun awaitResult(): Result<RecognitionResult> {
-            while (!isCompleted) {
-                delay(50)
-            }
-            return result ?: Result.failure(Exception("Result not received"))
-        }
-
-        fun completeWith(result: Result<RecognitionResult>) {
-            this.result = result
-            this.isCompleted = true
-        }
-    }
-
-    private data class CachedResult(
-        val timestamp: Long,
-        val result: RecognitionResult,
-    )
 }

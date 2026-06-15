@@ -39,6 +39,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -124,7 +125,9 @@ private fun RecognizeDialog(
         else permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
     }
 
-    var started by remember { mutableStateOf(false) }
+    // rememberSaveable so a config change (rotation) doesn't reset the flag and restart capture /
+    // re-prompt for the mic permission — the hiltViewModel survives recreation and keeps running.
+    var started by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         if (!started) {
             started = true

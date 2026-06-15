@@ -675,6 +675,9 @@ class MusicService :
     private fun startWidgetTicker() {
         if (widgetTickerJob?.isActive == true) return
         widgetTickerJob = scope.launch {
+            // Only spin the per-second ticker when a widget is actually placed — checked once per
+            // playback session rather than every tick, so users with no widget pay nothing.
+            if (!MusicWidget.hasPlacedWidget(this@MusicService)) return@launch
             while (isActive && player.isPlaying) {
                 updateWidget()
                 delay(1000)
@@ -1604,6 +1607,8 @@ class MusicService :
         connectivityObserver.unregister()
         abandonAudioFocus()
         releaseLoudnessEnhancer()
+        // Stop the widget ticker before releasing the player so a stray tick can't touch it.
+        widgetTickerJob?.cancel()
         mediaSession.release()
         player.removeListener(this)
         player.removeListener(sleepTimer)

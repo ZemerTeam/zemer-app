@@ -82,6 +82,12 @@ internal object ShazamSignatureGenerator {
         private var spreadPos = 0
         private var spreadNumWritten = 0
 
+        // Reusable scratch for the per-hop FFT. process() is single-threaded and runs ~1500 hops for
+        // a 12 s recording, so allocating these per hop would churn the GC; reuse them instead.
+        private val windowed = DoubleArray(FFT_SIZE)
+        private val fftRe = DoubleArray(FFT_SIZE)
+        private val fftIm = DoubleArray(FFT_SIZE)
+
         // Accumulated samples count (for signature header)
         private var numSamples = 0
 
@@ -114,12 +120,11 @@ internal object ShazamSignatureGenerator {
         }
 
         private fun doFFT() {
-            // Build windowed excerpt from ring buffer (oldest → newest)
-            val windowed = DoubleArray(FFT_SIZE) { i ->
-                samplesRing[(samplesPos + i) % FFT_SIZE].toDouble() * HANNING[i]
+            // Build windowed excerpt from ring buffer (oldest → newest) into the reused scratch.
+            for (i in 0 until FFT_SIZE) {
+                windowed[i] = samplesRing[(samplesPos + i) % FFT_SIZE].toDouble() * HANNING[i]
             }
-            val result = computeRfft(windowed)
-            result.copyInto(fftOutputs[fftPos])
+            computeRfftInto(windowed, fftRe, fftIm, fftOutputs[fftPos])
             fftPos = (fftPos + 1) % RING_BUF_SIZE
             fftNumWritten++
         }
@@ -320,17 +325,16 @@ internal object ShazamSignatureGenerator {
 
     /**
      * Computes the real-input FFT of [windowed] (size 2048) using an iterative
-     * Cooley-Tukey radix-2 DIT algorithm.
-     *
-     * Returns FFT_OUTPUT_SIZE (1025) magnitude values:
+     * Cooley-Tukey radix-2 DIT algorithm, writing FFT_OUTPUT_SIZE (1025) magnitude values into [out]:
      *   magnitude[k] = max((re[k]² + im[k]²) / 2^17, 1e-10)
      *
-     * This matches the FFTW3 r2c output format used in the C++ vibra library.
+     * [re] and [im] are caller-owned scratch buffers (size 2048), reused across hops so nothing is
+     * allocated per call. This matches the FFTW3 r2c output format used in the C++ vibra library.
      */
-    private fun computeRfft(windowed: DoubleArray): DoubleArray {
+    private fun computeRfftInto(windowed: DoubleArray, re: DoubleArray, im: DoubleArray, out: DoubleArray) {
         val n = windowed.size // 2048
-        val re = windowed.copyOf()
-        val im = DoubleArray(n)
+        System.arraycopy(windowed, 0, re, 0, n)
+        java.util.Arrays.fill(im, 0, n, 0.0)
 
         // Bit-reversal permutation
         var j = 0
@@ -378,14 +382,14 @@ internal object ShazamSignatureGenerator {
             len = len shl 1
         }
 
-        // Extract magnitudes for bins 0..n/2 (FFT_OUTPUT_SIZE = 1025)
+        // Extract magnitudes for bins 0..n/2 (FFT_OUTPUT_SIZE = 1025) into the caller's buffer.
         val scaleFactor = 1.0 / (1 shl 17)
         val minVal = 1e-10
-        return DoubleArray(FFT_OUTPUT_SIZE) { idx ->
+        for (idx in 0 until FFT_OUTPUT_SIZE) {
             val r = re[idx]
             val img = im[idx]
             val mag = (r * r + img * img) * scaleFactor
-            if (mag < minVal) minVal else mag
+            out[idx] = if (mag < minVal) minVal else mag
         }
     }
 }

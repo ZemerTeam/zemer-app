@@ -80,6 +80,7 @@ object RecognitionResolver {
                     title = song.title,
                     artist = song.artists.joinToString(", ") { it.name },
                     thumbnailUrl = song.thumbnail,
+                    artistIds = RecognitionHistoryFilter.joinIds(song.artists.map { it.id }),
                 ),
             )
         }.onFailure { Timber.tag(TAG).w(it, "Failed to record recognition history") }

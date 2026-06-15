@@ -3,6 +3,7 @@ package com.jtech.zemer.widget
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
@@ -16,6 +17,7 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
+import androidx.glance.LocalSize
 import androidx.glance.action.Action
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
@@ -49,7 +51,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
-import coil3.ImageLoader
+import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.toBitmap
@@ -59,6 +61,7 @@ import com.jtech.zemer.playback.MusicService
 import com.jtech.zemer.ui.screens.recognition.RecognizeMusicDialogActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class MusicWidget : GlanceAppWidget() {
 
@@ -68,20 +71,28 @@ class MusicWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        // After a process restart the in-memory bitmap is gone but the host may re-inflate the
+        // widget with no MusicService update in sight — reload the last art from disk so it persists.
+        if (cachedAlbumArtBitmap == null) {
+            cachedAlbumArtBitmap = withContext(Dispatchers.IO) { loadPersistedArt(context) }
+        }
+        val albumArt = cachedAlbumArtBitmap
         provideContent {
             GlanceTheme {
-                MusicWidgetContent(context)
+                MusicWidgetContent(context, albumArt)
             }
         }
     }
 
     @androidx.compose.runtime.Composable
-    private fun MusicWidgetContent(context: Context) {
+    private fun MusicWidgetContent(context: Context, albumArt: Bitmap?) {
         val prefs = currentState<Preferences>()
         val title = prefs[PREF_TITLE] ?: context.getString(R.string.app_name)
         val artist = prefs[PREF_ARTIST] ?: ""
         val isPlaying = prefs[PREF_IS_PLAYING] ?: false
-        val albumArt = cachedAlbumArtBitmap
+        // SizeMode.Exact has no compact bucket, so drop the seek row when the widget is too short to
+        // hold it (legacy/odd placements below the resize minimum) instead of clipping the controls.
+        val showSeek = WidgetLayout.showSeekRow(LocalSize.current.height.value)
 
         Box(GlanceModifier.fillMaxSize().padding(3.dp)) {
             Column(
@@ -178,8 +189,10 @@ class MusicWidget : GlanceAppWidget() {
                     }
                 }
 
-                Spacer(GlanceModifier.height(6.dp))
-                SeekRow(prefs)
+                if (showSeek) {
+                    Spacer(GlanceModifier.height(6.dp))
+                    SeekRow(prefs)
+                }
             }
         }
     }
@@ -269,16 +282,34 @@ class MusicWidget : GlanceAppWidget() {
         private val PREF_TITLE = stringPreferencesKey("title")
         private val PREF_ARTIST = stringPreferencesKey("artist")
         private val PREF_IS_PLAYING = booleanPreferencesKey("is_playing")
-        private val PREF_ALBUM_ART_URL = stringPreferencesKey("album_art_url")
         private val PREF_POSITION = longPreferencesKey("position_ms")
         private val PREF_DURATION = longPreferencesKey("duration_ms")
 
+        // Last decoded album art, cached in-process for the hot path and mirrored to [ART_FILE_NAME]
+        // so it survives process death. @Volatile: written from MusicService, read on the Glance
+        // composition thread.
+        @Volatile
         private var cachedAlbumArtBitmap: Bitmap? = null
+
+        @Volatile
         private var cachedAlbumArtUrl: String? = null
+
+        private const val ART_FILE_NAME = "widget_album_art.png"
 
         const val ACTION_PLAY_PAUSE = "com.jtech.zemer.ACTION_PLAY"
         const val ACTION_NEXT = "com.jtech.zemer.ACTION_NEXT"
         const val ACTION_PREV = "com.jtech.zemer.ACTION_PREV"
+
+        /** True iff at least one instance of this widget is currently placed on a home screen. */
+        suspend fun hasPlacedWidget(context: Context): Boolean =
+            GlanceAppWidgetManager(context).getGlanceIds(MusicWidget::class.java).isNotEmpty()
+
+        private fun artFile(context: Context): File = File(context.filesDir, ART_FILE_NAME)
+
+        private fun loadPersistedArt(context: Context): Bitmap? = runCatching {
+            val file = artFile(context)
+            if (file.exists()) BitmapFactory.decodeFile(file.absolutePath) else null
+        }.getOrNull()
 
         private fun formatTime(ms: Long): String {
             if (ms <= 0L) return "0:00"
@@ -302,33 +333,37 @@ class MusicWidget : GlanceAppWidget() {
                 val glanceIds = manager.getGlanceIds(MusicWidget::class.java)
                 if (glanceIds.isEmpty()) return
 
-                // Load album art bitmap if the URL changed
+                // Load (and persist) album art only when the URL changes — not on every seek tick.
                 if (albumArtUrl != null && albumArtUrl != cachedAlbumArtUrl) {
-                    try {
-                        val bitmap = withContext(Dispatchers.IO) {
-                            val loader = ImageLoader(context)
+                    val bitmap = withContext(Dispatchers.IO) {
+                        runCatching {
+                            val loader = SingletonImageLoader.get(context)
                             val request = ImageRequest.Builder(context)
                                 .data(albumArtUrl)
                                 .size(300, 300)
                                 .build()
                             val result = loader.execute(request)
                             if (result is SuccessResult) {
-                                val originalBitmap = result.image.toBitmap()
-                                if (originalBitmap.config == Bitmap.Config.HARDWARE) {
-                                    originalBitmap.copy(Bitmap.Config.ARGB_8888, false)
+                                val original = result.image.toBitmap()
+                                val safe = if (original.config == Bitmap.Config.HARDWARE) {
+                                    original.copy(Bitmap.Config.ARGB_8888, false)
                                 } else {
-                                    originalBitmap
+                                    original
                                 }
+                                runCatching {
+                                    artFile(context).outputStream().use {
+                                        safe.compress(Bitmap.CompressFormat.PNG, 100, it)
+                                    }
+                                }
+                                safe
                             } else {
                                 null
                             }
-                        }
-                        if (bitmap != null) {
-                            cachedAlbumArtBitmap = bitmap
-                            cachedAlbumArtUrl = albumArtUrl
-                        }
-                    } catch (_: Exception) {
-                        // Failed to load album art
+                        }.getOrNull()
+                    }
+                    if (bitmap != null) {
+                        cachedAlbumArtBitmap = bitmap
+                        cachedAlbumArtUrl = albumArtUrl
                     }
                 }
 
@@ -340,7 +375,6 @@ class MusicWidget : GlanceAppWidget() {
                             this[PREF_IS_PLAYING] = isPlaying
                             this[PREF_POSITION] = positionMs
                             this[PREF_DURATION] = durationMs
-                            albumArtUrl?.let { this[PREF_ALBUM_ART_URL] = it }
                         }
                     }
                     MusicWidget().update(context, glanceId)

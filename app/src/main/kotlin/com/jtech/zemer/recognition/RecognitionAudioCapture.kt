@@ -89,6 +89,9 @@ object RecognitionAudioCapture {
     @SuppressLint("MissingPermission")
     private suspend fun recordAudio(): ByteArray = withContext(Dispatchers.IO) {
         val bufferSize = AudioRecord.getMinBufferSize(RECORDING_SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT)
+        // getMinBufferSize returns a negative error code (ERROR / ERROR_BAD_VALUE) for an unsupported
+        // config; feeding that to ByteArray()/AudioRecord() would crash, so fail fast and clearly.
+        check(bufferSize > 0) { "Microphone unavailable: invalid min buffer size ($bufferSize)" }
         Timber.tag(TAG).d(
             "Recording audio: sampleRate=%d, bufferSize=%d, durationMs=%d",
             RECORDING_SAMPLE_RATE,
@@ -109,17 +112,31 @@ object RecognitionAudioCapture {
         val startTime = System.currentTimeMillis()
 
         try {
+            // A failed init (mic held by another app, denied at the HAL) leaves the object
+            // UNINITIALIZED; startRecording() would silently no-op and every read() would error.
+            check(audioRecord.state == AudioRecord.STATE_INITIALIZED) {
+                "Microphone unavailable: AudioRecord failed to initialize"
+            }
             audioRecord.startRecording()
+            check(audioRecord.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                "Microphone unavailable: AudioRecord failed to start"
+            }
             Timber.tag(TAG).d("AudioRecord started, recording for %dms", RECORDING_DURATION_MS)
 
             while (System.currentTimeMillis() - startTime < RECORDING_DURATION_MS && coroutineContext.isActive) {
                 val bytesRead = audioRecord.read(buffer, 0, bufferSize)
-                if (bytesRead > 0) {
-                    outputStream.write(buffer, 0, bytesRead)
+                when {
+                    bytesRead > 0 -> outputStream.write(buffer, 0, bytesRead)
+                    // A negative result (ERROR_INVALID_OPERATION / ERROR_DEAD_OBJECT / ERROR) is fatal:
+                    // without this the loop would busy-spin for the full window and return empty audio.
+                    bytesRead < 0 -> error("Microphone read failed (code $bytesRead)")
+                    // bytesRead == 0: no data available yet, keep polling until the window elapses.
                 }
             }
         } finally {
-            audioRecord.stop()
+            if (audioRecord.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                runCatching { audioRecord.stop() }
+            }
             audioRecord.release()
         }
 

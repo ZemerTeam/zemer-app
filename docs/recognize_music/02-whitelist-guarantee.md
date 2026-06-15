@@ -85,7 +85,12 @@ If you touch `RecognitionResolver`, keep **all three** properties:
 3. Keep the `isArtistWhitelisted` hard gate, and keep it fail-closed.
 
 The history table also only ever stores the resolved (whitelisted) `SongItem`
-(see [04](04-recognition-history.md)), so history can't leak either.
+(see [04](04-recognition-history.md)). But the whitelist is **mutable** — Firebase sync can remove an
+artist after a song was recognized — so "whitelisted at insert time" is not enough. History therefore
+stores each entry's **artist ids** and is **re-checked against the *current* whitelist every time the
+list is built** (`RecognitionHistoryViewModel` combines the history flow with the live whitelist flow
+and drops any entry no clearer of `RecognitionHistoryFilter.isAllowed`, which fails closed exactly
+like Gate 2). A de-whitelisted entry simply disappears from history and can't be replayed.
 
 ## Known boundary
 
