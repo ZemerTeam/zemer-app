@@ -95,20 +95,22 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Assemble signed release
-        run: ./gradlew assembleRelease
+        # github flavor = the canonical sideload / Obtainium build (full feature set).
+        # The Play-compliant `play` flavor ships separately as an AAB (see docs/play/PLAN.md).
+        run: ./gradlew assembleGithubRelease
 
       - name: Check 16 KB page-size alignment
-        run: bash scripts/check-16kb-alignment.sh app/build/outputs/apk/release/app-release.apk
+        run: bash scripts/check-16kb-alignment.sh app/build/outputs/apk/github/release/app-github-release.apk
 
       - name: Upload Crashlytics native symbols
-        run: ./gradlew :app:uploadCrashlyticsSymbolFileRelease
+        run: ./gradlew :app:uploadCrashlyticsSymbolFileGithubRelease
 
       - name: Upload APK artifact
         id: upload-artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/github/release/*.apk
 
       - name: Send Telegram notification
         if: always()
@@ -131,7 +133,7 @@ jobs:
 
           MESSAGE=$(printf "Android Release Build\n\nStatus: %s\nBranch/PR: %s\nCommit: %s\n\nView Commit/PR: %s" "$STATUS" "$REF" "$TITLE" "$LINK")
 
-          APK_FILE=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          APK_FILE=$(find app/build/outputs/apk/github/release -name "*.apk" | head -n 1)
 
           # Recipients = the primary chat (TELEGRAM_CHAT_ID secret) plus any added users listed in the
           # TELEGRAM_CHAT_IDS repo variable (comma / space / newline separated). Deduped; blanks dropped.

@@ -6,6 +6,8 @@
     - In-app self-updater (Device & Network Abuse): the install permission, install-status
       receiver, and the privileged-install provider.
     - Accessibility button-mapper (Accessibility API misuse): the accessibility service.
+    - Unused / Play-scrutinized permissions: overlay (no system overlay is created) and
+      receive-boot-completed (no boot receiver).
 
   The corresponding Kotlin/resources live in src/github only; see docs/play/PLAN.md section 1.
 -->
@@ -15,6 +17,17 @@
     <!-- Self-updater: install permission removed on Play -->
     <uses-permission
         android:name="android.permission.REQUEST_INSTALL_PACKAGES"
+        tools:node="remove" />
+
+    <!-- Overlay permission removed on Play: requested in onboarding but no system overlay is ever
+         created (the floating mini player is in-app), so it is unused and Play-scrutinized. -->
+    <uses-permission
+        android:name="android.permission.SYSTEM_ALERT_WINDOW"
+        tools:node="remove" />
+
+    <!-- Removed on Play: declared but no boot receiver exists (vestigial). -->
+    <uses-permission
+        android:name="android.permission.RECEIVE_BOOT_COMPLETED"
         tools:node="remove" />
 
     <application>

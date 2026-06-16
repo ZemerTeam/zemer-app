@@ -110,3 +110,13 @@ CLAUDE.md
 
 # local search-harness cache (whitelist data fetched from Firestore; never commit)
 tests/search/.cache/
+
+# Local Play signing keystore (secret — never commit)
+/ZemerKey
+/upload-keystore.jks
+
+# Play build artifacts (fetched/generated, never committed)
+/bento4-libs.zip
+/app/src/main/jniLibs/
+/ZemerKey-upload-certificate.pem
+/keystore.properties

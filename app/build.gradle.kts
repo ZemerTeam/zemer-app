@@ -1,5 +1,6 @@
 @file:Suppress("UnstableApiUsage")
 
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -12,6 +13,13 @@ plugins {
     alias(libs.plugins.google.gms.google.services)
     alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.rikka.tools.refine)
+}
+
+// Play upload-key credentials: read from a gitignored keystore.properties (never committed),
+// overridable by env vars for CI. No credentials live in source.
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -63,6 +71,18 @@ android {
             keyPassword = System.getenv("KEY_PASSWORD")
             storeType = "PKCS12"
         }
+        // Google Play key (ZemerKey) — registered as the app signing key and also used as the
+        // upload key (no separate upload key). The keystore file is gitignored (a secret); CI must
+        // provide it. Passwords default to the local value but can be overridden via env for CI.
+        create("zemerUpload") {
+            storeFile = rootProject.file("ZemerKey")
+            storePassword = System.getenv("ZEMER_UPLOAD_STORE_PASSWORD")
+                ?: keystoreProps.getProperty("zemerUploadStorePassword")
+            keyAlias = System.getenv("ZEMER_UPLOAD_KEY_ALIAS")
+                ?: keystoreProps.getProperty("zemerUploadKeyAlias")
+            keyPassword = System.getenv("ZEMER_UPLOAD_KEY_PASSWORD")
+                ?: keystoreProps.getProperty("zemerUploadKeyPassword")
+        }
         getByName("debug") {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
@@ -74,7 +94,7 @@ android {
     // Distribution channels:
     //   github — full feature set, incl. the in-app self-updater (sideload / Obtainium home).
     //   play   — Google Play-compliant build: NO self-updater, NO accessibility button-mapper.
-    // Shared applicationId; the split is build/manifest/deps only (see docs/play_store/PLAN.md).
+    // Shared applicationId; the split is build/manifest/deps only (see docs/play/PLAN.md).
     flavorDimensions += "distribution"
     productFlavors {
         create("github") {
@@ -82,13 +102,19 @@ android {
             isDefault = true
             buildConfigField("Boolean", "ENABLE_INAPP_UPDATER", "true")
             buildConfigField("Boolean", "ENABLE_BUTTON_MAPPER", "true")
+            buildConfigField("Boolean", "REQUEST_OVERLAY_PERMISSION", "true")
             buildConfigField("String", "DISTRIBUTION_CHANNEL", "\"github\"")
+            // Release builds sign with the existing release keystore (sideload identity).
+            signingConfig = signingConfigs.getByName("release")
         }
         create("play") {
             dimension = "distribution"
             buildConfigField("Boolean", "ENABLE_INAPP_UPDATER", "false")
             buildConfigField("Boolean", "ENABLE_BUTTON_MAPPER", "false")
+            buildConfigField("Boolean", "REQUEST_OVERLAY_PERMISSION", "false")
             buildConfigField("String", "DISTRIBUTION_CHANNEL", "\"play\"")
+            // Release builds sign with the Play upload key (ZemerKey).
+            signingConfig = signingConfigs.getByName("zemerUpload")
         }
     }
 
@@ -98,7 +124,8 @@ android {
             isShrinkResources = true
             isCrunchPngs = false
             isDebuggable = false
-            signingConfig = signingConfigs.getByName("release")
+            // Release signing is set per-flavor (github → release keystore, play → ZemerKey upload
+            // key). Leaving it unset here lets the productFlavor signingConfig take effect.
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

@@ -34,10 +34,10 @@
 | Configure Android SDK path | run: `echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties` |
 | Configure Firebase | run: `echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" \| base64 -d > app/google-services.json` |
 | Configure release keystore | run: `mkdir -p app/keystore` |
-| Assemble signed release | run: `./gradlew assembleRelease` |
-| Check 16 KB page-size alignment | run: `bash scripts/check-16kb-alignment.sh app/build/outputs/apk/release/app-release.apk` |
-| Upload Crashlytics native symbols | run: `./gradlew :app:uploadCrashlyticsSymbolFileRelease` |
-| Upload APK artifact | `actions/upload-artifact@v4` (name=`release-apk`, path=`app/build/outputs/apk/release/*.apk`) |
+| Assemble signed release | run: `./gradlew assembleGithubRelease` |
+| Check 16 KB page-size alignment | run: `bash scripts/check-16kb-alignment.sh app/build/outputs/apk/github/release/app-github-relea` |
+| Upload Crashlytics native symbols | run: `./gradlew :app:uploadCrashlyticsSymbolFileGithubRelease` |
+| Upload APK artifact | `actions/upload-artifact@v4` (name=`release-apk`, path=`app/build/outputs/apk/github/release/*.apk`) |
 | Send Telegram notification | run: `if [ "${{ job.status }}" == "success" ]; then` |
 
 ## Native code and submodules

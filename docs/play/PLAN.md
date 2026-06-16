@@ -61,12 +61,20 @@ from one codebase.
 - ✅ `scripts/ui-audit.sh` passes; no new string/dialog/color violations.
 
 **Still TODO (deferred, not blocking the build):**
-- ⏳ `SYSTEM_ALERT_WINDOW` removal from `play` (+ its onboarding step) — needs usage check. — §1.3
-- ⏳ Vestigial-permission review (`NEARBY_WIFI_DEVICES`, `RECEIVE_BOOT_COMPLETED`, legacy storage). — §2
-- ⏳ **Release (R8) build not yet run** — `bundlePlayRelease`/`assembleGithubRelease` must be verified
-  (needs release keystore env); R8 keep-rules may need updating after the dep/code removal.
-- ⏳ **CI**: `assembleRelease` now builds BOTH flavors — update `release-build.yml` to target the
-  intended flavor(s) before merge.
+- ✅ `SYSTEM_ALERT_WINDOW` removed from `play` (overlay perm requested in onboarding but **no system
+  overlay is ever created** — the floating mini player is in-app; verified). Stripped via play
+  manifest overlay + onboarding step gated behind `REQUEST_OVERLAY_PERMISSION` flag. github unchanged.
+  — §1.3
+- ✅ Vestigial-permission review: `RECEIVE_BOOT_COMPLETED` removed from `play` (no boot receiver
+  exists). `NEARBY_WIFI_DEVICES` **kept** (actively requested/used in onboarding). Legacy storage
+  (`WRITE/READ_EXTERNAL_STORAGE`, already maxSdk-gated) kept — justify in Data Safety. — §2
+- ✅ **Release (R8) verified** — `assembleGithubRelease` + `assemblePlayRelease` both build clean
+  (`minifyGithubReleaseWithR8` / `minifyPlayReleaseWithR8` pass); no keep-rule breakage from the dep/
+  code removal. Play **AAB** builds: `bundlePlayRelease` → `app/build/outputs/bundle/playRelease/
+  app-play-release.aab` (~23 MB). github release stays an APK (`app-github-release.apk`) for sideload.
+- ✅ **CI updated**: `release-build.yml` → `assembleGithubRelease` (paths/Crashlytics task repointed
+  to the github flavor); `debug-build.yml` → `assembleGithubDebug`. A separate **play-AAB pipeline**
+  (`bundlePlayRelease` → Play Console upload) is still TODO. — §11
 - ⏳ Privacy/data-safety/account model/listing work (§§3–7, 10–12) — all still pending.
 
 ---

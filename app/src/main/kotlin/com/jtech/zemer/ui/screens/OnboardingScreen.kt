@@ -1486,7 +1486,8 @@ private fun PermissionsScreen(
                 ) {
                     openAccessibilitySettings(context)
                 }
-            } else if (!systemAlertGranted) {
+            } else if (BuildConfig.REQUEST_OVERLAY_PERMISSION && !systemAlertGranted) {
+                // GitHub flavor only — Play strips SYSTEM_ALERT_WINDOW (no system overlay is used).
                 PermissionCard(
                     title = stringResource(R.string.onboarding_perm_system_alert_title),
                     description = stringResource(R.string.onboarding_perm_system_alert_desc),

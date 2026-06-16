@@ -71,11 +71,12 @@ jobs:
             -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Assemble debug
-        run: ./gradlew assembleDebug
+        # github flavor = the canonical build (see docs/play/PLAN.md for the play flavor).
+        run: ./gradlew assembleGithubDebug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/github/debug/*.apk
           if-no-files-found: error
