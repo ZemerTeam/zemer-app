@@ -65,7 +65,7 @@ import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.component.InfoLabel
-import com.jtech.zemer.utils.Updater
+import com.jtech.zemer.distribution.openLatestDownloadUrl
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.AccountSettingsViewModel
 import com.jtech.zemer.viewmodels.HomeViewModel
@@ -412,7 +412,8 @@ fun AccountSettings(
                     }
                 },
                 onClick = {
-                    Updater.getCachedDownloadUrl()?.let { uriHandler.openUri(it) }
+                    // Flavored: opens the cached release URL on GitHub builds; no-op on Play.
+                    openLatestDownloadUrl(uriHandler)
                 },
                 modifier = Modifier
                     .fillMaxWidth()

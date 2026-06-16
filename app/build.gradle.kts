@@ -71,6 +71,27 @@ android {
         }
     }
 
+    // Distribution channels:
+    //   github — full feature set, incl. the in-app self-updater (sideload / Obtainium home).
+    //   play   — Google Play-compliant build: NO self-updater, NO accessibility button-mapper.
+    // Shared applicationId; the split is build/manifest/deps only (see docs/play_store/PLAN.md).
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("github") {
+            dimension = "distribution"
+            isDefault = true
+            buildConfigField("Boolean", "ENABLE_INAPP_UPDATER", "true")
+            buildConfigField("Boolean", "ENABLE_BUTTON_MAPPER", "true")
+            buildConfigField("String", "DISTRIBUTION_CHANNEL", "\"github\"")
+        }
+        create("play") {
+            dimension = "distribution"
+            buildConfigField("Boolean", "ENABLE_INAPP_UPDATER", "false")
+            buildConfigField("Boolean", "ENABLE_BUTTON_MAPPER", "false")
+            buildConfigField("String", "DISTRIBUTION_CHANNEL", "\"play\"")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -264,13 +285,14 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.content.negotiation)
 
-    // Self-update installers (Shizuku / root); hidden PackageInstaller APIs via refine
-    compileOnly(libs.rikka.hidden.stub)
-    implementation(libs.rikka.tools.refine.runtime)
-    implementation(libs.shizuku.api)
-    implementation(libs.shizuku.provider)
-    implementation(libs.lsposed.hiddenapibypass)
-    implementation(libs.libsu.core)
+    // Self-update installers (Shizuku / root); hidden PackageInstaller APIs via refine.
+    // GitHub flavor only — the Play flavor has no in-app updater (Device & Network Abuse policy).
+    "githubCompileOnly"(libs.rikka.hidden.stub)
+    "githubImplementation"(libs.rikka.tools.refine.runtime)
+    "githubImplementation"(libs.shizuku.api)
+    "githubImplementation"(libs.shizuku.provider)
+    "githubImplementation"(libs.lsposed.hiddenapibypass)
+    "githubImplementation"(libs.libsu.core)
 
     coreLibraryDesugaring(libs.desugaring)
 

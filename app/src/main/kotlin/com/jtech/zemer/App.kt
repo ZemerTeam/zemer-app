@@ -32,7 +32,7 @@ import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.SyncUtils
 import com.zemer.cipher.ZemerCipher
 import timber.log.Timber
-import com.jtech.zemer.utils.UpdateChecker
+import com.jtech.zemer.distribution.UpdateStartup
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
@@ -112,16 +112,8 @@ class App : Application(), SingletonImageLoader.Factory {
     }
 
     private suspend fun checkForUpdatesOnStartup() {
-        val settings = dataStore.data.first()
-        if (settings[CheckForUpdatesKey] != true) return
-
-        when (val result = UpdateChecker.checkForUpdates()) {
-            is UpdateChecker.UpdateResult.UpdateAvailable -> {
-                pendingUpdateVersion = result.latestVersion
-                pendingUpdateNotes = result.notes
-            }
-            else -> { /* No action needed */ }
-        }
+        // Flavored: real check on GitHub builds, no-op on Play (no in-app updater).
+        UpdateStartup.check(this)
     }
 
     private suspend fun fetchAnonymousTokenOnStartup() {

@@ -15,7 +15,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 11 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
-| `app/build.gradle.kts` | 283 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
+| `app/build.gradle.kts` | 305 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
 | `app/lint.xml` | 12 lines | text `.xml`; XML root `lint` |
 | `app/proguard-rules.pro` | 257 lines | text `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -53,6 +53,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/9.json` | 840 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/src/debug/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/debug/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
+| `app/src/github/res/xml/accessibility_service_config.xml` | 9 lines | text `.xml`; XML root `accessibility-service` |
 | `app/src/main/AndroidManifest.xml` | 300 lines | text `.xml`; XML root `manifest` |
 | `app/src/main/assets/solver/astring.js` | 3 lines | text `.js` |
 | `app/src/main/assets/solver/meriyah.js` | 9210 lines | text `.js` |
@@ -254,7 +255,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
-| `app/src/main/res/xml/accessibility_service_config.xml` | 9 lines | text `.xml`; XML root `accessibility-service` |
 | `app/src/main/res/xml/automotive_app_desc.xml` | 4 lines | text `.xml`; XML root `automotiveApp` |
 | `app/src/main/res/xml/backup_rules.xml` | 12 lines | text `.xml`; XML root `full-backup-content` |
 | `app/src/main/res/xml/data_extraction_rules.xml` | 29 lines | text `.xml`; XML root `data-extraction-rules` |

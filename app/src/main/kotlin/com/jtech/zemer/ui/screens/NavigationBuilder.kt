@@ -27,11 +27,12 @@ import com.jtech.zemer.ui.screens.playlist.OnlinePlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.TopPlaylistScreen
 import com.jtech.zemer.ui.screens.recognition.RecognitionHistoryScreen
 import com.jtech.zemer.ui.screens.search.OnlineSearchResult
+import com.jtech.zemer.distribution.buttonSetupRoute
+import com.jtech.zemer.distribution.updaterSettingsRoute
 import com.jtech.zemer.ui.screens.settings.AboutScreen
 import com.jtech.zemer.ui.screens.settings.AndroidAutoSettings
 import com.jtech.zemer.ui.screens.settings.AppearanceSettings
 import com.jtech.zemer.ui.screens.settings.BackupAndRestore
-import com.jtech.zemer.ui.screens.settings.ButtonSetupScreen
 import com.jtech.zemer.ui.screens.settings.ContentSettings
 import com.jtech.zemer.ui.screens.settings.GeneralSettings
 import com.jtech.zemer.ui.screens.settings.PlayerSettings
@@ -39,7 +40,6 @@ import com.jtech.zemer.ui.screens.settings.PrivacySettings
 import com.jtech.zemer.ui.screens.settings.SettingsScreen
 import com.jtech.zemer.ui.screens.settings.StorageSettings
 import com.jtech.zemer.ui.screens.settings.StreamSourceSettings
-import com.jtech.zemer.ui.screens.settings.UpdaterScreen
 import com.jtech.zemer.ui.screens.settings.integrations.IntegrationScreen
 import com.jtech.zemer.viewmodels.HomeViewModel
 
@@ -320,9 +320,8 @@ fun NavGraphBuilder.navigationBuilder(
     composable("settings/general") {
         GeneralSettings(navController, scrollBehavior)
     }
-    composable("settings/dpad") {
-        ButtonSetupScreen(navController, scrollBehavior)
-    }
+    // Flavored: real button-mapper setup route on GitHub builds; no-op on Play.
+    buttonSetupRoute(navController, scrollBehavior)
     composable("settings/storage") {
         StorageSettings(navController, scrollBehavior)
     }
@@ -335,9 +334,8 @@ fun NavGraphBuilder.navigationBuilder(
     composable("settings/integrations") {
         IntegrationScreen(navController, scrollBehavior)
     }
-    composable("settings/updater") {
-        UpdaterScreen(navController, scrollBehavior)
-    }
+    // Flavored: real in-app updater settings route on GitHub builds; no-op on Play.
+    updaterSettingsRoute(navController, scrollBehavior)
     composable("settings/about") {
         AboutScreen(navController, scrollBehavior)
     }

@@ -1,7 +1,6 @@
 package com.jtech.zemer
 
 import android.annotation.SuppressLint
-import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
@@ -131,8 +130,6 @@ import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.ActivityCompat
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
 import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
@@ -166,7 +163,6 @@ import com.jtech.zemer.constants.DisableScreenshotKey
 import com.jtech.zemer.constants.DynamicThemeKey
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.constants.InnerTubeCookieKey
-import com.jtech.zemer.constants.InstallerTypeKey
 import com.jtech.zemer.constants.LastWhitelistVersionKey
 import com.jtech.zemer.constants.MiniPlayerBottomSpacing
 import com.jtech.zemer.constants.MiniPlayerHeight
@@ -182,7 +178,6 @@ import com.jtech.zemer.constants.SlimNavBarKey
 import com.jtech.zemer.constants.BottomNavigationBarEnabledKey
 import com.jtech.zemer.constants.BottomNavigationItemsKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
-import com.jtech.zemer.constants.UpdateNotificationsEnabledKey
 import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
 import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.db.MusicDatabase
@@ -224,19 +219,17 @@ import com.jtech.zemer.ui.theme.rememberPureBlack
 import com.jtech.zemer.ui.utils.appBarScrollBehavior
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.resetHeightOffset
+import com.jtech.zemer.distribution.UpdateAvailabilityNotifier
+import com.jtech.zemer.distribution.UpdateDownloadPrompt
 import com.jtech.zemer.utils.ButtonInputCapture
 import com.jtech.zemer.utils.ButtonMapperBridge
 import com.jtech.zemer.utils.SyncUtils
-import com.jtech.zemer.utils.Updater
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.hasNotificationPermission
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
-import com.jtech.zemer.utils.updater.InstallResult
-import com.jtech.zemer.utils.updater.InstallerType
-import com.jtech.zemer.utils.updater.rememberApkInstallController
 import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.setAppLocale
 import com.jtech.zemer.utils.tryStartForegroundService
@@ -261,7 +254,6 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.Locale
 import javax.inject.Inject
-import kotlin.time.Duration.Companion.days
 
 @Suppress("DEPRECATION", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 @OptIn(ExperimentalFoundationApi::class)
@@ -453,48 +445,8 @@ class MainActivity : ComponentActivity() {
         contentFilterSyncService.initialize()
 
         setContent {
-            val checkForUpdates by rememberPreference(CheckForUpdatesKey, defaultValue = false)
-
-            LaunchedEffect(checkForUpdates) {
-                if (checkForUpdates) {
-                    withContext(Dispatchers.IO) {
-                        if (System.currentTimeMillis() - Updater.lastCheckTime > 1.days.inWholeMilliseconds) {
-                            val updatesEnabled = dataStore.get(CheckForUpdatesKey, false)
-                            val notifEnabled = dataStore.get(UpdateNotificationsEnabledKey, false)
-                            if (!updatesEnabled || !hasNotificationPermission(this@MainActivity)) return@withContext
-                            Updater.getLatestUpdate().onSuccess { info ->
-                                latestVersionName = info.versionName
-                                if (info.versionName != BuildConfig.VERSION_NAME && notifEnabled) {
-                                    if (!hasNotificationPermission(this@MainActivity)) return@onSuccess
-                                    val intent = Intent(Intent.ACTION_VIEW, info.downloadUrl.toUri())
-
-                                    val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-                                        (PendingIntent.FLAG_IMMUTABLE)
-                                    val pending = PendingIntent.getActivity(this@MainActivity, 1001, intent, flags)
-
-                                    @SuppressLint("MissingPermission")
-                                    run {
-                                        val notif = NotificationCompat.Builder(this@MainActivity, "updates")
-                                            .setSmallIcon(R.drawable.update)
-                                            .setContentTitle(getString(R.string.update_available_title))
-                                            .setContentText(info.versionName)
-                                            .setContentIntent(pending)
-                                            .setAutoCancel(true)
-                                            .build()
-                                        runCatching {
-                                            NotificationManagerCompat.from(this@MainActivity).notify(1001, notif)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    // when the user disables updates, reset to the current version
-                    // to trick the app into thinking it's on the latest version
-                    latestVersionName = BuildConfig.VERSION_NAME
-                }
-            }
+            // Flavored: real update-availability check + notification on GitHub builds; no-op on Play.
+            UpdateAvailabilityNotifier { latestVersionName = it }
 
             val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = true)
             val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
@@ -743,69 +695,8 @@ class MainActivity : ComponentActivity() {
                             storedVisitorData.startsWith("Cg")
                         }
 
-                        // Update notification dialog
-                        var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
-                        var pendingUpdateVersion by rememberSaveable { mutableStateOf<String?>(null) }
-                        var pendingUpdateNotes by rememberSaveable { mutableStateOf<String?>(null) }
-                        var downloadState by remember { mutableStateOf<com.jtech.zemer.utils.UpdateChecker.DownloadState>(com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle) }
-                        var installError by remember { mutableStateOf<String?>(null) }
-                        val updateScope = rememberCoroutineScope()
-
-                        LaunchedEffect(Unit) {
-                            App.pendingUpdateVersion?.let { version ->
-                                pendingUpdateVersion = version
-                                pendingUpdateNotes = App.pendingUpdateNotes
-                                showUpdateDialog = true
-                                App.clearPendingUpdate()
-                            }
-                        }
-
-                        // Auto-install when download completes, honoring the chosen install method.
-                        // Shared controller gates the Standard installer's permission and restarts
-                        // the app after a silent update — same behaviour as the Updater screen.
-                        val (installerTypeOrdinal) = rememberPreference(InstallerTypeKey, defaultValue = InstallerType.NATIVE.ordinal)
-                        val installController = rememberApkInstallController(InstallerType.fromOrdinal(installerTypeOrdinal)) { result ->
-                            when (result) {
-                                is InstallResult.Success -> {
-                                    downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle
-                                    installError = null
-                                }
-                                is InstallResult.RequiresUserAction -> Unit // system installer UI takes over
-                                is InstallResult.Error -> installError = result.message
-                            }
-                        }
-                        LaunchedEffect(downloadState) {
-                            val downloaded = downloadState as? com.jtech.zemer.utils.UpdateChecker.DownloadState.Downloaded ?: return@LaunchedEffect
-                            installError = null
-                            installController.install(downloaded.apkFile)
-                        }
-
-                        if (showUpdateDialog && pendingUpdateVersion != null) {
-                            com.jtech.zemer.ui.component.UpdateDownloadDialog(
-                                currentVersion = BuildConfig.VERSION_NAME,
-                                latestVersion = pendingUpdateVersion!!,
-                                notes = pendingUpdateNotes,
-                                downloadState = downloadState,
-                                isInstalling = installController.isInstalling,
-                                installError = installError,
-                                installerType = InstallerType.fromOrdinal(installerTypeOrdinal),
-                                onDownload = {
-                                    downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Downloading(0f)
-                                    installError = null
-                                    updateScope.launch {
-                                        com.jtech.zemer.utils.UpdateChecker.downloadUpdate(this@MainActivity).collect { state ->
-                                            downloadState = state
-                                        }
-                                    }
-                                },
-                                onInstall = { apk -> installController.install(apk) },
-                                onDismiss = {
-                                    showUpdateDialog = false
-                                    downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle
-                                    installError = null
-                                },
-                            )
-                        }
+                        // Flavored: real update download/install dialog on GitHub builds; no-op on Play.
+                        UpdateDownloadPrompt()
 
                         val (defaultOpenTab) = rememberEnumPreference(DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
                         val tabOpenedFromShortcut = remember {

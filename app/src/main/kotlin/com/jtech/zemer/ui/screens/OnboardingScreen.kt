@@ -86,6 +86,7 @@ import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.airbnb.lottie.compose.rememberLottieDynamicProperties
 import com.airbnb.lottie.compose.rememberLottieDynamicProperty
+import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.SyncAccountWarning
 import com.jtech.zemer.ui.component.DefaultDialog
@@ -1475,7 +1476,8 @@ private fun PermissionsScreen(
                 ) {
                     openBatterySettings(context)
                 }
-            } else if (!accessibilityGranted) {
+            } else if (BuildConfig.ENABLE_BUTTON_MAPPER && !accessibilityGranted) {
+                // GitHub flavor only — the accessibility button-mapper is not shipped on Play.
                 PermissionCard(
                     title = stringResource(R.string.onboarding_perm_accessibility_title),
                     description = stringResource(R.string.onboarding_perm_accessibility_desc),

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Google Play flavor manifest overlay.
+
+  Strips entries that are Google Play policy blockers and are excluded from the play build:
+    - In-app self-updater (Device & Network Abuse): the install permission, install-status
+      receiver, and the privileged-install provider.
+    - Accessibility button-mapper (Accessibility API misuse): the accessibility service.
+
+  The corresponding Kotlin/resources live in src/github only; see docs/play/PLAN.md section 1.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Self-updater: install permission removed on Play -->
+    <uses-permission
+        android:name="android.permission.REQUEST_INSTALL_PACKAGES"
+        tools:node="remove" />
+
+    <application>
+        <!-- Self-updater: APK install-status receiver removed on Play -->
+        <receiver
+            android:name=".utils.updater.InstallReceiver"
+            tools:node="remove" />
+
+        <!-- Self-updater: Shizuku privileged-install provider removed on Play -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            tools:node="remove" />
+
+        <!-- Accessibility button-mapper service removed on Play -->
+        <service
+            android:name=".accessibility.ButtonMapperAccessibilityService"
+            tools:node="remove" />
+    </application>
+</manifest>

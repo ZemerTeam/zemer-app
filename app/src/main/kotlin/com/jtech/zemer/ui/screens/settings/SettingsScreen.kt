@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
+import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.Material3SettingsGroup
@@ -78,7 +79,7 @@ fun SettingsScreen(
         onDispose { firebaseAuth.removeAuthStateListener(listener) }
     }
 
-    val baseSettings = listOf(
+    val baseSettings = listOfNotNull(
         SettingItem(
             id = "appearance",
             title = stringResource(R.string.appearance),
@@ -111,14 +112,15 @@ fun SettingsScreen(
             section = stringResource(R.string.settings_section_player_content),
             route = "settings/content"
         ),
-        SettingItem(
+        // GitHub flavor only — the accessibility button-mapper is not shipped on Play.
+        if (BuildConfig.ENABLE_BUTTON_MAPPER) SettingItem(
             id = "dpad",
             title = stringResource(R.string.settings_button_setup),
             description = stringResource(R.string.settings_desc_dpad),
             icon = R.drawable.swipe,
             section = stringResource(R.string.settings_section_player_content),
             route = "settings/dpad"
-        ),
+        ) else null,
         SettingItem(
             id = "general",
             title = stringResource(R.string.links),
@@ -151,14 +153,15 @@ fun SettingsScreen(
             section = stringResource(R.string.settings_section_storage),
             route = "settings/backup_restore"
         ),
-        SettingItem(
+        // GitHub flavor only — the in-app self-updater is not shipped on Play.
+        if (BuildConfig.ENABLE_INAPP_UPDATER) SettingItem(
             id = "updater",
             title = stringResource(R.string.updater),
             description = stringResource(R.string.settings_desc_updater),
             icon = R.drawable.update,
             section = stringResource(R.string.settings_section_system),
             route = "settings/updater"
-        ),
+        ) else null,
         SettingItem(
             id = "about",
             title = stringResource(R.string.about),
