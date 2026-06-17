@@ -1403,8 +1403,10 @@ private fun PermissionsScreen(
         notificationsGranted,
         nearbyGranted,
         backgroundGranted,
-        accessibilityGranted,
-        systemAlertGranted,
+        // Accessibility + overlay aren't requested on the Play build (flags off) and can never be
+        // granted there, so treat them as satisfied — otherwise the header never reaches "all set".
+        !BuildConfig.ENABLE_BUTTON_MAPPER || accessibilityGranted,
+        !BuildConfig.REQUEST_OVERLAY_PERMISSION || systemAlertGranted,
         pipGranted
     ).all { it }
 

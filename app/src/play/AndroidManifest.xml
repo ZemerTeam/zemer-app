@@ -8,6 +8,9 @@
     - Accessibility button-mapper (Accessibility API misuse): the accessibility service.
     - Unused / Play-scrutinized permissions: overlay (no system overlay is created) and
       receive-boot-completed (no boot receiver).
+    - Advertising ID: auto-merged by Firebase Analytics; the app shows no ads and does not use the
+      advertising ID, so both the GMS and AdServices advertising-ID permissions are removed (and
+      declared "no" in the Console).
 
   The corresponding Kotlin/resources live in src/github only; see docs/play/PLAN.md section 1.
 -->
@@ -17,6 +20,15 @@
     <!-- Self-updater: install permission removed on Play -->
     <uses-permission
         android:name="android.permission.REQUEST_INSTALL_PACKAGES"
+        tools:node="remove" />
+
+    <!-- Advertising ID removed on Play: pulled in by Firebase Analytics, but the app shows no ads
+         and does not use the advertising ID. Declare "no" to the advertising-ID question. -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
         tools:node="remove" />
 
     <!-- Overlay permission removed on Play: requested in onboarding but no system overlay is ever
