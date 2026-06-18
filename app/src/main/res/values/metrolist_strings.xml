@@ -19,6 +19,7 @@
     <string name="retry_button">Retry</string>
     <string name="album_cover_desc">Album cover</string>
     <string name="trending">Trending</string>
+    <string name="latest_releases">Latest Releases</string>
     <string name="featured_artists">Featured Artists</string>
     <string name="featured_albums">Featured Albums</string>
 

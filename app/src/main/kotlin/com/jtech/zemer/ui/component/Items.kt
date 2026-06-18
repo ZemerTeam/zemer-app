@@ -836,6 +836,7 @@ fun YouTubeListItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     isSwipeable: Boolean = true,
+    subtitleOverride: String? = null,
     trailingContent: @Composable RowScope.() -> Unit = {},
     badges: @Composable RowScope.() -> Unit = {
         val database = LocalDatabase.current
@@ -866,7 +867,7 @@ fun YouTubeListItem(
     val content: @Composable () -> Unit = {
         ListItem(
             title = item.title,
-            subtitle = when (item) {
+            subtitle = subtitleOverride ?: when (item) {
                 is SongItem -> joinByBullet(item.artists.joinToString { it.name }, makeTimeString(item.duration?.times(1000L)))
                 is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
                 is ArtistItem -> null

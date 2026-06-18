@@ -83,8 +83,6 @@ class HomeViewModel @Inject constructor(
         val trendingSongs: List<SongItem> = emptyList(),
         val keepListening: List<LocalItem> = emptyList(),
         val forgottenFavorites: List<Song> = emptyList(),
-        val recentReleaseAlbums: List<AlbumItem> = emptyList(),
-        val recentReleaseSongs: List<SongItem> = emptyList(),
         val featuredAlbums: List<AlbumItem> = emptyList(),
         val featuredArtists: List<ArtistItem> = emptyList(),
         val featuredVideos: List<SongItem> = emptyList(),
@@ -345,39 +343,6 @@ class HomeViewModel @Inject constructor(
         }.getOrElse {
             reportException(it)
             null
-        }
-    }
-
-    private suspend fun loadRecentReleases(hideExplicit: Boolean): Pair<List<AlbumItem>, List<SongItem>> {
-        return runCatching {
-            val filters = ContentFilterState.state.value
-            val allowedIds = WhitelistCache.allowedEntries(database, filters).map { it.artistId }.toSet()
-            val whitelistActive = filters.filtersEnabled && allowedIds.isNotEmpty()
-
-            fun isAllowed(artists: List<com.metrolist.innertube.models.Artist>?): Boolean {
-                if (!whitelistActive) return true
-                return artists?.any { it.id in allowedIds } == true
-            }
-
-            val browseStart = System.currentTimeMillis()
-            val browse = YouTube.browse(browseId = "FEmusic_new_releases", params = null).getOrNull()
-            Timber.d("NET: YouTube.browse(new_releases) took ${System.currentTimeMillis() - browseStart}ms")
-            val items = browse
-                ?.filterExplicit(hideExplicit)
-                ?.items
-                ?.flatMap { it.items }
-                .orEmpty()
-            val albums = items
-                .filterIsInstance<AlbumItem>()
-                .filter { isAllowed(it.artists) }
-            val songs = items
-                .filterIsInstance<SongItem>()
-                .filter { isAllowed(it.artists) }
-
-            albums to songs
-        }.getOrElse {
-            Timber.w(it, "HomeViewModel: Failed to load recent releases")
-            emptyList<AlbumItem>() to emptyList()
         }
     }
 
@@ -1049,12 +1014,10 @@ class HomeViewModel @Inject constructor(
                     )
                 } else loadExplorePage(hideExplicit)
             }
-            val recentReleasesDeferred = viewModelScope.async(Dispatchers.IO) { loadRecentReleases(hideExplicit) }
 
             val trendingSongs = trendingDeferred.await()
             val home = homeDeferred.await()
             val explore = exploreDeferred.await()
-            val (recentAlbums, recentSongs) = recentReleasesDeferred.await()
             Timber.d("HomeViewModel: NETWORK data ready at +${System.currentTimeMillis() - loadStartTime}ms")
 
             // Featured playlists loaded after (uses sharedUsedArtists which is mutable)
@@ -1167,8 +1130,6 @@ class HomeViewModel @Inject constructor(
 
             val filteredHome = home.filtered()
             val filteredExplore = explore.filtered()
-            val filteredRecentAlbums = recentAlbums.filter { it.isAllowed() }
-            val filteredRecentSongs = recentSongs.filter { it.isAllowed() }
 
             val quickSeeded = if (filteredHome != null) {
                 seedQuickPicksFromHomePage(filteredHome, hideExplicit, quick)
@@ -1227,10 +1188,6 @@ class HomeViewModel @Inject constructor(
                 maxPerArtist = 1,
                 target = 20,
             )
-            val finalRecentAlbums = filteredRecentAlbums
-                .let { rotateByArtist(it, maxPerArtist = 1, target = 16) }
-            val finalRecentSongs = filteredRecentSongs
-                .let { rotateByArtist(it, maxPerArtist = 1, target = 30) }
             val finalFeaturedAlbums = featuredTriple.first.filter { it.isAllowed() }
                 .let { rotateByArtist(it, maxPerArtist = 1, target = 20) }
             val finalFeaturedArtists = featuredTriple.second.filter { it.isAllowed() }
@@ -1295,8 +1252,6 @@ class HomeViewModel @Inject constructor(
             collectAlbumItems(finalFeaturedAlbums)
             collectArtistItems(finalFeaturedArtists)
             collectSongItems(finalFeaturedVideos)
-            collectAlbumItems(finalRecentAlbums)
-            collectSongItems(finalRecentSongs)
             collectSongArtists(finalForgotten)
             collectSongArtists(finalKeepListening.filterIsInstance<Song>())
             collectLocalAlbums(finalKeepListening.filterIsInstance<Album>())
@@ -1332,8 +1287,6 @@ class HomeViewModel @Inject constructor(
                     featuredPlaylists = finalFeaturedPlaylists,
                     keepListening = finalKeepListening,
                     forgottenFavorites = finalForgotten,
-                    recentReleaseAlbums = finalRecentAlbums,
-                    recentReleaseSongs = finalRecentSongs,
                     featuredAlbums = finalFeaturedAlbums,
                     featuredArtists = finalFeaturedArtists,
                     featuredVideos = finalFeaturedVideos,
