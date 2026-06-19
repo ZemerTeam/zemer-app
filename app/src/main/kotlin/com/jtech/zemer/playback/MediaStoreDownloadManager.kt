@@ -689,17 +689,51 @@ constructor(
     }
 
     /**
-     * Mark a song as downloaded in the database with MediaStore URI
+     * Mark a song as downloaded in the database with its MediaStore URI.
+     *
+     * Persists the row (with isDownloaded = true), its artists and its album in ONE transaction.
+     * This previously called [ensureSongPersisted] (which upserts the row with isDownloaded = false
+     * for a brand-new song) and THEN a separate `query {}` upserting isDownloaded = true. `query {}`
+     * runs on a fire-and-forget executor, so those two writes RACED: intermittently the "false" write
+     * landed last, so a download whose file saved fine still ended up isDownloaded = 0 with no
+     * mediaStoreUri — it vanished from the Downloaded list and played by streaming. A single
+     * transaction whose authoritative write is isDownloaded = true removes the race.
      */
     private suspend fun markSongAsDownloaded(song: Song, mediaStoreUri: String) {
-        ensureSongPersisted(song)
-
-        database.query {
-            database.upsert(
+        database.transaction {
+            upsert(
                 song.song.copy(
+                    isVideo = song.song.isVideo,
                     isDownloaded = true,
                     dateDownload = LocalDateTime.now(),
-                    mediaStoreUri = mediaStoreUri
+                    mediaStoreUri = mediaStoreUri,
+                )
+            )
+            insertSongRelations(song)
+        }
+    }
+
+    /** Insert a song's artists + album relations. Shared by [markSongAsDownloaded] and
+     *  [ensureSongPersisted] so the relation wiring lives in one place. Call inside a query/transaction
+     *  block (receiver is the [MusicDatabase]). */
+    private fun MusicDatabase.insertSongRelations(song: Song) {
+        song.artists.forEachIndexed { index, artist ->
+            insert(artist)
+            insert(
+                SongArtistMap(
+                    songId = song.id,
+                    artistId = artist.id,
+                    position = index,
+                )
+            )
+        }
+        song.album?.let { album ->
+            insert(album)
+            insert(
+                SongAlbumMap(
+                    songId = song.id,
+                    albumId = album.id,
+                    index = 0,
                 )
             )
         }
@@ -722,28 +756,7 @@ constructor(
             )
 
             upsert(mergedSong)
-
-            song.artists.forEachIndexed { index, artist ->
-                insert(artist)
-                insert(
-                    SongArtistMap(
-                        songId = song.id,
-                        artistId = artist.id,
-                        position = index,
-                    )
-                )
-            }
-
-            song.album?.let { album ->
-                insert(album)
-                insert(
-                    SongAlbumMap(
-                        songId = song.id,
-                        albumId = album.id,
-                        index = 0,
-                    )
-                )
-            }
+            insertSongRelations(song)
         }
     }
 

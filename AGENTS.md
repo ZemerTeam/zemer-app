@@ -132,6 +132,16 @@ Every download/progress affordance reads ONE path; do not re-implement per surfa
   it opens; if it's genuinely gone, **stream this play AND re-enqueue a download to self-repair** —
   never crash with ENOENT, and never silently delete the `isDownloaded` flag (that makes downloads
   vanish from the Downloaded playlist).
+- **`database.query {}` is fire-and-forget** (it posts to an executor, doesn't suspend). NEVER split a
+  single logical mutation across two `query {}` blocks that touch the same row — they race and the
+  wrong one can land last. The download-mark bug was exactly this: `markSongAsDownloaded` upserted the
+  row twice (relations with `isDownloaded=false`, then `isDownloaded=true`), so a downloaded song
+  intermittently persisted `isDownloaded=0` with no `mediaStoreUri` — the file saved but it "didn't
+  download" / streamed / vanished. Do the whole mutation in one `database.transaction {}` whose final
+  write is authoritative.
+- **Remove must delete the actual file on EVERY backend.** A custom download path saves a SAF document
+  uri; `ContentResolver.delete` silently no-ops on those, so `MediaStoreHelper.deleteFromMediaStore`
+  routes document uris through `DocumentsContract.deleteDocument`.
 
 Enforcement (so this can't regress): `scripts/check-download-unification.sh` (whole-app, wired into
 the UI-audit workflow) + `scripts/ui-audit.sh` rule **R13** fail CI on any `downloadUtil.downloads` /
