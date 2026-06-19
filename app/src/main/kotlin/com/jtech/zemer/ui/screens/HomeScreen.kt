@@ -92,6 +92,7 @@ import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.latestreleases.isPlayableSingle
 import com.jtech.zemer.latestreleases.openOrPlay
 import com.jtech.zemer.latestreleases.relativeDateLabel
 import com.jtech.zemer.latestreleases.toAlbumItem
@@ -551,6 +552,7 @@ fun HomeScreen(
                                 YouTubeGridItem(
                                     item = album,
                                     subtitleOverride = joinByBullet(release.artistName, dateLabel),
+                                    centeredPlayButton = release.isPlayableSingle(),
                                     isActive = mediaMetadata?.album?.id == album.id,
                                     isPlaying = isPlaying,
                                     coroutineScope = scope,

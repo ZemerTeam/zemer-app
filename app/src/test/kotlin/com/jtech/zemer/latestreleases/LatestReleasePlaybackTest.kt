@@ -1,7 +1,9 @@
 package com.jtech.zemer.latestreleases
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -47,5 +49,19 @@ class LatestReleasePlaybackTest {
     @Test
     fun `an older feed entry with no track count opens the album`() {
         assertNull(release(trackCount = null).playableSingle())
+    }
+
+    @Test
+    fun `isPlayableSingle drives the centred play icon and agrees with what plays on tap`() {
+        assertTrue(release(trackCount = 1).isPlayableSingle())
+        assertFalse(release(trackCount = 5).isPlayableSingle())
+        assertFalse(release(trackCount = 1, sampleVideoId = null).isPlayableSingle())
+        assertFalse(release(trackCount = 1, sampleVideoId = "").isPlayableSingle())
+        assertFalse(release(trackCount = null).isPlayableSingle())
+        // the icon must never promise playback the tap won't deliver
+        for (tc in listOf(null, 1, 2)) {
+            val r = release(trackCount = tc)
+            assertEquals(r.isPlayableSingle(), r.playableSingle() != null)
+        }
     }
 }

@@ -837,6 +837,7 @@ fun YouTubeListItem(
     isPlaying: Boolean = false,
     isSwipeable: Boolean = true,
     subtitleOverride: String? = null,
+    centeredPlayButton: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
     badges: @Composable RowScope.() -> Unit = {
         val database = LocalDatabase.current
@@ -875,15 +876,21 @@ fun YouTubeListItem(
             },
             badges = badges,
             thumbnailContent = {
-                ItemThumbnail(
-                    thumbnailUrl = item.thumbnail,
-                    albumIndex = albumIndex,
-                    isSelected = isSelected,
-                    isActive = isActive,
-                    isPlaying = isPlaying,
-                    shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
-                    modifier = Modifier.size(ListThumbnailSize)
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    ItemThumbnail(
+                        thumbnailUrl = item.thumbnail,
+                        albumIndex = albumIndex,
+                        isSelected = isSelected,
+                        isActive = isActive,
+                        isPlaying = isPlaying,
+                        shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
+                        modifier = Modifier.size(ListThumbnailSize)
+                    )
+                    // A single shows the centred play button on its artwork (album rows stay plain).
+                    if (centeredPlayButton && !isActive) {
+                        OverlayPlayButton(visible = true)
+                    }
+                }
             },
             trailingContent = trailingContent,
             modifier = modifier,
@@ -934,6 +941,7 @@ fun YouTubeGridItem(
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
     subtitleOverride: String? = null,
+    centeredPlayButton: Boolean = false,
 ) = GridItem(
     title = {
         Text(
@@ -976,14 +984,16 @@ fun YouTubeGridItem(
             shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
         )
 
-        if (item is SongItem && !isActive) {
+        // A single (centeredPlayButton) gets the song-style centred play button instead of the
+        // album's corner one, so it reads as "tap to play" like the Keep Listening song cards.
+        if ((item is SongItem || centeredPlayButton) && !isActive) {
             OverlayPlayButton(
                 visible = true
             )
         }
 
         AlbumPlayButton(
-            visible = item is AlbumItem && !isActive,
+            visible = item is AlbumItem && !centeredPlayButton && !isActive,
             onClick = {
                 scope.launch(Dispatchers.IO) {
                     var albumWithSongs = database.albumWithSongs(item.id).first()

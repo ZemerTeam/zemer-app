@@ -25,6 +25,7 @@ import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.latestreleases.isPlayableSingle
 import com.jtech.zemer.latestreleases.openOrPlay
 import com.jtech.zemer.latestreleases.relativeDateLabel
 import com.jtech.zemer.latestreleases.toAlbumItem
@@ -68,6 +69,7 @@ fun LatestReleasesScreen(
             YouTubeListItem(
                 item = album,
                 subtitleOverride = joinByBullet(release.artistName, dateLabel),
+                centeredPlayButton = release.isPlayableSingle(),
                 isActive = mediaMetadata?.album?.id == album.id,
                 isPlaying = isPlaying,
                 modifier = Modifier.combinedClickable(

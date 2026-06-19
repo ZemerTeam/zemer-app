@@ -11,14 +11,17 @@ import com.jtech.zemer.playback.queues.YouTubeQueue
  * behaviour can't drift between them.
  *
  * The server tells singles from albums via [LatestRelease.trackCount]: a one-track release is a single
- * the user expects to just play, while a multi-track album opens its page. [playableSingle] is the pure
- * (Android-free) heart of that decision — it returns the track's [MediaMetadata] only when the release
- * is a playable single, and null otherwise (a real album, or an older cached feed with no track count),
- * so the rule is unit-testable. [openOrPlay] is the thin UI action built on top of it.
+ * the user expects to just play, while a multi-track album opens its page. [isPlayableSingle] is the
+ * pure predicate for that ("exactly one track, with a playable videoId"); [playableSingle] returns the
+ * track's [MediaMetadata] when it holds, else null (a real album, or an older cached feed with no track
+ * count), so the rule is unit-testable. The UI uses [isPlayableSingle] to show a centred play button on
+ * a single's artwork (like the song cards on Home), and [openOrPlay] is the thin tap action.
  */
+fun LatestRelease.isPlayableSingle(): Boolean = trackCount == 1 && !sampleVideoId.isNullOrEmpty()
+
 fun LatestRelease.playableSingle(): MediaMetadata? {
     val videoId = sampleVideoId
-    if (trackCount != 1 || videoId.isNullOrEmpty()) return null
+    if (!isPlayableSingle() || videoId == null) return null
     return MediaMetadata(
         id = videoId,
         title = title,
