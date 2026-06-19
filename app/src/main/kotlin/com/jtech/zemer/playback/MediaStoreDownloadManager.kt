@@ -256,6 +256,7 @@ constructor(
             // Cancel active download
             activeDownloads[songId]?.cancel()
             activeDownloads.remove(songId)
+            requestedVideoBitrate.remove(songId)
 
             // Remove from queue
             synchronized(downloadQueue) {
@@ -318,6 +319,7 @@ constructor(
         // Cancel active work and purge queue
         activeDownloads[songId]?.cancel()
         activeDownloads.remove(songId)
+        requestedVideoBitrate.remove(songId)
         synchronized(downloadQueue) {
             downloadQueue.removeAll { it.id == songId }
         }
@@ -367,7 +369,11 @@ constructor(
                 } finally {
                     downloadSemaphore.release()
                     activeDownloads.remove(song.id)
-                    requestedVideoBitrate.remove(song.id)
+                    // NOTE: do NOT drop the requested video bitrate here. A failed attempt ends in this
+                    // finally too, and retryDownload() re-issues downloadVideo(song) with no bitrate — if
+                    // we erased it on failure, the retry would silently fall back to best/default quality
+                    // (a large file over a metered connection the user explicitly capped). It is cleared
+                    // on success, cancel and delete instead.
 
                     // Process next item in queue
                     processQueue()
@@ -523,6 +529,8 @@ constructor(
                 Timber.d("MediaStore save result: $uri")
 
                 if (uri != null) {
+                    // Download succeeded — the requested bitrate has served its purpose.
+                    requestedVideoBitrate.remove(song.id)
                     // Mark as completed
                     updateDownloadState(
                         song.id,
@@ -534,14 +542,18 @@ constructor(
                     )
 
                     // Update database with MediaStore URI (preserving isVideo flag), backfilling the
-                    // duration if the source had none so the Downloaded list shows a real time.
-                    val songWithDuration =
-                        if (song.song.duration <= 0 && effectiveDurationSec > 0) {
-                            song.copy(song = song.song.copy(duration = effectiveDurationSec))
-                        } else {
-                            song
-                        }
-                    markSongAsDownloaded(songWithDuration, uri.toString())
+                    // duration AND thumbnail if the source had none so the Downloaded list shows a real
+                    // time and artwork — a standalone video opened from the Video player is built with
+                    // neither, and the old per-screen download set the thumbnail explicitly.
+                    val effectiveThumbnailUrl = song.song.thumbnailUrl?.takeIf { it.isNotBlank() }
+                        ?: playbackData.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url
+                    val songWithMeta = song.copy(
+                        song = song.song.copy(
+                            duration = if (song.song.duration > 0) song.song.duration else effectiveDurationSec,
+                            thumbnailUrl = effectiveThumbnailUrl,
+                        ),
+                    )
+                    markSongAsDownloaded(songWithMeta, uri.toString())
                 } else {
                     throw Exception("Failed to save file to MediaStore")
                 }
@@ -700,13 +712,22 @@ constructor(
      * transaction whose authoritative write is isDownloaded = true removes the race.
      */
     private suspend fun markSongAsDownloaded(song: Song, mediaStoreUri: String) {
+        // Base the persisted row on the EXISTING row (if any), not the caller's Song. The caller may
+        // hand us a stale/partial Song (e.g. an album-page entity with liked = false, inLibrary = null);
+        // a full-row @Upsert of that would silently un-like the song / drop it from the library. We only
+        // overwrite the download-owned columns here (+ isVideo, + duration/thumbnail backfill when the
+        // row lacks them) and preserve everything else the user set.
+        val existing = database.song(song.id).first()?.song
         database.transaction {
+            val base = existing ?: song.song
             upsert(
-                song.song.copy(
+                base.copy(
                     isVideo = song.song.isVideo,
                     isDownloaded = true,
                     dateDownload = LocalDateTime.now(),
                     mediaStoreUri = mediaStoreUri,
+                    duration = if (base.duration > 0) base.duration else song.song.duration,
+                    thumbnailUrl = base.thumbnailUrl ?: song.song.thumbnailUrl,
                 )
             )
             insertSongRelations(song)

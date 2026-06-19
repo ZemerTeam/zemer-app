@@ -52,15 +52,17 @@ object DownloadMenuLogic {
 
     /**
      * Row for a collection (album / playlist / multi-select). No video variant — collections download
-     * as audio. A failed member only surfaces "retry" while the collection isn't already fully on disk.
+     * as audio, and there is deliberately NO collection-level FAILED row: a failed member just leaves
+     * the aggregate NOT_DOWNLOADED, so the collection offers DOWNLOAD again (which re-enqueues only the
+     * not-yet-downloaded members — i.e. retries the failed one) and stays removable once everything is
+     * on disk. A dedicated "retry" row here was a dead end — it hid Download/Remove and re-failed the
+     * dead track forever with no escape (single songs still get their own FAILED row via [songRow]).
      */
     fun collectionRow(
         status: DownloadStatus,
-        anyFailed: Boolean,
-    ): DownloadRowKind = when {
-        status == DownloadStatus.DOWNLOADED -> DownloadRowKind.REMOVE
-        anyFailed -> DownloadRowKind.FAILED
-        status == DownloadStatus.DOWNLOADING -> DownloadRowKind.DOWNLOADING
-        else -> DownloadRowKind.DOWNLOAD
+    ): DownloadRowKind = when (status) {
+        DownloadStatus.DOWNLOADED -> DownloadRowKind.REMOVE
+        DownloadStatus.DOWNLOADING -> DownloadRowKind.DOWNLOADING
+        DownloadStatus.NOT_DOWNLOADED -> DownloadRowKind.DOWNLOAD
     }
 }

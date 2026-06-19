@@ -68,23 +68,37 @@ class DownloadMenuLogicTest {
     // ---- collection ----
 
     @Test fun collection_allDownloaded_offersRemove() {
-        assertEquals(DownloadRowKind.REMOVE, DownloadMenuLogic.collectionRow(DownloadStatus.DOWNLOADED, anyFailed = false))
-    }
-
-    @Test fun collection_downloaded_winsOverFailedMember() {
-        assertEquals(DownloadRowKind.REMOVE, DownloadMenuLogic.collectionRow(DownloadStatus.DOWNLOADED, anyFailed = true))
-    }
-
-    @Test fun collection_failedMember_offersRetry() {
-        assertEquals(DownloadRowKind.FAILED, DownloadMenuLogic.collectionRow(DownloadStatus.NOT_DOWNLOADED, anyFailed = true))
+        assertEquals(DownloadRowKind.REMOVE, DownloadMenuLogic.collectionRow(DownloadStatus.DOWNLOADED))
     }
 
     @Test fun collection_inProgress_showsProgress() {
-        assertEquals(DownloadRowKind.DOWNLOADING, DownloadMenuLogic.collectionRow(DownloadStatus.DOWNLOADING, anyFailed = false))
+        assertEquals(DownloadRowKind.DOWNLOADING, DownloadMenuLogic.collectionRow(DownloadStatus.DOWNLOADING))
     }
 
     @Test fun collection_none_offersDownload() {
-        assertEquals(DownloadRowKind.DOWNLOAD, DownloadMenuLogic.collectionRow(DownloadStatus.NOT_DOWNLOADED, anyFailed = false))
+        assertEquals(DownloadRowKind.DOWNLOAD, DownloadMenuLogic.collectionRow(DownloadStatus.NOT_DOWNLOADED))
+    }
+
+    /**
+     * Regression: a collection with one failed member among downloaded ones must NOT dead-end on a
+     * retry-only row. The aggregate of [DOWNLOADED, DOWNLOADED, NOT_DOWNLOADED(failed)] is
+     * NOT_DOWNLOADED, which must offer DOWNLOAD (re-enqueues/retries the missing member) — never a
+     * FAILED row that hides Download and Remove.
+     */
+    @Test fun collection_partialWithFailedMember_offersDownloadNotDeadEnd() {
+        val aggregate = DownloadStateResolver.aggregate(
+            listOf(DownloadStatus.DOWNLOADED, DownloadStatus.DOWNLOADED, DownloadStatus.NOT_DOWNLOADED),
+        )
+        assertEquals(DownloadStatus.NOT_DOWNLOADED, aggregate)
+        val kind = DownloadMenuLogic.collectionRow(aggregate)
+        assertEquals(DownloadRowKind.DOWNLOAD, kind)
+        assertNotEquals(DownloadRowKind.FAILED, kind)
+    }
+
+    @Test fun collectionRow_neverFailed() {
+        for (status in DownloadStatus.entries) {
+            assertNotEquals(DownloadRowKind.FAILED, DownloadMenuLogic.collectionRow(status))
+        }
     }
 
     // ---- exhaustive invariants over the full input space ----
@@ -117,8 +131,8 @@ class DownloadMenuLogicTest {
     }
 
     @Test fun collectionRow_neverHiddenOrVideo() {
-        for (status in DownloadStatus.entries) for (failed in listOf(true, false)) {
-            val kind = DownloadMenuLogic.collectionRow(status, failed)
+        for (status in DownloadStatus.entries) {
+            val kind = DownloadMenuLogic.collectionRow(status)
             assertNotEquals(DownloadRowKind.HIDDEN, kind)
             assertNotEquals(DownloadRowKind.DOWNLOAD_VIDEO, kind)
         }

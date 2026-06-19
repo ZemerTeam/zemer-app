@@ -255,6 +255,10 @@ constructor(
     fun getAllMediaStoreDownloads(): StateFlow<Map<String, MediaStoreDownloadManager.DownloadState>> =
         mediaStoreDownloadManager.downloadStates
 
+    /** Synchronous snapshot of a song's live download state (null if none this session). */
+    fun mediaStoreDownloadState(songId: String): MediaStoreDownloadManager.DownloadState? =
+        mediaStoreDownloadManager.getDownloadState(songId)
+
     fun downloadToMediaStore(song: com.jtech.zemer.db.entities.Song) {
         mediaStoreDownloadManager.downloadSong(song)
     }

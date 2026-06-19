@@ -1386,10 +1386,12 @@ class MusicService :
             ).setCacheWriteDataSinkFactory(null)
             .setFlags(FLAG_IGNORE_CACHE_ON_ERROR)
 
-    /** Whether the downloaded file at [uriString] actually opens. A genuinely-missing file (ENOENT /
-     *  null descriptor) returns false so playback can fall back to streaming instead of crashing; a
-     *  transient resolver error is treated as present (we don't want to stream a file that's really
-     *  there). We never delete the download here — the flag is the user's, not ours to silently drop. */
+    /** Whether the downloaded file at [uriString] actually opens. Returns false on ANY failure to open
+     *  (ENOENT / null descriptor / FileNotFound / a SecurityException or other resolver error) so that
+     *  playback falls back to STREAMING rather than handing ExoPlayer a URI we just failed to open
+     *  (which would only fail again). Worst case for a present-but-momentarily-unreadable file is one
+     *  streamed play + a self-repair re-download — never a hard playback failure. We never delete the
+     *  download here — the flag is the user's, not ours to silently drop. */
     private fun downloadedFileOpens(uriString: String): Boolean =
         try {
             contentResolver.openFileDescriptor(uriString.toUri(), "r")?.use { true }
@@ -1401,8 +1403,8 @@ class MusicService :
             Timber.w("Downloaded file MISSING (FileNotFound) for uri=$uriString; will stream")
             false
         } catch (e: Exception) {
-            Timber.w(e, "Transient error probing downloaded file $uriString; treating as present")
-            true
+            Timber.w(e, "Could not open downloaded file $uriString; streaming instead of handing over a dead URI")
+            false
         }
 
     private fun createDataSourceFactory(): DataSource.Factory {
@@ -1428,14 +1430,24 @@ class MusicService :
                 // The file is gone (a stale "downloaded" row — e.g. from an interrupted download or an
                 // older build that deleted the file). Self-repair: re-download it so it's local again
                 // next time, and stream THIS play instead of crashing with ENOENT. We don't clear the
-                // flag (no vanishing); the re-download replaces the dead URI on success. The manager
-                // no-ops if a download for this id is already active/complete, so this can't loop.
-                Timber.w("Downloaded file missing for $mediaId; re-downloading to self-repair and streaming this play")
-                song?.let { stale ->
-                    scope.launch(Dispatchers.IO) {
-                        runCatching {
-                            if (stale.song.isVideo) downloadUtil.downloadVideoToMediaStore(stale)
-                            else downloadUtil.downloadToMediaStore(stale)
+                // flag (no vanishing); the re-download replaces the dead URI on success.
+                //
+                // The manager no-ops while a download for this id is active/complete — but NOT once it
+                // has FAILED. So we must skip re-enqueueing a download that already failed this session,
+                // otherwise a permanently-unrecoverable source (deleted upstream / region-blocked) would
+                // fire a fresh full download attempt on EVERY play. A new session (state cleared) gets
+                // one fresh attempt.
+                val liveStatus = downloadUtil.mediaStoreDownloadState(mediaId)?.status
+                if (liveStatus == MediaStoreDownloadManager.DownloadState.Status.FAILED) {
+                    Timber.w("Downloaded file missing for $mediaId but its re-download already FAILED this session; streaming without re-enqueueing")
+                } else {
+                    Timber.w("Downloaded file missing for $mediaId; re-downloading to self-repair and streaming this play")
+                    song?.let { stale ->
+                        scope.launch(Dispatchers.IO) {
+                            runCatching {
+                                if (stale.song.isVideo) downloadUtil.downloadVideoToMediaStore(stale)
+                                else downloadUtil.downloadToMediaStore(stale)
+                            }
                         }
                     }
                 }

@@ -211,12 +211,8 @@ fun PlaylistMenu(
                     run {
                         val dlStatus = DownloadStateResolver.aggregateSongs(songs, mediaStoreDownloads)
                         val dlProgress = DownloadStateResolver.aggregateProgress(songs, mediaStoreDownloads)
-                        val anyFailed = songs.any {
-                            mediaStoreDownloads[it.id]?.status ==
-                                MediaStoreDownloadManager.DownloadState.Status.FAILED
-                        }
                         downloadMenuItem(
-                            kind = DownloadMenuLogic.collectionRow(dlStatus, anyFailed),
+                            kind = DownloadMenuLogic.collectionRow(dlStatus),
                             progress = dlProgress,
                             onDownload = { songs.forEach { downloadUtil.downloadToMediaStore(it) } },
                             onCancel = { songs.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },

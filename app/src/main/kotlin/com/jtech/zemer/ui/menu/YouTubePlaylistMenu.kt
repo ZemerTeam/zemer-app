@@ -215,7 +215,10 @@ fun YouTubePlaylistMenu(
                 TextButton(
                     onClick = {
                         showRemoveDownloadDialog = false
-                        songs.forEach { song ->
+                        // Remove what the Download row actually downloaded — resolvedSongs, NOT the
+                        // `songs` prop (empty when opened from the Home long-press menu, which would
+                        // otherwise make Remove a silent no-op).
+                        resolvedSongs.forEach { song ->
                             coroutineScope.launch {
                                 downloadUtil.removeDownload(song.id)
                             }
@@ -421,12 +424,8 @@ fun YouTubePlaylistMenu(
                         val persistedDownloaded = dbSongs.filter { it.song.isDownloaded }.map { it.id }.toSet()
                         val dlStatus = DownloadStateResolver.aggregateByIds(ids, mediaStoreDownloads, persistedDownloaded)
                         val dlProgress = DownloadStateResolver.aggregateProgressByIds(ids, mediaStoreDownloads, persistedDownloaded)
-                        val anyFailed = ids.any {
-                            mediaStoreDownloads[it]?.status ==
-                                com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.FAILED
-                        }
                         downloadMenuItem(
-                            kind = DownloadMenuLogic.collectionRow(dlStatus, anyFailed),
+                            kind = DownloadMenuLogic.collectionRow(dlStatus),
                             progress = dlProgress,
                             onDownload = {
                                 // Online SongItems aren't Room entities yet — persist each, then download.

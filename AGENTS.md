@@ -124,14 +124,32 @@ Every download/progress affordance reads ONE path; do not re-implement per surfa
   `playback/DownloadMenuLogic.kt` (`songRow`/`collectionRow`, pure + tested). A download row **never
   dismisses the menu** (it animates Download → progress → Remove in place). Videos use the same path
   (`DOWNLOAD_VIDEO`, hidden when videos blocked).
-- **Downloading a collection** whose songs load async (online album/playlist menus): resolve/fetch the
-  songs **at click time** (fetch-if-empty) so the first tap downloads — a captured-empty list is the
-  "press once does nothing, twice works" bug. For online items aggregate by videoId
-  (`aggregateByIds`) so progress animates without Room entities.
+- **A collection NEVER shows a FAILED/retry row** (`collectionRow` takes only the aggregate status —
+  REMOVE / DOWNLOADING / DOWNLOAD). A failed member just leaves the aggregate NOT_DOWNLOADED, so the
+  collection offers DOWNLOAD again, which re-enqueues only the not-yet-downloaded members (= retry)
+  and stays removable once everything is on disk. A dedicated collection "retry" row is a **dead end**
+  — it hid Download AND Remove and re-failed the dead track forever with no escape. Only *single*
+  songs get a FAILED row (`songRow`). Don't reintroduce an `anyFailed` arg on `collectionRow`.
+- **Downloading a collection** whose songs load async (online album/playlist/selection menus):
+  resolve/fetch the songs **at click time** (fetch-if-empty) so the first tap downloads — a
+  captured-empty list is the "press once does nothing, twice works" bug. **EVERY action in that menu
+  — Download, Remove, *and* the aggregate status — must read the SAME resolved/fetched list, never the
+  original (possibly-empty) `songs` prop.** A Remove that iterates the empty prop while Download
+  iterates the fetched list silently removes nothing (was a real bug on the Home long-press playlist
+  menu). For online items aggregate by videoId (`aggregateByIds` + a persisted-downloaded id set) so
+  progress animates without Room entities, and on Download **persist each `MediaMetadata`
+  (`database.insert`/`transaction { insert(...) }`) THEN download** — a bare `database.song(id).first()`
+  returns null for a not-yet-persisted id and the tap silently no-ops.
 - **Playback of a downloaded file** (`MusicService.createDataSourceFactory`): use the local file when
   it opens; if it's genuinely gone, **stream this play AND re-enqueue a download to self-repair** —
   never crash with ENOENT, and never silently delete the `isDownloaded` flag (that makes downloads
-  vanish from the Downloaded playlist).
+  vanish from the Downloaded playlist). Two non-obvious rules here: (1) the self-repair must **skip
+  re-enqueueing a download whose live state is already FAILED this session** (check
+  `downloadUtil.mediaStoreDownloadState(id)`) — the manager only no-ops for active/complete, not
+  FAILED, so a permanently-unrecoverable source would otherwise fire a fresh full download on *every*
+  play; (2) the file-open probe (`downloadedFileOpens`) returns false on **any** open failure
+  (FileNotFound *or* SecurityException/other) so playback streams — handing ExoPlayer a URI we just
+  failed to open only fails again.
 - **`database.query {}` is fire-and-forget** (it posts to an executor, doesn't suspend). NEVER split a
   single logical mutation across two `query {}` blocks that touch the same row — they race and the
   wrong one can land last. The download-mark bug was exactly this: `markSongAsDownloaded` upserted the
@@ -139,6 +157,19 @@ Every download/progress affordance reads ONE path; do not re-implement per surfa
   intermittently persisted `isDownloaded=0` with no `mediaStoreUri` — the file saved but it "didn't
   download" / streamed / vanished. Do the whole mutation in one `database.transaction {}` whose final
   write is authoritative.
+- **`markSongAsDownloaded` must NOT clobber user state.** It bases the persisted row on the **existing
+  DB row** (read first) and overwrites only the download-owned columns (`isDownloaded`, `dateDownload`,
+  `mediaStoreUri`, `isVideo`) — a full-row `@Upsert` of the caller's `Song` would silently reset
+  `liked` / `inLibrary` / library tokens when the caller handed a stale/partial `Song` (e.g. an
+  album-page entity, or the like-then-auto-download race). It also backfills `duration` AND
+  `thumbnailUrl` only when the existing row lacks them.
+- **Backfill `duration` AND `thumbnailUrl` from the playback response** in `performDownload`
+  (`playbackData.videoDetails`) — songs reached via an album/playlist page, and standalone videos
+  opened from the Video player, often carry neither (showed "0:00" / no artwork in the Downloaded list).
+- **A per-download video bitrate must survive a failed attempt.** `requestedVideoBitrate` is cleared on
+  success / cancel / delete, **never** in the per-attempt `finally` — else `retryDownload` re-issues the
+  download with no bitrate and silently falls back to best/default quality (a large file over a metered
+  connection the user explicitly capped).
 - **Remove must delete the actual file on EVERY backend.** A custom download path saves a SAF document
   uri; `ContentResolver.delete` silently no-ops on those, so `MediaStoreHelper.deleteFromMediaStore`
   routes document uris through `DocumentsContract.deleteDocument`.

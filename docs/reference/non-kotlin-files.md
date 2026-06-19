@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `358`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `359`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -8,10 +8,10 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/docs-regenerate.yml` | 74 lines | text `.yml` |
 | `.github/workflows/player-monitor.yml` | 140 lines | text `.yml` |
 | `.github/workflows/release-build.yml` | 155 lines | text `.yml` |
-| `.github/workflows/ui-audit.yml` | 28 lines | text `.yml` |
+| `.github/workflows/ui-audit.yml` | 38 lines | text `.yml` |
 | `.gitignore` | 115 lines | text `[none]` |
 | `.gitmodules` | 6 lines | text `[none]` |
-| `AGENTS.md` | 137 lines | text `.md` |
+| `AGENTS.md` | 214 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 11 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -276,9 +276,10 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `lrclib/.gitignore` | 1 lines | text `[none]` |
 | `lrclib/build.gradle.kts` | 16 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
 | `scripts/check-16kb-alignment.sh` | 67 lines | text `.sh` |
+| `scripts/check-download-unification.sh` | 58 lines | text `.sh` |
 | `scripts/telegram-chats.sh` | 38 lines | text `.sh` |
 | `scripts/ui-audit-baseline.tsv` | 13 lines | text `.tsv` |
-| `scripts/ui-audit.sh` | 119 lines | text `.sh` |
+| `scripts/ui-audit.sh` | 125 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 56 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
 | `simpmusic/build.gradle.kts` | 15 lines | text `.kts`; plugins `kotlin.serialization, jvm` |

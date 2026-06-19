@@ -266,6 +266,24 @@ progress ring) identically in the library, Home, search rows, every menu and eve
   (`ui/menu/DownloadMenuItems.kt` `downloadMenuItem(...)`). Tapping a download row **never dismisses
   the menu** — it animates Download → progress ring + "%" → Remove in place. Videos are handled by the
   same path (`DownloadRowKind.DOWNLOAD_VIDEO`, hidden when videos are blocked).
+- **A collection never gets a FAILED/retry row.** `collectionRow` returns only REMOVE / DOWNLOADING /
+  DOWNLOAD — a failed member leaves the aggregate NOT_DOWNLOADED, so the collection offers DOWNLOAD
+  (which re-enqueues just the missing members = retry) and is removable once complete. A collection
+  "retry" row was a dead end that hid Download *and* Remove and re-failed the dead track forever. Only
+  single songs get a FAILED row (`songRow`).
+- **Async/online collection menus (album / playlist / multi-select) read ONE resolved list for every
+  action.** Resolve/fetch the tracks at click time (fetch-if-empty), then Download, Remove **and** the
+  aggregate status all iterate that *same* resolved list — never the original (possibly-empty) `songs`
+  prop. A Remove that loops the empty prop while Download loops the fetched list removes nothing (real
+  bug on the Home long-press playlist menu). For online items: aggregate via `aggregateByIds` (+ a
+  persisted-downloaded id set) so progress shows without Room entities, and on Download **persist each
+  item then download** (`database.insert`/`transaction { insert }` then `database.song(id).first()`) —
+  a bare lookup of a not-yet-persisted id no-ops, so the first tap appears to do nothing.
+- **Manager invariants** (`MediaStoreDownloadManager`, no Robolectric so verified by code + on-device):
+  `markSongAsDownloaded` bases the row on the **existing** DB row and overwrites only download columns
+  (never clobber `liked`/`inLibrary` with a caller's stale `Song`); `performDownload` backfills
+  `duration` **and** `thumbnailUrl` from the playback response; the per-download video bitrate is
+  cleared only on success/cancel/delete (never on a failed attempt, so retry keeps the chosen quality).
 - The legacy ExoPlayer `DownloadUtil.downloads` / `getDownload()` map is dead (nothing writes it for
   MediaStore downloads). **Do not read it, and do not hand-roll an `Icon.Download(`.** Enforcement:
   `scripts/ui-audit.sh` rule `R13-download` (baselined at zero) fails CI on any new

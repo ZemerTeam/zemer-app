@@ -316,11 +316,8 @@ fun SelectionSongMenu(
                     run {
                         val dlStatus = DownloadStateResolver.aggregateSongs(songSelection, mediaStoreDownloads)
                         val dlProgress = DownloadStateResolver.aggregateProgress(songSelection, mediaStoreDownloads)
-                        val anyFailed = songSelection.any {
-                            mediaStoreDownloads[it.id]?.status == MediaStoreDownloadManager.DownloadState.Status.FAILED
-                        }
                         downloadMenuItem(
-                            kind = DownloadMenuLogic.collectionRow(dlStatus, anyFailed),
+                            kind = DownloadMenuLogic.collectionRow(dlStatus),
                             progress = dlProgress,
                             onDownload = { songSelection.forEach { downloadUtil.downloadToMediaStore(it) } },
                             onCancel = { songSelection.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },
@@ -552,19 +549,26 @@ fun SelectionMediaMetadataMenu(
                     // Unified download row: aggregate over the persisted Room rows + live progress,
                     // menu stays open so it animates Download -> progress -> Remove. (DownloadMenuItems.kt)
                     run {
-                        val dlStatus = DownloadStateResolver.aggregateSongs(dbSongs, mediaStoreDownloads)
-                        val dlProgress = DownloadStateResolver.aggregateProgress(dbSongs, mediaStoreDownloads)
-                        val anyFailed = songSelection.any {
-                            mediaStoreDownloads[it.id]?.status == MediaStoreDownloadManager.DownloadState.Status.FAILED
-                        }
+                        // Aggregate over EVERY selected id off the live map (+ the persisted-downloaded
+                        // snapshot), not just the rows already in Room — otherwise online songs not yet
+                        // in the DB are invisible to the all/any check and the status reads wrong.
+                        val ids = songSelection.map { it.id }
+                        val persistedDownloaded = dbSongs.filter { it.song.isDownloaded }.map { it.id }.toSet()
+                        val dlStatus = DownloadStateResolver.aggregateByIds(ids, mediaStoreDownloads, persistedDownloaded)
+                        val dlProgress = DownloadStateResolver.aggregateProgressByIds(ids, mediaStoreDownloads, persistedDownloaded)
                         downloadMenuItem(
-                            kind = DownloadMenuLogic.collectionRow(dlStatus, anyFailed),
+                            kind = DownloadMenuLogic.collectionRow(dlStatus),
                             progress = dlProgress,
                             onDownload = {
+                                // Online MediaMetadata aren't Room entities yet — persist each, then
+                                // download, so the first tap downloads (a bare database.song() lookup
+                                // returns null for a not-yet-persisted id and silently does nothing).
                                 coroutineScope.launch(Dispatchers.IO) {
                                     songSelection.forEach { mediaMetadata ->
-                                        val song = database.song(mediaMetadata.id).first()
-                                        song?.let { downloadUtil.downloadToMediaStore(it) }
+                                        database.transaction { insert(mediaMetadata) }
+                                        database.song(mediaMetadata.id).first()?.let {
+                                            downloadUtil.downloadToMediaStore(it)
+                                        }
                                     }
                                 }
                             },

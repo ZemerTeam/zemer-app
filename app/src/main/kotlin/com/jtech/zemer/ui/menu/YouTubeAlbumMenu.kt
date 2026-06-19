@@ -302,12 +302,8 @@ fun YouTubeAlbumMenu(
                     val songs = album?.songs.orEmpty()
                     val dlStatus = DownloadStateResolver.aggregateSongs(songs, mediaStoreDownloads)
                     val dlProgress = DownloadStateResolver.aggregateProgress(songs, mediaStoreDownloads)
-                    val anyFailed = songs.any {
-                        mediaStoreDownloads[it.id]?.status ==
-                            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.FAILED
-                    }
                     downloadMenuItem(
-                        kind = DownloadMenuLogic.collectionRow(dlStatus, anyFailed),
+                        kind = DownloadMenuLogic.collectionRow(dlStatus),
                         progress = dlProgress,
                         // Fetch-if-empty: the album loads async, so a first tap before it arrived used
                         // to be a no-op ("press once does nothing, twice works"). Resolve the songs at
