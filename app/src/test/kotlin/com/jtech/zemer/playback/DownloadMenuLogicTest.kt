@@ -1,6 +1,7 @@
 package com.jtech.zemer.playback
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 /**
@@ -84,5 +85,42 @@ class DownloadMenuLogicTest {
 
     @Test fun collection_none_offersDownload() {
         assertEquals(DownloadRowKind.DOWNLOAD, DownloadMenuLogic.collectionRow(DownloadStatus.NOT_DOWNLOADED, anyFailed = false))
+    }
+
+    // ---- exhaustive invariants over the full input space ----
+
+    @Test fun songRow_downloadedAlwaysRemove_regardlessOfFlags() {
+        for (failed in listOf(true, false)) for (isVideo in listOf(true, false)) for (block in listOf(true, false)) {
+            assertEquals(
+                "downloaded must always offer Remove (failed=$failed video=$isVideo block=$block)",
+                DownloadRowKind.REMOVE,
+                DownloadMenuLogic.songRow(DownloadStatus.DOWNLOADED, failed, isVideo, block),
+            )
+        }
+    }
+
+    @Test fun songRow_blockedVideoNeverOffersAVideoDownload() {
+        for (status in DownloadStatus.entries) for (failed in listOf(true, false)) {
+            val kind = DownloadMenuLogic.songRow(status, failed, isVideo = true, blockVideos = true)
+            assertNotEquals(DownloadRowKind.DOWNLOAD_VIDEO, kind)
+            assertNotEquals(DownloadRowKind.DOWNLOAD, kind)
+        }
+    }
+
+    @Test fun songRow_neverReturnsDownloadVideoForNonVideo() {
+        for (status in DownloadStatus.entries) for (failed in listOf(true, false)) for (block in listOf(true, false)) {
+            assertNotEquals(
+                DownloadRowKind.DOWNLOAD_VIDEO,
+                DownloadMenuLogic.songRow(status, failed, isVideo = false, blockVideos = block),
+            )
+        }
+    }
+
+    @Test fun collectionRow_neverHiddenOrVideo() {
+        for (status in DownloadStatus.entries) for (failed in listOf(true, false)) {
+            val kind = DownloadMenuLogic.collectionRow(status, failed)
+            assertNotEquals(DownloadRowKind.HIDDEN, kind)
+            assertNotEquals(DownloadRowKind.DOWNLOAD_VIDEO, kind)
+        }
     }
 }

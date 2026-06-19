@@ -36,6 +36,12 @@ object DownloadStateResolver {
     fun forSong(song: Song, live: Map<String, DownloadState>): DownloadStatus =
         forSong(song.song.isDownloaded, live[song.id])
 
+    /** Per-song progress fraction (0..1): 1 once downloaded, else the active download's live progress. */
+    fun songProgress(isDownloaded: Boolean, live: DownloadState?): Float = when {
+        isDownloaded || live?.status == Status.COMPLETED -> 1f
+        else -> (live?.progress ?: 0f).coerceIn(0f, 1f)
+    }
+
     /**
      * Aggregate state for a collection (album / playlist header, multi-select):
      * - DOWNLOADED only when every song is downloaded,

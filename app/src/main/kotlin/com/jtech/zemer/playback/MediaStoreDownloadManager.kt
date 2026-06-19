@@ -86,6 +86,9 @@ constructor(
     private val _downloadStates = MutableStateFlow<Map<String, DownloadState>>(emptyMap())
     val downloadStates: StateFlow<Map<String, DownloadState>> = _downloadStates.asStateFlow()
 
+    // Per-download requested video bitrate (kbps), set by downloadVideo, consumed by performDownload.
+    private val requestedVideoBitrate = ConcurrentHashMap<String, Int>()
+
     // Download queue
     private val downloadQueue = mutableListOf<Song>()
     // Touched from several coroutines (processQueue, performDownload's finally, cancel/delete) — must be
@@ -129,7 +132,7 @@ constructor(
      *
      * @param song The song/video to download as video file
      */
-    fun downloadVideo(song: Song) {
+    fun downloadVideo(song: Song, maxVideoBitrateKbps: Int? = null) {
         Timber.d("downloadVideo called: id=${song.id}, title=${song.song.title}, inputIsVideo=${song.song.isVideo}")
         scope.launch {
             // Start notification service
@@ -142,6 +145,8 @@ constructor(
                 Timber.d("downloadVideo skipped - already downloading or completed: status=${currentState?.status}")
                 return@launch
             }
+            // Remember the requested video bitrate for this download (consumed in performDownload).
+            maxVideoBitrateKbps?.let { requestedVideoBitrate[song.id] = it }
 
             // Mark as video FIRST, then persist
             val videoSong = song.copy(song = song.song.copy(isVideo = true))
@@ -362,6 +367,7 @@ constructor(
                 } finally {
                     downloadSemaphore.release()
                     activeDownloads.remove(song.id)
+                    requestedVideoBitrate.remove(song.id)
 
                     // Process next item in queue
                     processQueue()
@@ -402,6 +408,7 @@ constructor(
                 audioQuality = audioQuality,
                 connectivityManager = connectivityManager,
                 preferVideo = isVideoDownload,
+                maxVideoBitrateKbps = if (isVideoDownload) requestedVideoBitrate[song.id] else null,
                 forDownload = true,
             ).getOrThrow()
 

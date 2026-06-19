@@ -28,7 +28,6 @@ import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.playback.DownloadStateResolver
 import com.jtech.zemer.playback.DownloadStatus
-import com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status
 
 /**
  * The UI-layer face of [DownloadStateResolver]: a tiny set of composables that EVERY download badge,
@@ -52,10 +51,7 @@ fun rememberSongDownloadStatus(song: Song): DownloadStatus =
 @Composable
 fun rememberSongDownloadProgress(songId: String, isDownloaded: Boolean): Float {
     val live by LocalDownloadUtil.current.getMediaStoreDownload(songId).collectAsState(initial = null)
-    return when {
-        isDownloaded || live?.status == Status.COMPLETED -> 1f
-        else -> (live?.progress ?: 0f).coerceIn(0f, 1f)
-    }
+    return DownloadStateResolver.songProgress(isDownloaded, live)
 }
 
 /** Aggregate status for a collection (album / playlist / multi-select), recomputed live. */

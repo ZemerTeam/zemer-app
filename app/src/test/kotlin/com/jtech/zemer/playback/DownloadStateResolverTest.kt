@@ -162,4 +162,25 @@ class DownloadStateResolverTest {
         assertEquals(DownloadStatus.NOT_DOWNLOADED, DownloadStateResolver.aggregateByIds(emptyList(), emptyMap(), emptySet()))
         assertEquals(0f, DownloadStateResolver.aggregateProgressByIds(emptyList(), emptyMap(), emptySet()), 0.0001f)
     }
+
+    // ---- per-song progress ----
+
+    @Test fun songProgress_downloaded_isOne() {
+        assertEquals(1f, DownloadStateResolver.songProgress(isDownloaded = true, live = null), 0.0001f)
+        assertEquals(1f, DownloadStateResolver.songProgress(false, live(Status.COMPLETED)), 0.0001f)
+    }
+
+    @Test fun songProgress_downloading_isLiveFraction() {
+        assertEquals(0.42f, DownloadStateResolver.songProgress(false, live(Status.DOWNLOADING, 0.42f)), 0.0001f)
+    }
+
+    @Test fun songProgress_notDownloaded_isZero() {
+        assertEquals(0f, DownloadStateResolver.songProgress(false, null), 0.0001f)
+        assertEquals(0f, DownloadStateResolver.songProgress(false, live(Status.QUEUED)), 0.0001f)
+    }
+
+    @Test fun songProgress_clampsOutOfRange() {
+        assertEquals(1f, DownloadStateResolver.songProgress(false, live(Status.DOWNLOADING, 1.5f)), 0.0001f)
+        assertEquals(0f, DownloadStateResolver.songProgress(false, live(Status.DOWNLOADING, -0.3f)), 0.0001f)
+    }
 }
