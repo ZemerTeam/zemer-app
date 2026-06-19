@@ -7,6 +7,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
 import com.jtech.zemer.constants.CustomDownloadPathKey
@@ -510,11 +511,21 @@ class MediaStoreHelper(private val context: Context) {
      * @return true if deletion was successful, false otherwise
      */
     suspend fun deleteFromMediaStore(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        // A custom download path saves the file as a SAF DOCUMENT uri (saveToCustomPath); those can't
+        // be removed with ContentResolver.delete (that's for MediaStore content uris) — they need
+        // DocumentsContract.deleteDocument, or the file is left behind on "Remove download".
+        if (DocumentsContract.isDocumentUri(context, uri)) {
+            return@withContext runCatching {
+                DocumentsContract.deleteDocument(context.contentResolver, uri)
+            }.recoverCatching {
+                DocumentFile.fromSingleUri(context, uri)?.delete() == true
+            }.getOrDefault(false)
+        }
         try {
-            val deleted = context.contentResolver.delete(uri, null, null)
-            deleted > 0
+            context.contentResolver.delete(uri, null, null) > 0
         } catch (e: Exception) {
-            false
+            // Last resort for tree/document uris that aren't reported as document uris.
+            runCatching { DocumentFile.fromSingleUri(context, uri)?.delete() == true }.getOrDefault(false)
         }
     }
 

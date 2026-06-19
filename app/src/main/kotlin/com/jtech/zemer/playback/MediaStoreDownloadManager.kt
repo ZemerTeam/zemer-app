@@ -470,7 +470,12 @@ constructor(
                 } else {
                     song.artists.firstOrNull()?.name ?: "Unknown Artist"
                 }
-                val duration = song.song.duration.takeIf { it > 0 }?.times(1000L) // Convert to milliseconds
+                // Songs reached via an album/playlist page often carry no duration (0), which shows as
+                // "0:00" in the Downloaded list — backfill it from the playback response so the saved
+                // file's metadata AND the DB row get a real length.
+                val effectiveDurationSec = song.song.duration.takeIf { it > 0 }
+                    ?: playbackData.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0
+                val duration = effectiveDurationSec.takeIf { it > 0 }?.times(1000L) // ms for MediaStore
 
                 // Embed metadata if format supports it (audio only)
                 if (!isVideoDownload && CoverArtEmbedder.supportsEmbedding(extension)) {
@@ -528,8 +533,15 @@ constructor(
                         )
                     )
 
-                    // Update database with MediaStore URI (preserving isVideo flag)
-                    markSongAsDownloaded(song, uri.toString())
+                    // Update database with MediaStore URI (preserving isVideo flag), backfilling the
+                    // duration if the source had none so the Downloaded list shows a real time.
+                    val songWithDuration =
+                        if (song.song.duration <= 0 && effectiveDurationSec > 0) {
+                            song.copy(song = song.song.copy(duration = effectiveDurationSec))
+                        } else {
+                            song
+                        }
+                    markSongAsDownloaded(songWithDuration, uri.toString())
                 } else {
                     throw Exception("Failed to save file to MediaStore")
                 }
