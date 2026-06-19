@@ -43,6 +43,7 @@ data class LatestRelease(
     val thumbnail: String,
     val year: Int? = null,
     val uploadDate: String,
+    val trackCount: Int? = null,
     val sampleVideoId: String? = null,
 )
 

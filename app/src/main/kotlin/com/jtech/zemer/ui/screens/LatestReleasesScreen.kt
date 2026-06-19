@@ -21,9 +21,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.latestreleases.openOrPlay
 import com.jtech.zemer.latestreleases.relativeDateLabel
 import com.jtech.zemer.latestreleases.toAlbumItem
 import com.jtech.zemer.ui.component.IconButton
@@ -31,6 +33,7 @@ import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.utils.backToMain
+import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.viewmodels.LatestReleasesViewModel
 
 /**
@@ -47,6 +50,7 @@ fun LatestReleasesScreen(
 ) {
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
+    val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
@@ -63,11 +67,11 @@ fun LatestReleasesScreen(
             val dateLabel = remember(release.browseId) { release.relativeDateLabel() }
             YouTubeListItem(
                 item = album,
-                subtitleOverride = dateLabel,
+                subtitleOverride = joinByBullet(release.artistName, dateLabel),
                 isActive = mediaMetadata?.album?.id == album.id,
                 isPlaying = isPlaying,
                 modifier = Modifier.combinedClickable(
-                    onClick = { navController.navigate("album/${album.id}") },
+                    onClick = { release.openOrPlay(navController, playerConnection, database) },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         menuState.show {

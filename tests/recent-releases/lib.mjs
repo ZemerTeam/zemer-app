@@ -162,17 +162,24 @@ export function artistItemsGrid(json) {
   return out;
 }
 
-// First track videoId from an album BrowseResponse (to probe per-track date sources).
-export function albumFirstTrack(json) {
+// The track-listing shelf (musicShelfRenderer) of an album BrowseResponse.
+function albumTrackShelf(json) {
   const tabs =
     json?.contents?.singleColumnBrowseResultsRenderer?.tabs ??
     json?.contents?.twoColumnBrowseResultsRenderer?.tabs;
-  const shelf =
+  return (
     tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.find((c) => c.musicShelfRenderer)
       ?.musicShelfRenderer ??
     json?.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents
-      ?.find((c) => c.musicShelfRenderer)?.musicShelfRenderer;
-  for (const it of shelf?.contents ?? []) {
+      ?.find((c) => c.musicShelfRenderer)?.musicShelfRenderer
+  );
+}
+
+// Every track of an album BrowseResponse, in order ({ videoId, title }). The length is the track
+// count, which the feed stores so the app can auto-play a 1-track single instead of opening it.
+export function albumTracks(json) {
+  const out = [];
+  for (const it of albumTrackShelf(json)?.contents ?? []) {
     const r = it.musicResponsiveListItemRenderer;
     const vid =
       r?.playlistItemData?.videoId ??
@@ -180,9 +187,14 @@ export function albumFirstTrack(json) {
         ?.navigationEndpoint?.watchEndpoint?.videoId ??
       r?.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer
         ?.playNavigationEndpoint?.watchEndpoint?.videoId;
-    if (vid) return { videoId: vid, title: runText(r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs) };
+    if (vid) out.push({ videoId: vid, title: runText(r.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs) });
   }
-  return null;
+  return out;
+}
+
+// First track videoId from an album BrowseResponse (to probe per-track date sources).
+export function albumFirstTrack(json) {
+  return albumTracks(json)[0] ?? null;
 }
 
 // Largest thumbnail URL anywhere in a response (album art lives under various renderers; we just take

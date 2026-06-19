@@ -45,6 +45,10 @@ node --test tests/recent-releases/self-test.mjs            # parsers/helpers, no
   off it).
 - `year` (catalog year) ≠ `uploadDate` (when the video hit YouTube) — they diverge for re-uploads /
   auto-generated art tracks. The feed sorts/windows by `uploadDate` and stores `year` for later use.
+- The album browse already lists every track, so the feed stores `trackCount` for free (`albumTracks`).
+  The app uses it to tell a **single** (`trackCount == 1`) from an album: tapping a single plays it
+  immediately (with autoplay radio), tapping an album opens its page. A live sample was ~89% singles
+  (1 track) and ~11% albums (8–12 tracks), with no missing counts.
 - A full run over ~1600 artists is ~3 min with 0 rate-limit blocks; the JSON is ~13–15 KB.
 
 ## Where it ships

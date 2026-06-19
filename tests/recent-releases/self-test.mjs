@@ -6,7 +6,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  biggestThumbnail, findDateFields, artistReleases, artistItemsGrid, albumFirstTrack,
+  biggestThumbnail, findDateFields, artistReleases, artistItemsGrid, albumFirstTrack, albumTracks,
 } from "./lib.mjs";
 
 test("biggestThumbnail picks the widest url anywhere in the tree", () => {
@@ -83,12 +83,21 @@ test("artistReleases reads albums out of carousels with their section + more end
   assert.equal(out[0].moreEndpoint?.browseId, "MPADmore");
 });
 
+const albumWithTracks = (...videoIds) => ({
+  contents: { singleColumnBrowseResultsRenderer: { tabs: [{ tabRenderer: { content: { sectionListRenderer: { contents: [{
+    musicShelfRenderer: { contents: videoIds.map((videoId) => ({ musicResponsiveListItemRenderer: { playlistItemData: { videoId } } })) },
+  }] } } } }] } },
+});
+
 test("albumFirstTrack returns the first track's videoId", () => {
-  const json = {
-    contents: { singleColumnBrowseResultsRenderer: { tabs: [{ tabRenderer: { content: { sectionListRenderer: { contents: [{
-      musicShelfRenderer: { contents: [{ musicResponsiveListItemRenderer: { playlistItemData: { videoId: "VID123" } } }] },
-    }] } } } }] } },
-  };
-  assert.equal(albumFirstTrack(json)?.videoId, "VID123");
+  assert.equal(albumFirstTrack(albumWithTracks("VID123"))?.videoId, "VID123");
   assert.equal(albumFirstTrack({}), null);
+});
+
+test("albumTracks lists every track in order (the count distinguishes a single from an album)", () => {
+  const tracks = albumTracks(albumWithTracks("VID1", "VID2", "VID3"));
+  assert.equal(tracks.length, 3);
+  assert.deepEqual(tracks.map((t) => t.videoId), ["VID1", "VID2", "VID3"]);
+  assert.equal(albumTracks(albumWithTracks("ONLY")).length, 1); // a single
+  assert.equal(albumTracks({}).length, 0);
 });

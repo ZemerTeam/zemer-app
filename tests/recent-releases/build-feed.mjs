@@ -17,7 +17,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { cred, browse, player, artistReleases, artistItemsGrid, albumFirstTrack, findDateFields, biggestThumbnail } from "./lib.mjs";
+import { cred, browse, player, artistReleases, artistItemsGrid, albumTracks, findDateFields, biggestThumbnail } from "./lib.mjs";
 import { fetchWhitelist, whitelistVersion } from "./whitelist.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -37,13 +37,14 @@ const log = (...a) => console.error(...a); // logs to stderr so stdout can stay 
 async function releaseDate(browseId, cr) {
   const al = await browse({ browseId }, cr);
   if (al.blocked) return { blocked: true };
-  const track = al.json ? albumFirstTrack(al.json) : null;
+  const tracks = al.json ? albumTracks(al.json) : [];
+  const track = tracks[0] ?? null;
   if (!track) return { date: null };
   const albumThumb = al.json ? biggestThumbnail(al.json) : null;
   const pl = await player({ videoId: track.videoId }, cr);
   if (pl.blocked) return { blocked: true };
   const f = findDateFields(pl.json || {}).find((x) => /uploadDate|publishDate/.test(x.path));
-  return { date: f?.value ?? null, sampleVideoId: track.videoId, albumThumb };
+  return { date: f?.value ?? null, sampleVideoId: track.videoId, albumThumb, trackCount: tracks.length };
 }
 
 // Candidate releases for one artist: top TOP of each discography grid (recency-sorted), de-duped.
@@ -110,7 +111,7 @@ async function main() {
         if (res.blocked) { blocked++; await sleep(3000); res = await artistCandidates(artist, cr); }
         for (const it of res.items ?? []) {
           if (results.has(it.browseId)) continue; // already known/added
-          const { date, sampleVideoId, albumThumb, blocked: b } = await releaseDate(it.browseId, cr);
+          const { date, sampleVideoId, albumThumb, trackCount, blocked: b } = await releaseDate(it.browseId, cr);
           if (b) { blocked++; await sleep(3000); continue; }
           if (!date) continue;
           if (new Date(date).getTime() < cutoff) continue; // older than window
@@ -118,7 +119,7 @@ async function main() {
             artistId: artist.id, artistName: artist.name, title: it.title,
             browseId: it.browseId, playlistId: it.playlistId,
             thumbnail: it.thumbnail || albumThumb || `https://i.ytimg.com/vi/${sampleVideoId}/hqdefault.jpg`,
-            year: Number.parseInt(it.yearGuess, 10) || null, uploadDate: date, sampleVideoId,
+            year: Number.parseInt(it.yearGuess, 10) || null, uploadDate: date, trackCount, sampleVideoId,
           });
           added++;
         }

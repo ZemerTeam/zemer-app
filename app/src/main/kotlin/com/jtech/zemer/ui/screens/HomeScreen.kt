@@ -90,7 +90,9 @@ import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
+import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.latestreleases.openOrPlay
 import com.jtech.zemer.latestreleases.relativeDateLabel
 import com.jtech.zemer.latestreleases.toAlbumItem
 import com.jtech.zemer.viewmodels.HomeViewModel
@@ -548,14 +550,14 @@ fun HomeScreen(
                                 val dateLabel = remember(release.browseId) { release.relativeDateLabel() }
                                 YouTubeGridItem(
                                     item = album,
-                                    subtitleOverride = dateLabel,
+                                    subtitleOverride = joinByBullet(release.artistName, dateLabel),
                                     isActive = mediaMetadata?.album?.id == album.id,
                                     isPlaying = isPlaying,
                                     coroutineScope = scope,
                                     thumbnailRatio = 1f,
                                     modifier = Modifier
                                         .combinedClickable(
-                                            onClick = { navController.navigate("album/${album.id}") },
+                                            onClick = { release.openOrPlay(navController, playerConnection, database) },
                                             onLongClick = {
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 menuState.show {
