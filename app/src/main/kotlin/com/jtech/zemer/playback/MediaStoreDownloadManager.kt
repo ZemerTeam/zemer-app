@@ -654,10 +654,26 @@ constructor(
     }
 
     /**
-     * Update the download state for a song
+     * Update the download state for a song. While a download is in progress, progress is clamped to
+     * be monotonic (never decreases): a retry restarts the byte counter at 0 and the per-attempt
+     * "Retrying…" state carries progress 0, which otherwise makes the UI ring jump backwards and
+     * "bounce" up to 100%. Holding the last value until the new attempt catches up keeps it smooth.
      */
     private fun updateDownloadState(songId: String, state: DownloadState) {
-        _downloadStates.value = _downloadStates.value + (songId to state)
+        val prev = _downloadStates.value[songId]
+        val adjusted =
+            if (state.status == DownloadState.Status.DOWNLOADING &&
+                prev?.status == DownloadState.Status.DOWNLOADING &&
+                prev.progress > state.progress
+            ) {
+                state.copy(
+                    progress = prev.progress,
+                    bytesDownloaded = maxOf(prev.bytesDownloaded, state.bytesDownloaded),
+                )
+            } else {
+                state
+            }
+        _downloadStates.value = _downloadStates.value + (songId to adjusted)
     }
 
     /**
