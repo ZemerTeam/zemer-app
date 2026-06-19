@@ -25,6 +25,7 @@ import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.latestreleases.isNowPlaying
 import com.jtech.zemer.latestreleases.isPlayableSingle
 import com.jtech.zemer.latestreleases.openOrPlay
 import com.jtech.zemer.latestreleases.relativeDateLabel
@@ -39,8 +40,10 @@ import com.jtech.zemer.viewmodels.LatestReleasesViewModel
 
 /**
  * The "See all" screen for the Home Latest Releases section: the full kosher latest-releases feed as
- * a vertical list, newest-first. Shares [LatestReleasesViewModel] (and thus the cached feed) with the
- * Home section. When the feed is empty/unavailable the list is simply empty — nothing is forced.
+ * a vertical list, newest-first. Uses its own [LatestReleasesViewModel] instance but is backed by the
+ * same process-wide [com.jtech.zemer.latestreleases.LatestReleasesStore] cache as the Home section, so
+ * the feed is reused (a conditional refresh, not a fresh fetch). When the feed is empty/unavailable the
+ * list is simply empty — nothing is forced.
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -70,7 +73,7 @@ fun LatestReleasesScreen(
                 item = album,
                 subtitleOverride = joinByBullet(release.artistName, dateLabel),
                 centeredPlayButton = release.isPlayableSingle(),
-                isActive = mediaMetadata?.album?.id == album.id,
+                isActive = release.isNowPlaying(mediaMetadata),
                 isPlaying = isPlaying,
                 modifier = Modifier.combinedClickable(
                     onClick = { release.openOrPlay(navController, playerConnection, database) },

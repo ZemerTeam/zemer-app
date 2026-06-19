@@ -52,11 +52,17 @@ class LatestReleasesViewModel @Inject constructor(
         }
     }
 
-    /** Keeps only releases whose artist passes the whitelist filter, preserving the feed order. */
+    /**
+     * Keeps only releases whose artist passes the whitelist filter, preserving the feed order.
+     * De-duplicates by [LatestRelease.browseId] first: the feed is external and may list one album
+     * under more than one whitelisted artist, and browseId is the list key on both surfaces — a
+     * duplicate would otherwise crash the Compose lists with a "key already used" error.
+     */
     private suspend fun filterReleases(releases: List<LatestRelease>): List<LatestRelease> {
         if (releases.isEmpty()) return emptyList()
-        val byBrowseId = releases.associateBy { it.browseId }
-        return releases.map { it.toAlbumItem() }
+        val unique = releases.distinctBy { it.browseId }
+        val byBrowseId = unique.associateBy { it.browseId }
+        return unique.map { it.toAlbumItem() }
             .filterWhitelisted(database)
             .mapNotNull { byBrowseId[(it as? AlbumItem)?.browseId] }
     }

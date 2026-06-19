@@ -19,6 +19,16 @@ import com.jtech.zemer.playback.queues.YouTubeQueue
  */
 fun LatestRelease.isPlayableSingle(): Boolean = trackCount == 1 && !sampleVideoId.isNullOrEmpty()
 
+/**
+ * Whether [mediaMetadata] (the player's current track) is THIS release playing right now, so the card
+ * shows its active/playing state and drops the centred play overlay. A single plays as a videoId via
+ * [openOrPlay] (its [MediaMetadata] carries no album), so it matches on the track id; an album is
+ * "active" when a track from it ([browseId]) is playing — the album-card convention used across Home.
+ */
+fun LatestRelease.isNowPlaying(mediaMetadata: MediaMetadata?): Boolean =
+    if (isPlayableSingle()) mediaMetadata?.id == sampleVideoId
+    else mediaMetadata?.album?.id == browseId
+
 fun LatestRelease.playableSingle(): MediaMetadata? {
     val videoId = sampleVideoId
     if (!isPlayableSingle() || videoId == null) return null

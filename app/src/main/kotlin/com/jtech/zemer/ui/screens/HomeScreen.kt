@@ -92,6 +92,7 @@ import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.latestreleases.isNowPlaying
 import com.jtech.zemer.latestreleases.isPlayableSingle
 import com.jtech.zemer.latestreleases.openOrPlay
 import com.jtech.zemer.latestreleases.relativeDateLabel
@@ -553,7 +554,7 @@ fun HomeScreen(
                                     item = album,
                                     subtitleOverride = joinByBullet(release.artistName, dateLabel),
                                     centeredPlayButton = release.isPlayableSingle(),
-                                    isActive = mediaMetadata?.album?.id == album.id,
+                                    isActive = release.isNowPlaying(mediaMetadata),
                                     isPlaying = isPlaying,
                                     coroutineScope = scope,
                                     thumbnailRatio = 1f,

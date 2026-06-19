@@ -1,5 +1,6 @@
 package com.jtech.zemer.latestreleases
 
+import com.jtech.zemer.models.MediaMetadata
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -49,6 +50,39 @@ class LatestReleasePlaybackTest {
     @Test
     fun `an older feed entry with no track count opens the album`() {
         assertNull(release(trackCount = null).playableSingle())
+    }
+
+    private fun playingTrack(id: String, albumId: String? = null) = MediaMetadata(
+        id = id,
+        title = "Now Playing",
+        artists = listOf(MediaMetadata.Artist(id = "UC1", name = "Artist")),
+        duration = 0,
+        album = albumId?.let { MediaMetadata.Album(id = it, title = "Album") },
+    )
+
+    @Test
+    fun `a single is active when its videoId is the current track (not via album id)`() {
+        val single = release(trackCount = 1, sampleVideoId = "vid")
+        // The single plays as a videoId with no album bound, so matching must be on the track id.
+        assertTrue(single.isNowPlaying(playingTrack(id = "vid")))
+        assertFalse(single.isNowPlaying(playingTrack(id = "other")))
+        assertFalse(single.isNowPlaying(null))
+    }
+
+    @Test
+    fun `an album release is active when a track from that album (browseId) is playing`() {
+        val album = release(trackCount = 5)
+        assertTrue(album.isNowPlaying(playingTrack(id = "anySong", albumId = "MPRE1")))
+        assertFalse(album.isNowPlaying(playingTrack(id = "anySong", albumId = "MPRE_other")))
+        assertFalse(album.isNowPlaying(playingTrack(id = "anySong", albumId = null)))
+        assertFalse(album.isNowPlaying(null))
+    }
+
+    @Test
+    fun `the metadata a single actually plays makes its own card active`() {
+        // Guards the real bug: playableSingle() carries no album, so an album-id check never matched.
+        val single = release(trackCount = 1, sampleVideoId = "vid")
+        assertTrue(single.isNowPlaying(single.playableSingle()))
     }
 
     @Test
