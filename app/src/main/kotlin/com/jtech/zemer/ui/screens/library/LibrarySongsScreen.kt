@@ -61,6 +61,7 @@ import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
+import com.jtech.zemer.ui.component.SelectionTopActions
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.utils.ItemWrapper
@@ -186,36 +187,11 @@ fun LibrarySongsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (selection) {
-                        val count = wrappedSongs.count { it.isSelected }
-                        IconButton(
-                            onClick = { selection = false },
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.close),
-                                contentDescription = null,
-                            )
-                        }
-                        Text(
-                            text = pluralStringResource(R.plurals.n_song, count, count),
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = {
-                                if (count == wrappedSongs.size) {
-                                    wrappedSongs.forEach { it.isSelected = false }
-                                } else {
-                                    wrappedSongs.forEach { it.isSelected = true }
-                                }
-                            },
-                        ) {
-                            Icon(
-                                painter = painterResource(if (count == wrappedSongs.size) R.drawable.deselect else R.drawable.select_all),
-                                contentDescription = null,
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {
+                        SelectionTopActions(
+                            wrapped = wrappedSongs,
+                            countLabel = { pluralStringResource(R.plurals.n_song, it, it) },
+                            onExit = { selection = false },
+                            onMore = {
                                 menuState.show {
                                     SelectionSongMenu(
                                         songSelection = wrappedSongs.filter { it.isSelected }
@@ -225,12 +201,7 @@ fun LibrarySongsScreen(
                                     )
                                 }
                             },
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.more_vert),
-                                contentDescription = null,
-                            )
-                        }
+                        )
                     } else {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,

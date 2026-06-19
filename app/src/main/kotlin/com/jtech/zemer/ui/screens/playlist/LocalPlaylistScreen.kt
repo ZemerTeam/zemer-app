@@ -134,6 +134,7 @@ import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.menu.CustomThumbnailMenu
+import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.screens.settings.DarkMode
@@ -852,26 +853,9 @@ fun LocalPlaylistScreen(
             },
             actions = {
                 if (selection) {
-                    val count = wrappedSongs.count { it.isSelected }
-                    IconButton(
-                        onClick = {
-                            if (count == wrappedSongs.size) {
-                                wrappedSongs.forEach { it.isSelected = false }
-                            } else {
-                                wrappedSongs.forEach { it.isSelected = true }
-                            }
-                        },
-                    ) {
-                        Icon(
-                            painter = painterResource(
-                                if (count == wrappedSongs.size) R.drawable.deselect else R.drawable.select_all
-                            ),
-                            contentDescription = null
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
+                    SelectionActions(
+                        wrapped = wrappedSongs,
+                        onMore = {
                             menuState.show {
                                 SelectionSongMenu(
                                     songSelection = wrappedSongs.filter { it.isSelected }
@@ -886,12 +870,7 @@ fun LocalPlaylistScreen(
                                 )
                             }
                         },
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.more_vert),
-                            contentDescription = null
-                        )
-                    }
+                    )
                 } else if (!isSearching) {
                     IconButton(
                         onClick = { isSearching = true }
