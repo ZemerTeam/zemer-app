@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +39,10 @@ import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.PlaylistSong
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
+import kotlinx.coroutines.launch
+import com.jtech.zemer.playback.DownloadMenuLogic
+import com.jtech.zemer.playback.DownloadStateResolver
+import com.jtech.zemer.playback.MediaStoreDownloadManager
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
@@ -62,6 +67,8 @@ fun PlaylistMenu(
     val dbPlaylist by database.playlist(playlist.id).collectAsState(initial = playlist)
     var songs by remember { mutableStateOf(emptyList<Song>()) }
     var showReportDialog by remember { mutableStateOf(false) }
+    val mediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
+    val downloadScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         if (autoPlaylist == false) {
@@ -201,6 +208,22 @@ fun PlaylistMenu(
                             },
                         )
                     )
+                    run {
+                        val dlStatus = DownloadStateResolver.aggregateSongs(songs, mediaStoreDownloads)
+                        val dlProgress = DownloadStateResolver.aggregateProgress(songs, mediaStoreDownloads)
+                        val anyFailed = songs.any {
+                            mediaStoreDownloads[it.id]?.status ==
+                                MediaStoreDownloadManager.DownloadState.Status.FAILED
+                        }
+                        downloadMenuItem(
+                            kind = DownloadMenuLogic.collectionRow(dlStatus, anyFailed),
+                            progress = dlProgress,
+                            onDownload = { songs.forEach { downloadUtil.downloadToMediaStore(it) } },
+                            onCancel = { songs.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },
+                            onRetry = { songs.forEach { downloadUtil.retryMediaStoreDownload(it.id) } },
+                            onRemove = { downloadScope.launch { songs.forEach { downloadUtil.removeDownload(it.id) } } },
+                        )?.let { add(it) }
+                    }
                     add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.warning), null, Modifier.size(24.dp)) },

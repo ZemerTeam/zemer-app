@@ -16,6 +16,7 @@ import com.jtech.zemer.utils.UrlValidator
 import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.enumPreference
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,6 +30,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDateTime
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.min
@@ -86,7 +88,9 @@ constructor(
 
     // Download queue
     private val downloadQueue = mutableListOf<Song>()
-    private val activeDownloads = mutableMapOf<String, Job>()
+    // Touched from several coroutines (processQueue, performDownload's finally, cancel/delete) — must be
+    // concurrent or it can corrupt / leak an uncancellable orphan job.
+    private val activeDownloads = ConcurrentHashMap<String, Job>()
 
     companion object {
         private const val MAX_CONCURRENT_DOWNLOADS = 3
@@ -529,6 +533,11 @@ constructor(
                 }
             }
 
+        } catch (e: CancellationException) {
+            // The user cancelled this download (cancelDownload/deleteDownloaded cancelled the job).
+            // Must rethrow — otherwise the retry branch below would swallow it, resurrect the download,
+            // overwrite the CANCELLED state, and pin the foreground notification service open forever.
+            throw e
         } catch (e: Exception) {
             Timber.e(e, "Download failed for song ${song.id}: ${e.message}")
             // Retry logic with exponential backoff

@@ -266,7 +266,9 @@ constructor(
 
                     MusicService.PLAYLIST -> {
                         val likedSongCount = database.likedSongsCount().first()
-                        val downloadedSongCount = downloadUtil.downloads.value.size
+                        // Persisted MediaStore downloads (the legacy ExoPlayer `downloads` map is dead) —
+                        // count the same rows the Downloaded playlist shows.
+                        val downloadedSongCount = database.downloadedSongsByCreateDateAsc().first().size
                         listOf(
                             browsableMediaItem(
                                 "${MusicService.PLAYLIST}/${PlaylistEntity.LIKED_PLAYLIST_ID}",
@@ -378,22 +380,10 @@ constructor(
                                         true
                                     )
 
-                                    PlaylistEntity.DOWNLOADED_PLAYLIST_ID -> {
-                                        val downloads = downloadUtil.downloads.value
-                                        database
-                                            .allSongs()
-                                            .flowOn(Dispatchers.IO)
-                                            .map { songs ->
-                                                songs.filter {
-                                                    downloads[it.id]?.state == Download.STATE_COMPLETED
-                                                }
-                                            }.map { songs ->
-                                                songs
-                                                    .map { it to downloads[it.id] }
-                                                    .sortedBy { it.second?.updateTimeMs ?: 0L }
-                                                    .map { it.first }
-                                            }
-                                    }
+                                    // Persisted MediaStore downloads (the same query the Downloaded
+                                    // screen uses) — the legacy ExoPlayer map is dead.
+                                    PlaylistEntity.DOWNLOADED_PLAYLIST_ID ->
+                                        database.downloadedSongsByCreateDateAsc()
 
                                     else ->
                                         database.playlistSongs(playlistId).map { list ->
@@ -618,22 +608,8 @@ constructor(
                     val playlistId = path.getOrNull(1) ?: return@future defaultResult
                     val songs = when (playlistId) {
                         PlaylistEntity.LIKED_PLAYLIST_ID -> database.likedSongs(SongSortType.CREATE_DATE, descending = true)
-                        PlaylistEntity.DOWNLOADED_PLAYLIST_ID -> {
-                            val downloads = downloadUtil.downloads.value
-                            database
-                                .allSongs()
-                                .flowOn(Dispatchers.IO)
-                                .map { songs ->
-                                    songs.filter {
-                                        downloads[it.id]?.state == Download.STATE_COMPLETED
-                                    }
-                                }.map { songs ->
-                                    songs
-                                        .map { it to downloads[it.id] }
-                                        .sortedBy { it.second?.updateTimeMs ?: 0L }
-                                        .map { it.first }
-                                }
-                        }
+                        PlaylistEntity.DOWNLOADED_PLAYLIST_ID ->
+                            database.downloadedSongsByCreateDateAsc()
                         else -> database.playlistSongs(playlistId).map { list ->
                             list.map { it.song }
                         }

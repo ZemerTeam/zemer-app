@@ -62,6 +62,12 @@ violations() {
   # (the RenderEffect blur is a no-op below API 31). Ratcheted: existing blurs are baselined.
   grep -rnE "\.blur\(" "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR12-blur/'
+  # R13: dead/legacy download-state reads in UI. Download/progress state is ONE path —
+  # DownloadStateResolver + the DownloadStatusUi helpers (persisted isDownloaded + live MediaStore).
+  # The legacy ExoPlayer `downloadUtil.downloads` / `getDownload()` map is never written, and a
+  # per-surface `Icon.Download(` re-implements the unified badge. Baselined at zero.
+  grep -rnE "downloadUtil\.downloads|\.getDownload\(|Icon\.Download\(" "$UI" --include=*.kt 2>/dev/null \
+    | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR13-download/'
 }
 
 # Aggregate to "<path>\t<rule>\t<count>", sorted.
@@ -96,7 +102,7 @@ improved="$(awk -F'\t' '
 ' <(printf "%s\n" "$cur") "$BASELINE")"
 
 if [ -n "$new" ]; then
-  echo "UI audit FAILED — new Rule 5/7/8/11/12 violations (docs/ui/standards.md sections 5, 7-8, 11):"
+  echo "UI audit FAILED — new Rule 5/7/8/11/12/13 violations (docs/ui/standards.md sections 5, 7-8, 11, 13):"
   echo "$new"
   echo
   echo "Route font sizes through MaterialTheme.typography (Type.kt), colors through"
@@ -111,7 +117,7 @@ if [ -n "$new" ]; then
 fi
 
 total="$(violations | grep -c .)"
-echo "UI audit passed — no new Rule 5/7/8/11/12 violations (baseline: $total known, only allowed to shrink)."
+echo "UI audit passed — no new Rule 5/7/8/11/12/13 violations (baseline: $total known, only allowed to shrink)."
 if [ -n "$improved" ]; then
   echo "Burned down since the baseline — tighten it with \`bash scripts/ui-audit.sh --update\`:"
   echo "$improved"

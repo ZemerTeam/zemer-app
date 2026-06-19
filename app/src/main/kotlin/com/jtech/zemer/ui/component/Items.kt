@@ -49,7 +49,6 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -76,10 +75,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.zIndex
 import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.Download.STATE_COMPLETED
-import androidx.media3.exoplayer.offline.Download.STATE_DOWNLOADING
-import androidx.media3.exoplayer.offline.Download.STATE_QUEUED
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.jtech.zemer.LocalDatabase
@@ -304,14 +299,7 @@ fun SongListItem(
             Icon.Library()
         }
         if (showDownloadIcon) {
-            // Check database for downloaded status (persisted) or live download state (in-progress)
-            if (song.song.isDownloaded) {
-                Icon.Download(com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED)
-            } else {
-                val downloadState by LocalDownloadUtil.current.getMediaStoreDownload(song.id)
-                    .collectAsState(initial = null)
-                Icon.Download(downloadState?.status)
-            }
+            SongDownloadBadge(song.id, song.song.isDownloaded)
         }
     },
     isSelected: Boolean = false,
@@ -374,13 +362,7 @@ fun SongGridItem(
             Icon.Library()
         }
         if (showDownloadIcon) {
-            // Check database for downloaded status (persisted) or live download state (in-progress)
-            if (song.song.isDownloaded) {
-                Icon.Download(com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED)
-            } else {
-                val downloadState by LocalDownloadUtil.current.getMediaStoreDownload(song.id).collectAsState(initial = null)
-                Icon.Download(downloadState?.status)
-            }
+            SongDownloadBadge(song.id, song.song.isDownloaded)
         }
     },
     isActive: Boolean = false,
@@ -500,47 +482,43 @@ fun ArtistGridItem(
     modifier = modifier
 )
 
+/**
+ * The standard library badges for an album row — bookmarked / explicit / aggregate download state
+ * (downloaded when every track is, downloading when any is). Single source of truth shared by the
+ * library album rows and any other surface that renders an album (e.g. the Latest Releases rows).
+ */
+@Composable
+fun RowScope.AlbumBadges(
+    album: Album,
+    showLikedIcon: Boolean = true,
+) {
+    val database = LocalDatabase.current
+
+    val songs by produceState(initialValue = emptyList(), album.id) {
+        withContext(Dispatchers.IO) {
+            value = database.albumSongs(album.id).first()
+        }
+    }
+
+    val downloadStatus = rememberAggregateDownloadStatus(songs)
+    val downloadProgress = rememberAggregateDownloadProgress(songs)
+
+    if (showLikedIcon && album.album.bookmarkedAt != null) {
+        Icon.Favorite()
+    }
+    if (album.album.explicit) {
+        Icon.Explicit()
+    }
+    DownloadStatusIcon(downloadStatus, downloadProgress)
+}
+
 @Composable
 fun AlbumListItem(
     album: Album,
     modifier: Modifier = Modifier,
     showLikedIcon: Boolean = true,
-    @SuppressLint("AutoboxingStateCreation") badges: @Composable RowScope.() -> Unit = {
-        val downloadUtil = LocalDownloadUtil.current
-        val database = LocalDatabase.current
-
-        val songs by produceState(initialValue = emptyList(), album.id) {
-            withContext(Dispatchers.IO) {
-                value = database.albumSongs(album.id).first()
-            }
-        }
-
-        val allMediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
-
-        val downloadState by remember(songs, allMediaStoreDownloads) {
-            mutableStateOf(
-                if (songs.isEmpty()) {
-                    Download.STATE_STOPPED
-                } else {
-                    when {
-                        songs.all { allMediaStoreDownloads[it.id]?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED } -> STATE_COMPLETED
-                        songs.any { allMediaStoreDownloads[it.id]?.status in listOf(
-                            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED,
-                            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING
-                        ) } -> STATE_DOWNLOADING
-                        else -> Download.STATE_STOPPED
-                    }
-                }
-            )
-        }
-
-        if (showLikedIcon && album.album.bookmarkedAt != null) {
-            Icon.Favorite()
-        }
-        if (album.album.explicit) {
-            Icon.Explicit()
-        }
-        Icon.Download(downloadState)
+    badges: @Composable RowScope.() -> Unit = {
+        AlbumBadges(album = album, showLikedIcon = showLikedIcon)
     },
     isActive: Boolean = false,
     isPlaying: Boolean = false,
@@ -572,7 +550,6 @@ fun AlbumGridItem(
     modifier: Modifier = Modifier,
     coroutineScope: CoroutineScope,
     badges: @Composable RowScope.() -> Unit = {
-        val downloadUtil = LocalDownloadUtil.current
         val database = LocalDatabase.current
 
         val songs by produceState(initialValue = emptyList(), album.id) {
@@ -581,24 +558,8 @@ fun AlbumGridItem(
             }
         }
 
-        val allMediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
-
-        val downloadState by remember(songs, allMediaStoreDownloads) {
-            mutableIntStateOf(
-                if (songs.isEmpty()) {
-                    Download.STATE_STOPPED
-                } else {
-                    when {
-                        songs.all { allMediaStoreDownloads[it.id]?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED } -> STATE_COMPLETED
-                        songs.any { allMediaStoreDownloads[it.id]?.status in listOf(
-                            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED,
-                            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING
-                        ) } -> STATE_DOWNLOADING
-                        else -> Download.STATE_STOPPED
-                    }
-                }
-            )
-        }
+        val downloadStatus = rememberAggregateDownloadStatus(songs)
+        val downloadProgress = rememberAggregateDownloadProgress(songs)
 
         if (album.album.bookmarkedAt != null) {
             Icon.Favorite()
@@ -606,7 +567,7 @@ fun AlbumGridItem(
         if (album.album.explicit) {
             Icon.Explicit()
         }
-        Icon.Download(downloadState)
+        DownloadStatusIcon(downloadStatus, downloadProgress)
     },
     isActive: Boolean = false,
     isPlaying: Boolean = false,
@@ -847,6 +808,11 @@ fun YouTubeListItem(
         val album by produceState<Album?>(initialValue = null, item.id) {
             if (item is AlbumItem) value = database.album(item.id).firstOrNull()
         }
+        val albumSongs by produceState(initialValue = emptyList<Song>(), item.id) {
+            if (item is AlbumItem) withContext(Dispatchers.IO) {
+                value = database.albumSongs(item.id).first()
+            }
+        }
 
         if ((item is SongItem && song?.song?.liked == true) ||
             (item is AlbumItem && album?.album?.bookmarkedAt != null)
@@ -857,9 +823,13 @@ fun YouTubeListItem(
         if (item is SongItem && song?.song?.inLibrary != null) {
             Icon.Library()
         }
-        if (item is SongItem) {
-            val download by LocalDownloadUtil.current.getDownload(item.id).collectAsState(null)
-            Icon.Download(download?.state)
+        when (item) {
+            is SongItem -> SongDownloadBadge(item.id, song?.song?.isDownloaded == true)
+            is AlbumItem -> DownloadStatusIcon(
+                rememberAggregateDownloadStatus(albumSongs),
+                rememberAggregateDownloadProgress(albumSongs),
+            )
+            else -> Unit
         }
     },
 ) {
@@ -923,6 +893,11 @@ fun YouTubeGridItem(
         val album by produceState<Album?>(initialValue = null, item.id) {
             if (item is AlbumItem) value = database.album(item.id).firstOrNull()
         }
+        val albumSongs by produceState(initialValue = emptyList<Song>(), item.id) {
+            if (item is AlbumItem) withContext(Dispatchers.IO) {
+                value = database.albumSongs(item.id).first()
+            }
+        }
 
         if (item is SongItem && song?.song?.liked == true ||
             item is AlbumItem && album?.album?.bookmarkedAt != null
@@ -931,9 +906,13 @@ fun YouTubeGridItem(
         }
         if (item.explicit) Icon.Explicit()
         if (item is SongItem && song?.song?.inLibrary != null) Icon.Library()
-        if (item is SongItem) {
-            val download by LocalDownloadUtil.current.getDownload(item.id).collectAsState(null)
-            Icon.Download(download?.state)
+        when (item) {
+            is SongItem -> SongDownloadBadge(item.id, song?.song?.isDownloaded == true)
+            is AlbumItem -> DownloadStatusIcon(
+                rememberAggregateDownloadStatus(albumSongs),
+                rememberAggregateDownloadProgress(albumSongs),
+            )
+            else -> Unit
         }
     },
     thumbnailRatio: Float = if (item is SongItem) 16f / 9 else 1f,
@@ -1576,46 +1555,8 @@ private object Icon {
         )
     }
 
-    @Composable
-    fun Download(state: Int?) {
-        when (state) {
-            STATE_COMPLETED -> Icon(
-                painter = painterResource(R.drawable.offline),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(18.dp)
-                    .padding(end = 2.dp)
-            )
-            STATE_QUEUED, STATE_DOWNLOADING -> CircularProgressIndicator(
-                strokeWidth = 2.dp,
-                modifier = Modifier
-                    .size(16.dp)
-                    .padding(end = 2.dp)
-            )
-            else -> { /* no icon */ }
-        }
-    }
-
-    @Composable
-    fun Download(status: com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status?) {
-        when (status) {
-            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> Icon(
-                painter = painterResource(R.drawable.offline),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(18.dp)
-                    .padding(end = 2.dp)
-            )
-            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED,
-            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING -> CircularProgressIndicator(
-                strokeWidth = 2.dp,
-                modifier = Modifier
-                    .size(16.dp)
-                    .padding(end = 2.dp)
-            )
-            else -> { /* no icon */ }
-        }
-    }
+    // Download badge lives in DownloadStatusUi.kt (DownloadStatusIcon / SongDownloadBadge) — the one
+    // place download/progress state is rendered, so it can't drift between surfaces.
 
     @Composable
     fun Explicit() {

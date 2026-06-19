@@ -1386,6 +1386,25 @@ class MusicService :
             ).setCacheWriteDataSinkFactory(null)
             .setFlags(FLAG_IGNORE_CACHE_ON_ERROR)
 
+    /** Whether the downloaded file at [uriString] actually opens. A genuinely-missing file (ENOENT /
+     *  null descriptor) returns false so playback can fall back to streaming instead of crashing; a
+     *  transient resolver error is treated as present (we don't want to stream a file that's really
+     *  there). We never delete the download here — the flag is the user's, not ours to silently drop. */
+    private fun downloadedFileOpens(uriString: String): Boolean =
+        try {
+            contentResolver.openFileDescriptor(uriString.toUri(), "r")?.use { true }
+                ?: run {
+                    Timber.w("Downloaded file probe returned null descriptor for uri=$uriString; will stream")
+                    false
+                }
+        } catch (e: java.io.FileNotFoundException) {
+            Timber.w("Downloaded file MISSING (FileNotFound) for uri=$uriString; will stream")
+            false
+        } catch (e: Exception) {
+            Timber.w(e, "Transient error probing downloaded file $uriString; treating as present")
+            true
+        }
+
     private fun createDataSourceFactory(): DataSource.Factory {
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
@@ -1398,9 +1417,14 @@ class MusicService :
                 database.song(mediaId).first()
             }
 
-            if (song?.song?.mediaStoreUri != null && dataSpec.position == 0L) {
+            // A downloaded song plays from its local MediaStore file (only at position 0, so we don't
+            // switch sources mid-stream when a download finishes during playback). If that file is
+            // genuinely gone, fall through to streaming instead of crashing with ENOENT — but DON'T
+            // delete the download flag (the file may reappear, e.g. an unmounted SD card).
+            val mediaStoreUri = song?.song?.mediaStoreUri
+            if (mediaStoreUri != null && dataSpec.position == 0L && downloadedFileOpens(mediaStoreUri)) {
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                return@Factory dataSpec.withUri(song.song.mediaStoreUri.toUri())
+                return@Factory dataSpec.withUri(mediaStoreUri.toUri())
             }
 
             if (downloadCache.isCached(

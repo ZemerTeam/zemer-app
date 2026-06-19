@@ -14,6 +14,10 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -25,7 +29,10 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.latestreleases.LatestReleaseCard
+import com.jtech.zemer.latestreleases.LatestReleaseFilter
+import com.jtech.zemer.latestreleases.applyFilter
 import com.jtech.zemer.latestreleases.shufflePlay
+import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.utils.backToMain
@@ -52,14 +59,29 @@ fun LatestReleasesScreen(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val releases by viewModel.releases.collectAsState()
     val lazyListState = rememberLazyListState()
+    var filter by rememberSaveable { mutableStateOf(LatestReleaseFilter.ALL) }
+    val visibleReleases = remember(releases, filter) { releases.applyFilter(filter) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             state = lazyListState,
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) {
+            // All / Albums / Songs filter — scrolls with the list so it never steals vertical space
+            // on small screens.
+            item(key = "filter") {
+                ChipsRow(
+                    chips = listOf(
+                        LatestReleaseFilter.ALL to stringResource(R.string.filter_all),
+                        LatestReleaseFilter.ALBUMS to stringResource(R.string.filter_albums),
+                        LatestReleaseFilter.SONGS to stringResource(R.string.filter_songs),
+                    ),
+                    currentValue = filter,
+                    onValueUpdate = { filter = it },
+                )
+            }
             items(
-                items = releases,
+                items = visibleReleases,
                 key = { it.browseId },
             ) { release ->
                 LatestReleaseCard(
@@ -75,10 +97,10 @@ fun LatestReleasesScreen(
         }
 
         HideOnScrollFAB(
-            visible = releases.isNotEmpty(),
+            visible = visibleReleases.isNotEmpty(),
             lazyListState = lazyListState,
             icon = R.drawable.shuffle,
-            onClick = { releases.shufflePlay(playerConnection, context.getString(R.string.latest_releases)) },
+            onClick = { visibleReleases.shufflePlay(playerConnection, context.getString(R.string.latest_releases)) },
         )
     }
 

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -24,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -35,7 +33,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.media3.exoplayer.offline.Download
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
@@ -43,6 +40,8 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.playback.DownloadMenuLogic
+import com.jtech.zemer.playback.DownloadStateResolver
 import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.ui.component.AlreadyInPlaylistDialog
 import com.jtech.zemer.ui.component.ArtistChoice
@@ -90,28 +89,7 @@ fun YouTubeAlbumMenu(
         }
     }
 
-    var downloadState by remember {
-        mutableIntStateOf(Download.STATE_STOPPED)
-    }
-
-    LaunchedEffect(album) {
-        val songs = album?.songs?.map { it.id } ?: return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
-            downloadState =
-                if (songs.all { downloads[it]?.state == Download.STATE_COMPLETED }) {
-                    Download.STATE_COMPLETED
-                } else if (songs.all {
-                        downloads[it]?.state == Download.STATE_QUEUED ||
-                                downloads[it]?.state == Download.STATE_DOWNLOADING ||
-                                downloads[it]?.state == Download.STATE_COMPLETED
-                    }
-                ) {
-                    Download.STATE_DOWNLOADING
-                } else {
-                    Download.STATE_STOPPED
-                }
-        }
-    }
+    val mediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
 
     var showChoosePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
@@ -320,54 +298,21 @@ fun YouTubeAlbumMenu(
                             onClick = { showReportDialog = true },
                         )
                     )
-                    add(
-                        when (downloadState) {
-                            Download.STATE_COMPLETED ->
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.offline), null, Modifier.size(24.dp)) },
-                                    title = {
-                                        Text(
-                                            text = stringResource(R.string.remove_download),
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    },
-                                    onClick = {
-                                        album?.songs?.forEach { song ->
-                                            coroutineScope.launch {
-                                                downloadUtil.removeDownload(song.id)
-                                            }
-                                        }
-                                    },
-                                )
-                            Download.STATE_QUEUED, Download.STATE_DOWNLOADING ->
-                                Material3MenuItemData(
-                                    icon = {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                    },
-                                    title = { Text(stringResource(R.string.downloading)) },
-                                    onClick = {
-                                        album?.songs?.forEach { song ->
-                                            coroutineScope.launch {
-                                                downloadUtil.removeDownload(song.id)
-                                            }
-                                        }
-                                    },
-                                )
-                            else ->
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
-                                    title = { Text(stringResource(R.string.action_download)) },
-                                    onClick = {
-                                        album?.songs?.forEach { song ->
-                                            downloadUtil.downloadToMediaStore(song)
-                                        }
-                                    },
-                                )
-                        }
-                    )
+                    val songs = album?.songs.orEmpty()
+                    val dlStatus = DownloadStateResolver.aggregateSongs(songs, mediaStoreDownloads)
+                    val dlProgress = DownloadStateResolver.aggregateProgress(songs, mediaStoreDownloads)
+                    val anyFailed = songs.any {
+                        mediaStoreDownloads[it.id]?.status ==
+                            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.FAILED
+                    }
+                    downloadMenuItem(
+                        kind = DownloadMenuLogic.collectionRow(dlStatus, anyFailed),
+                        progress = dlProgress,
+                        onDownload = { songs.forEach { downloadUtil.downloadToMediaStore(it) } },
+                        onCancel = { songs.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },
+                        onRetry = { songs.forEach { downloadUtil.retryMediaStoreDownload(it.id) } },
+                        onRemove = { coroutineScope.launch { songs.forEach { downloadUtil.removeDownload(it.id) } } },
+                    )?.let { add(it) }
                     albumItem.artists?.let { artists ->
                         add(
                             Material3MenuItemData(

@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +46,8 @@ import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.playback.DownloadMenuLogic
+import com.jtech.zemer.playback.DownloadStateResolver
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.AlbumListItem
 import com.jtech.zemer.ui.component.AlreadyInPlaylistDialog
@@ -88,31 +89,7 @@ fun AlbumMenu(
         }
     }
 
-    var mediaStoreDownloadState by remember {
-        mutableStateOf<AlbumMediaStoreDownloadStatus>(AlbumMediaStoreDownloadStatus.NotDownloaded)
-    }
-
-    LaunchedEffect(songs) {
-        if (songs.isEmpty()) return@LaunchedEffect
-        downloadUtil.getAllMediaStoreDownloads().collect { states ->
-            val songStates = songs.mapNotNull { states[it.id] }
-            mediaStoreDownloadState = when {
-                songStates.isEmpty() -> AlbumMediaStoreDownloadStatus.NotDownloaded
-                songStates.all { it.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED } ->
-                    AlbumMediaStoreDownloadStatus.Completed
-                songStates.any {
-                    it.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING ||
-                    it.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED
-                } -> {
-                    val totalProgress = songStates.sumOf { it.progress.toDouble() } / songs.size
-                    AlbumMediaStoreDownloadStatus.Downloading(totalProgress.toFloat())
-                }
-                songStates.any { it.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.FAILED } ->
-                    AlbumMediaStoreDownloadStatus.Failed
-                else -> AlbumMediaStoreDownloadStatus.NotDownloaded
-            }
-        }
-    }
+    val mediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
 
     var refetchIconDegree by remember { mutableFloatStateOf(0f) }
 
@@ -332,72 +309,20 @@ fun AlbumMenu(
                             onClick = { showChoosePlaylistDialog = true },
                         )
                     )
-                    add(
-                        when (mediaStoreDownloadState) {
-                            is AlbumMediaStoreDownloadStatus.Completed ->
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
-                                    title = {
-                                        Text(
-                                            text = stringResource(R.string.downloaded_to_device),
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    },
-                                    onClick = {
-                                        // TODO: Option to remove from MediaStore
-                                        onDismiss()
-                                    },
-                                )
-                            is AlbumMediaStoreDownloadStatus.Downloading -> {
-                                val progress = (mediaStoreDownloadState as AlbumMediaStoreDownloadStatus.Downloading).progress
-                                Material3MenuItemData(
-                                    icon = {
-                                        CircularProgressIndicator(
-                                            progress = { progress },
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                    },
-                                    title = { Text(text = stringResource(R.string.downloading_to_device)) },
-                                    description = { Text(text = "${(progress * 100).toInt()}%") },
-                                    onClick = {
-                                        songs.forEach { song ->
-                                            downloadUtil.cancelMediaStoreDownload(song.id)
-                                        }
-                                        onDismiss()
-                                    },
-                                )
-                            }
-                            is AlbumMediaStoreDownloadStatus.Failed ->
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.info), null, Modifier.size(24.dp)) },
-                                    title = {
-                                        Text(
-                                            text = stringResource(R.string.download_failed),
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    },
-                                    description = { Text(text = stringResource(R.string.retry_download)) },
-                                    onClick = {
-                                        songs.forEach { song ->
-                                            downloadUtil.retryMediaStoreDownload(song.id)
-                                        }
-                                        onDismiss()
-                                    },
-                                )
-                            AlbumMediaStoreDownloadStatus.NotDownloaded ->
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
-                                    title = { Text(text = stringResource(R.string.download_to_device)) },
-                                    onClick = {
-                                        songs.forEach { song ->
-                                            downloadUtil.downloadToMediaStore(song)
-                                        }
-                                        onDismiss()
-                                    },
-                                )
-                        }
-                    )
+                    val dlStatus = DownloadStateResolver.aggregateSongs(songs, mediaStoreDownloads)
+                    val dlProgress = DownloadStateResolver.aggregateProgress(songs, mediaStoreDownloads)
+                    val anyFailed = songs.any {
+                        mediaStoreDownloads[it.id]?.status ==
+                            com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.FAILED
+                    }
+                    downloadMenuItem(
+                        kind = DownloadMenuLogic.collectionRow(dlStatus, anyFailed),
+                        progress = dlProgress,
+                        onDownload = { songs.forEach { downloadUtil.downloadToMediaStore(it) } },
+                        onCancel = { songs.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },
+                        onRetry = { songs.forEach { downloadUtil.retryMediaStoreDownload(it.id) } },
+                        onRemove = { coroutineScope.launch { songs.forEach { downloadUtil.removeDownload(it.id) } } },
+                    )?.let { add(it) }
                     add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.artist), null, Modifier.size(24.dp)) },
@@ -441,11 +366,4 @@ fun AlbumMenu(
         }
 
     }
-}
-
-private sealed class AlbumMediaStoreDownloadStatus {
-    object NotDownloaded : AlbumMediaStoreDownloadStatus()
-    object Completed : AlbumMediaStoreDownloadStatus()
-    data class Downloading(val progress: Float) : AlbumMediaStoreDownloadStatus()
-    object Failed : AlbumMediaStoreDownloadStatus()
 }

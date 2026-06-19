@@ -1,0 +1,134 @@
+package com.jtech.zemer.playback
+
+import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.db.entities.SongEntity
+import com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState
+import com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+/**
+ * Locks down the one true download-state rule used by every badge/menu/header. The bug this guards
+ * against: surfaces that read only the live in-session map show "not downloaded" after a restart even
+ * though the persisted flag says the file is on disk — so [forSong] must treat the persisted flag as
+ * authoritative for DOWNLOADED.
+ */
+class DownloadStateResolverTest {
+
+    private fun live(status: Status, progress: Float = 0f) =
+        DownloadState(songId = "x", status = status, progress = progress)
+
+    private fun song(id: String, isDownloaded: Boolean) =
+        Song(song = SongEntity(id = id, title = id, isDownloaded = isDownloaded), artists = emptyList())
+
+    @Test
+    fun persistedFlag_aloneMeansDownloaded_evenWithNoLiveState() {
+        // The restart case: in-memory map is empty, but the DB says downloaded.
+        assertEquals(DownloadStatus.DOWNLOADED, DownloadStateResolver.forSong(isDownloaded = true, live = null))
+    }
+
+    @Test
+    fun liveCompleted_meansDownloaded_evenIfFlagNotYetPersisted() {
+        assertEquals(
+            DownloadStatus.DOWNLOADED,
+            DownloadStateResolver.forSong(isDownloaded = false, live = live(Status.COMPLETED)),
+        )
+    }
+
+    @Test
+    fun queuedOrDownloading_meansDownloading() {
+        assertEquals(DownloadStatus.DOWNLOADING, DownloadStateResolver.forSong(false, live(Status.QUEUED)))
+        assertEquals(DownloadStatus.DOWNLOADING, DownloadStateResolver.forSong(false, live(Status.DOWNLOADING)))
+    }
+
+    @Test
+    fun failedOrCancelledOrNone_meansNotDownloaded() {
+        assertEquals(DownloadStatus.NOT_DOWNLOADED, DownloadStateResolver.forSong(false, null))
+        assertEquals(DownloadStatus.NOT_DOWNLOADED, DownloadStateResolver.forSong(false, live(Status.FAILED)))
+        assertEquals(DownloadStatus.NOT_DOWNLOADED, DownloadStateResolver.forSong(false, live(Status.CANCELLED)))
+    }
+
+    @Test
+    fun aggregate_allDownloaded_isDownloaded() {
+        assertEquals(
+            DownloadStatus.DOWNLOADED,
+            DownloadStateResolver.aggregate(listOf(DownloadStatus.DOWNLOADED, DownloadStatus.DOWNLOADED)),
+        )
+    }
+
+    @Test
+    fun aggregate_anyNotDownloaded_isNotDownloaded() {
+        assertEquals(
+            DownloadStatus.NOT_DOWNLOADED,
+            DownloadStateResolver.aggregate(
+                listOf(DownloadStatus.DOWNLOADED, DownloadStatus.DOWNLOADING, DownloadStatus.NOT_DOWNLOADED),
+            ),
+        )
+    }
+
+    @Test
+    fun aggregate_mixOfDownloadedAndInProgress_isDownloading() {
+        assertEquals(
+            DownloadStatus.DOWNLOADING,
+            DownloadStateResolver.aggregate(listOf(DownloadStatus.DOWNLOADED, DownloadStatus.DOWNLOADING)),
+        )
+    }
+
+    @Test
+    fun aggregate_empty_isNotDownloaded() {
+        assertEquals(DownloadStatus.NOT_DOWNLOADED, DownloadStateResolver.aggregate(emptyList()))
+    }
+
+    @Test
+    fun aggregateSongs_persistedAlbumStaysDownloadedAfterRestart() {
+        // Two songs flagged downloaded in DB, live map empty (fresh launch) -> album reads DOWNLOADED.
+        val songs = listOf(song("a", true), song("b", true))
+        assertEquals(DownloadStatus.DOWNLOADED, DownloadStateResolver.aggregateSongs(songs, emptyMap()))
+    }
+
+    @Test
+    fun aggregateProgress_averagesDownloadedAsOneAndInProgressByFraction() {
+        val songs = listOf(song("a", true), song("b", false))
+        val live = mapOf("b" to live(Status.DOWNLOADING, progress = 0.5f))
+        // (1.0 + 0.5) / 2
+        assertEquals(0.75f, DownloadStateResolver.aggregateProgress(songs, live), 0.0001f)
+    }
+
+    @Test
+    fun aggregateProgress_empty_isZero() {
+        assertEquals(0f, DownloadStateResolver.aggregateProgress(emptyList(), emptyMap()), 0.0001f)
+    }
+
+    @Test
+    fun aggregateProgress_allDownloaded_isOne() {
+        val songs = listOf(song("a", true), song("b", true))
+        assertEquals(1f, DownloadStateResolver.aggregateProgress(songs, emptyMap()), 0.0001f)
+    }
+
+    @Test
+    fun aggregateProgress_noneDownloaded_isZero() {
+        val songs = listOf(song("a", false), song("b", false))
+        assertEquals(0f, DownloadStateResolver.aggregateProgress(songs, emptyMap()), 0.0001f)
+    }
+
+    @Test
+    fun aggregateSongs_failedMemberMakesCollectionNotDownloaded() {
+        // A FAILED song counts as NOT_DOWNLOADED for the aggregate (resolver maps FAILED -> not).
+        val songs = listOf(song("a", true), song("b", false))
+        val live = mapOf("b" to live(Status.FAILED))
+        assertEquals(DownloadStatus.NOT_DOWNLOADED, DownloadStateResolver.aggregateSongs(songs, live))
+    }
+
+    @Test
+    fun aggregateSongs_downloadedPlusDownloading_isDownloading() {
+        val songs = listOf(song("a", true), song("b", false))
+        val live = mapOf("b" to live(Status.DOWNLOADING, progress = 0.3f))
+        assertEquals(DownloadStatus.DOWNLOADING, DownloadStateResolver.aggregateSongs(songs, live))
+    }
+
+    @Test
+    fun forSong_failedButPersistedDownloaded_staysDownloaded() {
+        // Persisted flag wins over a stale live FAILED (the file is on disk).
+        assertEquals(DownloadStatus.DOWNLOADED, DownloadStateResolver.forSong(isDownloaded = true, live = live(Status.FAILED)))
+    }
+}

@@ -245,3 +245,28 @@ Rules for these and any new row component:
   scrolling on orientation/screen (e.g. `userScrollEnabled = !isPortrait`). Tall menus fit on the
   developer's device but overflow on shorter screens, larger font/display scale, or with a gesture
   nav bar; disabling scroll there makes the bottom items unreachable.
+
+## 12. Download state (one source of truth)
+
+Download/progress state is computed in exactly one place and read everywhere — never re-derived per
+surface. This is what keeps a downloaded album/song/playlist showing "Remove download" (and a live
+progress ring) identically in the library, Home, search rows, every menu and every header.
+
+- The rule lives in `playback/DownloadStateResolver.kt` (pure, unit-tested): a song is **DOWNLOADED**
+  when the persisted `SongEntity.isDownloaded` flag is set **OR** the live MediaStore state is
+  `COMPLETED`, **DOWNLOADING** when the live state is `QUEUED`/`DOWNLOADING`, else **NOT_DOWNLOADED**;
+  `aggregateSongs` / `aggregateProgress` extend that to a collection. The persisted flag is the only
+  thing that survives a process restart — the live `MediaStoreDownloadManager.downloadStates` map is
+  in-memory — so reading the live map *alone* is the bug that makes downloads "vanish" after relaunch.
+- The UI reads it through `ui/component/DownloadStatusUi.kt`: `rememberSongDownloadStatus`,
+  `rememberAggregateDownloadStatus`/`…Progress`, the `DownloadStatusIcon` badge, `SongDownloadBadge`
+  (the default song-row badge) and `AggregateDownloadButton` (the album/playlist header control, with
+  the D-pad focus border + determinate progress).
+- Menu rows are built by one decision (`playback/DownloadMenuLogic.kt`, unit-tested) + one builder
+  (`ui/menu/DownloadMenuItems.kt` `downloadMenuItem(...)`). Tapping a download row **never dismisses
+  the menu** — it animates Download → progress ring + "%" → Remove in place. Videos are handled by the
+  same path (`DownloadRowKind.DOWNLOAD_VIDEO`, hidden when videos are blocked).
+- The legacy ExoPlayer `DownloadUtil.downloads` / `getDownload()` map is dead (nothing writes it for
+  MediaStore downloads). **Do not read it, and do not hand-roll an `Icon.Download(`.** Enforcement:
+  `scripts/ui-audit.sh` rule `R13-download` (baselined at zero) fails CI on any new
+  `downloadUtil.downloads`, `.getDownload(` or `Icon.Download(` under `ui/`.

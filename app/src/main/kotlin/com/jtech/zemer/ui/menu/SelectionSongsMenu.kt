@@ -8,16 +8,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -29,7 +27,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
-import androidx.media3.exoplayer.offline.Download
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
@@ -41,8 +38,10 @@ import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.playback.DownloadMenuLogic
+import com.jtech.zemer.playback.DownloadStateResolver
+import com.jtech.zemer.playback.MediaStoreDownloadManager
 import com.jtech.zemer.playback.queues.ListQueue
-import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.NewAction
@@ -89,28 +88,7 @@ fun SelectionSongMenu(
         )
     }
 
-    var downloadState by remember {
-        mutableIntStateOf(Download.STATE_STOPPED)
-    }
-
-    LaunchedEffect(songSelection) {
-        if (songSelection.isEmpty()) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
-            downloadState =
-                if (songSelection.all { downloads[it.id]?.state == Download.STATE_COMPLETED }) {
-                    Download.STATE_COMPLETED
-                } else if (songSelection.all {
-                        downloads[it.id]?.state == Download.STATE_QUEUED ||
-                                downloads[it.id]?.state == Download.STATE_DOWNLOADING ||
-                                downloads[it.id]?.state == Download.STATE_COMPLETED
-                    }
-                ) {
-                    Download.STATE_DOWNLOADING
-                } else {
-                    Download.STATE_STOPPED
-                }
-        }
-    }
+    val mediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
 
     var showChoosePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
@@ -135,45 +113,6 @@ fun SelectionSongMenu(
             showChoosePlaylistDialog = false
         },
     )
-
-    var showRemoveDownloadDialog by remember {
-        mutableStateOf(false)
-    }
-
-    if (showRemoveDownloadDialog) {
-        DefaultDialog(
-            onDismiss = { showRemoveDownloadDialog = false },
-            content = {
-                Text(
-                    text = stringResource(R.string.remove_download_playlist_confirm, "selection"),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(horizontal = 18.dp),
-                )
-            },
-            buttons = {
-                TextButton(
-                    onClick = {
-                        showRemoveDownloadDialog = false
-                    },
-                ) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-
-                TextButton(
-                    onClick = {
-                        showRemoveDownloadDialog = false
-                        songSelection.forEach { song ->
-                            coroutineScope.launch {
-                                downloadUtil.removeDownload(song.song.id)
-                            }
-                        }
-                    },
-                ) {
-                    Text(text = stringResource(android.R.string.ok))
-                }
-            },
-        )
-    }
 
     val reportTarget = targetSong
     if (showReportDialog && reportTarget != null) {
@@ -387,42 +326,27 @@ fun SelectionSongMenu(
                             },
                         )
                     )
-                    add(
-                        when (downloadState) {
-                            Download.STATE_COMPLETED ->
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.offline), null, Modifier.size(24.dp)) },
-                                    title = {
-                                        Text(
-                                            stringResource(R.string.remove_download),
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    },
-                                    onClick = { showRemoveDownloadDialog = true },
-                                )
-                            Download.STATE_QUEUED, Download.STATE_DOWNLOADING ->
-                                Material3MenuItemData(
-                                    icon = {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 2.dp,
-                                        )
-                                    },
-                                    title = { Text(stringResource(R.string.downloading)) },
-                                    onClick = { showRemoveDownloadDialog = true },
-                                )
-                            else ->
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
-                                    title = { Text(stringResource(R.string.action_download)) },
-                                    onClick = {
-                                        songSelection.forEach { song ->
-                                            downloadUtil.downloadToMediaStore(song)
-                                        }
-                                    },
-                                )
+                    // Unified download row: persisted-or-live aggregate state + live progress, menu
+                    // stays open so it animates Download -> progress -> Remove. (DownloadMenuItems.kt)
+                    run {
+                        val dlStatus = DownloadStateResolver.aggregateSongs(songSelection, mediaStoreDownloads)
+                        val dlProgress = DownloadStateResolver.aggregateProgress(songSelection, mediaStoreDownloads)
+                        val anyFailed = songSelection.any {
+                            mediaStoreDownloads[it.id]?.status == MediaStoreDownloadManager.DownloadState.Status.FAILED
                         }
-                    )
+                        downloadMenuItem(
+                            kind = DownloadMenuLogic.collectionRow(dlStatus, anyFailed),
+                            progress = dlProgress,
+                            onDownload = { songSelection.forEach { downloadUtil.downloadToMediaStore(it) } },
+                            onCancel = { songSelection.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },
+                            onRetry = { songSelection.forEach { downloadUtil.retryMediaStoreDownload(it.id) } },
+                            onRemove = {
+                                coroutineScope.launch {
+                                    songSelection.forEach { downloadUtil.removeDownload(it.id) }
+                                }
+                            },
+                        )?.let { add(it) }
+                    }
                     add(
                         Material3MenuItemData(
                             icon = {
@@ -519,66 +443,16 @@ fun SelectionMediaMetadataMenu(
         onDismiss = { showChoosePlaylistDialog = false }
     )
 
-    var downloadState by remember {
-        mutableIntStateOf(Download.STATE_STOPPED)
-    }
+    val mediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
 
-    LaunchedEffect(songSelection) {
-        if (songSelection.isEmpty()) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
-            downloadState =
-                if (songSelection.all { downloads[it.id]?.state == Download.STATE_COMPLETED }) {
-                    Download.STATE_COMPLETED
-                } else if (songSelection.all {
-                        downloads[it.id]?.state == Download.STATE_QUEUED ||
-                                downloads[it.id]?.state == Download.STATE_DOWNLOADING ||
-                                downloads[it.id]?.state == Download.STATE_COMPLETED
-                    }
-                ) {
-                    Download.STATE_DOWNLOADING
-                } else {
-                    Download.STATE_STOPPED
-                }
-        }
-    }
-
-    var showRemoveDownloadDialog by remember {
-        mutableStateOf(false)
-    }
-
-    if (showRemoveDownloadDialog) {
-        DefaultDialog(
-            onDismiss = { showRemoveDownloadDialog = false },
-            content = {
-                Text(
-                    text = stringResource(R.string.remove_download_playlist_confirm, "selection"),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(horizontal = 18.dp),
-                )
-            },
-            buttons = {
-                TextButton(
-                    onClick = {
-                        showRemoveDownloadDialog = false
-                    },
-                ) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-
-                TextButton(
-                    onClick = {
-                        showRemoveDownloadDialog = false
-                        songSelection.forEach { song ->
-                            coroutineScope.launch {
-                                downloadUtil.removeDownload(song.id)
-                            }
-                        }
-                    },
-                ) {
-                    Text(text = stringResource(android.R.string.ok))
-                }
-            },
-        )
+    // The selection is online MediaMetadata; load the persisted Room rows so the aggregate state can
+    // honor songs downloaded in a previous session (which aren't in the live session map).
+    val selectionIds = songSelection.map { it.id }
+    val dbSongs by produceState(
+        initialValue = emptyList<com.jtech.zemer.db.entities.Song>(),
+        key1 = selectionIds,
+    ) {
+        value = database.getSongsByIds(selectionIds)
     }
 
     LazyColumn(
@@ -690,45 +564,34 @@ fun SelectionMediaMetadataMenu(
                             },
                         )
                     )
-                    add(
-                        when (downloadState) {
-                            Download.STATE_COMPLETED ->
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.offline), null, Modifier.size(24.dp)) },
-                                    title = {
-                                        Text(
-                                            stringResource(R.string.remove_download),
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    },
-                                    onClick = { showRemoveDownloadDialog = true },
-                                )
-                            Download.STATE_QUEUED, Download.STATE_DOWNLOADING ->
-                                Material3MenuItemData(
-                                    icon = {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 2.dp,
-                                        )
-                                    },
-                                    title = { Text(stringResource(R.string.downloading)) },
-                                    onClick = { showRemoveDownloadDialog = true },
-                                )
-                            else ->
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
-                                    title = { Text(stringResource(R.string.action_download)) },
-                                    onClick = {
-                                        coroutineScope.launch(Dispatchers.IO) {
-                                            songSelection.forEach { mediaMetadata ->
-                                                val song = database.song(mediaMetadata.id).first()
-                                                song?.let { downloadUtil.downloadToMediaStore(it) }
-                                            }
-                                        }
-                                    },
-                                )
+                    // Unified download row: aggregate over the persisted Room rows + live progress,
+                    // menu stays open so it animates Download -> progress -> Remove. (DownloadMenuItems.kt)
+                    run {
+                        val dlStatus = DownloadStateResolver.aggregateSongs(dbSongs, mediaStoreDownloads)
+                        val dlProgress = DownloadStateResolver.aggregateProgress(dbSongs, mediaStoreDownloads)
+                        val anyFailed = songSelection.any {
+                            mediaStoreDownloads[it.id]?.status == MediaStoreDownloadManager.DownloadState.Status.FAILED
                         }
-                    )
+                        downloadMenuItem(
+                            kind = DownloadMenuLogic.collectionRow(dlStatus, anyFailed),
+                            progress = dlProgress,
+                            onDownload = {
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    songSelection.forEach { mediaMetadata ->
+                                        val song = database.song(mediaMetadata.id).first()
+                                        song?.let { downloadUtil.downloadToMediaStore(it) }
+                                    }
+                                }
+                            },
+                            onCancel = { songSelection.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },
+                            onRetry = { songSelection.forEach { downloadUtil.retryMediaStoreDownload(it.id) } },
+                            onRemove = {
+                                coroutineScope.launch {
+                                    songSelection.forEach { downloadUtil.removeDownload(it.id) }
+                                }
+                            },
+                        )?.let { add(it) }
+                    }
                 },
             )
         }
