@@ -35,8 +35,8 @@ Run it with the app's unit tests:
 ## JVM unit test — the tap decision (`app/src/test/.../latestreleases/LatestReleasePlaybackTest.kt`)
 
 Pure JVM (no player, no Android runtime). Pins `LatestRelease.playableSingle()` (the heart of
-`openOrPlay`) and `isPlayableSingle()` (which drives both the tap and the centred play icon) — doc
-05. Five cases:
+`openOrPlay`), `isPlayableSingle()` (which drives both the tap and the centred play icon) and
+`isNowPlaying()` (the card's active state) — doc 05. Eight cases:
 
 | Test | Pins |
 |---|---|
@@ -45,6 +45,9 @@ Pure JVM (no player, no Android runtime). Pins `LatestRelease.playableSingle()` 
 | `a single with no videoId cannot be played (opens the album)` | `trackCount == 1` but null/blank `sampleVideoId` -> `null`. |
 | `an older feed entry with no track count opens the album` | `trackCount == null` -> `null`. |
 | `isPlayableSingle drives the centred play icon and agrees with what plays on tap` | `isPlayableSingle()` is true only for a playable single, and equals `playableSingle() != null` — so the centred icon never promises playback the tap won't deliver. |
+| `a single is active when its videoId is the current track (not via album id)` | a single matches on `mediaMetadata.id == sampleVideoId` (it carries no album), so a plain album-id check would never light. |
+| `an album release is active when a track from that album (browseId) is playing` | an album matches on `mediaMetadata.album.id == browseId`. |
+| `the metadata a single actually plays makes its own card active` | feeding `playableSingle()` straight back into `isNowPlaying()` returns true — the regression guard for the bug fixed in this iteration. |
 
 ```bash
 ./gradlew :app:testDebugUnitTest --tests "*LatestReleasePlaybackTest"

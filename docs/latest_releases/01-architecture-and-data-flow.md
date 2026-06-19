@@ -49,9 +49,10 @@ and two UI screens:
     +--> LatestReleasesScreen ("See all": full list -> LazyColumn of YouTubeListItem rows)
 ```
 
-The two render paths share **one** ViewModel instance per their `hiltViewModel()` scopes (each
-obtains a `LatestReleasesViewModel`; the store underneath is a process-wide `object`, so the
-cached feed and the once-per-launch refresh are shared regardless).
+The two render paths use **separate** `LatestReleasesViewModel` instances (each `hiltViewModel()`
+call resolves in its own nav scope), but the store underneath is a process-wide `object`, so the
+cached feed and the refresh are shared regardless — opening "See all" reuses the cache (a
+conditional refresh, not a fresh fetch).
 
 ## The "never break the rest of the UI" contract
 

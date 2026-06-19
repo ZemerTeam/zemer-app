@@ -40,24 +40,29 @@ Two emissions in the common case:
 All on `Dispatchers.IO` (network + DB-backed filtering). If the cache is empty, only the second
 emission happens, and it may be empty (server unreachable + no cache) — a valid state.
 
-### `filterReleases` — the whitelist re-filter (`:55-62`)
+### `filterReleases` — the whitelist re-filter (`:61-68`)
 
 ```kotlin
 private suspend fun filterReleases(releases: List<LatestRelease>): List<LatestRelease> {
     if (releases.isEmpty()) return emptyList()
-    val byBrowseId = releases.associateBy { it.browseId }
-    return releases.map { it.toAlbumItem() }
+    val unique = releases.distinctBy { it.browseId }
+    val byBrowseId = unique.associateBy { it.browseId }
+    return unique.map { it.toAlbumItem() }
         .filterWhitelisted(database)
         .mapNotNull { byBrowseId[(it as? AlbumItem)?.browseId] }
 }
 ```
 
-Three steps:
+Four steps:
 
-1. Map each `LatestRelease` to an `AlbumItem` (`toAlbumItem`, below).
-2. Run the list through `filterWhitelisted(database)` — the **same** filter every other surface
+1. De-duplicate by `browseId` (`distinctBy`, keeping the first/newest occurrence). The feed is
+   external and may list one album under more than one whitelisted artist, and `browseId` is the
+   Compose list key on both surfaces — a duplicate would otherwise crash the list with a
+   "key already used" error.
+2. Map each surviving `LatestRelease` to an `AlbumItem` (`toAlbumItem`, below).
+3. Run the list through `filterWhitelisted(database)` — the **same** filter every other surface
    uses (`utils/WhitelistFilter.kt:149`).
-3. Map the surviving `AlbumItem`s back to their original `LatestRelease`s by `browseId`,
+4. Map the surviving `AlbumItem`s back to their original `LatestRelease`s by `browseId`,
    **preserving the feed's newest-first order** (`.mapNotNull` walks the filtered list in order).
 
 This is why per-user content preferences apply identically here: there is no bespoke filtering;
