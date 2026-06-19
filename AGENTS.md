@@ -105,6 +105,42 @@ transport buttons reuse `TransportSkipButton` + the accent focus border; new D-p
 `Modifier.focusBorder()`. `scripts/ui-audit.sh` ratchets raw `Modifier.blur(` in `ui/` (R12) — route
 player blur through the effective style.
 
+### The download system (ONE unified path — never fork it)
+
+Downloads go **exclusively** through `MediaStoreDownloadManager` (file saved to MediaStore, durable
+truth is `SongEntity.isDownloaded` + `mediaStoreUri`; live progress in its in-memory `downloadStates`).
+The legacy ExoPlayer download map (`DownloadUtil.downloads` / `getDownload()`) is **dead** for
+status — nothing the UI reads should touch it.
+
+Every download/progress affordance reads ONE path; do not re-implement per surface:
+- **State (pure, tested):** `playback/DownloadStateResolver.kt` — `forSong`/`aggregateSongs`/
+  `aggregateByIds` combine persisted `isDownloaded` **OR** live MediaStore state (so a download
+  survives a process restart — reading the live map *alone* is the bug that makes downloads "vanish"
+  after relaunch). `songProgress`/`aggregateProgress[ByIds]` for the progress fraction.
+- **UI:** `ui/component/DownloadStatusUi.kt` — `rememberSongDownloadStatus/Progress`,
+  `SongDownloadBadge` (default song-row badge), `AggregateDownloadButton` (album/playlist header),
+  `DownloadStatusIcon`.
+- **Menu rows:** `ui/menu/DownloadMenuItems.kt` `downloadMenuItem(...)`, decided by
+  `playback/DownloadMenuLogic.kt` (`songRow`/`collectionRow`, pure + tested). A download row **never
+  dismisses the menu** (it animates Download → progress → Remove in place). Videos use the same path
+  (`DOWNLOAD_VIDEO`, hidden when videos blocked).
+- **Downloading a collection** whose songs load async (online album/playlist menus): resolve/fetch the
+  songs **at click time** (fetch-if-empty) so the first tap downloads — a captured-empty list is the
+  "press once does nothing, twice works" bug. For online items aggregate by videoId
+  (`aggregateByIds`) so progress animates without Room entities.
+- **Playback of a downloaded file** (`MusicService.createDataSourceFactory`): use the local file when
+  it opens; if it's genuinely gone, **stream this play AND re-enqueue a download to self-repair** —
+  never crash with ENOENT, and never silently delete the `isDownloaded` flag (that makes downloads
+  vanish from the Downloaded playlist).
+
+Enforcement (so this can't regress): `scripts/check-download-unification.sh` (whole-app, wired into
+the UI-audit workflow) + `scripts/ui-audit.sh` rule **R13** fail CI on any `downloadUtil.downloads` /
+`getDownload(` read, any `Download.STATE_*` outside the legacy infra (`DownloadUtil.kt` /
+`ExoDownloadService.kt`), or any per-surface `Icon.Download(`. Full rules: `docs/ui/standards.md §12`.
+When you touch downloads run both scripts and add pure regression tests next to the resolver/menu
+logic (the manager/playback layer needs Robolectric, which the project does not have — say so rather
+than skip silently).
+
 ### tests/ — the hard-data streaming harness
 
 Node ≥20 scripts (deps vendored in `tests/node_modules`, no install needed) that reproduce the app's *exact* stream path (same `/player` request as `InnerTube.kt`, same cipher run in jsdom, same poTokens) against the live CDN — so playback is measured, not guessed. Needs `innertube_cookie.txt` at the repo root (a dumped logged-in session; **gitignored**, never commit).

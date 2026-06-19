@@ -1418,13 +1418,27 @@ class MusicService :
             }
 
             // A downloaded song plays from its local MediaStore file (only at position 0, so we don't
-            // switch sources mid-stream when a download finishes during playback). If that file is
-            // genuinely gone, fall through to streaming instead of crashing with ENOENT — but DON'T
-            // delete the download flag (the file may reappear, e.g. an unmounted SD card).
+            // switch sources mid-stream when a download finishes during playback).
             val mediaStoreUri = song?.song?.mediaStoreUri
-            if (mediaStoreUri != null && dataSpec.position == 0L && downloadedFileOpens(mediaStoreUri)) {
-                scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                return@Factory dataSpec.withUri(mediaStoreUri.toUri())
+            if (mediaStoreUri != null && dataSpec.position == 0L) {
+                if (downloadedFileOpens(mediaStoreUri)) {
+                    scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
+                    return@Factory dataSpec.withUri(mediaStoreUri.toUri())
+                }
+                // The file is gone (a stale "downloaded" row — e.g. from an interrupted download or an
+                // older build that deleted the file). Self-repair: re-download it so it's local again
+                // next time, and stream THIS play instead of crashing with ENOENT. We don't clear the
+                // flag (no vanishing); the re-download replaces the dead URI on success. The manager
+                // no-ops if a download for this id is already active/complete, so this can't loop.
+                Timber.w("Downloaded file missing for $mediaId; re-downloading to self-repair and streaming this play")
+                song?.let { stale ->
+                    scope.launch(Dispatchers.IO) {
+                        runCatching {
+                            if (stale.song.isVideo) downloadUtil.downloadVideoToMediaStore(stale)
+                            else downloadUtil.downloadToMediaStore(stale)
+                        }
+                    }
+                }
             }
 
             if (downloadCache.isCached(
