@@ -178,11 +178,17 @@ fun YouTubePlaylistMenu(
     HorizontalDivider()
 
     val mediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
+    // The playlist may be opened without its tracks loaded (e.g. the Home long-press menu passes no
+    // songs) — fetch them so the Download row appears and downloads the whole playlist.
+    val resolvedSongs by produceState(initialValue = songs, songs, playlist.id) {
+        value = if (songs.isNotEmpty()) songs
+        else YouTube.playlist(playlist.id).getOrNull()?.songs.orEmpty()
+    }
     val dbSongs by produceState(
         initialValue = emptyList<com.jtech.zemer.db.entities.Song>(),
-        songs,
+        resolvedSongs,
     ) {
-        value = database.getSongsByIds(songs.map { it.id })
+        value = database.getSongsByIds(resolvedSongs.map { it.id })
     }
     var showRemoveDownloadDialog by remember {
         mutableStateOf(false)
@@ -406,12 +412,12 @@ fun YouTubePlaylistMenu(
                             },
                         )
                     )
-                    if (songs.isNotEmpty()) {
+                    if (resolvedSongs.isNotEmpty()) {
                         // Aggregate by videoId off the LIVE map so progress animates during download
                         // (online SongItems aren't Room entities yet, so a one-shot dbSongs snapshot
                         // stays empty/stale and never showed progress). Persisted-downloaded comes from
                         // the dbSongs snapshot for the across-restart "downloaded" state.
-                        val ids = songs.map { it.id }
+                        val ids = resolvedSongs.map { it.id }
                         val persistedDownloaded = dbSongs.filter { it.song.isDownloaded }.map { it.id }.toSet()
                         val dlStatus = DownloadStateResolver.aggregateByIds(ids, mediaStoreDownloads, persistedDownloaded)
                         val dlProgress = DownloadStateResolver.aggregateProgressByIds(ids, mediaStoreDownloads, persistedDownloaded)
@@ -425,7 +431,7 @@ fun YouTubePlaylistMenu(
                             onDownload = {
                                 // Online SongItems aren't Room entities yet — persist each, then download.
                                 coroutineScope.launch(Dispatchers.IO) {
-                                    songs.forEach { song ->
+                                    resolvedSongs.forEach { song ->
                                         database.transaction {
                                             insert(song.toMediaMetadata())
                                         }
@@ -435,8 +441,8 @@ fun YouTubePlaylistMenu(
                                     }
                                 }
                             },
-                            onCancel = { songs.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },
-                            onRetry = { songs.forEach { downloadUtil.retryMediaStoreDownload(it.id) } },
+                            onCancel = { resolvedSongs.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },
+                            onRetry = { resolvedSongs.forEach { downloadUtil.retryMediaStoreDownload(it.id) } },
                             onRemove = { showRemoveDownloadDialog = true },
                         )?.let { add(it) }
                     }
