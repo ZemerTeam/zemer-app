@@ -407,10 +407,16 @@ fun YouTubePlaylistMenu(
                         )
                     )
                     if (songs.isNotEmpty()) {
-                        val dlStatus = DownloadStateResolver.aggregateSongs(dbSongs, mediaStoreDownloads)
-                        val dlProgress = DownloadStateResolver.aggregateProgress(dbSongs, mediaStoreDownloads)
-                        val anyFailed = dbSongs.any {
-                            mediaStoreDownloads[it.id]?.status ==
+                        // Aggregate by videoId off the LIVE map so progress animates during download
+                        // (online SongItems aren't Room entities yet, so a one-shot dbSongs snapshot
+                        // stays empty/stale and never showed progress). Persisted-downloaded comes from
+                        // the dbSongs snapshot for the across-restart "downloaded" state.
+                        val ids = songs.map { it.id }
+                        val persistedDownloaded = dbSongs.filter { it.song.isDownloaded }.map { it.id }.toSet()
+                        val dlStatus = DownloadStateResolver.aggregateByIds(ids, mediaStoreDownloads, persistedDownloaded)
+                        val dlProgress = DownloadStateResolver.aggregateProgressByIds(ids, mediaStoreDownloads, persistedDownloaded)
+                        val anyFailed = ids.any {
+                            mediaStoreDownloads[it]?.status ==
                                 com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.FAILED
                         }
                         downloadMenuItem(

@@ -131,4 +131,35 @@ class DownloadStateResolverTest {
         // Persisted flag wins over a stale live FAILED (the file is on disk).
         assertEquals(DownloadStatus.DOWNLOADED, DownloadStateResolver.forSong(isDownloaded = true, live = live(Status.FAILED)))
     }
+
+    // ---- id-based (online album/playlist menus) ----
+
+    @Test
+    fun aggregateByIds_showsDownloadingFromLiveMapWithoutDbEntities() {
+        // The bug: online playlist progress was computed over an empty/stale dbSongs snapshot, so it
+        // never moved. By id off the live map it must reflect in-progress downloads.
+        val ids = listOf("a", "b")
+        val liveMap = mapOf(
+            "a" to live(Status.DOWNLOADING, progress = 0.4f),
+            "b" to live(Status.DOWNLOADING, progress = 0.6f),
+        )
+        assertEquals(DownloadStatus.DOWNLOADING, DownloadStateResolver.aggregateByIds(ids, liveMap, emptySet()))
+        assertEquals(0.5f, DownloadStateResolver.aggregateProgressByIds(ids, liveMap, emptySet()), 0.0001f)
+    }
+
+    @Test
+    fun aggregateByIds_persistedDownloadedCountsAsDownloaded() {
+        val ids = listOf("a", "b")
+        assertEquals(
+            DownloadStatus.DOWNLOADED,
+            DownloadStateResolver.aggregateByIds(ids, emptyMap(), persistedDownloaded = setOf("a", "b")),
+        )
+        assertEquals(1f, DownloadStateResolver.aggregateProgressByIds(ids, emptyMap(), setOf("a", "b")), 0.0001f)
+    }
+
+    @Test
+    fun aggregateByIds_empty_isNotDownloaded() {
+        assertEquals(DownloadStatus.NOT_DOWNLOADED, DownloadStateResolver.aggregateByIds(emptyList(), emptyMap(), emptySet()))
+        assertEquals(0f, DownloadStateResolver.aggregateProgressByIds(emptyList(), emptyMap(), emptySet()), 0.0001f)
+    }
 }

@@ -56,6 +56,7 @@ import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -308,7 +309,21 @@ fun YouTubeAlbumMenu(
                     downloadMenuItem(
                         kind = DownloadMenuLogic.collectionRow(dlStatus, anyFailed),
                         progress = dlProgress,
-                        onDownload = { songs.forEach { downloadUtil.downloadToMediaStore(it) } },
+                        // Fetch-if-empty: the album loads async, so a first tap before it arrived used
+                        // to be a no-op ("press once does nothing, twice works"). Resolve the songs at
+                        // click time, fetching the album page if the DB doesn't have it yet.
+                        onDownload = {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                var toDownload = database.albumWithSongs(albumItem.id).first()?.songs.orEmpty()
+                                if (toDownload.isEmpty()) {
+                                    YouTube.album(albumItem.id)
+                                        .onSuccess { page -> database.transaction { insert(page) } }
+                                        .onFailure { reportException(it) }
+                                    toDownload = database.albumWithSongs(albumItem.id).first()?.songs.orEmpty()
+                                }
+                                toDownload.forEach { downloadUtil.downloadToMediaStore(it) }
+                            }
+                        },
                         onCancel = { songs.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },
                         onRetry = { songs.forEach { downloadUtil.retryMediaStoreDownload(it.id) } },
                         onRemove = { coroutineScope.launch { songs.forEach { downloadUtil.removeDownload(it.id) } } },

@@ -54,6 +54,35 @@ object DownloadStateResolver {
         aggregate(songs.map { forSong(it, live) })
 
     /**
+     * Status of a song known only by id (online items not necessarily in the DB): persisted-downloaded
+     * comes from [persistedDownloaded], live progress/queued from [live]. Lets online album/playlist
+     * menus show live download progress keyed by videoId without holding Room entities.
+     */
+    fun statusForId(id: String, live: Map<String, DownloadState>, persistedDownloaded: Set<String>): DownloadStatus =
+        forSong(id in persistedDownloaded, live[id])
+
+    fun aggregateByIds(
+        ids: List<String>,
+        live: Map<String, DownloadState>,
+        persistedDownloaded: Set<String>,
+    ): DownloadStatus = aggregate(ids.map { statusForId(it, live, persistedDownloaded) })
+
+    fun aggregateProgressByIds(
+        ids: List<String>,
+        live: Map<String, DownloadState>,
+        persistedDownloaded: Set<String>,
+    ): Float {
+        if (ids.isEmpty()) return 0f
+        return ids.map { id ->
+            when (statusForId(id, live, persistedDownloaded)) {
+                DownloadStatus.DOWNLOADED -> 1f
+                DownloadStatus.DOWNLOADING -> live[id]?.progress ?: 0f
+                DownloadStatus.NOT_DOWNLOADED -> 0f
+            }
+        }.average().toFloat().coerceIn(0f, 1f)
+    }
+
+    /**
      * Fraction (0..1) of a collection that is on disk, for an aggregate progress bar: a downloaded
      * song counts as 1, an in-progress song as its live [DownloadState.progress], everything else 0.
      * Returns 0 for an empty collection.
