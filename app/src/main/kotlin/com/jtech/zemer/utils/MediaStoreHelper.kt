@@ -435,10 +435,18 @@ class MediaStoreHelper(private val context: Context) {
 
                             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                             val id = cursor.getLong(idColumn)
-                            Uri.withAppendedPath(
+                            val candidate = Uri.withAppendedPath(
                                 MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
                                 id.toString()
                             )
+                            // The size column can lie for a stale entry whose backing file is gone — if
+                            // we returned that, the song would be marked "downloaded" while pointing at a
+                            // missing file (no real download, then ENOENT/streaming on play). Only treat
+                            // it as existing if it actually opens.
+                            val opens = runCatching {
+                                context.contentResolver.openFileDescriptor(candidate, "r")?.use { true } ?: false
+                            }.getOrDefault(false)
+                            if (opens) candidate else null
                         } else {
                             null
                         }
