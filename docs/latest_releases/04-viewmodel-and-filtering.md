@@ -102,11 +102,13 @@ fun LatestRelease.relativeDateLabel(now: Long = System.currentTimeMillis()): Str
 - Parses the ISO-8601 `uploadDate` and formats it via Android's `DateUtils` as a **localized**
   relative span ("2 days ago", "Yesterday", "Today"). Using `DateUtils` means **no new string
   resources** are needed (`:6-9` KDoc).
-- On an unparseable date it returns `null`, and the card simply omits the line (the card's
-  `subtitleOverride` is null -> the default subtitle shows; see doc 05).
+- On an unparseable date it returns `null`. The card subtitle is
+  `joinByBullet(artistName, relativeDateLabel)`, and `joinByBullet` drops null/empty parts
+  (`utils/StringUtils.kt:27`), so a null date degrades the line to **just the artist name**
+  (it does not fall back to the default `AlbumItem` subtitle; see doc 05).
 - `now` is a parameter (defaulting to the system clock) so the formatting is deterministic in a
   test if needed.
 
 The UI memoizes this per `browseId` so it is computed once per card
 (`HomeScreen.kt`: `remember(release.browseId) { release.relativeDateLabel() }`;
-`LatestReleasesScreen.kt:63`).
+`LatestReleasesScreen.kt:68`).

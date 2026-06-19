@@ -332,12 +332,12 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/re-deep.mjs` | 78 lines | text `.mjs` |
 | `tests/re-ios.mjs` | 68 lines | text `.mjs` |
 | `tests/re-oauth.mjs` | 115 lines | text `.mjs` |
-| `tests/recent-releases/README.md` | 58 lines | text `.md` |
-| `tests/recent-releases/build-feed.mjs` | 144 lines | text `.mjs` |
-| `tests/recent-releases/lib.mjs` | 227 lines | text `.mjs` |
+| `tests/recent-releases/README.md` | 62 lines | text `.md` |
+| `tests/recent-releases/build-feed.mjs` | 145 lines | text `.mjs` |
+| `tests/recent-releases/lib.mjs` | 239 lines | text `.mjs` |
 | `tests/recent-releases/probe-dates.mjs` | 80 lines | text `.mjs` |
 | `tests/recent-releases/probe-order.mjs` | 103 lines | text `.mjs` |
-| `tests/recent-releases/self-test.mjs` | 94 lines | text `.mjs` |
+| `tests/recent-releases/self-test.mjs` | 103 lines | text `.mjs` |
 | `tests/recent-releases/whitelist.mjs` | 62 lines | text `.mjs` |
 | `tests/results.json` | 222 lines | text `.json` |
 | `tests/retest-web.mjs` | 58 lines | text `.mjs` |

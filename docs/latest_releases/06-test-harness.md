@@ -1,8 +1,8 @@
 # 06 — Tests and the hard-data harness
 
-Two test layers cover this feature: a JVM unit test pinning the store's resilience, and the
-`tests/recent-releases/` harness that proved the **server algorithm** against live YouTube before
-it was deployed.
+Three test layers cover this feature: a JVM unit test pinning the store's resilience, a JVM unit
+test pinning the single-vs-album tap decision, and the `tests/recent-releases/` harness that
+proved the **server algorithm** against live YouTube before it was deployed.
 
 ## JVM unit test — store resilience (`app/src/test/.../latestreleases/LatestReleasesStoreTest.kt`)
 
@@ -30,7 +30,25 @@ Run it with the app's unit tests:
 
 > There is no instrumented/Compose UI test for the shelf — the rendering is standard reuse of
 > existing, already-covered card components, so the new logic worth testing is the store
-> (covered above) and the server algorithm (covered below).
+> (covered above), the tap decision (below), and the server algorithm (covered below).
+
+## JVM unit test — the tap decision (`app/src/test/.../latestreleases/LatestReleasePlaybackTest.kt`)
+
+Pure JVM (no player, no Android runtime). Pins `LatestRelease.playableSingle()` (the heart of
+`openOrPlay`) and `isPlayableSingle()` (which drives both the tap and the centred play icon) — doc
+05. Five cases:
+
+| Test | Pins |
+|---|---|
+| `a one-track release is a playable single carrying its track metadata` | `trackCount == 1` -> `MediaMetadata` with the `sampleVideoId`, title, and artist. |
+| `a multi-track release is not a single (opens the album)` | `trackCount > 1` -> `null` (so `openOrPlay` navigates to the album). |
+| `a single with no videoId cannot be played (opens the album)` | `trackCount == 1` but null/blank `sampleVideoId` -> `null`. |
+| `an older feed entry with no track count opens the album` | `trackCount == null` -> `null`. |
+| `isPlayableSingle drives the centred play icon and agrees with what plays on tap` | `isPlayableSingle()` is true only for a playable single, and equals `playableSingle() != null` — so the centred icon never promises playback the tap won't deliver. |
+
+```bash
+./gradlew :app:testDebugUnitTest --tests "*LatestReleasePlaybackTest"
+```
 
 ## Hard-data harness — `tests/recent-releases/`
 
@@ -42,7 +60,7 @@ from convention.
 
 | Script | What it does |
 |---|---|
-| `lib.mjs` | The request layer (WEB_REMIX `browse`/`next`/`player`, faithful to `InnerTube.kt`: `browse` is `setLogin=false` -> visitorData only; `next`/`player` can run authed) plus the parsers (`artistReleases`, `artistItemsGrid`, `albumFirstTrack`, `findDateFields`, `biggestThumbnail`). |
+| `lib.mjs` | The request layer (WEB_REMIX `browse`/`next`/`player`, faithful to `InnerTube.kt`: `browse` is `setLogin=false` -> visitorData only; `next`/`player` can run authed) plus the parsers (`artistReleases`, `artistItemsGrid`, `albumTracks` + `albumFirstTrack`, `findDateFields`, `biggestThumbnail`). |
 | `whitelist.mjs` | Reads the `artistsWhitelist` Firestore collection over plain HTTPS with the client API key — no service-account key. |
 | `probe-dates.mjs` | The make-or-break probe: dumps every date-bearing field from artist/album/`next`/`player` responses for real kosher artists. |
 | `probe-order.mjs` | Proves (a) the discography grid is newest-first by `uploadDate` and (b) `/player` returns the date with no cookie. |
@@ -74,8 +92,9 @@ are this job's contract:
 3. Per artist (`artistCandidates`, `:50-84`): read the artist page, follow the distinct
    Albums/Singles "more" endpoints to the recency-sorted grids, take the **top `TOP`** of each,
    de-duped by `browseId`. If there is no "see all" grid, use the inline artist-page releases.
-4. Per candidate (`releaseDate`, `:37-47`): album browse -> first track -> `/player` ->
-   `uploadDate` from `microformat`. Skip if older than the window.
+4. Per candidate (`releaseDate`, `:37-47`): album browse -> track list (`albumTracks`) -> first
+   track -> `/player` -> `uploadDate` from `microformat`. The track-list length is stored as
+   `trackCount` (free — the browse already lists every track). Skip if older than the window.
 5. Sort newest-first by `uploadDate`, write
    `{ generatedAt, whitelistVersion, windowDays, count, releases }` (`:132-137`) — the exact shape
    the app deserializes (doc 02).

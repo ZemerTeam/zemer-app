@@ -22,10 +22,11 @@ and two UI screens:
 | `latestreleases/LatestReleasesStore.kt` | Network + disk cache. The `LatestReleasesFeed`/`LatestRelease` data models, the ETag fetch, the retry/give-up/staleness policy. A singleton `object` with test seams. |
 | `latestreleases/LatestReleaseMapping.kt` | `LatestRelease.toAlbumItem()` — adapts a feed row to the InnerTube `AlbumItem` the rest of the app already renders, filters, and navigates. |
 | `latestreleases/LatestReleaseDate.kt` | `LatestRelease.relativeDateLabel()` — formats `uploadDate` as a localized relative span ("2 days ago"). |
+| `latestreleases/LatestReleasePlayback.kt` | `LatestRelease.playableSingle()` / `openOrPlay()` — the shared single-vs-album tap decision (play a 1-track single with radio, else open the album). |
 | `viewmodels/LatestReleasesViewModel.kt` | Orchestration + whitelist re-filter. Owns the `StateFlow<List<LatestRelease>>` the UI observes. Hilt-injected. |
 | `ui/screens/HomeScreen.kt` | The Home shelf (`latest_releases_title` / `latest_releases_list` items). |
 | `ui/screens/LatestReleasesScreen.kt` | The "See all" full-list screen, route `latest_releases`. |
-| `ui/component/Items.kt` | `subtitleOverride` param on `YouTubeGridItem` / `YouTubeListItem`, so a card can show the relative date instead of the default subtitle. |
+| `ui/component/Items.kt` | `subtitleOverride` + `centeredPlayButton` params on `YouTubeGridItem` / `YouTubeListItem`, so a card can show `Artist • <relative date>` and a single can show the centred play button on its artwork. |
 
 ## End-to-end flow
 
@@ -59,16 +60,16 @@ This is the central design constraint, stated in three KDocs and enforced by cod
 1. **Isolated ViewModel.** `LatestReleasesViewModel` is "deliberately separate from
    [HomeViewModel] so a failure fetching the external feed can never affect the rest of Home"
    (`LatestReleasesViewModel.kt:22-30`). `HomeViewModel.kt` has no reference to the feed; the
-   Home screen obtains the feed ViewModel independently (`HomeScreen.kt:137-138`).
+   Home screen obtains the feed ViewModel independently (`HomeScreen.kt:140-141`).
 
 2. **No throwing across the boundary.** Both store entry points "return an empty list rather
-   than throwing, so callers gate on `isNotEmpty()`" (`LatestReleasesStore.kt:62`). Every
+   than throwing, so callers gate on `isNotEmpty()`" (`LatestReleasesStore.kt:63`). Every
    network/parse/disk error is caught and logged via Timber, never propagated (doc 03).
 
 3. **Empty is a valid state, never forced content.** The Home shelf only renders when the
-   filtered list is non-empty (`HomeScreen.kt:526`, `latestReleasesCapped.takeIf {
+   filtered list is non-empty (`HomeScreen.kt:529`, `latestReleasesCapped.takeIf {
    it.isNotEmpty() }`), and the "See all" screen "when the feed is empty/unavailable the list is
-   simply empty — nothing is forced" (`LatestReleasesScreen.kt:36-40`).
+   simply empty — nothing is forced" (`LatestReleasesScreen.kt:41-43`).
 
 The net effect: a server outage, a malformed push, or an offline device degrades the feature to
 "the shelf isn't there," and nothing else on Home is touched.
@@ -83,7 +84,9 @@ release flows through the app's existing machinery unchanged:
   (`utils/WhitelistFilter.kt:149`).
 - **Rendering:** `YouTubeGridItem` / `YouTubeListItem` — the same album cards/rows.
 - **Menu:** `YouTubeAlbumMenu` on long-press.
-- **Navigation:** `navController.navigate("album/<id>")`.
+- **Tap:** `openOrPlay` — a single (`trackCount == 1`) plays via `YouTubeQueue.radio`, anything
+  else navigates to `album/<id>`. Both reuse existing queue/navigation; the single's metadata is
+  built from the feed (`playableSingle`).
 
-So the only genuinely new code is the store, the ViewModel orchestration, the two tiny adapters
-(`toAlbumItem`, `relativeDateLabel`), and the screen scaffolding.
+So the only genuinely new code is the store, the ViewModel orchestration, the small adapters
+(`toAlbumItem`, `relativeDateLabel`, `playableSingle`/`openOrPlay`), and the screen scaffolding.

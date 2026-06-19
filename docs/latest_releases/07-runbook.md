@@ -23,7 +23,7 @@ app: LatestReleasesStore (fetch + cache)  ->  LatestReleasesViewModel (filter)  
 ### The shelf is missing entirely on Home
 
 The header/list are only emitted when the **filtered** list is non-empty
-(`HomeScreen.kt:526`). Work outward:
+(`HomeScreen.kt:529`). Work outward:
 
 1. **Is the feed reachable and non-empty?**
    ```bash
@@ -56,16 +56,24 @@ The header/list are only emitted when the **filtered** list is non-empty
 - "Old" releases within 3 days of the last fetch are expected from cache until the next launch's
   refresh replaces them.
 
-### A card's date line is missing
+### A card's subtitle shows only the artist (no date)
 
-`relativeDateLabel` returns null on an unparseable `uploadDate`, and the card falls back to its
-default subtitle (artist and year) — see doc 04/05. Check the feed's `uploadDate` is valid
-ISO-8601.
+The subtitle is `joinByBullet(artistName, relativeDateLabel)`, and `joinByBullet` drops null/empty
+parts. `relativeDateLabel` returns null on an unparseable `uploadDate`, so the line degrades to
+just the artist — see doc 04/05. Check the feed's `uploadDate` is valid ISO-8601.
 
-### The card looks like a wide list row, not a square card
+### A single opens the album instead of playing (or vice-versa)
 
-That's the pre-restyle layout (`a0e7813`). The card-shelf layout is the working-tree restyle on
-the `recent` branch (doc 05). Confirm you're on the restyled build.
+Tap behaviour is `openOrPlay` -> `playableSingle()`: it plays only when `trackCount == 1` and a
+`sampleVideoId` is present (doc 05). If a known single still opens the album:
+
+1. **Is `trackCount` in the served feed?** `curl … | head` and check an entry has
+   `"trackCount": 1`. An older cached feed (or a builder not yet redeployed) omits it -> every
+   release opens the album by design.
+2. **Is the device on a fresh feed?** The cache holds the last-good copy up to 3 days; relaunch to
+   force the once-per-launch refresh, and watch `Zemer_LatestReleases` for the refreshed count.
+3. If `trackCount` is wrong in the feed, it's the **builder** (`albumTracks`, vps repo) — re-run
+   the harness twin to check.
 
 ## Validating end-to-end
 

@@ -4,12 +4,10 @@ Hand-authored docset for the **Latest Releases** feature: a Home-tab shelf of th
 releases from whitelisted (kosher) artists, newest-first across artists, sourced from a small
 precomputed JSON the app fetches from a server.
 
-Everything in these pages is derived from the code in `zemer-app` as of commit `a0e7813`
-(`feat(home): add kosher Latest Releases feed section`) plus the in-progress UI restyle on the
-`recent` branch working tree (the Home shelf now uses the modern card layout — see doc 05).
-Every claim cites the file and symbol that proves it. No assumptions: where a fact came from a
-live probe rather than the source, it is marked as such and points at the harness script that
-proved it.
+Everything in these pages is derived from the code in `zemer-app` on the `recent` branch. Every
+claim cites the file and symbol that proves it. No assumptions: where a fact came from a live
+probe rather than the source, it is marked as such and points at the harness script that proved
+it.
 
 ## TL;DR
 
@@ -22,7 +20,10 @@ The global YouTube feeds (`FEmusic_new_releases`, charts) carry almost no kosher
    through the same per-user whitelist filter every other surface uses
    (`LatestReleasesViewModel` -> `filterWhitelisted`).
 3. The result renders as a **card shelf on Home** (above Featured Playlists) plus a **"See all"
-   screen**, reusing the app's existing album card, album menu, and navigation.
+   screen**, reusing the app's existing album card, album menu, and navigation. Cards show
+   `Artist • <relative date>`; a **single** (`trackCount == 1`) shows a centred play button on its
+   artwork and plays with autoplay radio on tap, while an **album** keeps the corner play button
+   and opens its page.
 
 The feed is treated as an **external dependency that must never break the rest of the UI**: it
 has its own ViewModel isolated from `HomeViewModel`, every network/parse failure is swallowed in
@@ -36,10 +37,12 @@ simply makes the shelf empty.
 | ViewModel | `app/.../viewmodels/LatestReleasesViewModel.kt` |
 | Feed -> AlbumItem adapter | `app/.../latestreleases/LatestReleaseMapping.kt` |
 | Relative-date label | `app/.../latestreleases/LatestReleaseDate.kt` |
+| Tap (play single / open album) | `app/.../latestreleases/LatestReleasePlayback.kt` |
 | Home shelf | `app/.../ui/screens/HomeScreen.kt` (`latest_releases_title` / `latest_releases_list`) |
 | "See all" screen | `app/.../ui/screens/LatestReleasesScreen.kt`, route `latest_releases` |
 | Card subtitle override | `app/.../ui/component/Items.kt` (`YouTubeGridItem`/`YouTubeListItem` `subtitleOverride`) |
 | JVM resilience test | `app/src/test/.../latestreleases/LatestReleasesStoreTest.kt` |
+| JVM tap-decision test | `app/src/test/.../latestreleases/LatestReleasePlaybackTest.kt` |
 | Hard-data harness | `tests/recent-releases/` |
 
 ## The pages
@@ -57,7 +60,7 @@ simply makes the shelf empty.
    `LatestReleasesViewModel`, the cached-then-refresh sequence, the whitelist re-filter, the
    `toAlbumItem` adapter, and the relative-date label.
 5. **[05-ui.md](05-ui.md)** — the Home shelf, the "See all" screen, the route wiring, the
-   `subtitleOverride` card param, and the visibility/cap rules.
+   `Artist • <date>` subtitle, the `openOrPlay` single-vs-album tap, and the visibility/cap rules.
 6. **[06-test-harness.md](06-test-harness.md)** — the JVM resilience test and the
    `tests/recent-releases/` hard-data harness (probes, builder twin, no-network parser tests).
 7. **[07-runbook.md](07-runbook.md)** — operations: what to check when the shelf is empty or
@@ -75,10 +78,3 @@ preferences (female / KidZone / Israeli, by artist id) apply exactly as everywhe
 reuses the app's standard album card and menu, so the shelf looks and behaves like every other
 browse shelf. The server algorithm itself was proven in `tests/recent-releases/` against live
 YouTube before being deployed.
-
-## Implementation history
-
-| Commit | What |
-|---|---|
-| `a0e7813` | the feature: `LatestReleasesStore`/`LatestReleasesViewModel`/`LatestReleaseMapping`/`LatestReleaseDate`, the Home shelf + "See all" screen, the `tests/recent-releases` harness, and the JVM resilience test. Replaced the old broken "Recent Releases" section and un-nested Trending. |
-| _(working tree, `recent` branch)_ | restyled the Home shelf (and Featured Playlists) from the wide 2-row list grid to the modern `LazyRow` card shelf; added `subtitleOverride` to `YouTubeGridItem` so the card keeps the relative-date line. See doc 05. |

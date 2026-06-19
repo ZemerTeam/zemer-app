@@ -3,8 +3,8 @@
 ## The JSON schema
 
 The app deserializes the feed with kotlinx.serialization into two data classes
-(`LatestReleasesStore.kt:27-47`). The parser is lenient:
-`Json { ignoreUnknownKeys = true }` (`LatestReleasesStore.kt:79`), so the server can add fields
+(`LatestReleasesStore.kt:27-48`). The parser is lenient:
+`Json { ignoreUnknownKeys = true }` (`LatestReleasesStore.kt:80`), so the server can add fields
 without breaking older apps.
 
 ### Top level: `LatestReleasesFeed` (`LatestReleasesStore.kt:28-34`)
@@ -12,27 +12,28 @@ without breaking older apps.
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `generatedAt` | `String?` | `null` | ISO-8601 timestamp the feed was built. |
-| `whitelistVersion` | `String?` | `null` | The whitelist version the build used; logged on apply (`LatestReleasesStore.kt:166`). |
-| `windowDays` | `Int` | `0` | The recency window the server used; logged (`:166`). |
+| `whitelistVersion` | `String?` | `null` | The whitelist version the build used; logged on apply (`LatestReleasesStore.kt:167`). |
+| `windowDays` | `Int` | `0` | The recency window the server used; logged (`:167`). |
 | `count` | `Int` | `0` | Release count; informational. |
 | `releases` | `List<LatestRelease>` | `emptyList()` | The releases, **newest-first as the server produced them** (the app preserves this order — doc 04). |
 
 All top-level fields are optional/defaulted, so a `{}` body parses to an empty feed rather than
 failing.
 
-### Each release: `LatestRelease` (`LatestReleasesStore.kt:37-47`)
+### Each release: `LatestRelease` (`LatestReleasesStore.kt:37-48`)
 
 | Field | Type | Required | Used for |
 |---|---|---|---|
 | `artistId` | `String` | yes | Whitelist filtering (`Artist.id`), the artist whose release this is. |
-| `artistName` | `String` | yes | Card subtitle artist name. |
+| `artistName` | `String` | yes | Card subtitle artist name (shown as `Artist • <relative date>` — doc 05). |
 | `title` | `String` | yes | Card title (`AlbumItem.title`). |
 | `browseId` | `String` | yes | Album browse id (`MPRE…`); the list key and `album/<id>` navigation target. |
 | `playlistId` | `String` | yes | Album playlist id (`OLAK…`); carried into `AlbumItem`. |
 | `thumbnail` | `String` | yes | Album art URL. |
 | `year` | `Int?` | no | Catalog year (`AlbumItem.year`). Distinct from `uploadDate` (see below). |
 | `uploadDate` | `String` | yes | ISO-8601 upload timestamp; the recency sort key and the card's relative-date label. |
-| `sampleVideoId` | `String?` | no | The track whose `/player` response yielded `uploadDate`; informational, used by the builder as a thumbnail fallback. |
+| `trackCount` | `Int?` | no | Number of tracks on the release. `trackCount == 1` marks a **single**, which the app plays on tap instead of opening (doc 05). Older feeds omit it → the app falls back to opening the album. |
+| `sampleVideoId` | `String?` | no | The track whose `/player` response yielded `uploadDate`; the builder's thumbnail fallback, and the videoId the app plays when the release is a single. |
 
 A release missing any **required** (non-defaulted) field fails deserialization of the whole feed
 — which the store catches and treats as "keep the previous releases" (doc 03,
@@ -55,7 +56,9 @@ A release missing any **required** (non-defaulted) field fails deserialization o
 }
 ```
 
-The second entry omits the optional `year` and `sampleVideoId` and still parses.
+The second entry omits the optional `year` and `sampleVideoId`, and neither entry carries the
+optional `trackCount` — all still parse (this fixture predates the field; an older cached feed
+looks the same, and such releases default to opening the album rather than playing as a single).
 
 ## `year` vs `uploadDate` (a proven distinction, not an assumption)
 
