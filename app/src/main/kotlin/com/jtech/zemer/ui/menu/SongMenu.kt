@@ -377,26 +377,9 @@ fun SongMenu(
                         )
                     )
                     add(
-                        Material3MenuItemData(
-                            icon = {
-                                Icon(
-                                    painterResource(
-                                        if (song.song.inLibrary == null) R.drawable.library_add
-                                        else R.drawable.library_add_check
-                                    ),
-                                    null,
-                                    Modifier.size(24.dp),
-                                )
-                            },
-                            title = {
-                                Text(
-                                    stringResource(
-                                        if (song.song.inLibrary == null) R.string.add_to_library
-                                        else R.string.remove_from_library
-                                    )
-                                )
-                            },
-                            onClick = {
+                        libraryMenuItem(
+                            inLibrary = song.song.inLibrary != null,
+                            onToggle = {
                                 val currentSong = song.song
                                 val isInLibrary = currentSong.inLibrary != null
                                 val token = if (isInLibrary) currentSong.libraryRemoveToken else currentSong.libraryAddToken

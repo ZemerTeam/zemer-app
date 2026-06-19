@@ -347,18 +347,9 @@ fun YouTubeSongMenu(
                         )
                     }
                     add(
-                        Material3MenuItemData(
-                            icon = {
-                                Icon(
-                                    painterResource(if (librarySong?.song?.inLibrary != null) R.drawable.library_add_check else R.drawable.library_add),
-                                    null,
-                                    Modifier.size(24.dp),
-                                )
-                            },
-                            title = {
-                                Text(text = if (librarySong?.song?.inLibrary != null) stringResource(R.string.remove_from_library) else stringResource(R.string.add_to_library))
-                            },
-                            onClick = {
+                        libraryMenuItem(
+                            inLibrary = librarySong?.song?.inLibrary != null,
+                            onToggle = {
                                 val isInLibrary = librarySong?.song?.inLibrary != null
                                 val token = if (isInLibrary) song.libraryRemoveToken else song.libraryAddToken
 

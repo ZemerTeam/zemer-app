@@ -273,24 +273,9 @@ fun SelectionSongMenu(
                         )
                     )
                     add(
-                        Material3MenuItemData(
-                            icon = {
-                                Icon(
-                                    painterResource(
-                                        if (allInLibrary) R.drawable.library_add_check else R.drawable.library_add
-                                    ),
-                                    null,
-                                    Modifier.size(24.dp),
-                                )
-                            },
-                            title = {
-                                Text(
-                                    stringResource(
-                                        if (allInLibrary) R.string.remove_from_library else R.string.add_to_library
-                                    )
-                                )
-                            },
-                            onClick = {
+                        libraryMenuItem(
+                            inLibrary = allInLibrary,
+                            onToggle = {
                                 if (allInLibrary) {
                                     database.query {
                                         songSelection.forEach { song ->
