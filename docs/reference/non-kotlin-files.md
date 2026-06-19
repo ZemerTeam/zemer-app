@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `351`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `358`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -9,7 +9,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/player-monitor.yml` | 140 lines | text `.yml` |
 | `.github/workflows/release-build.yml` | 155 lines | text `.yml` |
 | `.github/workflows/ui-audit.yml` | 28 lines | text `.yml` |
-| `.gitignore` | 112 lines | text `[none]` |
+| `.gitignore` | 115 lines | text `[none]` |
 | `.gitmodules` | 6 lines | text `[none]` |
 | `AGENTS.md` | 137 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
@@ -249,7 +249,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 552 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 553 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 560 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
@@ -332,6 +332,13 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/re-deep.mjs` | 78 lines | text `.mjs` |
 | `tests/re-ios.mjs` | 68 lines | text `.mjs` |
 | `tests/re-oauth.mjs` | 115 lines | text `.mjs` |
+| `tests/recent-releases/README.md` | 58 lines | text `.md` |
+| `tests/recent-releases/build-feed.mjs` | 144 lines | text `.mjs` |
+| `tests/recent-releases/lib.mjs` | 227 lines | text `.mjs` |
+| `tests/recent-releases/probe-dates.mjs` | 80 lines | text `.mjs` |
+| `tests/recent-releases/probe-order.mjs` | 103 lines | text `.mjs` |
+| `tests/recent-releases/self-test.mjs` | 94 lines | text `.mjs` |
+| `tests/recent-releases/whitelist.mjs` | 62 lines | text `.mjs` |
 | `tests/results.json` | 222 lines | text `.json` |
 | `tests/retest-web.mjs` | 58 lines | text `.mjs` |
 | `tests/run.mjs` | 181 lines | text `.mjs` |

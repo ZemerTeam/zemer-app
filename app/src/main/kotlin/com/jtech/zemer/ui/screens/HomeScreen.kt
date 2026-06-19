@@ -533,15 +533,11 @@ fun HomeScreen(
                     }
 
                     item(key = "latest_releases_list", contentType = "grid") {
-                        LazyHorizontalGrid(
-                            rows = GridCells.Fixed(2),
-                            contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(ListItemHeight * 2.5f)
-                                .animateItem()
+                        LazyRow(
+                            contentPadding = WindowInsets.systemBars
+                                .only(WindowInsetsSides.Horizontal)
+                                .asPaddingValues(),
+                            modifier = Modifier.animateItem()
                         ) {
                             items(
                                 items = releases,
@@ -550,13 +546,14 @@ fun HomeScreen(
                             ) { release ->
                                 val album = remember(release.browseId) { release.toAlbumItem() }
                                 val dateLabel = remember(release.browseId) { release.relativeDateLabel() }
-                                YouTubeListItem(
+                                YouTubeGridItem(
                                     item = album,
                                     subtitleOverride = dateLabel,
                                     isActive = mediaMetadata?.album?.id == album.id,
                                     isPlaying = isPlaying,
+                                    coroutineScope = scope,
+                                    thumbnailRatio = 1f,
                                     modifier = Modifier
-                                        .width(horizontalLazyGridItemWidth)
                                         .combinedClickable(
                                             onClick = { navController.navigate("album/${album.id}") },
                                             onLongClick = {
@@ -585,41 +582,18 @@ fun HomeScreen(
                     }
 
                     item(key = "featured_playlists_list", contentType = "grid") {
-                        LazyHorizontalGrid(
-                            rows = GridCells.Fixed(2),
-                            contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(ListItemHeight * 2.5f)
-                                .animateItem()
+                        LazyRow(
+                            contentPadding = WindowInsets.systemBars
+                                .only(WindowInsetsSides.Horizontal)
+                                .asPaddingValues(),
+                            modifier = Modifier.animateItem()
                         ) {
                             items(
                                 items = uniqueFeaturedPlaylists,
                                 key = { it.id },
                                 contentType = { "playlist" }
                             ) { playlist ->
-                                YouTubeListItem(
-                                    item = playlist,
-                                    modifier = Modifier
-                                        .width(horizontalLazyGridItemWidth)
-                                        .combinedClickable(
-                                            onClick = {
-                                                navController.navigate("online_playlist/${playlist.id}")
-                                            },
-                                            onLongClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                menuState.show {
-                                                    YouTubePlaylistMenu(
-                                                        playlist = playlist,
-                                                        coroutineScope = scope,
-                                                        onDismiss = menuState::dismiss
-                                                    )
-                                                }
-                                            }
-                                        )
-                                )
+                                ytGridItem(playlist)
                             }
                         }
                     }

@@ -933,6 +933,7 @@ fun YouTubeGridItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
+    subtitleOverride: String? = null,
 ) = GridItem(
     title = {
         Text(
@@ -946,7 +947,7 @@ fun YouTubeGridItem(
         )
     },
     subtitle = {
-        val subtitle = when (item) {
+        val subtitle = subtitleOverride ?: when (item) {
             is SongItem -> joinByBullet(item.artists.joinToString { it.name }, makeTimeString(item.duration?.times(1000L)))
             is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
             is ArtistItem -> null
