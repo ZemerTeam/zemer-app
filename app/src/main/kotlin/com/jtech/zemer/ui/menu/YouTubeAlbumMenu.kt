@@ -2,7 +2,6 @@ package com.jtech.zemer.ui.menu
 
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.content.res.Configuration
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -25,19 +23,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.media3.exoplayer.offline.Download
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
@@ -45,6 +40,8 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.playback.DownloadMenuLogic
+import com.jtech.zemer.playback.DownloadStateResolver
 import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.ui.component.AlreadyInPlaylistDialog
 import com.jtech.zemer.ui.component.ArtistChoice
@@ -59,6 +56,7 @@ import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,28 +90,7 @@ fun YouTubeAlbumMenu(
         }
     }
 
-    var downloadState by remember {
-        mutableIntStateOf(Download.STATE_STOPPED)
-    }
-
-    LaunchedEffect(album) {
-        val songs = album?.songs?.map { it.id } ?: return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
-            downloadState =
-                if (songs.all { downloads[it]?.state == Download.STATE_COMPLETED }) {
-                    Download.STATE_COMPLETED
-                } else if (songs.all {
-                        downloads[it]?.state == Download.STATE_QUEUED ||
-                                downloads[it]?.state == Download.STATE_DOWNLOADING ||
-                                downloads[it]?.state == Download.STATE_COMPLETED
-                    }
-                ) {
-                    Download.STATE_DOWNLOADING
-                } else {
-                    Download.STATE_STOPPED
-                }
-        }
-    }
+    val mediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
 
     var showChoosePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
@@ -192,9 +169,6 @@ fun YouTubeAlbumMenu(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    val configuration = LocalConfiguration.current
-    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-
     if (showReportDialog) {
         ReportContentDialog(
             subject = mapOf(
@@ -208,7 +182,6 @@ fun YouTubeAlbumMenu(
     }
 
     LazyColumn(
-        userScrollEnabled = !isPortrait,
         contentPadding = PaddingValues(
             start = 0.dp,
             top = 0.dp,
@@ -326,54 +299,31 @@ fun YouTubeAlbumMenu(
                             onClick = { showReportDialog = true },
                         )
                     )
-                    add(
-                        when (downloadState) {
-                            Download.STATE_COMPLETED ->
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.offline), null, Modifier.size(24.dp)) },
-                                    title = {
-                                        Text(
-                                            text = stringResource(R.string.remove_download),
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    },
-                                    onClick = {
-                                        album?.songs?.forEach { song ->
-                                            coroutineScope.launch {
-                                                downloadUtil.removeDownload(song.id)
-                                            }
-                                        }
-                                    },
-                                )
-                            Download.STATE_QUEUED, Download.STATE_DOWNLOADING ->
-                                Material3MenuItemData(
-                                    icon = {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                    },
-                                    title = { Text(stringResource(R.string.downloading)) },
-                                    onClick = {
-                                        album?.songs?.forEach { song ->
-                                            coroutineScope.launch {
-                                                downloadUtil.removeDownload(song.id)
-                                            }
-                                        }
-                                    },
-                                )
-                            else ->
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
-                                    title = { Text(stringResource(R.string.action_download)) },
-                                    onClick = {
-                                        album?.songs?.forEach { song ->
-                                            downloadUtil.downloadToMediaStore(song)
-                                        }
-                                    },
-                                )
-                        }
-                    )
+                    val songs = album?.songs.orEmpty()
+                    val dlStatus = DownloadStateResolver.aggregateSongs(songs, mediaStoreDownloads)
+                    val dlProgress = DownloadStateResolver.aggregateProgress(songs, mediaStoreDownloads)
+                    downloadMenuItem(
+                        kind = DownloadMenuLogic.collectionRow(dlStatus),
+                        progress = dlProgress,
+                        // Fetch-if-empty: the album loads async, so a first tap before it arrived used
+                        // to be a no-op ("press once does nothing, twice works"). Resolve the songs at
+                        // click time, fetching the album page if the DB doesn't have it yet.
+                        onDownload = {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                var toDownload = database.albumWithSongs(albumItem.id).first()?.songs.orEmpty()
+                                if (toDownload.isEmpty()) {
+                                    YouTube.album(albumItem.id)
+                                        .onSuccess { page -> database.transaction { insert(page) } }
+                                        .onFailure { reportException(it) }
+                                    toDownload = database.albumWithSongs(albumItem.id).first()?.songs.orEmpty()
+                                }
+                                toDownload.forEach { downloadUtil.downloadToMediaStore(it) }
+                            }
+                        },
+                        onCancel = { songs.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },
+                        onRetry = { songs.forEach { downloadUtil.retryMediaStoreDownload(it.id) } },
+                        onRemove = { coroutineScope.launch { songs.forEach { downloadUtil.removeDownload(it.id) } } },
+                    )?.let { add(it) }
                     albumItem.artists?.let { artists ->
                         add(
                             Material3MenuItemData(

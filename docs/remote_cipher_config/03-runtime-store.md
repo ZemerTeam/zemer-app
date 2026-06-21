@@ -32,9 +32,15 @@ Three `@Volatile` immutable maps/fields; **reads are lock-free**:
   key, bundled-only keys survive — `PlayerConfigParser.merge` is literally `bundled + remote`).
   Refreshes build a new map and swap the reference wholesale; no partial states are ever
   visible.
-- `lastForcedAttemptMs` / `lastAttemptReachedServer` — forced-refresh cooldown state (below).
+- `lastForcedAttemptMs` / `lastRejectionAttemptMs` / `lastAttemptReachedServer` — the two
+  **independent** refresh cooldowns (forced vs. stream-rejection) + the reached-server flag (below).
+- `configEpoch` — a counter bumped whenever a refresh actually changes the table. The cipher
+  records the epoch its cached WebView was built under and rebuilds when it advances, so a
+  corrected config takes effect on the next decipher without an app restart — for every cipher
+  (web) client sharing that WebView (doc 05).
 
-A single `refreshMutex` serializes all *writes* (startup refresh + forced refreshes).
+A single `refreshMutex` serializes all *writes* (startup refresh + forced + stream-rejection
+refreshes).
 
 ## Lifecycle
 
@@ -110,6 +116,25 @@ check-then-set outside the lock would let concurrent misses race):
    *"did my fetch change anything"* — so the caller retries extraction exactly when it can
    succeed.
 
+### 6. `refreshAfterStreamRejection()` — the stream-rejection refresh (cipher commit `2826208`)
+
+Called by `CipherDeobfuscator.onStreamRejected()` when a deciphered URL is rejected by the
+CDN (a 403/410, surfaced from `MusicService.handleExpiredUrlError`). It exists because a
+wrong-but-*non-throwing* signature — a stale/wrong config, or a legacy false positive on a
+real function — is invisible to both the extraction-incomplete `forceRefresh` (extraction
+looked complete) and the exception-retry (nothing threw). Differences from `forceRefresh`:
+
+1. It does **not** short-circuit when the current hash is already present — the entry may be
+   present but WRONG, so it always re-fetches.
+2. It uses its **own** cooldown stamp (`lastRejectionAttemptMs`), so a 403 — which can fire on
+   any client, including unrelated/expired-URL ones — can never arm a cooldown that starves
+   the unknown-hash `forceRefresh` self-heal, or vice versa. Both still serialize on
+   `refreshMutex`, and both reset their stamp on a pure network failure (shared
+   `fetchAndApplyResetting` helper).
+3. It returns whether the table **changed**; on a change `configEpoch` advances → the cipher
+   rebuilds (doc 05), and `MusicService` clears the WEB_REMIX failure set so playback returns
+   to WEB_REMIX.
+
 ## Read path
 
 `get(hash)` reads the `@Volatile` map — no locks, no IO, called on the hot path of every
@@ -125,5 +150,7 @@ sig/n extraction. An empty table (initialize never called / broken asset) logs a
   `PlayerConfigStoreCacheTest` (304-lock purge, atomic writes),
   `PlayerConfigStoreApplyRemoteTest` (memory-before-disk, disk-failure survival),
   `PlayerConfigStoreForceRefreshTest` (cooldown under lock, hash-presence return,
-  offline cooldown reset), plus `PlayerConfigMergeTest` and `BundledAssetTest`.
+  offline cooldown reset), `PlayerConfigStoreEpochTest` (epoch advances only when the table
+  actually changes), `PlayerConfigStoreCooldownTest` (the forced and rejection cooldowns are
+  independent — neither gates the other), plus `PlayerConfigMergeTest` and `BundledAssetTest`.
   Run: `./gradlew :library:testDebugUnitTest` in `cipher/`.

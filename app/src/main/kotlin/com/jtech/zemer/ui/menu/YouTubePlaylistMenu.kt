@@ -2,7 +2,6 @@ package com.jtech.zemer.ui.menu
 
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -25,23 +23,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.media3.exoplayer.offline.Download
 import coil3.compose.AsyncImage
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
@@ -54,6 +49,8 @@ import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.playback.DownloadMenuLogic
+import com.jtech.zemer.playback.DownloadStateResolver
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.ui.component.AlreadyInPlaylistDialog
 import com.jtech.zemer.ui.component.DefaultDialog
@@ -180,24 +177,18 @@ fun YouTubePlaylistMenu(
     )
     HorizontalDivider()
 
-    var downloadState by remember {
-        mutableIntStateOf(Download.STATE_STOPPED)
+    val mediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
+    // The playlist may be opened without its tracks loaded (e.g. the Home long-press menu passes no
+    // songs) — fetch them so the Download row appears and downloads the whole playlist.
+    val resolvedSongs by produceState(initialValue = songs, songs, playlist.id) {
+        value = if (songs.isNotEmpty()) songs
+        else YouTube.playlist(playlist.id).getOrNull()?.songs.orEmpty()
     }
-    LaunchedEffect(songs) {
-        if (songs.isEmpty()) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
-            downloadState =
-                if (songs.all { downloads[it.id]?.state == Download.STATE_COMPLETED })
-                    Download.STATE_COMPLETED
-                else if (songs.all {
-                        downloads[it.id]?.state == Download.STATE_QUEUED
-                                || downloads[it.id]?.state == Download.STATE_DOWNLOADING
-                                || downloads[it.id]?.state == Download.STATE_COMPLETED
-                    })
-                    Download.STATE_DOWNLOADING
-                else
-                    Download.STATE_STOPPED
-        }
+    val dbSongs by produceState(
+        initialValue = emptyList<com.jtech.zemer.db.entities.Song>(),
+        resolvedSongs,
+    ) {
+        value = database.getSongsByIds(resolvedSongs.map { it.id })
     }
     var showRemoveDownloadDialog by remember {
         mutableStateOf(false)
@@ -224,7 +215,10 @@ fun YouTubePlaylistMenu(
                 TextButton(
                     onClick = {
                         showRemoveDownloadDialog = false
-                        songs.forEach { song ->
+                        // Remove what the Download row actually downloaded — resolvedSongs, NOT the
+                        // `songs` prop (empty when opened from the Home long-press menu, which would
+                        // otherwise make Remove a silent no-op).
+                        resolvedSongs.forEach { song ->
                             coroutineScope.launch {
                                 downloadUtil.removeDownload(song.id)
                             }
@@ -287,11 +281,7 @@ fun YouTubePlaylistMenu(
         }
     }
 
-    val configuration = LocalConfiguration.current
-    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-
     LazyColumn(
-        userScrollEnabled = !isPortrait,
         contentPadding = PaddingValues(
             start = 0.dp,
             top = 0.dp,
@@ -425,56 +415,35 @@ fun YouTubePlaylistMenu(
                             },
                         )
                     )
-                    if (songs.isNotEmpty()) {
-                        when (downloadState) {
-                            Download.STATE_COMPLETED -> add(
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.offline), null, Modifier.size(24.dp)) },
-                                    title = {
-                                        Text(
-                                            text = stringResource(R.string.remove_download),
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    },
-                                    onClick = {
-                                        showRemoveDownloadDialog = true
-                                    },
-                                )
-                            )
-                            Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> add(
-                                Material3MenuItemData(
-                                    icon = {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                    },
-                                    title = { Text(stringResource(R.string.downloading)) },
-                                    onClick = {
-                                        showRemoveDownloadDialog = true
-                                    },
-                                )
-                            )
-                            else -> add(
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
-                                    title = { Text(stringResource(R.string.action_download)) },
-                                    onClick = {
-                                        coroutineScope.launch(Dispatchers.IO) {
-                                            songs.forEach { song ->
-                                                database.transaction {
-                                                    insert(song.toMediaMetadata())
-                                                }
-                                                val dbSong = database.song(song.id).first()
-                                                dbSong?.let {
-                                                    downloadUtil.downloadToMediaStore(it)
-                                                }
-                                            }
+                    if (resolvedSongs.isNotEmpty()) {
+                        // Aggregate by videoId off the LIVE map so progress animates during download
+                        // (online SongItems aren't Room entities yet, so a one-shot dbSongs snapshot
+                        // stays empty/stale and never showed progress). Persisted-downloaded comes from
+                        // the dbSongs snapshot for the across-restart "downloaded" state.
+                        val ids = resolvedSongs.map { it.id }
+                        val persistedDownloaded = dbSongs.filter { it.song.isDownloaded }.map { it.id }.toSet()
+                        val dlStatus = DownloadStateResolver.aggregateByIds(ids, mediaStoreDownloads, persistedDownloaded)
+                        val dlProgress = DownloadStateResolver.aggregateProgressByIds(ids, mediaStoreDownloads, persistedDownloaded)
+                        downloadMenuItem(
+                            kind = DownloadMenuLogic.collectionRow(dlStatus),
+                            progress = dlProgress,
+                            onDownload = {
+                                // Online SongItems aren't Room entities yet — persist each, then download.
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    resolvedSongs.forEach { song ->
+                                        database.transaction {
+                                            insert(song.toMediaMetadata())
                                         }
-                                    },
-                                )
-                            )
-                        }
+                                        database.song(song.id).first()?.let {
+                                            downloadUtil.downloadToMediaStore(it)
+                                        }
+                                    }
+                                }
+                            },
+                            onCancel = { resolvedSongs.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },
+                            onRetry = { resolvedSongs.forEach { downloadUtil.retryMediaStoreDownload(it.id) } },
+                            onRemove = { showRemoveDownloadDialog = true },
+                        )?.let { add(it) }
                     }
                     add(
                         Material3MenuItemData(

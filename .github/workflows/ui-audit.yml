@@ -1,21 +1,28 @@
 name: UI audit
 
-# Enforces docs/ui/standards.md section 8 (theme & color) with a ratcheting check: it fails
-# only on NEW raw `fontSize`/`Color(0x..)` in ui/ (outside theme/), beyond the committed
-# baseline (scripts/ui-audit-baseline.tsv). Cheap (grep only). Runs when UI code or the audit
-# itself changes.
+# Enforces docs/ui/standards.md with cheap (grep-only) ratcheting/strict checks:
+#  - ui-audit.sh: fails on NEW raw fontSize/Color(0x..)/AlertDialog/menu-ListItem/blur and any new
+#    legacy download read in ui/ (R13), beyond scripts/ui-audit-baseline.tsv.
+#  - check-download-unification.sh: whole-app guard that download/progress state stays on the one
+#    path (no legacy DownloadUtil.downloads/getDownload reads, no Download.STATE_* outside the
+#    download infra, no per-surface Icon.Download). See docs/ui/standards.md §12.
+# Runs when UI/playback code or the checks themselves change.
 
 on:
   push:
     branches: [ main ]
     paths:
       - 'app/src/main/kotlin/com/jtech/zemer/ui/**'
+      - 'app/src/main/kotlin/com/jtech/zemer/playback/**'
       - 'scripts/ui-audit*'
+      - 'scripts/check-download-unification.sh'
   pull_request:
     branches: [ main ]
     paths:
       - 'app/src/main/kotlin/com/jtech/zemer/ui/**'
+      - 'app/src/main/kotlin/com/jtech/zemer/playback/**'
       - 'scripts/ui-audit*'
+      - 'scripts/check-download-unification.sh'
 
 jobs:
   ui-audit:
@@ -24,5 +31,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: UI standards audit (Rule 8, ratcheting)
+      - name: UI standards audit (ratcheting)
         run: bash scripts/ui-audit.sh
+
+      - name: Download unification guard
+        run: bash scripts/check-download-unification.sh

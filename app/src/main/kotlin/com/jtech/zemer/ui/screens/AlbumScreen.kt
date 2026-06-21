@@ -81,6 +81,7 @@ import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.LocalAlbumRadio
+import com.jtech.zemer.ui.component.AggregateDownloadButton
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
@@ -139,9 +140,6 @@ fun AlbumScreen(
     }
 
     val downloadUtil = LocalDownloadUtil.current
-    var downloadState by remember {
-        mutableIntStateOf(Download.STATE_STOPPED)
-    }
 
     // Focus state for TopAppBar buttons
     val isBackButtonFocused = remember { mutableStateOf(false) }
@@ -192,26 +190,6 @@ fun AlbumScreen(
 
     LaunchedEffect(Unit) {
         firstHeaderItemFocusRequester.requestFocus()
-    }
-
-    LaunchedEffect(albumWithSongs) {
-        val songs = albumWithSongs?.songs?.map { it.id }
-        if (songs.isNullOrEmpty()) return@LaunchedEffect
-        downloadUtil.getAllMediaStoreDownloads().collect { downloads ->
-            downloadState =
-                if (songs.all { downloads[it]?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED }) {
-                    Download.STATE_COMPLETED
-                } else if (songs.all {
-                        downloads[it]?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED ||
-                                downloads[it]?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING ||
-                                downloads[it]?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED
-                    }
-                ) {
-                    Download.STATE_DOWNLOADING
-                } else {
-                    Download.STATE_STOPPED
-                }
-        }
     }
 
     LazyColumn(
@@ -334,83 +312,17 @@ fun AlbumScreen(
                                     }
                                 }
 
-                                val downloadButtonFocused = remember { mutableStateOf(false) }
-                                val downloadButtonBorderColor = animateColorAsState(
-                                    targetValue = if (downloadButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                    label = "download_button_focus_border"
+                                AggregateDownloadButton(
+                                    songs = albumWithSongs.songs,
+                                    onDownloadAll = {
+                                        albumWithSongs.songs.forEach { downloadUtil.downloadToMediaStore(it) }
+                                    },
+                                    onRemoveAll = {
+                                        albumWithSongs.songs.forEach { song ->
+                                            coroutineScope.launch { downloadUtil.removeDownload(song.id) }
+                                        }
+                                    },
                                 )
-
-                                when (downloadState) {
-                                    Download.STATE_COMPLETED -> {
-                                        Box(
-                                            modifier = Modifier
-                                                .border(3.dp, downloadButtonBorderColor.value, RoundedCornerShape(8.dp))
-                                                .focusable()
-                                                .onFocusChanged { downloadButtonFocused.value = it.isFocused }
-                                        ) {
-                                            IconButton(
-                                                onClick = {
-                                                    albumWithSongs.songs.forEach { song ->
-                                                        coroutineScope.launch {
-                                                            downloadUtil.removeDownload(song.id)
-                                                        }
-                                                    }
-                                                },
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.offline),
-                                                    contentDescription = null,
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    Download.STATE_DOWNLOADING -> {
-                                        Box(
-                                            modifier = Modifier
-                                                .border(3.dp, downloadButtonBorderColor.value, RoundedCornerShape(8.dp))
-                                                .focusable()
-                                                .onFocusChanged { downloadButtonFocused.value = it.isFocused }
-                                        ) {
-                                            IconButton(
-                                                onClick = {
-                                                    albumWithSongs.songs.forEach { song ->
-                                                        coroutineScope.launch {
-                                                            downloadUtil.removeDownload(song.id)
-                                                        }
-                                                    }
-                                                },
-                                            ) {
-                                                CircularProgressIndicator(
-                                                    strokeWidth = 2.dp,
-                                                    modifier = Modifier.size(24.dp),
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    else -> {
-                                        Box(
-                                            modifier = Modifier
-                                                .border(3.dp, downloadButtonBorderColor.value, RoundedCornerShape(8.dp))
-                                                .focusable()
-                                                .onFocusChanged { downloadButtonFocused.value = it.isFocused }
-                                        ) {
-                                            IconButton(
-                                                onClick = {
-                                                    albumWithSongs.songs.forEach { song ->
-                                                        downloadUtil.downloadToMediaStore(song)
-                                                    }
-                                                },
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.download),
-                                                    contentDescription = null,
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
 
                                 val headerMenuButtonFocused = remember { mutableStateOf(false) }
                                 val headerMenuButtonBorderColor = animateColorAsState(

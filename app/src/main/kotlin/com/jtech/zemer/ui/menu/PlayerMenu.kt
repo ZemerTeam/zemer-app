@@ -1,7 +1,6 @@
 package com.jtech.zemer.ui.menu
 
 import android.content.Intent
-import android.content.res.Configuration
 import android.media.audiofx.AudioEffect
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -21,7 +20,6 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,21 +38,22 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.PlaybackParameters
-import androidx.media3.exoplayer.offline.Download
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.playback.DownloadMenuLogic
+import com.jtech.zemer.playback.DownloadStateResolver
 import com.jtech.zemer.playback.MediaStoreDownloadManager
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.BigSeekBar
@@ -65,6 +64,7 @@ import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
+import com.jtech.zemer.utils.rememberPreference
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -95,8 +95,9 @@ fun PlayerMenu(
     val mediaStoreDownload by downloadUtil.getMediaStoreDownload(mediaMetadata.id)
         .collectAsState(initial = null)
 
-    val download by downloadUtil.getDownload(mediaMetadata.id)
-        .collectAsState(initial = null)
+    val librarySong by database.song(mediaMetadata.id).collectAsState(initial = null)
+
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
 
     val artists =
         remember(mediaMetadata.artists) {
@@ -198,11 +199,7 @@ fun PlayerMenu(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    val configuration = LocalConfiguration.current
-    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-
     LazyColumn(
-        userScrollEnabled = !isPortrait,
         contentPadding = PaddingValues(
             start = 0.dp,
             top = 0.dp,
@@ -303,58 +300,35 @@ fun PlayerMenu(
                             )
                         )
                     }
-                    add(
-                        when (mediaStoreDownload?.status) {
-                            MediaStoreDownloadManager.DownloadState.Status.COMPLETED ->
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.offline), null, Modifier.size(24.dp)) },
-                                    title = { Text(stringResource(R.string.remove_download), color = MaterialTheme.colorScheme.error) },
-                                    onClick = { coroutineScope.launch { downloadUtil.removeDownload(mediaMetadata.id) } },
-                                )
-                            MediaStoreDownloadManager.DownloadState.Status.QUEUED,
-                            MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING -> {
-                                val progress = mediaStoreDownload?.progress ?: 0f
-                                Material3MenuItemData(
-                                    icon = {
-                                        CircularProgressIndicator(
-                                            progress = { progress.coerceIn(0f, 1f) },
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 2.dp,
-                                        )
-                                    },
-                                    title = { Text(stringResource(R.string.downloading)) },
-                                    description = { Text("${(progress * 100).toInt()}%") },
-                                    onClick = { coroutineScope.launch { downloadUtil.cancelMediaStoreDownload(mediaMetadata.id) } },
-                                )
+                    // Unified download row: persisted-or-live state, live progress, video-aware, and the
+                    // menu stays open so it animates Download -> progress -> Remove. (DownloadMenuItems.kt)
+                    val songIsVideo = librarySong?.song?.isVideo == true || mediaMetadata.isVideo
+                    val downloadStatus = DownloadStateResolver.forSong(librarySong?.song?.isDownloaded == true, mediaStoreDownload)
+                    val downloadProgress = when {
+                        librarySong?.song?.isDownloaded == true ||
+                            mediaStoreDownload?.status == MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> 1f
+                        else -> mediaStoreDownload?.progress ?: 0f
+                    }
+                    val downloadFailed =
+                        mediaStoreDownload?.status == MediaStoreDownloadManager.DownloadState.Status.FAILED
+                    downloadMenuItem(
+                        kind = DownloadMenuLogic.songRow(downloadStatus, downloadFailed, songIsVideo, blockVideos),
+                        progress = downloadProgress,
+                        error = mediaStoreDownload?.error,
+                        onDownload = {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                database.transaction { insert(mediaMetadata) }
+                                val song = database.song(mediaMetadata.id).first()
+                                song?.let {
+                                    if (songIsVideo) downloadUtil.downloadVideoToMediaStore(it)
+                                    else downloadUtil.downloadToMediaStore(it)
+                                }
                             }
-                            else -> when (download?.state) {
-                                Download.STATE_COMPLETED ->
-                                    Material3MenuItemData(
-                                        icon = { Icon(painterResource(R.drawable.offline), null, Modifier.size(24.dp)) },
-                                        title = { Text(stringResource(R.string.remove_download), color = MaterialTheme.colorScheme.error) },
-                                        onClick = { coroutineScope.launch { downloadUtil.removeDownload(mediaMetadata.id) } },
-                                    )
-                                Download.STATE_QUEUED, Download.STATE_DOWNLOADING ->
-                                    Material3MenuItemData(
-                                        icon = { CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp) },
-                                        title = { Text(stringResource(R.string.downloading)) },
-                                        onClick = { coroutineScope.launch { downloadUtil.removeDownload(mediaMetadata.id) } },
-                                    )
-                                else ->
-                                    Material3MenuItemData(
-                                        icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
-                                        title = { Text(stringResource(R.string.action_download)) },
-                                        onClick = {
-                                            coroutineScope.launch(Dispatchers.IO) {
-                                                database.transaction { insert(mediaMetadata) }
-                                                val song = database.song(mediaMetadata.id).first()
-                                                song?.let { downloadUtil.downloadToMediaStore(it) }
-                                            }
-                                        },
-                                    )
-                            }
-                        }
-                    )
+                        },
+                        onCancel = { coroutineScope.launch { downloadUtil.cancelMediaStoreDownload(mediaMetadata.id) } },
+                        onRetry = { downloadUtil.retryMediaStoreDownload(mediaMetadata.id) },
+                        onRemove = { coroutineScope.launch { downloadUtil.removeDownload(mediaMetadata.id) } },
+                    )?.let { add(it) }
                     add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.info), null, Modifier.size(24.dp)) },

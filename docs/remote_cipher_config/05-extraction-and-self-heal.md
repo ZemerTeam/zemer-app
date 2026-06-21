@@ -68,6 +68,46 @@ A second, blunter retry wraps every decipher call: `deobfuscateStreamUrl` catche
 exception, calls `PlayerJsFetcher.invalidateCache()` + `closeWebView()` and retries once
 with fresh player JS (`isRetry = true` → `forceRefresh` of the JS, not the config).
 
+## Keeping the cached WebView fresh: config-epoch rebuild + stream-rejection refresh
+
+The triggers above only fire while *building* a WebView (incomplete extraction) or on a
+decipher *exception*. Once a `CipherWebView` is built it is reused for the life of the
+process — and that one WebView is shared by **every cipher (web) client**: WEB_REMIX,
+WEB_CREATOR, TVHTML5, WEB. Two gaps in that reuse let a wrong cipher survive until a
+force-stop+reopen, breaking *all* of those clients at once (cipher commit `2826208`):
+
+1. **A config that self-heals AFTER the WebView was built was ignored until a restart.** The
+   startup refresh — or a `forceRefresh` triggered by a *different* miss — could land a
+   corrected entry for the current player while the already-built WebView kept using the old
+   extraction. Fix: `PlayerConfigStore.configEpoch` advances whenever a refresh actually
+   changes the table (doc 03); `getOrCreateWebView` records the epoch it built under and
+   rebuilds when it advances. The epoch is snapshotted **before** the build, so a change
+   landing mid-build (e.g. the async startup refresh racing prewarm) forces a rebuild on the
+   next decipher instead of being masked as already-incorporated.
+
+2. **A wrong-but-non-throwing signature was invisible.** A stale/wrong config — or a
+   legacy-regex false positive that resolves to a real function — produces a wrong signature
+   *without throwing*, so the exception-retry never fires and `forceRefresh` is never
+   triggered (extraction looked complete). The only signal it was wrong is the CDN rejecting
+   the stream — surfaced from **two** call sites so every cipher client is covered:
+   - `MusicService.handleExpiredUrlError` (the ExoPlayer 403/410 path). Only **WEB_REMIX** skips
+     HEAD validation, so only its bad URL reaches ExoPlayer and 403s.
+   - `YTPlayerUtils`, when a `needsNTransform` (cipher) client fails `validateStatus` during
+     resolution. **WEB_CREATOR / TVHTML5 / WEB** are HEAD-validated, so a wrong sig is caught here
+     and never reaches ExoPlayer — without this site a WEB_REMIX-disabled user would never
+     self-heal. Fired off a dedicated scope so the network refresh can't block the fall-through.
+
+   Both call `CipherDeobfuscator.onStreamRejected()` → `PlayerConfigStore.refreshAfterStreamRejection()`
+   (doc 03): a rate-limited re-fetch that — unlike `forceRefresh` — does NOT short-circuit when the
+   hash is already present (it may be present but WRONG). A changed table advances the epoch → the
+   shared WebView rebuilds on the next decipher → **every cipher client recovers, no force-stop**.
+   On a real change the `webRemixFailedIds` set is cleared via `clearWebRemixFailures()` so
+   resolution returns to WEB_REMIX rather than staying on a lower fallback.
+
+`PlayerConfigStoreEpochTest` (epoch advances only on a real change) and
+`PlayerConfigStoreCooldownTest` (the rejection cooldown is independent of `forceRefresh`'s)
+pin the store-side guarantees; the WebView rebuild itself is integration-verified on-device.
+
 ## How the expressions execute: `CipherWebView`
 
 `CipherWebView.create(context, playerJs, sigInfo, nFuncInfo)` loads the player JS into an

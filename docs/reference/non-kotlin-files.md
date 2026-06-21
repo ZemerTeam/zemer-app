@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `352`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `362`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -8,10 +8,12 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/docs-regenerate.yml` | 74 lines | text `.yml` |
 | `.github/workflows/player-monitor.yml` | 140 lines | text `.yml` |
 | `.github/workflows/release-build.yml` | 157 lines | text `.yml` |
-| `.github/workflows/ui-audit.yml` | 28 lines | text `.yml` |
-| `.gitignore` | 122 lines | text `[none]` |
+| `.github/workflows/ui-audit.yml` | 38 lines | text `.yml` |
+| `.gitignore` | 125 lines | text `[none]` |
+| `.gitignore` | 125 lines | text `[none]` |
+| `.gitignore` | 125 lines | text `[none]` |
 | `.gitmodules` | 6 lines | text `[none]` |
-| `AGENTS.md` | 137 lines | text `.md` |
+| `AGENTS.md` | 214 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 11 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -250,7 +252,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 552 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 553 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 560 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
@@ -277,9 +279,10 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `lrclib/.gitignore` | 1 lines | text `[none]` |
 | `lrclib/build.gradle.kts` | 16 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
 | `scripts/check-16kb-alignment.sh` | 67 lines | text `.sh` |
+| `scripts/check-download-unification.sh` | 58 lines | text `.sh` |
 | `scripts/telegram-chats.sh` | 38 lines | text `.sh` |
 | `scripts/ui-audit-baseline.tsv` | 13 lines | text `.tsv` |
-| `scripts/ui-audit.sh` | 119 lines | text `.sh` |
+| `scripts/ui-audit.sh` | 125 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 56 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
 | `simpmusic/build.gradle.kts` | 15 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
@@ -333,6 +336,13 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/re-deep.mjs` | 78 lines | text `.mjs` |
 | `tests/re-ios.mjs` | 68 lines | text `.mjs` |
 | `tests/re-oauth.mjs` | 115 lines | text `.mjs` |
+| `tests/recent-releases/README.md` | 62 lines | text `.md` |
+| `tests/recent-releases/build-feed.mjs` | 145 lines | text `.mjs` |
+| `tests/recent-releases/lib.mjs` | 239 lines | text `.mjs` |
+| `tests/recent-releases/probe-dates.mjs` | 80 lines | text `.mjs` |
+| `tests/recent-releases/probe-order.mjs` | 103 lines | text `.mjs` |
+| `tests/recent-releases/self-test.mjs` | 103 lines | text `.mjs` |
+| `tests/recent-releases/whitelist.mjs` | 62 lines | text `.mjs` |
 | `tests/results.json` | 222 lines | text `.json` |
 | `tests/retest-web.mjs` | 58 lines | text `.mjs` |
 | `tests/run.mjs` | 181 lines | text `.mjs` |

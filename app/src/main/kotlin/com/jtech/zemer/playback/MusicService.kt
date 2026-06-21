@@ -45,6 +45,7 @@ import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -124,6 +125,7 @@ import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.NetworkConnectivityObserver
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.YTPlayerUtils
+import com.zemer.cipher.CipherDeobfuscator
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.hasNotificationPermission
 import com.jtech.zemer.widget.MusicWidget
@@ -267,6 +269,16 @@ class MusicService :
                 .Builder(this)
                 .setMediaSourceFactory(createMediaSourceFactory())
                 .setRenderersFactory(createRenderersFactory())
+                .setLoadControl(
+                    // media3 1.8.0 defaults, except start playback once ~750ms is buffered (vs the
+                    // 1000ms default) so the first audio is audible sooner. Min/max (50_000) and
+                    // after-rebuffer (2_000) are left at the actual media3 1.8.0 defaults, so
+                    // buffering/rebuffer recovery is unchanged (no stutter regression).
+                    DefaultLoadControl
+                        .Builder()
+                        .setBufferDurationsMs(50_000, 50_000, 750, 2_000)
+                        .build(),
+                )
                 .setHandleAudioBecomingNoisy(true)
                 .setWakeMode(C.WAKE_MODE_NETWORK)
                 .setAudioAttributes(
@@ -1325,6 +1337,16 @@ class MusicService :
             // Clear the cached URL so it will be refreshed on next request
             DownloadUtil.invalidateUrl(mediaId)
             Timber.d("Cleared cached URL for $mediaId, marked WEB_REMIX as failed")
+            // A 403 can also mean the cipher produced a wrong-but-non-throwing signature from a
+            // stale/wrong player config. Ask the cipher to re-fetch its config (rate-limited); if
+            // that corrects the table, the cipher rebuilds its WebView on the next decipher, so we
+            // clear the WEB_REMIX failure set to let playback return to WEB_REMIX — no app restart.
+            scope.launch {
+                if (CipherDeobfuscator.onStreamRejected()) {
+                    Timber.d("Player config changed after stream rejection — restoring WEB_REMIX")
+                    YTPlayerUtils.clearWebRemixFailures()
+                }
+            }
         }
 
         // Seek to current position to force URL re-resolution
@@ -1364,21 +1386,104 @@ class MusicService :
             ).setCacheWriteDataSinkFactory(null)
             .setFlags(FLAG_IGNORE_CACHE_ON_ERROR)
 
+    /** Per-media-item source decision, made at the position-0 open that starts playback: true = playing
+     *  the local downloaded file, false/absent = streaming. Later opens (seeks, cache-span re-opens)
+     *  honor this so a song that started streaming never switches to the local file mid-playback when its
+     *  download finishes (the "source switching during download" bug, commit 1f48d89), while a song that
+     *  was already downloaded when playback began uses the local file at every position so seeks work.
+     *
+     *  KNOWN LIMITATION (accepted, not a TODO bandaid to "fix in place"): this is a per-byte
+     *  source decision inside a streaming `ResolvingDataSource`, so it cannot reconcile the fact that a
+     *  MediaStore download is a DIFFERENT container (m4a/itag140) than the streamed audio (webm/opus).
+     *  The one path it does NOT make perfect: if you DOWNLOAD a song WHILE actively listening to that
+     *  same song, that playing instance stays on the stream (it won't switch to the local file until the
+     *  song is re-selected), so offline it can only play as far as the stream cached. It does not crash;
+     *  re-tapping the song plays it from the local file. Every other path (download then play later,
+     *  seek a downloaded song, offline playback of a downloaded song, restart/resume) works.
+     *  The complete fix is architectural — route a downloaded song as a LOCAL `MediaItem` (content://
+     *  URI) at queue-build time so it never enters the stream pipeline (Media3-standard), instead of
+     *  guessing per read here. Deliberately deferred; do not "fix" this map/probe further — replace it. */
+    private val playbackSourceIsLocal = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+    /** Whether the downloaded file at [uriString] actually opens. Returns false on ANY failure to open
+     *  (ENOENT / null descriptor / FileNotFound / a SecurityException or other resolver error) so that
+     *  playback falls back to STREAMING rather than handing ExoPlayer a URI we just failed to open
+     *  (which would only fail again). Worst case for a present-but-momentarily-unreadable file is one
+     *  streamed play + a self-repair re-download — never a hard playback failure. We never delete the
+     *  download here — the flag is the user's, not ours to silently drop. */
+    private fun downloadedFileOpens(uriString: String): Boolean =
+        try {
+            contentResolver.openFileDescriptor(uriString.toUri(), "r")?.use { true }
+                ?: run {
+                    Timber.w("Downloaded file probe returned null descriptor for uri=$uriString; will stream")
+                    false
+                }
+        } catch (e: java.io.FileNotFoundException) {
+            Timber.w("Downloaded file MISSING (FileNotFound) for uri=$uriString; will stream")
+            false
+        } catch (e: Exception) {
+            Timber.w(e, "Could not open downloaded file $uriString; streaming instead of handing over a dead URI")
+            false
+        }
+
     private fun createDataSourceFactory(): DataSource.Factory {
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 
-            // Check for MediaStore URI first (local playback)
-            // Only use local file if starting from beginning (position 0) to avoid
-            // switching sources mid-stream when a download completes during playback
-            // Use a blocking call here because ResolvingDataSource.Factory requires synchronous code
+            // Check for MediaStore URI first (local playback).
+            // Use a blocking call here because ResolvingDataSource.Factory requires synchronous code.
             val song = runBlocking(Dispatchers.IO) {
                 database.song(mediaId).first()
             }
 
-            if (song?.song?.mediaStoreUri != null && dataSpec.position == 0L) {
-                scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                return@Factory dataSpec.withUri(song.song.mediaStoreUri.toUri())
+            // Source selection for a downloaded song. We must satisfy BOTH:
+            //  (a) seeking a downloaded song must use its LOCAL file (it's random-access; a googlevideo
+            //      range request from a byte offset has no moov/init atom and the mp4 extractor dies —
+            //      "Skipping atom with length > … unsupported" → Source error), AND
+            //  (b) a song that STARTED streaming (not yet downloaded) must NOT switch to the local file
+            //      mid-playback when its download finishes — that mid-stream source switch is the bug
+            //      commit 1f48d89 fixed with a blanket `position == 0L` guard (which broke (a)).
+            // So we decide the source ONCE, at the position-0 open that begins playback of this item,
+            // remember it, and honor that decision for every later open (seek or cache-span re-open).
+            val mediaStoreUri = song?.song?.mediaStoreUri
+            if (mediaStoreUri != null) {
+                val fileOpens = downloadedFileOpens(mediaStoreUri)
+                if (dataSpec.position == 0L) {
+                    // Start of playback for this item: pick the source and record it.
+                    playbackSourceIsLocal[mediaId] = fileOpens
+                    if (fileOpens) {
+                        scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
+                        return@Factory dataSpec.withUri(mediaStoreUri.toUri())
+                    }
+                    // The file is gone (a stale "downloaded" row — interrupted download or an older
+                    // build that deleted the file). Self-repair: re-download so it's local next time,
+                    // and stream THIS play instead of crashing with ENOENT. We don't clear the flag
+                    // (no vanishing); the re-download replaces the dead URI on success. Skip re-enqueue
+                    // if a download for this id already FAILED this session (the manager only no-ops
+                    // active/complete, not FAILED), else a permanently-unrecoverable source would
+                    // re-download on every play; a new session (state cleared) gets one fresh attempt.
+                    val liveStatus = downloadUtil.mediaStoreDownloadState(mediaId)?.status
+                    if (liveStatus == MediaStoreDownloadManager.DownloadState.Status.FAILED) {
+                        Timber.w("Downloaded file missing for $mediaId but its re-download already FAILED this session; streaming without re-enqueueing")
+                    } else {
+                        Timber.w("Downloaded file missing for $mediaId; re-downloading to self-repair and streaming this play")
+                        song?.let { stale ->
+                            scope.launch(Dispatchers.IO) {
+                                runCatching {
+                                    if (stale.song.isVideo) downloadUtil.downloadVideoToMediaStore(stale)
+                                    else downloadUtil.downloadToMediaStore(stale)
+                                }
+                            }
+                        }
+                    }
+                } else if (fileOpens && playbackSourceIsLocal[mediaId] == true) {
+                    // A later open (a SEEK, or a cache-span re-open) for an item that STARTED on the
+                    // local file → keep using the local file so seeks work. An item that started
+                    // streaming (playbackSourceIsLocal == false/absent) deliberately falls through to
+                    // the cache/stream path below — no mid-stream switch when its download completes.
+                    scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
+                    return@Factory dataSpec.withUri(mediaStoreUri.toUri())
+                }
             }
 
             if (downloadCache.isCached(

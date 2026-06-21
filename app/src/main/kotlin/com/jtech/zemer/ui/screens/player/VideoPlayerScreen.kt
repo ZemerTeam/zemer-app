@@ -92,14 +92,17 @@ import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.BlockVideosKey
+import androidx.compose.runtime.collectAsState
+import com.jtech.zemer.LocalDownloadUtil
+import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.db.entities.SongEntity
-import com.jtech.zemer.utils.MediaStoreHelper
+import com.jtech.zemer.playback.DownloadStatus
+import com.jtech.zemer.ui.component.rememberSongDownloadProgress
+import com.jtech.zemer.ui.component.rememberSongDownloadStatus
 import com.jtech.zemer.utils.UrlValidator
 import com.jtech.zemer.utils.VideoLinkBuilder
 import com.jtech.zemer.utils.YTPlayerUtils
-import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.rememberPreference
-import com.metrolist.innertube.utils.ResilientDns
 import io.sanghun.compose.video.RepeatMode
 import io.sanghun.compose.video.VideoPlayer
 import io.sanghun.compose.video.controller.VideoPlayerControllerConfig
@@ -109,10 +112,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.io.File
-import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -168,7 +167,11 @@ fun VideoPlayerScreen(
     val clipboard = remember { context.getSystemService(ClipboardManager::class.java) }
     val connectivityManager = remember { context.getSystemService(ConnectivityManager::class.java) }
     val database = LocalDatabase.current
+    val downloadUtil = LocalDownloadUtil.current
     val scope = rememberCoroutineScope()
+    val downloadedSong by remember(videoId) { database.song(videoId) }.collectAsState(initial = null)
+    val videoDownloadStatus = rememberSongDownloadStatus(videoId, downloadedSong?.song?.isDownloaded == true)
+    val videoDownloadProgress = rememberSongDownloadProgress(videoId, downloadedSong?.song?.isDownloaded == true)
     val playerConnection = LocalPlayerConnection.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -211,12 +214,6 @@ fun VideoPlayerScreen(
                 artistName = artistDisplay.ifBlank { null }
             }
         }
-    }
-
-    val httpClient = remember {
-        OkHttpClient.Builder()
-            .dns(ResilientDns())
-            .build()
     }
 
     DisposableEffect(Unit) {
@@ -394,86 +391,22 @@ fun VideoPlayerScreen(
         }
     }
 
-    val mediaStoreHelper = remember { MediaStoreHelper(context) }
-
+    // Unified video download: go through the same MediaStoreDownloadManager every other surface uses
+    // (tracked state, live progress, correct mediaStoreUri, retry/cancel) — not a per-screen
+    // re-implementation. The selected bitrate is forwarded through the manager.
     val downloadVideo: (Int) -> Unit = { targetBitrate ->
         showDownloadDialog = false
         scope.launch {
-            try {
-                val playback = withContext(Dispatchers.IO) {
-                    val cm = connectivityManager ?: error("No connectivity manager")
-                    YTPlayerUtils.playerResponseForPlayback(
-                        videoId = videoId,
-                        audioQuality = AudioQuality.HIGH,
-                        connectivityManager = cm,
-                        preferVideo = true,
-                        maxVideoBitrateKbps = targetBitrate,
-                    ).getOrThrow()
-                }
-
-                val stream = UrlValidator.validateAndParseUrl(playback.streamUrl)?.toString()
-                    ?: error("Invalid stream URL")
-
-                // Get video metadata
-                val videoTitle = playback.videoDetails?.title ?: currentTitle ?: "Video"
-                val videoArtist = artistName ?: "Unknown Artist"
-                val videoDuration = playback.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0
-
-                // Download to temp file first
-                val tempFile = File(context.cacheDir, "temp_video_$videoId.mp4")
-
-                val uri = withContext(Dispatchers.IO) {
-                    val request = Request.Builder().url(stream).build()
-                    httpClient.newCall(request).execute().use { response ->
-                        if (!response.isSuccessful) error("HTTP ${response.code}")
-                        response.body?.byteStream()?.use { input ->
-                            tempFile.outputStream().use { output ->
-                                input.copyTo(output)
-                            }
-                        }
-                    }
-
-                    // Save to MediaStore (Movies/Zemer folder)
-                    val fileName = "$videoArtist - $videoTitle.mp4"
-                    val savedUri = mediaStoreHelper.saveVideoFileToMediaStore(
-                        tempFile = tempFile,
-                        fileName = fileName,
-                        mimeType = "video/mp4",
-                        title = videoTitle,
-                        artist = videoArtist,
-                        durationMs = videoDuration * 1000L
-                    )
-
-                    // Clean up temp file
-                    tempFile.delete()
-
-                    savedUri
-                }
-
-                if (uri != null) {
-                    database.query {
-                        upsert(
-                            SongEntity(
-                                id = videoId,
-                                title = videoTitle,
-                                duration = videoDuration,
-                                thumbnailUrl = playback.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url,
-                                explicit = false,
-                                dateDownload = LocalDateTime.now(),
-                                isDownloaded = true,
-                                isVideo = true,
-                                mediaStoreUri = uri.toString()
-                            )
-                        )
-                    }
-                    Toast.makeText(context, context.getString(R.string.video_saved), Toast.LENGTH_LONG).show()
-                } else {
-                    error("Failed to save video to MediaStore")
-                }
-            } catch (e: Exception) {
-                reportException(e, "VideoPlayerScreen download")
-                Toast.makeText(context, context.getString(R.string.video_download_failed), Toast.LENGTH_SHORT).show()
-            }
+            val existing = withContext(Dispatchers.IO) { database.getSongById(videoId) }
+            val songToDownload = existing?.copy(song = existing.song.copy(isVideo = true)) ?: Song(
+                song = SongEntity(
+                    id = videoId,
+                    title = currentTitle ?: videoId,
+                    isVideo = true,
+                ),
+                artists = emptyList(),
+            )
+            downloadUtil.downloadVideoToMediaStore(songToDownload, targetBitrate)
         }
     }
 
@@ -808,12 +741,34 @@ fun VideoPlayerScreen(
                                             ) {
                                                 IconButton(onClick = {
                                                     markInteraction()
-                                                    showDownloadDialog = true
+                                                    when (videoDownloadStatus) {
+                                                        DownloadStatus.DOWNLOADED -> scope.launch { downloadUtil.removeDownload(videoId) }
+                                                        DownloadStatus.DOWNLOADING -> downloadUtil.cancelMediaStoreDownload(videoId)
+                                                        DownloadStatus.NOT_DOWNLOADED -> showDownloadDialog = true
+                                                    }
                                                 }) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.download),
-                                                        contentDescription = stringResource(R.string.action_download)
-                                                    )
+                                                    when (videoDownloadStatus) {
+                                                        DownloadStatus.DOWNLOADED -> Icon(
+                                                            painter = painterResource(R.drawable.offline),
+                                                            contentDescription = stringResource(R.string.remove_download),
+                                                        )
+                                                        DownloadStatus.DOWNLOADING -> if (videoDownloadProgress > 0f) {
+                                                            CircularProgressIndicator(
+                                                                progress = { videoDownloadProgress },
+                                                                modifier = Modifier.size(24.dp),
+                                                                strokeWidth = 2.dp,
+                                                            )
+                                                        } else {
+                                                            CircularProgressIndicator(
+                                                                modifier = Modifier.size(24.dp),
+                                                                strokeWidth = 2.dp,
+                                                            )
+                                                        }
+                                                        DownloadStatus.NOT_DOWNLOADED -> Icon(
+                                                            painter = painterResource(R.drawable.download),
+                                                            contentDescription = stringResource(R.string.action_download),
+                                                        )
+                                                    }
                                                 }
                                             }
                                             Surface(

@@ -91,6 +91,8 @@ Checks, cheapest first:
 | Validated remote table reaches memory even if disk fails | `PlayerConfigStoreApplyRemoteTest.kt` |
 | No 304-lock (ETag without body / torn writes) | `PlayerConfigStoreCacheTest.kt` |
 | forceRefresh: single-flight, cooldown under lock, offline doesn't arm cooldown | `PlayerConfigStoreForceRefreshTest.kt` |
+| configEpoch advances only when the table actually changes (the cipher-WebView rebuild signal) | `PlayerConfigStoreEpochTest.kt` |
+| forced and stream-rejection cooldowns are independent (neither starves the other) | `PlayerConfigStoreCooldownTest.kt` |
 | Duplicate keys reject the whole file (both readers) | `PlayerConfigParserTest.kt` + `player-configs.test.mjs` |
 
 Also non-negotiable, from the code comments rather than tests: config cache filenames must

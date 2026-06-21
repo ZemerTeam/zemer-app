@@ -238,3 +238,53 @@ Rules for these and any new row component:
 - Common menu dialogs are shared, not re-implemented per menu: `SelectArtistDialog` (the
   multi-artist picker) and `AlreadyInPlaylistDialog` (`MenuDialogs.kt`). Reuse them rather than
   hand-rolling a `ListDialog` copy.
+- **Bottom-sheet menus must stay scrollable.** Every menu shown via `LocalMenuState.show { … }` is
+  hosted in the full-height `ModalBottomSheet` of `BottomSheetMenu.kt`, with the menu's own
+  `LazyColumn` as the single scroll container. Leave that `LazyColumn` user-scrollable (the default)
+  and let its `contentPadding` carry the bottom `WindowInsets.systemBars` inset — do **not** gate
+  scrolling on orientation/screen (e.g. `userScrollEnabled = !isPortrait`). Tall menus fit on the
+  developer's device but overflow on shorter screens, larger font/display scale, or with a gesture
+  nav bar; disabling scroll there makes the bottom items unreachable.
+
+## 12. Download state (one source of truth)
+
+Download/progress state is computed in exactly one place and read everywhere — never re-derived per
+surface. This is what keeps a downloaded album/song/playlist showing "Remove download" (and a live
+progress ring) identically in the library, Home, search rows, every menu and every header.
+
+- The rule lives in `playback/DownloadStateResolver.kt` (pure, unit-tested): a song is **DOWNLOADED**
+  when the persisted `SongEntity.isDownloaded` flag is set **OR** the live MediaStore state is
+  `COMPLETED`, **DOWNLOADING** when the live state is `QUEUED`/`DOWNLOADING`, else **NOT_DOWNLOADED**;
+  `aggregateSongs` / `aggregateProgress` extend that to a collection. The persisted flag is the only
+  thing that survives a process restart — the live `MediaStoreDownloadManager.downloadStates` map is
+  in-memory — so reading the live map *alone* is the bug that makes downloads "vanish" after relaunch.
+- The UI reads it through `ui/component/DownloadStatusUi.kt`: `rememberSongDownloadStatus`,
+  `rememberAggregateDownloadStatus`/`…Progress`, the `DownloadStatusIcon` badge, `SongDownloadBadge`
+  (the default song-row badge) and `AggregateDownloadButton` (the album/playlist header control, with
+  the D-pad focus border + determinate progress).
+- Menu rows are built by one decision (`playback/DownloadMenuLogic.kt`, unit-tested) + one builder
+  (`ui/menu/DownloadMenuItems.kt` `downloadMenuItem(...)`). Tapping a download row **never dismisses
+  the menu** — it animates Download → progress ring + "%" → Remove in place. Videos are handled by the
+  same path (`DownloadRowKind.DOWNLOAD_VIDEO`, hidden when videos are blocked).
+- **A collection never gets a FAILED/retry row.** `collectionRow` returns only REMOVE / DOWNLOADING /
+  DOWNLOAD — a failed member leaves the aggregate NOT_DOWNLOADED, so the collection offers DOWNLOAD
+  (which re-enqueues just the missing members = retry) and is removable once complete. A collection
+  "retry" row was a dead end that hid Download *and* Remove and re-failed the dead track forever. Only
+  single songs get a FAILED row (`songRow`).
+- **Async/online collection menus (album / playlist / multi-select) read ONE resolved list for every
+  action.** Resolve/fetch the tracks at click time (fetch-if-empty), then Download, Remove **and** the
+  aggregate status all iterate that *same* resolved list — never the original (possibly-empty) `songs`
+  prop. A Remove that loops the empty prop while Download loops the fetched list removes nothing (real
+  bug on the Home long-press playlist menu). For online items: aggregate via `aggregateByIds` (+ a
+  persisted-downloaded id set) so progress shows without Room entities, and on Download **persist each
+  item then download** (`database.insert`/`transaction { insert }` then `database.song(id).first()`) —
+  a bare lookup of a not-yet-persisted id no-ops, so the first tap appears to do nothing.
+- **Manager invariants** (`MediaStoreDownloadManager`, no Robolectric so verified by code + on-device):
+  `markSongAsDownloaded` bases the row on the **existing** DB row and overwrites only download columns
+  (never clobber `liked`/`inLibrary` with a caller's stale `Song`); `performDownload` backfills
+  `duration` **and** `thumbnailUrl` from the playback response; the per-download video bitrate is
+  cleared only on success/cancel/delete (never on a failed attempt, so retry keeps the chosen quality).
+- The legacy ExoPlayer `DownloadUtil.downloads` / `getDownload()` map is dead (nothing writes it for
+  MediaStore downloads). **Do not read it, and do not hand-roll an `Icon.Download(`.** Enforcement:
+  `scripts/ui-audit.sh` rule `R13-download` (baselined at zero) fails CI on any new
+  `downloadUtil.downloads`, `.getDownload(` or `Icon.Download(` under `ui/`.

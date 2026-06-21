@@ -3,7 +3,6 @@
 package com.jtech.zemer.ui.menu
 
 import android.content.Intent
-import android.content.res.Configuration
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,7 +36,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -59,6 +56,8 @@ import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.playback.DownloadMenuLogic
+import com.jtech.zemer.playback.DownloadStateResolver
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.ui.component.AlreadyInPlaylistDialog
 import com.jtech.zemer.ui.component.ArtistChoice
@@ -282,11 +281,8 @@ fun SongMenu(
     Spacer(modifier = Modifier.height(12.dp))
 
     val bottomSheetPageState = LocalBottomSheetPageState.current
-    val configuration = LocalConfiguration.current
-    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
     LazyColumn(
-        userScrollEnabled = !isPortrait,
         contentPadding = PaddingValues(
             start = 0.dp,
             top = 0.dp,
@@ -381,26 +377,9 @@ fun SongMenu(
                         )
                     )
                     add(
-                        Material3MenuItemData(
-                            icon = {
-                                Icon(
-                                    painterResource(
-                                        if (song.song.inLibrary == null) R.drawable.library_add
-                                        else R.drawable.library_add_check
-                                    ),
-                                    null,
-                                    Modifier.size(24.dp),
-                                )
-                            },
-                            title = {
-                                Text(
-                                    stringResource(
-                                        if (song.song.inLibrary == null) R.string.add_to_library
-                                        else R.string.remove_from_library
-                                    )
-                                )
-                            },
-                            onClick = {
+                        libraryMenuItem(
+                            inLibrary = song.song.inLibrary != null,
+                            onToggle = {
                                 val currentSong = song.song
                                 val isInLibrary = currentSong.inLibrary != null
                                 val token = if (isInLibrary) currentSong.libraryRemoveToken else currentSong.libraryAddToken
@@ -474,95 +453,33 @@ fun SongMenu(
                             },
                         )
                     )
-                    when (mediaStoreDownload?.status) {
-                        com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> add(
-                            Material3MenuItemData(
-                                icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
-                                title = {
-                                    Text(
-                                        stringResource(R.string.downloaded_to_device),
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
-                                },
-                                onClick = {
-                                    // TODO: Option to remove from MediaStore
-                                    onDismiss()
-                                },
-                            )
-                        )
-                        com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING,
-                        com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.QUEUED -> {
-                            val downloadState = mediaStoreDownload!!
-                            add(
-                                Material3MenuItemData(
-                                    icon = {
-                                        CircularProgressIndicator(
-                                            progress = { downloadState.progress },
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 2.dp,
-                                        )
-                                    },
-                                    title = { Text(stringResource(R.string.downloading_to_device)) },
-                                    description = { Text("${(downloadState.progress * 100).toInt()}%") },
-                                    onClick = {
-                                        downloadUtil.cancelMediaStoreDownload(song.id)
-                                        onDismiss()
-                                    },
-                                )
-                            )
-                        }
-                        com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.FAILED -> {
-                            val downloadState = mediaStoreDownload!!
-                            add(
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.info), null, Modifier.size(24.dp)) },
-                                    title = {
-                                        Text(
-                                            stringResource(R.string.download_failed),
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    },
-                                    description = { Text(downloadState.error ?: stringResource(R.string.error_unknown)) },
-                                    onClick = {
-                                        downloadUtil.retryMediaStoreDownload(song.id)
-                                        onDismiss()
-                                    },
-                                )
-                            )
-                        }
-                        else -> {
-                            // Check if this is a video - if so, offer video download (unless videos are blocked)
-                            val isVideo = song.song.isVideo
-
-                            // Skip showing download option for videos when blocked
-                            if (!(isVideo && blockVideos)) add(
-                                Material3MenuItemData(
-                                    icon = { Icon(painterResource(R.drawable.download), null, Modifier.size(24.dp)) },
-                                    title = {
-                                        Text(
-                                            if (isVideo) stringResource(R.string.download_video_to_device)
-                                            else stringResource(R.string.download_to_device)
-                                        )
-                                    },
-                                    onClick = {
-                                        // Track the user's download choice for permission callback
-                                        pendingVideoDownload = isVideo
-                                        if (PermissionHelper.hasMediaStoreWritePermission(context)) {
-                                            if (isVideo) {
-                                                downloadUtil.downloadVideoToMediaStore(song)
-                                            } else {
-                                                downloadUtil.downloadToMediaStore(song)
-                                            }
-                                            onDismiss()
-                                        } else {
-                                            val permissions = PermissionHelper.getRequiredWritePermissions()
-                                            permissionLauncher.launch(permissions)
-                                        }
-                                    },
-                                )
-                            )
-                        }
+                    // Unified download row: persisted-or-live state, live progress, video-aware, and the
+                    // menu stays open so it animates Download -> progress -> Remove. (DownloadMenuItems.kt)
+                    val downloadStatus = DownloadStateResolver.forSong(song.song.isDownloaded, mediaStoreDownload)
+                    val downloadProgress = when {
+                        song.song.isDownloaded ||
+                            mediaStoreDownload?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.COMPLETED -> 1f
+                        else -> mediaStoreDownload?.progress ?: 0f
                     }
+                    val downloadFailed =
+                        mediaStoreDownload?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.FAILED
+                    downloadMenuItem(
+                        kind = DownloadMenuLogic.songRow(downloadStatus, downloadFailed, song.song.isVideo, blockVideos),
+                        progress = downloadProgress,
+                        error = mediaStoreDownload?.error,
+                        onDownload = {
+                            pendingVideoDownload = song.song.isVideo
+                            if (PermissionHelper.hasMediaStoreWritePermission(context)) {
+                                if (song.song.isVideo) downloadUtil.downloadVideoToMediaStore(song)
+                                else downloadUtil.downloadToMediaStore(song)
+                            } else {
+                                permissionLauncher.launch(PermissionHelper.getRequiredWritePermissions())
+                            }
+                        },
+                        onCancel = { downloadUtil.cancelMediaStoreDownload(song.id) },
+                        onRetry = { downloadUtil.retryMediaStoreDownload(song.id) },
+                        onRemove = { scope.launch { downloadUtil.removeDownload(song.id) } },
+                    )?.let { add(it) }
                     add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.artist), null, Modifier.size(24.dp)) },

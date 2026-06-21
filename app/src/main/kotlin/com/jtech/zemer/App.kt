@@ -33,6 +33,7 @@ import com.jtech.zemer.utils.SyncUtils
 import com.zemer.cipher.ZemerCipher
 import timber.log.Timber
 import com.jtech.zemer.distribution.UpdateStartup
+import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
@@ -42,6 +43,7 @@ import com.metrolist.innertube.utils.parseCookieString
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -96,6 +98,21 @@ class App : Application(), SingletonImageLoader.Factory {
             proxy = YouTube.proxy,
             debugLogging = BuildConfig.DEBUG
         )
+
+        // Warm the cipher + PoToken/BotGuard WebViews off the first-play critical path so the first
+        // stream resolves fast. Best-effort and delayed so it never competes with app startup. The
+        // cipher warm-up needs no session, so it starts immediately; only the PoToken warm-up waits
+        // for visitorData (it's a no-op without one). Each half swallows its own failures.
+        applicationScope.launch(Dispatchers.IO) {
+            delay(2500)
+            YTPlayerUtils.prewarmCipher()
+            var waitedMs = 0
+            while (YouTube.visitorData == null && waitedMs < 12_000) {
+                delay(500)
+                waitedMs += 500
+            }
+            YTPlayerUtils.prewarmPoToken()
+        }
 
         // تهيئة إعدادات التطبيق عند الإقلاع
         applicationScope.launch {

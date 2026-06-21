@@ -94,6 +94,7 @@ zemer-cipher (`ZemerTeam/zemer-cipher`, all on `master`):
 | `ee29c60` | reject string-typed `schemaVersion`; shared parity fixtures |
 | `d78a8b3` | n-IIFE template pinned to a cross-language golden file |
 | `81c7ed8` | README documentation |
+| `2826208` | rebuild the cached WebView on a config change (`configEpoch`, captured pre-build) + a stream-rejection refresh (`refreshAfterStreamRejection`, own cooldown) so a wrong-but-non-throwing cipher recovers without an app restart, for every cipher client (doc 05) |
 
 zemer-app (`main`):
 
@@ -108,3 +109,4 @@ zemer-app (`main`):
 | `53d2aa0` | `validate-player-config.mjs` uses the shared n-IIFE template |
 | `1ada9a3`, `15e795d` | submodule pointer bumps to the deploy |
 | `be28bf2` | AGENTS/docs sync |
+| `8e311da` | on a stream 403 ask the cipher to refresh its config + clear the WEB_REMIX failure set (restore WEB_REMIX without restart); submodule bump to `2826208` |

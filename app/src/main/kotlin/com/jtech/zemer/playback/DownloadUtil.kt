@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.ConnectivityManager
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
-import androidx.media3.common.C
 import androidx.media3.database.DatabaseProvider
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.cache.CacheDataSource
@@ -33,11 +32,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -90,15 +87,10 @@ constructor(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    // Legacy ExoPlayer cache downloads. Still maintained for the download cache + removeDownload, but
+    // the UI no longer reads this map — download/progress state is unified through MediaStore (see
+    // DownloadStateResolver). Do not reintroduce UI reads of this (ui-audit rule R13).
     val downloads = MutableStateFlow<Map<String, Download>>(emptyMap())
-    private val exoDownloadStates: StateFlow<Map<String, MediaStoreDownloadManager.DownloadState>> =
-        downloads
-            .map { downloadMap ->
-                downloadMap.mapValues { (_, download) ->
-                    download.toDownloadState()
-                }
-            }
-            .stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
     private val dataSourceFactory: ResolvingDataSource.Factory by lazy {
         ResolvingDataSource.Factory(
@@ -255,47 +247,6 @@ constructor(
         }
     }
 
-    private fun Download.toDownloadState(): MediaStoreDownloadManager.DownloadState {
-        val status =
-            when (state) {
-                Download.STATE_COMPLETED -> MediaStoreDownloadManager.DownloadState.Status.COMPLETED
-                Download.STATE_DOWNLOADING, Download.STATE_RESTARTING -> MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING
-                Download.STATE_QUEUED -> MediaStoreDownloadManager.DownloadState.Status.QUEUED
-                Download.STATE_FAILED -> MediaStoreDownloadManager.DownloadState.Status.FAILED
-                Download.STATE_REMOVING,
-                Download.STATE_STOPPED -> MediaStoreDownloadManager.DownloadState.Status.CANCELLED
-                else -> MediaStoreDownloadManager.DownloadState.Status.CANCELLED
-            }
-
-        val totalBytes = contentLength.takeIf { it != C.LENGTH_UNSET.toLong() } ?: 0L
-        val downloadedBytes = bytesDownloaded
-        val progress =
-            when {
-                totalBytes > 0 -> downloadedBytes.toFloat() / totalBytes
-                percentDownloaded != C.PERCENTAGE_UNSET.toFloat() -> percentDownloaded / 100f
-                else -> 0f
-            }.coerceIn(0f, 1f)
-
-        val error =
-            if (status == MediaStoreDownloadManager.DownloadState.Status.FAILED &&
-                failureReason != Download.FAILURE_REASON_NONE
-            ) {
-                "Error code $failureReason"
-            } else {
-                null
-            }
-
-        return MediaStoreDownloadManager.DownloadState(
-            songId = request.id,
-            status = status,
-            progress = progress,
-            bytesDownloaded = downloadedBytes,
-            totalBytes = if (totalBytes > 0) totalBytes else downloadedBytes,
-            error = error,
-        )
-    }
-
-    fun getDownload(songId: String): Flow<Download?> = downloads.map { it[songId] }
 
     // MediaStore download methods
     fun getMediaStoreDownload(songId: String): Flow<MediaStoreDownloadManager.DownloadState?> =
@@ -303,6 +254,10 @@ constructor(
 
     fun getAllMediaStoreDownloads(): StateFlow<Map<String, MediaStoreDownloadManager.DownloadState>> =
         mediaStoreDownloadManager.downloadStates
+
+    /** Synchronous snapshot of a song's live download state (null if none this session). */
+    fun mediaStoreDownloadState(songId: String): MediaStoreDownloadManager.DownloadState? =
+        mediaStoreDownloadManager.getDownloadState(songId)
 
     fun downloadToMediaStore(song: com.jtech.zemer.db.entities.Song) {
         mediaStoreDownloadManager.downloadSong(song)
@@ -312,8 +267,11 @@ constructor(
      * Download a video to MediaStore (Movies/Zemer folder)
      * This downloads the actual video file (mp4), not just audio.
      */
-    fun downloadVideoToMediaStore(song: com.jtech.zemer.db.entities.Song) {
-        mediaStoreDownloadManager.downloadVideo(song)
+    fun downloadVideoToMediaStore(
+        song: com.jtech.zemer.db.entities.Song,
+        maxVideoBitrateKbps: Int? = null,
+    ) {
+        mediaStoreDownloadManager.downloadVideo(song, maxVideoBitrateKbps)
     }
 
     fun cancelMediaStoreDownload(songId: String) {

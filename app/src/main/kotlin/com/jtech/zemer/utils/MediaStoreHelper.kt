@@ -7,6 +7,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
 import com.jtech.zemer.constants.CustomDownloadPathKey
@@ -435,10 +436,18 @@ class MediaStoreHelper(private val context: Context) {
 
                             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                             val id = cursor.getLong(idColumn)
-                            Uri.withAppendedPath(
+                            val candidate = Uri.withAppendedPath(
                                 MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
                                 id.toString()
                             )
+                            // The size column can lie for a stale entry whose backing file is gone — if
+                            // we returned that, the song would be marked "downloaded" while pointing at a
+                            // missing file (no real download, then ENOENT/streaming on play). Only treat
+                            // it as existing if it actually opens.
+                            val opens = runCatching {
+                                context.contentResolver.openFileDescriptor(candidate, "r")?.use { true } ?: false
+                            }.getOrDefault(false)
+                            if (opens) candidate else null
                         } else {
                             null
                         }
@@ -502,11 +511,21 @@ class MediaStoreHelper(private val context: Context) {
      * @return true if deletion was successful, false otherwise
      */
     suspend fun deleteFromMediaStore(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        // A custom download path saves the file as a SAF DOCUMENT uri (saveToCustomPath); those can't
+        // be removed with ContentResolver.delete (that's for MediaStore content uris) — they need
+        // DocumentsContract.deleteDocument, or the file is left behind on "Remove download".
+        if (DocumentsContract.isDocumentUri(context, uri)) {
+            return@withContext runCatching {
+                DocumentsContract.deleteDocument(context.contentResolver, uri)
+            }.recoverCatching {
+                DocumentFile.fromSingleUri(context, uri)?.delete() == true
+            }.getOrDefault(false)
+        }
         try {
-            val deleted = context.contentResolver.delete(uri, null, null)
-            deleted > 0
+            context.contentResolver.delete(uri, null, null) > 0
         } catch (e: Exception) {
-            false
+            // Last resort for tree/document uris that aren't reported as document uris.
+            runCatching { DocumentFile.fromSingleUri(context, uri)?.delete() == true }.getOrDefault(false)
         }
     }
 

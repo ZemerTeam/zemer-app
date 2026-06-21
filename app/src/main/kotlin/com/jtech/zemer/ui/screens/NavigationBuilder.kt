@@ -84,6 +84,9 @@ fun NavGraphBuilder.navigationBuilder(
     composable("new_release") {
         NewReleaseScreen(navController, scrollBehavior)
     }
+    composable("latest_releases") {
+        LatestReleasesScreen(navController, scrollBehavior)
+    }
     composable("charts_screen") {
        ChartsScreen(navController)
     }

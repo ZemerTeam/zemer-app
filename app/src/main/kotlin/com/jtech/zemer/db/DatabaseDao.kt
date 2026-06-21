@@ -1058,6 +1058,13 @@ interface DatabaseDao {
     @Query("SELECT * FROM song WHERE isDownloaded = 1 AND isVideo = 0 ORDER BY dateDownload")
     fun downloadedSongsByCreateDateAsc(): Flow<List<Song>>
 
+    // Whitelist-filtered downloaded songs for content-filtered surfaces (Android Auto / media browse).
+    // The pre-unification Auto "Downloaded" list was built from allSongs() (whitelist-filtered); the
+    // plain downloadedSongsByCreateDateAsc() above is NOT whitelist-filtered, so Auto must use this.
+    @Transaction
+    @Query("SELECT * FROM song WHERE isDownloaded = 1 AND isVideo = 0 AND song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist)) ORDER BY dateDownload")
+    fun downloadedSongsWhitelistedByCreateDateAsc(): Flow<List<Song>>
+
     @Transaction
     @Query("SELECT * FROM song WHERE isDownloaded = 1 AND isVideo = 0 ORDER BY title")
     fun downloadedSongsByNameAsc(): Flow<List<Song>>

@@ -63,6 +63,7 @@ import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -233,6 +234,16 @@ fun StorageSettings(
                 onDismiss = { clearDownloads = false },
                 onConfirm = {
                     coroutineScope.launch(Dispatchers.IO) {
+                        // Downloads live in MediaStore (SongEntity.isDownloaded + mediaStoreUri), NOT the
+                        // legacy ExoPlayer downloadCache (which is empty) — clearing that cache deleted
+                        // nothing. Remove each download (audio AND video) through the unified path so the
+                        // actual file is deleted and the flag cleared, then sweep any legacy cache remnants.
+                        val allDownloaded =
+                            playerService.database.downloadedSongsByCreateDateAsc().first() +
+                                playerService.database.downloadedVideos().first()
+                        allDownloaded.forEach { song ->
+                            playerService.downloadUtil.removeDownload(song.id)
+                        }
                         downloadCache.keys.forEach { key ->
                             downloadCache.removeResource(key)
                         }

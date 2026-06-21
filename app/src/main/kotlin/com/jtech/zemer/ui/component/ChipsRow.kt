@@ -92,15 +92,22 @@ fun <E> ChipsRow(
                 onClick = { onValueUpdate(value) },
                 shape = RoundedCornerShape(16.dp),
                 border = null,
-                modifier = (if (index == 0 && firstChipFocusRequester != null) {
-                    Modifier.focusRequester(firstChipFocusRequester)
-                        .focusProperties {
-                            if (upFocusRequester != null) up = upFocusRequester
-                            if (downFocusRequester != null) down = downFocusRequester
+                modifier = Modifier
+                    // EVERY chip routes D-pad up/down to the same target, not just the first — otherwise
+                    // a chip the geometric focus search can't resolve upward from (e.g. the rightmost
+                    // "Songs" chip with nothing directly above it) stays stuck while the leftmost chips
+                    // move focus to the top bar.
+                    .focusProperties {
+                        if (upFocusRequester != null) up = upFocusRequester
+                        if (downFocusRequester != null) down = downFocusRequester
+                    }
+                    .then(
+                        if (index == 0 && firstChipFocusRequester != null) {
+                            Modifier.focusRequester(firstChipFocusRequester)
+                        } else {
+                            Modifier
                         }
-                } else {
-                    Modifier
-                })
+                    )
                     .onFocusChanged { isFocused = it.isFocused }
                     .focusable()
                     .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(16.dp))

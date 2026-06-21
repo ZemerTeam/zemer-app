@@ -16,6 +16,7 @@ import com.jtech.zemer.utils.UrlValidator
 import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.enumPreference
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,6 +30,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDateTime
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.min
@@ -84,9 +86,14 @@ constructor(
     private val _downloadStates = MutableStateFlow<Map<String, DownloadState>>(emptyMap())
     val downloadStates: StateFlow<Map<String, DownloadState>> = _downloadStates.asStateFlow()
 
+    // Per-download requested video bitrate (kbps), set by downloadVideo, consumed by performDownload.
+    private val requestedVideoBitrate = ConcurrentHashMap<String, Int>()
+
     // Download queue
     private val downloadQueue = mutableListOf<Song>()
-    private val activeDownloads = mutableMapOf<String, Job>()
+    // Touched from several coroutines (processQueue, performDownload's finally, cancel/delete) — must be
+    // concurrent or it can corrupt / leak an uncancellable orphan job.
+    private val activeDownloads = ConcurrentHashMap<String, Job>()
 
     companion object {
         private const val MAX_CONCURRENT_DOWNLOADS = 3
@@ -125,7 +132,7 @@ constructor(
      *
      * @param song The song/video to download as video file
      */
-    fun downloadVideo(song: Song) {
+    fun downloadVideo(song: Song, maxVideoBitrateKbps: Int? = null) {
         Timber.d("downloadVideo called: id=${song.id}, title=${song.song.title}, inputIsVideo=${song.song.isVideo}")
         scope.launch {
             // Start notification service
@@ -138,6 +145,8 @@ constructor(
                 Timber.d("downloadVideo skipped - already downloading or completed: status=${currentState?.status}")
                 return@launch
             }
+            // Remember the requested video bitrate for this download (consumed in performDownload).
+            maxVideoBitrateKbps?.let { requestedVideoBitrate[song.id] = it }
 
             // Mark as video FIRST, then persist
             val videoSong = song.copy(song = song.song.copy(isVideo = true))
@@ -247,6 +256,7 @@ constructor(
             // Cancel active download
             activeDownloads[songId]?.cancel()
             activeDownloads.remove(songId)
+            requestedVideoBitrate.remove(songId)
 
             // Remove from queue
             synchronized(downloadQueue) {
@@ -309,6 +319,7 @@ constructor(
         // Cancel active work and purge queue
         activeDownloads[songId]?.cancel()
         activeDownloads.remove(songId)
+        requestedVideoBitrate.remove(songId)
         synchronized(downloadQueue) {
             downloadQueue.removeAll { it.id == songId }
         }
@@ -358,6 +369,11 @@ constructor(
                 } finally {
                     downloadSemaphore.release()
                     activeDownloads.remove(song.id)
+                    // NOTE: do NOT drop the requested video bitrate here. A failed attempt ends in this
+                    // finally too, and retryDownload() re-issues downloadVideo(song) with no bitrate — if
+                    // we erased it on failure, the retry would silently fall back to best/default quality
+                    // (a large file over a metered connection the user explicitly capped). It is cleared
+                    // on success, cancel and delete instead.
 
                     // Process next item in queue
                     processQueue()
@@ -398,6 +414,7 @@ constructor(
                 audioQuality = audioQuality,
                 connectivityManager = connectivityManager,
                 preferVideo = isVideoDownload,
+                maxVideoBitrateKbps = if (isVideoDownload) requestedVideoBitrate[song.id] else null,
                 forDownload = true,
             ).getOrThrow()
 
@@ -459,7 +476,12 @@ constructor(
                 } else {
                     song.artists.firstOrNull()?.name ?: "Unknown Artist"
                 }
-                val duration = song.song.duration.takeIf { it > 0 }?.times(1000L) // Convert to milliseconds
+                // Songs reached via an album/playlist page often carry no duration (0), which shows as
+                // "0:00" in the Downloaded list — backfill it from the playback response so the saved
+                // file's metadata AND the DB row get a real length.
+                val effectiveDurationSec = song.song.duration.takeIf { it > 0 }
+                    ?: playbackData.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0
+                val duration = effectiveDurationSec.takeIf { it > 0 }?.times(1000L) // ms for MediaStore
 
                 // Embed metadata if format supports it (audio only)
                 if (!isVideoDownload && CoverArtEmbedder.supportsEmbedding(extension)) {
@@ -507,6 +529,8 @@ constructor(
                 Timber.d("MediaStore save result: $uri")
 
                 if (uri != null) {
+                    // Download succeeded — the requested bitrate has served its purpose.
+                    requestedVideoBitrate.remove(song.id)
                     // Mark as completed
                     updateDownloadState(
                         song.id,
@@ -517,8 +541,19 @@ constructor(
                         )
                     )
 
-                    // Update database with MediaStore URI (preserving isVideo flag)
-                    markSongAsDownloaded(song, uri.toString())
+                    // Update database with MediaStore URI (preserving isVideo flag), backfilling the
+                    // duration AND thumbnail if the source had none so the Downloaded list shows a real
+                    // time and artwork — a standalone video opened from the Video player is built with
+                    // neither, and the old per-screen download set the thumbnail explicitly.
+                    val effectiveThumbnailUrl = song.song.thumbnailUrl?.takeIf { it.isNotBlank() }
+                        ?: playbackData.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url
+                    val songWithMeta = song.copy(
+                        song = song.song.copy(
+                            duration = if (song.song.duration > 0) song.song.duration else effectiveDurationSec,
+                            thumbnailUrl = effectiveThumbnailUrl,
+                        ),
+                    )
+                    markSongAsDownloaded(songWithMeta, uri.toString())
                 } else {
                     throw Exception("Failed to save file to MediaStore")
                 }
@@ -529,6 +564,11 @@ constructor(
                 }
             }
 
+        } catch (e: CancellationException) {
+            // The user cancelled this download (cancelDownload/deleteDownloaded cancelled the job).
+            // Must rethrow — otherwise the retry branch below would swallow it, resurrect the download,
+            // overwrite the CANCELLED state, and pin the foreground notification service open forever.
+            throw e
         } catch (e: Exception) {
             Timber.e(e, "Download failed for song ${song.id}: ${e.message}")
             // Retry logic with exponential backoff
@@ -638,24 +678,83 @@ constructor(
     }
 
     /**
-     * Update the download state for a song
+     * Update the download state for a song. While a download is in progress, progress is clamped to
+     * be monotonic (never decreases): a retry restarts the byte counter at 0 and the per-attempt
+     * "Retrying…" state carries progress 0, which otherwise makes the UI ring jump backwards and
+     * "bounce" up to 100%. Holding the last value until the new attempt catches up keeps it smooth.
      */
     private fun updateDownloadState(songId: String, state: DownloadState) {
-        _downloadStates.value = _downloadStates.value + (songId to state)
+        val prev = _downloadStates.value[songId]
+        val adjusted =
+            if (state.status == DownloadState.Status.DOWNLOADING &&
+                prev?.status == DownloadState.Status.DOWNLOADING &&
+                prev.progress > state.progress
+            ) {
+                state.copy(
+                    progress = prev.progress,
+                    bytesDownloaded = maxOf(prev.bytesDownloaded, state.bytesDownloaded),
+                )
+            } else {
+                state
+            }
+        _downloadStates.value = _downloadStates.value + (songId to adjusted)
     }
 
     /**
-     * Mark a song as downloaded in the database with MediaStore URI
+     * Mark a song as downloaded in the database with its MediaStore URI.
+     *
+     * Persists the row (with isDownloaded = true), its artists and its album in ONE transaction.
+     * This previously called [ensureSongPersisted] (which upserts the row with isDownloaded = false
+     * for a brand-new song) and THEN a separate `query {}` upserting isDownloaded = true. `query {}`
+     * runs on a fire-and-forget executor, so those two writes RACED: intermittently the "false" write
+     * landed last, so a download whose file saved fine still ended up isDownloaded = 0 with no
+     * mediaStoreUri — it vanished from the Downloaded list and played by streaming. A single
+     * transaction whose authoritative write is isDownloaded = true removes the race.
      */
     private suspend fun markSongAsDownloaded(song: Song, mediaStoreUri: String) {
-        ensureSongPersisted(song)
-
-        database.query {
-            database.upsert(
-                song.song.copy(
+        // Base the persisted row on the EXISTING row (if any), not the caller's Song. The caller may
+        // hand us a stale/partial Song (e.g. an album-page entity with liked = false, inLibrary = null);
+        // a full-row @Upsert of that would silently un-like the song / drop it from the library. We only
+        // overwrite the download-owned columns here (+ isVideo, + duration/thumbnail backfill when the
+        // row lacks them) and preserve everything else the user set.
+        val existing = database.song(song.id).first()?.song
+        database.transaction {
+            val base = existing ?: song.song
+            upsert(
+                base.copy(
+                    isVideo = song.song.isVideo,
                     isDownloaded = true,
                     dateDownload = LocalDateTime.now(),
-                    mediaStoreUri = mediaStoreUri
+                    mediaStoreUri = mediaStoreUri,
+                    duration = if (base.duration > 0) base.duration else song.song.duration,
+                    thumbnailUrl = base.thumbnailUrl ?: song.song.thumbnailUrl,
+                )
+            )
+            insertSongRelations(song)
+        }
+    }
+
+    /** Insert a song's artists + album relations. Shared by [markSongAsDownloaded] and
+     *  [ensureSongPersisted] so the relation wiring lives in one place. Call inside a query/transaction
+     *  block (receiver is the [MusicDatabase]). */
+    private fun MusicDatabase.insertSongRelations(song: Song) {
+        song.artists.forEachIndexed { index, artist ->
+            insert(artist)
+            insert(
+                SongArtistMap(
+                    songId = song.id,
+                    artistId = artist.id,
+                    position = index,
+                )
+            )
+        }
+        song.album?.let { album ->
+            insert(album)
+            insert(
+                SongAlbumMap(
+                    songId = song.id,
+                    albumId = album.id,
+                    index = 0,
                 )
             )
         }
@@ -678,28 +777,7 @@ constructor(
             )
 
             upsert(mergedSong)
-
-            song.artists.forEachIndexed { index, artist ->
-                insert(artist)
-                insert(
-                    SongArtistMap(
-                        songId = song.id,
-                        artistId = artist.id,
-                        position = index,
-                    )
-                )
-            }
-
-            song.album?.let { album ->
-                insert(album)
-                insert(
-                    SongAlbumMap(
-                        songId = song.id,
-                        albumId = album.id,
-                        index = 0,
-                    )
-                )
-            }
+            insertSongRelations(song)
         }
     }
 
