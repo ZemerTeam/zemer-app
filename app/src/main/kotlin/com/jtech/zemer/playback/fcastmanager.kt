@@ -64,7 +64,11 @@ class DevEventHandler(
                 handler.shouldPlay = true
             }
         } else if (state == PlaybackState.PAUSED) {
-            handler.shouldPlay = false
+            if (handler.shouldPlay) {
+                device.resumePlayback()
+            } else {
+                handler.shouldPlay = false
+            }
         }
     }
 
@@ -169,6 +173,7 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     }
 
     fun disconnect() {
+        connectedDevice?.stopPlayback()
         connectedDevice?.disconnect()
         onConnectionDisconnected()
     }
