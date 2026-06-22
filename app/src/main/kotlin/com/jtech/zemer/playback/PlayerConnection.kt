@@ -27,6 +27,7 @@ import org.fcast.sender_sdk.PlaybackState
 import org.fcast.sender_sdk.DeviceConnectionState
 import org.fcast.sender_sdk.Metadata
 import android.util.Log
+import kotlinx.coroutines.delay
 import org.fcast.sender_sdk.CastingDevice
 import org.fcast.sender_sdk.DeviceEventHandler
 
@@ -98,6 +99,7 @@ class PlayerConnection(
 
     private var lastTransitionTime = 0L
     private var lastRemotePosition = 0.0
+    private var lastRemoteTimeUpdateAt = System.currentTimeMillis()
 
     init {
         player.addListener(this)
@@ -113,23 +115,28 @@ class PlayerConnection(
         repeatMode.value = player.repeatMode
 
         service.discoveryHandler.onDisconnect = { lastRemotePos ->
-            player.seekTo(lastRemotePos)
-            player.prepare()
-            player.playWhenReady = false
+            scope.launch {
+                player.seekTo(lastRemotePos)
+                player.prepare()
+                player.playWhenReady = false
+            }
         }
 
         scope.launch {
             service.discoveryHandler.remoteTime.collect { time ->
                 if (time > 0) lastRemotePosition = time
+                Log.d("FCastAutoAdvance", "remoteTime=$time")
+                lastRemoteTimeUpdateAt = System.currentTimeMillis()
             }
         }
         scope.launch {
             var lastState = service.discoveryHandler.remotePlaybackState.value
             service.discoveryHandler.remotePlaybackState.collect { state ->
+                val dur = service.discoveryHandler.remoteDuration.value
+                Log.d("FCastAutoAdvance", "state=$state lastState=$lastState isCasting=${isCasting.value} dur=$dur lastRemotePosition=$lastRemotePosition")
                 if (isCasting.value && state == PlaybackState.IDLE && lastState == PlaybackState.PLAYING) {
-                    val dur = service.discoveryHandler.remoteDuration.value
                     // If we're near the end, transition to next song
-                    if (dur > 0 && lastRemotePosition >= dur - 2.0 && System.currentTimeMillis() - lastTransitionTime > 2000) {
+                    if (dur > 0 && lastRemotePosition >= dur - 2.0 && System.currentTimeMillis() - lastTransitionTime > 8000) {
                         if (player.repeatMode == REPEAT_MODE_ONE) {
                             player.seekTo(player.currentMediaItemIndex, 0)
                             triggerRemoteLoad(player.currentMediaItem)
@@ -139,6 +146,26 @@ class PlayerConnection(
                     }
                 }
                 lastState = state
+            }
+        }
+        scope.launch {
+            while (true) {
+                delay(1000)
+                if (isCasting.value) {
+                    val dur = service.discoveryHandler.remoteDuration.value
+                    val stalledFor = System.currentTimeMillis() - lastRemoteTimeUpdateAt
+                    if (dur > 0 && lastRemotePosition >= dur - 3.0 &&
+                        stalledFor > 4000 &&
+                        System.currentTimeMillis() - lastTransitionTime > 8000) {
+                        Log.d("FCastAutoAdvance", "Stall detected near track end, advancing")
+                        if (player.repeatMode == REPEAT_MODE_ONE) {
+                            player.seekTo(player.currentMediaItemIndex, 0)
+                            triggerRemoteLoad(player.currentMediaItem)
+                        } else if (canSkipNext.value) {
+                            seekToNext()
+                        }
+                    }
+                }
             }
         }
     }
