@@ -614,10 +614,7 @@ private fun NewMiniPlayer(
                                 shape = CircleShape
                             )
                             .focusBorder(CircleShape)
-                            .clickable {
-                                currentService.startDiscovery()
-                                menuState.show { CastPicker(playerConnection, mediaMetadata) { menuState.dismiss() } }
-                            }
+                            .clickable { openCastPicker(playerConnection, menuState) }
                     ) {
                         Icon(
                             painter = painterResource(if (connectedDevice != null) R.drawable.cast_connected else R.drawable.cast),
@@ -944,10 +941,7 @@ private fun LegacyMiniPlayer(
 
             if (castEnabled || connectedDevice != null) {
                 IconButton(
-                    onClick = {
-                        currentService.startDiscovery()
-                        menuState.show { CastPicker(playerConnection, mediaMetadata) { menuState.dismiss() } }
-                    },
+                    onClick = { openCastPicker(playerConnection, menuState) },
                 ) {
                     Icon(
                         painter = painterResource(if (connectedDevice != null) R.drawable.cast_connected else R.drawable.cast),

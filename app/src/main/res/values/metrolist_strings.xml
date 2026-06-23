@@ -562,7 +562,6 @@
     <string name="cast_download_title">Download cast support?</string>
     <string name="cast_downloading_support">Downloading cast support…</string>
     <string name="cast_get_fcast">Don\'t have a receiver? Get FCast</string>
-    <string name="cast_no_devices">No devices found on network</string>
     <string name="cast_same_wifi_hint">Make sure your device is on the same Wi-Fi network</string>
     <string name="cast_searching">Searching for devices…</string>
     <string name="casting">Casting</string>

@@ -108,7 +108,14 @@ class CastNativeLibLoader(context: Context) {
     /**
      * Ensures the lib is present + verified and the override applied. Blocking network I/O — call off the
      * main thread. Returns true once the SDK can be loaded. Safe to call repeatedly (no-op when ready).
+     *
+     * `@Synchronized`: the call-site guard in [MusicService.downloadCastLib] (`isReady || Downloading`)
+     * is not atomic with the `_state = Downloading` flip below, so two fast download/retry taps can both
+     * pass it and enter here. Serialising means the second caller blocks until the first finishes, then
+     * sees `cachedLibValid()` and returns immediately — never a second concurrent write into the shared
+     * `*.download` temp file (which could leave a corrupt [libFile] validated by a correct marker).
      */
+    @Synchronized
     fun ensure(): Boolean {
         if (cachedLibValid()) {
             applyOverride()

@@ -89,4 +89,24 @@ class CastAutoAdvanceTest {
                 CastAutoAdvance.debouncePassed(now, lastTransition),
         )
     }
+
+    @Test
+    fun `resetting last position to zero clears a stale near-end so a fresh track is not auto-skipped`() {
+        // Regression for the connect/device-switch spurious auto-skip: PlayerConnection's remoteTime
+        // collector now records position 0 unconditionally, so a new track (remoteTime reset to 0)
+        // clears the previous track's near-end position. With the old guard the position stayed stale
+        // and nearEnd stayed true against the new duration -> the fresh track could be auto-skipped.
+        val staleNearEndPos = 198.0 // left over from a ~200s previous track
+        assertTrue(
+            "stale near-end position would (wrongly) look finished against a new track's duration",
+            CastAutoAdvance.nearEnd(200.0, staleNearEndPos, CastAutoAdvance.STALL_END_EPSILON_SEC),
+        )
+        // After the reset (position 0) the new track of any real length is not near end.
+        assertFalse(
+            "a freshly-connected/loaded track at position 0 must never look finished",
+            CastAutoAdvance.nearEnd(200.0, 0.0, CastAutoAdvance.STALL_END_EPSILON_SEC),
+        )
+        // Even a very short track is safe at position 0 (0 >= dur - eps only when dur <= eps).
+        assertFalse(CastAutoAdvance.nearEnd(10.0, 0.0, CastAutoAdvance.STALL_END_EPSILON_SEC))
+    }
 }

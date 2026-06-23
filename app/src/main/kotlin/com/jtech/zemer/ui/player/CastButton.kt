@@ -21,9 +21,23 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.CastEnabledKey
+import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MenuState
 import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.utils.rememberPreference
+
+/**
+ * The single launch path for the FCast device picker, shared by the artwork [CastButton] and the
+ * mini-player cast buttons (which keep their own distinct visuals): start NSD discovery lazily, then
+ * open the picker in the shared menu bottom-sheet. Reads the current metadata at click time.
+ */
+fun openCastPicker(playerConnection: PlayerConnection, menuState: MenuState) {
+    playerConnection.service.startDiscovery()
+    menuState.show {
+        CastPicker(playerConnection, playerConnection.mediaMetadata.value) { menuState.dismiss() }
+    }
+}
 
 /**
  * Cast button overlaid on the player artwork (same pattern Metrolist uses): a radial-scrim-backed icon
@@ -41,7 +55,6 @@ fun CastButton(
     val menuState = LocalMenuState.current
     val connectedDevice by service.discoveryHandler.connectedDeviceFlow.collectAsState()
     val castEnabled by rememberPreference(CastEnabledKey, defaultValue = false)
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
 
     if (!castEnabled && connectedDevice == null) return
 
@@ -64,10 +77,7 @@ fun CastButton(
                 .align(Alignment.Center)
                 .clip(CircleShape)
                 .focusBorder(CircleShape)
-                .clickable {
-                    service.startDiscovery()
-                    menuState.show { CastPicker(playerConnection, mediaMetadata) { menuState.dismiss() } }
-                },
+                .clickable { openCastPicker(playerConnection, menuState) },
         ) {
             Icon(
                 painter = painterResource(
