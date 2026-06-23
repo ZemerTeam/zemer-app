@@ -16,6 +16,13 @@ object CastPlayback {
     fun isPlaying(state: PlaybackState?): Boolean = state == PlaybackState.PLAYING
 
     /**
+     * True when the receiver is deliberately paused. The stall-based end detector must NOT treat a
+     * paused-near-the-end track as "finished" — pausing freezes the remote clock, which otherwise
+     * looks identical to a stall and would auto-skip a track the user paused on purpose.
+     */
+    fun isPaused(state: PlaybackState?): Boolean = state == PlaybackState.PAUSED
+
+    /**
      * The play intent a remote state change implies: PLAYING -> keep playing, PAUSED -> keep paused,
      * transient/unknown states (buffering, idle, null) -> no change. Lets a pause/resume from the TV's
      * own remote be mirrored into our intent without fighting it.

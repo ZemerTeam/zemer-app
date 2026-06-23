@@ -17,7 +17,11 @@ sealed interface CastLibState {
     data object Idle : CastLibState          // not present, not requested
     data object Downloading : CastLibState
     data object Ready : CastLibState          // present + verified + override applied; the SDK can load
-    data class Failed(val reason: String) : CastLibState
+
+    /** A localizable failure reason (the UI maps it to a string resource — never a raw English string). */
+    data class Failed(val reason: Reason) : CastLibState {
+        enum class Reason { UNSUPPORTED_DEVICE, DOWNLOAD_FAILED }
+    }
 }
 
 /**
@@ -53,6 +57,15 @@ object CastNativeLib {
     /** The lib for the device's most-preferred supported ABI, or null if none of ours match. */
     fun pickAbi(supportedAbis: List<String>): AbiLib? =
         supportedAbis.firstNotNullOfOrNull { abi -> ABIS.firstOrNull { it.abi == abi } }
+
+    /**
+     * Whether an already-present cached lib can be trusted as-is (skip re-download): it exists AND its
+     * recorded sha matches the sha pinned for the device's ABI. A version bump (different expected sha),
+     * a missing marker, or a truncated/partial copy (marker absent because it is written only after the
+     * file is fully in place) all fail this check and force a fresh, verified download.
+     */
+    fun cacheIsValid(libExists: Boolean, storedSha: String?, expectedSha: String?): Boolean =
+        libExists && expectedSha != null && storedSha != null && storedSha.equals(expectedSha, ignoreCase = true)
 }
 
 /**
@@ -65,17 +78,25 @@ class CastNativeLibLoader(context: Context) {
     private val appContext = context.applicationContext
     private val libDir = File(appContext.filesDir, "castlib")
     private val libFile = File(libDir, CastNativeLib.LIB_FILE_NAME)
+    // Records the sha256 of the lib actually on disk; written only after a verified download lands, and
+    // compared against the sha pinned for this device's ABI so a stale (post-upgrade) or partial copy is
+    // never trusted. Keyed by content, not filename, so the cache file name can stay version-less.
+    private val markerFile = File(libDir, "${CastNativeLib.LIB_FILE_NAME}.sha")
+    private val expectedSha: String? = CastNativeLib.pickAbi(Build.SUPPORTED_ABIS.toList())?.sha256
+
+    private fun storedSha(): String? = runCatching { markerFile.readText().trim() }.getOrNull()
+    private fun cachedLibValid(): Boolean = CastNativeLib.cacheIsValid(libFile.exists(), storedSha(), expectedSha)
 
     private val _state = MutableStateFlow<CastLibState>(
-        if (libFile.exists()) CastLibState.Ready else CastLibState.Idle,
+        if (cachedLibValid()) CastLibState.Ready else CastLibState.Idle,
     )
     val state: StateFlow<CastLibState> = _state.asStateFlow()
 
     init {
-        // A copy downloaded in a previous run is already trusted (verified on download, app-private
-        // storage). Point uniffi at it now — a system-property write, no native code — so the SDK can
-        // load on relaunch without a fetch.
-        if (libFile.exists()) applyOverride()
+        // A copy downloaded in a previous run is trusted only if its recorded sha still matches the sha
+        // pinned for this ABI (guards against a stale lib after an SDK_VERSION bump or a truncated copy).
+        // Point uniffi at it now — a system-property write, no native code — so the SDK can load without a fetch.
+        if (cachedLibValid()) applyOverride()
     }
 
     val isReady: Boolean get() = _state.value is CastLibState.Ready
@@ -89,13 +110,16 @@ class CastNativeLibLoader(context: Context) {
      * main thread. Returns true once the SDK can be loaded. Safe to call repeatedly (no-op when ready).
      */
     fun ensure(): Boolean {
-        if (libFile.exists()) {
+        if (cachedLibValid()) {
             applyOverride()
             _state.value = CastLibState.Ready
             return true
         }
+        // Missing, stale (version bump), or partial/unverifiable copy — drop it and re-fetch.
+        libFile.delete()
+        markerFile.delete()
         val abiLib = CastNativeLib.pickAbi(Build.SUPPORTED_ABIS.toList()) ?: run {
-            _state.value = CastLibState.Failed("Unsupported CPU (${Build.SUPPORTED_ABIS.joinToString()})")
+            _state.value = CastLibState.Failed(CastLibState.Failed.Reason.UNSUPPORTED_DEVICE)
             return false
         }
         _state.value = CastLibState.Downloading
@@ -105,20 +129,24 @@ class CastNativeLibLoader(context: Context) {
             val sha = downloadTo(abiLib.url, tmp)
             if (!sha.equals(abiLib.sha256, ignoreCase = true)) {
                 tmp.delete()
-                _state.value = CastLibState.Failed("Checksum mismatch")
+                reportException(IllegalStateException("FCast lib checksum mismatch (got $sha, want ${abiLib.sha256})"))
+                _state.value = CastLibState.Failed(CastLibState.Failed.Reason.DOWNLOAD_FAILED)
                 false
             } else {
                 if (!tmp.renameTo(libFile)) {
                     tmp.copyTo(libFile, overwrite = true)
                     tmp.delete()
                 }
+                // Write the marker only AFTER the lib is fully in place, so a crash mid-copy leaves no
+                // marker and the partial file is re-downloaded next launch instead of being trusted.
+                markerFile.writeText(abiLib.sha256)
                 applyOverride()
                 _state.value = CastLibState.Ready
                 true
             }
         } catch (e: Exception) {
             reportException(e)
-            _state.value = CastLibState.Failed(e.message ?: "Download failed")
+            _state.value = CastLibState.Failed(CastLibState.Failed.Reason.DOWNLOAD_FAILED)
             false
         }
     }

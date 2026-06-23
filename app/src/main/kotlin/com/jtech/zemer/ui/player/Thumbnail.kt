@@ -180,10 +180,13 @@ fun Thumbnail(
     LaunchedEffect(itemScrollOffset) {
         if (!thumbnailLazyGridState.isScrollInProgress || !swipeThumbnail || itemScrollOffset != 0 || currentMediaIndex < 0) return@LaunchedEffect
 
+        // Swipe = "skip to the adjacent track" and must preserve play/pause state, so use the raw
+        // media-item seeks (not the transport wrappers that restart-on-prev and force play). While
+        // casting, the resulting media-item transition reloads the receiver.
         if (currentItem > currentMediaIndex && canSkipNext) {
-            playerConnection.seekToNext()
+            playerConnection.player.seekToNext()
         } else if (currentItem < currentMediaIndex && canSkipPrevious) {
-            playerConnection.seekToPrevious()
+            playerConnection.player.seekToPreviousMediaItem()
         }
     }
 
@@ -284,7 +287,6 @@ fun Thumbnail(
                             }
                         ) { item ->
                             val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
-                            val isCasting by playerConnection.isCasting.collectAsState()
                             var skipMultiplier by remember { mutableIntStateOf(1) }
                             var lastTapTime by remember { mutableLongStateOf(0L) }
 
@@ -296,12 +298,11 @@ fun Thumbnail(
                                     .pointerInput(Unit) {
                                         detectTapGestures(
                                             onDoubleTap = { offset ->
-                                                val currentPosition = if (isCasting) {
-                                                    (playerConnection.service.discoveryHandler.remoteTime.value * 1000).toLong()
-                                                } else {
-                                                    playerConnection.player.currentPosition
-                                                }
-                                                val duration = playerConnection.player.duration
+                                                // Both position AND duration must follow the cast clock
+                                                // while casting — using the local duration here would
+                                                // clamp the forward seek to TIME_UNSET (jumping to 0).
+                                                val currentPosition = playerConnection.currentPositionMs()
+                                                val duration = playerConnection.currentDurationMs()
 
                                                 val now = System.currentTimeMillis()
                                                 if (incrementalSeekSkipEnabled && now - lastTapTime < 1000) {

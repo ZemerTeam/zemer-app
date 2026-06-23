@@ -318,9 +318,9 @@ private fun NewMiniPlayer(
                                     val isRightSwipe = currentOffset > 0
 
                                     if (isRightSwipe && canSkipPrevious) {
-                                        playerConnection.seekToPrevious()
+                                        playerConnection.player.seekToPreviousMediaItem()
                                     } else if (!isRightSwipe && canSkipNext) {
-                                        playerConnection.seekToNext()
+                                        playerConnection.player.seekToNext()
                                     }
                                 }
 
@@ -881,9 +881,9 @@ private fun LegacyMiniPlayer(
                                     val isRightSwipe = currentOffset > 0
 
                                     if (isRightSwipe && canSkipPrevious) {
-                                        playerConnection.seekToPrevious()
+                                        playerConnection.player.seekToPreviousMediaItem()
                                     } else if (!isRightSwipe && canSkipNext) {
-                                        playerConnection.seekToNext()
+                                        playerConnection.player.seekToNext()
                                     }
                                 }
 
