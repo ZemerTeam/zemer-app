@@ -170,9 +170,11 @@ class PlayerConnection(
 
     fun playQueue(queue: Queue) {
         service.playQueue(queue)
+        // While casting, pause local immediately; the new queue's first item then fires
+        // onMediaItemTransition (PLAYLIST_CHANGED), which loads the remote with the correct item
+        // (currentMediaItem here is stale - the queue hasn't loaded yet).
         if (isCasting.value) {
             player.pause()
-            triggerRemoteLoad(player.currentMediaItem)
         }
     }
 
@@ -281,7 +283,8 @@ class PlayerConnection(
 
         if (isCasting.value && (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK ||
                                reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
-                               reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT)) {
+                               reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT ||
+                               reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED)) {
             player.pause() // Stop local playback immediately
             triggerRemoteLoad(mediaItem)
         }
