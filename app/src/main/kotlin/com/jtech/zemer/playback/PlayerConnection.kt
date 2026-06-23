@@ -26,7 +26,6 @@ import kotlinx.coroutines.launch
 import org.fcast.sender_sdk.PlaybackState
 import org.fcast.sender_sdk.DeviceConnectionState
 import org.fcast.sender_sdk.Metadata
-import android.util.Log
 import kotlinx.coroutines.delay
 import org.fcast.sender_sdk.CastingDevice
 import org.fcast.sender_sdk.DeviceEventHandler
@@ -125,7 +124,6 @@ class PlayerConnection(
         scope.launch {
             service.discoveryHandler.remoteTime.collect { time ->
                 if (time > 0) lastRemotePosition = time
-                Log.d("FCastAutoAdvance", "remoteTime=$time")
                 lastRemoteTimeUpdateAt = System.currentTimeMillis()
             }
         }
@@ -133,7 +131,6 @@ class PlayerConnection(
             var lastState = service.discoveryHandler.remotePlaybackState.value
             service.discoveryHandler.remotePlaybackState.collect { state ->
                 val dur = service.discoveryHandler.remoteDuration.value
-                Log.d("FCastAutoAdvance", "state=$state lastState=$lastState isCasting=${isCasting.value} dur=$dur lastRemotePosition=$lastRemotePosition")
                 if (isCasting.value && state == PlaybackState.IDLE && lastState == PlaybackState.PLAYING) {
                     // If we're near the end, transition to next song
                     if (CastAutoAdvance.nearEnd(dur, lastRemotePosition, CastAutoAdvance.IDLE_END_EPSILON_SEC) &&
@@ -158,7 +155,6 @@ class PlayerConnection(
                     if (CastAutoAdvance.nearEnd(dur, lastRemotePosition, CastAutoAdvance.STALL_END_EPSILON_SEC) &&
                         CastAutoAdvance.stalled(stalledFor) &&
                         CastAutoAdvance.debouncePassed(System.currentTimeMillis(), lastTransitionTime)) {
-                        Log.d("FCastAutoAdvance", "Stall detected near track end, advancing")
                         if (player.repeatMode == REPEAT_MODE_ONE) {
                             player.seekTo(player.currentMediaItemIndex, 0)
                             triggerRemoteLoad(player.currentMediaItem)
@@ -288,7 +284,6 @@ class PlayerConnection(
         mediaItem: MediaItem?,
         reason: Int,
     ) {
-        Log.d("FCast", "onMediaItemTransition reason=$reason isCasting=${isCasting.value}")
         lastTransitionTime = System.currentTimeMillis()
         mediaMetadata.value = mediaItem?.metadata
         currentMediaItemIndex.value = player.currentMediaItemIndex
