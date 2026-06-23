@@ -72,10 +72,11 @@ class CastController(
             var lastState = handler.remotePlaybackState.value
             handler.remotePlaybackState.collect { state ->
                 val dur = handler.remoteDuration.value
-                // IDLE coming from PLAYING near the end means the track finished. The debounce is enforced
+                // IDLE coming from PLAYING near the end means the track finished. finishedNearEnd is generous
+                // (the receiver can stop reporting the clock several seconds early). The debounce is enforced
                 // inside advanceRemoteAfterEnd (shared with the other detectors, on one thread).
                 if (casting && state == PlaybackState.IDLE && lastState == PlaybackState.PLAYING &&
-                    CastAutoAdvance.nearEnd(dur, lastRemotePosition, CastAutoAdvance.IDLE_END_EPSILON_SEC)
+                    CastAutoAdvance.finishedNearEnd(dur, lastRemotePosition)
                 ) {
                     advanceRemoteAfterEnd()
                 }
@@ -91,9 +92,10 @@ class CastController(
                     val dur = handler.remoteDuration.value
                     val stalledFor = System.currentTimeMillis() - lastRemoteTimeUpdateAt
                     // A deliberately PAUSED track also freezes the remote clock — never treat that as a
-                    // finished track, or pausing near the end would silently auto-skip it.
+                    // finished track, or pausing near the end would silently auto-skip it. nearEnd reads the
+                    // *interpolated* clock so a coarse clock that stopped reporting still reaches the end.
                     if (!CastPlayback.isPaused(handler.remotePlaybackState.value) &&
-                        CastAutoAdvance.nearEnd(dur, lastRemotePosition, CastAutoAdvance.STALL_END_EPSILON_SEC) &&
+                        CastAutoAdvance.nearEnd(dur, handler.interpolatedRemoteTimeSec(), CastAutoAdvance.STALL_END_EPSILON_SEC) &&
                         CastAutoAdvance.stalled(stalledFor)
                     ) {
                         advanceRemoteAfterEnd()
@@ -155,8 +157,7 @@ class CastController(
     private fun triggerRemoteLoad(mediaItem: MediaItem?) {
         val mediaId = mediaItem?.mediaId ?: return
         remoteLoadedMediaId = mediaId
-        // New track loading: reset remote-clock tracking so the stall / near-end detectors don't fire on
-        // the previous track's stale near-end position before the new track first reports its own clock.
+        // Reset remote-clock tracking for the new track (see the remoteTime collector for the full why).
         lastRemotePosition = 0.0
         lastRemoteTimeUpdateAt = System.currentTimeMillis()
         // Cancel any still-in-flight resolve for a previous track so a slow earlier resolve can't land on

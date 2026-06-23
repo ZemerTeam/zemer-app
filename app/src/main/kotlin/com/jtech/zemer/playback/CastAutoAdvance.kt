@@ -5,17 +5,15 @@ package com.jtech.zemer.playback
  * timing thresholds are unit-testable without a player, the FCast SDK, or an Android runtime.
  *
  * Two detectors decide a cast track has finished and the queue should advance:
- *  - the remote device reports IDLE coming from PLAYING ([nearEnd] with [IDLE_END_EPSILON_SEC]), and
- *  - the remote clock stops advancing near the end ([nearEnd] with [STALL_END_EPSILON_SEC] + [stalled]).
+ *  - the remote device reports IDLE coming from PLAYING near the end ([finishedNearEnd]), and
+ *  - the remote clock stops advancing near the end ([nearEnd] with [STALL_END_EPSILON_SEC] + [stalled]),
+ *    fed the *interpolated* clock so a coarse remote clock still reaches the end.
  *
  * Both are gated by [debouncePassed] so they — and a genuine media-item transition — can't
  * double-advance and skip a track. Remote position/duration are in SECONDS (as the FCast SDK
  * reports them); the debounce/stall windows are in MILLISECONDS.
  */
 object CastAutoAdvance {
-    /** How close to the end (sec) an IDLE-after-PLAYING report counts as "finished". */
-    const val IDLE_END_EPSILON_SEC = 2.0
-
     /** How close to the end (sec) a stalled remote clock counts as "finished". */
     const val STALL_END_EPSILON_SEC = 3.0
 
@@ -25,9 +23,28 @@ object CastAutoAdvance {
     /** Debounce so the idle and stall detectors (and a real transition) can't double-advance. */
     const val ADVANCE_DEBOUNCE_MS = 8000L
 
+    /** Floor of the IDLE-from-PLAYING "finished" window (sec) — see [finishedNearEnd]. */
+    const val IDLE_END_WINDOW_SEC = 10.0
+
+    /** Proportional tail of the IDLE-from-PLAYING "finished" window — see [finishedNearEnd]. */
+    const val IDLE_END_TAIL_FRACTION = 0.1
+
     /** The remote clock is within [epsilonSec] of — or past — the track end. */
     fun nearEnd(durationSec: Double, lastPositionSec: Double, epsilonSec: Double): Boolean =
         durationSec > 0.0 && lastPositionSec >= durationSec - epsilonSec
+
+    /**
+     * Whether an IDLE-after-PLAYING report should count as "the track finished". Generous on purpose: a
+     * coarse FCast clock can stop reporting several seconds before the real end, so we accept the last
+     * report being within the larger of [IDLE_END_WINDOW_SEC] or [IDLE_END_TAIL_FRACTION] of the duration.
+     * The false positive (the user stops on the TV in the final stretch) is benign — advancing then is
+     * indistinguishable from letting the track finish — whereas a missed end leaves the queue stuck.
+     */
+    fun finishedNearEnd(durationSec: Double, lastPositionSec: Double): Boolean {
+        if (durationSec <= 0.0) return false
+        val window = maxOf(IDLE_END_WINDOW_SEC, durationSec * IDLE_END_TAIL_FRACTION)
+        return lastPositionSec >= durationSec - window
+    }
 
     /** Enough time has passed since the last track transition to allow another advance. */
     fun debouncePassed(nowMs: Long, lastTransitionMs: Long): Boolean =

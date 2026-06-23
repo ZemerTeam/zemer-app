@@ -10,17 +10,29 @@ All timing thresholds are pure and unit-tested in `CastAutoAdvance`:
 
 ```kotlin
 object CastAutoAdvance {
-    const val IDLE_END_EPSILON_SEC  = 2.0     // IDLE-from-PLAYING this close to the end == finished
-    const val STALL_END_EPSILON_SEC = 3.0     // a stalled clock this close to the end == finished
-    const val STALL_SILENCE_MS      = 4000L   // remote clock silent at least this long == stalled
-    const val ADVANCE_DEBOUNCE_MS   = 8000L   // detectors + a real transition can't double-advance
+    const val STALL_END_EPSILON_SEC  = 3.0     // a stalled clock this close to the end == finished
+    const val STALL_SILENCE_MS       = 4000L   // remote clock silent at least this long == stalled
+    const val ADVANCE_DEBOUNCE_MS    = 8000L   // detectors + a real transition can't double-advance
+    const val IDLE_END_WINDOW_SEC    = 10.0    // IDLE-from-PLAYING within this window of the end == finished
+    const val IDLE_END_TAIL_FRACTION = 0.1     // …or within this proportional tail (whichever is larger)
 
     fun nearEnd(durationSec, lastPositionSec, epsilonSec) =
         durationSec > 0.0 && lastPositionSec >= durationSec - epsilonSec
+    // Generous on purpose — a coarse FCast clock can stop reporting several seconds before the real end.
+    fun finishedNearEnd(durationSec, lastPositionSec) = durationSec > 0.0 &&
+        lastPositionSec >= durationSec - maxOf(IDLE_END_WINDOW_SEC, durationSec * IDLE_END_TAIL_FRACTION)
     fun debouncePassed(nowMs, lastTransitionMs) = nowMs - lastTransitionMs > ADVANCE_DEBOUNCE_MS
     fun stalled(stalledForMs) = stalledForMs > STALL_SILENCE_MS
 }
 ```
+
+> **The remote clock is coarse.** FCast receivers report position only ~1 Hz and
+> sometimes stop a few seconds before the real end, which both makes the seek bar
+> choppy and starves the end detectors. `FCastDiscoveryHandler.interpolatedRemoteTimeSec()`
+> extrapolates the last report by the elapsed wall-clock while PLAYING (capped at
+> the duration). The seek bar and the **stall** detector read the interpolated clock
+> so playback looks smooth and a clock that stopped short still reaches the end; the
+> **IDLE** detector instead uses the generous `finishedNearEnd` window.
 
 ## The three detectors
 
@@ -30,22 +42,24 @@ All live in `CastController` and call the shared `advanceRemoteAfterEnd()`.
    `advanceRemoteAfterEnd()`. The cleanest signal when the receiver sends it.
 
 2. **IDLE-after-PLAYING** — a collector on `remotePlaybackState`: if the state
-   goes `PLAYING → IDLE` while `nearEnd(dur, lastPos, IDLE_END_EPSILON_SEC)`, the
-   track finished. (IDLE far from the end is a stop/error, not an end.)
+   goes `PLAYING → IDLE` while `finishedNearEnd(dur, lastPos)`, the track finished.
+   The window is generous (a coarse clock stops reporting early); IDLE far from the
+   end is a stop/error, not an end.
 
 3. **Stall poll** — a 1 Hz loop (only while casting) that fires when the remote
    clock has been silent past `STALL_SILENCE_MS` and `nearEnd(…,
-   STALL_END_EPSILON_SEC)`, **and** the receiver is not deliberately paused
-   (`!CastPlayback.isPaused(...)`). The paused carve-out is essential: pausing
-   freezes the clock exactly like a stall, and without it pausing near the end
-   would silently auto-skip the track.
+   STALL_END_EPSILON_SEC)` **of the interpolated clock**, **and** the receiver is
+   not deliberately paused (`!CastPlayback.isPaused(...)`). The paused carve-out is
+   essential: pausing freezes the clock exactly like a stall, and without it pausing
+   near the end would silently auto-skip the track.
 
 ```kotlin
 fun advanceRemoteAfterEnd() = scope.launch {
     if (!CastAutoAdvance.debouncePassed(now(), lastTransitionTime)) return@launch
-    lastTransitionTime = now()
-    if (player.repeatMode == REPEAT_MODE_ONE) { player.seekTo(currentIndex, 0); triggerRemoteLoad(currentItem) }
-    else if (canSkipNext.value) seekToNext()     // advances the queue → onMediaItemTransition → reload
+    // Stamp the debounce only when we actually advance (a no-op end report on the last track must not
+    // burn the window against a later real event).
+    if (player.repeatMode == REPEAT_MODE_ONE) { lastTransitionTime = now(); player.seekTo(currentIndex, 0); triggerRemoteLoad(currentItem) }
+    else if (canSkipNext()) { lastTransitionTime = now(); player.seekToNext() }  // → onMediaItemTransition → reload
 }
 ```
 
@@ -66,8 +80,9 @@ application thread.
 
 ## The stall trackers and the position reset
 
-The stall + IDLE detectors compare against `lastRemotePosition` /
-`lastRemoteTimeUpdateAt`, maintained by a collector on `remoteTime`:
+The IDLE detector compares against `lastRemotePosition`; the stall detector against
+`lastRemoteTimeUpdateAt` (silence) plus the interpolated clock. Both trackers are
+maintained by a collector on `remoteTime`:
 
 ```kotlin
 service.discoveryHandler.remoteTime.collect { time ->

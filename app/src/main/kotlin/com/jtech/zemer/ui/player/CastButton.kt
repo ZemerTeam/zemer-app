@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
@@ -28,9 +29,9 @@ import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.utils.rememberPreference
 
 /**
- * The single launch path for the FCast device picker, shared by the artwork [CastButton] and the
- * mini-player cast buttons (which keep their own distinct visuals): start NSD discovery lazily, then
- * open the picker in the shared menu bottom-sheet. Reads the current metadata at click time.
+ * The single launch path for the FCast device picker (shared by every cast button): start the on-demand
+ * native-lib fetch + NSD discovery lazily, then open the picker in the shared menu bottom-sheet, reading
+ * the current metadata at click time.
  */
 fun openCastPicker(playerConnection: PlayerConnection, menuState: MenuState) {
     playerConnection.service.startDiscovery()
@@ -39,24 +40,45 @@ fun openCastPicker(playerConnection: PlayerConnection, menuState: MenuState) {
     }
 }
 
+/** Shared state for every cast button: the connected flag and the click action. */
+class CastButtonState(val connected: Boolean, val onClick: () -> Unit)
+
 /**
- * Cast button overlaid on the player artwork (same pattern Metrolist uses): a radial-scrim-backed icon
- * that opens the FCast device picker in the shared menu bottom-sheet. Hidden unless casting is enabled in
- * settings (or a device is already connected). Tapping it starts the on-demand native-lib fetch + NSD
- * discovery lazily, then shows the picker (which reflects the download / search state).
+ * Collects the cast-button state once — the connected-device flow + the enable pref — plus the launch
+ * action. Returns null when the button must be hidden (no player connection, or casting disabled with
+ * nothing connected), so each surface renders its own wrapper via `rememberCastButtonState()?.let { … }`.
+ */
+@Composable
+fun rememberCastButtonState(): CastButtonState? {
+    val playerConnection = LocalPlayerConnection.current ?: return null
+    val menuState = LocalMenuState.current
+    val connectedDevice by playerConnection.service.discoveryHandler.connectedDeviceFlow.collectAsState()
+    val castEnabled by rememberPreference(CastEnabledKey, defaultValue = false)
+    if (!castEnabled && connectedDevice == null) return null
+    return CastButtonState(connectedDevice != null) { openCastPicker(playerConnection, menuState) }
+}
+
+/** The cast glyph (connected vs not), shared by every cast-button surface. */
+@Composable
+fun CastIcon(connected: Boolean, idleTint: Color, size: Dp) {
+    Icon(
+        painter = painterResource(if (connected) R.drawable.cast_connected else R.drawable.cast),
+        contentDescription = stringResource(R.string.cast_button_description),
+        tint = if (connected) MaterialTheme.colorScheme.primary else idleTint,
+        modifier = Modifier.size(size),
+    )
+}
+
+/**
+ * Cast button overlaid on the player artwork: a radial-scrim-backed icon (the scrim keeps it legible over
+ * any artwork) that opens the FCast device picker. Hidden unless casting is enabled or a device is connected.
  */
 @Composable
 fun CastButton(
     modifier: Modifier = Modifier,
     tintColor: Color = MaterialTheme.colorScheme.onSurface,
 ) {
-    val playerConnection = LocalPlayerConnection.current ?: return
-    val service = playerConnection.service
-    val menuState = LocalMenuState.current
-    val connectedDevice by service.discoveryHandler.connectedDeviceFlow.collectAsState()
-    val castEnabled by rememberPreference(CastEnabledKey, defaultValue = false)
-
-    if (!castEnabled && connectedDevice == null) return
+    val state = rememberCastButtonState() ?: return
 
     Box(modifier = modifier) {
         // Radial scrim so the icon stays legible over any artwork.
@@ -77,16 +99,9 @@ fun CastButton(
                 .align(Alignment.Center)
                 .clip(CircleShape)
                 .focusBorder(CircleShape)
-                .clickable { openCastPicker(playerConnection, menuState) },
+                .clickable(onClick = state.onClick),
         ) {
-            Icon(
-                painter = painterResource(
-                    if (connectedDevice != null) R.drawable.cast_connected else R.drawable.cast
-                ),
-                contentDescription = stringResource(R.string.cast_button_description),
-                tint = if (connectedDevice != null) MaterialTheme.colorScheme.primary else tintColor,
-                modifier = Modifier.size(24.dp),
-            )
+            CastIcon(connected = state.connected, idleTint = tintColor, size = 24.dp)
         }
     }
 }

@@ -80,7 +80,10 @@ class DevEventHandler(
         CastPlayback.playIntentForState(state)?.let { handler.shouldPlay = it }
     }
 
-    override fun timeChanged(time: Double) { handler.remoteTime.value = time }
+    override fun timeChanged(time: Double) {
+        handler.remoteTime.value = time
+        handler.remoteTimeUpdatedAt = System.currentTimeMillis()
+    }
     override fun volumeChanged(volume: Double) {}
     override fun durationChanged(duration: Double) { handler.remoteDuration.value = duration }
     override fun speedChanged(speed: Double) {}
@@ -104,10 +107,8 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     private val devicesLock = Any()
     val discoveredDevices = mutableMapOf<String, DeviceInfo>()
 
-    // These are written from SDK callback threads (connectionStateChanged / deviceRemoved) and read on
-    // the main thread (CastAwarePlayer, MusicService.onStartCommand), so they are @Volatile to publish
-    // the write across threads — without it the main thread can read a stale connectedDevice and route
-    // transport to a device that just disconnected.
+    // Written from SDK callback threads (connectionStateChanged / deviceRemoved), read on the main thread —
+    // @Volatile to publish the write across threads (else the main thread routes transport to a stale device).
     @Volatile var connectedDevice: CastingDevice? = null
     @Volatile var onDisconnect: ((Long) -> Unit)? = null
 
@@ -130,8 +131,28 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     val remoteDuration = MutableStateFlow(0.0)
     val remoteConnectionState = MutableStateFlow<DeviceConnectionState>(DeviceConnectionState.Disconnected)
 
+    // Wall-clock ms when the receiver last reported its position (timeChanged). FCast receivers report the
+    // clock coarsely (~1 Hz, and sometimes stop a few seconds before the end), so interpolatedRemoteTimeSec()
+    // extrapolates between reports — smoothing the seek bar and letting the stall detector reach the end.
+    @Volatile var remoteTimeUpdatedAt: Long = System.currentTimeMillis()
+
     val discoveredDevicesFlow = MutableStateFlow<List<DeviceInfo>>(emptyList())
     val connectedDeviceFlow = MutableStateFlow<CastingDevice?>(null)
+
+    /**
+     * The remote position (seconds) smoothed between the receiver's periodic reports: while it is PLAYING,
+     * extrapolate the last report by the elapsed wall-clock (capped at the duration); otherwise return the
+     * last reported value. Used by the seek bar and the stall-based end detector so a coarse or briefly
+     * stalled remote clock reads neither choppy nor stuck short of the end.
+     */
+    fun interpolatedRemoteTimeSec(): Double {
+        val base = remoteTime.value
+        if (!CastPlayback.isPlaying(remotePlaybackState.value)) return base
+        val elapsedSec = (System.currentTimeMillis() - remoteTimeUpdatedAt).coerceAtLeast(0L) / 1000.0
+        val dur = remoteDuration.value
+        val interpolated = base + elapsedSec
+        return if (dur > 0.0) interpolated.coerceAtMost(dur) else interpolated
+    }
 
     fun connectTo(
         deviceInfo: DeviceInfo,
@@ -151,12 +172,11 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         initialResumePosition = resumePosition
         remoteTime.value = 0.0
         remoteDuration.value = 0.0
+        remoteTimeUpdatedAt = System.currentTimeMillis()
 
-        // Assign the @Volatile field synchronously (before the old device's async Disconnected can land)
-        // so the connectionStateChanged guard recognises the new device as current. The UI-facing
-        // connectedDeviceFlow, by contrast, is published ONLY from connectionStateChanged(Connected) — so
-        // the cast button / mini-player show "connected" only once the device truly is, never during the
-        // connect window (when transport still routes locally) or forever after a connect that never lands.
+        // Assign the @Volatile field synchronously (before the old device's async Disconnected lands) so
+        // the connectionStateChanged guard recognises it; connectedDeviceFlow publishes only from
+        // Connected — see isConnected — so the UI never shows "connected" while transport still routes local.
         val newDevice = castContext.createDeviceFromInfo(deviceInfo)
         connectedDevice = newDevice
         castCall { newDevice.connect(null, DevEventHandler(this, newDevice, onTrackEnded), 1000u) }
@@ -171,12 +191,11 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         // previous track's near-end position+duration until the receiver reports the new ones.
         remoteTime.value = resumePosition
         remoteDuration.value = 0.0
+        remoteTimeUpdatedAt = System.currentTimeMillis()
         connectedDevice?.let { d ->
             castCall { d.load(urlLoadRequest(streamUrl, contentType, resumePosition, metadata)) }
-            // The receiver auto-plays a freshly loaded item. Preserve the user's play intent instead of
-            // forcing playback: an explicit play action (connect, tap a song, auto-advance while playing)
-            // has already set shouldPlay=true, whereas a skip while the cast is paused leaves it false —
-            // so honour it and re-pause, mirroring the pause-on-reconnect enforcement.
+            // The receiver auto-plays a freshly loaded item; honour the user's play intent and re-pause when
+            // shouldPlay is false (a skip while the cast was paused), mirroring pause-on-reconnect.
             if (!shouldPlay) castCall { d.pausePlayback() }
         }
     }
@@ -212,19 +231,18 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         castCall { connectedDevice?.seek(position) }
     }
 
-    override fun deviceAvailable(deviceInfo: DeviceInfo) {
+    // deviceAvailable and deviceChanged both upsert the device and republish the list (under devicesLock —
+    // these arrive on the SDK's not-contractually-serialised NSD threads).
+    private fun upsertDevice(deviceInfo: DeviceInfo) {
         discoveredDevicesFlow.value = synchronized(devicesLock) {
             discoveredDevices[deviceInfo.name] = deviceInfo
             discoveredDevices.values.toList()
         }
     }
 
-    override fun deviceChanged(deviceInfo: DeviceInfo) {
-        discoveredDevicesFlow.value = synchronized(devicesLock) {
-            discoveredDevices[deviceInfo.name] = deviceInfo
-            discoveredDevices.values.toList()
-        }
-    }
+    override fun deviceAvailable(deviceInfo: DeviceInfo) = upsertDevice(deviceInfo)
+
+    override fun deviceChanged(deviceInfo: DeviceInfo) = upsertDevice(deviceInfo)
 
     override fun deviceRemoved(deviceName: String) {
         discoveredDevicesFlow.value = synchronized(devicesLock) {
