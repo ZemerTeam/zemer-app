@@ -148,9 +148,11 @@ class PlayerConnection(
             }
         }
         scope.launch {
-            while (true) {
-                delay(1000)
-                if (isCasting.value) {
+            // Only poll for a stalled remote clock while actually casting (no 1 Hz wakeup otherwise);
+            // collectLatest cancels the loop the moment casting stops.
+            isCasting.collectLatest { casting ->
+                while (casting) {
+                    delay(1000)
                     val dur = service.discoveryHandler.remoteDuration.value
                     val stalledFor = System.currentTimeMillis() - lastRemoteTimeUpdateAt
                     if (CastAutoAdvance.nearEnd(dur, lastRemotePosition, CastAutoAdvance.STALL_END_EPSILON_SEC) &&
