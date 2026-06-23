@@ -97,7 +97,6 @@ import com.jtech.zemer.utils.rememberPreference
 import androidx.compose.ui.graphics.toArgb
 import kotlinx.coroutines.launch
 import com.jtech.zemer.ui.component.focusBorder
-import org.fcast.sender_sdk.Metadata
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
@@ -263,36 +262,7 @@ private fun NewMiniPlayer(
         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
 
     if (showCastSheet) {
-        CastBottomSheet(
-            devices = devices,
-            connectedDevice = connectedDevice,
-            streamUrl = currentService.currentStreamUrl,
-            contentType = currentService.currentContentType,
-            metadata = mediaMetadata?.let {
-                Metadata(
-                    title = "${it.title} - ${it.artists.joinToString(", ") { a -> a.name }}",
-                    thumbnailUrl = it.thumbnailUrl
-                )
-            },
-            onDeviceSelected = { deviceInfo, url, type, metadata ->
-                currentService.discoveryHandler.connectTo(
-                    deviceInfo = deviceInfo,
-                    streamUrl = url,
-                    contentType = type,
-                    metadata = metadata,
-                    resumePosition = playerConnection.player.currentPosition / 1000.0,
-                    onTrackEnded = {
-                        playerConnection.seekToNext()
-                        playerConnection.player.play()
-                    }
-                )
-                playerConnection.player.pause()
-            },
-            onDisconnect = {
-                currentService.discoveryHandler.disconnect()
-            },
-            onDismiss = { showCastSheet = false }
-        )
+        CastSheet(playerConnection, mediaMetadata) { showCastSheet = false }
     }
 
     Box(
@@ -840,36 +810,7 @@ private fun LegacyMiniPlayer(
     val autoSwipeThreshold = calculateAutoSwipeThreshold(swipeSensitivity)
 
     if (showCastSheet) {
-        CastBottomSheet(
-            devices = devices,
-            connectedDevice = connectedDevice,
-            streamUrl = currentService.currentStreamUrl,
-            contentType = currentService.currentContentType,
-            metadata = mediaMetadata?.let {
-                Metadata(
-                    title = "${it.title} - ${it.artists.joinToString(", ") { a -> a.name }}",
-                    thumbnailUrl = it.thumbnailUrl
-                )
-            },
-            onDeviceSelected = { deviceInfo, url, type, metadata ->
-                currentService.discoveryHandler.connectTo(
-                    deviceInfo = deviceInfo,
-                    streamUrl = url,
-                    contentType = type,
-                    metadata = metadata,
-                    resumePosition = playerConnection.player.currentPosition / 1000.0,
-                    onTrackEnded = {
-                        playerConnection.seekToNext()
-                        playerConnection.player.play()
-                    }
-                )
-                playerConnection.player.pause()
-            },
-            onDisconnect = {
-                currentService.discoveryHandler.disconnect()
-            },
-            onDismiss = { showCastSheet = false }
-        )
+        CastSheet(playerConnection, mediaMetadata) { showCastSheet = false }
     }
 
     Box(
