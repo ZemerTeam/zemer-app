@@ -292,6 +292,9 @@ class MainActivity : ComponentActivity() {
                 service: IBinder?,
             ) {
                 if (service is MusicBinder) {
+                    // Re-bind (onStop unbinds, onStart re-binds) re-delivers onServiceConnected; dispose
+                    // any previous connection first so its cast collectors/listener don't accumulate.
+                    playerConnection?.dispose()
                     playerConnection =
                         PlayerConnection(this@MainActivity, service, database, lifecycleScope)
                 }
@@ -382,6 +385,9 @@ class MainActivity : ComponentActivity() {
             unbindService(serviceConnection)
         } catch (e: IllegalArgumentException) {
         } finally {
+            // Dispose (cancel collectors + clear the handler's onDisconnect) before dropping the ref so
+            // the service-singleton handler isn't left pointing at this destroyed connection's closure.
+            playerConnection?.dispose()
             playerConnection = null
         }
     }

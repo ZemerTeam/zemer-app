@@ -45,13 +45,20 @@ import com.jtech.zemer.R
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.CastLibState
 import com.jtech.zemer.playback.PlayerConnection
+import com.jtech.zemer.playback.toCastMetadata
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.focusBorder
 import kotlinx.coroutines.launch
 import org.fcast.sender_sdk.DeviceInfo
-import org.fcast.sender_sdk.Metadata
 
 private const val FCAST_DOWNLOADS_URL = "https://fcast.org/#downloads"
+
+/** Localized message for an on-demand cast-lib failure (never shows the raw, English-only reason). */
+@androidx.annotation.StringRes
+private fun castFailureMessageRes(reason: CastLibState.Failed.Reason): Int = when (reason) {
+    CastLibState.Failed.Reason.UNSUPPORTED_DEVICE -> R.string.cast_unsupported_device
+    CastLibState.Failed.Reason.DOWNLOAD_FAILED -> R.string.cast_download_failed
+}
 
 private fun shareFcast(context: Context) {
     context.startActivity(
@@ -99,21 +106,18 @@ fun CastPicker(
     fun connect(device: DeviceInfo) {
         playerConnection.player.pause()
         playerConnection.scope.launch {
-            val streamUrl = playerConnection.player.currentMediaItem?.mediaId?.let { service.resolveStreamUrl(it) }
-                ?: service.currentStreamUrl
+            val currentId = playerConnection.player.currentMediaItem?.mediaId
+            val streamUrl = currentId?.let { service.resolveStreamUrl(it) } ?: service.currentStreamUrl
             handler.connectTo(
                 deviceInfo = device,
                 streamUrl = streamUrl,
                 contentType = service.currentContentType,
-                metadata = mediaMetadata?.let {
-                    Metadata(
-                        title = "${it.title} - ${it.artists.joinToString(", ") { a -> a.name }}",
-                        thumbnailUrl = it.thumbnailUrl,
-                    )
-                },
+                metadata = mediaMetadata?.toCastMetadata(),
                 resumePosition = playerConnection.player.currentPosition / 1000.0,
                 onTrackEnded = { playerConnection.advanceRemoteAfterEnd() },
             )
+            // Record what the receiver is now playing so the first PLAYLIST_CHANGED doesn't reload it.
+            playerConnection.markRemoteLoaded(currentId)
         }
         onDismiss()
     }
@@ -149,15 +153,11 @@ fun CastPicker(
             }
 
             is CastLibState.Failed -> CastCenteredColumn {
-                CenteredText(stringResource(R.string.cast_download_failed), style = MaterialTheme.typography.bodyLarge)
-                Spacer(Modifier.height(4.dp))
-                CenteredText(
-                    text = s.reason,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = { service.downloadCastLib() }) { Text(stringResource(R.string.retry)) }
+                CenteredText(stringResource(castFailureMessageRes(s.reason)), style = MaterialTheme.typography.bodyLarge)
+                if (s.reason == CastLibState.Failed.Reason.DOWNLOAD_FAILED) {
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { service.downloadCastLib() }) { Text(stringResource(R.string.retry)) }
+                }
             }
 
             CastLibState.Ready -> when {
@@ -224,8 +224,11 @@ fun CastDownloadDialog(
             when (libState) {
                 CastLibState.Downloading -> {}
                 is CastLibState.Failed -> {
+                    val s = libState as CastLibState.Failed
                     TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
-                    Button(onClick = { service.downloadCastLib() }) { Text(stringResource(R.string.retry)) }
+                    if (s.reason == CastLibState.Failed.Reason.DOWNLOAD_FAILED) {
+                        Button(onClick = { service.downloadCastLib() }) { Text(stringResource(R.string.retry)) }
+                    }
                 }
                 else -> {
                     TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
@@ -245,13 +248,7 @@ fun CastDownloadDialog(
                 )
             }
             is CastLibState.Failed -> {
-                CenteredText(stringResource(R.string.cast_download_failed), style = MaterialTheme.typography.bodyLarge)
-                Spacer(Modifier.height(4.dp))
-                CenteredText(
-                    text = s.reason,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                CenteredText(stringResource(castFailureMessageRes(s.reason)), style = MaterialTheme.typography.bodyLarge)
             }
             else -> CenteredText(
                 text = stringResource(R.string.cast_consent_message),

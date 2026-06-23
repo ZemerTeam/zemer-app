@@ -1,5 +1,6 @@
 package com.jtech.zemer.playback
 
+import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.fcast.sender_sdk.*
@@ -21,6 +22,17 @@ private fun urlLoadRequest(url: String, contentType: String, resumePosition: Dou
         volume = null,
         metadata = metadata,
         requestHeaders = null,
+    )
+
+/**
+ * Builds the FCast [Metadata] sent to the receiver from the app's [MediaMetadata]. Single definition
+ * so the cast title format ("Title - Artist, Artist") can't drift between the connect path and the
+ * track-advance reload path.
+ */
+fun MediaMetadata.toCastMetadata(): Metadata =
+    Metadata(
+        title = "$title - ${artists.joinToString(", ") { it.name }}",
+        thumbnailUrl = thumbnailUrl,
     )
 
 class DevEventHandler(
@@ -86,16 +98,25 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     // Lazy so merely constructing the handler (a MusicService field) loads no native code — the FCast
     // lib isn't bundled; it's downloaded on demand. First touched in connectTo(), after the lib is ready.
     val castContext by lazy { CastContext() }
+
+    // Discovery callbacks (deviceAvailable/Changed/Removed) arrive on the SDK's NSD threads, which are
+    // not contractually serialised, so every mutate-then-snapshot of this map is guarded by [devicesLock].
+    private val devicesLock = Any()
     val discoveredDevices = mutableMapOf<String, DeviceInfo>()
-    var connectedDevice: CastingDevice? = null
-    var onDisconnect: ((Long) -> Unit)? = null
+
+    // These are written from SDK callback threads (connectionStateChanged / deviceRemoved) and read on
+    // the main thread (CastAwarePlayer, MusicService.onStartCommand), so they are @Volatile to publish
+    // the write across threads — without it the main thread can read a stale connectedDevice and route
+    // transport to a device that just disconnected.
+    @Volatile var connectedDevice: CastingDevice? = null
+    @Volatile var onDisconnect: ((Long) -> Unit)? = null
 
     // Tracking current playback intent and content for reconnections.
-    var shouldPlay: Boolean = true
-    var currentStreamUrl: String? = null
-    var currentContentType: String? = null
-    var currentMetadata: Metadata? = null
-    var initialResumePosition: Double = 0.0
+    @Volatile var shouldPlay: Boolean = true
+    @Volatile var currentStreamUrl: String? = null
+    @Volatile var currentContentType: String? = null
+    @Volatile var currentMetadata: Metadata? = null
+    @Volatile var initialResumePosition: Double = 0.0
 
     val remotePlaybackState = MutableStateFlow<PlaybackState?>(null)
     val remoteTime = MutableStateFlow(0.0)
@@ -122,6 +143,7 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         currentMetadata = metadata
         initialResumePosition = resumePosition
         remoteTime.value = 0.0
+        remoteDuration.value = 0.0
 
         // Publish the new device synchronously (before the old device's async Disconnected can land)
         // so the connectionStateChanged guard recognises it as current.
@@ -137,6 +159,10 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         currentContentType = contentType
         currentMetadata = metadata
         initialResumePosition = resumePosition
+        // Reset the remote clock for the new track so the seek bar / stall detector don't briefly read the
+        // previous track's near-end position+duration until the receiver reports the new ones.
+        remoteTime.value = resumePosition
+        remoteDuration.value = 0.0
         connectedDevice?.let { d -> castCall { d.load(urlLoadRequest(streamUrl, contentType, resumePosition, metadata)) } }
     }
 
@@ -172,18 +198,24 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     }
 
     override fun deviceAvailable(deviceInfo: DeviceInfo) {
-        discoveredDevices[deviceInfo.name] = deviceInfo
-        discoveredDevicesFlow.value = discoveredDevices.values.toList()
+        discoveredDevicesFlow.value = synchronized(devicesLock) {
+            discoveredDevices[deviceInfo.name] = deviceInfo
+            discoveredDevices.values.toList()
+        }
     }
 
     override fun deviceChanged(deviceInfo: DeviceInfo) {
-        discoveredDevices[deviceInfo.name] = deviceInfo
-        discoveredDevicesFlow.value = discoveredDevices.values.toList()
+        discoveredDevicesFlow.value = synchronized(devicesLock) {
+            discoveredDevices[deviceInfo.name] = deviceInfo
+            discoveredDevices.values.toList()
+        }
     }
 
     override fun deviceRemoved(deviceName: String) {
-        discoveredDevices.remove(deviceName)
-        discoveredDevicesFlow.value = discoveredDevices.values.toList()
+        discoveredDevicesFlow.value = synchronized(devicesLock) {
+            discoveredDevices.remove(deviceName)
+            discoveredDevices.values.toList()
+        }
         if (connectedDevice?.name() == deviceName) {
             disconnect()
         }

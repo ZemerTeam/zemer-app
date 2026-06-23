@@ -9,8 +9,9 @@ import androidx.media3.common.Player
  * while casting, instead of starting local audio on top of the cast stream. Everything else delegates
  * to the wrapped player, so non-casting behavior is unchanged.
  *
- * Play / pause / seek are routed to the receiver, and the reported position/duration follow the
- * remote clock so the notification scrubber tracks the cast. The play/pause icon still reflects the
+ * Play / pause / seek (including the content-position/duration the media-style notification scrubber
+ * reads, and seekBack/seekForward/seekTo-index from external surfaces) are routed to the receiver and
+ * the remote clock so the notification tracks the cast. The play/pause icon still reflects the
  * (paused) local player's state while casting — fully mirroring the remote PLAYING/PAUSED state into
  * the session would require synthesising Player.Events from the remote callbacks, which is avoided
  * here to keep the core (non-casting) notification behaviour untouched.
@@ -20,6 +21,8 @@ class CastAwarePlayer(
     private val discoveryHandler: FCastDiscoveryHandler,
 ) : ForwardingPlayer(player) {
     private val casting: Boolean get() = discoveryHandler.connectedDevice != null
+    private val remotePositionMs: Long get() = CastPlayback.remoteSecondsToMs(discoveryHandler.remoteTime.value)
+    private val remoteDurationMs: Long get() = CastPlayback.remoteSecondsToMs(discoveryHandler.remoteDuration.value)
 
     override fun play() {
         if (casting) discoveryHandler.play() else super.play()
@@ -30,12 +33,39 @@ class CastAwarePlayer(
     }
 
     override fun seekTo(positionMs: Long) {
-        if (casting) discoveryHandler.seek(positionMs / 1000.0) else super.seekTo(positionMs)
+        if (casting) discoveryHandler.seek(CastPlayback.msToRemoteSeconds(positionMs)) else super.seekTo(positionMs)
     }
 
-    override fun getCurrentPosition(): Long =
-        if (casting) CastPlayback.remoteSecondsToMs(discoveryHandler.remoteTime.value) else super.getCurrentPosition()
+    override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
+        // While casting the receiver only holds the current item, so route the position to it (the
+        // index is meaningless remotely). Local cross-item seeks are unaffected.
+        if (casting) discoveryHandler.seek(CastPlayback.msToRemoteSeconds(positionMs)) else super.seekTo(mediaItemIndex, positionMs)
+    }
 
-    override fun getDuration(): Long =
-        if (casting) CastPlayback.remoteSecondsToMs(discoveryHandler.remoteDuration.value) else super.getDuration()
+    override fun seekBack() {
+        if (casting) seekRemoteBy(-seekBackIncrement) else super.seekBack()
+    }
+
+    override fun seekForward() {
+        if (casting) seekRemoteBy(seekForwardIncrement) else super.seekForward()
+    }
+
+    /** Seek the receiver by [deltaMs] from the remote clock, clamped to [0, duration]. */
+    private fun seekRemoteBy(deltaMs: Long) {
+        var target = (remotePositionMs + deltaMs).coerceAtLeast(0L)
+        val durMs = remoteDurationMs
+        if (durMs > 0L) target = target.coerceAtMost(durMs)
+        discoveryHandler.seek(CastPlayback.msToRemoteSeconds(target))
+    }
+
+    override fun getCurrentPosition(): Long = if (casting) remotePositionMs else super.getCurrentPosition()
+    override fun getDuration(): Long = if (casting) remoteDurationMs else super.getDuration()
+
+    // The media-style notification builds its scrubber from the content position/duration, not
+    // getCurrentPosition/getDuration — so these must follow the remote clock too, else the scrubber
+    // sits at the paused local player's position while casting.
+    override fun getContentPosition(): Long = if (casting) remotePositionMs else super.getContentPosition()
+    override fun getContentDuration(): Long = if (casting) remoteDurationMs else super.getContentDuration()
+    override fun getBufferedPosition(): Long = if (casting) remotePositionMs else super.getBufferedPosition()
+    override fun getContentBufferedPosition(): Long = if (casting) remotePositionMs else super.getContentBufferedPosition()
 }

@@ -22,11 +22,13 @@ import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.fcast.sender_sdk.PlaybackState
 import org.fcast.sender_sdk.DeviceConnectionState
-import org.fcast.sender_sdk.Metadata
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -34,10 +36,16 @@ class PlayerConnection(
     context: Context,
     binder: MusicBinder,
     val database: MusicDatabase,
-    val scope: CoroutineScope,
+    parentScope: CoroutineScope,
 ) : Player.Listener {
     val service = binder.service
     val player = service.player
+
+    // Instance-owned scope (a child of the host's scope) so [dispose] cancels every collector/launch
+    // this connection started. The host re-creates a PlayerConnection on each service re-bind; without
+    // this the cast collectors would pile up on the long-lived lifecycleScope and a single track-end
+    // would fire advanceRemoteAfterEnd once per leaked instance.
+    val scope = CoroutineScope(parentScope.coroutineContext + SupervisorJob(parentScope.coroutineContext[Job]))
 
     val playbackState = MutableStateFlow(player.playbackState)
     private val playWhenReady = MutableStateFlow(player.playWhenReady)
@@ -92,6 +100,21 @@ class PlayerConnection(
     private var lastRemoteTimeUpdateAt = System.currentTimeMillis()
     private var remoteLoadedMediaId: String? = null
 
+    // Stored so [dispose] can clear it from the singleton handler only if it's still ours.
+    private val onDisconnectCallback: (Long) -> Unit = { lastRemotePos ->
+        // Reset cast tracking so a later reconnect/new track doesn't auto-skip on stale near-end state,
+        // and so the PLAYLIST_CHANGED de-dup doesn't suppress a real load against a now-stale id.
+        lastRemotePosition = 0.0
+        lastRemoteTimeUpdateAt = System.currentTimeMillis()
+        lastTransitionTime = System.currentTimeMillis()
+        remoteLoadedMediaId = null
+        scope.launch {
+            player.seekTo(lastRemotePos)
+            player.prepare()
+            player.playWhenReady = false
+        }
+    }
+
     init {
         player.addListener(this)
 
@@ -105,17 +128,7 @@ class PlayerConnection(
         shuffleModeEnabled.value = player.shuffleModeEnabled
         repeatMode.value = player.repeatMode
 
-        service.discoveryHandler.onDisconnect = { lastRemotePos ->
-            // Reset stall-detection state so a later reconnect doesn't immediately auto-skip on the
-            // previous track's stale near-end position.
-            lastRemotePosition = 0.0
-            lastTransitionTime = System.currentTimeMillis()
-            scope.launch {
-                player.seekTo(lastRemotePos)
-                player.prepare()
-                player.playWhenReady = false
-            }
-        }
+        service.discoveryHandler.onDisconnect = onDisconnectCallback
 
         scope.launch {
             service.discoveryHandler.remoteTime.collect { time ->
@@ -127,12 +140,12 @@ class PlayerConnection(
             var lastState = service.discoveryHandler.remotePlaybackState.value
             service.discoveryHandler.remotePlaybackState.collect { state ->
                 val dur = service.discoveryHandler.remoteDuration.value
-                if (isCasting.value && state == PlaybackState.IDLE && lastState == PlaybackState.PLAYING) {
-                    // If we're near the end, transition to next song
-                    if (CastAutoAdvance.nearEnd(dur, lastRemotePosition, CastAutoAdvance.IDLE_END_EPSILON_SEC) &&
-                        CastAutoAdvance.debouncePassed(System.currentTimeMillis(), lastTransitionTime)) {
-                        advanceRemoteAfterEnd()
-                    }
+                // IDLE coming from PLAYING near the end means the track finished. Debounce is enforced
+                // inside advanceRemoteAfterEnd (shared with the other detectors, on the main thread).
+                if (isCasting.value && state == PlaybackState.IDLE && lastState == PlaybackState.PLAYING &&
+                    CastAutoAdvance.nearEnd(dur, lastRemotePosition, CastAutoAdvance.IDLE_END_EPSILON_SEC)
+                ) {
+                    advanceRemoteAfterEnd()
                 }
                 lastState = state
             }
@@ -145,9 +158,12 @@ class PlayerConnection(
                     delay(1000)
                     val dur = service.discoveryHandler.remoteDuration.value
                     val stalledFor = System.currentTimeMillis() - lastRemoteTimeUpdateAt
-                    if (CastAutoAdvance.nearEnd(dur, lastRemotePosition, CastAutoAdvance.STALL_END_EPSILON_SEC) &&
-                        CastAutoAdvance.stalled(stalledFor) &&
-                        CastAutoAdvance.debouncePassed(System.currentTimeMillis(), lastTransitionTime)) {
+                    // A deliberately PAUSED track also freezes the remote clock — never treat that as a
+                    // finished track, or pausing near the end would silently auto-skip it.
+                    if (!CastPlayback.isPaused(service.discoveryHandler.remotePlaybackState.value) &&
+                        CastAutoAdvance.nearEnd(dur, lastRemotePosition, CastAutoAdvance.STALL_END_EPSILON_SEC) &&
+                        CastAutoAdvance.stalled(stalledFor)
+                    ) {
                         advanceRemoteAfterEnd()
                     }
                 }
@@ -206,12 +222,35 @@ class PlayerConnection(
         }
     }
 
+    /** Current playback position (ms) — the remote clock while casting, else the local player. */
+    fun currentPositionMs(): Long =
+        if (isCasting.value) CastPlayback.remoteSecondsToMs(service.discoveryHandler.remoteTime.value)
+        else player.currentPosition
+
+    /** Current item duration (ms) — the remote clock while casting, else the local player. */
+    fun currentDurationMs(): Long =
+        if (isCasting.value) CastPlayback.remoteSecondsToMs(service.discoveryHandler.remoteDuration.value)
+        else player.duration
+
+    /**
+     * Records the media id the receiver is currently playing (set when the picker connects and loads
+     * the current item via the handler) so the PLAYLIST_CHANGED de-dup in [onMediaItemTransition] is
+     * accurate and doesn't redundantly reload the just-connected track.
+     */
+    fun markRemoteLoaded(mediaId: String?) {
+        remoteLoadedMediaId = mediaId
+    }
+
     fun seekToNext() {
         if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)) {
             try {
                 player.seekToNext()
-                player.prepare()
-                player.playWhenReady = true
+                // While casting the local player stays paused (the receiver plays); the resulting
+                // media-item transition reloads the receiver. Only resume local audio when not casting.
+                if (!isCasting.value) {
+                    player.prepare()
+                    player.playWhenReady = true
+                }
             } catch (e: Exception) {
             }
         }
@@ -221,8 +260,10 @@ class PlayerConnection(
         if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) {
             try {
                 player.seekToPrevious()
-                player.prepare()
-                player.playWhenReady = true
+                if (!isCasting.value) {
+                    player.prepare()
+                    player.playWhenReady = true
+                }
             } catch (e: Exception) {
             }
         }
@@ -243,33 +284,37 @@ class PlayerConnection(
     /**
      * Advance the receiver at end-of-track: repeat-one replays the current item, otherwise skip to the
      * next (if any). Shared by all three end detectors — the SDK END event, the IDLE-after-PLAYING
-     * collector, and the stall poll — so the repeat/skip decision lives in one place (the END event
-     * previously skipped unconditionally, ignoring repeat-one).
+     * collector, and the stall poll.
+     *
+     * The body runs on the connection scope (main): the SDK END callback invokes this from a native
+     * thread, and Media3's player must be touched on its application thread. Doing the debounce check
+     * and the lastTransitionTime stamp here — serialised on one thread — also stops the three detectors
+     * from double-advancing, including the repeat-one path, which fires no media-item transition of its
+     * own and so would otherwise never refresh the debounce window.
      */
     fun advanceRemoteAfterEnd() {
-        if (player.repeatMode == REPEAT_MODE_ONE) {
-            player.seekTo(player.currentMediaItemIndex, 0)
-            triggerRemoteLoad(player.currentMediaItem)
-        } else if (canSkipNext.value) {
-            seekToNext()
+        scope.launch {
+            if (!CastAutoAdvance.debouncePassed(System.currentTimeMillis(), lastTransitionTime)) return@launch
+            lastTransitionTime = System.currentTimeMillis()
+            if (player.repeatMode == REPEAT_MODE_ONE) {
+                player.seekTo(player.currentMediaItemIndex, 0)
+                triggerRemoteLoad(player.currentMediaItem)
+            } else if (canSkipNext.value) {
+                seekToNext()
+            }
         }
     }
 
     private fun triggerRemoteLoad(mediaItem: MediaItem?) {
         val mediaId = mediaItem?.mediaId ?: return
         remoteLoadedMediaId = mediaId
+        // New track loading: reset remote-clock tracking so the stall / near-end detectors don't fire on
+        // the previous track's stale near-end position before the new track first reports its own clock.
+        lastRemotePosition = 0.0
+        lastRemoteTimeUpdateAt = System.currentTimeMillis()
         scope.launch {
-            val url = service.resolveStreamUrl(mediaId)
-            val contentType = service.streamContentType(mediaId)
-            val metadata = mediaItem.metadata?.let {
-                Metadata(
-                    title = "${it.title} - ${it.artists.joinToString(", ") { a -> a.name }}",
-                    thumbnailUrl = it.thumbnailUrl
-                )
-            }
-            if (url != null && contentType != null) {
-                service.discoveryHandler.load(url, contentType, metadata)
-            }
+            val url = service.resolveStreamUrl(mediaId) ?: return@launch
+            service.discoveryHandler.load(url, service.streamContentType(mediaId), mediaItem.metadata?.toCastMetadata())
         }
     }
 
@@ -345,5 +390,11 @@ class PlayerConnection(
 
     fun dispose() {
         player.removeListener(this)
+        // Clear the singleton handler's callback only if it is still ours (a newer PlayerConnection may
+        // have already replaced it), then cancel every collector/launch this connection owns.
+        if (service.discoveryHandler.onDisconnect === onDisconnectCallback) {
+            service.discoveryHandler.onDisconnect = null
+        }
+        scope.cancel()
     }
 }

@@ -290,10 +290,11 @@ class MusicService :
             songUrlCache[id]?.takeIf { it.second > System.currentTimeMillis() }?.first
         }
 
+    // The cast receiver needs the real container MIME (populated by resolveStreamUrl). Do NOT fall back
+    // to player.audioFormat.sampleMimeType — that is the decoder's codec MIME (e.g. audio/mp4a-latm,
+    // audio/opus), the wrong granularity for a container, which makes the receiver reject the stream.
     val currentContentType: String?
-        get() = player.currentMediaItem?.mediaId?.let { songMimeCache[it] }
-            ?: player.audioFormat?.sampleMimeType
-            ?: "audio/mp4"
+        get() = player.currentMediaItem?.mediaId?.let { songMimeCache[it] } ?: "audio/mp4"
 
     private var consecutivePlaybackErr = 0
 
@@ -491,6 +492,8 @@ class MusicService :
 
                     // Clear stream cache when auth changes to force fresh URLs with new auth
                     songUrlCache.clear()
+                    // Keep the cast-MIME cache in lockstep with the URL cache it's populated alongside.
+                    songMimeCache.clear()
 
                     // Log authentication state change for debugging
                     val isLoggedIn = cookie != null && "SAPISID" in parseCookieString(cookie ?: "")
@@ -1828,8 +1831,12 @@ class MusicService :
                     player.play()
                 }
             }
+            // The local skip advances the queue, whose media-item transition reloads the receiver while
+            // casting. PREV uses seekToPreviousMediaItem when casting: the local clock is meaningless
+            // remotely, so seekToPrevious's "restart current track if >3s in" would misfire.
             MusicWidget.ACTION_NEXT -> player.seekToNext()
-            MusicWidget.ACTION_PREV -> player.seekToPrevious()
+            MusicWidget.ACTION_PREV ->
+                if (discoveryHandler.connectedDevice != null) player.seekToPreviousMediaItem() else player.seekToPrevious()
         }
         return super.onStartCommand(intent, flags, startId)
     }

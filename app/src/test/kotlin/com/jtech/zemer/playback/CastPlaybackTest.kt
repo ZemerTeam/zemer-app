@@ -26,6 +26,17 @@ class CastPlaybackTest {
     }
 
     @Test
+    fun `isPaused is true only for PAUSED`() {
+        // Gates the stall-based auto-advance: a deliberately PAUSED track freezes the remote clock the
+        // same way a stall does, and must never be treated as "finished" and auto-skipped.
+        assertTrue(CastPlayback.isPaused(PlaybackState.PAUSED))
+        assertFalse(CastPlayback.isPaused(PlaybackState.PLAYING))
+        assertFalse(CastPlayback.isPaused(PlaybackState.BUFFERING))
+        assertFalse(CastPlayback.isPaused(PlaybackState.IDLE))
+        assertFalse("null must not read as paused", CastPlayback.isPaused(null))
+    }
+
+    @Test
     fun `playIntentForState maps PLAYING and PAUSED, ignores transient states`() {
         assertEquals(true, CastPlayback.playIntentForState(PlaybackState.PLAYING))
         assertEquals(false, CastPlayback.playIntentForState(PlaybackState.PAUSED))

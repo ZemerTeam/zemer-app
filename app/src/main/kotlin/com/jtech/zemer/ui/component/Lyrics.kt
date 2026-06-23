@@ -296,11 +296,7 @@ fun Lyrics(
             isSeeking = sliderPosition != null
             currentLineIndex = findCurrentLineIndex(
                 lines,
-                sliderPosition ?: if (playerConnection.isCasting.value) {
-                    (playerConnection.service.discoveryHandler.remoteTime.value * 1000).toLong()
-                } else {
-                    playerConnection.player.currentPosition
-                }
+                sliderPosition ?: playerConnection.currentPositionMs()
             )
         }
     }

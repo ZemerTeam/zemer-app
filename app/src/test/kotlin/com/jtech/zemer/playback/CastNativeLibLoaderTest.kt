@@ -1,6 +1,7 @@
 package com.jtech.zemer.playback
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -45,5 +46,25 @@ class CastNativeLibLoaderTest {
     @Test
     fun `override property is uniffi's libraryOverride hook for the fcast component`() {
         assertEquals("uniffi.component.fcast_sender_sdk.libraryOverride", CastNativeLib.OVERRIDE_PROPERTY)
+    }
+
+    @Test
+    fun `cacheIsValid only trusts a present lib whose recorded sha matches the expected sha`() {
+        val expected = CastNativeLib.ABIS.first().sha256
+
+        // Happy path: present + recorded sha matches the pinned sha (case-insensitive).
+        assertTrue(CastNativeLib.cacheIsValid(libExists = true, storedSha = expected, expectedSha = expected))
+        assertTrue(CastNativeLib.cacheIsValid(true, expected.uppercase(), expected))
+
+        // Stale after an SDK_VERSION bump: a different expected sha must reject the old cached lib.
+        assertFalse(CastNativeLib.cacheIsValid(true, expected, expectedSha = "deadbeef"))
+
+        // Truncated/partial copy: the marker is written only after the file lands, so a missing marker
+        // (null storedSha) must force a re-download even though the file exists.
+        assertFalse("missing marker must not be trusted", CastNativeLib.cacheIsValid(true, null, expected))
+
+        // No file on disk, or no shipped ABI for this device: never valid.
+        assertFalse(CastNativeLib.cacheIsValid(libExists = false, storedSha = expected, expectedSha = expected))
+        assertFalse(CastNativeLib.cacheIsValid(true, expected, expectedSha = null))
     }
 }
