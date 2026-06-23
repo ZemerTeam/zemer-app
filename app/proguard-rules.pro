@@ -255,3 +255,15 @@
 
 ## libsu for the root install method
 -keep class com.topjohnwu.superuser.** { *; }
+
+## FCast casting: JNA + the uniffi-generated sender SDK.
+## The SDK's bindings (org.fcast.sender_sdk.*) subclass com.sun.jna.Structure and reflect over
+## their declared fields to map native (Rust) memory layout. If R8 strips/renames those classes
+## or fields, CastContext() throws in com.sun.jna.Structure.<init> and the RELEASE app crashes on
+## launch (debug has no R8, so this only shows up in a running release build).
+-dontwarn java.awt.**
+-keep class com.sun.jna.** { *; }
+-keepclassmembers class * extends com.sun.jna.Structure { <fields>; }
+-keep class * implements com.sun.jna.Library { *; }
+-keep class * implements com.sun.jna.Callback { *; }
+-keep class org.fcast.sender_sdk.** { *; }
