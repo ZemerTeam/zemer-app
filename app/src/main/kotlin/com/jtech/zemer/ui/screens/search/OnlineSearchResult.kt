@@ -196,7 +196,7 @@ fun OnlineSearchResult(
                                         val artistDisplay = item.artists.joinToString(" • ") { it.name }
                                         navController.navigate(videoRoute(item.id, item.title, artistDisplay))
                                     } else if (item.id == mediaMetadata?.id) {
-                                        playerConnection.player.togglePlayPause()
+                                        playerConnection.playPause()
                                     } else {
                                         playerConnection.playQueue(
                                             YouTubeQueue(
@@ -225,7 +225,7 @@ fun OnlineSearchResult(
                                     val artistDisplay = item.artists.joinToString(" • ") { it.name }
                                     navController.navigate(videoRoute(item.id, item.title, artistDisplay))
                                 } else if (item.id == mediaMetadata?.id) {
-                                    playerConnection.player.togglePlayPause()
+                                    playerConnection.playPause()
                                 } else {
                                     playerConnection.playQueue(
                                         YouTubeQueue(

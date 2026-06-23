@@ -264,7 +264,7 @@ fun OnlineSearchScreen(
                             when (item) {
                                 is SongItem -> {
                                     if (item.id == mediaMetadata?.id) {
-                                        playerConnection.player.togglePlayPause()
+                                        playerConnection.playPause()
                                     } else {
                                         playerConnection.playQueue(
                                             YouTubeQueue.radio(item.toMediaMetadata(), database)
@@ -338,7 +338,7 @@ fun OnlineSearchScreen(
                             when (item) {
                                 is SongItem -> {
                                     if (item.id == mediaMetadata?.id) {
-                                        playerConnection.player.togglePlayPause()
+                                        playerConnection.playPause()
                                     } else {
                                         playerConnection.playQueue(
                                             YouTubeQueue.radio(item.toMediaMetadata(), database)

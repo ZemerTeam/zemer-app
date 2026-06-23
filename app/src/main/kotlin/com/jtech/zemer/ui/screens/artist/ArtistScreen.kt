@@ -506,7 +506,7 @@ fun ArtistScreen(
                                     .combinedClickable(
                                         onClick = {
                                             if (song.id == mediaMetadata?.id) {
-                                                playerConnection.player.togglePlayPause()
+                                                playerConnection.playPause()
                                             } else {
                                                 playerConnection.playQueue(
                                                     ListQueue(
@@ -670,7 +670,7 @@ fun ArtistScreen(
                                                     navController.navigate(videoRoute(song.id, song.title, artistDisplay))
                                                 } else if (!isVideoSection) {
                                                     if (song.id == mediaMetadata?.id) {
-                                                        playerConnection.player.togglePlayPause()
+                                                        playerConnection.playPause()
                                                     } else {
                                                         playerConnection.playQueue(
                                                             YouTubeQueue(

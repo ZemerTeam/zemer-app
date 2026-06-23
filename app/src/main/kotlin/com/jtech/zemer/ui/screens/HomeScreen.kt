@@ -252,7 +252,7 @@ fun HomeScreen(
                     .combinedClickable(
                         onClick = {
                             if (it.id == mediaMetadata?.id) {
-                                playerConnection.player.togglePlayPause()
+                                playerConnection.playPause()
                             } else {
                                 playerConnection.playQueue(
                                     YouTubeQueue.radio(it.toMediaMetadata(), database),
@@ -496,7 +496,7 @@ fun HomeScreen(
                                         .combinedClickable(
                                             onClick = {
                                                 if (song!!.id == mediaMetadata?.id) {
-                                                    playerConnection.player.togglePlayPause()
+                                                    playerConnection.playPause()
                                                 } else {
                                                     playerConnection.playQueue(
                                                         YouTubeQueue.radio(
@@ -680,7 +680,7 @@ fun HomeScreen(
                                         .combinedClickable(
                                             onClick = {
                                                 if (song!!.id == mediaMetadata?.id) {
-                                                    playerConnection.player.togglePlayPause()
+                                                    playerConnection.playPause()
                                                 } else {
                                                     playerConnection.playQueue(
                                                         YouTubeQueue.radio(

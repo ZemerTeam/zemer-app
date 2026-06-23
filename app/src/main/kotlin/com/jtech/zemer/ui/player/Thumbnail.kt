@@ -181,9 +181,9 @@ fun Thumbnail(
         if (!thumbnailLazyGridState.isScrollInProgress || !swipeThumbnail || itemScrollOffset != 0 || currentMediaIndex < 0) return@LaunchedEffect
 
         if (currentItem > currentMediaIndex && canSkipNext) {
-            playerConnection.player.seekToNext()
+            playerConnection.seekToNext()
         } else if (currentItem < currentMediaIndex && canSkipPrevious) {
-            playerConnection.player.seekToPreviousMediaItem()
+            playerConnection.seekToPrevious()
         }
     }
 
@@ -284,6 +284,7 @@ fun Thumbnail(
                             }
                         ) { item ->
                             val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
+                            val isCasting by playerConnection.isCasting.collectAsState()
                             var skipMultiplier by remember { mutableIntStateOf(1) }
                             var lastTapTime by remember { mutableLongStateOf(0L) }
 
@@ -295,7 +296,11 @@ fun Thumbnail(
                                     .pointerInput(Unit) {
                                         detectTapGestures(
                                             onDoubleTap = { offset ->
-                                                val currentPosition = playerConnection.player.currentPosition
+                                                val currentPosition = if (isCasting) {
+                                                    (playerConnection.service.discoveryHandler.remoteTime.value * 1000).toLong()
+                                                } else {
+                                                    playerConnection.player.currentPosition
+                                                }
                                                 val duration = playerConnection.player.duration
 
                                                 val now = System.currentTimeMillis()
@@ -311,13 +316,13 @@ fun Thumbnail(
                                                 if ((layoutDirection == LayoutDirection.Ltr && offset.x < size.width / 2) ||
                                                     (layoutDirection == LayoutDirection.Rtl && offset.x > size.width / 2)
                                                 ) {
-                                                    playerConnection.player.seekTo(
+                                                    playerConnection.seekTo(
                                                         (currentPosition - skipAmount).coerceAtLeast(0)
                                                     )
                                                     seekDirection =
                                                         context.getString(R.string.seek_backward_dynamic, skipAmount / 1000)
                                                 } else {
-                                                    playerConnection.player.seekTo(
+                                                    playerConnection.seekTo(
                                                         (currentPosition + skipAmount).coerceAtMost(duration)
                                                     )
                                                     seekDirection = context.getString(R.string.seek_forward_dynamic, skipAmount / 1000)

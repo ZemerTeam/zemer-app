@@ -606,7 +606,7 @@ fun LocalPlaylistScreen(
                                     .combinedClickable(
                                         onClick = {
                                             if (song.song.id == mediaMetadata?.id) {
-                                                playerConnection.player.togglePlayPause()
+                                                playerConnection.playPause()
                                             } else {
                                                 playerConnection.playQueue(
                                                     ListQueue(
@@ -734,7 +734,7 @@ fun LocalPlaylistScreen(
                                         onClick = {
                                             if (!selection) {
                                                 if (songWrapper.item.song.id == mediaMetadata?.id) {
-                                                    playerConnection.player.togglePlayPause()
+                                                    playerConnection.playPause()
                                                 } else {
                                                     playerConnection.playQueue(
                                                         ListQueue(
