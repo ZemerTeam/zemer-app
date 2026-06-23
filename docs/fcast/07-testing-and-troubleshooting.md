@@ -65,15 +65,6 @@ Wi-Fi. The high-value paths:
 
 ## Known limitations (by design)
 
-- **Notification play/pause icon while casting** reflects the paused local
-  player, not the receiver. Scrubber + seek/skip are correct. Mirroring the icon
-  needs synthesised `Player.Event`s — deferred. (`CastAwarePlayer` KDoc.)
-- **Auto-advance needs a bound `PlayerConnection`.** If the Activity is destroyed
-  while the service keeps casting, the queue won't auto-advance until a
-  `PlayerConnection` rebinds. The deeper fix (own the advance loop in
-  `MusicService`) is deferred because the obvious second-owner implementation
-  double-loaded the receiver. (`MusicService.onMediaItemTransition` note,
-  [05](05-auto-advance.md).)
 - **Discovery can't be stopped** (sender-sdk 0.4.0 `NsdDeviceDiscoverer` has no
   stop API) — it runs from first `startDiscovery()` until the process dies.
 - **ABI** — only `arm64-v8a` / `armeabi-v7a`; other devices report

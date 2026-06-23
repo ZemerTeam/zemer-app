@@ -127,13 +127,14 @@ Net effect:
 
 ## The receiver-reload de-dup (`remoteLoadedMediaId`)
 
-`PlayerConnection.onMediaItemTransition` reloads the receiver when the *current
-item* actually changes, and de-dups against what's already loaded:
+`CastController.onMediaItemTransition` (driven from `MusicService.onMediaItemTransition`)
+reloads the receiver when the *current item* actually changes, and de-dups against
+what's already loaded:
 
 ```kotlin
 val isCurrentItemChange = reason == SEEK || reason == AUTO || reason == REPEAT ||
     (reason == PLAYLIST_CHANGED && mediaItem?.mediaId != remoteLoadedMediaId)
-if (isCasting.value && isCurrentItemChange) { player.pause(); triggerRemoteLoad(mediaItem) }
+if (casting && isCurrentItemChange) { player.pause(); triggerRemoteLoad(mediaItem) }
 ```
 
 `PLAYLIST_CHANGED` also fires on queue *edits* that don't change the current
@@ -142,12 +143,11 @@ first track equals the id already on the receiver** must still reload — so
 `playQueue()` clears `remoteLoadedMediaId` (while casting) to force the upcoming
 `PLAYLIST_CHANGED` to reload.
 
-> **Single reload owner.** Only `PlayerConnection` reloads the receiver on a
-> track change. `MusicService.onMediaItemTransition` intentionally does **not** —
-> a second reload there double-loaded the receiver on every track change. This is
-> the source of the deliberately-bounded "no advance when the Activity is
-> destroyed" limitation ([05](05-auto-advance.md) /
-> [07](07-testing-and-troubleshooting.md)).
+> **Single reload owner.** `CastController` (owned by the process-scoped
+> `MusicService`, driven from `MusicService.onMediaItemTransition`) is the sole
+> reload owner — `PlayerConnection` no longer reloads — so the receiver is loaded
+> exactly once per track change **and** auto-advance survives the Activity being
+> destroyed mid-cast ([05](05-auto-advance.md)).
 
 ## Stream URL + content type
 
