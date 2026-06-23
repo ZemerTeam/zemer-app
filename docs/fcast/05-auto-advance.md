@@ -34,17 +34,25 @@ object CastAutoAdvance {
 > so playback looks smooth and a clock that stopped short still reaches the end; the
 > **IDLE** detector instead uses the generous `finishedNearEnd` window.
 
-## The three detectors
+## The detectors
 
-All live in `CastController` and call the shared `advanceRemoteAfterEnd()`.
+All live in `CastController` and call the shared `advanceRemoteAfterEnd()`. No single
+signal is reliable across receivers — verified on real hardware, the **FCast Receiver
+Android** app ends a track by going `PLAYING → PAUSED` at `pos == duration`, sending
+*no* `END` event and *never* `IDLE` — so end-of-track is caught three ways:
 
 1. **SDK `END` event** — `DevEventHandler.mediaEvent(END)` → `onTrackEnded` →
    `advanceRemoteAfterEnd()`. The cleanest signal when the receiver sends it.
 
-2. **IDLE-after-PLAYING** — a collector on `remotePlaybackState`: if the state
-   goes `PLAYING → IDLE` while `finishedNearEnd(dur, lastPos)`, the track finished.
-   The window is generous (a coarse clock stops reporting early); IDLE far from the
-   end is a stop/error, not an end.
+2. **End state from PLAYING** — a collector on `remotePlaybackState`. Two end signals:
+   - `PLAYING → IDLE` while `finishedNearEnd(dur, pos)` — a **generous** window (a
+     coarse clock stops reporting early). IDLE far from the end is a stop/error.
+   - `PLAYING → PAUSED` while `nearEnd(dur, pos, PAUSED_END_EPSILON_SEC)` — a **tight**
+     window (2 s). Some receivers auto-pause at `pos == duration` to signal the end;
+     the tight epsilon distinguishes that from a deliberate mid-track pause (which must
+     not advance). A PAUSED report at the very end also must **not** flip the play
+     intent off (`FCastDiscoveryHandler.playbackStateChanged`), or the next track would
+     load paused; and `advanceRemoteAfterEnd` re-asserts `shouldPlay = true`.
 
 3. **Stall poll** — a 1 Hz loop (only while casting) that fires when the remote
    clock has been silent past `STALL_SILENCE_MS` and `nearEnd(…,
@@ -105,6 +113,14 @@ On disconnect, `CastController`'s `onDisconnect` handler also resets
 `lastRemotePosition`, `lastRemoteTimeUpdateAt`, `lastTransitionTime`, and
 `remoteLoadedMediaId` — so a later reconnect/new track doesn't auto-skip on stale
 near-end state.
+
+`triggerRemoteLoad` also resets the **visible** remote clock (`remoteTime` /
+`remoteDuration` → 0) *synchronously*, not just in `handler.load()` which runs after
+the async stream resolve. Without it, when the queue advances the UI switches to the
+new song immediately while the remote clock still reads the previous track's near-end
+position/duration — a full progress bar that then drops to 0. And
+`interpolatedRemoteTimeSec()` returns the raw value (no extrapolation) until a real
+duration arrives, so the bar doesn't creep up from 0 on the just-loaded track.
 
 ## Advance survives the Activity being destroyed
 

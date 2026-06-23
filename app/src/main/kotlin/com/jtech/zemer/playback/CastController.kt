@@ -72,12 +72,16 @@ class CastController(
             var lastState = handler.remotePlaybackState.value
             handler.remotePlaybackState.collect { state ->
                 val dur = handler.remoteDuration.value
-                // IDLE coming from PLAYING near the end means the track finished. finishedNearEnd is generous
-                // (the receiver can stop reporting the clock several seconds early). The debounce is enforced
-                // inside advanceRemoteAfterEnd (shared with the other detectors, on one thread).
-                if (casting && state == PlaybackState.IDLE && lastState == PlaybackState.PLAYING &&
-                    CastAutoAdvance.finishedNearEnd(dur, lastRemotePosition)
-                ) {
+                val pos = handler.remoteTime.value
+                // End-of-track shows up differently across receivers and never as one reliable signal:
+                //  - IDLE coming from PLAYING (generous window — a coarse clock may stop reporting early), or
+                //  - PAUSED coming from PLAYING at pos==duration (some receivers auto-pause at the end instead
+                //    of going IDLE or sending an END event; the TIGHT epsilon separates it from a mid-track
+                //    pause). The debounce inside advanceRemoteAfterEnd stops double-advancing.
+                val endedIdle = state == PlaybackState.IDLE && CastAutoAdvance.finishedNearEnd(dur, pos)
+                val endedPause = state == PlaybackState.PAUSED &&
+                    CastAutoAdvance.nearEnd(dur, pos, CastAutoAdvance.PAUSED_END_EPSILON_SEC)
+                if (casting && lastState == PlaybackState.PLAYING && (endedIdle || endedPause)) {
                     advanceRemoteAfterEnd()
                 }
                 lastState = state
@@ -135,6 +139,9 @@ class CastController(
     fun advanceRemoteAfterEnd() {
         scope.launch {
             if (!CastAutoAdvance.debouncePassed(System.currentTimeMillis(), lastTransitionTime)) return@launch
+            // We're advancing because a track finished while playing, so the next one should play — re-assert
+            // the intent in case the end was signalled as PAUSED (a receiver auto-pausing at pos==duration).
+            handler.shouldPlay = true
             if (player.repeatMode == REPEAT_MODE_ONE) {
                 lastTransitionTime = System.currentTimeMillis()
                 player.seekTo(player.currentMediaItemIndex, 0)
@@ -157,9 +164,15 @@ class CastController(
     private fun triggerRemoteLoad(mediaItem: MediaItem?) {
         val mediaId = mediaItem?.mediaId ?: return
         remoteLoadedMediaId = mediaId
-        // Reset remote-clock tracking for the new track (see the remoteTime collector for the full why).
+        // Reset remote-clock tracking for the new track (see the remoteTime collector for the full why), and
+        // reset the VISIBLE remote clock NOW — handler.load() also resets it but only after the async stream
+        // resolve below, and until then the seek bar would show the previous track's near-end position and
+        // duration against the just-switched new track (a full bar that then drops to 0).
         lastRemotePosition = 0.0
         lastRemoteTimeUpdateAt = System.currentTimeMillis()
+        handler.remoteTime.value = 0.0
+        handler.remoteDuration.value = 0.0
+        handler.remoteTimeUpdatedAt = System.currentTimeMillis()
         // Cancel any still-in-flight resolve for a previous track so a slow earlier resolve can't land on
         // the receiver after a faster later one (rapid skips would otherwise play whichever URL resolved
         // last by network latency, not the current track).

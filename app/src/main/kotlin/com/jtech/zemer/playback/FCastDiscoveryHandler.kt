@@ -74,10 +74,14 @@ class DevEventHandler(
 
     override fun playbackStateChanged(state: PlaybackState) {
         handler.remotePlaybackState.value = state
-        // Mirror the receiver's own state into our play intent instead of overriding it, so a
-        // pause/resume from the TV's remote sticks. Pause-on-reconnect is enforced in
-        // connectionStateChanged, not here.
-        CastPlayback.playIntentForState(state)?.let { handler.shouldPlay = it }
+        // Mirror the receiver's own state into our play intent so a pause/resume from the TV's remote
+        // sticks. EXCEPT a PAUSED report at the very end of the track: some receivers auto-pause at
+        // pos==duration to signal end-of-track (no IDLE, no END event). Treating that as a user pause would
+        // flip the intent off and make the next auto-advanced track load paused — it's the track finishing,
+        // not a pause. Pause-on-reconnect is enforced in connectionStateChanged, not here.
+        val endOfTrackPause = state == PlaybackState.PAUSED &&
+            CastAutoAdvance.nearEnd(handler.remoteDuration.value, handler.remoteTime.value, CastAutoAdvance.PAUSED_END_EPSILON_SEC)
+        if (!endOfTrackPause) CastPlayback.playIntentForState(state)?.let { handler.shouldPlay = it }
     }
 
     override fun timeChanged(time: Double) {
@@ -147,11 +151,12 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
      */
     fun interpolatedRemoteTimeSec(): Double {
         val base = remoteTime.value
-        if (!CastPlayback.isPlaying(remotePlaybackState.value)) return base
-        val elapsedSec = (System.currentTimeMillis() - remoteTimeUpdatedAt).coerceAtLeast(0L) / 1000.0
         val dur = remoteDuration.value
-        val interpolated = base + elapsedSec
-        return if (dur > 0.0) interpolated.coerceAtMost(dur) else interpolated
+        // No extrapolation without a known duration (a just-loaded track) or while not playing — return the
+        // last reported value so the bar doesn't creep up from 0 before the new track's clock has arrived.
+        if (dur <= 0.0 || !CastPlayback.isPlaying(remotePlaybackState.value)) return base
+        val elapsedSec = (System.currentTimeMillis() - remoteTimeUpdatedAt).coerceAtLeast(0L) / 1000.0
+        return (base + elapsedSec).coerceAtMost(dur)
     }
 
     fun connectTo(

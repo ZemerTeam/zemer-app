@@ -247,16 +247,16 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/models/PersistPlayerState.kt` | 14 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/models/PersistQueue.kt` | 54 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/AudioOnlyRenderersFactory.kt` | 25 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/CastAutoAdvance.kt` | 55 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/CastAutoAdvance.kt` | 63 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastAwarePlayer.kt` | 130 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/CastController.kt` | 199 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/CastController.kt` | 212 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastNativeLibLoader.kt` | 189 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastPlayback.kt` | 41 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/DownloadMenuLogic.kt` | 68 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/DownloadStateResolver.kt` | 106 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/DownloadUtil.kt` | 319 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/ExoDownloadService.kt` | 111 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/FCastDiscoveryHandler.kt` | 256 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/FCastDiscoveryHandler.kt` | 261 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 809 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 806 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 306 lines | `.kt` |
@@ -720,7 +720,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/latestreleases/LatestReleaseFilterTest.kt` | 46 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/latestreleases/LatestReleasePlaybackTest.kt` | 120 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/latestreleases/LatestReleasesStoreTest.kt` | 120 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/playback/CastAutoAdvanceTest.kt` | 132 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/CastAutoAdvanceTest.kt` | 144 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastNativeLibLoaderTest.kt` | 70 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastPlaybackTest.kt` | 67 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/DownloadCancellationContractTest.kt` | 75 lines | `.kt` |
@@ -754,7 +754,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/fcast/02-on-demand-native-lib.md` | 130 lines | `.md` |
 | `docs/fcast/03-discovery-and-connection.md` | 174 lines | `.md` |
 | `docs/fcast/04-playback-and-transport.md` | 170 lines | `.md` |
-| `docs/fcast/05-auto-advance.md` | 117 lines | `.md` |
+| `docs/fcast/05-auto-advance.md` | 133 lines | `.md` |
 | `docs/fcast/06-ui.md` | 101 lines | `.md` |
 | `docs/fcast/07-testing-and-troubleshooting.md` | 94 lines | `.md` |
 | `docs/fcast/README.md` | 66 lines | `.md` |
