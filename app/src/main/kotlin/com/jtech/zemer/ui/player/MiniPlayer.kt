@@ -262,7 +262,7 @@ private fun NewMiniPlayer(
         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
 
     if (showCastSheet) {
-        CastSheet(playerConnection, mediaMetadata) { showCastSheet = false }
+        CastSheet(playerConnection, mediaMetadata, devices, connectedDevice) { showCastSheet = false }
     }
 
     Box(
@@ -810,7 +810,7 @@ private fun LegacyMiniPlayer(
     val autoSwipeThreshold = calculateAutoSwipeThreshold(swipeSensitivity)
 
     if (showCastSheet) {
-        CastSheet(playerConnection, mediaMetadata) { showCastSheet = false }
+        CastSheet(playerConnection, mediaMetadata, devices, connectedDevice) { showCastSheet = false }
     }
 
     Box(
