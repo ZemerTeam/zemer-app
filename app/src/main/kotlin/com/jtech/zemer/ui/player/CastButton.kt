@@ -10,9 +10,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,13 +21,15 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.CastEnabledKey
+import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.utils.rememberPreference
 
 /**
- * Cast button overlaid on the player artwork (same pattern Metrolist uses): a radial-scrim-backed
- * icon that opens the FCast device picker. Hidden unless casting is enabled in settings (or a device
- * is already connected). Tapping it starts NSD discovery lazily, then shows the picker.
+ * Cast button overlaid on the player artwork (same pattern Metrolist uses): a radial-scrim-backed icon
+ * that opens the FCast device picker in the shared menu bottom-sheet. Hidden unless casting is enabled in
+ * settings (or a device is already connected). Tapping it starts the on-demand native-lib fetch + NSD
+ * discovery lazily, then shows the picker (which reflects the download / search state).
  */
 @Composable
 fun CastButton(
@@ -39,12 +38,10 @@ fun CastButton(
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val service = playerConnection.service
-    val handler = service.discoveryHandler
-    val devices by handler.discoveredDevicesFlow.collectAsState()
-    val connectedDevice by handler.connectedDeviceFlow.collectAsState()
+    val menuState = LocalMenuState.current
+    val connectedDevice by service.discoveryHandler.connectedDeviceFlow.collectAsState()
     val castEnabled by rememberPreference(CastEnabledKey, defaultValue = false)
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
-    var showCastSheet by remember { mutableStateOf(false) }
 
     if (!castEnabled && connectedDevice == null) return
 
@@ -69,7 +66,7 @@ fun CastButton(
                 .focusBorder(CircleShape)
                 .clickable {
                     service.startDiscovery()
-                    showCastSheet = true
+                    menuState.show { CastPicker(playerConnection, mediaMetadata) { menuState.dismiss() } }
                 },
         ) {
             Icon(
@@ -81,9 +78,5 @@ fun CastButton(
                 modifier = Modifier.size(24.dp),
             )
         }
-    }
-
-    if (showCastSheet) {
-        CastSheet(playerConnection, mediaMetadata, devices, connectedDevice) { showCastSheet = false }
     }
 }

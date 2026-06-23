@@ -581,9 +581,18 @@
     <string name="cast">Cast</string>
     <string name="cast_button_description">Cast to device</string>
     <string name="cast_dialog_title">Cast to</string>
+    <string name="cast_consent_message">Casting needs a one-time download of FCast support (about 5 MB).</string>
+    <string name="cast_download">Download</string>
+    <string name="cast_download_failed">Couldn\'t download cast support</string>
+    <string name="cast_download_title">Download cast support?</string>
+    <string name="cast_downloading_support">Downloading cast support…</string>
+    <string name="cast_get_fcast">Don\'t have a receiver? Get FCast</string>
     <string name="cast_no_devices">No devices found on network</string>
+    <string name="cast_same_wifi_hint">Make sure your device is on the same Wi-Fi network</string>
     <string name="cast_searching">Searching for devices…</string>
+    <string name="casting">Casting</string>
+    <string name="connected">Connected</string>
     <string name="enable_casting">Enable casting</string>
-    <string name="enable_casting_description">Show a cast button to play to FCast devices on your network. Discovery only runs when you tap it.</string>
+    <string name="enable_casting_description">Show a cast button to play to FCast devices on your network.</string>
     <string name="stop_casting">Stop casting</string>
 </resources>

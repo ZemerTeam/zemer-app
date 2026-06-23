@@ -90,6 +90,7 @@ import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.SwipeSensitivityKey
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
+import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.MediaMetadata
@@ -179,10 +180,9 @@ private fun NewMiniPlayer(
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
 
     val currentService = playerConnection.service
-    val devices by currentService.discoveryHandler.discoveredDevicesFlow.collectAsState()
     val castEnabled by rememberPreference(CastEnabledKey, defaultValue = false)
+    val menuState = LocalMenuState.current
     val connectedDevice by currentService.discoveryHandler.connectedDeviceFlow.collectAsState()
-    var showCastSheet by remember { mutableStateOf(false) }
 
     LocalView.current
     val layoutDirection = LocalLayoutDirection.current
@@ -263,9 +263,6 @@ private fun NewMiniPlayer(
         if (lightContent) Color.White.copy(alpha = 0.7f)
         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
 
-    if (showCastSheet) {
-        CastSheet(playerConnection, mediaMetadata, devices, connectedDevice) { showCastSheet = false }
-    }
 
     Box(
         modifier = modifier
@@ -617,7 +614,10 @@ private fun NewMiniPlayer(
                                 shape = CircleShape
                             )
                             .focusBorder(CircleShape)
-                            .clickable { currentService.startDiscovery(); showCastSheet = true }
+                            .clickable {
+                                currentService.startDiscovery()
+                                menuState.show { CastPicker(playerConnection, mediaMetadata) { menuState.dismiss() } }
+                            }
                     ) {
                         Icon(
                             painter = painterResource(if (connectedDevice != null) R.drawable.cast_connected else R.drawable.cast),
@@ -782,10 +782,9 @@ private fun LegacyMiniPlayer(
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
 
     val currentService = playerConnection.service
-    val devices by currentService.discoveryHandler.discoveredDevicesFlow.collectAsState()
     val castEnabled by rememberPreference(CastEnabledKey, defaultValue = false)
+    val menuState = LocalMenuState.current
     val connectedDevice by currentService.discoveryHandler.connectedDeviceFlow.collectAsState()
-    var showCastSheet by remember { mutableStateOf(false) }
 
     LocalView.current
     val layoutDirection = LocalLayoutDirection.current
@@ -812,9 +811,6 @@ private fun LegacyMiniPlayer(
     }
     val autoSwipeThreshold = calculateAutoSwipeThreshold(swipeSensitivity)
 
-    if (showCastSheet) {
-        CastSheet(playerConnection, mediaMetadata, devices, connectedDevice) { showCastSheet = false }
-    }
 
     Box(
         modifier = modifier
@@ -948,7 +944,10 @@ private fun LegacyMiniPlayer(
 
             if (castEnabled || connectedDevice != null) {
                 IconButton(
-                    onClick = { currentService.startDiscovery(); showCastSheet = true },
+                    onClick = {
+                        currentService.startDiscovery()
+                        menuState.show { CastPicker(playerConnection, mediaMetadata) { menuState.dismiss() } }
+                    },
                 ) {
                     Icon(
                         painter = painterResource(if (connectedDevice != null) R.drawable.cast_connected else R.drawable.cast),
