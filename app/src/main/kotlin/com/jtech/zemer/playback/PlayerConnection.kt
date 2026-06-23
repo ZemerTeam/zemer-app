@@ -18,6 +18,7 @@ import com.jtech.zemer.extensions.getQueueWindows
 import com.jtech.zemer.extensions.metadata
 import com.jtech.zemer.playback.MusicService.MusicBinder
 import com.jtech.zemer.playback.queues.Queue
+import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -204,11 +205,7 @@ class PlayerConnection(
                 service.discoveryHandler.play()
             }
         } else {
-            if (player.isPlaying) {
-                player.pause()
-            } else {
-                player.play()
-            }
+            player.togglePlayPause()
         }
     }
 
