@@ -91,7 +91,6 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
-import com.jtech.zemer.constants.CastEnabledKey
 import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.constants.QueueEditLockKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
@@ -350,36 +349,6 @@ fun Queue(
                             tint = TextBackgroundColor
                         )
                     }
-                    val service = playerConnection.service
-                    val devices by service.discoveryHandler.discoveredDevicesFlow.collectAsState()
-                    val connectedDevice by service.discoveryHandler.connectedDeviceFlow.collectAsState()
-                    val isCasting by playerConnection.isCasting.collectAsState()
-                    val castEnabled by rememberPreference(CastEnabledKey, defaultValue = false)
-                    var showCastSheet by remember { mutableStateOf(false) }
-
-                    if (castEnabled || connectedDevice != null) {
-                        Box(
-                            modifier = Modifier
-                                .size(buttonSize)
-                                .clip(RoundedCornerShape(5.dp))
-                                .border(1.dp, borderColor, RoundedCornerShape(5.dp))
-                                .focusBorder(RoundedCornerShape(5.dp))
-                                .clickable { service.startDiscovery(); showCastSheet = true },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                painter = painterResource(if (isCasting) R.drawable.cast_connected else R.drawable.cast),
-                                contentDescription = stringResource(R.string.cast_button_description),
-                                modifier = Modifier.size(iconSize),
-                                tint = if (isCasting) MaterialTheme.colorScheme.primary else TextBackgroundColor
-                            )
-                        }
-                    }
-
-                    if (showCastSheet) {
-                        CastSheet(playerConnection, mediaMetadata, devices, connectedDevice) { showCastSheet = false }
-                    }
-
                     Spacer(modifier = Modifier.weight(1f))
 
                     Box(
