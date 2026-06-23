@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.component.focusBorder
 import org.fcast.sender_sdk.CastingDevice
 import org.fcast.sender_sdk.DeviceInfo
 import org.fcast.sender_sdk.Metadata
@@ -48,7 +49,7 @@ fun CastBottomSheet(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         },
-                        modifier = Modifier.clickable {
+                        modifier = Modifier.focusBorder().clickable {
                             onDisconnect()
                             onDismiss()
                         }
@@ -77,7 +78,7 @@ fun CastBottomSheet(
                                 contentDescription = null
                             )
                         },
-                        modifier = Modifier.clickable {
+                        modifier = Modifier.focusBorder().clickable {
                             onDeviceSelected(device, streamUrl, contentType, metadata)
                             onDismiss()
                         }

@@ -117,6 +117,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import com.jtech.zemer.ui.component.focusBorder
 import org.fcast.sender_sdk.Metadata
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -363,6 +364,7 @@ fun Queue(
                                 .size(buttonSize)
                                 .clip(RoundedCornerShape(5.dp))
                                 .border(1.dp, borderColor, RoundedCornerShape(5.dp))
+                                .focusBorder(RoundedCornerShape(5.dp))
                                 .clickable { showCastSheet = true },
                             contentAlignment = Alignment.Center
                         ) {
