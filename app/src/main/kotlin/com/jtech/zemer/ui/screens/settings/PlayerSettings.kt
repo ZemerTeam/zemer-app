@@ -28,6 +28,7 @@ import com.jtech.zemer.constants.AudioQualityKey
 import com.jtech.zemer.constants.AutoDownloadOnLikeKey
 import com.jtech.zemer.constants.AutoLoadMoreKey
 import com.jtech.zemer.constants.AutoSkipNextOnErrorKey
+import com.jtech.zemer.constants.CastEnabledKey
 import com.jtech.zemer.constants.DisableLoadMoreWhenRepeatAllKey
 import com.jtech.zemer.constants.HistoryDuration
 import com.jtech.zemer.constants.PersistentQueueKey
@@ -64,6 +65,10 @@ fun PlayerSettings(
     val (audioNormalization, onAudioNormalizationChange) = rememberPreference(
         AudioNormalizationKey,
         defaultValue = true
+    )
+    val (castEnabled, onCastEnabledChange) = rememberPreference(
+        CastEnabledKey,
+        defaultValue = false
     )
 
     val (audioOffload, onAudioOffloadChange) = rememberPreference(
@@ -212,6 +217,18 @@ fun PlayerSettings(
             icon = { Icon(painterResource(R.drawable.skip_next), null) },
             checked = autoSkipNextOnError,
             onCheckedChange = onAutoSkipNextOnErrorChange,
+        )
+
+        PreferenceGroupTitle(
+            title = stringResource(R.string.cast)
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.enable_casting)) },
+            description = stringResource(R.string.enable_casting_description),
+            icon = { Icon(painterResource(R.drawable.cast), null) },
+            checked = castEnabled,
+            onCheckedChange = onCastEnabledChange,
         )
 
         PreferenceGroupTitle(

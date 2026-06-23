@@ -552,8 +552,12 @@
     <string name="recognize_music_close">Close</string>
 
     <!-- FCast -->
+    <string name="cast">Cast</string>
     <string name="cast_button_description">Cast to device</string>
     <string name="cast_dialog_title">Cast to</string>
     <string name="cast_no_devices">No devices found on network</string>
+    <string name="cast_searching">Searching for devices…</string>
+    <string name="enable_casting">Enable casting</string>
+    <string name="enable_casting_description">Show a cast button to play to FCast devices on your network. Discovery only runs when you tap it.</string>
     <string name="stop_casting">Stop casting</string>
 </resources>

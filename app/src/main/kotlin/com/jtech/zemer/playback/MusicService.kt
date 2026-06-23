@@ -189,7 +189,7 @@ class MusicService :
     @Inject
     lateinit var mediaLibrarySessionCallback: MediaLibrarySessionCallback
 
-    private lateinit var deviceDiscoverer: NsdDeviceDiscoverer
+    private var deviceDiscoverer: NsdDeviceDiscoverer? = null
     val discoveryHandler = FCastDiscoveryHandler()
 
     private lateinit var audioManager: AudioManager
@@ -255,6 +255,17 @@ class MusicService :
 
     fun streamContentType(mediaId: String): String = songMimeCache[mediaId] ?: "audio/mp4"
 
+    /**
+     * Lazily start NSD cast discovery the first time the user opens the cast picker — not on startup —
+     * so discovery (and its network/battery use) only runs once casting is actually used. Idempotent;
+     * sender-sdk 0.4.0's NsdDeviceDiscoverer has no stop API, so it then runs until the process dies.
+     */
+    fun startDiscovery() {
+        if (deviceDiscoverer == null) {
+            deviceDiscoverer = NsdDeviceDiscoverer(this, discoveryHandler)
+        }
+    }
+
     val currentStreamUrl: String?
         get() = player.currentMediaItem?.mediaId?.let { id ->
             songUrlCache[id]?.takeIf { it.second > System.currentTimeMillis() }?.first
@@ -272,7 +283,8 @@ class MusicService :
 
     override fun onCreate() {
         super.onCreate()
-        deviceDiscoverer = NsdDeviceDiscoverer(this, discoveryHandler)
+        // Cast discovery is started lazily by startDiscovery() the first time the user opens the cast
+        // picker — not here — so we don't run NSD discovery on every launch.
         // Media3's MediaLibraryService handles foreground notification automatically
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider(

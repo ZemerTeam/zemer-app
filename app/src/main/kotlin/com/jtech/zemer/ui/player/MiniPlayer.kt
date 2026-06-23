@@ -83,6 +83,7 @@ import coil3.compose.AsyncImage
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.CastEnabledKey
 import com.jtech.zemer.constants.MiniPlayerHeight
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
@@ -179,6 +180,7 @@ private fun NewMiniPlayer(
 
     val currentService = playerConnection.service
     val devices by currentService.discoveryHandler.discoveredDevicesFlow.collectAsState()
+    val castEnabled by rememberPreference(CastEnabledKey, defaultValue = false)
     val connectedDevice by currentService.discoveryHandler.connectedDeviceFlow.collectAsState()
     var showCastSheet by remember { mutableStateOf(false) }
 
@@ -592,7 +594,7 @@ private fun NewMiniPlayer(
                     }
                 }
 
-                if (devices.isNotEmpty()) {
+                if (castEnabled || connectedDevice != null) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         contentAlignment = Alignment.Center,
@@ -615,7 +617,7 @@ private fun NewMiniPlayer(
                                 shape = CircleShape
                             )
                             .focusBorder(CircleShape)
-                            .clickable { showCastSheet = true }
+                            .clickable { currentService.startDiscovery(); showCastSheet = true }
                     ) {
                         Icon(
                             painter = painterResource(if (connectedDevice != null) R.drawable.cast_connected else R.drawable.cast),
@@ -781,6 +783,7 @@ private fun LegacyMiniPlayer(
 
     val currentService = playerConnection.service
     val devices by currentService.discoveryHandler.discoveredDevicesFlow.collectAsState()
+    val castEnabled by rememberPreference(CastEnabledKey, defaultValue = false)
     val connectedDevice by currentService.discoveryHandler.connectedDeviceFlow.collectAsState()
     var showCastSheet by remember { mutableStateOf(false) }
 
@@ -943,9 +946,9 @@ private fun LegacyMiniPlayer(
                 }
             }
 
-            if (devices.isNotEmpty()) {
+            if (castEnabled || connectedDevice != null) {
                 IconButton(
-                    onClick = { showCastSheet = true },
+                    onClick = { currentService.startDiscovery(); showCastSheet = true },
                 ) {
                     Icon(
                         painter = painterResource(if (connectedDevice != null) R.drawable.cast_connected else R.drawable.cast),
