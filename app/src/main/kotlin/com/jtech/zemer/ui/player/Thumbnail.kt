@@ -375,10 +375,10 @@ fun Thumbnail(
                                         )
                                     }
 
-                                    // Cast button at the top-left corner of the artwork
+                                    // Cast button at the top-right corner of the artwork
                                     CastButton(
                                         modifier = Modifier
-                                            .align(Alignment.TopStart)
+                                            .align(Alignment.TopEnd)
                                             .padding(8.dp),
                                         tintColor = textBackgroundColor,
                                     )
