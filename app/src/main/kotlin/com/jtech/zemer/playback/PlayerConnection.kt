@@ -136,7 +136,8 @@ class PlayerConnection(
                 Log.d("FCastAutoAdvance", "state=$state lastState=$lastState isCasting=${isCasting.value} dur=$dur lastRemotePosition=$lastRemotePosition")
                 if (isCasting.value && state == PlaybackState.IDLE && lastState == PlaybackState.PLAYING) {
                     // If we're near the end, transition to next song
-                    if (dur > 0 && lastRemotePosition >= dur - 2.0 && System.currentTimeMillis() - lastTransitionTime > 8000) {
+                    if (CastAutoAdvance.nearEnd(dur, lastRemotePosition, CastAutoAdvance.IDLE_END_EPSILON_SEC) &&
+                        CastAutoAdvance.debouncePassed(System.currentTimeMillis(), lastTransitionTime)) {
                         if (player.repeatMode == REPEAT_MODE_ONE) {
                             player.seekTo(player.currentMediaItemIndex, 0)
                             triggerRemoteLoad(player.currentMediaItem)
@@ -154,9 +155,9 @@ class PlayerConnection(
                 if (isCasting.value) {
                     val dur = service.discoveryHandler.remoteDuration.value
                     val stalledFor = System.currentTimeMillis() - lastRemoteTimeUpdateAt
-                    if (dur > 0 && lastRemotePosition >= dur - 3.0 &&
-                        stalledFor > 4000 &&
-                        System.currentTimeMillis() - lastTransitionTime > 8000) {
+                    if (CastAutoAdvance.nearEnd(dur, lastRemotePosition, CastAutoAdvance.STALL_END_EPSILON_SEC) &&
+                        CastAutoAdvance.stalled(stalledFor) &&
+                        CastAutoAdvance.debouncePassed(System.currentTimeMillis(), lastTransitionTime)) {
                         Log.d("FCastAutoAdvance", "Stall detected near track end, advancing")
                         if (player.repeatMode == REPEAT_MODE_ONE) {
                             player.seekTo(player.currentMediaItemIndex, 0)

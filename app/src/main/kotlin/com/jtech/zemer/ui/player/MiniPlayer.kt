@@ -99,6 +99,7 @@ import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import androidx.compose.ui.graphics.toArgb
 import kotlinx.coroutines.launch
+import com.jtech.zemer.ui.component.focusBorder
 import org.fcast.sender_sdk.Metadata
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
@@ -647,6 +648,7 @@ private fun NewMiniPlayer(
                                     Color.Transparent,
                                 shape = CircleShape
                             )
+                            .focusBorder(CircleShape)
                             .clickable { showCastSheet = true }
                     ) {
                         Icon(

@@ -321,7 +321,6 @@
     <string name="google_exchange_failed">Could not read YouTube cookies from the exchange response.</string>
     <string name="google_id_token_missing">Google sign-in returned no ID token.</string>
     <string name="google_exchange_url_missing">Set googleTokenExchangeUrl in gradle.properties to your Firebase HTTPS Function that exchanges Google ID tokens for YouTube cookies.</string>
-    <string name="google_id_token_missing_toast">Google sign-in returned no ID token.</string>
     <string name="google_exchange_url_missing_toast">Configure googleTokenExchangeUrl to point at a Firebase Function that returns visitorData, dataSyncId, innerTubeCookie, and account metadata.</string>
 
     <string name="content_language">Default content language</string>
@@ -558,10 +557,4 @@
     <string name="widget_name">Zemer Music</string>
     <string name="widget_description">Control your music playback</string>
     <string name="widget_tap_to_open">Tap to open</string>
-
-    <!-- FCast -->
-    <string name="cast_button_description">Cast to device</string>
-    <string name="cast_dialog_title">Cast to</string>
-    <string name="cast_no_devices">No devices found on network</string>
-    <string name="stop_casting">Stop casting</string>
 </resources>
