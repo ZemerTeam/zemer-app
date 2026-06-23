@@ -250,12 +250,14 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     override fun deviceChanged(deviceInfo: DeviceInfo) = upsertDevice(deviceInfo)
 
     override fun deviceRemoved(deviceName: String) {
+        // Only drop it from the picker list. Do NOT disconnect an active session here: NSD "Service lost"
+        // events flap transiently (a routine re-resolve drops then re-finds the service), and the cast
+        // connection is a separate TCP socket with its own heartbeat — the SDK reports a genuine drop via
+        // connectionStateChanged(Disconnected). Disconnecting on a transient discovery loss dropped active
+        // casts mid-use (e.g. while skipping), leaving the phone paused on the next track.
         discoveredDevicesFlow.value = synchronized(devicesLock) {
             discoveredDevices.remove(deviceName)
             discoveredDevices.values.toList()
-        }
-        if (connectedDevice?.name() == deviceName) {
-            disconnect()
         }
     }
 }

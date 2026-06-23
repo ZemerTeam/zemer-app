@@ -256,7 +256,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/DownloadStateResolver.kt` | 106 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/DownloadUtil.kt` | 319 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/ExoDownloadService.kt` | 111 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/FCastDiscoveryHandler.kt` | 261 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/FCastDiscoveryHandler.kt` | 263 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 809 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 806 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 306 lines | `.kt` |
@@ -750,9 +750,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/app/preferences-sync-auth.md` | 153 lines | `.md` |
 | `docs/app/viewmodels.md` | 40 lines | `.md` |
 | `docs/build-release.md` | 67 lines | `.md` |
-| `docs/fcast/01-architecture.md` | 114 lines | `.md` |
+| `docs/fcast/01-architecture.md` | 116 lines | `.md` |
 | `docs/fcast/02-on-demand-native-lib.md` | 130 lines | `.md` |
-| `docs/fcast/03-discovery-and-connection.md` | 174 lines | `.md` |
+| `docs/fcast/03-discovery-and-connection.md` | 175 lines | `.md` |
 | `docs/fcast/04-playback-and-transport.md` | 170 lines | `.md` |
 | `docs/fcast/05-auto-advance.md` | 133 lines | `.md` |
 | `docs/fcast/06-ui.md` | 102 lines | `.md` |

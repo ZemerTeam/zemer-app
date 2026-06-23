@@ -93,9 +93,11 @@ delegates its few cast hooks to `CastController`. See
   local, resolves the stream URL, and calls `handler.connectTo(...)`. The SDK's
   `connectionStateChanged(Connected)` callback then loads the URL onto the
   receiver.
-- **Disconnect** can come from the user ("Stop casting"), the device vanishing
-  from discovery (`deviceRemoved`), or the SDK reporting `Disconnected`. All
-  funnel through `onConnectionDisconnected()`, which clears the remote state and
+- **Disconnect** comes from the user ("Stop casting") or the SDK reporting
+  `Disconnected` (its own heartbeat). It does **not** come from `deviceRemoved` —
+  NSD discovery losing the service is a transient flap and must not kill the active
+  TCP session. Both funnel through `onConnectionDisconnected()`, which clears the
+  remote state and
   invokes `PlayerConnection`'s `onDisconnect` callback to seek the **local**
   player to the last remote position and leave it paused (so the user can resume
   on the phone).
