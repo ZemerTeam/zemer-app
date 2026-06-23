@@ -37,9 +37,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cast
-import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -652,7 +649,7 @@ private fun NewMiniPlayer(
                             .clickable { showCastSheet = true }
                     ) {
                         Icon(
-                            imageVector = if (connectedDevice != null) Icons.Default.CastConnected else Icons.Default.Cast,
+                            painter = painterResource(if (connectedDevice != null) R.drawable.cast_connected else R.drawable.cast),
                             contentDescription = stringResource(R.string.cast_button_description),
                             tint = if (connectedDevice != null)
                                 MaterialTheme.colorScheme.primary
@@ -1012,7 +1009,7 @@ private fun LegacyMiniPlayer(
                     onClick = { showCastSheet = true },
                 ) {
                     Icon(
-                        imageVector = if (connectedDevice != null) Icons.Default.CastConnected else Icons.Default.Cast,
+                        painter = painterResource(if (connectedDevice != null) R.drawable.cast_connected else R.drawable.cast),
                         contentDescription = stringResource(R.string.cast_button_description),
                         tint = if (connectedDevice != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     )
