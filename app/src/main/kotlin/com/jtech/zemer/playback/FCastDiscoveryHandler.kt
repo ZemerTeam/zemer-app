@@ -111,6 +111,13 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     @Volatile var connectedDevice: CastingDevice? = null
     @Volatile var onDisconnect: ((Long) -> Unit)? = null
 
+    // The single source of truth for "route transport to the receiver?" — true only once the device has
+    // actually reported Connected, not merely from connectTo() assigning connectedDevice synchronously
+    // (that early assignment exists only so the stale-disconnect guard can recognise the new device).
+    // Every transport-routing site (CastAwarePlayer, MusicService.onStartCommand, PlayerConnection.isCasting)
+    // gates on this so they can never disagree about whether a play/pause/seek goes local vs remote.
+    val isConnected: Boolean get() = remoteConnectionState.value is DeviceConnectionState.Connected
+
     // Tracking current playback intent and content for reconnections.
     @Volatile var shouldPlay: Boolean = true
     @Volatile var currentStreamUrl: String? = null
@@ -154,7 +161,6 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     }
 
     fun load(streamUrl: String, contentType: String, metadata: Metadata? = null, resumePosition: Double = 0.0) {
-        shouldPlay = true
         currentStreamUrl = streamUrl
         currentContentType = contentType
         currentMetadata = metadata
@@ -163,7 +169,14 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         // previous track's near-end position+duration until the receiver reports the new ones.
         remoteTime.value = resumePosition
         remoteDuration.value = 0.0
-        connectedDevice?.let { d -> castCall { d.load(urlLoadRequest(streamUrl, contentType, resumePosition, metadata)) } }
+        connectedDevice?.let { d ->
+            castCall { d.load(urlLoadRequest(streamUrl, contentType, resumePosition, metadata)) }
+            // The receiver auto-plays a freshly loaded item. Preserve the user's play intent instead of
+            // forcing playback: an explicit play action (connect, tap a song, auto-advance while playing)
+            // has already set shouldPlay=true, whereas a skip while the cast is paused leaves it false —
+            // so honour it and re-pause, mirroring the pause-on-reconnect enforcement.
+            if (!shouldPlay) castCall { d.pausePlayback() }
+        }
     }
 
     fun onConnectionDisconnected() {

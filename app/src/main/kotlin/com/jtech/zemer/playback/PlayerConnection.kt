@@ -56,8 +56,13 @@ class PlayerConnection(
 
     val isPlaying =
         combine(playbackState, playWhenReady, isCasting, service.discoveryHandler.remotePlaybackState) { playbackState, playWhenReady, casting, remoteState ->
-            if (casting && remoteState != null) {
-                CastPlayback.isPlaying(remoteState)
+            if (casting) {
+                // Once the receiver reports its state, mirror it. In the brief window after connecting but
+                // before the first remote playbackStateChanged arrives, fall back to the cast play intent
+                // (shouldPlay) — NOT the local player, which we just paused, so the button would otherwise
+                // flash "paused" while the receiver is actually starting playback.
+                if (remoteState != null) CastPlayback.isPlaying(remoteState)
+                else service.discoveryHandler.shouldPlay
             } else {
                 playWhenReady && playbackState != STATE_ENDED
             }
@@ -132,7 +137,13 @@ class PlayerConnection(
 
         scope.launch {
             service.discoveryHandler.remoteTime.collect { time ->
-                if (time > 0) lastRemotePosition = time
+                // Track the value unconditionally (not just time>0): connectTo()/load() reset remoteTime to
+                // 0 for a new track, and that 0 must clear a previous track's near-end position — otherwise
+                // a fresh connect or a device switch (whose old-device disconnect is ignored, so onDisconnect
+                // never resets it) leaves the stall detector comparing the new track's duration against the
+                // old track's near-end position and spuriously auto-skipping. nearEnd(dur, 0) is false, so a
+                // genuine mid-track 0 is harmless.
+                lastRemotePosition = time
                 lastRemoteTimeUpdateAt = System.currentTimeMillis()
             }
         }
@@ -178,6 +189,12 @@ class PlayerConnection(
         // (currentMediaItem here is stale - the queue hasn't loaded yet).
         if (isCasting.value) {
             player.pause()
+            // Starting a queue is an explicit play action, so record the intent (load() honours it).
+            service.discoveryHandler.shouldPlay = true
+            // Force the upcoming PLAYLIST_CHANGED to reload the receiver even if the new queue's first
+            // track has the same id already on it (the PLAYLIST_CHANGED de-dup would otherwise suppress
+            // a genuine new-queue load — e.g. restarting the current song from a fresh playlist).
+            remoteLoadedMediaId = null
         }
     }
 

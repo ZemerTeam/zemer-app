@@ -20,7 +20,7 @@ class CastAwarePlayer(
     player: Player,
     private val discoveryHandler: FCastDiscoveryHandler,
 ) : ForwardingPlayer(player) {
-    private val casting: Boolean get() = discoveryHandler.connectedDevice != null
+    private val casting: Boolean get() = discoveryHandler.isConnected
     private val remotePositionMs: Long get() = CastPlayback.remoteSecondsToMs(discoveryHandler.remoteTime.value)
     private val remoteDurationMs: Long get() = CastPlayback.remoteSecondsToMs(discoveryHandler.remoteDuration.value)
 

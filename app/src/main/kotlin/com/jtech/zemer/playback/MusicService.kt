@@ -297,8 +297,9 @@ class MusicService :
     // The cast receiver needs the real container MIME (populated by resolveStreamUrl). Do NOT fall back
     // to player.audioFormat.sampleMimeType — that is the decoder's codec MIME (e.g. audio/mp4a-latm,
     // audio/opus), the wrong granularity for a container, which makes the receiver reject the stream.
+    // Delegates to streamContentType so the cache lookup + default container MIME live in one place.
     val currentContentType: String?
-        get() = player.currentMediaItem?.mediaId?.let { songMimeCache[it] } ?: "audio/mp4"
+        get() = player.currentMediaItem?.mediaId?.let { streamContentType(it) }
 
     private var consecutivePlaybackErr = 0
 
@@ -1302,6 +1303,13 @@ class MusicService :
         setupLoudnessEnhancer()
         updateWidget()
 
+        // NOTE: the cast receiver reload on a track change is owned solely by PlayerConnection
+        // (onMediaItemTransition → triggerRemoteLoad), not here, so it runs exactly once — adding a
+        // second reload here would double-load the receiver while casting. Known bounded limitation:
+        // if the Activity (hence PlayerConnection) is destroyed while the service keeps casting, an
+        // auto-advance is not reloaded onto the receiver until a PlayerConnection rebinds. Moving the
+        // cast-advance loop into this (long-lived) service is the deeper fix, deferred deliberately.
+
         // Auto load more songs
         if (dataStore.get(AutoLoadMoreKey, true) &&
             reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
@@ -1909,7 +1917,7 @@ class MusicService :
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             MusicWidget.ACTION_PLAY_PAUSE -> {
-                if (discoveryHandler.connectedDevice != null) {
+                if (discoveryHandler.isConnected) {
                     if (CastPlayback.isPlaying(discoveryHandler.remotePlaybackState.value)) {
                         discoveryHandler.pause()
                     } else {
@@ -1926,7 +1934,7 @@ class MusicService :
             // remotely, so seekToPrevious's "restart current track if >3s in" would misfire.
             MusicWidget.ACTION_NEXT -> player.seekToNext()
             MusicWidget.ACTION_PREV ->
-                if (discoveryHandler.connectedDevice != null) player.seekToPreviousMediaItem() else player.seekToPrevious()
+                if (discoveryHandler.isConnected) player.seekToPreviousMediaItem() else player.seekToPrevious()
         }
         return super.onStartCommand(intent, flags, startId)
     }

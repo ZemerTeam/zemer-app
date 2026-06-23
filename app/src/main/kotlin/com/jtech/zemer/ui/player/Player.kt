@@ -123,7 +123,6 @@ import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.models.MediaMetadata
-import com.jtech.zemer.playback.CastPlayback
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.BottomSheet
 import com.jtech.zemer.ui.component.BottomSheetState
@@ -400,16 +399,10 @@ fun BottomSheetPlayer(
         if (playbackState == STATE_READY || isCasting) {
             while (isActive) {
                 delay(500)
-                position = if (isCasting) {
-                    CastPlayback.remoteSecondsToMs(playerConnection.service.discoveryHandler.remoteTime.value)
-                } else {
-                    playerConnection.player.currentPosition
-                }
-                duration = if (isCasting) {
-                    CastPlayback.remoteSecondsToMs(playerConnection.service.discoveryHandler.remoteDuration.value)
-                } else {
-                    playerConnection.player.duration
-                }
+                // The single cast-aware position/duration source (remote clock while casting, else local)
+                // — shared with Lyrics/Thumbnail so the seek bar can't drift from the other surfaces.
+                position = playerConnection.currentPositionMs()
+                duration = playerConnection.currentDurationMs()
             }
         }
     }
