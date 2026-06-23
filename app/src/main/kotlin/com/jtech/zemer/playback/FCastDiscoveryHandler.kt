@@ -65,11 +65,7 @@ class DevEventHandler(
         // Mirror the receiver's own state into our play intent instead of overriding it, so a
         // pause/resume from the TV's remote sticks. Pause-on-reconnect is enforced in
         // connectionStateChanged, not here.
-        when (state) {
-            PlaybackState.PLAYING -> handler.shouldPlay = true
-            PlaybackState.PAUSED -> handler.shouldPlay = false
-            else -> {}
-        }
+        CastPlayback.playIntentForState(state)?.let { handler.shouldPlay = it }
     }
 
     override fun timeChanged(time: Double) { handler.remoteTime.value = time }
