@@ -4,6 +4,25 @@ import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.fcast.sender_sdk.*
 
+/**
+ * Runs a throwing FCast SDK call (all CastingDevice mutators declare `throws CastingDeviceException`),
+ * reporting rather than crashing if the receiver dropped mid-call.
+ */
+private inline fun castCall(block: () -> Unit) {
+    runCatching { block() }.onFailure { reportException(it, "FCast SDK call") }
+}
+
+private fun urlLoadRequest(url: String, contentType: String, resumePosition: Double, metadata: Metadata?) =
+    LoadRequest.Url(
+        url = url,
+        contentType = contentType,
+        resumePosition = resumePosition,
+        speed = null,
+        volume = null,
+        metadata = metadata,
+        requestHeaders = null,
+    )
+
 class DevEventHandler(
     private val handler: FCastDiscoveryHandler,
     val device: CastingDevice,
@@ -18,37 +37,26 @@ class DevEventHandler(
             wasConnected = true
             handler.connectedDevice = device
             handler.connectedDeviceFlow.value = device
-            
+
             val url = handler.currentStreamUrl
             val type = handler.currentContentType
-            val metadata = handler.currentMetadata
-            
             if (url != null && type != null) {
                 val pos = if (isReconnect && handler.remoteTime.value > 0) {
-                    handler.remoteTime.value 
+                    handler.remoteTime.value
                 } else {
                     handler.initialResumePosition
                 }
-                
-                device.load(
-                    LoadRequest.Url(
-                        url = url,
-                        contentType = type,
-                        resumePosition = pos,
-                        speed = null,
-                        volume = null,
-                        metadata = metadata,
-                        requestHeaders = null
-                    )
-                )
-                
-                // If the user intended to stay paused, enforce it immediately after loading
-                if (!handler.shouldPlay) {
-                    device.pausePlayback()
-                }
+                castCall { device.load(urlLoadRequest(url, type, pos, handler.currentMetadata)) }
+                // If the user intended to stay paused, enforce it immediately after loading.
+                if (!handler.shouldPlay) castCall { device.pausePlayback() }
             }
         } else if (state is DeviceConnectionState.Disconnected) {
-            handler.onConnectionDisconnected()
+            // Ignore a disconnect from a device we've already replaced (connectTo to a new device) or
+            // already tore down (disconnect() ran onConnectionDisconnected synchronously), so a stale
+            // async callback can't null out the new connection or fire onDisconnect twice.
+            if (handler.connectedDevice === device) {
+                handler.onConnectionDisconnected()
+            }
         }
     }
 
@@ -64,23 +72,14 @@ class DevEventHandler(
         }
     }
 
-    override fun timeChanged(time: Double) {
-        handler.remoteTime.value = time
-    }
-
+    override fun timeChanged(time: Double) { handler.remoteTime.value = time }
     override fun volumeChanged(volume: Double) {}
-
-    override fun durationChanged(duration: Double) {
-        handler.remoteDuration.value = duration
-    }
-
+    override fun durationChanged(duration: Double) { handler.remoteDuration.value = duration }
     override fun speedChanged(speed: Double) {}
     override fun sourceChanged(source: Source) {}
     override fun keyEvent(event: KeyEvent) {}
     override fun mediaEvent(event: MediaEvent) {
-        if (event.type == MediaItemEventType.END) {
-            onTrackEnded?.invoke()
-        }
+        if (event.type == MediaItemEventType.END) onTrackEnded?.invoke()
     }
     override fun playbackError(message: String) {
         reportException(IllegalStateException("FCast playback error: $message"))
@@ -92,8 +91,8 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     val discoveredDevices = mutableMapOf<String, DeviceInfo>()
     var connectedDevice: CastingDevice? = null
     var onDisconnect: ((Long) -> Unit)? = null
-    
-    // Tracking current playback intent and content for reconnections
+
+    // Tracking current playback intent and content for reconnections.
     var shouldPlay: Boolean = true
     var currentStreamUrl: String? = null
     var currentContentType: String? = null
@@ -116,9 +115,9 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         resumePosition: Double = 0.0,
         onTrackEnded: (() -> Unit)? = null
     ) {
-        connectedDevice?.disconnect()
-        
-        // Reset tracking state for new connection
+        castCall { connectedDevice?.disconnect() }
+
+        // Reset tracking state for the new connection.
         shouldPlay = true
         currentStreamUrl = streamUrl
         currentContentType = contentType
@@ -126,10 +125,12 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         initialResumePosition = resumePosition
         remoteTime.value = 0.0
 
+        // Publish the new device synchronously (before the old device's async Disconnected can land)
+        // so the connectionStateChanged guard recognises it as current.
         val newDevice = castContext.createDeviceFromInfo(deviceInfo)
-        newDevice.connect(null, DevEventHandler(this, newDevice, onTrackEnded), 1000u)
         connectedDevice = newDevice
         connectedDeviceFlow.value = newDevice
+        castCall { newDevice.connect(null, DevEventHandler(this, newDevice, onTrackEnded), 1000u) }
     }
 
     fun load(streamUrl: String, contentType: String, metadata: Metadata? = null, resumePosition: Double = 0.0) {
@@ -138,18 +139,7 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         currentContentType = contentType
         currentMetadata = metadata
         initialResumePosition = resumePosition
-        
-        connectedDevice?.load(
-            LoadRequest.Url(
-                url = streamUrl,
-                contentType = contentType,
-                resumePosition = resumePosition,
-                speed = null,
-                volume = null,
-                metadata = metadata,
-                requestHeaders = null
-            )
-        )
+        connectedDevice?.let { d -> castCall { d.load(urlLoadRequest(streamUrl, contentType, resumePosition, metadata)) } }
     }
 
     fun onConnectionDisconnected() {
@@ -162,23 +152,25 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     }
 
     fun disconnect() {
-        connectedDevice?.stopPlayback()
-        connectedDevice?.disconnect()
+        connectedDevice?.let { d ->
+            castCall { d.stopPlayback() }
+            castCall { d.disconnect() }
+        }
         onConnectionDisconnected()
     }
 
     fun play() {
         shouldPlay = true
-        connectedDevice?.resumePlayback()
+        castCall { connectedDevice?.resumePlayback() }
     }
 
     fun pause() {
         shouldPlay = false
-        connectedDevice?.pausePlayback()
+        castCall { connectedDevice?.pausePlayback() }
     }
 
     fun seek(position: Double) {
-        connectedDevice?.seek(position)
+        castCall { connectedDevice?.seek(position) }
     }
 
     override fun deviceAvailable(deviceInfo: DeviceInfo) {
