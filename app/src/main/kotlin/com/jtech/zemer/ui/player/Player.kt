@@ -996,12 +996,7 @@ fun BottomSheetPlayer(
                         )
                         FilledIconButton(
                             onClick = {
-                                if (playbackState == STATE_ENDED) {
-                                    playerConnection.player.seekTo(0, 0)
-                                    playerConnection.player.playWhenReady = true
-                                } else {
-                                    playerConnection.playPause()
-                                }
+                                playerConnection.playPauseOrReplay(playbackState == STATE_ENDED)
                             },
                             interactionSource = playPauseInteraction,
                             colors = IconButtonDefaults.filledIconButtonColors(
@@ -1119,12 +1114,7 @@ fun BottomSheetPlayer(
                             .focusable()
                             .onFocusChanged { landscapePlayFocused.value = it.isFocused }
                             .clickable {
-                                if (playbackState == STATE_ENDED) {
-                                    playerConnection.player.seekTo(0, 0)
-                                    playerConnection.player.playWhenReady = true
-                                } else {
-                                    playerConnection.playPause()
-                                }
+                                playerConnection.playPauseOrReplay(playbackState == STATE_ENDED)
                             },
                     ) {
                         Image(

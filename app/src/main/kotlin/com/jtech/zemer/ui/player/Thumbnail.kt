@@ -67,6 +67,7 @@ import coil3.compose.AsyncImage
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.CropAlbumArtKey
+import com.jtech.zemer.playback.SeekMath
 import com.jtech.zemer.constants.HidePlayerThumbnailKey
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
@@ -323,8 +324,13 @@ fun Thumbnail(
                                                     seekDirection =
                                                         context.getString(R.string.seek_backward_dynamic, skipAmount / 1000)
                                                 } else {
+                                                    // Clamps to the end only when the duration is known —
+                                                    // a 0 remote duration (cast track before the receiver
+                                                    // reports it) must not snap a forward seek back to 0.
                                                     playerConnection.seekTo(
-                                                        (currentPosition + skipAmount).coerceAtMost(duration)
+                                                        SeekMath.forwardSeekTarget(
+                                                            currentPosition, skipAmount.toLong(), duration,
+                                                        )
                                                     )
                                                     seekDirection = context.getString(R.string.seek_forward_dynamic, skipAmount / 1000)
                                                 }

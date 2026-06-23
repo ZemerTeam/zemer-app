@@ -558,6 +558,7 @@
     <string name="cast_consent_message">Casting needs a one-time download of FCast support (about 5 MB).</string>
     <string name="cast_download">Download</string>
     <string name="cast_download_failed">Couldn\'t download cast support</string>
+    <string name="cast_stream_failed">Couldn\'t start casting — no playable stream</string>
     <string name="cast_unsupported_device">Casting isn\'t supported on this device</string>
     <string name="cast_download_title">Download cast support?</string>
     <string name="cast_downloading_support">Downloading cast support…</string>

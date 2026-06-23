@@ -446,7 +446,7 @@ fun LyricsScreen(
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
-                                IconButton(onClick = { playerConnection.seekToPrevious() }, modifier = Modifier.size(48.dp)) {
+                                IconButton(onClick = { playerConnection.player.seekToPrevious() }, modifier = Modifier.size(48.dp)) {
                                     Icon(
                                         painter = painterResource(R.drawable.skip_previous),
                                         contentDescription = null,
@@ -477,7 +477,7 @@ fun LyricsScreen(
                                     }
                                 }
     
-                                IconButton(onClick = { playerConnection.seekToNext() }, modifier = Modifier.size(48.dp)) {
+                                IconButton(onClick = { playerConnection.player.seekToNext() }, modifier = Modifier.size(48.dp)) {
                                     Icon(
                                         painter = painterResource(R.drawable.skip_next),
                                         contentDescription = null,
@@ -688,7 +688,7 @@ fun LyricsScreen(
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
-                            IconButton(onClick = { playerConnection.seekToPrevious() }, modifier = Modifier.size(48.dp)) {
+                            IconButton(onClick = { playerConnection.player.seekToPrevious() }, modifier = Modifier.size(48.dp)) {
                                 Icon(
                                     painter = painterResource(R.drawable.skip_previous),
                                     contentDescription = null,
@@ -719,7 +719,7 @@ fun LyricsScreen(
                                 }
                             }
     
-                            IconButton(onClick = { playerConnection.seekToNext() }, modifier = Modifier.size(48.dp)) {
+                            IconButton(onClick = { playerConnection.player.seekToNext() }, modifier = Modifier.size(48.dp)) {
                                 Icon(
                                     painter = painterResource(R.drawable.skip_next),
                                     contentDescription = null,

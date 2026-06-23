@@ -108,6 +108,12 @@ fun CastPicker(
         playerConnection.scope.launch {
             val currentId = playerConnection.player.currentMediaItem?.mediaId
             val streamUrl = currentId?.let { service.resolveStreamUrl(it) } ?: service.currentStreamUrl
+            if (streamUrl == null) {
+                // No playable stream resolved (transient cipher/poToken/network failure). Don't connect to
+                // a device that would just sit silent — tell the user instead of failing invisibly.
+                Toast.makeText(context, R.string.cast_stream_failed, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
             handler.connectTo(
                 deviceInfo = device,
                 streamUrl = streamUrl,

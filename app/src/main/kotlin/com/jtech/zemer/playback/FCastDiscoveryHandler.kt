@@ -152,11 +152,13 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         remoteTime.value = 0.0
         remoteDuration.value = 0.0
 
-        // Publish the new device synchronously (before the old device's async Disconnected can land)
-        // so the connectionStateChanged guard recognises it as current.
+        // Assign the @Volatile field synchronously (before the old device's async Disconnected can land)
+        // so the connectionStateChanged guard recognises the new device as current. The UI-facing
+        // connectedDeviceFlow, by contrast, is published ONLY from connectionStateChanged(Connected) — so
+        // the cast button / mini-player show "connected" only once the device truly is, never during the
+        // connect window (when transport still routes locally) or forever after a connect that never lands.
         val newDevice = castContext.createDeviceFromInfo(deviceInfo)
         connectedDevice = newDevice
-        connectedDeviceFlow.value = newDevice
         castCall { newDevice.connect(null, DevEventHandler(this, newDevice, onTrackEnded), 1000u) }
     }
 
