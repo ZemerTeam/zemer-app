@@ -1230,6 +1230,13 @@ class MusicService :
         )
     }
 
+    /**
+     * Resolves a playable stream URL (and caches its MIME) for the cast path. Reuses the validated
+     * YTPlayerUtils.playerResponseForPlayback() — the same cipher/poToken resolution the local player
+     * goes through — so streaming correctness is shared, not a second implementation. It deliberately
+     * skips the local-only FormatEntity persistence and recoverSong backfill that createDataSourceFactory
+     * does: the receiver only needs a URL + container, not the song-details metadata.
+     */
     suspend fun resolveStreamUrl(mediaId: String): String? {
         songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
             return it.first
