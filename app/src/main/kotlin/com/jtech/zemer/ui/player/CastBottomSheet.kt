@@ -55,7 +55,7 @@ fun CastBottomSheet(
                         .padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(stringResource(R.string.cast_no_devices))
+                    Text(stringResource(R.string.cast_searching))
                 }
             } else {
                 val rows = buildList {
