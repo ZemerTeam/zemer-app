@@ -83,7 +83,9 @@ class DevEventHandler(
 }
 
 class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
-    val castContext = CastContext()
+    // Lazy so merely constructing the handler (a MusicService field) loads no native code — the FCast
+    // lib isn't bundled; it's downloaded on demand. First touched in connectTo(), after the lib is ready.
+    val castContext by lazy { CastContext() }
     val discoveredDevices = mutableMapOf<String, DeviceInfo>()
     var connectedDevice: CastingDevice? = null
     var onDisconnect: ((Long) -> Unit)? = null
