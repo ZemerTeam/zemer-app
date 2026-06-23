@@ -1,6 +1,6 @@
 package com.jtech.zemer.playback
 
-import android.util.Log
+import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.fcast.sender_sdk.*
 
@@ -24,7 +24,6 @@ class DevEventHandler(
             val metadata = handler.currentMetadata
             
             if (url != null && type != null) {
-                Log.d("FCast", "Attempting to load URL: $url (isReconnect: $isReconnect)")
                 val pos = if (isReconnect && handler.remoteTime.value > 0) {
                     handler.remoteTime.value 
                 } else {
@@ -54,7 +53,6 @@ class DevEventHandler(
     }
 
     override fun playbackStateChanged(state: PlaybackState) {
-        Log.d("FCast", "Playback state: $state")
         handler.remotePlaybackState.value = state
         if (state == PlaybackState.PLAYING || state == PlaybackState.BUFFERING) {
             if (!handler.shouldPlay) {
@@ -93,7 +91,7 @@ class DevEventHandler(
         }
     }
     override fun playbackError(message: String) {
-        Log.e("FCast", "Playback error: $message")
+        reportException(IllegalStateException("FCast playback error: $message"))
     }
 }
 
