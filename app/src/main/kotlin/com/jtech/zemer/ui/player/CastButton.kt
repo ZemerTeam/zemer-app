@@ -13,7 +13,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -70,38 +69,25 @@ fun CastIcon(connected: Boolean, idleTint: Color, size: Dp) {
 }
 
 /**
- * Cast button overlaid on the player artwork: a radial-scrim-backed icon (the scrim keeps it legible over
- * any artwork) that opens the FCast device picker. Hidden unless casting is enabled or a device is connected.
+ * Cast button overlaid on the player artwork: a solid semi-opaque dark disc with a white icon, which stays
+ * legible over **any** artwork (a radial black scrim vanished on dark album art — black on dark — hiding the
+ * button). Opens the FCast device picker; hidden unless casting is enabled or a device is connected.
  */
 @Composable
 fun CastButton(
     modifier: Modifier = Modifier,
-    tintColor: Color = MaterialTheme.colorScheme.onSurface,
 ) {
     val state = rememberCastButtonState() ?: return
 
-    Box(modifier = modifier) {
-        // Radial scrim so the icon stays legible over any artwork.
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .align(Alignment.Center)
-                .background(
-                    Brush.radialGradient(
-                        listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent)
-                    )
-                )
-        )
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(40.dp)
-                .align(Alignment.Center)
-                .clip(CircleShape)
-                .focusBorder(CircleShape)
-                .clickable(onClick = state.onClick),
-        ) {
-            CastIcon(connected = state.connected, idleTint = tintColor, size = 24.dp)
-        }
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = 0.45f))
+            .focusBorder(CircleShape)
+            .clickable(onClick = state.onClick),
+    ) {
+        CastIcon(connected = state.connected, idleTint = Color.White, size = 24.dp)
     }
 }
