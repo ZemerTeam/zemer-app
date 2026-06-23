@@ -164,7 +164,7 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     }
 
     fun onConnectionDisconnected() {
-        val lastPos = (remoteTime.value * 1000).toLong()
+        val lastPos = CastPlayback.remoteSecondsToMs(remoteTime.value)
         connectedDevice = null
         connectedDeviceFlow.value = null
         remotePlaybackState.value = null
