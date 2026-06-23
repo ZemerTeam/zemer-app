@@ -253,11 +253,21 @@ class MusicService :
 
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
 
+    // MIME of the resolved stream per mediaId, populated by resolveStreamUrl — the cast receiver needs
+    // the real container (webm/opus vs mp4), not the local decoder's (often-null) output format.
+    private val songMimeCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    fun streamContentType(mediaId: String): String = songMimeCache[mediaId] ?: "audio/mp4"
+
     val currentStreamUrl: String?
-        get() = player.currentMediaItem?.mediaId?.let { songUrlCache[it]?.first }
+        get() = player.currentMediaItem?.mediaId?.let { id ->
+            songUrlCache[id]?.takeIf { it.second > System.currentTimeMillis() }?.first
+        }
 
     val currentContentType: String?
-        get() = player.audioFormat?.sampleMimeType ?: "audio/mp4"
+        get() = player.currentMediaItem?.mediaId?.let { songMimeCache[it] }
+            ?: player.audioFormat?.sampleMimeType
+            ?: "audio/mp4"
 
     private var consecutivePlaybackErr = 0
 
@@ -1236,6 +1246,7 @@ class MusicService :
             if (streamUrl != null) {
                 songUrlCache[mediaId] =
                     streamUrl to System.currentTimeMillis() + (playbackData.streamExpiresInSeconds * 1000L)
+                songMimeCache[mediaId] = playbackData.format.mimeType.split(";")[0]
             }
             streamUrl
         }
