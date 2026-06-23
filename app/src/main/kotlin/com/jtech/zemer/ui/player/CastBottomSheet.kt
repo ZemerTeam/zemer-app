@@ -6,12 +6,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
+import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.ui.component.focusBorder
 import org.fcast.sender_sdk.CastingDevice
 import org.fcast.sender_sdk.DeviceInfo
@@ -86,4 +90,48 @@ fun CastBottomSheet(
         }
         Spacer(modifier = Modifier.height(16.dp))
     }
+}
+
+/**
+ * Standard host for the cast device picker: collects the discovered devices + active connection and
+ * wires connect / disconnect, so the full player, mini-player, and queue don't each re-implement it.
+ */
+@Composable
+fun CastSheet(
+    playerConnection: PlayerConnection,
+    mediaMetadata: MediaMetadata?,
+    onDismiss: () -> Unit,
+) {
+    val service = playerConnection.service
+    val handler = service.discoveryHandler
+    val devices by handler.discoveredDevicesFlow.collectAsState()
+    val connectedDevice by handler.connectedDeviceFlow.collectAsState()
+    CastBottomSheet(
+        devices = devices,
+        connectedDevice = connectedDevice,
+        streamUrl = service.currentStreamUrl,
+        contentType = service.currentContentType,
+        metadata = mediaMetadata?.let {
+            Metadata(
+                title = "${it.title} - ${it.artists.joinToString(", ") { a -> a.name }}",
+                thumbnailUrl = it.thumbnailUrl
+            )
+        },
+        onDeviceSelected = { deviceInfo, url, type, metadata ->
+            playerConnection.player.pause()
+            handler.connectTo(
+                deviceInfo = deviceInfo,
+                streamUrl = url,
+                contentType = type,
+                metadata = metadata,
+                resumePosition = playerConnection.player.currentPosition / 1000.0,
+                onTrackEnded = {
+                    playerConnection.seekToNext()
+                    playerConnection.player.play()
+                }
+            )
+        },
+        onDisconnect = { handler.disconnect() },
+        onDismiss = onDismiss,
+    )
 }

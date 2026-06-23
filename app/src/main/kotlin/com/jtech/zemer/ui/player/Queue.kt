@@ -115,7 +115,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import com.jtech.zemer.ui.component.focusBorder
-import org.fcast.sender_sdk.Metadata
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.math.roundToInt
@@ -352,7 +351,6 @@ fun Queue(
                     }
                     val service = playerConnection.service
                     val devices by service.discoveryHandler.discoveredDevicesFlow.collectAsState()
-                    val connectedDevice by service.discoveryHandler.connectedDeviceFlow.collectAsState()
                     val isCasting by playerConnection.isCasting.collectAsState()
                     var showCastSheet by remember { mutableStateOf(false) }
 
@@ -376,36 +374,7 @@ fun Queue(
                     }
 
                     if (showCastSheet) {
-                        CastBottomSheet(
-                            devices = devices,
-                            connectedDevice = connectedDevice,
-                            streamUrl = service.currentStreamUrl,
-                            contentType = service.currentContentType,
-                            metadata = mediaMetadata?.let {
-                                Metadata(
-                                    title = "${it.title} - ${it.artists.joinToString(", ") { a -> a.name }}",
-                                    thumbnailUrl = it.thumbnailUrl
-                                )
-                            },
-                            onDeviceSelected = { deviceInfo, url, type, metadata ->
-                                playerConnection.player.pause()
-                                service.discoveryHandler.connectTo(
-                                    deviceInfo = deviceInfo,
-                                    streamUrl = url,
-                                    contentType = type,
-                                    metadata = metadata,
-                                    resumePosition = playerConnection.player.currentPosition / 1000.0,
-                                    onTrackEnded = {
-                                        playerConnection.seekToNext()
-                                        playerConnection.player.play()
-                                    }
-                                )
-                            },
-                            onDisconnect = {
-                                service.discoveryHandler.disconnect()
-                            },
-                            onDismiss = { showCastSheet = false }
-                        )
+                        CastSheet(playerConnection, mediaMetadata) { showCastSheet = false }
                     }
 
                     Spacer(modifier = Modifier.weight(1f))
