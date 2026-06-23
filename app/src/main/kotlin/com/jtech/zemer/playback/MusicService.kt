@@ -325,7 +325,7 @@ class MusicService :
         }
         mediaSession =
             MediaLibrarySession
-                .Builder(this, player, mediaLibrarySessionCallback)
+                .Builder(this, CastAwarePlayer(player, discoveryHandler), mediaLibrarySessionCallback)
                 .setSessionActivity(
                     PendingIntent.getActivity(
                         this,
@@ -1855,7 +1855,17 @@ class MusicService :
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             MusicWidget.ACTION_PLAY_PAUSE -> {
-                if (player.isPlaying) player.pause() else player.play()
+                if (discoveryHandler.connectedDevice != null) {
+                    if (CastPlayback.isPlaying(discoveryHandler.remotePlaybackState.value)) {
+                        discoveryHandler.pause()
+                    } else {
+                        discoveryHandler.play()
+                    }
+                } else if (player.isPlaying) {
+                    player.pause()
+                } else {
+                    player.play()
+                }
             }
             MusicWidget.ACTION_NEXT -> player.seekToNext()
             MusicWidget.ACTION_PREV -> player.seekToPrevious()
