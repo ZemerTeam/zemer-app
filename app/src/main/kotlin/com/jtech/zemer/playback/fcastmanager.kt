@@ -74,9 +74,7 @@ class DevEventHandler(
         handler.remoteTime.value = time
     }
 
-    override fun volumeChanged(volume: Double) {
-        handler.remoteVolume.value = volume
-    }
+    override fun volumeChanged(volume: Double) {}
 
     override fun durationChanged(duration: Double) {
         handler.remoteDuration.value = duration
@@ -111,7 +109,6 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     val remotePlaybackState = MutableStateFlow<PlaybackState?>(null)
     val remoteTime = MutableStateFlow(0.0)
     val remoteDuration = MutableStateFlow(0.0)
-    val remoteVolume = MutableStateFlow(1.0)
     val remoteConnectionState = MutableStateFlow<DeviceConnectionState>(DeviceConnectionState.Disconnected)
 
     val discoveredDevicesFlow = MutableStateFlow<List<DeviceInfo>>(emptyList())
@@ -192,10 +189,6 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
 
     fun stop() {
         connectedDevice?.stopPlayback()
-    }
-
-    fun setVolume(volume: Double) {
-        connectedDevice?.changeVolume(volume)
     }
 
     override fun deviceAvailable(deviceInfo: DeviceInfo) {
