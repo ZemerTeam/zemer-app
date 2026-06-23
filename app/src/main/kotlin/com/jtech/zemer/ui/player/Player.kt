@@ -1,5 +1,3 @@
-@file:Suppress("unused")
-
 package com.jtech.zemer.ui.player
 
 import android.annotation.SuppressLint
@@ -51,7 +49,6 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -93,7 +90,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
-import com.jtech.zemer.playback.CastPlayback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -125,9 +121,9 @@ import com.jtech.zemer.constants.QueuePeekHeight
 import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
-import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.playback.CastPlayback
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.BottomSheet
 import com.jtech.zemer.ui.component.BottomSheetState
@@ -222,14 +218,11 @@ fun BottomSheetPlayer(
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
 
-    val unifiedPosition by playerConnection.currentPosition.collectAsState()
-    val unifiedDuration by playerConnection.duration.collectAsState()
-
-    var position by remember {
-        mutableLongStateOf(unifiedPosition)
+    var position by rememberSaveable(playbackState) {
+        mutableLongStateOf(playerConnection.player.currentPosition)
     }
-    var duration by remember {
-        mutableLongStateOf(unifiedDuration)
+    var duration by rememberSaveable(playbackState) {
+        mutableLongStateOf(playerConnection.player.duration)
     }
     var sliderPosition by remember {
         mutableStateOf<Long?>(null)
@@ -403,9 +396,10 @@ fun BottomSheetPlayer(
         )
     }
 
-    LaunchedEffect(playbackState, isCasting, isPlaying) {
+    LaunchedEffect(playbackState, isCasting) {
         if (playbackState == STATE_READY || isCasting) {
             while (isActive) {
+                delay(500)
                 position = if (isCasting) {
                     CastPlayback.remoteSecondsToMs(playerConnection.service.discoveryHandler.remoteTime.value)
                 } else {
@@ -416,7 +410,6 @@ fun BottomSheetPlayer(
                 } else {
                     playerConnection.player.duration
                 }
-                delay(500)
             }
         }
     }
@@ -438,10 +431,10 @@ fun BottomSheetPlayer(
     )
 
     val bottomSheetBackgroundColor = when (playerBackground) {
-        PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT ->
+        PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT -> 
             MaterialTheme.colorScheme.surfaceContainer
-        else ->
-            if (useBlackBackground) Color.Black
+        else -> 
+            if (useBlackBackground) Color.Black 
             else MaterialTheme.colorScheme.surfaceContainer
     }
 
@@ -529,14 +522,6 @@ fun BottomSheetPlayer(
         },
     ) {
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
-            // Resolved once per recomposition in composable scope (NOT inside the click
-            // callbacks below) — this is what clears the "Querying resource values using
-            // LocalContext.current" lint, since we no longer call context.getString(...)
-            // at click-time.
-            val clipLabelTitleText = stringResource(R.string.clip_label_title)
-            val clipLabelArtistText = stringResource(R.string.clip_label_artist)
-            val copiedToastText = stringResource(R.string.copied)
-
             val playPauseRoundness by animateDpAsState(
                 targetValue = if (isPlaying) 24.dp else 36.dp,
                 animationSpec = tween(durationMillis = 90, easing = LinearEasing),
@@ -547,10 +532,10 @@ fun BottomSheetPlayer(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = PlayerHorizontalPadding)
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = PlayerHorizontalPadding)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
             ) {
                 Column(
                     modifier = Modifier.weight(1f)
@@ -569,52 +554,41 @@ fun BottomSheetPlayer(
                             .focusable()
                             .onFocusChanged { titleFocused.value = it.isFocused }
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            AnimatedContent(
-                                targetState = mediaMetadata.title,
-                                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                                label = "",
-                                modifier = Modifier.weight(1f)
-                            ) { title ->
-                                Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = TextBackgroundColor,
-                                    modifier =
-                                        Modifier
-                                            .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
-                                            .combinedClickable(
-                                                enabled = true,
-                                                indication = null,
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                onClick = {
-                                                    if (mediaMetadata.album != null) {
-                                                        navController.navigate("album/${mediaMetadata.album.id}")
-                                                        state.collapseSoft()
-                                                    }
-                                                },
-                                                onLongClick = {
-                                                    val clip = ClipData.newPlainText(clipLabelTitleText, title)
-                                                    clipboardManager.setPrimaryClip(clip)
-                                                    Toast
-                                                        .makeText(context, copiedToastText, Toast.LENGTH_SHORT)
-                                                        .show()
-                                                }
-                                            ),
-                                )
-                            }
-                            if (isCasting) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    painter = painterResource(R.drawable.cast_connected),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                        AnimatedContent(
+                            targetState = mediaMetadata.title,
+                            transitionSpec = { fadeIn() togetherWith fadeOut() },
+                            label = "",
+                        ) { title ->
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = TextBackgroundColor,
+                                modifier =
+                                Modifier
+                                    .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
+                                    .combinedClickable(
+                                        enabled = true,
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        onClick = {
+                                            if (mediaMetadata.album != null) {
+                                                navController.navigate("album/${mediaMetadata.album.id}")
+                                                state.collapseSoft()
+                                            }
+                                        },
+                                        onLongClick = {
+                                            val clip = ClipData.newPlainText(context.getString(R.string.clip_label_title), title)
+                                            clipboardManager.setPrimaryClip(clip)
+                                            Toast
+                                                .makeText(context, context.getString(R.string.copied), Toast.LENGTH_SHORT)
+                                                .show()
+                                        }
+                                    )
+                                ,
+                            )
                         }
                     }
 
@@ -691,12 +665,12 @@ fun BottomSheetPlayer(
                                         },
                                         onLongClick = {
                                             val clip =
-                                                ClipData.newPlainText(clipLabelArtistText, annotatedString)
+                                                ClipData.newPlainText(context.getString(R.string.clip_label_artist), annotatedString)
                                             clipboardManager.setPrimaryClip(clip)
                                             Toast
                                                 .makeText(
                                                     context,
-                                                    copiedToastText,
+                                                    context.getString(R.string.copied),
                                                     Toast.LENGTH_SHORT
                                                 )
                                                 .show()
@@ -804,34 +778,34 @@ fun BottomSheetPlayer(
                     )
                     Box(
                         modifier =
-                            Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(textButtonColor)
-                                .border(3.dp, oldShareBorderColor.value, RoundedCornerShape(24.dp))
-                                .focusable()
-                                .onFocusChanged { oldShareFocused.value = it.isFocused }
-                                .clickable {
-                                    val intent =
-                                        Intent().apply {
-                                            action = Intent.ACTION_SEND
-                                            type = "text/plain"
-                                            putExtra(
-                                                Intent.EXTRA_TEXT,
-                                                "https://music.zemer.io/watch?v=${mediaMetadata.id}"
-                                            )
-                                        }
-                                    context.startActivity(Intent.createChooser(intent, null))
-                                },
+                        Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(textButtonColor)
+                            .border(3.dp, oldShareBorderColor.value, RoundedCornerShape(24.dp))
+                            .focusable()
+                            .onFocusChanged { oldShareFocused.value = it.isFocused }
+                            .clickable {
+                                val intent =
+                                    Intent().apply {
+                                        action = Intent.ACTION_SEND
+                                        type = "text/plain"
+                                        putExtra(
+                                            Intent.EXTRA_TEXT,
+                                            "https://music.zemer.io/watch?v=${mediaMetadata.id}"
+                                        )
+                                    }
+                                context.startActivity(Intent.createChooser(intent, null))
+                            },
                     ) {
                         Image(
                             painter = painterResource(R.drawable.share),
                             contentDescription = null,
                             colorFilter = ColorFilter.tint(iconButtonColor),
                             modifier =
-                                Modifier
-                                    .align(Alignment.Center)
-                                    .size(24.dp),
+                            Modifier
+                                .align(Alignment.Center)
+                                .size(24.dp),
                         )
                     }
 
@@ -840,30 +814,30 @@ fun BottomSheetPlayer(
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier =
-                            Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(textButtonColor)
-                                .border(3.dp, oldMenuBorderColor.value, RoundedCornerShape(24.dp))
-                                .focusable()
-                                .onFocusChanged { oldMenuFocused.value = it.isFocused }
-                                .clickable {
-                                    menuState.show {
-                                        PlayerMenu(
-                                            mediaMetadata = mediaMetadata,
-                                            navController = navController,
-                                            playerBottomSheetState = state,
-                                            onShowDetailsDialog = {
-                                                mediaMetadata.id.let {
-                                                    bottomSheetPageState.show {
-                                                        ShowMediaInfo(it)
-                                                    }
+                        Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(textButtonColor)
+                            .border(3.dp, oldMenuBorderColor.value, RoundedCornerShape(24.dp))
+                            .focusable()
+                            .onFocusChanged { oldMenuFocused.value = it.isFocused }
+                            .clickable {
+                                menuState.show {
+                                    PlayerMenu(
+                                        mediaMetadata = mediaMetadata,
+                                        navController = navController,
+                                        playerBottomSheetState = state,
+                                        onShowDetailsDialog = {
+                                            mediaMetadata.id.let {
+                                                bottomSheetPageState.show {
+                                                    ShowMediaInfo(it)
                                                 }
-                                            },
-                                            onDismiss = menuState::dismiss,
-                                        )
-                                    }
-                                },
+                                            }
+                                        },
+                                        onDismiss = menuState::dismiss,
+                                    )
+                                }
+                            },
                     ) {
                         Image(
                             painter = painterResource(R.drawable.more_horiz),
@@ -885,7 +859,7 @@ fun BottomSheetPlayer(
                     SliderStyle.DEFAULT -> {
                         Slider(
                             value = (sliderPosition ?: position).toFloat(),
-                            valueRange = 0f..(if (duration == C.TIME_UNSET || duration == 0L) 0f else duration.toFloat()),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                             onValueChange = {
                                 sliderPosition = it.toLong()
                             },
@@ -904,7 +878,7 @@ fun BottomSheetPlayer(
                     SliderStyle.SQUIGGLY -> {
                         SquigglySlider(
                             value = (sliderPosition ?: position).toFloat(),
-                            valueRange = 0f..(if (duration == C.TIME_UNSET || duration == 0L) 0f else duration.toFloat()),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                             onValueChange = {
                                 sliderPosition = it.toLong()
                             },
@@ -918,17 +892,17 @@ fun BottomSheetPlayer(
                             colors = PlayerSliderColors.squigglySliderColors(accentColor, playerBackground, useDarkTheme),
                             modifier = Modifier.padding(horizontal = PlayerHorizontalPadding - 8.dp),
                             squigglesSpec =
-                                SquigglySlider.SquigglesSpec(
-                                    amplitude = if (isPlaying) (2.dp).coerceAtLeast(2.dp) else 0.dp,
-                                    strokeWidth = 3.dp,
-                                ),
+                            SquigglySlider.SquigglesSpec(
+                                amplitude = if (isPlaying) (2.dp).coerceAtLeast(2.dp) else 0.dp,
+                                strokeWidth = 3.dp,
+                            ),
                         )
                     }
 
                     SliderStyle.SLIM -> {
                         Slider(
                             value = (sliderPosition ?: position).toFloat(),
-                            valueRange = 0f..(if (duration == C.TIME_UNSET || duration == 0L) 0f else duration.toFloat()),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                             onValueChange = {
                                 sliderPosition = it.toLong()
                             },
@@ -958,9 +932,9 @@ fun BottomSheetPlayer(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
                 modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = PlayerHorizontalPadding + 4.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = PlayerHorizontalPadding + 4.dp),
             ) {
                 Text(
                     text = makeTimeString(sliderPosition ?: position),
@@ -971,7 +945,7 @@ fun BottomSheetPlayer(
                 )
 
                 Text(
-                    text = if (duration != C.TIME_UNSET && duration != 0L) makeTimeString(duration) else "",
+                    text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "",
                     style = MaterialTheme.typography.labelMedium,
                     color = TextBackgroundColor,
                     maxLines = 1,
@@ -1030,7 +1004,8 @@ fun BottomSheetPlayer(
                         FilledIconButton(
                             onClick = {
                                 if (playbackState == STATE_ENDED) {
-                                    playerConnection.seekTo(0)
+                                    playerConnection.player.seekTo(0, 0)
+                                    playerConnection.player.playWhenReady = true
                                 } else {
                                     playerConnection.playPause()
                                 }
@@ -1096,9 +1071,9 @@ fun BottomSheetPlayer(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = PlayerHorizontalPadding),
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = PlayerHorizontalPadding),
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
                         ResizableIconButton(
@@ -1125,9 +1100,9 @@ fun BottomSheetPlayer(
                             enabled = canSkipPrevious,
                             color = TextBackgroundColor,
                             modifier =
-                                Modifier
-                                    .size(32.dp)
-                                    .align(Alignment.Center),
+                            Modifier
+                                .size(32.dp)
+                                .align(Alignment.Center),
                             onClick = {
                                 playerConnection.seekToPrevious()
                             },
@@ -1143,40 +1118,41 @@ fun BottomSheetPlayer(
                     )
                     Box(
                         modifier =
-                            Modifier
-                                .size(72.dp)
-                                .clip(RoundedCornerShape(playPauseRoundness))
-                                .background(textButtonColor)
-                                .border(3.dp, landscapePlayBorderColor.value, RoundedCornerShape(playPauseRoundness))
-                                .focusable()
-                                .onFocusChanged { landscapePlayFocused.value = it.isFocused }
-                                .clickable {
-                                    if (playbackState == STATE_ENDED) {
-                                        playerConnection.seekTo(0)
-                                    } else {
-                                        playerConnection.playPause()
-                                    }
-                                },
+                        Modifier
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(playPauseRoundness))
+                            .background(textButtonColor)
+                            .border(3.dp, landscapePlayBorderColor.value, RoundedCornerShape(playPauseRoundness))
+                            .focusable()
+                            .onFocusChanged { landscapePlayFocused.value = it.isFocused }
+                            .clickable {
+                                if (playbackState == STATE_ENDED) {
+                                    playerConnection.player.seekTo(0, 0)
+                                    playerConnection.player.playWhenReady = true
+                                } else {
+                                    playerConnection.playPause()
+                                }
+                            },
                     ) {
                         Image(
                             painter =
-                                painterResource(
-                                    if (playbackState ==
-                                        STATE_ENDED
-                                    ) {
-                                        R.drawable.replay
-                                    } else if (isPlaying) {
-                                        R.drawable.pause
-                                    } else {
-                                        R.drawable.play
-                                    },
-                                ),
+                            painterResource(
+                                if (playbackState ==
+                                    STATE_ENDED
+                                ) {
+                                    R.drawable.replay
+                                } else if (isPlaying) {
+                                    R.drawable.pause
+                                } else {
+                                    R.drawable.play
+                                },
+                            ),
                             contentDescription = null,
                             colorFilter = ColorFilter.tint(iconButtonColor),
                             modifier =
-                                Modifier
-                                    .align(Alignment.Center)
-                                    .size(36.dp),
+                            Modifier
+                                .align(Alignment.Center)
+                                .size(36.dp),
                         )
                     }
 
@@ -1188,9 +1164,9 @@ fun BottomSheetPlayer(
                             enabled = canSkipNext,
                             color = TextBackgroundColor,
                             modifier =
-                                Modifier
-                                    .size(32.dp)
-                                    .align(Alignment.Center),
+                            Modifier
+                                .size(32.dp)
+                                .align(Alignment.Center),
                             onClick = {
                                 playerConnection.seekToNext()
                             },
@@ -1202,10 +1178,10 @@ fun BottomSheetPlayer(
                             icon = if (currentSong?.song?.liked == true) R.drawable.favorite else R.drawable.favorite_border,
                             color = if (currentSong?.song?.liked == true) MaterialTheme.colorScheme.error else TextBackgroundColor,
                             modifier =
-                                Modifier
-                                    .size(32.dp)
-                                    .padding(4.dp)
-                                    .align(Alignment.Center),
+                            Modifier
+                                .size(32.dp)
+                                .padding(4.dp)
+                                .align(Alignment.Center),
                             onClick = playerConnection::toggleLike,
                         )
                     }
@@ -1217,10 +1193,10 @@ fun BottomSheetPlayer(
             Configuration.ORIENTATION_LANDSCAPE -> {
                 Row(
                     modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                            .padding(bottom = queueSheetState.collapsedBound + 48.dp),
+                    Modifier
+                        .fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                        .padding(bottom = queueSheetState.collapsedBound + 48.dp),
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
@@ -1237,10 +1213,10 @@ fun BottomSheetPlayer(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier =
-                            Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top)),
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top)),
                     ) {
                         mediaMetadata?.let {
                             controlsContent(it)
@@ -1253,9 +1229,9 @@ fun BottomSheetPlayer(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier =
-                        Modifier
-                            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                            .padding(bottom = queueSheetState.collapsedBound),
+                    Modifier
+                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                        .padding(bottom = queueSheetState.collapsedBound),
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
@@ -1282,11 +1258,11 @@ fun BottomSheetPlayer(
             playerBottomSheetState = state,
             navController = navController,
             background =
-                if (useBlackBackground) {
-                    Color.Black
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainer
-                },
+            if (useBlackBackground) {
+                Color.Black
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            },
             onBackgroundColor = onBackgroundColor,
             TextBackgroundColor = TextBackgroundColor,
             textButtonColor = textButtonColor,
