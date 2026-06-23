@@ -218,31 +218,23 @@ class PlayerConnection(
     }
 
     fun seekToNext() {
-        if (isCasting.value) {
-            player.seekToNext()
-        } else {
-            if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)) {
-                try {
-                    player.seekToNext()
-                    player.prepare()
-                    player.playWhenReady = true
-                } catch (e: Exception) {
-                }
+        if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)) {
+            try {
+                player.seekToNext()
+                player.prepare()
+                player.playWhenReady = true
+            } catch (e: Exception) {
             }
         }
     }
 
     fun seekToPrevious() {
-        if (isCasting.value) {
-            player.seekToPrevious()
-        } else {
-            if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) {
-                try {
-                    player.seekToPrevious()
-                    player.prepare()
-                    player.playWhenReady = true
-                } catch (e: Exception) {
-                }
+        if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) {
+            try {
+                player.seekToPrevious()
+                player.prepare()
+                player.playWhenReady = true
+            } catch (e: Exception) {
             }
         }
     }
