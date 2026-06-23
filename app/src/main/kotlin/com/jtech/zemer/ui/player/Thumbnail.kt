@@ -374,6 +374,14 @@ fun Thumbnail(
                                             modifier = Modifier.fillMaxSize()
                                         )
                                     }
+
+                                    // Cast button at the top-left corner of the artwork
+                                    CastButton(
+                                        modifier = Modifier
+                                            .align(Alignment.TopStart)
+                                            .padding(8.dp),
+                                        tintColor = textBackgroundColor,
+                                    )
                                 }
                             }
                         }
