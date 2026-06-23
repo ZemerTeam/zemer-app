@@ -163,9 +163,10 @@ fun onConnectionDisconnected() {         // the single teardown path
     onDisconnect?.invoke(lastPos)        // CastController resumes local at lastPos, paused
 }
 
-override fun deviceRemoved(deviceName) {            // device vanished from discovery
+override fun deviceRemoved(deviceName) {            // service vanished from NSD discovery
     discoveredDevicesFlow.value = synchronized(devicesLock) { discoveredDevices.remove(deviceName); … }
-    if (connectedDevice?.name() == deviceName) disconnect()
+    // NB: only drops it from the picker list — does NOT disconnect an active session. NSD "Service lost"
+    // flaps transiently; the cast connection has its own heartbeat, so a real drop arrives as Disconnected.
 }
 ```
 
