@@ -1,10 +1,13 @@
 package com.jtech.zemer.ui.player
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -39,53 +42,55 @@ fun CastBottomSheet(
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            text = stringResource(R.string.cast_dialog_title),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-        if (devices.isEmpty() && connectedDevice == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(stringResource(R.string.cast_no_devices))
-            }
-        } else {
-            val rows = buildList {
-                if (connectedDevice != null) {
-                    add(
-                        Material3MenuItemData(
-                            icon = {
-                                Icon(
-                                    painter = painterResource(R.drawable.cast_connected),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            },
-                            title = { Text(stringResource(R.string.stop_casting)) },
-                            onClick = { onDisconnect(); onDismiss() },
-                        )
-                    )
-                }
-                devices.forEach { device ->
-                    add(
-                        Material3MenuItemData(
-                            icon = { Icon(painter = painterResource(R.drawable.cast), contentDescription = null) },
-                            title = { Text(device.name) },
-                            onClick = { onDeviceSelected(device, streamUrl, contentType, metadata); onDismiss() },
-                        )
-                    )
-                }
-            }
-            Material3MenuGroup(
-                items = rows,
-                modifier = Modifier.padding(horizontal = 16.dp),
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            Text(
+                text = stringResource(R.string.cast_dialog_title),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
+            if (devices.isEmpty() && connectedDevice == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(stringResource(R.string.cast_no_devices))
+                }
+            } else {
+                val rows = buildList {
+                    if (connectedDevice != null) {
+                        add(
+                            Material3MenuItemData(
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.cast_connected),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                },
+                                title = { Text(stringResource(R.string.stop_casting)) },
+                                onClick = { onDisconnect(); onDismiss() },
+                            )
+                        )
+                    }
+                    devices.forEach { device ->
+                        add(
+                            Material3MenuItemData(
+                                icon = { Icon(painter = painterResource(R.drawable.cast), contentDescription = null) },
+                                title = { Text(device.name) },
+                                onClick = { onDeviceSelected(device, streamUrl, contentType, metadata); onDismiss() },
+                            )
+                        )
+                    }
+                }
+                Material3MenuGroup(
+                    items = rows,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
         }
-        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -128,10 +133,7 @@ fun CastSheet(
                     contentType = type ?: service.currentContentType,
                     metadata = metadata,
                     resumePosition = playerConnection.player.currentPosition / 1000.0,
-                    onTrackEnded = {
-                        playerConnection.seekToNext()
-                        playerConnection.player.play()
-                    }
+                    onTrackEnded = { playerConnection.advanceRemoteAfterEnd() }
                 )
             }
         },

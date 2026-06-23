@@ -131,12 +131,7 @@ class PlayerConnection(
                     // If we're near the end, transition to next song
                     if (CastAutoAdvance.nearEnd(dur, lastRemotePosition, CastAutoAdvance.IDLE_END_EPSILON_SEC) &&
                         CastAutoAdvance.debouncePassed(System.currentTimeMillis(), lastTransitionTime)) {
-                        if (player.repeatMode == REPEAT_MODE_ONE) {
-                            player.seekTo(player.currentMediaItemIndex, 0)
-                            triggerRemoteLoad(player.currentMediaItem)
-                        } else if (canSkipNext.value) {
-                            seekToNext()
-                        }
+                        advanceRemoteAfterEnd()
                     }
                 }
                 lastState = state
@@ -153,12 +148,7 @@ class PlayerConnection(
                     if (CastAutoAdvance.nearEnd(dur, lastRemotePosition, CastAutoAdvance.STALL_END_EPSILON_SEC) &&
                         CastAutoAdvance.stalled(stalledFor) &&
                         CastAutoAdvance.debouncePassed(System.currentTimeMillis(), lastTransitionTime)) {
-                        if (player.repeatMode == REPEAT_MODE_ONE) {
-                            player.seekTo(player.currentMediaItemIndex, 0)
-                            triggerRemoteLoad(player.currentMediaItem)
-                        } else if (canSkipNext.value) {
-                            seekToNext()
-                        }
+                        advanceRemoteAfterEnd()
                     }
                 }
             }
@@ -248,6 +238,21 @@ class PlayerConnection(
         reason: Int,
     ) {
         playWhenReady.value = newPlayWhenReady
+    }
+
+    /**
+     * Advance the receiver at end-of-track: repeat-one replays the current item, otherwise skip to the
+     * next (if any). Shared by all three end detectors — the SDK END event, the IDLE-after-PLAYING
+     * collector, and the stall poll — so the repeat/skip decision lives in one place (the END event
+     * previously skipped unconditionally, ignoring repeat-one).
+     */
+    fun advanceRemoteAfterEnd() {
+        if (player.repeatMode == REPEAT_MODE_ONE) {
+            player.seekTo(player.currentMediaItemIndex, 0)
+            triggerRemoteLoad(player.currentMediaItem)
+        } else if (canSkipNext.value) {
+            seekToNext()
+        }
     }
 
     private fun triggerRemoteLoad(mediaItem: MediaItem?) {
