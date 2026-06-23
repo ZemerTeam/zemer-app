@@ -179,9 +179,8 @@ private fun NewMiniPlayer(
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
 
     val currentService = playerConnection.service
-    val discoveredDevices = currentService.discoveryHandler.discoveredDevices
-    val devices = discoveredDevices.values.toList()
-    val connectedDevice = currentService.discoveryHandler.connectedDevice
+    val devices by currentService.discoveryHandler.discoveredDevicesFlow.collectAsState()
+    val connectedDevice by currentService.discoveryHandler.connectedDeviceFlow.collectAsState()
     var showCastSheet by remember { mutableStateOf(false) }
 
     LocalView.current
@@ -811,9 +810,8 @@ private fun LegacyMiniPlayer(
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
 
     val currentService = playerConnection.service
-    val discoveredDevices = currentService.discoveryHandler.discoveredDevices
-    val devices = discoveredDevices.values.toList()
-    val connectedDevice = currentService.discoveryHandler.connectedDevice
+    val devices by currentService.discoveryHandler.discoveredDevicesFlow.collectAsState()
+    val connectedDevice by currentService.discoveryHandler.connectedDeviceFlow.collectAsState()
     var showCastSheet by remember { mutableStateOf(false) }
 
     LocalView.current
