@@ -1,5 +1,3 @@
-@file:Suppress("unused")
-
 package com.jtech.zemer.ui.player
 
 import android.annotation.SuppressLint
@@ -51,7 +49,6 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -93,7 +90,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
-import com.jtech.zemer.playback.CastPlayback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -125,9 +121,9 @@ import com.jtech.zemer.constants.QueuePeekHeight
 import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
-import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.playback.CastPlayback
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.BottomSheet
 import com.jtech.zemer.ui.component.BottomSheetState
@@ -149,8 +145,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import me.saket.squiggles.SquigglySlider
 import kotlin.math.roundToInt
-import com.jtech.zemer.tracking.Tracker
-import com.jtech.zemer.tracking.TrackingActionKind
 
 @Suppress("LocalVariableName")
 @SuppressLint("ConfigurationScreenWidthHeight")
@@ -224,14 +218,11 @@ fun BottomSheetPlayer(
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
 
-    val unifiedPosition by playerConnection.currentPosition.collectAsState()
-    val unifiedDuration by playerConnection.duration.collectAsState()
-
-    var position by remember {
-        mutableLongStateOf(unifiedPosition)
+    var position by rememberSaveable(playbackState) {
+        mutableLongStateOf(playerConnection.player.currentPosition)
     }
-    var duration by remember {
-        mutableLongStateOf(unifiedDuration)
+    var duration by rememberSaveable(playbackState) {
+        mutableLongStateOf(playerConnection.player.duration)
     }
     var sliderPosition by remember {
         mutableStateOf<Long?>(null)
@@ -405,9 +396,10 @@ fun BottomSheetPlayer(
         )
     }
 
-    LaunchedEffect(playbackState, isCasting, isPlaying) {
+    LaunchedEffect(playbackState, isCasting) {
         if (playbackState == STATE_READY || isCasting) {
             while (isActive) {
+                delay(500)
                 position = if (isCasting) {
                     CastPlayback.remoteSecondsToMs(playerConnection.service.discoveryHandler.remoteTime.value)
                 } else {
@@ -418,7 +410,6 @@ fun BottomSheetPlayer(
                 } else {
                     playerConnection.player.duration
                 }
-                delay(500)
             }
         }
     }
@@ -598,53 +589,6 @@ fun BottomSheetPlayer(
                                     )
                                 ,
                             )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            AnimatedContent(
-                                targetState = mediaMetadata.title,
-                                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                                label = "",
-                                modifier = Modifier.weight(1f)
-                            ) { title ->
-                                Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = TextBackgroundColor,
-                                    modifier =
-                                    Modifier
-                                        .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
-                                        .combinedClickable(
-                                            enabled = true,
-                                            indication = null,
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            onClick = {
-                                                if (mediaMetadata.album != null) {
-                                                    navController.navigate("album/${mediaMetadata.album.id}")
-                                                    state.collapseSoft()
-                                                }
-                                            },
-                                            onLongClick = {
-                                                val clip = ClipData.newPlainText("Copied Title", title)
-                                                clipboardManager.setPrimaryClip(clip)
-                                                Toast
-                                                    .makeText(context, "Copied Title", Toast.LENGTH_SHORT)
-                                                    .show()
-                                            }
-                                        )
-                                    ,
-                                )
-                            }
-                            if (isCasting) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    painter = painterResource(R.drawable.cast_connected),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
                         }
                     }
 
@@ -774,7 +718,6 @@ fun BottomSheetPlayer(
                                 .focusable()
                                 .onFocusChanged { shareFocused.value = it.isFocused }
                                 .clickable {
-                                    Tracker.action(TrackingActionKind.SHARE, mediaMetadata.id)
                                     val intent = Intent().apply {
                                         action = Intent.ACTION_SEND
                                         type = "text/plain"
@@ -843,7 +786,6 @@ fun BottomSheetPlayer(
                             .focusable()
                             .onFocusChanged { oldShareFocused.value = it.isFocused }
                             .clickable {
-                                Tracker.action(TrackingActionKind.SHARE, mediaMetadata.id)
                                 val intent =
                                     Intent().apply {
                                         action = Intent.ACTION_SEND
@@ -917,7 +859,7 @@ fun BottomSheetPlayer(
                     SliderStyle.DEFAULT -> {
                         Slider(
                             value = (sliderPosition ?: position).toFloat(),
-                            valueRange = 0f..(if (duration == C.TIME_UNSET || duration == 0L) 0f else duration.toFloat()),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                             onValueChange = {
                                 sliderPosition = it.toLong()
                             },
@@ -936,7 +878,7 @@ fun BottomSheetPlayer(
                     SliderStyle.SQUIGGLY -> {
                         SquigglySlider(
                             value = (sliderPosition ?: position).toFloat(),
-                            valueRange = 0f..(if (duration == C.TIME_UNSET || duration == 0L) 0f else duration.toFloat()),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                             onValueChange = {
                                 sliderPosition = it.toLong()
                             },
@@ -960,7 +902,7 @@ fun BottomSheetPlayer(
                     SliderStyle.SLIM -> {
                         Slider(
                             value = (sliderPosition ?: position).toFloat(),
-                            valueRange = 0f..(if (duration == C.TIME_UNSET || duration == 0L) 0f else duration.toFloat()),
+                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
                             onValueChange = {
                                 sliderPosition = it.toLong()
                             },
@@ -1003,7 +945,7 @@ fun BottomSheetPlayer(
                 )
 
                 Text(
-                    text = if (duration != C.TIME_UNSET && duration != 0L) makeTimeString(duration) else "",
+                    text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "",
                     style = MaterialTheme.typography.labelMedium,
                     color = TextBackgroundColor,
                     maxLines = 1,
@@ -1062,7 +1004,8 @@ fun BottomSheetPlayer(
                         FilledIconButton(
                             onClick = {
                                 if (playbackState == STATE_ENDED) {
-                                    playerConnection.seekTo(0)
+                                    playerConnection.player.seekTo(0, 0)
+                                    playerConnection.player.playWhenReady = true
                                 } else {
                                     playerConnection.playPause()
                                 }
@@ -1184,7 +1127,8 @@ fun BottomSheetPlayer(
                             .onFocusChanged { landscapePlayFocused.value = it.isFocused }
                             .clickable {
                                 if (playbackState == STATE_ENDED) {
-                                    playerConnection.seekTo(0)
+                                    playerConnection.player.seekTo(0, 0)
+                                    playerConnection.player.playWhenReady = true
                                 } else {
                                     playerConnection.playPause()
                                 }
