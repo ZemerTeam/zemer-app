@@ -351,6 +351,7 @@ fun Queue(
                     }
                     val service = playerConnection.service
                     val devices by service.discoveryHandler.discoveredDevicesFlow.collectAsState()
+                    val connectedDevice by service.discoveryHandler.connectedDeviceFlow.collectAsState()
                     val isCasting by playerConnection.isCasting.collectAsState()
                     var showCastSheet by remember { mutableStateOf(false) }
 
@@ -374,7 +375,7 @@ fun Queue(
                     }
 
                     if (showCastSheet) {
-                        CastSheet(playerConnection, mediaMetadata) { showCastSheet = false }
+                        CastSheet(playerConnection, mediaMetadata, devices, connectedDevice) { showCastSheet = false }
                     }
 
                     Spacer(modifier = Modifier.weight(1f))
@@ -805,7 +806,7 @@ fun Queue(
                                                     }
                                                 } else {
                                                     if (index == currentWindowIndex) {
-                                                        playerConnection.player.togglePlayPause()
+                                                        playerConnection.playPause()
                                                     } else {
                                                         playerConnection.player.seekToDefaultPosition(
                                                             window.firstPeriodIndex,

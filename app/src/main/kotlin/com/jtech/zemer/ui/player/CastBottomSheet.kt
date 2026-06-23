@@ -1,13 +1,16 @@
 package com.jtech.zemer.ui.player
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -16,7 +19,8 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.PlayerConnection
-import com.jtech.zemer.ui.component.focusBorder
+import com.jtech.zemer.ui.component.Material3MenuGroup
+import com.jtech.zemer.ui.component.Material3MenuItemData
 import kotlinx.coroutines.launch
 import org.fcast.sender_sdk.CastingDevice
 import org.fcast.sender_sdk.DeviceInfo
@@ -40,73 +44,66 @@ fun CastBottomSheet(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
-        LazyColumn {
-            if (connectedDevice != null) {
-                item {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.stop_casting)) },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.cast_connected),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        modifier = Modifier.focusBorder().clickable {
-                            onDisconnect()
-                            onDismiss()
-                        }
+        if (devices.isEmpty() && connectedDevice == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(stringResource(R.string.cast_no_devices))
+            }
+        } else {
+            val rows = buildList {
+                if (connectedDevice != null) {
+                    add(
+                        Material3MenuItemData(
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.cast_connected),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                            title = { Text(stringResource(R.string.stop_casting)) },
+                            onClick = { onDisconnect(); onDismiss() },
+                        )
+                    )
+                }
+                devices.forEach { device ->
+                    add(
+                        Material3MenuItemData(
+                            icon = { Icon(painter = painterResource(R.drawable.cast), contentDescription = null) },
+                            title = { Text(device.name) },
+                            onClick = { onDeviceSelected(device, streamUrl, contentType, metadata); onDismiss() },
+                        )
                     )
                 }
             }
-
-            if (devices.isEmpty() && connectedDevice == null) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(stringResource(R.string.cast_no_devices))
-                    }
-                }
-            } else {
-                items(devices) { device ->
-                    ListItem(
-                        headlineContent = { Text(device.name) },
-                        leadingContent = {
-                            Icon(
-                                painter = painterResource(R.drawable.cast),
-                                contentDescription = null
-                            )
-                        },
-                        modifier = Modifier.focusBorder().clickable {
-                            onDeviceSelected(device, streamUrl, contentType, metadata)
-                            onDismiss()
-                        }
-                    )
-                }
-            }
+            Material3MenuGroup(
+                items = rows,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
         }
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
 /**
- * Standard host for the cast device picker: collects the discovered devices + active connection and
- * wires connect / disconnect, so the full player, mini-player, and queue don't each re-implement it.
+ * Standard host for the cast device picker: wires connect / disconnect, so the full player,
+ * mini-player, and queue don't each re-implement it. The caller passes the device list + active
+ * connection it already collects for its cast button (so the flows aren't collected twice).
  */
 @Composable
 fun CastSheet(
     playerConnection: PlayerConnection,
     mediaMetadata: MediaMetadata?,
+    devices: List<DeviceInfo>,
+    connectedDevice: CastingDevice?,
     onDismiss: () -> Unit,
 ) {
     val service = playerConnection.service
     val handler = service.discoveryHandler
-    val devices by handler.discoveredDevicesFlow.collectAsState()
-    val connectedDevice by handler.connectedDeviceFlow.collectAsState()
     CastBottomSheet(
         devices = devices,
         connectedDevice = connectedDevice,
