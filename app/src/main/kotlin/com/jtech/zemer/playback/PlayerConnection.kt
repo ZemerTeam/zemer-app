@@ -28,8 +28,6 @@ import org.fcast.sender_sdk.PlaybackState
 import org.fcast.sender_sdk.DeviceConnectionState
 import org.fcast.sender_sdk.Metadata
 import kotlinx.coroutines.delay
-import org.fcast.sender_sdk.CastingDevice
-import org.fcast.sender_sdk.DeviceEventHandler
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlayerConnection(
@@ -45,7 +43,7 @@ class PlayerConnection(
     private val playWhenReady = MutableStateFlow(player.playWhenReady)
 
     val isCasting = service.discoveryHandler.remoteConnectionState.map { connectionState: DeviceConnectionState ->
-        connectionState is org.fcast.sender_sdk.DeviceConnectionState.Connected
+        connectionState is DeviceConnectionState.Connected
     }.stateIn(scope, SharingStarted.Lazily, false)
 
     val isPlaying =
@@ -62,14 +60,6 @@ class PlayerConnection(
         )
 
     val mediaMetadata = MutableStateFlow(player.currentMetadata)
-
-    val currentPosition = combine(isCasting, service.discoveryHandler.remoteTime, mediaMetadata) { casting, remoteTime, _ ->
-        if (casting) CastPlayback.remoteSecondsToMs(remoteTime) else player.currentPosition
-    }.stateIn(scope, SharingStarted.Lazily, player.currentPosition)
-
-    val duration = combine(isCasting, service.discoveryHandler.remoteDuration, mediaMetadata) { casting, remoteDuration, _ ->
-        if (casting) CastPlayback.remoteSecondsToMs(remoteDuration) else player.duration
-    }.stateIn(scope, SharingStarted.Lazily, player.duration)
 
     val currentSong =
         mediaMetadata.flatMapLatest {
@@ -100,6 +90,7 @@ class PlayerConnection(
     private var lastTransitionTime = 0L
     private var lastRemotePosition = 0.0
     private var lastRemoteTimeUpdateAt = System.currentTimeMillis()
+    private var remoteLoadedMediaId: String? = null
 
     init {
         player.addListener(this)
@@ -115,6 +106,10 @@ class PlayerConnection(
         repeatMode.value = player.repeatMode
 
         service.discoveryHandler.onDisconnect = { lastRemotePos ->
+            // Reset stall-detection state so a later reconnect doesn't immediately auto-skip on the
+            // previous track's stale near-end position.
+            lastRemotePosition = 0.0
+            lastTransitionTime = System.currentTimeMillis()
             scope.launch {
                 player.seekTo(lastRemotePos)
                 player.prepare()
@@ -257,6 +252,7 @@ class PlayerConnection(
 
     private fun triggerRemoteLoad(mediaItem: MediaItem?) {
         val mediaId = mediaItem?.mediaId ?: return
+        remoteLoadedMediaId = mediaId
         scope.launch {
             val url = service.resolveStreamUrl(mediaId)
             val contentType = service.currentContentType
@@ -273,7 +269,6 @@ class PlayerConnection(
     }
 
     override fun onMediaItemTransition(
-
         mediaItem: MediaItem?,
         reason: Int,
     ) {
@@ -283,10 +278,15 @@ class PlayerConnection(
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()
 
-        if (isCasting.value && (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK ||
-                               reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
-                               reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT ||
-                               reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED)) {
+        // PLAYLIST_CHANGED also fires on queue edits that don't change the current track, so for that
+        // reason only reload when the item actually differs from what's on the receiver (SEEK/AUTO are
+        // genuine track changes; REPEAT intentionally replays the same id).
+        val isCurrentItemChange = reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK ||
+            reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
+            reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT ||
+            (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED &&
+                mediaItem?.mediaId != remoteLoadedMediaId)
+        if (isCasting.value && isCurrentItemChange) {
             player.pause() // Stop local playback immediately
             triggerRemoteLoad(mediaItem)
         }
