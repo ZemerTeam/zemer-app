@@ -11,7 +11,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -20,6 +23,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
+import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.AudioOffload
@@ -40,6 +44,7 @@ import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SliderPreference
 import com.jtech.zemer.ui.component.SwitchPreference
+import com.jtech.zemer.ui.player.CastDownloadDialog
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
@@ -70,6 +75,8 @@ fun PlayerSettings(
         CastEnabledKey,
         defaultValue = false
     )
+    val playerConnection = LocalPlayerConnection.current
+    var showCastDownloadDialog by remember { mutableStateOf(false) }
 
     val (audioOffload, onAudioOffloadChange) = rememberPreference(
         key = AudioOffload,
@@ -228,7 +235,13 @@ fun PlayerSettings(
             description = stringResource(R.string.enable_casting_description),
             icon = { Icon(painterResource(R.drawable.cast), null) },
             checked = castEnabled,
-            onCheckedChange = onCastEnabledChange,
+            onCheckedChange = { enabled ->
+                onCastEnabledChange(enabled)
+                // Prompt to download the cast support lib right away when enabling (it isn't bundled).
+                if (enabled && playerConnection?.service?.castLibLoader?.isReady != true) {
+                    showCastDownloadDialog = true
+                }
+            },
         )
 
         PreferenceGroupTitle(
@@ -241,6 +254,12 @@ fun PlayerSettings(
             checked = stopMusicOnTaskClear,
             onCheckedChange = onStopMusicOnTaskClearChange,
         )
+    }
+
+    if (showCastDownloadDialog) {
+        playerConnection?.let { pc ->
+            CastDownloadDialog(playerConnection = pc, onDismiss = { showCastDownloadDialog = false })
+        }
     }
 
     TopAppBar(
