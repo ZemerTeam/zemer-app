@@ -195,6 +195,10 @@ class MusicService :
     private var deviceDiscoverer: NsdDeviceDiscoverer? = null
     val discoveryHandler = FCastDiscoveryHandler()
 
+    // The FCast native lib is downloaded on demand (not bundled). Lazy so it is built after the service's
+    // base context is attached; its init applies the libraryOverride if a verified copy is already cached.
+    val castLibLoader by lazy { CastNativeLibLoader(this) }
+
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
     private var lastAudioFocusState = AudioManager.AUDIOFOCUS_NONE
@@ -259,15 +263,30 @@ class MusicService :
 
     fun streamContentType(mediaId: String): String = songMimeCache[mediaId] ?: "audio/mp4"
 
+    /** Cast-lib state for the picker UI (downloading / failed / ready); the native lib isn't bundled. */
+    val castLibState get() = castLibLoader.state
+
     /**
-     * Lazily start NSD cast discovery the first time the user opens the cast picker — not on startup —
-     * so discovery (and its network/battery use) only runs once casting is actually used. Idempotent;
-     * sender-sdk 0.4.0's NsdDeviceDiscoverer has no stop API, so it then runs until the process dies.
+     * Start NSD discovery if the FCast native lib is already present — never downloads it (that needs
+     * explicit consent via [downloadCastLib]; the lib is ~5 MB and not bundled). No-op until ready, and
+     * idempotent: sender-sdk 0.4.0's NsdDeviceDiscoverer has no stop API, so discovery then runs until
+     * the process dies.
      */
     fun startDiscovery() {
-        if (deviceDiscoverer == null) {
+        if (deviceDiscoverer == null && castLibLoader.isReady) {
             deviceDiscoverer = NsdDeviceDiscoverer(this, discoveryHandler)
         }
+    }
+
+    /**
+     * User-consented one-time download of the FCast native lib (not bundled, to save ~5 MB). Download
+     * only — discovery is started separately by [startDiscovery] when the picker is open and ready, so
+     * consenting from Settings doesn't kick off background NSD discovery. Progress/failure via
+     * [castLibState]; safe to call repeatedly (no-op when ready or already downloading).
+     */
+    fun downloadCastLib() {
+        if (castLibLoader.isReady || castLibState.value is CastLibState.Downloading) return
+        scope.launch { withContext(Dispatchers.IO) { castLibLoader.ensure() } }
     }
 
     val currentStreamUrl: String?

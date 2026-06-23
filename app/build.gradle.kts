@@ -174,6 +174,9 @@ android {
         jniLibs {
             useLegacyPackaging = false
             pickFirsts += "**/libcoverart.so"
+            // The FCast sender-SDK native lib is NOT bundled (~5.3 MB) — it is downloaded on demand from
+            // ZemerTeam/zemer-cast when the user enables casting (see CastNativeLibLoader).
+            excludes += "**/libfcast_sender_sdk.so"
             keepDebugSymbols += listOf(
                 "**/libandroidx.graphics.path.so",
                 "**/libdatastore_shared_counter.so",
