@@ -255,7 +255,7 @@ class PlayerConnection(
         remoteLoadedMediaId = mediaId
         scope.launch {
             val url = service.resolveStreamUrl(mediaId)
-            val contentType = service.currentContentType
+            val contentType = service.streamContentType(mediaId)
             val metadata = mediaItem.metadata?.let {
                 Metadata(
                     title = "${it.title} - ${it.artists.joinToString(", ") { a -> a.name }}",
