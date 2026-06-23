@@ -14,6 +14,7 @@ This documentation is code-derived. It records facts visible in tracked reposito
 | [`app/viewmodels.md`](app/viewmodels.md) | ViewModel inventory with declarations and referenced app/InnerTube dependencies. |
 | [`build-release.md`](build-release.md) | Root Gradle/settings facts, GitHub Actions release workflow, native/submodule facts, and auxiliary JVM module facts. |
 | [`whitelist/README.md`](whitelist/README.md) | Artist whitelist storage, Firebase fetch path, filtering rules, sync integration points, UI entry points, and database queries. |
+| [`fcast/README.md`](fcast/README.md) | FCast casting: architecture and the cast seams, the on-demand native lib, discovery/connection, playback/transport routing, end-of-track auto-advance, the cast UI, and testing/troubleshooting. |
 | [`innertube/README.md`](innertube/README.md) | `:innertube` module architecture, request wrapper APIs, parser pages, models, dependencies, and consumers in the app module. |
 | [`ui/README.md`](ui/README.md) | Compose UI structure, navigation routes, screen files, reusable components, player UI, settings UI, and theme utilities. |
 | [`ui/standards.md`](ui/standards.md) | UI standards and rules: settings-screen skeleton, the standard `Preference.kt` widgets, preferences and state, strings policy, lists and reordering, dialogs, theme and color roles, and icons. |
