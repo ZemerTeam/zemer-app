@@ -29,6 +29,14 @@ object CastAutoAdvance {
     /** Proportional tail of the IDLE-from-PLAYING "finished" window — see [finishedNearEnd]. */
     const val IDLE_END_TAIL_FRACTION = 0.1
 
+    /**
+     * How close to the end (sec) a PAUSED-after-PLAYING report counts as the track finishing. TIGHT on
+     * purpose: some receivers auto-pause at exactly `pos == duration` to signal end-of-track (no IDLE, no
+     * END event), and this must be distinguishable from a genuine user pause — only a pause in the final
+     * couple of seconds (indistinguishable from the track ending) is treated as finished.
+     */
+    const val PAUSED_END_EPSILON_SEC = 2.0
+
     /** The remote clock is within [epsilonSec] of — or past — the track end. */
     fun nearEnd(durationSec: Double, lastPositionSec: Double, epsilonSec: Double): Boolean =
         durationSec > 0.0 && lastPositionSec >= durationSec - epsilonSec

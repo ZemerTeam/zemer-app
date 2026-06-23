@@ -62,6 +62,18 @@ class CastAutoAdvanceTest {
         assertFalse(CastAutoAdvance.finishedNearEnd(200.0, 0.0))
     }
 
+    // --- end-as-PAUSED (some receivers auto-pause at pos==duration) -------------
+
+    @Test
+    fun `a PAUSED report at the duration counts as finished, a mid-track pause does not`() {
+        // Real FCast receiver behaviour: at end-of-track it reports PAUSED at pos == duration (no IDLE / END).
+        // The TIGHT epsilon treats that as finished, but a deliberate mid-track user pause must not advance.
+        assertTrue(CastAutoAdvance.nearEnd(201.961, 201.961, CastAutoAdvance.PAUSED_END_EPSILON_SEC))
+        assertTrue(CastAutoAdvance.nearEnd(202.0, 200.5, CastAutoAdvance.PAUSED_END_EPSILON_SEC)) // within 2s
+        assertFalse(CastAutoAdvance.nearEnd(202.0, 195.0, CastAutoAdvance.PAUSED_END_EPSILON_SEC)) // paused 7s out
+        assertFalse(CastAutoAdvance.nearEnd(202.0, 90.0, CastAutoAdvance.PAUSED_END_EPSILON_SEC)) // mid-track pause
+    }
+
     // --- debouncePassed --------------------------------------------------------
 
     @Test
