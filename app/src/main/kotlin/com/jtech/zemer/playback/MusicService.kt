@@ -1831,6 +1831,13 @@ class MusicService :
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
         }
+        // Tear down any active cast session so the receiver doesn't keep playing an orphaned stream
+        // after the service dies. (sender-sdk 0.4.0's NsdDeviceDiscoverer exposes no stop API, so the
+        // NSD discovery itself can't be halted here.)
+        discoveryHandler.connectedDevice?.let { device ->
+            runCatching { device.stopPlayback() }
+            runCatching { device.disconnect() }
+        }
         connectivityObserver.unregister()
         abandonAudioFocus()
         releaseLoudnessEnhancer()
