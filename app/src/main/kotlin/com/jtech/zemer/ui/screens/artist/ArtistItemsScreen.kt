@@ -185,7 +185,7 @@ fun ArtistItemsScreen(
                                 when (item) {
                                     is SongItem -> {
                                         if (item.id == mediaMetadata?.id) {
-                                            playerConnection.player.togglePlayPause()
+                                            playerConnection.playPause()
                                         } else {
                                             // Mark as video if from video section
                                             val metadata = item.toMediaMetadata().let {

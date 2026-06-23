@@ -418,7 +418,7 @@ fun TopPlaylistScreen(
                                 onClick = {
                                     if (!selection) {
                                         if (songWrapper.item.song.id == mediaMetadata?.id) {
-                                            playerConnection.player.togglePlayPause()
+                                            playerConnection.playPause()
                                         } else {
                                             playerConnection.playQueue(
                                                 ListQueue(

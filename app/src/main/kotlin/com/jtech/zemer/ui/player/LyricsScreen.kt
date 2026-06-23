@@ -352,7 +352,7 @@ fun LyricsScreen(
                                         onValueChange = { sliderPosition = it.toLong() },
                                         onValueChangeFinished = {
                                             sliderPosition?.let {
-                                                player.seekTo(it)
+                                                playerConnection.seekTo(it)
                                                 position = it
                                             }
                                             sliderPosition = null
@@ -368,7 +368,7 @@ fun LyricsScreen(
                                         onValueChange = { sliderPosition = it.toLong() },
                                         onValueChangeFinished = {
                                             sliderPosition?.let {
-                                                player.seekTo(it)
+                                                playerConnection.seekTo(it)
                                                 position = it
                                             }
                                             sliderPosition = null
@@ -388,7 +388,7 @@ fun LyricsScreen(
                                         onValueChange = { sliderPosition = it.toLong() },
                                         onValueChangeFinished = {
                                             sliderPosition?.let {
-                                                player.seekTo(it)
+                                                playerConnection.seekTo(it)
                                                 position = it
                                             }
                                             sliderPosition = null
@@ -446,7 +446,7 @@ fun LyricsScreen(
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
-                                IconButton(onClick = { player.seekToPrevious() }, modifier = Modifier.size(48.dp)) {
+                                IconButton(onClick = { playerConnection.seekToPrevious() }, modifier = Modifier.size(48.dp)) {
                                     Icon(
                                         painter = painterResource(R.drawable.skip_previous),
                                         contentDescription = null,
@@ -456,7 +456,7 @@ fun LyricsScreen(
                                 }
    
                                 IconButton(
-                                    onClick = { player.togglePlayPause() }, 
+                                    onClick = { playerConnection.playPause() }, 
                                     modifier = Modifier.size(72.dp)
                                 ) {
                                     Box(
@@ -477,7 +477,7 @@ fun LyricsScreen(
                                     }
                                 }
     
-                                IconButton(onClick = { player.seekToNext() }, modifier = Modifier.size(48.dp)) {
+                                IconButton(onClick = { playerConnection.seekToNext() }, modifier = Modifier.size(48.dp)) {
                                     Icon(
                                         painter = painterResource(R.drawable.skip_next),
                                         contentDescription = null,
@@ -594,7 +594,7 @@ fun LyricsScreen(
                                     onValueChange = { sliderPosition = it.toLong() },
                                     onValueChangeFinished = {
                                         sliderPosition?.let {
-                                            player.seekTo(it)
+                                            playerConnection.seekTo(it)
                                             position = it
                                         }
                                         sliderPosition = null
@@ -610,7 +610,7 @@ fun LyricsScreen(
                                     onValueChange = { sliderPosition = it.toLong() },
                                     onValueChangeFinished = {
                                         sliderPosition?.let {
-                                            player.seekTo(it)
+                                            playerConnection.seekTo(it)
                                             position = it
                                         }
                                         sliderPosition = null
@@ -630,7 +630,7 @@ fun LyricsScreen(
                                     onValueChange = { sliderPosition = it.toLong() },
                                     onValueChangeFinished = {
                                         sliderPosition?.let {
-                                            player.seekTo(it)
+                                            playerConnection.seekTo(it)
                                             position = it
                                         }
                                         sliderPosition = null
@@ -688,7 +688,7 @@ fun LyricsScreen(
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
-                            IconButton(onClick = { player.seekToPrevious() }, modifier = Modifier.size(48.dp)) {
+                            IconButton(onClick = { playerConnection.seekToPrevious() }, modifier = Modifier.size(48.dp)) {
                                 Icon(
                                     painter = painterResource(R.drawable.skip_previous),
                                     contentDescription = null,
@@ -698,7 +698,7 @@ fun LyricsScreen(
                             }
    
                             IconButton(
-                                onClick = { player.togglePlayPause() }, 
+                                onClick = { playerConnection.playPause() }, 
                                 modifier = Modifier.size(72.dp)
                             ) {
                                 Box(
@@ -719,7 +719,7 @@ fun LyricsScreen(
                                 }
                             }
     
-                            IconButton(onClick = { player.seekToNext() }, modifier = Modifier.size(48.dp)) {
+                            IconButton(onClick = { playerConnection.seekToNext() }, modifier = Modifier.size(48.dp)) {
                                 Icon(
                                     painter = painterResource(R.drawable.skip_next),
                                     contentDescription = null,

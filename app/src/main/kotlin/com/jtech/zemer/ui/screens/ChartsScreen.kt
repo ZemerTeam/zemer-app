@@ -272,7 +272,7 @@ fun ChartsScreen(
                                                 .combinedClickable(
                                                     onClick = {
                                                         if (song.id == mediaMetadata?.id) {
-                                                            playerConnection.player.togglePlayPause()
+                                                            playerConnection.playPause()
                                                         } else {
                                                             playerConnection.playQueue(
                                                                 YouTubeQueue(

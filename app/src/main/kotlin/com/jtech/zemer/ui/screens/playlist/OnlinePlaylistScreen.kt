@@ -451,7 +451,7 @@ fun OnlinePlaylistScreen(
                                     onClick = {
                                         if (!selection) {
                                             if (song.item.second.id == mediaMetadata?.id) {
-                                                playerConnection.player.togglePlayPause()
+                                                playerConnection.playPause()
                                             } else {
                                                 playerConnection.playQueue(
                                                     ListQueue(
