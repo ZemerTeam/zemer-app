@@ -4,13 +4,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cast
-import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
@@ -44,7 +42,7 @@ fun CastBottomSheet(
                         headlineContent = { Text(stringResource(R.string.stop_casting)) },
                         leadingContent = {
                             Icon(
-                                imageVector = Icons.Default.CastConnected,
+                                painter = painterResource(R.drawable.cast_connected),
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -74,7 +72,7 @@ fun CastBottomSheet(
                         headlineContent = { Text(device.name) },
                         leadingContent = {
                             Icon(
-                                imageVector = Icons.Default.Cast,
+                                painter = painterResource(R.drawable.cast),
                                 contentDescription = null
                             )
                         },

@@ -40,9 +40,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cast
-import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -369,7 +366,7 @@ fun Queue(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = if (isCasting) Icons.Default.CastConnected else Icons.Default.Cast,
+                                painter = painterResource(if (isCasting) R.drawable.cast_connected else R.drawable.cast),
                                 contentDescription = stringResource(R.string.cast_button_description),
                                 modifier = Modifier.size(iconSize),
                                 tint = if (isCasting) MaterialTheme.colorScheme.primary else TextBackgroundColor
