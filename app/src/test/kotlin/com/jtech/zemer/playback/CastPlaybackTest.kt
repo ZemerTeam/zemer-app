@@ -3,6 +3,7 @@ package com.jtech.zemer.playback
 import org.fcast.sender_sdk.PlaybackState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -22,6 +23,15 @@ class CastPlaybackTest {
         assertFalse(CastPlayback.isPlaying(PlaybackState.BUFFERING))
         assertFalse(CastPlayback.isPlaying(PlaybackState.IDLE))
         assertFalse("null (no remote state yet) must read as not playing", CastPlayback.isPlaying(null))
+    }
+
+    @Test
+    fun `playIntentForState maps PLAYING and PAUSED, ignores transient states`() {
+        assertEquals(true, CastPlayback.playIntentForState(PlaybackState.PLAYING))
+        assertEquals(false, CastPlayback.playIntentForState(PlaybackState.PAUSED))
+        assertNull("buffering must not change the play intent", CastPlayback.playIntentForState(PlaybackState.BUFFERING))
+        assertNull("idle must not change the play intent", CastPlayback.playIntentForState(PlaybackState.IDLE))
+        assertNull("null must not change the play intent", CastPlayback.playIntentForState(null))
     }
 
     @Test

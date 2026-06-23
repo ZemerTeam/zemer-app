@@ -15,6 +15,17 @@ object CastPlayback {
     /** True only when the remote device is actively playing (not paused, buffering, or idle). */
     fun isPlaying(state: PlaybackState?): Boolean = state == PlaybackState.PLAYING
 
+    /**
+     * The play intent a remote state change implies: PLAYING -> keep playing, PAUSED -> keep paused,
+     * transient/unknown states (buffering, idle, null) -> no change. Lets a pause/resume from the TV's
+     * own remote be mirrored into our intent without fighting it.
+     */
+    fun playIntentForState(state: PlaybackState?): Boolean? = when (state) {
+        PlaybackState.PLAYING -> true
+        PlaybackState.PAUSED -> false
+        else -> null
+    }
+
     /** Remote clock (seconds) → app/player milliseconds. */
     fun remoteSecondsToMs(seconds: Double): Long = (seconds * 1000).toLong()
 
