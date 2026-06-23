@@ -68,13 +68,16 @@ fun playPause() {
     } else player.togglePlayPause()
 }
 fun seekTo(ms)            { if (isCasting.value) discoveryHandler.seek(msToRemoteSeconds(ms)) else player.seekTo(ms) }
-fun currentPositionMs()   = if (isCasting.value) remoteSecondsToMs(remoteTime.value)     else player.currentPosition
-fun currentDurationMs()   = if (isCasting.value) remoteSecondsToMs(remoteDuration.value) else player.duration
+fun currentPositionMs()   = if (isCasting.value) remoteSecondsToMs(interpolatedRemoteTimeSec()) else player.currentPosition
+fun currentDurationMs()   = if (isCasting.value) remoteSecondsToMs(remoteDuration.value)        else player.duration
 ```
 
 `Player.kt`, `MiniPlayer.kt`, `Lyrics.kt`, and `Thumbnail.kt` all read
 `currentPositionMs()` / `currentDurationMs()` and call `playPause()` / `seekTo()`
 — never the remote flows directly — so the seek bar can't drift between surfaces.
+The position is the **interpolated** remote clock (`interpolatedRemoteTimeSec()`),
+which extrapolates between the receiver's coarse ~1 Hz reports so the bar moves
+smoothly — see [05](05-auto-advance.md).
 
 `isCasting` is a `stateIn(Lazily)` flow; its upstream is started by an in-class
 collector in `PlayerConnection.init` (the stall poll) and by the UI, so

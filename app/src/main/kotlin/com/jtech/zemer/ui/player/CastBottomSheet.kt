@@ -151,13 +151,7 @@ fun CastPicker(
             }
 
             CastLibState.Downloading -> CastCenteredColumn {
-                CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.dp)
-                Spacer(Modifier.height(16.dp))
-                CenteredText(
-                    text = stringResource(R.string.cast_downloading_support),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                CastSpinnerText(R.string.cast_downloading_support)
             }
 
             is CastLibState.Failed -> CastCenteredColumn {
@@ -178,13 +172,7 @@ fun CastPicker(
                 )
 
                 devices.isEmpty() -> CastCenteredColumn {
-                    CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.height(16.dp))
-                    CenteredText(
-                        text = stringResource(R.string.cast_searching),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    CastSpinnerText(R.string.cast_searching)
                     Spacer(Modifier.height(4.dp))
                     CenteredText(
                         text = stringResource(R.string.cast_same_wifi_hint),
@@ -247,13 +235,7 @@ fun CastDownloadDialog(
     ) {
         when (val s = libState) {
             CastLibState.Downloading -> {
-                CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.dp)
-                Spacer(Modifier.height(16.dp))
-                CenteredText(
-                    text = stringResource(R.string.cast_downloading_support),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                CastSpinnerText(R.string.cast_downloading_support)
             }
             is CastLibState.Failed -> {
                 CenteredText(stringResource(castFailureMessageRes(s.reason)), style = MaterialTheme.typography.bodyLarge)
@@ -348,6 +330,18 @@ private fun CastCenteredColumn(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 private fun CenteredText(text: String, style: TextStyle, color: Color = Color.Unspecified) {
     Text(text = text, style = style, color = color, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+}
+
+/** Spinner + a centered caption — the shared "working…" body for the downloading and searching states. */
+@Composable
+private fun CastSpinnerText(@androidx.annotation.StringRes textRes: Int) {
+    CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.dp)
+    Spacer(Modifier.height(16.dp))
+    CenteredText(
+        text = stringResource(textRes),
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable

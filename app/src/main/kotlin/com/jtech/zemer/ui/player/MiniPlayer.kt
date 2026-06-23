@@ -82,14 +82,12 @@ import coil3.compose.AsyncImage
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
-import com.jtech.zemer.constants.CastEnabledKey
 import com.jtech.zemer.constants.MiniPlayerHeight
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.SwipeSensitivityKey
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
-import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.MediaMetadata
@@ -177,11 +175,6 @@ private fun NewMiniPlayer(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
-
-    val currentService = playerConnection.service
-    val castEnabled by rememberPreference(CastEnabledKey, defaultValue = false)
-    val menuState = LocalMenuState.current
-    val connectedDevice by currentService.discoveryHandler.connectedDeviceFlow.collectAsState()
 
     LocalView.current
     val layoutDirection = LocalLayoutDirection.current
@@ -584,7 +577,7 @@ private fun NewMiniPlayer(
                     }
                 }
 
-                if (castEnabled || connectedDevice != null) {
+                rememberCastButtonState()?.let { castState ->
                     Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         contentAlignment = Alignment.Center,
@@ -593,30 +586,26 @@ private fun NewMiniPlayer(
                             .clip(CircleShape)
                             .border(
                                 width = 1.dp,
-                                color = if (connectedDevice != null)
+                                color = if (castState.connected)
                                     MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                                 else
                                     MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                                 shape = CircleShape
                             )
                             .background(
-                                color = if (connectedDevice != null)
+                                color = if (castState.connected)
                                     MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                                 else
                                     Color.Transparent,
                                 shape = CircleShape
                             )
                             .focusBorder(CircleShape)
-                            .clickable { openCastPicker(playerConnection, menuState) }
+                            .clickable(onClick = castState.onClick)
                     ) {
-                        Icon(
-                            painter = painterResource(if (connectedDevice != null) R.drawable.cast_connected else R.drawable.cast),
-                            contentDescription = stringResource(R.string.cast_button_description),
-                            tint = if (connectedDevice != null)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            modifier = Modifier.size(20.dp)
+                        CastIcon(
+                            connected = castState.connected,
+                            idleTint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            size = 20.dp,
                         )
                     }
                 }
@@ -770,11 +759,6 @@ private fun LegacyMiniPlayer(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
-
-    val currentService = playerConnection.service
-    val castEnabled by rememberPreference(CastEnabledKey, defaultValue = false)
-    val menuState = LocalMenuState.current
-    val connectedDevice by currentService.discoveryHandler.connectedDeviceFlow.collectAsState()
 
     LocalView.current
     val layoutDirection = LocalLayoutDirection.current
@@ -931,14 +915,12 @@ private fun LegacyMiniPlayer(
                 }
             }
 
-            if (castEnabled || connectedDevice != null) {
-                IconButton(
-                    onClick = { openCastPicker(playerConnection, menuState) },
-                ) {
-                    Icon(
-                        painter = painterResource(if (connectedDevice != null) R.drawable.cast_connected else R.drawable.cast),
-                        contentDescription = stringResource(R.string.cast_button_description),
-                        tint = if (connectedDevice != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            rememberCastButtonState()?.let { castState ->
+                IconButton(onClick = castState.onClick) {
+                    CastIcon(
+                        connected = castState.connected,
+                        idleTint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        size = 24.dp,
                     )
                 }
             }

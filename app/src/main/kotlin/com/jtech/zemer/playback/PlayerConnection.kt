@@ -176,9 +176,9 @@ class PlayerConnection(
         }
     }
 
-    /** Current playback position (ms) — the remote clock while casting, else the local player. */
+    /** Current playback position (ms) — the smoothed remote clock while casting, else the local player. */
     fun currentPositionMs(): Long =
-        if (isCasting.value) CastPlayback.remoteSecondsToMs(service.discoveryHandler.remoteTime.value)
+        if (isCasting.value) CastPlayback.remoteSecondsToMs(service.discoveryHandler.interpolatedRemoteTimeSec())
         else player.currentPosition
 
     /** Current item duration (ms) — the remote clock while casting, else the local player. */
