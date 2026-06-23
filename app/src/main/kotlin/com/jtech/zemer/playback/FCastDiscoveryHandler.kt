@@ -54,19 +54,13 @@ class DevEventHandler(
 
     override fun playbackStateChanged(state: PlaybackState) {
         handler.remotePlaybackState.value = state
-        if (state == PlaybackState.PLAYING || state == PlaybackState.BUFFERING) {
-            if (!handler.shouldPlay) {
-                // If device auto-plays on reconnect but we should be paused, force pause
-                device.pausePlayback()
-            } else {
-                handler.shouldPlay = true
-            }
-        } else if (state == PlaybackState.PAUSED) {
-            if (handler.shouldPlay) {
-                device.resumePlayback()
-            } else {
-                handler.shouldPlay = false
-            }
+        // Mirror the receiver's own state into our play intent instead of overriding it, so a
+        // pause/resume from the TV's remote sticks. Pause-on-reconnect is enforced in
+        // connectionStateChanged, not here.
+        when (state) {
+            PlaybackState.PLAYING -> handler.shouldPlay = true
+            PlaybackState.PAUSED -> handler.shouldPlay = false
+            else -> {}
         }
     }
 
