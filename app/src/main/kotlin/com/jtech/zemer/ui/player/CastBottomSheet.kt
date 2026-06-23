@@ -17,6 +17,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.ui.component.focusBorder
+import kotlinx.coroutines.launch
 import org.fcast.sender_sdk.CastingDevice
 import org.fcast.sender_sdk.DeviceInfo
 import org.fcast.sender_sdk.Metadata
@@ -119,17 +120,23 @@ fun CastSheet(
         },
         onDeviceSelected = { deviceInfo, url, type, metadata ->
             playerConnection.player.pause()
-            handler.connectTo(
-                deviceInfo = deviceInfo,
-                streamUrl = url,
-                contentType = type,
-                metadata = metadata,
-                resumePosition = playerConnection.player.currentPosition / 1000.0,
-                onTrackEnded = {
-                    playerConnection.seekToNext()
-                    playerConnection.player.play()
-                }
-            )
+            playerConnection.scope.launch {
+                // Resolve the stream URL if it wasn't cached yet (e.g. casting a song that was never
+                // played locally) — otherwise the device connects but plays nothing.
+                val streamUrl = url
+                    ?: playerConnection.player.currentMediaItem?.mediaId?.let { service.resolveStreamUrl(it) }
+                handler.connectTo(
+                    deviceInfo = deviceInfo,
+                    streamUrl = streamUrl,
+                    contentType = type ?: service.currentContentType,
+                    metadata = metadata,
+                    resumePosition = playerConnection.player.currentPosition / 1000.0,
+                    onTrackEnded = {
+                        playerConnection.seekToNext()
+                        playerConnection.player.play()
+                    }
+                )
+            }
         },
         onDisconnect = { handler.disconnect() },
         onDismiss = onDismiss,
