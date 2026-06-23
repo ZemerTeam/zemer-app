@@ -73,16 +73,19 @@ split-brain). The `Connected`-based predicate is the source of truth; see
 | `FCastDiscoveryHandler` | == `MusicService` (process) | `MusicService` field |
 | `castContext` (`CastContext()`) | lazy, first touched in `connectTo()` | `FCastDiscoveryHandler` `by lazy` |
 | `CastNativeLibLoader` | == `MusicService` | `MusicService` `by lazy` |
+| `CastController` | == `MusicService` (process) | `MusicService` `by lazy` |
 | `NsdDeviceDiscoverer` | from first `startDiscovery()` to process death | `MusicService.startDiscovery()` |
 | `PlayerConnection` | == bound Activity (disposed on unbind/destroy) | `MainActivity.onServiceConnected` |
 
 The **lifetime mismatch matters**: the handler and the cast session outlive any
-single `PlayerConnection`. Because the in-app seam *and* the auto-advance
-detectors live in `PlayerConnection`, a cast session can keep playing after the
-Activity is destroyed but will not auto-advance until a `PlayerConnection`
-rebinds. This is a deliberately-bounded limitation, documented in
-`MusicService.onMediaItemTransition` and in
-[05-auto-advance](05-auto-advance.md) / [07-testing-and-troubleshooting](07-testing-and-troubleshooting.md).
+single `PlayerConnection`. So the cast **control plane** — the auto-advance
+detectors, the track-change reload, and disconnect recovery — lives in
+`CastController`, owned by the (process-scoped) `MusicService`, **not** in the
+Activity-scoped `PlayerConnection`. A cast session therefore keeps advancing
+through its queue even after the Activity is destroyed. `PlayerConnection` holds
+only the UI-facing seam (play/seek routing + the observable state flows) and
+delegates its few cast hooks to `CastController`. See
+[05-auto-advance](05-auto-advance.md).
 
 ### Connect / disconnect lifecycle
 

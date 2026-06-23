@@ -126,7 +126,7 @@ restart the track.
 
 ## Loading a (new) track onto the receiver
 
-`load()` is called by `PlayerConnection.triggerRemoteLoad` on every track change
+`load()` is called by `CastController.triggerRemoteLoad` on every track change
 while casting:
 
 ```kotlin
@@ -160,7 +160,7 @@ fun onConnectionDisconnected() {         // the single teardown path
     connectedDevice = null; connectedDeviceFlow.value = null
     remotePlaybackState.value = null
     remoteConnectionState.value = Disconnected
-    onDisconnect?.invoke(lastPos)        // PlayerConnection resumes local at lastPos, paused
+    onDisconnect?.invoke(lastPos)        // CastController resumes local at lastPos, paused
 }
 
 override fun deviceRemoved(deviceName) {            // device vanished from discovery

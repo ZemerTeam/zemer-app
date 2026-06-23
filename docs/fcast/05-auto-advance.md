@@ -1,9 +1,10 @@
 # 05 — End-of-track auto-advance
 
 The FCast SDK does not advance our queue when a track finishes — it just plays the
-one URL we loaded. So `PlayerConnection` detects end-of-track on the receiver and
-drives the next load. Because no single SDK signal is reliable across receivers,
-**three independent detectors** feed one debounced advance.
+one URL we loaded. So `CastController` (owned by the process-scoped `MusicService`)
+detects end-of-track on the receiver and drives the next load. Because no single
+SDK signal is reliable across receivers, **three independent detectors** feed one
+debounced advance.
 
 All timing thresholds are pure and unit-tested in `CastAutoAdvance`:
 
@@ -23,7 +24,7 @@ object CastAutoAdvance {
 
 ## The three detectors
 
-All live in `PlayerConnection` and call the shared `advanceRemoteAfterEnd()`.
+All live in `CastController` and call the shared `advanceRemoteAfterEnd()`.
 
 1. **SDK `END` event** — `DevEventHandler.mediaEvent(END)` → `onTrackEnded` →
    `advanceRemoteAfterEnd()`. The cleanest signal when the receiver sends it.
@@ -85,18 +86,17 @@ spuriously auto-skips it. Recording `0` is safe because `nearEnd(dur, 0, eps)` i
 false for any real-length track. This property is pinned by a regression test in
 `CastAutoAdvanceTest` ("resetting last position to zero clears a stale near-end").
 
-On disconnect, `onDisconnectCallback` also resets `lastRemotePosition`,
-`lastRemoteTimeUpdateAt`, `lastTransitionTime`, and `remoteLoadedMediaId` — so a
-later reconnect/new track doesn't auto-skip on stale near-end state.
+On disconnect, `CastController`'s `onDisconnect` handler also resets
+`lastRemotePosition`, `lastRemoteTimeUpdateAt`, `lastTransitionTime`, and
+`remoteLoadedMediaId` — so a later reconnect/new track doesn't auto-skip on stale
+near-end state.
 
-## Known limitation: advance requires a bound `PlayerConnection`
+## Advance survives the Activity being destroyed
 
-All three detectors and the reload live in `PlayerConnection`, which is disposed
-when the Activity is destroyed. If the Activity is destroyed while the service
-keeps casting, an auto-advance is **not** reloaded onto the receiver until a
-`PlayerConnection` rebinds — the receiver finishes the current track and stops.
-This is deliberately bounded: the alternative (a second reload owner in the
-long-lived `MusicService`) double-loaded the receiver on every track change. The
-deeper fix — moving the cast-advance loop into `MusicService` — is deferred and
-documented in `MusicService.onMediaItemTransition`. See
-[07](07-testing-and-troubleshooting.md).
+All three detectors and the reload live in `CastController`, owned by the
+process-scoped `MusicService` (not the Activity-scoped `PlayerConnection`). So a
+cast session keeps advancing through its queue even when the Activity is destroyed
+mid-cast. `MusicService.onMediaItemTransition` drives the single reload owner
+(`CastController.onMediaItemTransition`), so there is exactly one reload per track
+change — no double-load. (Earlier the control plane lived in `PlayerConnection`,
+which made auto-advance stop once the Activity went away; that limitation is gone.)

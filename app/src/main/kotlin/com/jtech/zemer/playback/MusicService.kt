@@ -196,6 +196,11 @@ class MusicService :
     // base context is attached; its init applies the libraryOverride if a verified copy is already cached.
     val castLibLoader by lazy { CastNativeLibLoader(this) }
 
+    // The cast control plane (auto-advance detectors + receiver reload + disconnect recovery), owned by
+    // the (process-scoped) service so casting keeps advancing through its queue even after the UI Activity
+    // is destroyed. Lazily built on first cast use; its init wires the detectors and the onDisconnect hook.
+    val castController by lazy { CastController(this, scope) }
+
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
     private var lastAudioFocusState = AudioManager.AUDIOFOCUS_NONE
@@ -364,7 +369,7 @@ class MusicService :
         }
         mediaSession =
             MediaLibrarySession
-                .Builder(this, CastAwarePlayer(player, discoveryHandler), mediaLibrarySessionCallback)
+                .Builder(this, CastAwarePlayer(player, discoveryHandler, scope), mediaLibrarySessionCallback)
                 .setSessionActivity(
                     PendingIntent.getActivity(
                         this,
@@ -1252,12 +1257,11 @@ class MusicService :
         setupLoudnessEnhancer()
         updateWidget()
 
-        // NOTE: the cast receiver reload on a track change is owned solely by PlayerConnection
-        // (onMediaItemTransition → triggerRemoteLoad), not here, so it runs exactly once — adding a
-        // second reload here would double-load the receiver while casting. Known bounded limitation:
-        // if the Activity (hence PlayerConnection) is destroyed while the service keeps casting, an
-        // auto-advance is not reloaded onto the receiver until a PlayerConnection rebinds. Moving the
-        // cast-advance loop into this (long-lived) service is the deeper fix, deferred deliberately.
+        // The cast receiver reload on a track change is owned by the (process-scoped) CastController, so it
+        // runs whether or not a PlayerConnection is currently bound — auto-advance survives the UI Activity
+        // being destroyed mid-cast. It is the single owner (PlayerConnection no longer reloads), so the
+        // receiver is loaded exactly once per transition.
+        castController.onMediaItemTransition(mediaItem, reason)
 
         // Auto load more songs
         if (dataStore.get(AutoLoadMoreKey, true) &&

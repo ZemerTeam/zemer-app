@@ -120,10 +120,12 @@ fun CastPicker(
                 contentType = service.currentContentType,
                 metadata = mediaMetadata?.toCastMetadata(),
                 resumePosition = playerConnection.player.currentPosition / 1000.0,
-                onTrackEnded = { playerConnection.advanceRemoteAfterEnd() },
+                // Captures the (process-scoped) controller, not this Activity's connection, so the SDK's
+                // end-of-track callback keeps auto-advancing even if the Activity is later destroyed.
+                onTrackEnded = { service.castController.advanceRemoteAfterEnd() },
             )
             // Record what the receiver is now playing so the first PLAYLIST_CHANGED doesn't reload it.
-            playerConnection.markRemoteLoaded(currentId)
+            service.castController.markRemoteLoaded(currentId)
         }
         onDismiss()
     }
