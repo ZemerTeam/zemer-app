@@ -387,7 +387,6 @@ fun Thumbnail(
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
                                             .padding(8.dp),
-                                        tintColor = textBackgroundColor,
                                     )
                                 }
                             }

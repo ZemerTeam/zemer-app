@@ -349,15 +349,15 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeArtistMenu.kt` | 204 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubePlaylistMenu.kt` | 477 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeSongMenu.kt` | 469 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/player/CastBottomSheet.kt` | 381 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/player/CastButton.kt` | 107 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/player/CastBottomSheet.kt` | 388 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/player/CastButton.kt` | 93 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/LyricsScreen.kt` | 748 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/MiniPlayer.kt` | 1075 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/PlaybackError.kt` | 45 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Player.kt` | 1386 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/PlayerBackground.kt` | 116 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt` | 1136 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 501 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 500 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AccountScreen.kt` | 200 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AlbumScreen.kt` | 635 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/BrowseScreen.kt` | 143 lines | `.kt` |
@@ -755,7 +755,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/fcast/03-discovery-and-connection.md` | 174 lines | `.md` |
 | `docs/fcast/04-playback-and-transport.md` | 170 lines | `.md` |
 | `docs/fcast/05-auto-advance.md` | 133 lines | `.md` |
-| `docs/fcast/06-ui.md` | 101 lines | `.md` |
+| `docs/fcast/06-ui.md` | 102 lines | `.md` |
 | `docs/fcast/07-testing-and-troubleshooting.md` | 94 lines | `.md` |
 | `docs/fcast/README.md` | 66 lines | `.md` |
 | `docs/generate.py` | 487 lines | `.py` |

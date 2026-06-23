@@ -114,12 +114,19 @@ fun CastPicker(
                 Toast.makeText(context, R.string.cast_stream_failed, Toast.LENGTH_SHORT).show()
                 return@launch
             }
+            // Resume position, clamped away from the track end. Connecting at the exact instant a track is
+            // ending locally would otherwise cast the outgoing item at pos==duration — a full progress bar
+            // that immediately trips the end-of-track auto-advance. At the boundary, start from 0 instead;
+            // the queue's upcoming PLAYLIST_CHANGED reloads the correct (now-current) item either way.
+            val posMs = playerConnection.player.currentPosition
+            val durMs = playerConnection.player.duration
+            val resumeSec = if (durMs > 0 && posMs >= durMs - 1500) 0.0 else (posMs / 1000.0).coerceAtLeast(0.0)
             handler.connectTo(
                 deviceInfo = device,
                 streamUrl = streamUrl,
                 contentType = service.currentContentType,
                 metadata = mediaMetadata?.toCastMetadata(),
-                resumePosition = playerConnection.player.currentPosition / 1000.0,
+                resumePosition = resumeSec,
                 // Captures the (process-scoped) controller, not this Activity's connection, so the SDK's
                 // end-of-track callback keeps auto-advancing even if the Activity is later destroyed.
                 onTrackEnded = { service.castController.advanceRemoteAfterEnd() },
