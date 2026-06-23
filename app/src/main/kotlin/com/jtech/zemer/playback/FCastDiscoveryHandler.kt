@@ -187,10 +187,6 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         connectedDevice?.seek(position)
     }
 
-    fun stop() {
-        connectedDevice?.stopPlayback()
-    }
-
     override fun deviceAvailable(deviceInfo: DeviceInfo) {
         discoveredDevices[deviceInfo.name] = deviceInfo
         discoveredDevicesFlow.value = discoveredDevices.values.toList()
