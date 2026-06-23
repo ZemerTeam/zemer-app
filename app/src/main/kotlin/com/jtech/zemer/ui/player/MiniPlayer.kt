@@ -71,7 +71,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -262,7 +261,6 @@ private fun NewMiniPlayer(
     val subtitleColor =
         if (lightContent) Color.White.copy(alpha = 0.7f)
         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-
 
     Box(
         modifier = modifier
@@ -482,12 +480,7 @@ private fun NewMiniPlayer(
                                 shape = CircleShape
                             )
                             .clickable {
-                                if (playbackState == Player.STATE_ENDED) {
-                                    playerConnection.player.seekTo(0, 0)
-                                    playerConnection.player.playWhenReady = true
-                                } else {
-                                    playerConnection.playPause()
-                                }
+                                playerConnection.playPauseOrReplay(playbackState == Player.STATE_ENDED)
                             }
                     ) {
                         // Thumbnail background
@@ -808,7 +801,6 @@ private fun LegacyMiniPlayer(
     }
     val autoSwipeThreshold = calculateAutoSwipeThreshold(swipeSensitivity)
 
-
     Box(
         modifier = modifier
             .then(
@@ -953,12 +945,7 @@ private fun LegacyMiniPlayer(
 
             IconButton(
                 onClick = {
-                    if (playbackState == Player.STATE_ENDED) {
-                        playerConnection.player.seekTo(0, 0)
-                        playerConnection.player.playWhenReady = true
-                    } else {
-                        playerConnection.playPause()
-                    }
+                    playerConnection.playPauseOrReplay(playbackState == Player.STATE_ENDED)
                 },
             ) {
                 Icon(

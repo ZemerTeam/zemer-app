@@ -782,7 +782,12 @@ fun Queue(
                                                         playerConnection.player.seekToDefaultPosition(
                                                             window.firstPeriodIndex,
                                                         )
-                                                        playerConnection.player.playWhenReady = true
+                                                        // While casting, the resulting media-item
+                                                        // transition reloads the receiver; don't start
+                                                        // local audio over the cast stream.
+                                                        if (!playerConnection.isCasting.value) {
+                                                            playerConnection.player.playWhenReady = true
+                                                        }
                                                     }
                                                 }
                                             },

@@ -1273,8 +1273,11 @@ class MusicService :
      * does: the receiver only needs a URL + container, not the song-details metadata.
      */
     suspend fun resolveStreamUrl(mediaId: String): String? {
-        songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
-            return it.first
+        // Trust the cached URL only when its container MIME is cached too. songUrlCache is the shared
+        // cache also populated by local playback, which may not have recorded the MIME; returning a URL
+        // whose MIME then defaults to "audio/mp4" makes the receiver reject an opus/webm stream.
+        songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let { cached ->
+            if (songMimeCache.containsKey(mediaId)) return cached.first
         }
 
         return withContext(Dispatchers.IO) {
@@ -1736,6 +1739,9 @@ class MusicService :
 
                 songUrlCache[mediaId] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
+                // Keep the cast-MIME cache coherent with the URL cache it's written alongside, so a song
+                // played locally first then cast carries its real container (not the "audio/mp4" default).
+                songMimeCache[mediaId] = format.mimeType.split(";")[0]
                 return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
         }

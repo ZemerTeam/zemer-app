@@ -372,6 +372,12 @@ class MainActivity : ComponentActivity() {
         try {
             unbindService(serviceConnection)
         } catch (e: IllegalArgumentException) {
+        } finally {
+            // unbindService does NOT deliver onServiceDisconnected, so dispose here — otherwise the cast
+            // collectors + the 1 Hz stall poll keep running on the backgrounded Activity. onStart re-binds
+            // and re-creates the connection (onServiceConnected already disposes any leftover first).
+            playerConnection?.dispose()
+            playerConnection = null
         }
         super.onStop()
     }

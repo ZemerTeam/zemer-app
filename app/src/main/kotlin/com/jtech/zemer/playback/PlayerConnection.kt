@@ -26,6 +26,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.fcast.sender_sdk.PlaybackState
 import org.fcast.sender_sdk.DeviceConnectionState
@@ -104,16 +105,20 @@ class PlayerConnection(
     private var lastRemotePosition = 0.0
     private var lastRemoteTimeUpdateAt = System.currentTimeMillis()
     private var remoteLoadedMediaId: String? = null
+    private var remoteLoadJob: Job? = null
 
     // Stored so [dispose] can clear it from the singleton handler only if it's still ours.
     private val onDisconnectCallback: (Long) -> Unit = { lastRemotePos ->
-        // Reset cast tracking so a later reconnect/new track doesn't auto-skip on stale near-end state,
-        // and so the PLAYLIST_CHANGED de-dup doesn't suppress a real load against a now-stale id.
-        lastRemotePosition = 0.0
-        lastRemoteTimeUpdateAt = System.currentTimeMillis()
-        lastTransitionTime = System.currentTimeMillis()
-        remoteLoadedMediaId = null
+        // Invoked on the SDK's native disconnect-callback thread. Hop to the connection scope (main)
+        // before touching the cast-tracking fields and the player, so these writes are serialised with
+        // the main-thread collectors that also read/write them (no torn/stale reads, no @Volatile needed).
+        // Resetting the tracking also stops a later reconnect/new track from auto-skipping on stale
+        // near-end state, and stops the PLAYLIST_CHANGED de-dup from suppressing a real load.
         scope.launch {
+            lastRemotePosition = 0.0
+            lastRemoteTimeUpdateAt = System.currentTimeMillis()
+            lastTransitionTime = System.currentTimeMillis()
+            remoteLoadedMediaId = null
             player.seekTo(lastRemotePos)
             player.prepare()
             player.playWhenReady = false
@@ -231,6 +236,20 @@ class PlayerConnection(
         }
     }
 
+    /**
+     * The play/pause-button action: replay from the start when the local queue has ended ([localEnded]),
+     * otherwise toggle. While casting the receiver is the source of truth, so always toggle the remote —
+     * never restart the (paused) local player on top of the cast stream.
+     */
+    fun playPauseOrReplay(localEnded: Boolean) {
+        if (localEnded && !isCasting.value) {
+            player.seekTo(0, 0)
+            player.playWhenReady = true
+        } else {
+            playPause()
+        }
+    }
+
     fun seekTo(positionMs: Long) {
         if (isCasting.value) {
             service.discoveryHandler.seek(CastPlayback.msToRemoteSeconds(positionMs))
@@ -312,11 +331,14 @@ class PlayerConnection(
     fun advanceRemoteAfterEnd() {
         scope.launch {
             if (!CastAutoAdvance.debouncePassed(System.currentTimeMillis(), lastTransitionTime)) return@launch
-            lastTransitionTime = System.currentTimeMillis()
+            // Stamp the debounce window only when we actually advance — a no-op end report on the last
+            // track (repeat off, nothing to skip to) must not burn the window against a later real event.
             if (player.repeatMode == REPEAT_MODE_ONE) {
+                lastTransitionTime = System.currentTimeMillis()
                 player.seekTo(player.currentMediaItemIndex, 0)
                 triggerRemoteLoad(player.currentMediaItem)
             } else if (canSkipNext.value) {
+                lastTransitionTime = System.currentTimeMillis()
                 seekToNext()
             }
         }
@@ -329,8 +351,20 @@ class PlayerConnection(
         // the previous track's stale near-end position before the new track first reports its own clock.
         lastRemotePosition = 0.0
         lastRemoteTimeUpdateAt = System.currentTimeMillis()
-        scope.launch {
-            val url = service.resolveStreamUrl(mediaId) ?: return@launch
+        // Cancel any still-in-flight resolve for a previous track so a slow earlier resolve can't land on
+        // the receiver after a faster later one (rapid skips would otherwise play whichever URL resolved
+        // last by network latency, not the current track).
+        remoteLoadJob?.cancel()
+        remoteLoadJob = scope.launch {
+            val url = service.resolveStreamUrl(mediaId)
+            if (!isActive) return@launch // superseded by a newer triggerRemoteLoad
+            if (url == null) {
+                // The receiver was NOT loaded, so don't let the de-dup keep believing this id is on it —
+                // that would suppress a later genuine reload of the same id. Clear it and surface the failure.
+                if (remoteLoadedMediaId == mediaId) remoteLoadedMediaId = null
+                reportException(IllegalStateException("FCast: could not resolve a stream URL for $mediaId"))
+                return@launch
+            }
             service.discoveryHandler.load(url, service.streamContentType(mediaId), mediaItem.metadata?.toCastMetadata())
         }
     }
