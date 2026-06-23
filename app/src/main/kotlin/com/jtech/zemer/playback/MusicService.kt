@@ -1832,8 +1832,10 @@ class MusicService :
             saveQueueToDisk()
         }
         // Tear down any active cast session so the receiver doesn't keep playing an orphaned stream
-        // after the service dies. (sender-sdk 0.4.0's NsdDeviceDiscoverer exposes no stop API, so the
-        // NSD discovery itself can't be halted here.)
+        // after the service dies. Clear onDisconnect first so the async Disconnected callback can't
+        // seek/prepare the player we're about to release. (sender-sdk 0.4.0's NsdDeviceDiscoverer has
+        // no stop API, so the NSD discovery itself can't be halted here.)
+        discoveryHandler.onDisconnect = null
         discoveryHandler.connectedDevice?.let { device ->
             runCatching { device.stopPlayback() }
             runCatching { device.disconnect() }
