@@ -351,7 +351,8 @@ fun Queue(
                         )
                     }
                     val service = playerConnection.service
-                    val devices = service.discoveryHandler.discoveredDevices.values.toList()
+                    val devices by service.discoveryHandler.discoveredDevicesFlow.collectAsState()
+                    val connectedDevice by service.discoveryHandler.connectedDeviceFlow.collectAsState()
                     val isCasting by playerConnection.isCasting.collectAsState()
                     var showCastSheet by remember { mutableStateOf(false) }
 
@@ -377,7 +378,7 @@ fun Queue(
                     if (showCastSheet) {
                         CastBottomSheet(
                             devices = devices,
-                            connectedDevice = service.discoveryHandler.connectedDevice,
+                            connectedDevice = connectedDevice,
                             streamUrl = service.currentStreamUrl,
                             contentType = service.currentContentType,
                             metadata = mediaMetadata?.let {
