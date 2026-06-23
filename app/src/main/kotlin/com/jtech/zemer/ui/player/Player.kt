@@ -95,6 +95,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
+import com.jtech.zemer.playback.CastPlayback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -408,12 +409,12 @@ fun BottomSheetPlayer(
         if (playbackState == STATE_READY || isCasting) {
             while (isActive) {
                 position = if (isCasting) {
-                    (playerConnection.service.discoveryHandler.remoteTime.value * 1000).toLong()
+                    CastPlayback.remoteSecondsToMs(playerConnection.service.discoveryHandler.remoteTime.value)
                 } else {
                     playerConnection.player.currentPosition
                 }
                 duration = if (isCasting) {
-                    (playerConnection.service.discoveryHandler.remoteDuration.value * 1000).toLong()
+                    CastPlayback.remoteSecondsToMs(playerConnection.service.discoveryHandler.remoteDuration.value)
                 } else {
                     playerConnection.player.duration
                 }

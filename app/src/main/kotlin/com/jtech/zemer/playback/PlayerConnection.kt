@@ -51,7 +51,7 @@ class PlayerConnection(
     val isPlaying =
         combine(playbackState, playWhenReady, isCasting, service.discoveryHandler.remotePlaybackState) { playbackState, playWhenReady, casting, remoteState ->
             if (casting && remoteState != null) {
-                remoteState.toString().contains("Playing", ignoreCase = true)
+                CastPlayback.isPlaying(remoteState)
             } else {
                 playWhenReady && playbackState != STATE_ENDED
             }
@@ -64,11 +64,11 @@ class PlayerConnection(
     val mediaMetadata = MutableStateFlow(player.currentMetadata)
 
     val currentPosition = combine(isCasting, service.discoveryHandler.remoteTime, mediaMetadata) { casting, remoteTime, _ ->
-        if (casting) (remoteTime * 1000).toLong() else player.currentPosition
+        if (casting) CastPlayback.remoteSecondsToMs(remoteTime) else player.currentPosition
     }.stateIn(scope, SharingStarted.Lazily, player.currentPosition)
 
     val duration = combine(isCasting, service.discoveryHandler.remoteDuration, mediaMetadata) { casting, remoteDuration, _ ->
-        if (casting) (remoteDuration * 1000).toLong() else player.duration
+        if (casting) CastPlayback.remoteSecondsToMs(remoteDuration) else player.duration
     }.stateIn(scope, SharingStarted.Lazily, player.duration)
 
     val currentSong =
@@ -202,7 +202,7 @@ class PlayerConnection(
     fun playPause() {
         if (isCasting.value) {
             val remoteState = service.discoveryHandler.remotePlaybackState.value
-            if (remoteState != null && remoteState.toString().contains("Playing", ignoreCase = true)) {
+            if (CastPlayback.isPlaying(remoteState)) {
                 service.discoveryHandler.pause()
             } else {
                 service.discoveryHandler.play()
@@ -218,7 +218,7 @@ class PlayerConnection(
 
     fun seekTo(positionMs: Long) {
         if (isCasting.value) {
-            service.discoveryHandler.seek(positionMs / 1000.0)
+            service.discoveryHandler.seek(CastPlayback.msToRemoteSeconds(positionMs))
         } else {
             player.seekTo(positionMs)
         }
