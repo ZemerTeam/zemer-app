@@ -41,6 +41,15 @@ class CastController(
     private var remoteLoadedMediaId: String? = null
     private var remoteLoadJob: Job? = null
 
+    // The running max position (sec) seen since the last track-load reset, immune to a receiver zeroing
+    // the reported position in the SAME status update that also carries the terminal end-of-track IDLE —
+    // confirmed via device logs: timeChanged(0.0) fires immediately before playbackStateChanged(IDLE) for
+    // the very same end-of-track event, so by the time the IDLE transition is observed, the live remoteTime
+    // already reads 0 and a near-end check against it incorrectly fails. A legitimate position only ever
+    // increases while playing, so a sudden drop is simply never the new max and is safely ignored — except
+    // at an actual new-track boundary, where this is explicitly reset alongside lastRemotePosition.
+    private var lastPlayingPositionSec = 0.0
+
     init {
         // Recover the LOCAL player to the last remote position (paused) on disconnect, so the user can
         // resume on the phone, and reset tracking so a later reconnect/new track doesn't auto-skip on
@@ -48,6 +57,7 @@ class CastController(
         handler.onDisconnect = { lastRemotePosMs ->
             scope.launch {
                 lastRemotePosition = 0.0
+                lastPlayingPositionSec = 0.0
                 lastRemoteTimeUpdateAt = System.currentTimeMillis()
                 lastTransitionTime = System.currentTimeMillis()
                 remoteLoadedMediaId = null
@@ -62,17 +72,22 @@ class CastController(
                 // Track unconditionally: connectTo()/load() reset remoteTime to 0 for a new track, and that
                 // 0 must clear a previous track's near-end position — otherwise a fresh connect or a device
                 // switch leaves the stall detector comparing the new track's duration against the old
-                // track's near-end position and spuriously auto-skipping. nearEnd(dur, 0) is false, so a
+                // track's near-end position and spuriously auto-skipping it. nearEnd(dur, 0) is false, so a
                 // genuine mid-track 0 is harmless.
                 lastRemotePosition = time
                 lastRemoteTimeUpdateAt = System.currentTimeMillis()
+                if (time > lastPlayingPositionSec) lastPlayingPositionSec = time
             }
         }
         scope.launch {
             var lastState = handler.remotePlaybackState.value
             handler.remotePlaybackState.collect { state ->
                 val dur = handler.remoteDuration.value
-                val pos = handler.remoteTime.value
+
+                // THE FIX: Prevent 'pos' from dropping to 0 if the receiver zeroes out during terminal IDLE.
+                // Make sure 'lastPlayingPositionSec' is actually tracked/updated elsewhere in your class!
+                val pos = maxOf(handler.remoteTime.value, lastPlayingPositionSec)
+
                 // End-of-track shows up differently across receivers and never as one reliable signal:
                 //  - IDLE coming from PLAYING (generous window — a coarse clock may stop reporting early), or
                 //  - PAUSED coming from PLAYING at pos==duration (some receivers auto-pause at the end instead
@@ -80,7 +95,8 @@ class CastController(
                 //    pause). The debounce inside advanceRemoteAfterEnd stops double-advancing.
                 val endedIdle = state == PlaybackState.IDLE && CastAutoAdvance.finishedNearEnd(dur, pos)
                 val endedPause = state == PlaybackState.PAUSED &&
-                    CastAutoAdvance.nearEnd(dur, pos, CastAutoAdvance.PAUSED_END_EPSILON_SEC)
+                        CastAutoAdvance.nearEnd(dur, pos, CastAutoAdvance.PAUSED_END_EPSILON_SEC)
+
                 if (casting && lastState == PlaybackState.PLAYING && (endedIdle || endedPause)) {
                     advanceRemoteAfterEnd()
                 }
@@ -95,11 +111,15 @@ class CastController(
                     delay(1000)
                     val dur = handler.remoteDuration.value
                     val stalledFor = System.currentTimeMillis() - lastRemoteTimeUpdateAt
+
+                    // THE FIX: Clamp the interpolated time so it doesn't fall backward
+                    val interp = maxOf(handler.interpolatedRemoteTimeSec(), lastPlayingPositionSec)
+
                     // A deliberately PAUSED track also freezes the remote clock — never treat that as a
                     // finished track, or pausing near the end would silently auto-skip it. nearEnd reads the
                     // *interpolated* clock so a coarse clock that stopped reporting still reaches the end.
                     if (!CastPlayback.isPaused(handler.remotePlaybackState.value) &&
-                        CastAutoAdvance.nearEnd(dur, handler.interpolatedRemoteTimeSec(), CastAutoAdvance.STALL_END_EPSILON_SEC) &&
+                        CastAutoAdvance.nearEnd(dur, interp, CastAutoAdvance.STALL_END_EPSILON_SEC) &&
                         CastAutoAdvance.stalled(stalledFor)
                     ) {
                         advanceRemoteAfterEnd()
@@ -169,6 +189,7 @@ class CastController(
         // resolve below, and until then the seek bar would show the previous track's near-end position and
         // duration against the just-switched new track (a full bar that then drops to 0).
         lastRemotePosition = 0.0
+        lastPlayingPositionSec = 0.0
         lastRemoteTimeUpdateAt = System.currentTimeMillis()
         handler.remoteTime.value = 0.0
         handler.remoteDuration.value = 0.0
