@@ -1,12 +1,9 @@
 package com.jtech.zemer.search
 
-import android.content.Context
-import com.jtech.zemer.R
 import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.models.SearchSuggestions
 import com.metrolist.innertube.pages.SearchResult
 import com.metrolist.innertube.pages.SearchSummaryPage
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
@@ -26,11 +23,10 @@ import javax.inject.Singleton
  */
 @Singleton
 class ZemerSearchRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val client: ZemerSearchClient,
 ) {
     suspend fun summary(query: String, options: ZemerSearchOptions): SearchSummaryPage =
-        ZemerResultMapper.summaryPage(fetch(query, options, K_SUMMARY), sectionTitles(), options.hideExplicit)
+        ZemerResultMapper.summaryPage(fetch(query, options, K_SUMMARY), options.hideExplicit)
 
     suspend fun filtered(query: String, filter: SearchFilter, options: ZemerSearchOptions): SearchResult =
         ZemerResultMapper.filtered(fetch(query, options, K_FILTER), filter, options.hideExplicit)
@@ -51,14 +47,6 @@ class ZemerSearchRepository @Inject constructor(
         cacheMutex.withLock { cache[key] = response }
         return response
     }
-
-    private fun sectionTitles() = SectionTitles(
-        songs = context.getString(R.string.filter_songs),
-        videos = context.getString(R.string.filter_videos),
-        albums = context.getString(R.string.filter_albums),
-        artists = context.getString(R.string.filter_artists),
-        playlists = context.getString(R.string.filter_community_playlists),
-    )
 
     companion object {
         private const val K_SUMMARY = 8

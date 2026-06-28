@@ -18,21 +18,13 @@ import org.junit.Test
  */
 class ZemerResultMapperTest {
 
-    private val titles = SectionTitles(
-        songs = "Songs",
-        videos = "Videos",
-        albums = "Albums",
-        artists = "Artists",
-        playlists = "Playlists",
-    )
-
     @Test
     fun `song maps to playable SongItem with derived thumbnail and null endpoint`() {
         val resp = ZemerSearchResponse(
             categories = ZemerCategories(songs = listOf(ZemerTrack("vid123", "Title", "Artist"))),
         )
 
-        val song = ZemerResultMapper.summaryPage(resp, titles, hideExplicit = false)
+        val song = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
             .summaries.single().items.single() as SongItem
 
         assertEquals("vid123", song.id)
@@ -54,12 +46,12 @@ class ZemerResultMapperTest {
             ),
         )
 
-        val kept = ZemerResultMapper.summaryPage(resp, titles, hideExplicit = true)
+        val kept = ZemerResultMapper.summaryPage(resp, hideExplicit = true)
             .summaries.single().items
         assertEquals(1, kept.size)
         assertEquals("a", kept.single().id)
 
-        val all = ZemerResultMapper.summaryPage(resp, titles, hideExplicit = false)
+        val all = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
             .summaries.single().items
         assertEquals(2, all.size)
     }
@@ -73,7 +65,7 @@ class ZemerResultMapperTest {
             ),
         )
 
-        val section = ZemerResultMapper.summaryPage(resp, titles, hideExplicit = false).summaries.single()
+        val section = ZemerResultMapper.summaryPage(resp, hideExplicit = false).summaries.single()
         assertEquals("Albums", section.title)
         assertEquals(2, section.items.size)
 
@@ -88,7 +80,7 @@ class ZemerResultMapperTest {
     }
 
     @Test
-    fun `summary omits empty sections and keeps a stable order`() {
+    fun `summary matches YouTube section order and folds videos into Songs`() {
         val resp = ZemerSearchResponse(
             categories = ZemerCategories(
                 artists = listOf(ZemerArtist("UC1", "An Artist", "thumb")),
@@ -99,10 +91,12 @@ class ZemerResultMapperTest {
             ),
         )
 
-        val page = ZemerResultMapper.summaryPage(resp, titles, hideExplicit = false)
-        // No "Videos" section: videos render as SongItem and the shared OnlineSearchResult resolves a
-        // section's filter by item type (SongItem -> Songs), so a Videos section would mis-navigate.
-        assertEquals(listOf("Songs", "Artists", "Albums", "Playlists"), page.summaries.map { it.title })
+        val page = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
+        // Same titles/order as YouTube.searchSummary; no separate Videos section.
+        assertEquals(listOf("Albums", "Songs", "Artists", "Playlists"), page.summaries.map { it.title })
+        // Videos fold into the Songs section (videos are SongItems), exactly like YouTube.
+        val songsSection = page.summaries.first { it.title == "Songs" }
+        assertEquals(listOf("s1", "v1"), songsSection.items.map { it.id })
     }
 
     @Test

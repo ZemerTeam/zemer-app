@@ -14,20 +14,6 @@ import com.metrolist.innertube.pages.SearchSummaryPage
 import com.metrolist.innertube.models.SearchSuggestions
 
 /**
- * Localized section headings for the Zemer summary view. Supplied by the caller (the repository pulls
- * them from `context.getString(...)`) so this mapper stays pure and unit-testable without an Android
- * runtime. Albums and singles are shown under one "Albums" heading; community/featured playlists both
- * map to the one Zemer playlist category.
- */
-data class SectionTitles(
-    val songs: String,
-    val videos: String,
-    val albums: String,
-    val artists: String,
-    val playlists: String,
-)
-
-/**
  * Adapts a [ZemerSearchResponse] into the exact `YTItem`/page types the existing search UI already
  * renders, so the screens, rows, playback and navigation are all reused unchanged:
  *
@@ -109,25 +95,22 @@ object ZemerResultMapper {
         resp.categories.playlists.filter { it.id.isNotBlank() }.map { it.toPlaylistItem() }.distinctBy { it.id }
 
     /**
-     * The grouped summary view (the `filter == null` screen). Empty sections are omitted. There is
-     * deliberately no separate "Videos" section: videos map to [SongItem], and `OnlineSearchResult`
-     * resolves a section's "see more" filter by item type first (SongItem → Songs), so a Videos section
-     * would mis-navigate to Songs. Videos stay reachable via the Videos chip and the as-you-type list.
+     * The grouped summary view (`filter == null`), matching the YouTube summary's shape exactly
+     * (`YouTube.searchSummary`): items grouped by type into the same sections, in the same order, with
+     * the same hardcoded English titles, so toggling engines never changes the summary's headers or
+     * layout. Videos are folded into the Songs section (they are [SongItem]s — exactly how YouTube
+     * groups them); there is no separate Videos section. Empty sections are omitted. (No "Top result"
+     * card — the Zemer server does not return one.)
      */
-    fun summaryPage(
-        resp: ZemerSearchResponse,
-        titles: SectionTitles,
-        hideExplicit: Boolean,
-    ): SearchSummaryPage {
+    fun summaryPage(resp: ZemerSearchResponse, hideExplicit: Boolean): SearchSummaryPage {
+        val songsAndVideos =
+            (songItems(resp.categories.songs, hideExplicit) + songItems(resp.categories.videos, hideExplicit))
+                .distinctBy { it.id }
         val summaries = buildList {
-            songItems(resp.categories.songs, hideExplicit)
-                .takeIf { it.isNotEmpty() }?.let { add(SearchSummary(titles.songs, it)) }
-            artistItems(resp)
-                .takeIf { it.isNotEmpty() }?.let { add(SearchSummary(titles.artists, it)) }
-            albumItems(resp)
-                .takeIf { it.isNotEmpty() }?.let { add(SearchSummary(titles.albums, it)) }
-            playlistItems(resp)
-                .takeIf { it.isNotEmpty() }?.let { add(SearchSummary(titles.playlists, it)) }
+            albumItems(resp).takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_ALBUMS, it)) }
+            songsAndVideos.takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_SONGS, it)) }
+            artistItems(resp).takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_ARTISTS, it)) }
+            playlistItems(resp).takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_PLAYLISTS, it)) }
         }
         return SearchSummaryPage(summaries = summaries)
     }
@@ -178,4 +161,11 @@ object ZemerResultMapper {
     }
 
     private const val MAX_QUERY_SUGGESTIONS = 5
+
+    // Verbatim match of the YouTube summary section titles/order (YouTube.searchSummary hardcodes
+    // these English literals too), so the summary looks identical whichever engine is selected.
+    private const val TITLE_ALBUMS = "Albums"
+    private const val TITLE_SONGS = "Songs"
+    private const val TITLE_ARTISTS = "Artists"
+    private const val TITLE_PLAYLISTS = "Playlists"
 }
