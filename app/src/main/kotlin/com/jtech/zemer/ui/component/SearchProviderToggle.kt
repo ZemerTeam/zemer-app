@@ -1,6 +1,5 @@
 package com.jtech.zemer.ui.component
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,9 +34,6 @@ import com.jtech.zemer.search.SearchProvider
  * The selected side is filled with the accent color; the other is an outline. Each segment is a single
  * focus target (the `clickable`), so it stays 100% D-pad navigable — a focused-but-unselected segment
  * shows the standard outline highlight (docs/ui/standards.md). Material 3 *standard*.
- *
- * Zemer is marked with the actual app launcher icon (rendered full-color via [Image], as AboutScreen
- * does); YouTube with a tinted play glyph.
  */
 @Composable
 fun SearchProviderToggle(
@@ -54,37 +50,26 @@ fun SearchProviderToggle(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ProviderSegment(
+            iconRes = R.drawable.ic_launcher_monochrome,
             label = stringResource(R.string.search_provider_zemer),
             selected = provider == SearchProvider.ZEMER,
             onClick = { onProviderChange(SearchProvider.ZEMER) },
-        ) {
-            Image(
-                painter = painterResource(R.mipmap.ic_launcher_foreground),
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-            )
-        }
+        )
         ProviderSegment(
+            iconRes = R.drawable.play,
             label = stringResource(R.string.search_provider_youtube_short),
             selected = provider == SearchProvider.YOUTUBE,
             onClick = { onProviderChange(SearchProvider.YOUTUBE) },
-        ) { contentColor ->
-            Icon(
-                painter = painterResource(R.drawable.play),
-                contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.size(15.dp),
-            )
-        }
+        )
     }
 }
 
 @Composable
 private fun ProviderSegment(
+    iconRes: Int,
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
-    icon: @Composable (contentColor: Color) -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(percent = 50)
@@ -109,10 +94,15 @@ private fun ProviderSegment(
             )
             .onFocusChanged { focused = it.isFocused }
             .clickable(role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
+            .padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        icon(content)
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            tint = content,
+            modifier = Modifier.size(15.dp),
+        )
         Spacer(Modifier.width(4.dp))
         Text(
             text = label,
