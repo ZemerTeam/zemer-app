@@ -5,8 +5,11 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,13 +42,18 @@ class ZemerSearchClient @Inject constructor() {
         blockVideos: Boolean,
         k: Int,
     ): ZemerSearchResponse {
-        val text = client.get("$BASE_URL/search") {
+        val response: HttpResponse = client.get("$BASE_URL/search") {
             parameter("q", query)
             parameter("allowFemale", if (allowFemale) "1" else "0")
             if (blockVideos) parameter("blockVideos", "1")
             parameter("k", k)
-        }.bodyAsText()
-        return json.decodeFromString(ZemerSearchResponse.serializer(), text)
+        }
+        // CIO does not throw on non-2xx; guard so an error page (HTML/5xx) is a clean failure rather
+        // than a confusing JSON parse error fed from the error body.
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer search returned HTTP ${response.status.value}")
+        }
+        return json.decodeFromString(ZemerSearchResponse.serializer(), response.bodyAsText())
     }
 
     companion object {

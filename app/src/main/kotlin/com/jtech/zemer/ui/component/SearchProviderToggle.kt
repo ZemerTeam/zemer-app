@@ -86,8 +86,14 @@ private fun ProviderSegment(
             .clip(shape)
             .background(background)
             .then(
-                if (focused && !selected) {
-                    Modifier.border(1.5.dp, MaterialTheme.colorScheme.outline, shape)
+                // Focus ring on BOTH states so the already-selected segment still shows D-pad focus;
+                // contrast against the primary fill when selected.
+                if (focused) {
+                    Modifier.border(
+                        1.5.dp,
+                        if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.outline,
+                        shape,
+                    )
                 } else {
                     Modifier
                 },

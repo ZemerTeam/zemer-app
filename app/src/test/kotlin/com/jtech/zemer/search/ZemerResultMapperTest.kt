@@ -100,7 +100,39 @@ class ZemerResultMapperTest {
         )
 
         val page = ZemerResultMapper.summaryPage(resp, titles, hideExplicit = false)
-        assertEquals(listOf("Songs", "Artists", "Albums", "Videos", "Playlists"), page.summaries.map { it.title })
+        // No "Videos" section: videos render as SongItem and the shared OnlineSearchResult resolves a
+        // section's filter by item type (SongItem -> Songs), so a Videos section would mis-navigate.
+        assertEquals(listOf("Songs", "Artists", "Albums", "Playlists"), page.summaries.map { it.title })
+    }
+
+    @Test
+    fun `suggestions de-dupe ids shared across categories`() {
+        // The same videoId appears as both a song and a video — the id-keyed dropdown must not get a dupe.
+        val resp = ZemerSearchResponse(
+            categories = ZemerCategories(
+                songs = listOf(ZemerTrack("dup", "Track", "A")),
+                videos = listOf(ZemerTrack("dup", "Track", "A")),
+            ),
+        )
+
+        val items = ZemerResultMapper.suggestions(resp, hideExplicit = false).recommendedItems
+        assertEquals(1, items.size)
+        assertEquals(items.size, items.distinctBy { it.id }.size)
+    }
+
+    @Test
+    fun `rows missing an id are dropped, not crashing the whole response`() {
+        val resp = ZemerSearchResponse(
+            categories = ZemerCategories(
+                songs = listOf(ZemerTrack("", "No id", "A"), ZemerTrack("ok", "Good", "A")),
+                artists = listOf(ZemerArtist("", "No id"), ZemerArtist("UC1", "Good")),
+            ),
+        )
+
+        val songs = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG, false).items
+        assertEquals(listOf("ok"), songs.map { it.id })
+        val artists = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_ARTIST, false).items
+        assertEquals(listOf("UC1"), artists.map { it.id })
     }
 
     @Test

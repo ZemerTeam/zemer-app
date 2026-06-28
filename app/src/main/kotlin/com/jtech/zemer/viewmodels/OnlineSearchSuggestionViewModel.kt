@@ -19,15 +19,21 @@ import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.enumPreferenceFlow
 import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.filterWhitelisted
+import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -61,24 +67,35 @@ constructor(
                         // rendered through the existing (Metrolist-derived) OnlineSearchScreen list.
                         // Below the 3-char floor show only matching history: short queries are noisy
                         // (the engine's cross-script skeleton matching is itself off under 3 chars).
-                        database
-                            .searchHistory(query)
-                            .map { it.take(3) }
-                            .map { history ->
-                                val zemer = if (query.trim().length >= ZEMER_MIN_QUERY_LENGTH) {
+                        // The engine call is hoisted out of the history flow (one request per query,
+                        // not one per history emission) and run off the main thread.
+                        flow {
+                            val zemer = if (query.trim().length >= ZEMER_MIN_QUERY_LENGTH) {
+                                withContext(Dispatchers.IO) {
                                     runCatching {
                                         zemerRepo.suggestions(query, zemerSearchOptions(context))
+                                    }.onFailure {
+                                        if (it is CancellationException) throw it
+                                        reportException(it)
                                     }.getOrNull()
-                                } else {
-                                    null
                                 }
-                                SearchSuggestionViewState(
-                                    history = history,
-                                    suggestions = zemer?.queries.orEmpty()
-                                        .filter { suggestion -> history.none { it.query == suggestion } },
-                                    items = zemer?.recommendedItems.orEmpty(),
-                                )
+                            } else {
+                                null
                             }
+                            emitAll(
+                                database
+                                    .searchHistory(query)
+                                    .map { it.take(3) }
+                                    .map { history ->
+                                        SearchSuggestionViewState(
+                                            history = history,
+                                            suggestions = zemer?.queries.orEmpty()
+                                                .filter { suggestion -> history.none { it.query == suggestion } },
+                                            items = zemer?.recommendedItems.orEmpty(),
+                                        )
+                                    },
+                            )
+                        }
                     } else {
                         val filters = ContentFilterState.state.value
                         val whitelist = WhitelistCache.allowedEntries(database, filters)

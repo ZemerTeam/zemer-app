@@ -25,9 +25,12 @@ data class ZemerCategories(
     val playlists: List<ZemerPlaylist> = emptyList(),
 )
 
+// id/videoId default to "" rather than being required: kotlinx throws MissingFieldException for the
+// WHOLE response if one element omits a required field, so a single sparse row would blank the entire
+// result. The mapper drops rows whose id is blank instead.
 @Serializable
 data class ZemerArtist(
-    val id: String,
+    val id: String = "",
     val name: String = "",
     val thumbnail: String? = null,
 )
@@ -35,7 +38,7 @@ data class ZemerArtist(
 /** Both songs and videos share this shape (videos differ only by which category they arrive in). */
 @Serializable
 data class ZemerTrack(
-    val videoId: String,
+    val videoId: String = "",
     val title: String = "",
     val artist: String = "",
     val explicit: Boolean = false,
@@ -43,7 +46,7 @@ data class ZemerTrack(
 
 @Serializable
 data class ZemerAlbum(
-    val id: String,
+    val id: String = "",
     val playlistId: String? = null,
     val title: String = "",
     val artist: String = "",
@@ -53,7 +56,7 @@ data class ZemerAlbum(
 
 @Serializable
 data class ZemerPlaylist(
-    val id: String,
+    val id: String = "",
     val title: String = "",
     val artist: String = "",
     val thumbnail: String? = null,

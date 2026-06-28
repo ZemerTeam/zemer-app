@@ -87,14 +87,33 @@ object ZemerResultMapper {
             radioEndpoint = null,
         )
 
+    // Each helper drops rows missing their id (the server should never send those, but one sparse row
+    // must not crash navigation) and de-dupes by id, since the id-keyed LazyColumns reject duplicates.
     private fun songItems(tracks: List<ZemerTrack>, hideExplicit: Boolean): List<SongItem> =
-        tracks.map { it.toSongItem() }.filterExplicit(hideExplicit)
+        tracks.filter { it.videoId.isNotBlank() }
+            .map { it.toSongItem() }
+            .filterExplicit(hideExplicit)
+            .distinctBy { it.id }
+
+    private fun artistItems(resp: ZemerSearchResponse): List<ArtistItem> =
+        resp.categories.artists.filter { it.id.isNotBlank() }.map { it.toArtistItem() }.distinctBy { it.id }
 
     /** Albums + singles together, in that order — both navigate via the FILTER_ALBUM chip. */
     private fun albumItems(resp: ZemerSearchResponse): List<AlbumItem> =
-        (resp.categories.albums + resp.categories.singles).map { it.toAlbumItem() }
+        (resp.categories.albums + resp.categories.singles)
+            .filter { it.id.isNotBlank() }
+            .map { it.toAlbumItem() }
+            .distinctBy { it.id }
 
-    /** The grouped summary view (the `filter == null` screen). Empty sections are omitted. */
+    private fun playlistItems(resp: ZemerSearchResponse): List<PlaylistItem> =
+        resp.categories.playlists.filter { it.id.isNotBlank() }.map { it.toPlaylistItem() }.distinctBy { it.id }
+
+    /**
+     * The grouped summary view (the `filter == null` screen). Empty sections are omitted. There is
+     * deliberately no separate "Videos" section: videos map to [SongItem], and `OnlineSearchResult`
+     * resolves a section's "see more" filter by item type first (SongItem → Songs), so a Videos section
+     * would mis-navigate to Songs. Videos stay reachable via the Videos chip and the as-you-type list.
+     */
     fun summaryPage(
         resp: ZemerSearchResponse,
         titles: SectionTitles,
@@ -103,13 +122,11 @@ object ZemerResultMapper {
         val summaries = buildList {
             songItems(resp.categories.songs, hideExplicit)
                 .takeIf { it.isNotEmpty() }?.let { add(SearchSummary(titles.songs, it)) }
-            resp.categories.artists.map { it.toArtistItem() }
+            artistItems(resp)
                 .takeIf { it.isNotEmpty() }?.let { add(SearchSummary(titles.artists, it)) }
             albumItems(resp)
                 .takeIf { it.isNotEmpty() }?.let { add(SearchSummary(titles.albums, it)) }
-            songItems(resp.categories.videos, hideExplicit)
-                .takeIf { it.isNotEmpty() }?.let { add(SearchSummary(titles.videos, it)) }
-            resp.categories.playlists.map { it.toPlaylistItem() }
+            playlistItems(resp)
                 .takeIf { it.isNotEmpty() }?.let { add(SearchSummary(titles.playlists, it)) }
         }
         return SearchSummaryPage(summaries = summaries)
@@ -124,11 +141,11 @@ object ZemerResultMapper {
         val items: List<YTItem> = when (filter.value) {
             SearchFilter.FILTER_SONG.value -> songItems(resp.categories.songs, hideExplicit)
             SearchFilter.FILTER_VIDEO.value -> songItems(resp.categories.videos, hideExplicit)
-            SearchFilter.FILTER_ARTIST.value -> resp.categories.artists.map { it.toArtistItem() }
+            SearchFilter.FILTER_ARTIST.value -> artistItems(resp)
             SearchFilter.FILTER_ALBUM.value -> albumItems(resp)
             SearchFilter.FILTER_COMMUNITY_PLAYLIST.value,
             SearchFilter.FILTER_FEATURED_PLAYLIST.value,
-            -> resp.categories.playlists.map { it.toPlaylistItem() }
+            -> playlistItems(resp)
             else -> emptyList()
         }
         return SearchResult(items = items, continuation = null)
@@ -139,15 +156,17 @@ object ZemerResultMapper {
      * (`queries`) on top, then full live result rows (`recommendedItems`) across ALL categories in the
      * same order as the summary screen. Completions are Zemer-native: artist names first (the most
      * useful "search everything by…" completion and the one that absorbs Hebrew/romanization fuzz),
-     * then a few song titles to fill — deduped case-insensitively and capped.
+     * then a few song titles to fill — deduped case-insensitively and capped. The combined rows are
+     * de-duped by id (a videoId can appear in both songs and videos) so the id-keyed list can't crash.
      */
     fun suggestions(resp: ZemerSearchResponse, hideExplicit: Boolean): SearchSuggestions {
         val items: List<YTItem> =
-            songItems(resp.categories.songs, hideExplicit) +
-                resp.categories.artists.map { it.toArtistItem() } +
+            (songItems(resp.categories.songs, hideExplicit) +
+                artistItems(resp) +
                 albumItems(resp) +
                 songItems(resp.categories.videos, hideExplicit) +
-                resp.categories.playlists.map { it.toPlaylistItem() }
+                playlistItems(resp))
+                .distinctBy { it.id }
 
         val completions: List<String> =
             (resp.categories.artists.map { it.name } + resp.categories.songs.map { it.title })

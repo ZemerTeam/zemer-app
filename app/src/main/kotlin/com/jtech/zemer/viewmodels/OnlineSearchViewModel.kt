@@ -32,8 +32,10 @@ import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -83,7 +85,9 @@ constructor(
                 filter,
                 enumPreferenceFlow(context, SearchProviderKey, SearchProvider.ZEMER),
             ) { selectedFilter, selectedProvider -> selectedFilter to selectedProvider }
-                .collect { (selectedFilter, selectedProvider) ->
+                // collectLatest so a provider/filter change cancels an in-flight (up to 8s) request
+                // instead of queueing behind it — otherwise the toggle appears frozen.
+                .collectLatest { (selectedFilter, selectedProvider) ->
                     provider = selectedProvider
                     // Toggling the engine invalidates cached results so the new one reloads in place.
                     if (lastProvider != null && lastProvider != selectedProvider) {
@@ -150,6 +154,7 @@ constructor(
                 summaryError.value = "No results found for \"$query\""
             }
         }.onFailure { error ->
+            if (error is CancellationException) throw error // a superseded load, not a search failure
             summaryError.value = "Search error: ${error.message ?: "Unknown error"}"
             reportException(error)
         }
@@ -173,24 +178,13 @@ constructor(
         val result =
             withContext(Dispatchers.IO) {
                 runCatching {
-                    if (provider == SearchProvider.ZEMER) {
-                        // Already whitelist-scoped; Zemer has no pagination (continuation == null).
-                        val zemerResult = zemerRepo.filtered(query, filter, zemerSearchOptions(context))
-                        return@runCatching ItemsPage(
-                            zemerResult.items.distinctBy { it.id },
-                            zemerResult.continuation,
-                        )
-                    }
                     val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                     val items = mutableListOf<com.metrolist.innertube.models.YTItem>()
 
-                    // Search both local database and online
+                    // Local DB results first — for both engines, so locally-saved artists/albums are
+                    // surfaced regardless of which online engine is active.
                     when (filter) {
-                        SearchFilter.FILTER_SONG -> {
-                            // For songs, only search online as local songs are covered by local search
-                        }
                         SearchFilter.FILTER_ARTIST -> {
-                            // Search local artists first
                             val localArtists = database.searchArtists(query).first()
                                 .filter { if (hideExplicit) !it.artist.isLocal else true }
                             items.addAll(
@@ -206,7 +200,6 @@ constructor(
                             )
                         }
                         SearchFilter.FILTER_ALBUM -> {
-                            // Search local albums first
                             val localAlbums = database.searchAlbums(query).first()
                                 .filter { if (hideExplicit) !it.album.explicit else true }
                             items.addAll(
@@ -227,23 +220,24 @@ constructor(
                                 }
                             )
                         }
-                        else -> {} // Other filter types only search online
+                        else -> {} // Songs/videos/playlists: online only (local songs are local search)
                     }
 
-                    // Also search online
-                    val ytResult = YouTube.search(query, filter).getOrNull()
-                    if (ytResult != null) {
-                        items.addAll(
-                            ytResult.items
-                                .filterExplicit(hideExplicit)
-                                .filterWhitelisted(database)
-                        )
+                    if (provider == SearchProvider.ZEMER) {
+                        // Already whitelist-scoped; Zemer has no pagination (continuation == null).
+                        items.addAll(zemerRepo.filtered(query, filter, zemerSearchOptions(context)).items)
+                        ItemsPage(items.distinctBy { it.id }, null)
+                    } else {
+                        val ytResult = YouTube.search(query, filter).getOrNull()
+                        if (ytResult != null) {
+                            items.addAll(
+                                ytResult.items
+                                    .filterExplicit(hideExplicit)
+                                    .filterWhitelisted(database)
+                            )
+                        }
+                        ItemsPage(items.distinctBy { it.id }, ytResult?.continuation)
                     }
-
-                    ItemsPage(
-                        items.distinctBy { it.id },
-                        ytResult?.continuation
-                    )
                 }
             }
 
@@ -253,6 +247,7 @@ constructor(
                 filterError[key] = "No results found for \"$query\""
             }
         }.onFailure { error ->
+            if (error is CancellationException) throw error // a superseded load, not a search failure
             filterError[key] = "Search error: ${error.message ?: "Unknown error"}"
             reportException(error)
         }
