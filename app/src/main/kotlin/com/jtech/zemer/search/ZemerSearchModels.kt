@@ -22,7 +22,11 @@ data class ZemerCategories(
     val albums: List<ZemerAlbum> = emptyList(),
     val singles: List<ZemerAlbum> = emptyList(),
     val videos: List<ZemerTrack> = emptyList(),
+    // Artist-owned playlists (the "Featured playlists" chip) and the community-discovered playlists
+    // (the "Community playlists" chip) are two separate server categories; either may be absent
+    // (older server build) and then defaults to empty.
     val playlists: List<ZemerPlaylist> = emptyList(),
+    val community: List<ZemerPlaylist> = emptyList(),
 )
 
 // id/videoId default to "" rather than being required: kotlinx throws MissingFieldException for the

@@ -19,7 +19,8 @@ import com.metrolist.innertube.models.SearchSuggestions
  *
  * - songs & videos → [SongItem] (thumbnail derived from the videoId; `endpoint` left null, which the
  *   results screen already handles by playing `WatchEndpoint(videoId = id)`).
- * - artists → [ArtistItem], albums + singles → [AlbumItem], playlists → [PlaylistItem].
+ * - artists → [ArtistItem], albums + singles → [AlbumItem], playlists & community → [PlaylistItem]
+ *   (the artist-owned `playlists` back the Featured chip, the `community` list backs the Community chip).
  *
  * Zemer results are already whitelist-scoped server-side, so the local whitelist filter is NOT applied
  * here; only `hideExplicit` is honored (on the song/video lists — the other types are never explicit).
@@ -91,26 +92,32 @@ object ZemerResultMapper {
             .map { it.toAlbumItem() }
             .distinctBy { it.id }
 
-    private fun playlistItems(resp: ZemerSearchResponse): List<PlaylistItem> =
-        resp.categories.playlists.filter { it.id.isNotBlank() }.map { it.toPlaylistItem() }.distinctBy { it.id }
+    /** Shared playlist adaptation — used for both the artist-owned `playlists` and the `community` lists. */
+    private fun playlistItems(playlists: List<ZemerPlaylist>): List<PlaylistItem> =
+        playlists.filter { it.id.isNotBlank() }.map { it.toPlaylistItem() }.distinctBy { it.id }
 
     /**
      * The grouped summary view (`filter == null`), matching the YouTube summary's shape exactly
      * (`YouTube.searchSummary`): items grouped by type into the same sections, in the same order, with
      * the same hardcoded English titles, so toggling engines never changes the summary's headers or
      * layout. Videos are folded into the Songs section (they are [SongItem]s — exactly how YouTube
-     * groups them); there is no separate Videos section. Empty sections are omitted. (No "Top result"
-     * card — the Zemer server does not return one.)
+     * groups them); there is no separate Videos section. Featured and community playlists are likewise
+     * folded into one "Playlists" section (exactly like YouTube's single combined Playlists section);
+     * the two are split apart only behind their dedicated chips. Empty sections are omitted. (No "Top
+     * result" card — the Zemer server does not return one.)
      */
     fun summaryPage(resp: ZemerSearchResponse, hideExplicit: Boolean): SearchSummaryPage {
         val songsAndVideos =
             (songItems(resp.categories.songs, hideExplicit) + songItems(resp.categories.videos, hideExplicit))
                 .distinctBy { it.id }
+        val playlists =
+            (playlistItems(resp.categories.playlists) + playlistItems(resp.categories.community))
+                .distinctBy { it.id }
         val summaries = buildList {
             albumItems(resp).takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_ALBUMS, it)) }
             songsAndVideos.takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_SONGS, it)) }
             artistItems(resp).takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_ARTISTS, it)) }
-            playlistItems(resp).takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_PLAYLISTS, it)) }
+            playlists.takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_PLAYLISTS, it)) }
         }
         return SearchSummaryPage(summaries = summaries)
     }
@@ -126,9 +133,8 @@ object ZemerResultMapper {
             SearchFilter.FILTER_VIDEO.value -> songItems(resp.categories.videos, hideExplicit)
             SearchFilter.FILTER_ARTIST.value -> artistItems(resp)
             SearchFilter.FILTER_ALBUM.value -> albumItems(resp)
-            SearchFilter.FILTER_COMMUNITY_PLAYLIST.value,
-            SearchFilter.FILTER_FEATURED_PLAYLIST.value,
-            -> playlistItems(resp)
+            SearchFilter.FILTER_COMMUNITY_PLAYLIST.value -> playlistItems(resp.categories.community)
+            SearchFilter.FILTER_FEATURED_PLAYLIST.value -> playlistItems(resp.categories.playlists)
             else -> emptyList()
         }
         return SearchResult(items = items, continuation = null)
@@ -148,7 +154,8 @@ object ZemerResultMapper {
                 artistItems(resp) +
                 albumItems(resp) +
                 songItems(resp.categories.videos, hideExplicit) +
-                playlistItems(resp))
+                playlistItems(resp.categories.playlists) +
+                playlistItems(resp.categories.community))
                 .distinctBy { it.id }
 
         val completions: List<String> =

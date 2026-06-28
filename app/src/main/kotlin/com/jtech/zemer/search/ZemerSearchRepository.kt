@@ -17,9 +17,11 @@ import javax.inject.Singleton
  * If the service is unreachable the call throws, the ViewModel shows the search-error state, and the
  * user can flip the toggle to YouTube Music search.
  *
- * Responses are memoized in a small LRU keyed by (k, filters, query): the five filter chips all request
- * the same k, so after the first they hit the cache instead of re-fetching the full payload five times;
- * the summary and as-you-type share the k=8 entry too.
+ * Responses are memoized in a small LRU keyed by (k, filters, query): the song/video/album/artist/
+ * featured-playlist chips all request the same k, so after the first they hit the cache instead of
+ * re-fetching the full payload; the summary and as-you-type share the k=8 entry too. The Community
+ * chip is the exception — it requests a much larger k so its whole curated set comes back uncapped (see
+ * [K_COMMUNITY]) — so it owns its own cache entry.
  */
 @Singleton
 class ZemerSearchRepository @Inject constructor(
@@ -28,8 +30,12 @@ class ZemerSearchRepository @Inject constructor(
     suspend fun summary(query: String, options: ZemerSearchOptions): SearchSummaryPage =
         ZemerResultMapper.summaryPage(fetch(query, options, K_SUMMARY), options.hideExplicit)
 
-    suspend fun filtered(query: String, filter: SearchFilter, options: ZemerSearchOptions): SearchResult =
-        ZemerResultMapper.filtered(fetch(query, options, K_FILTER), filter, options.hideExplicit)
+    suspend fun filtered(query: String, filter: SearchFilter, options: ZemerSearchOptions): SearchResult {
+        // The Community chip browses a whole curated set, so it must not be clipped by the default
+        // per-chip cap; every other chip uses K_FILTER.
+        val k = if (filter.value == SearchFilter.FILTER_COMMUNITY_PLAYLIST.value) K_COMMUNITY else K_FILTER
+        return ZemerResultMapper.filtered(fetch(query, options, k), filter, options.hideExplicit)
+    }
 
     suspend fun suggestions(query: String, options: ZemerSearchOptions): SearchSuggestions =
         ZemerResultMapper.suggestions(fetch(query, options, K_SUGGEST), options.hideExplicit)
@@ -52,6 +58,10 @@ class ZemerSearchRepository @Inject constructor(
         private const val K_SUMMARY = 8
         private const val K_FILTER = 100
         private const val K_SUGGEST = 8
+        // Community playlists are a browsable curated set (a few hundred and growing); request well
+        // above the corpus size so the Community chip returns all query-relevant results uncapped (the
+        // server now honors k for that category). Bump if the community catalog ever approaches this.
+        private const val K_COMMUNITY = 500
         private const val CACHE_SIZE = 12
     }
 }

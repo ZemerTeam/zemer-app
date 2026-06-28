@@ -155,17 +155,36 @@ class ZemerResultMapperTest {
     }
 
     @Test
-    fun `both playlist chips return the single Zemer playlist category`() {
+    fun `community chip returns community playlists, featured chip returns artist-owned playlists`() {
         val resp = ZemerSearchResponse(
-            categories = ZemerCategories(playlists = listOf(ZemerPlaylist("pl1", "PL", "A", "t"))),
+            categories = ZemerCategories(
+                playlists = listOf(ZemerPlaylist("featured1", "Featured", "A", "t")),
+                community = listOf(ZemerPlaylist("community1", "Community", "B", "t")),
+            ),
         )
 
         val community = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_COMMUNITY_PLAYLIST, false).items
         val featured = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_FEATURED_PLAYLIST, false).items
-        assertEquals(1, community.size)
-        assertEquals(1, featured.size)
+        // The two chips map to two distinct server categories — never the same list.
+        assertEquals(listOf("community1"), community.map { it.id })
+        assertEquals(listOf("featured1"), featured.map { it.id })
         assertTrue(community.single() is PlaylistItem)
-        assertEquals((community.single() as PlaylistItem).id, (featured.single() as PlaylistItem).id)
+        assertTrue(featured.single() is PlaylistItem)
+    }
+
+    @Test
+    fun `summary Playlists section merges artist-owned and community playlists`() {
+        val resp = ZemerSearchResponse(
+            categories = ZemerCategories(
+                playlists = listOf(ZemerPlaylist("featured1", "Featured", "A", "t")),
+                community = listOf(ZemerPlaylist("community1", "Community", "B", "t")),
+            ),
+        )
+
+        // One combined "Playlists" section (matching YouTube's summary), artist-owned then community.
+        val section = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
+            .summaries.first { it.title == "Playlists" }
+        assertEquals(listOf("featured1", "community1"), section.items.map { it.id })
     }
 
     @Test
