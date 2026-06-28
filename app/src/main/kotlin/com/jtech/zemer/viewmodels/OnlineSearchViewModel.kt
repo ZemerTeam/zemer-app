@@ -15,13 +15,18 @@ import com.metrolist.innertube.models.filterExplicit
 import com.metrolist.innertube.pages.SearchSummaryPage
 import com.metrolist.innertube.pages.SearchSummary
 import com.jtech.zemer.constants.HideExplicitKey
+import com.jtech.zemer.constants.SearchProviderKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.ItemsPage
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.search.SearchProvider
+import com.jtech.zemer.search.ZemerSearchRepository
+import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.enumPreferenceFlow
 import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.reportException
@@ -29,6 +34,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -40,6 +46,7 @@ class OnlineSearchViewModel
 constructor(
     @ApplicationContext val context: Context,
     val database: MusicDatabase,
+    private val zemerRepo: ZemerSearchRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     val query =
@@ -66,15 +73,33 @@ constructor(
     val filterLoading = mutableStateMapOf<String, Boolean>()
     val filterError = mutableStateMapOf<String, String?>()
 
+    /** The engine in effect for the current load; updated reactively from the preference. */
+    private var provider: SearchProvider = SearchProvider.ZEMER
+    private var lastProvider: SearchProvider? = null
+
     init {
         viewModelScope.launch {
-            filter.collect { filter ->
-                if (filter == null) {
-                    loadSummary(force = summaryPage == null)
-                } else {
-                    loadFiltered(filter, force = viewStateMap[filter.value] == null)
+            combine(
+                filter,
+                enumPreferenceFlow(context, SearchProviderKey, SearchProvider.ZEMER),
+            ) { selectedFilter, selectedProvider -> selectedFilter to selectedProvider }
+                .collect { (selectedFilter, selectedProvider) ->
+                    provider = selectedProvider
+                    // Toggling the engine invalidates cached results so the new one reloads in place.
+                    if (lastProvider != null && lastProvider != selectedProvider) {
+                        summaryPage = null
+                        viewStateMap.clear()
+                        filterLoading.clear()
+                        filterError.clear()
+                        summaryError.value = null
+                    }
+                    lastProvider = selectedProvider
+                    if (selectedFilter == null) {
+                        loadSummary(force = summaryPage == null)
+                    } else {
+                        loadFiltered(selectedFilter, force = viewStateMap[selectedFilter.value] == null)
+                    }
                 }
-            }
         }
     }
 
@@ -94,20 +119,25 @@ constructor(
         val result =
             withContext(Dispatchers.IO) {
                 runCatching {
-                    val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
-                    val ytResults = YouTube.searchSummary(query).getOrNull()
-                    val ytFilteredPage = ytResults?.filterExplicit(hideExplicit)
+                    if (provider == SearchProvider.ZEMER) {
+                        // Zemer results are already whitelist-scoped server-side; do not re-filter.
+                        zemerRepo.summary(query, zemerSearchOptions(context)).summaries
+                    } else {
+                        val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
+                        val ytResults = YouTube.searchSummary(query).getOrNull()
+                        val ytFilteredPage = ytResults?.filterExplicit(hideExplicit)
 
-                    ytFilteredPage?.summaries
-                        ?.mapNotNull { summary ->
-                            val filteredItems = summary.items.filterWhitelisted(database)
-                            if (filteredItems.isEmpty()) {
-                                null
-                            } else {
-                                summary.copy(items = filteredItems)
+                        ytFilteredPage?.summaries
+                            ?.mapNotNull { summary ->
+                                val filteredItems = summary.items.filterWhitelisted(database)
+                                if (filteredItems.isEmpty()) {
+                                    null
+                                } else {
+                                    summary.copy(items = filteredItems)
+                                }
                             }
-                        }
-                        .orEmpty()
+                            .orEmpty()
+                    }
                 }
             }
 
@@ -143,6 +173,14 @@ constructor(
         val result =
             withContext(Dispatchers.IO) {
                 runCatching {
+                    if (provider == SearchProvider.ZEMER) {
+                        // Already whitelist-scoped; Zemer has no pagination (continuation == null).
+                        val zemerResult = zemerRepo.filtered(query, filter, zemerSearchOptions(context))
+                        return@runCatching ItemsPage(
+                            zemerResult.items.distinctBy { it.id },
+                            zemerResult.continuation,
+                        )
+                    }
                     val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                     val items = mutableListOf<com.metrolist.innertube.models.YTItem>()
 

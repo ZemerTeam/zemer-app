@@ -162,6 +162,9 @@ val AllowChasidishKey = booleanPreferencesKey("allowChasidish")
 val BlockVideosKey = booleanPreferencesKey("blockVideos")
 val EnableContentFiltersKey = booleanPreferencesKey("enableContentFilters")
 
+// Online search engine: SearchProvider.name (ZEMER default, or YOUTUBE)
+val SearchProviderKey = stringPreferencesKey("searchProvider")
+
 // Sync-related preference keys
 val LastContentFilterSyncTimeKey = longPreferencesKey("last_content_filter_sync_time")
 val IsContentFilterSyncEnabledKey = booleanPreferencesKey("content_filter_sync_enabled")

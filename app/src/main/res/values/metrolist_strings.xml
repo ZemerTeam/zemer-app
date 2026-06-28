@@ -551,4 +551,10 @@
     <string name="recognize_music_play">Play</string>
     <string name="recognize_music_try_again">Try again</string>
     <string name="recognize_music_close">Close</string>
+
+    <!-- Search engine toggle (search bar) -->
+    <string name="search_provider_zemer">Zemer</string>
+    <string name="search_provider_youtube_short">YT</string>
+    <string name="search_provider_youtube">YouTube Music</string>
+    <string name="cd_search_provider">Search engine</string>
 </resources>
