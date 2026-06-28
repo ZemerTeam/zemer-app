@@ -1,10 +1,12 @@
 package com.jtech.zemer.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -30,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -89,6 +92,7 @@ import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.menu.SelectionMediaMetadataMenu
 import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.utils.rememberPreference
@@ -154,6 +158,14 @@ fun HomeScreen(
                 addAll(trendingSongs)
             }
         }
+    val allHomeSongItems = remember(trendingSongs, featuredVideos, blockVideos) {
+        buildList {
+            addAll(trendingSongs)
+            if (!blockVideos) {
+                addAll(featuredVideos)
+            }
+        }.filterIsInstance<SongItem>()
+    }
 
     // Memoized distinct lists to avoid creating new lists on every recomposition
     val uniqueQuickPicks = remember(quickPicks) { quickPicks.distinctBy { it.id } }
@@ -173,6 +185,8 @@ fun HomeScreen(
     val quickPicksLazyGridState = rememberLazyGridState()
     val forgottenFavoritesLazyGridState = rememberLazyGridState()
 
+    var selection by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf(setOf<String>()) }
     val scope = rememberCoroutineScope()
     val lazylistState = rememberLazyListState()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -333,51 +347,63 @@ fun HomeScreen(
             item = item,
             isActive = item.id in listOf(mediaMetadata?.album?.id, mediaMetadata?.id),
             isPlaying = isPlaying,
+            isSelected = selection && item.id in selectedIds,
             coroutineScope = scope,
             thumbnailRatio = 1f,
             modifier = Modifier
                 .combinedClickable(
                     onClick = {
-                        when (item) {
-                            is SongItem -> playerConnection.playQueue(
-                                YouTubeQueue(
-                                    item.endpoint ?: WatchEndpoint(
-                                        videoId = item.id
-                                    ), item.toMediaMetadata(), database
+                        if (selection) {
+                            selectedIds = if (item.id in selectedIds) selectedIds - item.id else selectedIds + item.id
+                            if (selectedIds.isEmpty()) selection = false
+                        } else {
+                            when (item) {
+                                is SongItem -> playerConnection.playQueue(
+                                    YouTubeQueue(
+                                        item.endpoint ?: WatchEndpoint(
+                                            videoId = item.id
+                                        ), item.toMediaMetadata(), database
+                                    )
                                 )
-                            )
 
-                            is AlbumItem -> navController.navigate("album/${item.id}")
-                            is ArtistItem -> navController.navigate("artist/${item.id}")
-                            is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                                is AlbumItem -> navController.navigate("album/${item.id}")
+                                is ArtistItem -> navController.navigate("artist/${item.id}")
+                                is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                            }
                         }
                     },
                     onLongClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        menuState.show {
-                            when (item) {
-                                is SongItem -> YouTubeSongMenu(
-                                    song = item,
-                                    navController = navController,
-                                    onDismiss = menuState::dismiss
-                                )
+                        if (!selection) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            selection = true
+                            selectedIds = setOf(item.id)
+                        } else {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            menuState.show {
+                                when (item) {
+                                    is SongItem -> YouTubeSongMenu(
+                                        song = item,
+                                        navController = navController,
+                                        onDismiss = menuState::dismiss
+                                    )
 
-                                is AlbumItem -> YouTubeAlbumMenu(
-                                    albumItem = item,
-                                    navController = navController,
-                                    onDismiss = menuState::dismiss
-                                )
+                                    is AlbumItem -> YouTubeAlbumMenu(
+                                        albumItem = item,
+                                        navController = navController,
+                                        onDismiss = menuState::dismiss
+                                    )
 
-                                is ArtistItem -> YouTubeArtistMenu(
-                                    artist = item,
-                                    onDismiss = menuState::dismiss
-                                )
+                                    is ArtistItem -> YouTubeArtistMenu(
+                                        artist = item,
+                                        onDismiss = menuState::dismiss
+                                    )
 
-                                is PlaylistItem -> YouTubePlaylistMenu(
-                                    playlist = item,
-                                    coroutineScope = scope,
-                                    onDismiss = menuState::dismiss
-                                )
+                                    is PlaylistItem -> YouTubePlaylistMenu(
+                                        playlist = item,
+                                        coroutineScope = scope,
+                                        onDismiss = menuState::dismiss
+                                    )
+                                }
                             }
                         }
                     }
@@ -735,16 +761,22 @@ fun HomeScreen(
                                 item = song,
                                 isActive = mediaMetadata?.id == song.id,
                                 isPlaying = isPlaying,
+                                isSelected = selection && song.id in selectedIds,
                                 trailingContent = {
                                     IconButton(
                                         onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            menuState.show {
-                                                YouTubeSongMenu(
-                                                    song = song,
-                                                    navController = navController,
-                                                    onDismiss = menuState::dismiss,
-                                                )
+                                            if (selection) {
+                                                selectedIds = if (song.id in selectedIds) selectedIds - song.id else selectedIds + song.id
+                                                if (selectedIds.isEmpty()) selection = false
+                                            } else {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    YouTubeSongMenu(
+                                                        song = song,
+                                                        navController = navController,
+                                                        onDismiss = menuState::dismiss,
+                                                    )
+                                                }
                                             }
                                         }
                                     ) {
@@ -758,22 +790,33 @@ fun HomeScreen(
                                     .width(horizontalLazyGridItemWidth)
                                     .combinedClickable(
                                         onClick = {
-                                            playerConnection.playQueue(
-                                                YouTubeQueue(
-                                                    song.endpoint ?: WatchEndpoint(videoId = song.id),
-                                                    song.toMediaMetadata(),
-                                                    database = database
+                                            if (selection) {
+                                                selectedIds = if (song.id in selectedIds) selectedIds - song.id else selectedIds + song.id
+                                                if (selectedIds.isEmpty()) selection = false
+                                            } else {
+                                                playerConnection.playQueue(
+                                                    YouTubeQueue(
+                                                        song.endpoint ?: WatchEndpoint(videoId = song.id),
+                                                        song.toMediaMetadata(),
+                                                        database = database
+                                                    )
                                                 )
-                                            )
+                                            }
                                         },
                                         onLongClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            menuState.show {
-                                                YouTubeSongMenu(
-                                                    song = song,
-                                                    navController = navController,
-                                                    onDismiss = menuState::dismiss,
-                                                )
+                                            if (!selection) {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                selection = true
+                                                selectedIds = setOf(song.id)
+                                            } else {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    YouTubeSongMenu(
+                                                        song = song,
+                                                        navController = navController,
+                                                        onDismiss = menuState::dismiss,
+                                                    )
+                                                }
                                             }
                                         }
                                     )
@@ -856,11 +899,12 @@ fun HomeScreen(
                             items = uniqueFeaturedVideos,
                             key = { "featured_video_${it.id}" },
                             contentType = { "video" }
-                        ) { video ->
+                            ) { video ->
                             YouTubeGridItem(
                                 item = video,
                                 isActive = mediaMetadata?.id == video.id,
                                 isPlaying = isPlaying,
+                                isSelected = selection && video.id in selectedIds,
                                 coroutineScope = scope,
                                 // Square (1f) to match the artist screen's video sections: a center
                                 // crop hides most of the title text YouTube bakes into the 16:9 video
@@ -869,23 +913,71 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .combinedClickable(
                                         onClick = {
-                                            val artistDisplay = video.artists.joinToString(" • ") { it.name }
-                                            navController.navigate(videoRoute(video.id, video.title, artistDisplay))
+                                            if (selection) {
+                                                selectedIds = if (video.id in selectedIds) selectedIds - video.id else selectedIds + video.id
+                                                if (selectedIds.isEmpty()) selection = false
+                                            } else {
+                                                val artistDisplay = video.artists.joinToString(" • ") { it.name }
+                                                navController.navigate(videoRoute(video.id, video.title, artistDisplay))
+                                            }
                                         },
                                         onLongClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            menuState.show {
-                                                YouTubeSongMenu(
-                                                    song = video,
-                                                    navController = navController,
-                                                    onDismiss = menuState::dismiss,
-                                                    isVideo = true,
-                                                )
+                                            if (!selection) {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                selection = true
+                                                selectedIds = setOf(video.id)
+                                            } else {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    YouTubeSongMenu(
+                                                        song = video,
+                                                        navController = navController,
+                                                        onDismiss = menuState::dismiss,
+                                                        isVideo = true,
+                                                    )
+                                                }
                                             }
                                         }
                                     )
                                     .animateItem()
                             )
+                        }
+                    }
+                }
+            }
+
+            if (selection && selectedIds.isNotEmpty()) {
+                item(key = "home_selection_bar") {
+                    val selectedSongItems = allHomeSongItems.filter { it.id in selectedIds }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "${selectedIds.size} selected",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        if (selectedSongItems.isNotEmpty()) {
+                            TextButton(onClick = {
+                                menuState.show {
+                                    SelectionMediaMetadataMenu(
+                                        songSelection = selectedSongItems.map { it.toMediaMetadata() },
+                                        currentItems = emptyList(),
+                                        onDismiss = menuState::dismiss,
+                                        clearAction = { selection = false }
+                                    )
+                                }
+                            }) {
+                                Text(stringResource(R.string.download))
+                            }
+                        }
+                        TextButton(onClick = { selection = false; selectedIds = emptySet() }) {
+                            Text(stringResource(R.string.close))
                         }
                     }
                 }
