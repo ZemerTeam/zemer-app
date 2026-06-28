@@ -62,12 +62,15 @@ object ZemerResultMapper {
             thumbnail = thumbnail.orEmpty(),
         )
 
-    fun ZemerPlaylist.toPlaylistItem(): PlaylistItem =
+    fun ZemerPlaylist.toPlaylistItem(formatSongCount: (Int) -> String?): PlaylistItem =
         PlaylistItem(
             id = id,
             title = title,
             author = if (artist.isBlank()) null else Artist(name = artist, id = null),
-            songCountText = null,
+            // e.g. "12 songs"; omitted when the server sends no/zero count. The row renders this after a
+            // bullet next to the curator (Items.kt), and the count is regex-read elsewhere, so the
+            // localized "N songs" string keeps both working.
+            songCountText = songCount?.takeIf { it > 0 }?.let(formatSongCount),
             thumbnail = thumbnail,
             playEndpoint = null,
             shuffleEndpoint = null,
@@ -93,8 +96,8 @@ object ZemerResultMapper {
             .distinctBy { it.id }
 
     /** Shared playlist adaptation — used for both the artist-owned `playlists` and the `community` lists. */
-    private fun playlistItems(playlists: List<ZemerPlaylist>): List<PlaylistItem> =
-        playlists.filter { it.id.isNotBlank() }.map { it.toPlaylistItem() }.distinctBy { it.id }
+    private fun playlistItems(playlists: List<ZemerPlaylist>, formatSongCount: (Int) -> String?): List<PlaylistItem> =
+        playlists.filter { it.id.isNotBlank() }.map { it.toPlaylistItem(formatSongCount) }.distinctBy { it.id }
 
     /**
      * The grouped summary view (`filter == null`), matching the YouTube summary's shape exactly
@@ -106,12 +109,16 @@ object ZemerResultMapper {
      * the two are split apart only behind their dedicated chips. Empty sections are omitted. (No "Top
      * result" card — the Zemer server does not return one.)
      */
-    fun summaryPage(resp: ZemerSearchResponse, hideExplicit: Boolean): SearchSummaryPage {
+    fun summaryPage(
+        resp: ZemerSearchResponse,
+        hideExplicit: Boolean,
+        formatSongCount: (Int) -> String? = { null },
+    ): SearchSummaryPage {
         val songsAndVideos =
             (songItems(resp.categories.songs, hideExplicit) + songItems(resp.categories.videos, hideExplicit))
                 .distinctBy { it.id }
         val playlists =
-            (playlistItems(resp.categories.playlists) + playlistItems(resp.categories.community))
+            (playlistItems(resp.categories.playlists, formatSongCount) + playlistItems(resp.categories.community, formatSongCount))
                 .distinctBy { it.id }
         val summaries = buildList {
             albumItems(resp).takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_ALBUMS, it)) }
@@ -127,14 +134,15 @@ object ZemerResultMapper {
         resp: ZemerSearchResponse,
         filter: SearchFilter,
         hideExplicit: Boolean,
+        formatSongCount: (Int) -> String? = { null },
     ): SearchResult {
         val items: List<YTItem> = when (filter.value) {
             SearchFilter.FILTER_SONG.value -> songItems(resp.categories.songs, hideExplicit)
             SearchFilter.FILTER_VIDEO.value -> songItems(resp.categories.videos, hideExplicit)
             SearchFilter.FILTER_ARTIST.value -> artistItems(resp)
             SearchFilter.FILTER_ALBUM.value -> albumItems(resp)
-            SearchFilter.FILTER_COMMUNITY_PLAYLIST.value -> playlistItems(resp.categories.community)
-            SearchFilter.FILTER_FEATURED_PLAYLIST.value -> playlistItems(resp.categories.playlists)
+            SearchFilter.FILTER_COMMUNITY_PLAYLIST.value -> playlistItems(resp.categories.community, formatSongCount)
+            SearchFilter.FILTER_FEATURED_PLAYLIST.value -> playlistItems(resp.categories.playlists, formatSongCount)
             else -> emptyList()
         }
         return SearchResult(items = items, continuation = null)
@@ -148,14 +156,18 @@ object ZemerResultMapper {
      * then a few song titles to fill — deduped case-insensitively and capped. The combined rows are
      * de-duped by id (a videoId can appear in both songs and videos) so the id-keyed list can't crash.
      */
-    fun suggestions(resp: ZemerSearchResponse, hideExplicit: Boolean): SearchSuggestions {
+    fun suggestions(
+        resp: ZemerSearchResponse,
+        hideExplicit: Boolean,
+        formatSongCount: (Int) -> String? = { null },
+    ): SearchSuggestions {
         val items: List<YTItem> =
             (songItems(resp.categories.songs, hideExplicit) +
                 artistItems(resp) +
                 albumItems(resp) +
                 songItems(resp.categories.videos, hideExplicit) +
-                playlistItems(resp.categories.playlists) +
-                playlistItems(resp.categories.community))
+                playlistItems(resp.categories.playlists, formatSongCount) +
+                playlistItems(resp.categories.community, formatSongCount))
                 .distinctBy { it.id }
 
         val completions: List<String> =

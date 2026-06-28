@@ -1,5 +1,6 @@
 package com.jtech.zemer.search
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -64,4 +65,8 @@ data class ZemerPlaylist(
     val title: String = "",
     val artist: String = "",
     val thumbnail: String? = null,
+    // Number of whitelisted songs the playlist actually serves. The server filters community playlists
+    // to the whitelist at open time, so this — not the raw `total` — is the count to surface (showing
+    // `total` would over-count vs. what the user gets when they open it). Absent on older server builds.
+    @SerialName("whitelisted") val songCount: Int? = null,
 )

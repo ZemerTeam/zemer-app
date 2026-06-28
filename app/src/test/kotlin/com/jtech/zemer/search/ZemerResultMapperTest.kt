@@ -173,6 +173,38 @@ class ZemerResultMapperTest {
     }
 
     @Test
+    fun `community playlist surfaces its whitelisted song count`() {
+        val resp = ZemerSearchResponse(
+            categories = ZemerCategories(
+                community = listOf(ZemerPlaylist("c1", "Mix", "Curator", "t", songCount = 12)),
+            ),
+        )
+
+        val item = ZemerResultMapper
+            .filtered(resp, SearchFilter.FILTER_COMMUNITY_PLAYLIST, hideExplicit = false) { "$it songs" }
+            .items.single() as PlaylistItem
+        assertEquals("12 songs", item.songCountText)
+    }
+
+    @Test
+    fun `playlist with absent or zero count shows no count text`() {
+        val resp = ZemerSearchResponse(
+            categories = ZemerCategories(
+                community = listOf(
+                    ZemerPlaylist("c1", "No count", "Curator", "t"),               // count absent
+                    ZemerPlaylist("c2", "Zero count", "Curator", "t", songCount = 0),
+                ),
+            ),
+        )
+
+        val items = ZemerResultMapper
+            .filtered(resp, SearchFilter.FILTER_COMMUNITY_PLAYLIST, hideExplicit = false) { "$it songs" }
+            .items.map { it as PlaylistItem }
+        assertNull(items[0].songCountText) // absent → no count
+        assertNull(items[1].songCountText) // zero → no count
+    }
+
+    @Test
     fun `summary Playlists section merges artist-owned and community playlists`() {
         val resp = ZemerSearchResponse(
             categories = ZemerCategories(

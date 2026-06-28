@@ -1,9 +1,12 @@
 package com.jtech.zemer.search
 
+import android.content.Context
+import com.jtech.zemer.R
 import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.models.SearchSuggestions
 import com.metrolist.innertube.pages.SearchResult
 import com.metrolist.innertube.pages.SearchSummaryPage
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
@@ -26,19 +29,24 @@ import javax.inject.Singleton
 @Singleton
 class ZemerSearchRepository @Inject constructor(
     private val client: ZemerSearchClient,
+    @ApplicationContext private val context: Context,
 ) {
+    // Localized "N songs" for a playlist's whitelisted track count (reuses the shared n_song plural).
+    private val formatSongCount: (Int) -> String =
+        { n -> context.resources.getQuantityString(R.plurals.n_song, n, n) }
+
     suspend fun summary(query: String, options: ZemerSearchOptions): SearchSummaryPage =
-        ZemerResultMapper.summaryPage(fetch(query, options, K_SUMMARY), options.hideExplicit)
+        ZemerResultMapper.summaryPage(fetch(query, options, K_SUMMARY), options.hideExplicit, formatSongCount)
 
     suspend fun filtered(query: String, filter: SearchFilter, options: ZemerSearchOptions): SearchResult {
         // The Community chip browses a whole curated set, so it must not be clipped by the default
         // per-chip cap; every other chip uses K_FILTER.
         val k = if (filter.value == SearchFilter.FILTER_COMMUNITY_PLAYLIST.value) K_COMMUNITY else K_FILTER
-        return ZemerResultMapper.filtered(fetch(query, options, k), filter, options.hideExplicit)
+        return ZemerResultMapper.filtered(fetch(query, options, k), filter, options.hideExplicit, formatSongCount)
     }
 
     suspend fun suggestions(query: String, options: ZemerSearchOptions): SearchSuggestions =
-        ZemerResultMapper.suggestions(fetch(query, options, K_SUGGEST), options.hideExplicit)
+        ZemerResultMapper.suggestions(fetch(query, options, K_SUGGEST), options.hideExplicit, formatSongCount)
 
     private val cacheMutex = Mutex()
     private val cache = object : LinkedHashMap<String, ZemerSearchResponse>(16, 0.75f, true) {
