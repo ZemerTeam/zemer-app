@@ -121,7 +121,10 @@ import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.playback.DownloadStateResolver
 import kotlinx.coroutines.launch
 import com.jtech.zemer.ui.component.AggregateDownloadButton
+import com.jtech.zemer.ui.utils.ItemWrapper
+import com.jtech.zemer.ui.component.SelectionTopActions
 import com.jtech.zemer.ui.menu.SelectionMediaMetadataMenu
+import com.jtech.zemer.ui.menu.SelectionSongMenu
 
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.ArtistViewModel
@@ -166,6 +169,10 @@ fun ArtistScreen(
     val filteredLibrarySongs = remember(librarySongs, hideExplicit) {
         if (hideExplicit) librarySongs.filter { !it.song.explicit } else librarySongs
     }
+    val wrappedSongs = remember(filteredLibrarySongs) {
+        filteredLibrarySongs.map { ItemWrapper(it) }.toMutableList()
+    }
+    var selection by remember { mutableStateOf(false) }
 
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
@@ -498,30 +505,67 @@ fun ArtistScreen(
                     if (librarySongs.isNotEmpty()) {
                         item(key = "local_songs_title") {
                             val artistName = artistPage?.artist?.title ?: libraryArtist?.artist?.name ?: ""
-                            NavigationTitle(
-                                title = stringResource(R.string.songs),
-                                modifier = Modifier.animateItem(),
-                                onClick = {
-                                    navController.navigate("search/${java.net.URLEncoder.encode(artistName, "UTF-8")}?filter=songs")
+
+                            if (selection) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    SelectionTopActions(
+                                        wrapped = wrappedSongs,
+                                        countLabel = { pluralStringResource(R.plurals.n_song, it, it) },
+                                        onExit = { selection = false },
+                                        onMore = {
+                                            menuState.show {
+                                                SelectionSongMenu(
+                                                    songSelection = wrappedSongs.filter { it.isSelected }.map { it.item },
+                                                    onDismiss = menuState::dismiss,
+                                                    clearAction = { selection = false },
+                                                )
+                                            }
+                                        },
+                                    )
                                 }
-                            )
+                            } else {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    NavigationTitle(
+                                        title = stringResource(R.string.songs),
+                                        modifier = Modifier.animateItem(),
+                                        onClick = {
+                                            navController.navigate("search/${java.net.URLEncoder.encode(artistName, "UTF-8")}?filter=songs")
+                                        }
+                                    )
+                                    Spacer(Modifier.weight(1f))
+                                    if (filteredLibrarySongs.isNotEmpty()) {
+                                        AggregateDownloadButton(
+                                            songs = filteredLibrarySongs,
+                                            onDownloadAll = {
+                                                filteredLibrarySongs.forEach { downloadUtil.downloadToMediaStore(it) }
+                                            },
+                                            onRemoveAll = {
+                                                coroutineScope.launch {
+                                                    filteredLibrarySongs.forEach { downloadUtil.removeDownload(it.id) }
+                                                }
+                                            },
+                                        )
+                                    }
+                                }
+                            }
                         }
 
                         itemsIndexed(
-                            items = filteredLibrarySongs,
-                            key = { index, item -> "local_song_${item.id}_$index" }
-                        ) { index, song ->
+                            items = wrappedSongs,
+                            key = { index, item -> "local_song_${item.item.id}_$index" }
+                        ) { index, songWrapper ->
                             SongListItem(
-                                song = song,
+                                song = songWrapper.item,
                                 showInLibraryIcon = true,
-                                isActive = song.id == mediaMetadata?.id,
+                                isActive = songWrapper.item.id == mediaMetadata?.id,
                                 isPlaying = isPlaying,
+                                isSelected = songWrapper.isSelected && selection,
                                 trailingContent = {
                                     IconButton(
                                         onClick = {
                                             menuState.show {
                                                 SongMenu(
-                                                    originalSong = song,
+                                                    originalSong = songWrapper.item,
                                                     navController = navController,
                                                     onDismiss = menuState::dismiss,
                                                 )
@@ -538,27 +582,29 @@ fun ArtistScreen(
                                     .fillMaxWidth()
                                     .combinedClickable(
                                         onClick = {
-                                            if (song.id == mediaMetadata?.id) {
-                                                playerConnection.player.togglePlayPause()
-                                            } else {
-                                                playerConnection.playQueue(
-                                                    ListQueue(
-                                                        title = libraryArtist?.artist?.name ?: unknownArtistTitle,
-                                                        items = librarySongs.map { it.toMediaItem() },
-                                                        startIndex = index
+                                            if (!selection) {
+                                                if (songWrapper.item.id == mediaMetadata?.id) {
+                                                    playerConnection.player.togglePlayPause()
+                                                } else {
+                                                    playerConnection.playQueue(
+                                                        ListQueue(
+                                                            title = libraryArtist?.artist?.name ?: unknownArtistTitle,
+                                                            items = filteredLibrarySongs.map { it.toMediaItem() },
+                                                            startIndex = index
+                                                        )
                                                     )
-                                                )
+                                                }
+                                            } else {
+                                                songWrapper.isSelected = !songWrapper.isSelected
                                             }
                                         },
                                         onLongClick = {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            menuState.show {
-                                                SongMenu(
-                                                    originalSong = song,
-                                                    navController = navController,
-                                                    onDismiss = menuState::dismiss,
-                                                )
+                                            if (!selection) {
+                                                selection = true
                                             }
+                                            wrappedSongs.forEach { it.isSelected = false }
+                                            songWrapper.isSelected = true
                                         },
                                     )
                                     .animateItem(),
@@ -774,6 +820,7 @@ fun ArtistScreen(
                                                 is PlaylistItem -> false
                                             },
                                             isPlaying = isPlaying,
+                                            isSelected = remoteSelection && item.id in selectedRemoteSongIds,
                                             coroutineScope = coroutineScope,
                                             // All grid thumbnails square (1f). Video items (Videos /
                                             // Live performances) carry the title baked into the 16:9
@@ -784,7 +831,13 @@ fun ArtistScreen(
                                             modifier = Modifier
                                                 .combinedClickable(
                                                     onClick = {
-                                                        if (isVideoSection && item is SongItem && !blockVideos) {
+                                                        if (remoteSelection) {
+                                                            if (item.id in selectedRemoteSongIds) {
+                                                                selectedRemoteSongIds.remove(item.id)
+                                                            } else {
+                                                                selectedRemoteSongIds.add(item.id)
+                                                            }
+                                                        } else if (isVideoSection && item is SongItem && !blockVideos) {
                                                             val artistDisplay = item.artists.joinToString(" • ") { it.name }
                                                             navController.navigate(videoRoute(item.id, item.title, artistDisplay))
                                                         } else if (!isVideoSection) {
@@ -805,36 +858,42 @@ fun ArtistScreen(
                                                         }
                                                     },
                                                     onLongClick = {
-                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                        menuState.show {
-                                                            when (item) {
-                                                                is SongItem ->
-                                                                    YouTubeSongMenu(
-                                                                        song = item,
-                                                                        navController = navController,
-                                                                        onDismiss = menuState::dismiss,
-                                                                        isVideo = isVideoSection,
-                                                                    )
+                                                        if (!remoteSelection) {
+                                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                            remoteSelection = true
+                                                            selectedRemoteSongIds.clear()
+                                                            selectedRemoteSongIds.add(item.id)
+                                                        } else {
+                                                            menuState.show {
+                                                                when (item) {
+                                                                    is SongItem ->
+                                                                        YouTubeSongMenu(
+                                                                            song = item,
+                                                                            navController = navController,
+                                                                            onDismiss = menuState::dismiss,
+                                                                            isVideo = isVideoSection,
+                                                                        )
 
-                                                                is AlbumItem ->
-                                                                    YouTubeAlbumMenu(
-                                                                        albumItem = item,
-                                                                        navController = navController,
-                                                                        onDismiss = menuState::dismiss,
-                                                                    )
+                                                                    is AlbumItem ->
+                                                                        YouTubeAlbumMenu(
+                                                                            albumItem = item,
+                                                                            navController = navController,
+                                                                            onDismiss = menuState::dismiss,
+                                                                        )
 
-                                                                is ArtistItem ->
-                                                                    YouTubeArtistMenu(
-                                                                        artist = item,
-                                                                        onDismiss = menuState::dismiss,
-                                                                    )
+                                                                    is ArtistItem ->
+                                                                        YouTubeArtistMenu(
+                                                                            artist = item,
+                                                                            onDismiss = menuState::dismiss,
+                                                                        )
 
-                                                                is PlaylistItem ->
-                                                                    YouTubePlaylistMenu(
-                                                                        playlist = item,
-                                                                        coroutineScope = coroutineScope,
-                                                                        onDismiss = menuState::dismiss,
-                                                                    )
+                                                                    is PlaylistItem ->
+                                                                        YouTubePlaylistMenu(
+                                                                            playlist = item,
+                                                                            coroutineScope = coroutineScope,
+                                                                            onDismiss = menuState::dismiss,
+                                                                        )
+                                                                }
                                                             }
                                                         }
                                                     },
