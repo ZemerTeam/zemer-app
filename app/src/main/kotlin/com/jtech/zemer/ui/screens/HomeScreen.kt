@@ -4,6 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -432,7 +433,7 @@ fun HomeScreen(
                 (!blockVideos && featuredVideos.isNotEmpty()) ||
                 trendingSongs.isNotEmpty() ||
                 latestReleases.isNotEmpty()
-        val shouldShowShimmer = isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent)
+        val shouldShowShimmer = isLoading
 
         LazyColumn(
             state = lazylistState,
@@ -908,6 +909,23 @@ fun HomeScreen(
                                 GridItemPlaceHolder()
                             }
                         }
+                    }
+                }
+            }
+
+            if (!isLoading && !hasLocalHomeContent && !hasRemoteHomeContent) {
+                item(key = "empty_state") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.no_content_available),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }

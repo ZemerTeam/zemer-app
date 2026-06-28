@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="default_web_client_id">000000000000-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com</string>
     <string name="pause">Pause</string>
     <string name="replay">Replay</string>
     <string name="crop_album_art">Crop album art</string>
@@ -551,4 +552,5 @@
     <string name="recognize_music_play">Play</string>
     <string name="recognize_music_try_again">Try again</string>
     <string name="recognize_music_close">Close</string>
+    <string name="no_content_available">No content available. Check your internet connection and content filter settings.</string>
 </resources>

@@ -19,10 +19,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,11 +39,15 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.jtech.zemer.LocalDatabase
+import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ArtistSongSortType
 import com.jtech.zemer.db.entities.Artist
+import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.playback.DownloadMenuLogic
+import com.jtech.zemer.playback.DownloadStateResolver
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
@@ -62,9 +68,20 @@ fun ArtistMenu(
     val context = LocalContext.current
     var showReportDialog by remember { mutableStateOf(false) }
     val database = LocalDatabase.current
+    val downloadUtil = LocalDownloadUtil.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val artistState = database.artist(originalArtist.id).collectAsState(initial = originalArtist)
     val artist = artistState.value ?: originalArtist
+    val menuScope = rememberCoroutineScope()
+    var songs by remember { mutableStateOf(emptyList<Song>()) }
+
+    LaunchedEffect(artist.id) {
+        database.artistSongs(artist.id, ArtistSongSortType.CREATE_DATE, true).collect {
+            songs = it
+        }
+    }
+
+    val mediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
 
     if (showReportDialog) {
         ReportContentDialog(
@@ -252,6 +269,19 @@ fun ArtistMenu(
                             },
                         )
                     )
+                    // Download row for all artist songs
+                    if (songs.isNotEmpty()) {
+                        val dlStatus = DownloadStateResolver.aggregateSongs(songs, mediaStoreDownloads)
+                        val dlProgress = DownloadStateResolver.aggregateProgress(songs, mediaStoreDownloads)
+                        downloadMenuItem(
+                            kind = DownloadMenuLogic.collectionRow(dlStatus),
+                            progress = dlProgress,
+                            onDownload = { songs.forEach { downloadUtil.downloadToMediaStore(it) } },
+                            onCancel = { songs.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },
+                            onRetry = { songs.forEach { downloadUtil.retryMediaStoreDownload(it.id) } },
+                            onRemove = { menuScope.launch { songs.forEach { downloadUtil.removeDownload(it.id) } } },
+                        )?.let { add(it) }
+                    }
                     add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.warning), null, Modifier.size(24.dp)) },

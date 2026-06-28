@@ -4,6 +4,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 
 /**
@@ -32,10 +33,12 @@ object IsraeliArtistRegistry {
             if (cachedIds.isNotEmpty()) return
 
             runCatching {
-                val snapshot = FirebaseFirestore.getInstance()
-                    .collection("israeliArtists")
-                    .get()
-                    .await()
+                val snapshot = withTimeout(15_000L) {
+                    FirebaseFirestore.getInstance()
+                        .collection("israeliArtists")
+                        .get()
+                        .await()
+                }
 
                 val ids = snapshot.documents.mapNotNull { doc ->
                     doc.getString("id") ?: doc.getString("artistId")

@@ -52,6 +52,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 import javax.inject.Inject
 import kotlin.random.Random
@@ -385,10 +386,12 @@ class HomeViewModel @Inject constructor(
     private suspend fun checkAndUpdateArtistProfiles(cachedProfiles: List<HomeArtistProfile>) {
         runCatching {
             val firestoreStart = System.currentTimeMillis()
-            val snapshot = FirebaseFirestore.getInstance()
-                .collection("artistsWhitelist")
-                .get()
-                .await()
+            val snapshot = withTimeout(15_000L) {
+                FirebaseFirestore.getInstance()
+                    .collection("artistsWhitelist")
+                    .get()
+                    .await()
+            }
             val fetchTime = System.currentTimeMillis() - firestoreStart
 
             val profiles = snapshot.documents.mapNotNull { doc ->
@@ -426,10 +429,12 @@ class HomeViewModel @Inject constructor(
     private suspend fun fetchArtistProfilesFromFirebase(fallback: List<HomeArtistProfile>): List<HomeArtistProfile> {
         return runCatching {
             val firestoreStart = System.currentTimeMillis()
-            val snapshot = FirebaseFirestore.getInstance()
-                .collection("artistsWhitelist")
-                .get()
-                .await()
+            val snapshot = withTimeout(15_000L) {
+                FirebaseFirestore.getInstance()
+                    .collection("artistsWhitelist")
+                    .get()
+                    .await()
+            }
             Timber.d("NET: Firebase artistsWhitelist fetch took ${System.currentTimeMillis() - firestoreStart}ms (${snapshot.documents.size} docs)")
 
             val profiles = snapshot.documents.mapNotNull { doc ->
@@ -1317,7 +1322,7 @@ class HomeViewModel @Inject constructor(
             val allowFemale = ContentFilterState.state.value.allowFemaleSingers
             val profileById = homeArtistProfilesCache.associateBy { it.id }
             isLoadingMore.value = true
-            IsraeliArtistRegistry.ensureLoaded()
+            runCatching { IsraeliArtistRegistry.ensureLoaded() }
             val nextSections = YouTube.home(continuation).getOrNull()
             if (nextSections != null) {
                 uiState.update { state ->

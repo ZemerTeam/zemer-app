@@ -6,6 +6,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -58,6 +59,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -70,6 +72,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -114,6 +117,12 @@ import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.fadingEdge
 import com.jtech.zemer.ui.utils.resize
+import com.jtech.zemer.LocalDownloadUtil
+import com.jtech.zemer.playback.DownloadStateResolver
+import kotlinx.coroutines.launch
+import com.jtech.zemer.ui.component.AggregateDownloadButton
+import com.jtech.zemer.ui.menu.SelectionMediaMetadataMenu
+
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.ArtistViewModel
 import com.metrolist.innertube.models.AlbumItem
@@ -146,6 +155,18 @@ fun ArtistScreen(
     val libraryAlbums by viewModel.libraryAlbums.collectAsState()
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    val downloadUtil = LocalDownloadUtil.current
+    var remoteSelection by remember { mutableStateOf(false) }
+    val selectedRemoteSongIds = remember { mutableSetOf<String>() }
+    val remoteSongItems = remember { mutableMapOf<String, SongItem>() }
+    if (remoteSelection) {
+        BackHandler { remoteSelection = false }
+    }
+
+    val filteredLibrarySongs = remember(librarySongs, hideExplicit) {
+        if (hideExplicit) librarySongs.filter { !it.song.explicit } else librarySongs
+    }
+
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
     val visibleCounts = remember { mutableStateMapOf<String, Int>() }
@@ -420,7 +441,24 @@ fun ArtistScreen(
                                                     )
                                                 }
                                             }
-                                        } else if (librarySongs.isNotEmpty()) {
+                                        }
+
+                                        // Download All Button (local songs)
+                                        if (filteredLibrarySongs.isNotEmpty()) {
+                                            AggregateDownloadButton(
+                                                songs = filteredLibrarySongs,
+                                                onDownloadAll = {
+                                                    filteredLibrarySongs.forEach { downloadUtil.downloadToMediaStore(it) }
+                                                },
+                                                onRemoveAll = {
+                                                    coroutineScope.launch {
+                                                        filteredLibrarySongs.forEach { downloadUtil.removeDownload(it.id) }
+                                                    }
+                                                },
+                                            )
+                                        }
+
+                                        if (showLocal && librarySongs.isNotEmpty()) {
                                             IconButton(
                                                 onClick = {
                                                     val shuffledSongs = librarySongs.shuffled()
@@ -469,11 +507,6 @@ fun ArtistScreen(
                             )
                         }
 
-                        val filteredLibrarySongs = if (hideExplicit) {
-                            librarySongs.filter { !it.song.explicit }
-                        } else {
-                            librarySongs
-                        }
                         itemsIndexed(
                             items = filteredLibrarySongs,
                             key = { index, item -> "local_song_${item.id}_$index" }
@@ -640,19 +673,31 @@ fun ArtistScreen(
                                 items = displayItems,
                                 key = { "youtube_song_${it.id}" },
                             ) { song ->
+                                if (song.id !in remoteSongItems) {
+                                    remoteSongItems[song.id] = song as SongItem
+                                }
                                 YouTubeListItem(
                                     item = song as SongItem,
                                     isActive = mediaMetadata?.id == song.id,
                                     isPlaying = isPlaying,
+                                    isSelected = song.id in selectedRemoteSongIds && remoteSelection,
                                     trailingContent = {
                                         IconButton(
                                             onClick = {
-                                                menuState.show {
-                                                    YouTubeSongMenu(
-                                                        song = song,
-                                                        navController = navController,
-                                                        onDismiss = menuState::dismiss,
-                                                    )
+                                                if (remoteSelection) {
+                                                    if (song.id in selectedRemoteSongIds) {
+                                                        selectedRemoteSongIds.remove(song.id)
+                                                    } else {
+                                                        selectedRemoteSongIds.add(song.id)
+                                                    }
+                                                } else {
+                                                    menuState.show {
+                                                        YouTubeSongMenu(
+                                                            song = song,
+                                                            navController = navController,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
+                                                    }
                                                 }
                                             },
                                         ) {
@@ -665,7 +710,13 @@ fun ArtistScreen(
                                     modifier = Modifier
                                         .combinedClickable(
                                             onClick = {
-                                                if (isVideoSection && !blockVideos) {
+                                                if (remoteSelection) {
+                                                    if (song.id in selectedRemoteSongIds) {
+                                                        selectedRemoteSongIds.remove(song.id)
+                                                    } else {
+                                                        selectedRemoteSongIds.add(song.id)
+                                                    }
+                                                } else if (isVideoSection && !blockVideos) {
                                                     val artistDisplay = song.artists.joinToString(" • ") { it.name }
                                                     navController.navigate(videoRoute(song.id, song.title, artistDisplay))
                                                 } else if (!isVideoSection) {
@@ -683,13 +734,19 @@ fun ArtistScreen(
                                                 }
                                             },
                                             onLongClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                menuState.show {
-                                                    YouTubeSongMenu(
-                                                        song = song,
-                                                        navController = navController,
-                                                        onDismiss = menuState::dismiss,
-                                                    )
+                                                if (!remoteSelection) {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    remoteSelection = true
+                                                    selectedRemoteSongIds.clear()
+                                                    selectedRemoteSongIds.add(song.id)
+                                                } else {
+                                                    menuState.show {
+                                                        YouTubeSongMenu(
+                                                            song = song,
+                                                            navController = navController,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
+                                                    }
                                                 }
                                             },
                                         )
@@ -813,7 +870,12 @@ fun ArtistScreen(
 
     TopAppBar(
         title = {
-            if (!transparentAppBar) {
+            if (remoteSelection) {
+                Text(
+                    text = pluralStringResource(R.plurals.n_song, selectedRemoteSongIds.size, selectedRemoteSongIds.size),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            } else if (!transparentAppBar) {
                 Text(
                     text = artistPage?.artist?.title.orEmpty().ifEmpty { stringResource(R.string.artists) },
                     maxLines = 1,
@@ -823,11 +885,21 @@ fun ArtistScreen(
         },
         navigationIcon = {
             IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
+                onClick = {
+                    if (remoteSelection) {
+                        remoteSelection = false
+                    } else {
+                        navController.navigateUp()
+                    }
+                },
+                onLongClick = {
+                    if (!remoteSelection) {
+                        navController.backToMain()
+                    }
+                },
             ) {
                 Icon(
-                    painterResource(R.drawable.arrow_back),
+                    painterResource(if (remoteSelection) R.drawable.close else R.drawable.arrow_back),
                     contentDescription = null,
                     modifier = Modifier
                         .focusRequester(backFocus)
@@ -836,20 +908,57 @@ fun ArtistScreen(
             }
         },
         actions = {
-            IconButton(
-                onClick = {
-                    viewModel.artistPage?.artist?.shareLink?.let { link ->
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText(context.getString(R.string.clip_label_artist_link), link)
-                        clipboard.setPrimaryClip(clip)
-                        Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
-                    }
-                },
-            ) {
-                Icon(
-                    painterResource(R.drawable.link),
-                    contentDescription = null,
-                )
+            if (remoteSelection) {
+                IconButton(
+                    onClick = {
+                        if (selectedRemoteSongIds.size == remoteSongItems.size) {
+                            selectedRemoteSongIds.clear()
+                        } else {
+                            remoteSongItems.keys.forEach { selectedRemoteSongIds.add(it) }
+                        }
+                    },
+                ) {
+                    Icon(
+                        painterResource(
+                            if (selectedRemoteSongIds.size == remoteSongItems.size) R.drawable.deselect else R.drawable.select_all
+                        ),
+                        contentDescription = null
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        val selectedMedia = selectedRemoteSongIds.mapNotNull { remoteSongItems[it]?.toMediaMetadata() }
+                        menuState.show {
+                            SelectionMediaMetadataMenu(
+                                songSelection = selectedMedia,
+                                currentItems = emptyList(),
+                                onDismiss = menuState::dismiss,
+                                clearAction = { remoteSelection = false }
+                            )
+                        }
+                    },
+                ) {
+                    Icon(
+                        painterResource(R.drawable.more_vert),
+                        contentDescription = null
+                    )
+                }
+            } else {
+                IconButton(
+                    onClick = {
+                        viewModel.artistPage?.artist?.shareLink?.let { link ->
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText(context.getString(R.string.clip_label_artist_link), link)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                ) {
+                    Icon(
+                        painterResource(R.drawable.link),
+                        contentDescription = null,
+                    )
+                }
             }
         },
         colors = if (transparentAppBar) {

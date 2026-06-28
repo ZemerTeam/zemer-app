@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -24,6 +26,8 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -34,6 +38,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
@@ -44,6 +49,9 @@ import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.playback.DownloadStateResolver
+import kotlinx.coroutines.launch
+import com.jtech.zemer.ui.component.AggregateDownloadButton
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -79,6 +87,8 @@ fun ArtistSongsScreen(
     )
     val artist by viewModel.artist.collectAsState()
     val songs by viewModel.songs.collectAsState()
+    val downloadUtil = LocalDownloadUtil.current
+    val coroutineScope = rememberCoroutineScope()
     val lazyListState = rememberLazyListState()
 
     Box(
@@ -110,6 +120,20 @@ fun ArtistSongsScreen(
                         },
                     )
 
+                    if (songs.isNotEmpty()) {
+                        AggregateDownloadButton(
+                            songs = songs,
+                            onDownloadAll = {
+                                songs.forEach { downloadUtil.downloadToMediaStore(it) }
+                            },
+                            onRemoveAll = {
+                                coroutineScope.launch {
+                                    songs.forEach { downloadUtil.removeDownload(it.id) }
+                                }
+                            },
+                        )
+                    }
+
                     Spacer(Modifier.weight(1f))
 
                     Text(
@@ -122,7 +146,7 @@ fun ArtistSongsScreen(
 
             itemsIndexed(
                 items = songs,
-                key = { _, item -> item.id },
+                key = { _, song -> song.id },
             ) { index, song ->
                 SongListItem(
                     song = song,
