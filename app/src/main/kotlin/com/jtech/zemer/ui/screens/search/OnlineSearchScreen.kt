@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -30,6 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -119,6 +121,9 @@ fun OnlineSearchScreen(
 
     var selection by remember { mutableStateOf(false) }
     val selectedIds = remember { mutableSetOf<String>() }
+    val allSearchSongItems = remember(viewState.items) {
+        viewState.items.filterIsInstance<SongItem>()
+    }
 
     val lazyListState = rememberLazyListState()
     val firstItemKey = remember(viewState) {
@@ -144,14 +149,15 @@ fun OnlineSearchScreen(
         }
     }
 
-    LazyColumn(
-        state = lazyListState,
-        contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Bottom).asPaddingValues(),
-        modifier = Modifier
-            .fillMaxSize()
-            .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.background)
-    ) {
-        items(viewState.history, key = { "history_${it.query}" }) { history ->
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = lazyListState,
+            contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Bottom).asPaddingValues(),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.background)
+        ) {
+            items(viewState.history, key = { "history_${it.query}" }) { history ->
             SuggestionItem(
                 query = history.query,
                 online = false,
@@ -403,35 +409,59 @@ fun OnlineSearchScreen(
                     .animateItem()
             )
         }
+        }
+
         if (selection && selectedIds.isNotEmpty()) {
-            item(key = "search_selection_bar") {
-                val songItems = viewState.items.filterIsInstance<SongItem>().filter { it.id in selectedIds }
+            val selectedSongItems = allSearchSongItems.filter { it.id in selectedIds }
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                tonalElevation = 4.dp
+            ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    IconButton(onClick = { selection = false; selectedIds.clear() }) {
+                        Icon(painterResource(R.drawable.close), contentDescription = null)
+                    }
                     Text(
                         text = "${selectedIds.size} selected",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f)
                     )
-                    if (songItems.isNotEmpty()) {
-                        TextButton(onClick = {
+                    IconButton(
+                        onClick = {
+                            val allSelected = selectedIds.size == allSearchSongItems.size
+                            if (allSelected) {
+                                selectedIds.clear()
+                                selection = false
+                            } else {
+                                selectedIds.addAll(allSearchSongItems.map { it.id })
+                            }
+                        }
+                    ) {
+                        Icon(
+                            painterResource(
+                                if (selectedIds.size == allSearchSongItems.size && allSearchSongItems.isNotEmpty()) R.drawable.deselect
+                                else R.drawable.select_all
+                            ),
+                            contentDescription = null
+                        )
+                    }
+                    IconButton(onClick = {
+                        if (selectedSongItems.isNotEmpty()) {
                             menuState.show {
                                 SelectionMediaMetadataMenu(
-                                    songSelection = songItems.map { it.toMediaMetadata() },
+                                    songSelection = selectedSongItems.map { it.toMediaMetadata() },
                                     currentItems = emptyList(),
                                     onDismiss = menuState::dismiss,
                                     clearAction = { selection = false }
                                 )
                             }
-                        }) {
-                            Text(stringResource(R.string.download))
                         }
+                    }) {
+                        Icon(painterResource(R.drawable.more_vert), contentDescription = null)
                     }
                 }
             }

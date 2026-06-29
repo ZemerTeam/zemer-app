@@ -31,6 +31,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
@@ -946,43 +947,6 @@ fun HomeScreen(
                 }
             }
 
-            if (selection && selectedIds.isNotEmpty()) {
-                item(key = "home_selection_bar") {
-                    val selectedSongItems = allHomeSongItems.filter { it.id in selectedIds }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.primaryContainer)
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "${selectedIds.size} selected",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        if (selectedSongItems.isNotEmpty()) {
-                            TextButton(onClick = {
-                                menuState.show {
-                                    SelectionMediaMetadataMenu(
-                                        songSelection = selectedSongItems.map { it.toMediaMetadata() },
-                                        currentItems = emptyList(),
-                                        onDismiss = menuState::dismiss,
-                                        clearAction = { selection = false }
-                                    )
-                                }
-                            }) {
-                                Text(stringResource(R.string.download))
-                            }
-                        }
-                        TextButton(onClick = { selection = false; selectedIds = emptySet() }) {
-                            Text(stringResource(R.string.close))
-                        }
-                    }
-                }
-            }
-
             if (shouldShowShimmer) {
                 item(key = "loading_shimmer") {
                     ShimmerHost(
@@ -1018,6 +982,62 @@ fun HomeScreen(
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+            }
+        }
+
+        if (selection && selectedIds.isNotEmpty()) {
+            val selectedSongItems = allHomeSongItems.filter { it.id in selectedIds }
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                tonalElevation = 4.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { selection = false; selectedIds = emptySet() }) {
+                        Icon(painterResource(R.drawable.close), contentDescription = null)
+                    }
+                    Text(
+                        text = "${selectedIds.size} selected",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = {
+                            val allSelected = selectedIds.size == allHomeSongItems.size
+                            if (allSelected) {
+                                selectedIds = emptySet()
+                                selection = false
+                            } else {
+                                selectedIds = allHomeSongItems.map { it.id }.toSet()
+                            }
+                        }
+                    ) {
+                        Icon(
+                            painterResource(
+                                if (selectedIds.size == allHomeSongItems.size && allHomeSongItems.isNotEmpty()) R.drawable.deselect
+                                else R.drawable.select_all
+                            ),
+                            contentDescription = null
+                        )
+                    }
+                    IconButton(onClick = {
+                        if (selectedSongItems.isNotEmpty()) {
+                            menuState.show {
+                                SelectionMediaMetadataMenu(
+                                    songSelection = selectedSongItems.map { it.toMediaMetadata() },
+                                    currentItems = emptyList(),
+                                    onDismiss = menuState::dismiss,
+                                    clearAction = { selection = false }
+                                )
+                            }
+                        }
+                    }) {
+                        Icon(painterResource(R.drawable.more_vert), contentDescription = null)
                     }
                 }
             }
