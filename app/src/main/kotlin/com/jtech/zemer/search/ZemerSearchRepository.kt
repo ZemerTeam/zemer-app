@@ -53,6 +53,13 @@ class ZemerSearchRepository @Inject constructor(
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ZemerSearchResponse>) = size > CACHE_SIZE
     }
 
+    /**
+     * Drop all memoized responses so the next call re-hits the server. Without this the session LRU
+     * would keep serving a stale (or empty) response — making the "Retry" action a silent no-op — for
+     * the whole process lifetime. Called from the ViewModel's pull-to-refresh / retry path.
+     */
+    suspend fun invalidate() = cacheMutex.withLock { cache.clear() }
+
     private suspend fun fetch(query: String, options: ZemerSearchOptions, k: Int): ZemerSearchResponse {
         val trimmed = query.trim()
         val key = "$k|${options.allowFemale}|${options.blockVideos}|$trimmed"

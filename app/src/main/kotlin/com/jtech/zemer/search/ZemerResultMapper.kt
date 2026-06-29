@@ -85,6 +85,16 @@ object ZemerResultMapper {
             .filterExplicit(hideExplicit)
             .distinctBy { it.id }
 
+    /**
+     * Songs + videos as one list (videos are [SongItem]s). The summary "Songs" section and the
+     * `FILTER_SONG` chip BOTH use this, so drilling into "Songs" from the summary returns exactly what
+     * the section showed — videos folded into the preview never disappear (or yield "No results" on a
+     * video-only query) on tap. The dedicated Videos chip still narrows to videos only.
+     */
+    private fun songAndVideoItems(resp: ZemerSearchResponse, hideExplicit: Boolean): List<SongItem> =
+        (songItems(resp.categories.songs, hideExplicit) + songItems(resp.categories.videos, hideExplicit))
+            .distinctBy { it.id }
+
     private fun artistItems(resp: ZemerSearchResponse): List<ArtistItem> =
         resp.categories.artists.filter { it.id.isNotBlank() }.map { it.toArtistItem() }.distinctBy { it.id }
 
@@ -104,22 +114,18 @@ object ZemerResultMapper {
      * (`YouTube.searchSummary`): items grouped by type into the same sections, in the same order, with
      * the same hardcoded English titles, so toggling engines never changes the summary's headers or
      * layout. Videos are folded into the Songs section (they are [SongItem]s — exactly how YouTube
-     * groups them); there is no separate Videos section. Featured and community playlists are likewise
-     * folded into one "Playlists" section (exactly like YouTube's single combined Playlists section);
-     * the two are split apart only behind their dedicated chips. Empty sections are omitted. (No "Top
-     * result" card — the Zemer server does not return one.)
+     * groups them); there is no separate Videos section. The "Playlists" section shows the community
+     * playlists only — its header drills into the Community chip, so previewing community here keeps
+     * tap-through consistent (artist-owned/featured playlists are reached via the Featured chip).
+     * Empty sections are omitted. (No "Top result" card — the Zemer server does not return one.)
      */
     fun summaryPage(
         resp: ZemerSearchResponse,
         hideExplicit: Boolean,
         formatSongCount: (Int) -> String? = { null },
     ): SearchSummaryPage {
-        val songsAndVideos =
-            (songItems(resp.categories.songs, hideExplicit) + songItems(resp.categories.videos, hideExplicit))
-                .distinctBy { it.id }
-        val playlists =
-            (playlistItems(resp.categories.playlists, formatSongCount) + playlistItems(resp.categories.community, formatSongCount))
-                .distinctBy { it.id }
+        val songsAndVideos = songAndVideoItems(resp, hideExplicit)
+        val playlists = playlistItems(resp.categories.community, formatSongCount)
         val summaries = buildList {
             albumItems(resp).takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_ALBUMS, it)) }
             songsAndVideos.takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_SONGS, it)) }
@@ -137,7 +143,9 @@ object ZemerResultMapper {
         formatSongCount: (Int) -> String? = { null },
     ): SearchResult {
         val items: List<YTItem> = when (filter.value) {
-            SearchFilter.FILTER_SONG.value -> songItems(resp.categories.songs, hideExplicit)
+            // Songs chip returns songs + videos (the summary "Songs" section folds them together, so the
+            // drill-in must too); the Videos chip narrows to videos only.
+            SearchFilter.FILTER_SONG.value -> songAndVideoItems(resp, hideExplicit)
             SearchFilter.FILTER_VIDEO.value -> songItems(resp.categories.videos, hideExplicit)
             SearchFilter.FILTER_ARTIST.value -> artistItems(resp)
             SearchFilter.FILTER_ALBUM.value -> albumItems(resp)
@@ -170,8 +178,11 @@ object ZemerResultMapper {
                 playlistItems(resp.categories.community, formatSongCount))
                 .distinctBy { it.id }
 
+        // Drop explicit-flagged songs from the completion strings too (not just the result rows) so an
+        // explicit title can't be offered as a tappable suggestion when Hide explicit is on.
         val completions: List<String> =
-            (resp.categories.artists.map { it.name } + resp.categories.songs.map { it.title })
+            (resp.categories.artists.map { it.name } +
+                resp.categories.songs.filter { !hideExplicit || !it.explicit }.map { it.title })
                 .filter { it.isNotBlank() }
                 .distinctBy { it.lowercase() }
                 .take(MAX_QUERY_SUGGESTIONS)

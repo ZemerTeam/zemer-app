@@ -284,6 +284,9 @@ constructor(
     fun refresh() {
         viewModelScope.launch {
             val currentFilter = filter.value
+            // Drop the Zemer response cache so retry actually re-queries the server instead of
+            // re-serving the cached (possibly empty) result; clearing VM state alone is not enough.
+            zemerRepo.invalidate()
             summaryPage = null
             viewStateMap.clear()
             filterLoading.clear()

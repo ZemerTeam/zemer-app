@@ -87,7 +87,8 @@ class ZemerResultMapperTest {
                 songs = listOf(ZemerTrack("s1", "Song", "A")),
                 albums = listOf(ZemerAlbum(id = "al1", title = "Album", artist = "A")),
                 videos = listOf(ZemerTrack("v1", "Video", "A")),
-                playlists = listOf(ZemerPlaylist("pl1", "Playlist", "A", "t")),
+                playlists = listOf(ZemerPlaylist("featured1", "Featured", "A", "t")),
+                community = listOf(ZemerPlaylist("community1", "Community", "B", "t")),
             ),
         )
 
@@ -97,6 +98,10 @@ class ZemerResultMapperTest {
         // Videos fold into the Songs section (videos are SongItems), exactly like YouTube.
         val songsSection = page.summaries.first { it.title == "Songs" }
         assertEquals(listOf("s1", "v1"), songsSection.items.map { it.id })
+        // The "Playlists" section previews COMMUNITY playlists (its header drills into the Community
+        // chip), so featured/artist-owned playlists are not shown here.
+        val playlistsSection = page.summaries.first { it.title == "Playlists" }
+        assertEquals(listOf("community1"), playlistsSection.items.map { it.id })
     }
 
     @Test
@@ -205,18 +210,65 @@ class ZemerResultMapperTest {
     }
 
     @Test
-    fun `summary Playlists section merges artist-owned and community playlists`() {
-        val resp = ZemerSearchResponse(
+    fun `summary Playlists section previews community only so its header drill-in is consistent`() {
+        // Featured-only response: the "Playlists" section must NOT show featured playlists, because its
+        // header routes to the Community chip — showing them would vanish on tap / yield "No results".
+        val featuredOnly = ZemerSearchResponse(
+            categories = ZemerCategories(playlists = listOf(ZemerPlaylist("featured1", "Featured", "A", "t"))),
+        )
+        assertTrue(
+            ZemerResultMapper.summaryPage(featuredOnly, hideExplicit = false)
+                .summaries.none { it.title == "Playlists" },
+        )
+
+        // With community present, the section shows exactly the community playlists (= the chip's rows).
+        val withCommunity = ZemerSearchResponse(
             categories = ZemerCategories(
                 playlists = listOf(ZemerPlaylist("featured1", "Featured", "A", "t")),
                 community = listOf(ZemerPlaylist("community1", "Community", "B", "t")),
             ),
         )
-
-        // One combined "Playlists" section (matching YouTube's summary), artist-owned then community.
-        val section = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
+        val section = ZemerResultMapper.summaryPage(withCommunity, hideExplicit = false)
             .summaries.first { it.title == "Playlists" }
-        assertEquals(listOf("featured1", "community1"), section.items.map { it.id })
+        assertEquals(listOf("community1"), section.items.map { it.id })
+    }
+
+    @Test
+    fun `Songs chip returns songs and videos so the summary Songs drill-in keeps the videos`() {
+        // The summary folds videos into "Songs"; tapping that header (FILTER_SONG) must return both,
+        // and a video-only query must NOT come back empty.
+        val resp = ZemerSearchResponse(
+            categories = ZemerCategories(
+                songs = listOf(ZemerTrack("s1", "Song", "A")),
+                videos = listOf(ZemerTrack("v1", "Video", "A")),
+            ),
+        )
+        val songsChip = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG, hideExplicit = false).items
+        assertEquals(listOf("s1", "v1"), songsChip.map { it.id })
+
+        val videoOnly = ZemerSearchResponse(
+            categories = ZemerCategories(videos = listOf(ZemerTrack("v1", "Video", "A"))),
+        )
+        val videoOnlySongsChip = ZemerResultMapper.filtered(videoOnly, SearchFilter.FILTER_SONG, hideExplicit = false).items
+        assertEquals(listOf("v1"), videoOnlySongsChip.map { it.id }) // not empty
+    }
+
+    @Test
+    fun `hideExplicit drops an explicit title from the as-you-type completions, not just the rows`() {
+        val resp = ZemerSearchResponse(
+            categories = ZemerCategories(
+                songs = listOf(
+                    ZemerTrack("a", "Clean Song", "X", explicit = false),
+                    ZemerTrack("b", "Dirty Song", "Y", explicit = true),
+                ),
+            ),
+        )
+
+        val hidden = ZemerResultMapper.suggestions(resp, hideExplicit = true).queries
+        assertEquals(listOf("Clean Song"), hidden) // explicit title not offered as a completion
+
+        val shown = ZemerResultMapper.suggestions(resp, hideExplicit = false).queries
+        assertEquals(listOf("Clean Song", "Dirty Song"), shown)
     }
 
     @Test

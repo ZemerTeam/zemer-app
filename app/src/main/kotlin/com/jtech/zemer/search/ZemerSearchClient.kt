@@ -21,13 +21,22 @@ import javax.inject.Singleton
  * Content-type is not assumed: the body is read as text and decoded with a lenient,
  * unknown-key-tolerant [Json], so a missing/odd `Content-Type` or a new server field never breaks it.
  */
+/**
+ * The lenient reader for every Zemer response. Pulled out of the client so its exact config is
+ * unit-testable. `ignoreUnknownKeys` forward-compats new server fields; `isLenient` tolerates an
+ * odd/missing content-type; `coerceInputValues` falls an explicit JSON `null` on a non-null defaulted
+ * field back to its default — kotlinx applies defaults only for ABSENT keys, so without this a
+ * `"categories": null` / `"videos": null` would throw and fail the WHOLE response (the strict-
+ * deserialization "No results" trap), instead of degrading gracefully.
+ */
+internal val zemerResponseJson = Json {
+    ignoreUnknownKeys = true
+    isLenient = true
+    coerceInputValues = true
+}
+
 @Singleton
 class ZemerSearchClient @Inject constructor() {
-
-    private val json = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-    }
 
     private val client = HttpClient(CIO) {
         install(HttpTimeout) {
@@ -53,7 +62,7 @@ class ZemerSearchClient @Inject constructor() {
         if (!response.status.isSuccess()) {
             throw IOException("Zemer search returned HTTP ${response.status.value}")
         }
-        return json.decodeFromString(ZemerSearchResponse.serializer(), response.bodyAsText())
+        return zemerResponseJson.decodeFromString(ZemerSearchResponse.serializer(), response.bodyAsText())
     }
 
     companion object {
