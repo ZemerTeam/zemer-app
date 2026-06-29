@@ -126,11 +126,15 @@ object ZemerResultMapper {
     ): SearchSummaryPage {
         val songsAndVideos = songAndVideoItems(resp, hideExplicit)
         val playlists = playlistItems(resp.categories.community, formatSongCount)
+        // Each section is a compact preview; the merged sections (songs+videos, albums+singles) would
+        // otherwise run up to ~16 rows. The full per-category list is one tap away on the chip.
+        fun MutableList<SearchSummary>.section(title: String, items: List<YTItem>) =
+            items.take(SUMMARY_SECTION_LIMIT).takeIf { it.isNotEmpty() }?.let { add(SearchSummary(title, it)) }
         val summaries = buildList {
-            albumItems(resp).takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_ALBUMS, it)) }
-            songsAndVideos.takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_SONGS, it)) }
-            artistItems(resp).takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_ARTISTS, it)) }
-            playlists.takeIf { it.isNotEmpty() }?.let { add(SearchSummary(TITLE_PLAYLISTS, it)) }
+            section(TITLE_ALBUMS, albumItems(resp))
+            section(TITLE_SONGS, songsAndVideos)
+            section(TITLE_ARTISTS, artistItems(resp))
+            section(TITLE_PLAYLISTS, playlists)
         }
         return SearchSummaryPage(summaries = summaries)
     }
@@ -191,6 +195,9 @@ object ZemerResultMapper {
     }
 
     private const val MAX_QUERY_SUGGESTIONS = 5
+
+    /** Per-section preview cap on the grouped summary, so a merged section isn't a long scroll. */
+    private const val SUMMARY_SECTION_LIMIT = 8
 
     // Verbatim match of the YouTube summary section titles/order (YouTube.searchSummary hardcodes
     // these English literals too), so the summary looks identical whichever engine is selected.

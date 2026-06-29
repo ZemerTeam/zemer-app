@@ -62,41 +62,15 @@ constructor(
                             )
                         }
                     } else if (provider == SearchProvider.ZEMER) {
-                        // Whitelist-scoped, Hebrew-aware as-you-type results across ALL categories,
-                        // rendered through the existing (Metrolist-derived) OnlineSearchScreen list.
-                        //
-                        // Two layers, so the dropdown is never blank, stale, or blocked on the network:
-                        //  • instant / offline — history plus matching whitelisted artists from the
-                        //    local DB, shown immediately and for ANY query length; this is the only
-                        //    suggestion source when the service is unreachable or below the net floor.
-                        //  • network — the engine's cross-script results for queries >= the floor,
-                        //    merged in WHEN they arrive. The flow emits null first so history/local
-                        //    never wait on the (up to 8s) request, and flatMapLatest cancels an
-                        //    in-flight request on the next keystroke.
-                        val filters = ContentFilterState.state.value
-                        val localArtists: List<YTItem> =
-                            if (filters.filtersEnabled) {
-                                WhitelistCache.allowedEntries(database, filters)
-                                    .asSequence()
-                                    .filter { it.artistName.contains(query, ignoreCase = true) }
-                                    .take(MAX_LOCAL_ARTIST_SUGGESTIONS)
-                                    .map { entry ->
-                                        com.metrolist.innertube.models.ArtistItem(
-                                            id = entry.artistId,
-                                            title = entry.artistName,
-                                            thumbnail = null,
-                                            channelId = null,
-                                            playEndpoint = null,
-                                            shuffleEndpoint = null,
-                                            radioEndpoint = null,
-                                        )
-                                    }
-                                    .toList()
-                            } else {
-                                emptyList()
-                            }
+                        // Zemer is its OWN engine (search.zemer.io), independent of the YouTube path.
+                        // History shows immediately (never blocked on the request). The engine's
+                        // whitelist-scoped, cross-script results appear ONLY once the query reaches the
+                        // floor (cross-script skeleton matching is itself off below 3 chars) — below it,
+                        // or while a request is in flight, only history shows. There is NO on-device /
+                        // local fallback by design: if the service is unreachable the user switches
+                        // engines. flatMapLatest cancels an in-flight request on the next keystroke.
                         val zemerSuggestions = flow {
-                            emit(null) // render history + local artists straight away, before any request
+                            emit(null) // history renders at once, never waiting on the request
                             if (query.trim().length >= ZEMER_MIN_QUERY_LENGTH) {
                                 emit(
                                     withContext(Dispatchers.IO) {
@@ -118,9 +92,7 @@ constructor(
                                     history = history,
                                     suggestions = zemer?.queries.orEmpty()
                                         .filter { suggestion -> history.none { it.query == suggestion } },
-                                    // network rows first (richer, thumbnailed); local whitelist artists
-                                    // appended as the offline/instant fallback, de-duped by id.
-                                    items = (zemer?.recommendedItems.orEmpty() + localArtists).distinctBy { it.id },
+                                    items = zemer?.recommendedItems.orEmpty(),
                                 )
                             }
                     } else {
@@ -201,9 +173,6 @@ constructor(
 
 /** Minimum query length before the Zemer engine returns as-you-type results. */
 private const val ZEMER_MIN_QUERY_LENGTH = 3
-
-/** Cap on the instant, local whitelist-artist suggestions shown on the Zemer engine. */
-private const val MAX_LOCAL_ARTIST_SUGGESTIONS = 10
 
 data class SearchSuggestionViewState(
     val history: List<SearchHistory> = emptyList(),

@@ -234,6 +234,22 @@ class ZemerResultMapperTest {
     }
 
     @Test
+    fun `summary caps each section to a compact preview`() {
+        // The merged Songs section (songs + videos) would otherwise be a long scroll; the chip still
+        // returns everything.
+        val resp = ZemerSearchResponse(
+            categories = ZemerCategories(songs = (1..20).map { ZemerTrack("s$it", "Song $it", "A") }),
+        )
+
+        val songsSection = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
+            .summaries.first { it.title == "Songs" }
+        assertEquals(8, songsSection.items.size) // capped
+
+        val songsChip = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG, hideExplicit = false).items
+        assertEquals(20, songsChip.size) // chip is uncapped
+    }
+
+    @Test
     fun `Songs chip returns songs and videos so the summary Songs drill-in keeps the videos`() {
         // The summary folds videos into "Songs"; tapping that header (FILTER_SONG) must return both,
         // and a video-only query must NOT come back empty.

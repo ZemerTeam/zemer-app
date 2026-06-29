@@ -3,6 +3,7 @@ package com.jtech.zemer.search
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.statement.HttpResponse
@@ -56,6 +57,10 @@ class ZemerSearchClient @Inject constructor() {
             parameter("allowFemale", if (allowFemale) "1" else "0")
             if (blockVideos) parameter("blockVideos", "1")
             parameter("k", k)
+            // The Community chip asks for a large k (a few hundred rows); give that heavier response more
+            // headroom than the default ceiling, while the as-you-type / filter calls keep the tighter
+            // default so a genuinely hung request still fails fast.
+            if (k > LARGE_REQUEST_K) timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
         // CIO does not throw on non-2xx; guard so an error page (HTML/5xx) is a clean failure rather
         // than a confusing JSON parse error fed from the error body.
@@ -69,5 +74,8 @@ class ZemerSearchClient @Inject constructor() {
         const val BASE_URL = "https://search.zemer.io"
         private const val REQUEST_TIMEOUT_MS = 8_000L
         private const val CONNECT_TIMEOUT_MS = 5_000L
+        // Requests above this k (the Community chip's K_COMMUNITY) get the larger ceiling below.
+        private const val LARGE_REQUEST_K = 100
+        private const val LARGE_REQUEST_TIMEOUT_MS = 20_000L
     }
 }

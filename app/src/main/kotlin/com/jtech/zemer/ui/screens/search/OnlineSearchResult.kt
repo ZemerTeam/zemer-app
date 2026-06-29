@@ -48,6 +48,9 @@ import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.SearchProviderKey
+import com.jtech.zemer.search.SearchProvider
+import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.ChipsRow
@@ -103,6 +106,17 @@ fun OnlineSearchResult(
 
     val searchFilter by viewModel.filter.collectAsState()
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    // On the default (Zemer) engine, the error / no-results states offer a one-tap switch to YouTube
+    // search — the documented recovery — since the engine toggle (only in the expanded search bar) is
+    // not reachable from this results screen. Flipping the preference reloads via the ViewModel.
+    val (searchProvider, onSearchProviderChange) = rememberEnumPreference(SearchProviderKey, SearchProvider.ZEMER)
+    val youtubeFallbackLabel = stringResource(R.string.search_try_youtube)
+    val onYoutubeFallback: (() -> Unit)? =
+        if (searchProvider == SearchProvider.ZEMER) {
+            { onSearchProviderChange(SearchProvider.YOUTUBE) }
+        } else {
+            null
+        }
     val searchSummary = viewModel.summaryPage
     val isSummaryLoading by viewModel.isSummaryLoading.collectAsState()
     val summaryError by viewModel.summaryError.collectAsState()
@@ -299,6 +313,8 @@ fun OnlineSearchResult(
                             icon = R.drawable.search,
                             actionLabel = stringResource(R.string.search_retry),
                             onAction = viewModel::refresh,
+                            secondaryActionLabel = onYoutubeFallback?.let { youtubeFallbackLabel },
+                            onSecondaryAction = onYoutubeFallback,
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                                 .animateItem(),
@@ -324,6 +340,8 @@ fun OnlineSearchResult(
                             icon = R.drawable.search,
                             actionLabel = stringResource(R.string.search_retry),
                             onAction = viewModel::refresh,
+                            secondaryActionLabel = onYoutubeFallback?.let { youtubeFallbackLabel },
+                            onSecondaryAction = onYoutubeFallback,
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                                 .animateItem(),
@@ -378,6 +396,8 @@ fun OnlineSearchResult(
                             icon = R.drawable.search,
                             actionLabel = stringResource(R.string.search_retry),
                             onAction = viewModel::refresh,
+                            secondaryActionLabel = onYoutubeFallback?.let { youtubeFallbackLabel },
+                            onSecondaryAction = onYoutubeFallback,
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                                 .animateItem(),
@@ -403,6 +423,8 @@ fun OnlineSearchResult(
                             icon = R.drawable.search,
                             actionLabel = stringResource(R.string.search_retry),
                             onAction = viewModel::refresh,
+                            secondaryActionLabel = onYoutubeFallback?.let { youtubeFallbackLabel },
+                            onSecondaryAction = onYoutubeFallback,
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                                 .animateItem(),

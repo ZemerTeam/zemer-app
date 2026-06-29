@@ -82,7 +82,7 @@ import com.metrolist.innertube.models.SongItem
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
@@ -121,9 +121,12 @@ fun OnlineSearchScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        snapshotFlow { lazyListState.firstVisibleItemScrollOffset }
-            .drop(1)
+    // Hide the keyboard only when the USER scrolls the list — gating on a raw scroll-offset change
+    // instead fires on programmatic content updates too (the as-you-type list re-lays-out as results
+    // stream in), which yanked the keyboard down mid-typing.
+    LaunchedEffect(lazyListState) {
+        snapshotFlow { lazyListState.isScrollInProgress }
+            .filter { it }
             .collect {
                 keyboardController?.hide()
             }

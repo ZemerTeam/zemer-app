@@ -17,6 +17,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +37,8 @@ fun AppStateView(
     progress: Float? = null,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    secondaryActionLabel: String? = null,
+    onSecondaryAction: (() -> Unit)? = null,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -104,6 +107,13 @@ fun AppStateView(
                 Spacer(modifier = Modifier.height(20.dp))
                 Button(onClick = onAction) {
                     Text(actionLabel)
+                }
+            }
+
+            if (secondaryActionLabel != null && onSecondaryAction != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                TextButton(onClick = onSecondaryAction) {
+                    Text(secondaryActionLabel)
                 }
             }
         }

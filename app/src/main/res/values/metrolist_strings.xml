@@ -557,4 +557,6 @@
     <string name="search_provider_youtube_short">YT</string>
     <string name="search_provider_youtube">YouTube Music</string>
     <string name="cd_search_provider">Search engine</string>
+    <!-- Offered on the Zemer search error / no-results state to switch engines -->
+    <string name="search_try_youtube">Search with YouTube</string>
 </resources>

@@ -283,6 +283,10 @@ constructor(
 
     fun refresh() {
         viewModelScope.launch {
+            // Read the engine preference fresh: a refresh fired right after toggling engines must use
+            // the new one, not the snapshot the reactive collector may not have written to `provider`
+            // yet (otherwise the retry briefly reloads the old engine's results under the new toggle).
+            provider = enumPreferenceFlow(context, SearchProviderKey, SearchProvider.ZEMER).first()
             val currentFilter = filter.value
             // Drop the Zemer response cache so retry actually re-queries the server instead of
             // re-serving the cached (possibly empty) result; clearing VM state alone is not enough.
