@@ -45,11 +45,13 @@ import com.jtech.zemer.R
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
+import com.jtech.zemer.playback.videoPlaysAsAudio
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.PlayVideosAsAudioKey
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.utils.rememberPreference
@@ -109,6 +111,7 @@ fun OnlineSearchResult(
 
     val searchFilter by viewModel.filter.collectAsState()
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    val (playVideosAsAudio, _) = rememberPreference(PlayVideosAsAudioKey, false)
     val searchSummary = viewModel.summaryPage
     val isSummaryLoading by viewModel.isSummaryLoading.collectAsState()
     val summaryError by viewModel.summaryError.collectAsState()
@@ -155,7 +158,10 @@ fun OnlineSearchResult(
             Tracker.click(viewModel.query, item.id, clickKind(item, searchFilter?.value), rank)
             when (item) {
                 is SongItem -> {
-                    val isVideoFilter = !blockVideos && searchFilter?.value == FILTER_VIDEO.value
+                    // Watch only when the item is a video that is not being played as audio; an
+                    // audio-mode "video song" routes into the ordinary music-playback path below.
+                    val isVideoFilter = !videoPlaysAsAudio(item.isVideo, blockVideos, playVideosAsAudio) &&
+                        searchFilter?.value == FILTER_VIDEO.value
                     if (isVideoFilter) {
                         val artistDisplay = item.artists.joinToString(" • ") { it.name }
                         navController.navigate(videoRoute(item.id, item.title, artistDisplay))
@@ -189,7 +195,11 @@ fun OnlineSearchResult(
                     navController = navController,
                     coroutineScope = coroutineScope,
                     onDismiss = menuState::dismiss,
-                    isVideo = !blockVideos && searchFilter?.value == FILTER_VIDEO.value,
+                    // Treat as a video (video download / video share) only when it will actually
+                    // be watched; an audio-mode video-song downloads/shares as ordinary audio.
+                    isVideo = item is SongItem && item.isVideo &&
+                        !videoPlaysAsAudio(item.isVideo, blockVideos, playVideosAsAudio) &&
+                        searchFilter?.value == FILTER_VIDEO.value,
                 )
             )
         }
@@ -247,9 +257,15 @@ fun OnlineSearchResult(
                 buildList {
                     add(null to stringResource(R.string.filter_all))
                     add(FILTER_SONG to stringResource(R.string.filter_songs))
-                    if (!blockVideos) {
-                        add(FILTER_VIDEO to stringResource(R.string.filter_videos))
-                    }
+                    // Videos are always browsable now: when shown as audio they appear as "video song"
+                    // rows rather than being hidden, so the chip stays available — and is labelled
+                    // "Video songs" in that mode, "Videos" only when they are actually watchable.
+                    val videosAsAudio = blockVideos || playVideosAsAudio
+                    add(
+                        FILTER_VIDEO to stringResource(
+                            if (videosAsAudio) R.string.filter_video_songs else R.string.filter_videos
+                        )
+                    )
                     add(FILTER_ALBUM to stringResource(R.string.filter_albums))
                     add(FILTER_ARTIST to stringResource(R.string.filter_artists))
                     add(FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists))
@@ -334,7 +350,7 @@ fun OnlineSearchResult(
                                             "albums" -> FILTER_ALBUM
                                             "songs" -> FILTER_SONG
                                             "artists" -> FILTER_ARTIST
-                                            "videos" -> if (!blockVideos) FILTER_VIDEO else null
+                                            "videos" -> FILTER_VIDEO
                                             "community playlists" -> FILTER_COMMUNITY_PLAYLIST
                                             "featured playlists" -> FILTER_FEATURED_PLAYLIST
                                             else -> null
