@@ -86,15 +86,17 @@ object ZemerResultMapper {
             .filterExplicit(hideExplicit)
             .distinctBy { it.id }
 
+    /** Plain songs only (the Songs chip and the summary "Songs" section). */
+    private fun plainSongItems(resp: ZemerSearchResponse, hideExplicit: Boolean): List<SongItem> =
+        songItems(resp.categories.songs, hideExplicit)
+
     /**
-     * Songs + videos as one list (videos are [SongItem]s). The summary "Songs" section and the
-     * `FILTER_SONG` chip BOTH use this, so drilling into "Songs" from the summary returns exactly what
-     * the section showed — videos folded into the preview never disappear (or yield "No results" on a
-     * video-only query) on tap. The dedicated Videos chip still narrows to videos only.
+     * Videos as [SongItem]s (flagged `isVideo`) — the dedicated Videos / "Video songs" chip and its own
+     * summary section. Songs and videos are kept in SEPARATE sections/chips so a video-song never shows
+     * up in both the Songs chip and the Video songs chip.
      */
-    private fun songAndVideoItems(resp: ZemerSearchResponse, hideExplicit: Boolean): List<SongItem> =
-        (songItems(resp.categories.songs, hideExplicit) + songItems(resp.categories.videos, hideExplicit, isVideo = true))
-            .distinctBy { it.id }
+    private fun videoSongItems(resp: ZemerSearchResponse, hideExplicit: Boolean): List<SongItem> =
+        songItems(resp.categories.videos, hideExplicit, isVideo = true)
 
     private fun artistItems(resp: ZemerSearchResponse): List<ArtistItem> =
         resp.categories.artists.filter { it.id.isNotBlank() }.map { it.toArtistItem() }.distinctBy { it.id }
@@ -111,29 +113,28 @@ object ZemerResultMapper {
         playlists.filter { it.id.isNotBlank() }.map { it.toPlaylistItem(formatSongCount) }.distinctBy { it.id }
 
     /**
-     * The grouped summary view (`filter == null`), matching the YouTube summary's shape exactly
-     * (`YouTube.searchSummary`): items grouped by type into the same sections, in the same order, with
-     * the same hardcoded English titles, so toggling engines never changes the summary's headers or
-     * layout. Videos are folded into the Songs section (they are [SongItem]s — exactly how YouTube
-     * groups them); there is no separate Videos section. The "Playlists" section shows the community
-     * playlists only — its header drills into the Community chip, so previewing community here keeps
-     * tap-through consistent (artist-owned/featured playlists are reached via the Featured chip).
-     * Empty sections are omitted. (No "Top result" card — the Zemer server does not return one.)
+     * The grouped summary view (`filter == null`): items grouped by type into sections. Songs and
+     * videos get SEPARATE sections (Songs / Videos) — each drills into its own chip — so a video-song
+     * is never shown in both. The "Videos" section header is relabelled "Video songs" by the screen when
+     * videos play as audio. The "Playlists" section shows the community playlists only — its header
+     * drills into the Community chip, so previewing community here keeps tap-through consistent
+     * (artist-owned/featured playlists are reached via the Featured chip). Empty sections are omitted.
+     * (No "Top result" card — the Zemer server does not return one.)
      */
     fun summaryPage(
         resp: ZemerSearchResponse,
         hideExplicit: Boolean,
         formatSongCount: (Int) -> String? = { null },
     ): SearchSummaryPage {
-        val songsAndVideos = songAndVideoItems(resp, hideExplicit)
         val playlists = playlistItems(resp.categories.community, formatSongCount)
-        // Each section is a compact preview; the merged sections (songs+videos, albums+singles) would
-        // otherwise run up to ~16 rows. The full per-category list is one tap away on the chip.
+        // Each section is a compact preview; the merged sections (albums+singles) would otherwise run
+        // long. The full per-category list is one tap away on the chip.
         fun MutableList<SearchSummary>.section(title: String, items: List<YTItem>) =
             items.take(SUMMARY_SECTION_LIMIT).takeIf { it.isNotEmpty() }?.let { add(SearchSummary(title, it)) }
         val summaries = buildList {
             section(TITLE_ALBUMS, albumItems(resp))
-            section(TITLE_SONGS, songsAndVideos)
+            section(TITLE_SONGS, plainSongItems(resp, hideExplicit))
+            section(TITLE_VIDEOS, videoSongItems(resp, hideExplicit))
             section(TITLE_ARTISTS, artistItems(resp))
             section(TITLE_PLAYLISTS, playlists)
         }
@@ -148,10 +149,10 @@ object ZemerResultMapper {
         formatSongCount: (Int) -> String? = { null },
     ): SearchResult {
         val items: List<YTItem> = when (filter.value) {
-            // Songs chip returns songs + videos (the summary "Songs" section folds them together, so the
-            // drill-in must too); the Videos chip narrows to videos only.
-            SearchFilter.FILTER_SONG.value -> songAndVideoItems(resp, hideExplicit)
-            SearchFilter.FILTER_VIDEO.value -> songItems(resp.categories.videos, hideExplicit, isVideo = true)
+            // Songs and videos are separate: the Songs chip returns plain songs only, the Videos /
+            // "Video songs" chip returns videos only — so a video-song never appears in both.
+            SearchFilter.FILTER_SONG.value -> plainSongItems(resp, hideExplicit)
+            SearchFilter.FILTER_VIDEO.value -> videoSongItems(resp, hideExplicit)
             SearchFilter.FILTER_ARTIST.value -> artistItems(resp)
             SearchFilter.FILTER_ALBUM.value -> albumItems(resp)
             SearchFilter.FILTER_COMMUNITY_PLAYLIST.value -> playlistItems(resp.categories.community, formatSongCount)
@@ -204,6 +205,7 @@ object ZemerResultMapper {
     // these English literals too), so the summary looks identical whichever engine is selected.
     private const val TITLE_ALBUMS = "Albums"
     private const val TITLE_SONGS = "Songs"
+    private const val TITLE_VIDEOS = "Videos"
     private const val TITLE_ARTISTS = "Artists"
     private const val TITLE_PLAYLISTS = "Playlists"
 }

@@ -377,8 +377,10 @@ fun OnlineSearchResult(
                                             "featured playlists" -> FILTER_FEATURED_PLAYLIST
                                             else -> null
                                         }
+                                val isVideoSection = (summary.items.firstOrNull() as? SongItem)?.isVideo == true
                                 NavigationTitle(
-                                    title = summary.title,
+                                    title = if (isVideoSection && (blockVideos || playVideosAsAudio))
+                                        stringResource(R.string.video_songs) else summary.title,
                                     onClick = {
                                         summaryFilter?.let {
                                             viewModel.filter.value = summaryFilter
@@ -469,7 +471,7 @@ fun OnlineSearchResult(
 
 private fun mapItemToFilter(item: YTItem): com.metrolist.innertube.YouTube.SearchFilter? =
     when (item) {
-        is SongItem -> FILTER_SONG
+        is SongItem -> if (item.isVideo) FILTER_VIDEO else FILTER_SONG
         is AlbumItem -> FILTER_ALBUM
         is ArtistItem -> FILTER_ARTIST
         is PlaylistItem -> FILTER_COMMUNITY_PLAYLIST
