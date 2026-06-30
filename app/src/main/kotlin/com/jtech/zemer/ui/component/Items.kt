@@ -1585,7 +1585,7 @@ private object Icon {
     @Composable
     fun Video() {
         Icon(
-            painter = painterResource(R.drawable.ic_video_hd),
+            painter = painterResource(R.drawable.ondemand_video),
             contentDescription = stringResource(R.string.video),
             modifier = Modifier
                 .size(18.dp)

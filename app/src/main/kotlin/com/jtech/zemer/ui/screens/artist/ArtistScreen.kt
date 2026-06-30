@@ -81,6 +81,7 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AppBarHeight
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.PlayVideosAsAudioKey
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.extensions.toMediaItem
@@ -92,6 +93,7 @@ import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
+import com.jtech.zemer.playback.videoPlaysAsAudio
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.AppBarTitle
@@ -155,6 +157,9 @@ fun ArtistScreen(
     val libraryAlbums by viewModel.libraryAlbums.collectAsState()
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    val (playVideosAsAudio, _) = rememberPreference(PlayVideosAsAudioKey, false)
+    // A video section is shown as audio "video song" rows when imagery is blocked or the audio pref is on.
+    val videosAsAudio = blockVideos || playVideosAsAudio
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
     val visibleCounts = remember { mutableStateMapOf<String, Int>() }
@@ -619,10 +624,8 @@ fun ArtistScreen(
                         val isVideoSection = section.title.contains("video", ignoreCase = true) ||
                             section.title.contains("short", ignoreCase = true)
 
-                        // Skip video sections entirely if videos are blocked
-                        if (isVideoSection && blockVideos) {
-                            return@fastForEach
-                        }
+                        // Video sections are no longer hidden: when imagery is blocked (or the audio
+                        // pref is on) they render as audio "video song" rows instead of watchable tiles.
 
                         // The top-songs shelf is a capped PREVIEW (its "more" arrow opens the full list) —
                         // InnerTube returned only ~5, but /artist returns the whole catalog, so cap the inline
@@ -641,7 +644,8 @@ fun ArtistScreen(
                         if (section.items.isNotEmpty()) {
                             item(key = "section_${section.title}") {
                                 NavigationTitle(
-                                    title = section.title,
+                                    title = if (isVideoSection && videosAsAudio)
+                                        stringResource(R.string.video_songs) else section.title,
                                     modifier = Modifier.animateItem(),
                                     // /artist returns each section's whole catalog, so every row gets the same
                                     // "See all" arrow → a per-section view-all page (a Zemer-native list/grid,
@@ -660,7 +664,9 @@ fun ArtistScreen(
                         // SongItem.album != null before — always set on the InnerTube path but absent on the
                         // Zemer /artist songs — so key on item type + section instead. Same result for the
                         // InnerTube path (its song shelf is non-video and album-tagged), fixes the Zemer path.
-                        if (section.items.firstOrNull() is SongItem && !isVideoSection) {
+                        // An audio-mode video section also renders as the LIST ("video song" rows).
+                        if ((section.items.firstOrNull() is SongItem && !isVideoSection) ||
+                            (isVideoSection && videosAsAudio)) {
                             items(
                                 items = displayItems,
                                 key = { "youtube_song_${it.id}" },
@@ -685,10 +691,11 @@ fun ArtistScreen(
                                     modifier = Modifier
                                         .combinedClickable(
                                             onClick = {
-                                                if (isVideoSection && !blockVideos) {
+                                                if (isVideoSection &&
+                                                    !videoPlaysAsAudio(true, blockVideos, playVideosAsAudio)) {
                                                     val artistDisplay = song.artists.joinToString(" • ") { it.name }
                                                     navController.navigate(videoRoute(song.id, song.title, artistDisplay))
-                                                } else if (!isVideoSection) {
+                                                } else {
                                                     if (activeRowTapTogglesPlayPause(song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                         playerConnection.playPause()
                                                     } else {
@@ -747,10 +754,11 @@ fun ArtistScreen(
                                             modifier = Modifier
                                                 .combinedClickable(
                                                     onClick = {
-                                                        if (isVideoSection && item is SongItem && !blockVideos) {
+                                                        if (isVideoSection && item is SongItem &&
+                                                            !videoPlaysAsAudio(true, blockVideos, playVideosAsAudio)) {
                                                             val artistDisplay = item.artists.joinToString(" • ") { it.name }
                                                             navController.navigate(videoRoute(item.id, item.title, artistDisplay))
-                                                        } else if (!isVideoSection) {
+                                                        } else {
                                                             when (item) {
                                                                 is SongItem -> {
                                                                     playerConnection.playQueue(
@@ -777,7 +785,8 @@ fun ArtistScreen(
                                                                 navController = navController,
                                                                 coroutineScope = coroutineScope,
                                                                 onDismiss = menuState::dismiss,
-                                                                isVideo = isVideoSection,
+                                                                isVideo = isVideoSection &&
+                                                                    !videoPlaysAsAudio(true, blockVideos, playVideosAsAudio),
                                                             )
                                                         )
                                                     },

@@ -212,7 +212,7 @@ fun PlayerSettings(
         SwitchPreference(
             title = { Text(stringResource(R.string.play_videos_as_audio)) },
             description = stringResource(R.string.play_videos_as_audio_desc),
-            icon = { Icon(painterResource(R.drawable.ic_video_hd), null) },
+            icon = { Icon(painterResource(R.drawable.ondemand_video), null) },
             checked = playVideosAsAudio,
             onCheckedChange = onPlayVideosAsAudioChange,
         )
