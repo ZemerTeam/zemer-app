@@ -27,6 +27,7 @@ import com.jtech.zemer.extensions.toInetSocketAddress
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.CrashReportingTree
+import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.SyncUtils
@@ -112,6 +113,15 @@ class App : Application(), SingletonImageLoader.Factory {
                 waitedMs += 500
             }
             YTPlayerUtils.prewarmPoToken()
+        }
+
+        // Load the persisted id-block overrides immediately (cached like the whitelist) so the blocklist
+        // is active at startup / offline, before the first whitelist sync of the session refreshes it.
+        applicationScope.launch(Dispatchers.IO) {
+            runCatching {
+                val persisted = BlockedIdsCache.parse(dataStore.get(BlockedContentIdsKey, ""))
+                if (persisted.isNotEmpty()) BlockedIdsCache.updateAll(persisted)
+            }
         }
 
         // تهيئة إعدادات التطبيق عند الإقلاع

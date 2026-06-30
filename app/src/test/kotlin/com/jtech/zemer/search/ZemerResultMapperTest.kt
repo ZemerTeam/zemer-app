@@ -5,6 +5,10 @@ import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
+import com.jtech.zemer.utils.BlockedIdsCache
+import com.jtech.zemer.utils.ContentFilterConfig
+import com.jtech.zemer.utils.ContentFilterState
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -342,5 +346,46 @@ class ZemerResultMapperTest {
         val queries = ZemerResultMapper.suggestions(resp, hideExplicit = false).queries
         assertEquals(5, queries.size) // capped at MAX_QUERY_SUGGESTIONS
         assertEquals(queries.size, queries.distinctBy { it.lowercase() }.size) // no case-dupes
+    }
+
+    @After
+    fun clearBlockedIds() {
+        BlockedIdsCache.updateAll(emptyMap())
+        ContentFilterState.current = ContentFilterConfig()
+    }
+
+    @Test
+    fun `female-reason ids are dropped from zemer results only when filtering out female`() {
+        BlockedIdsCache.updateAll(
+            mapOf("blockedSong" to "female", "blockedPlaylist" to "female"),
+        )
+        val resp = ZemerSearchResponse(
+            categories = ZemerCategories(
+                songs = listOf(ZemerTrack("okSong", "OK", "A"), ZemerTrack("blockedSong", "Blocked", "A")),
+                community = listOf(
+                    ZemerPlaylist("okPlaylist", "OK", "A", "t"),
+                    ZemerPlaylist("blockedPlaylist", "Blocked", "A", "t"),
+                ),
+            ),
+        )
+
+        // Female filtered out -> the female-reason ids are hidden everywhere.
+        ContentFilterState.current = ContentFilterConfig(filtersEnabled = true, allowFemaleSingers = false)
+        assertEquals(
+            listOf("okSong"),
+            ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG, hideExplicit = false).items.map { it.id },
+        )
+        assertEquals(
+            listOf("okPlaylist"),
+            ZemerResultMapper.filtered(resp, SearchFilter.FILTER_COMMUNITY_PLAYLIST, hideExplicit = false)
+                .items.map { it.id },
+        )
+
+        // Female allowed -> the same ids show again (the override is conditional).
+        ContentFilterState.current = ContentFilterConfig(filtersEnabled = true, allowFemaleSingers = true)
+        assertEquals(
+            listOf("okSong", "blockedSong"),
+            ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG, hideExplicit = false).items.map { it.id },
+        )
     }
 }

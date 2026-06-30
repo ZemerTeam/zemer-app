@@ -12,6 +12,8 @@ import com.metrolist.innertube.pages.SearchResult
 import com.metrolist.innertube.pages.SearchSummary
 import com.metrolist.innertube.pages.SearchSummaryPage
 import com.metrolist.innertube.models.SearchSuggestions
+import com.jtech.zemer.utils.BlockedIdsCache
+import com.jtech.zemer.utils.ContentFilterState
 
 /**
  * Adapts a [ZemerSearchResponse] into the exact `YTItem`/page types the existing search UI already
@@ -77,6 +79,15 @@ object ZemerResultMapper {
             radioEndpoint = null,
         )
 
+    // Drop items hidden by the server-listed id overrides, gated on the live content-filter config (a
+    // `female` override only hides for users filtering out female). This is surgical (a specific known
+    // id), NOT the artist-membership whitelist the app deliberately never runs over raw Zemer results —
+    // so it is safe here and gives the override coverage on the Zemer engine too. See BlockedIdsCache.
+    private fun <T : YTItem> List<T>.dropBlocked(): List<T> {
+        val config = ContentFilterState.current
+        return filterNot { BlockedIdsCache.isBlocked(it.id, config) }
+    }
+
     // Each helper drops rows missing their id (the server should never send those, but one sparse row
     // must not crash navigation) and de-dupes by id, since the id-keyed LazyColumns reject duplicates.
     private fun songItems(tracks: List<ZemerTrack>, hideExplicit: Boolean): List<SongItem> =
@@ -84,6 +95,7 @@ object ZemerResultMapper {
             .map { it.toSongItem() }
             .filterExplicit(hideExplicit)
             .distinctBy { it.id }
+            .dropBlocked()
 
     /**
      * Songs + videos as one list (videos are [SongItem]s). The summary "Songs" section and the
@@ -96,7 +108,7 @@ object ZemerResultMapper {
             .distinctBy { it.id }
 
     private fun artistItems(resp: ZemerSearchResponse): List<ArtistItem> =
-        resp.categories.artists.filter { it.id.isNotBlank() }.map { it.toArtistItem() }.distinctBy { it.id }
+        resp.categories.artists.filter { it.id.isNotBlank() }.map { it.toArtistItem() }.distinctBy { it.id }.dropBlocked()
 
     /** Albums + singles together, in that order — both navigate via the FILTER_ALBUM chip. */
     private fun albumItems(resp: ZemerSearchResponse): List<AlbumItem> =
@@ -104,10 +116,11 @@ object ZemerResultMapper {
             .filter { it.id.isNotBlank() }
             .map { it.toAlbumItem() }
             .distinctBy { it.id }
+            .dropBlocked()
 
     /** Shared playlist adaptation — used for both the artist-owned `playlists` and the `community` lists. */
     private fun playlistItems(playlists: List<ZemerPlaylist>, formatSongCount: (Int) -> String?): List<PlaylistItem> =
-        playlists.filter { it.id.isNotBlank() }.map { it.toPlaylistItem(formatSongCount) }.distinctBy { it.id }
+        playlists.filter { it.id.isNotBlank() }.map { it.toPlaylistItem(formatSongCount) }.distinctBy { it.id }.dropBlocked()
 
     /**
      * The grouped summary view (`filter == null`), matching the YouTube summary's shape exactly

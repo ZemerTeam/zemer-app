@@ -69,4 +69,29 @@ object WhitelistFetcher {
             Timber.d("WhitelistFetcher: completed fetch with $processed artists")
             whitelistEntities
         }
+
+    /**
+     * Fetch the read-only `blockedContentIds` collection — id-level content overrides applied everywhere
+     * in the app (see [BlockedIdsCache]). Each document is one override: the id is read from the `id`
+     * field (falling back to the document id), and the `reason` field (e.g. "female", "video") decides
+     * which content-filter setting the block is gated on. The app only ever READS this collection.
+     */
+    suspend fun fetchBlockedIds(): Result<Map<String, String>> =
+        runCatching {
+            val snapshot: QuerySnapshot = firestore.collection("blockedContentIds")
+                .get()
+                .await()
+            val entries = snapshot.documents.mapNotNull { doc ->
+                // A `disabled: true` entry is a soft-delete / template — kept in Firestore (never deleted)
+                // but not applied, so the team can turn an override off without removing the document.
+                if (doc.getBoolean("disabled") == true) return@mapNotNull null
+                val id = (doc.getString("id") ?: doc.id).trim().takeIf { it.isNotEmpty() }
+                    ?: return@mapNotNull null
+                val reason = (doc.getString("reason") ?: doc.getString("category") ?: "global")
+                    .trim().lowercase()
+                id to reason
+            }.toMap()
+            Timber.d("WhitelistFetcher: fetched ${entries.size} blocked content overrides")
+            entries
+        }
 }

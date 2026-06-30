@@ -69,6 +69,9 @@ val ProxyUsernameKey = stringPreferencesKey("proxyUsername")
 val ProxyPasswordKey = stringPreferencesKey("proxyPassword")
 val YtmSyncKey = booleanPreferencesKey("ytmSync")
 val LastWhitelistSyncTimeKey = longPreferencesKey("lastWhitelistSyncTime")  // Timestamp in milliseconds
+// Persisted snapshot of the server's blockedContentIds list (newline-joined), loaded at startup so the
+// blocklist is active before the first sync of the session and survives offline launches.
+val BlockedContentIdsKey = stringPreferencesKey("blockedContentIds")
 val CheckForUpdatesKey = booleanPreferencesKey("checkForUpdates")
 val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 val InstallerTypeKey = intPreferencesKey("installerType") // InstallerType ordinal

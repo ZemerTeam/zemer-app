@@ -3,6 +3,7 @@ package com.jtech.zemer.utils
 import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.core.edit
+import com.jtech.zemer.constants.BlockedContentIdsKey
 import com.jtech.zemer.constants.LastWhitelistSyncTimeKey
 import com.jtech.zemer.constants.LastWhitelistVersionKey
 import com.jtech.zemer.db.MusicDatabase
@@ -586,6 +587,7 @@ class SyncUtils @Inject constructor(
                 // Always fetch at least once per version (including version 1). Subsequent runs skip if already synced.
                 if (!forceSync && remoteVersion != null && remoteVersion <= localVersion && !localEmpty) {
                     runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
+                    refreshBlockedIds()
                     _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
                     return@withContext
                 }
@@ -622,6 +624,7 @@ class SyncUtils @Inject constructor(
                     }
                 }
                 WhitelistCache.updateAll(whitelistEntries)
+                refreshBlockedIds()
 
                 _whitelistSyncProgress.value = WhitelistSyncProgress(
                     current = whitelistEntries.size,
@@ -640,6 +643,21 @@ class SyncUtils @Inject constructor(
                 _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
             } finally {
                 isSyncingWhitelist.value = false
+            }
+        }
+    }
+
+    /**
+     * Refresh the id-level block overrides (see [BlockedIdsCache]) into the in-memory cache and the
+     * persisted DataStore snapshot. Read-only and best-effort: a failed/throwing fetch is swallowed so it
+     * can never break the whitelist sync, and the previous blocklist is left intact (never unblocks).
+     * Runs as part of the automatic whitelist sync — no user interaction.
+     */
+    private suspend fun refreshBlockedIds() {
+        runCatching {
+            WhitelistFetcher.fetchBlockedIds().onSuccess { overrides ->
+                BlockedIdsCache.updateAll(overrides)
+                context.dataStore.edit { it[BlockedContentIdsKey] = BlockedIdsCache.serialize(overrides) }
             }
         }
     }

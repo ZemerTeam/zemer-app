@@ -167,6 +167,14 @@ suspend fun List<YTItem>.filterWhitelisted(
     val filtered = mutableListOf<Pair<YTItem, Boolean>>()
 
     this.forEach { item ->
+        // Id-level override: a specific item can be hidden everywhere even when its artist is whitelisted
+        // (e.g. one female-featuring song from an otherwise-allowed mixed channel). Gated on the current
+        // content-filter config (a `female` override only hides for users filtering out female), surgical,
+        // and applied before the artist check.
+        if (BlockedIdsCache.isBlocked(item.id, config)) {
+            Timber.d("WhitelistFilter: item '${item.title}' (${item.id}) hidden by id override")
+            return@forEach
+        }
         val decision = when (item) {
             is SongItem -> item.isWhitelisted(
                 database,
