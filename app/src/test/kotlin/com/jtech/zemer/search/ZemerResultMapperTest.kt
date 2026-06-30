@@ -88,7 +88,7 @@ class ZemerResultMapperTest {
     }
 
     @Test
-    fun `summary matches YouTube section order and folds videos into Songs`() {
+    fun `summary keeps songs and videos in separate sections`() {
         val resp = ZemerSearchResponse(
             categories = ZemerCategories(
                 artists = listOf(ZemerArtist("UC1", "An Artist", "thumb")),
@@ -101,11 +101,12 @@ class ZemerResultMapperTest {
         )
 
         val page = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
-        // Same titles/order as YouTube.searchSummary; no separate Videos section.
-        assertEquals(listOf("Albums", "Songs", "Artists", "Playlists"), page.summaries.map { it.title })
-        // Videos fold into the Songs section (videos are SongItems), exactly like YouTube.
-        val songsSection = page.summaries.first { it.title == "Songs" }
-        assertEquals(listOf("s1", "v1"), songsSection.items.map { it.id })
+        // Songs and Videos are SEPARATE sections (videos no longer fold into Songs).
+        assertEquals(listOf("Albums", "Songs", "Videos", "Artists", "Playlists"), page.summaries.map { it.title })
+        assertEquals(listOf("s1"), page.summaries.first { it.title == "Songs" }.items.map { it.id })
+        val videosSection = page.summaries.first { it.title == "Videos" }
+        assertEquals(listOf("v1"), videosSection.items.map { it.id })
+        assertTrue((videosSection.items.single() as SongItem).isVideo)
         // The "Playlists" section previews COMMUNITY playlists (its header drills into the Community
         // chip), so featured/artist-owned playlists are not shown here.
         val playlistsSection = page.summaries.first { it.title == "Playlists" }
@@ -243,8 +244,7 @@ class ZemerResultMapperTest {
 
     @Test
     fun `summary caps each section to a compact preview`() {
-        // The merged Songs section (songs + videos) would otherwise be a long scroll; the chip still
-        // returns everything.
+        // The Songs section would otherwise be a long scroll; the chip still returns everything.
         val resp = ZemerSearchResponse(
             categories = ZemerCategories(songs = (1..20).map { ZemerTrack("s$it", "Song $it", "A") }),
         )
@@ -258,9 +258,9 @@ class ZemerResultMapperTest {
     }
 
     @Test
-    fun `Songs chip returns songs and videos so the summary Songs drill-in keeps the videos`() {
-        // The summary folds videos into "Songs"; tapping that header (FILTER_SONG) must return both,
-        // and a video-only query must NOT come back empty.
+    fun `Songs chip returns plain songs only and the Videos chip returns videos only`() {
+        // Songs and videos are separated: a video-song must NOT appear under the Songs chip (it has its
+        // own Videos / "Video songs" chip), so it can't show in both.
         val resp = ZemerSearchResponse(
             categories = ZemerCategories(
                 songs = listOf(ZemerTrack("s1", "Song", "A")),
@@ -268,13 +268,10 @@ class ZemerResultMapperTest {
             ),
         )
         val songsChip = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG, hideExplicit = false).items
-        assertEquals(listOf("s1", "v1"), songsChip.map { it.id })
+        assertEquals(listOf("s1"), songsChip.map { it.id }) // songs only — no video
 
-        val videoOnly = ZemerSearchResponse(
-            categories = ZemerCategories(videos = listOf(ZemerTrack("v1", "Video", "A"))),
-        )
-        val videoOnlySongsChip = ZemerResultMapper.filtered(videoOnly, SearchFilter.FILTER_SONG, hideExplicit = false).items
-        assertEquals(listOf("v1"), videoOnlySongsChip.map { it.id }) // not empty
+        val videosChip = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_VIDEO, hideExplicit = false).items
+        assertEquals(listOf("v1"), videosChip.map { it.id }) // videos only
     }
 
     @Test
@@ -636,12 +633,15 @@ class ZemerResultMapperTest {
             ),
         )
 
-        // The summary folds videos into the Songs section, so the per-item flag must survive the merge.
-        val items = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
-            .summaries.single { it.title == "Songs" }.items.filterIsInstance<SongItem>()
+        // Songs and videos live in separate summary sections; each item carries the right flag.
+        val page = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
+        val songs = page.summaries.single { it.title == "Songs" }.items.filterIsInstance<SongItem>()
+        val videos = page.summaries.single { it.title == "Videos" }.items.filterIsInstance<SongItem>()
 
-        assertTrue(items.single { it.id == "vid1" }.isVideo)
-        assertFalse(items.single { it.id == "song1" }.isVideo)
+        assertEquals(listOf("song1"), songs.map { it.id })
+        assertFalse(songs.single().isVideo)
+        assertEquals(listOf("vid1"), videos.map { it.id })
+        assertTrue(videos.single().isVideo)
     }
 
     @Test
