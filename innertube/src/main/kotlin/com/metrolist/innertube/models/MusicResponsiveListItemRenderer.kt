@@ -59,6 +59,26 @@ data class MusicResponsiveListItemRenderer(
                 ?.content?.musicPlayButtonRenderer
                 ?.playNavigationEndpoint?.watchEndpoint?.playlistSetVideoId
 
+    /** YouTube's song-vs-video signal for this item, read from whichever watch endpoint is present. */
+    val musicVideoType: String?
+        get() = overlay?.musicItemThumbnailOverlayRenderer
+            ?.content?.musicPlayButtonRenderer
+            ?.playNavigationEndpoint?.watchEndpoint
+            ?.watchEndpointMusicSupportedConfigs?.watchEndpointMusicConfig?.musicVideoType
+            ?: flexColumns.firstOrNull()
+                ?.musicResponsiveListItemFlexColumnRenderer
+                ?.text?.runs?.firstOrNull()
+                ?.navigationEndpoint?.watchEndpoint
+                ?.watchEndpointMusicSupportedConfigs?.watchEndpointMusicConfig?.musicVideoType
+
+    /**
+     * True when YouTube classifies this item as a video (any type other than the audio track
+     * MUSIC_VIDEO_TYPE_ATV). An absent/null type is treated as a song (audio), never a video — so the
+     * flag only ever turns ON for an item YouTube positively marks as a video.
+     */
+    val isVideo: Boolean
+        get() = musicVideoType?.let { it != "MUSIC_VIDEO_TYPE_ATV" } ?: false
+
     @Serializable
     data class FlexColumn(
         @JsonNames("musicResponsiveListItemFixedColumnRenderer")

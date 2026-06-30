@@ -5,6 +5,7 @@ import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
+import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
 import com.jtech.zemer.search.ZemerResultMapper.toSongItems
 import com.jtech.zemer.utils.BlockedIdsCache
@@ -12,6 +13,7 @@ import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -623,5 +625,46 @@ class ZemerResultMapperTest {
         )
 
         assertEquals(listOf("a", "b"), resp.toSongItems().map { it.id })
+    }
+
+    @Test
+    fun `videos are classified as video-songs per item and plain songs are not`() {
+        val resp = ZemerSearchResponse(
+            categories = ZemerCategories(
+                songs = listOf(ZemerTrack("song1", "A Song", "Artist")),
+                videos = listOf(ZemerTrack("vid1", "A Video", "Artist")),
+            ),
+        )
+
+        // The summary folds videos into the Songs section, so the per-item flag must survive the merge.
+        val items = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
+            .summaries.single { it.title == "Songs" }.items.filterIsInstance<SongItem>()
+
+        assertTrue(items.single { it.id == "vid1" }.isVideo)
+        assertFalse(items.single { it.id == "song1" }.isVideo)
+    }
+
+    @Test
+    fun `the Videos chip flags its results as videos`() {
+        val resp = ZemerSearchResponse(
+            categories = ZemerCategories(videos = listOf(ZemerTrack("vid1", "A Video", "Artist"))),
+        )
+
+        val item = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_VIDEO, hideExplicit = false)
+            .items.single() as SongItem
+
+        assertTrue(item.isVideo)
+    }
+
+    @Test
+    fun `a video-song never propagates isVideo into playback metadata - playback stays audio`() {
+        val video = ZemerResultMapper.filtered(
+            ZemerSearchResponse(categories = ZemerCategories(videos = listOf(ZemerTrack("vid1", "V", "A")))),
+            SearchFilter.FILTER_VIDEO,
+            hideExplicit = false,
+        ).items.single() as SongItem
+
+        assertTrue(video.isVideo)                          // classified as a video for the UI…
+        assertFalse(video.toMediaMetadata().isVideo)       // …but playback treats it as ordinary audio
     }
 }

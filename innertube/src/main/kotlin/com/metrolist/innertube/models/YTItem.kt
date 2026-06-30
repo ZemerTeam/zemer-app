@@ -32,7 +32,11 @@ data class SongItem(
     val setVideoId: String? = null,
     val libraryAddToken: String? = null,
     val libraryRemoveToken: String? = null,
-    val historyRemoveToken: String? = null
+    val historyRemoveToken: String? = null,
+    // True when this item is a YouTube video (not an audio track). UI-only classification used to label
+    // and route "video songs"; it deliberately does NOT flow into MediaMetadata.isVideo (playback stays
+    // audio). Default false so every existing caller/parser is unaffected.
+    val isVideo: Boolean = false,
 ) : YTItem() {
     override val shareLink: String
         get() = "https://music.zemer.io/watch?v=$id"
