@@ -77,10 +77,10 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `877`
+- Files counted: `878`
 - By extension:
   - `.kt`: `475`
-  - `.xml`: `184`
+  - `.xml`: `185`
   - `.mjs`: `72`
   - `.md`: `51`
   - `.json`: `36`
@@ -616,6 +616,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/drawable/navigate_next.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/notification.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/offline.xml` | 9 lines | `.xml` |
+| `app/src/main/res/drawable/ondemand_video.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/palette.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/pause.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/person.xml` | 10 lines | `.xml` |
@@ -771,7 +772,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 498 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 365 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 366 lines | `.md` |
 | `docs/reference/resource-index.md` | 288 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
 | `docs/remote_cipher_config/02-file-format.md` | 116 lines | `.md` |
@@ -781,7 +782,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 986 lines | `.md` |
+| `docs/repository-map.md` | 987 lines | `.md` |
 | `docs/ui/README.md` | 329 lines | `.md` |
 | `docs/ui/standards.md` | 290 lines | `.md` |
 | `docs/whitelist/README.md` | 181 lines | `.md` |

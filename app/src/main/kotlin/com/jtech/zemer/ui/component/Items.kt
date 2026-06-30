@@ -1577,7 +1577,7 @@ private object Icon {
             painter = painterResource(R.drawable.ondemand_video),
             contentDescription = stringResource(R.string.video),
             modifier = Modifier
-                .size(18.dp)
+                .size(15.dp)
                 .padding(end = 2.dp)
         )
     }
