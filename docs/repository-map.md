@@ -275,7 +275,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/recognition/shazam/ShazamModels.kt` | 316 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/repositories/CachedSongsRepository.kt` | 96 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/SearchProvider.kt` | 15 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/search/ZemerResultMapper.kt` | 208 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/search/ZemerResultMapper.kt` | 209 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchClient.kt` | 100 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchModels.kt` | 72 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchOptions.kt` | 28 lines | `.kt` |
@@ -723,7 +723,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/recognition/RecognitionMatchSelectorTest.kt` | 106 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/recognition/RecognitionMatcherTest.kt` | 72 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/recognition/ShazamSignatureGeneratorTest.kt` | 75 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/search/ZemerResultMapperTest.kt` | 346 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/search/ZemerResultMapperTest.kt` | 389 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchJsonTest.kt` | 40 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchParametersTest.kt` | 45 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ContentReportRepositoryTest.kt` | 81 lines | `.kt` |
@@ -813,7 +813,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/MusicPlaylistShelfRenderer.kt` | 11 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/MusicQueueRenderer.kt` | 25 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/MusicResponsiveHeaderRenderer.kt` | 24 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/MusicResponsiveListItemRenderer.kt` | 98 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/models/MusicResponsiveListItemRenderer.kt` | 118 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/MusicShelfRenderer.kt` | 28 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/MusicTwoRowItemRenderer.kt` | 52 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/NavigationEndpoint.kt` | 27 lines | `.kt` |
@@ -831,7 +831,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/ThumbnailRenderer.kt` | 29 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Thumbnails.kt` | 15 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/TwoColumnBrowseResultsRenderer.kt` | 26 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/YTItem.kt` | 92 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/models/YTItem.kt` | 96 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/YouTubeClient.kt` | 261 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/YouTubeDataPage.kt` | 183 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/YouTubeLocale.kt` | 9 lines | `.kt` |
@@ -882,9 +882,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/PlaylistContinuationPage.kt` | 8 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/PlaylistPage.kt` | 52 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/RelatedPage.kt` | 163 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchPage.kt` | 210 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchSuggestionPage.kt` | 146 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchSummaryPage.kt` | 377 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchPage.kt` | 211 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchSuggestionPage.kt` | 147 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchSummaryPage.kt` | 381 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/utils/ResilientDns.kt` | 84 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/utils/Utils.kt` | 95 lines | `.kt` |
 | `lint.xml` | 6 lines | `.xml` |

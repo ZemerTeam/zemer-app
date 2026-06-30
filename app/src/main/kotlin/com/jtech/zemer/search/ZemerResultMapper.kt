@@ -30,7 +30,7 @@ object ZemerResultMapper {
     /** YouTube serves the video thumbnail for any videoId; `String.resize` no-ops on this host. */
     fun thumbnailFor(videoId: String): String = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
 
-    fun ZemerTrack.toSongItem(): SongItem =
+    fun ZemerTrack.toSongItem(isVideo: Boolean = false): SongItem =
         SongItem(
             id = videoId,
             title = title,
@@ -39,6 +39,7 @@ object ZemerResultMapper {
             duration = null,
             thumbnail = thumbnailFor(videoId),
             explicit = explicit,
+            isVideo = isVideo,
         )
 
     fun ZemerArtist.toArtistItem(): ArtistItem =
@@ -79,9 +80,9 @@ object ZemerResultMapper {
 
     // Each helper drops rows missing their id (the server should never send those, but one sparse row
     // must not crash navigation) and de-dupes by id, since the id-keyed LazyColumns reject duplicates.
-    private fun songItems(tracks: List<ZemerTrack>, hideExplicit: Boolean): List<SongItem> =
+    private fun songItems(tracks: List<ZemerTrack>, hideExplicit: Boolean, isVideo: Boolean = false): List<SongItem> =
         tracks.filter { it.videoId.isNotBlank() }
-            .map { it.toSongItem() }
+            .map { it.toSongItem(isVideo) }
             .filterExplicit(hideExplicit)
             .distinctBy { it.id }
 
@@ -92,7 +93,7 @@ object ZemerResultMapper {
      * video-only query) on tap. The dedicated Videos chip still narrows to videos only.
      */
     private fun songAndVideoItems(resp: ZemerSearchResponse, hideExplicit: Boolean): List<SongItem> =
-        (songItems(resp.categories.songs, hideExplicit) + songItems(resp.categories.videos, hideExplicit))
+        (songItems(resp.categories.songs, hideExplicit) + songItems(resp.categories.videos, hideExplicit, isVideo = true))
             .distinctBy { it.id }
 
     private fun artistItems(resp: ZemerSearchResponse): List<ArtistItem> =
@@ -150,7 +151,7 @@ object ZemerResultMapper {
             // Songs chip returns songs + videos (the summary "Songs" section folds them together, so the
             // drill-in must too); the Videos chip narrows to videos only.
             SearchFilter.FILTER_SONG.value -> songAndVideoItems(resp, hideExplicit)
-            SearchFilter.FILTER_VIDEO.value -> songItems(resp.categories.videos, hideExplicit)
+            SearchFilter.FILTER_VIDEO.value -> songItems(resp.categories.videos, hideExplicit, isVideo = true)
             SearchFilter.FILTER_ARTIST.value -> artistItems(resp)
             SearchFilter.FILTER_ALBUM.value -> albumItems(resp)
             SearchFilter.FILTER_COMMUNITY_PLAYLIST.value -> playlistItems(resp.categories.community, formatSongCount)
@@ -177,7 +178,7 @@ object ZemerResultMapper {
             (songItems(resp.categories.songs, hideExplicit) +
                 artistItems(resp) +
                 albumItems(resp) +
-                songItems(resp.categories.videos, hideExplicit) +
+                songItems(resp.categories.videos, hideExplicit, isVideo = true) +
                 playlistItems(resp.categories.playlists, formatSongCount) +
                 playlistItems(resp.categories.community, formatSongCount))
                 .distinctBy { it.id }

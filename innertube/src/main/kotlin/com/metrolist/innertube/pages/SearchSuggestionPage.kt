@@ -15,6 +15,7 @@ object SearchSuggestionPage {
         return when {
             renderer.isSong -> {
                 SongItem(
+                    isVideo = renderer.isVideo,
                     id = renderer.videoId ?: return null,
                     title =
                         renderer.flexColumns
