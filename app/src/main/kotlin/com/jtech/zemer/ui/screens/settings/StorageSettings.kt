@@ -46,6 +46,8 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.CustomDownloadPathKey
+import com.jtech.zemer.constants.DownloadFormat
+import com.jtech.zemer.constants.DownloadFormatKey
 import com.jtech.zemer.constants.MaxImageCacheSizeKey
 import com.jtech.zemer.constants.MaxSongCacheSizeKey
 import com.jtech.zemer.extensions.tryOrNull
@@ -55,6 +57,7 @@ import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.utils.backToMain
+import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.ui.utils.formatFileSize
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.utils.EnvironmentPaths.DEFAULT_RELATIVE_DOWNLOAD_PATH
@@ -196,6 +199,22 @@ fun StorageSettings(
             text = stringResource(R.string.size_used, formatFileSize(downloadCacheSize)),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+        )
+
+        val (downloadFormat, onDownloadFormatChange) = rememberEnumPreference(DownloadFormatKey, DownloadFormat.OPUS)
+
+        ListPreference(
+            title = { Text(stringResource(R.string.download_format)) },
+            selectedValue = downloadFormat,
+            values = DownloadFormat.entries,
+            valueText = {
+                when (it) {
+                    DownloadFormat.OPUS -> stringResource(R.string.download_format_opus)
+                    DownloadFormat.M4A -> stringResource(R.string.download_format_m4a)
+                    DownloadFormat.MP3 -> stringResource(R.string.download_format_mp3)
+                }
+            },
+            onValueSelected = onDownloadFormatChange,
         )
 
         PreferenceEntry(

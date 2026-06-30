@@ -37,10 +37,12 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
@@ -62,6 +64,7 @@ import com.jtech.zemer.constants.ShowUploadedPlaylistKey
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.PlaylistEntity
+import com.jtech.zemer.db.entities.PlaylistFolderWithCount
 import com.jtech.zemer.ui.component.CreatePlaylistDialog
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.LibraryPlaylistGridItem
@@ -76,6 +79,7 @@ import com.jtech.zemer.viewmodels.LibraryAutoPlaylistViewModel
 import com.jtech.zemer.viewmodels.LibraryPlaylistsViewModel
 import com.metrolist.innertube.utils.parseCookieString
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -90,6 +94,7 @@ fun LibraryPlaylistsScreen(
 ) {
     val menuState = LocalMenuState.current
     LocalHapticFeedback.current
+    val database = LocalDatabase.current
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -105,6 +110,7 @@ fun LibraryPlaylistsScreen(
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
 
     val playlists by viewModel.allPlaylists.collectAsState()
+    val folders by database.allFoldersWithCount().collectAsState(initial = emptyList())
 
     val topSize by viewModel.topValue.collectAsState(initial = 50)
     val autoPlaylistsState by autoPlaylistsViewModel.autoPlaylists.collectAsState()
@@ -249,6 +255,18 @@ fun LibraryPlaylistsScreen(
 
             IconButton(
                 onClick = {
+                    navController.navigate("playlist_folders")
+                },
+                modifier = Modifier.padding(start = 6.dp, end = 6.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.storage),
+                    contentDescription = stringResource(R.string.manage_folders),
+                )
+            }
+
+            IconButton(
+                onClick = {
                     viewType = viewType.toggle()
                 },
                 modifier = Modifier.padding(start = 6.dp, end = 6.dp),
@@ -266,6 +284,14 @@ fun LibraryPlaylistsScreen(
             }
         }
     }
+
+    fun getPlaylistFolderId(playlist: Playlist): String? = playlist.playlist.folderId
+
+    val playlistsByFolder: Map<String?, List<Playlist>> = playlists
+        .distinctBy { it.id }
+        .groupBy { getPlaylistFolderId(it) }
+
+    val folderMap: Map<String, PlaylistFolderWithCount> = folders.associateBy { it.id }
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -365,15 +391,36 @@ fun LibraryPlaylistsScreen(
                             )
                         }
                     }
-                    
-                    playlists.let { playlists ->
-                        if (playlists.isEmpty()) {
-                            item(key = "empty_placeholder") {
+
+                    val unfiled = playlistsByFolder[null].orEmpty()
+                    if (unfiled.isNotEmpty() && folders.isNotEmpty()) {
+                        item(key = "header_unfiled", contentType = CONTENT_TYPE_HEADER) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.unfiled),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                )
+                                Spacer(Modifier.weight(1f))
+                                Text(
+                                    text = pluralStringResource(
+                                        R.plurals.n_playlists,
+                                        unfiled.size,
+                                        unfiled.size,
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                         }
-
                         items(
-                            items = playlists.distinctBy { it.id },
+                            items = unfiled,
                             key = { it.id },
                             contentType = { CONTENT_TYPE_PLAYLIST },
                         ) { playlist ->
@@ -382,8 +429,61 @@ fun LibraryPlaylistsScreen(
                                 menuState = menuState,
                                 coroutineScope = coroutineScope,
                                 playlist = playlist,
-                                modifier = Modifier.animateItem()
+                                modifier = Modifier.animateItem(),
                             )
+                        }
+                    }
+
+                    folders.forEach { folder ->
+                        val folderPlaylists = playlistsByFolder[folder.id].orEmpty()
+                        if (folderPlaylists.isNotEmpty()) {
+                            item(
+                                key = "folder_header_${folder.id}",
+                                contentType = CONTENT_TYPE_HEADER,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.storage),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(end = 8.dp),
+                                    )
+                                    Text(
+                                        text = folder.name,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.secondary,
+                                    )
+                                    Spacer(Modifier.weight(1f))
+                                    Text(
+                                        text = pluralStringResource(
+                                            R.plurals.n_playlists,
+                                            folderPlaylists.size,
+                                            folderPlaylists.size,
+                                        ),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            items(
+                                items = folderPlaylists,
+                                key = { it.id },
+                                contentType = { CONTENT_TYPE_PLAYLIST },
+                            ) { playlist ->
+                                LibraryPlaylistListItem(
+                                    navController = navController,
+                                    menuState = menuState,
+                                    coroutineScope = coroutineScope,
+                                    playlist = playlist,
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
                         }
                     }
                 }
@@ -510,14 +610,39 @@ fun LibraryPlaylistsScreen(
                         }
                     }
 
-                    playlists.let { playlists ->
-                        if (playlists.isEmpty()) {
-                            item(span = { GridItemSpan(maxLineSpan) }) {
+                    val unfiled = playlistsByFolder[null].orEmpty()
+                    if (unfiled.isNotEmpty() && folders.isNotEmpty()) {
+                        item(
+                            key = "header_unfiled",
+                            span = { GridItemSpan(maxLineSpan) },
+                            contentType = CONTENT_TYPE_HEADER,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.unfiled),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                )
+                                Spacer(Modifier.weight(1f))
+                                Text(
+                                    text = pluralStringResource(
+                                        R.plurals.n_playlists,
+                                        unfiled.size,
+                                        unfiled.size,
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                         }
-
                         items(
-                            items = playlists.distinctBy { it.id },
+                            items = unfiled,
                             key = { it.id },
                             contentType = { CONTENT_TYPE_PLAYLIST },
                         ) { playlist ->
@@ -526,8 +651,62 @@ fun LibraryPlaylistsScreen(
                                 menuState = menuState,
                                 coroutineScope = coroutineScope,
                                 playlist = playlist,
-                                modifier = Modifier.animateItem()
+                                modifier = Modifier.animateItem(),
                             )
+                        }
+                    }
+
+                    folders.forEach { folder ->
+                        val folderPlaylists = playlistsByFolder[folder.id].orEmpty()
+                        if (folderPlaylists.isNotEmpty()) {
+                            item(
+                                key = "folder_header_${folder.id}",
+                                span = { GridItemSpan(maxLineSpan) },
+                                contentType = CONTENT_TYPE_HEADER,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.storage),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(end = 8.dp),
+                                    )
+                                    Text(
+                                        text = folder.name,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.secondary,
+                                    )
+                                    Spacer(Modifier.weight(1f))
+                                    Text(
+                                        text = pluralStringResource(
+                                            R.plurals.n_playlists,
+                                            folderPlaylists.size,
+                                            folderPlaylists.size,
+                                        ),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            items(
+                                items = folderPlaylists,
+                                key = { it.id },
+                                contentType = { CONTENT_TYPE_PLAYLIST },
+                            ) { playlist ->
+                                LibraryPlaylistGridItem(
+                                    navController = navController,
+                                    menuState = menuState,
+                                    coroutineScope = coroutineScope,
+                                    playlist = playlist,
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
                         }
                     }
                 }

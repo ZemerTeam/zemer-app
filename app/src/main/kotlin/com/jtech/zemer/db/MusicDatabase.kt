@@ -25,6 +25,7 @@ import com.jtech.zemer.db.entities.FormatEntity
 import com.jtech.zemer.db.entities.LyricsEntity
 import com.jtech.zemer.db.entities.PlayCountEntity
 import com.jtech.zemer.db.entities.PlaylistEntity
+import com.jtech.zemer.db.entities.PlaylistFolderEntity
 import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.db.entities.PlaylistSongMapPreview
 import com.jtech.zemer.db.entities.RelatedSongMap
@@ -74,6 +75,7 @@ class MusicDatabase(
         ArtistEntity::class,
         AlbumEntity::class,
         PlaylistEntity::class,
+        PlaylistFolderEntity::class,
         SongArtistMap::class,
         SongAlbumMap::class,
         AlbumArtistMap::class,
@@ -93,7 +95,7 @@ class MusicDatabase(
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 33,
+    version = 34,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -121,7 +123,8 @@ class MusicDatabase(
         AutoMigration(from = 24, to = 25),
         AutoMigration(from = 25, to = 26),
         // Additive: adds the recognition_history table only (no changes to existing tables).
-        AutoMigration(from = 32, to = 33)
+        AutoMigration(from = 32, to = 33),
+        AutoMigration(from = 33, to = 34, spec = Migration33To34::class),
     ],
 )
 @TypeConverters(Converters::class)
@@ -138,7 +141,7 @@ abstract class InternalDatabase : RoomDatabase() {
             val builtDb = try {
                 Room
                     .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
-                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_33_34)
                     .setJournalMode(JournalMode.TRUNCATE)
                     .enableMultiInstanceInvalidation()
                     .build().also {
@@ -590,5 +593,18 @@ class Migration22To23: AutoMigrationSpec {
         // Add isUploaded column
         db.execSQL("ALTER TABLE song ADD COLUMN isUploaded INTEGER NOT NULL DEFAULT 0")
         db.execSQL("ALTER TABLE album ADD COLUMN isUploaded INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+val MIGRATION_33_34 = object : Migration(33, 34) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `playlist_folder` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `position` INTEGER NOT NULL DEFAULT 0, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))")
+        db.execSQL("ALTER TABLE `playlist` ADD COLUMN `folderId` TEXT DEFAULT NULL")
+    }
+}
+
+class Migration33To34 : AutoMigrationSpec {
+    override fun onPostMigrate(db: SupportSQLiteDatabase) {
+        // Schema changes handled by manual migration above
     }
 }

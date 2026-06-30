@@ -32,6 +32,8 @@ import com.jtech.zemer.db.entities.LyricsEntity
 import com.jtech.zemer.db.entities.PlayCountEntity
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.PlaylistEntity
+import com.jtech.zemer.db.entities.PlaylistFolderEntity
+import com.jtech.zemer.db.entities.PlaylistFolderWithCount
 import com.jtech.zemer.db.entities.PlaylistSong
 import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.db.entities.RelatedSongMap
@@ -1702,4 +1704,42 @@ interface DatabaseDao {
 
     @Query("DELETE FROM artist WHERE id IN (:artistIds)")
     suspend fun deleteArtistsByIds(artistIds: List<String>)
+
+    // Playlist folder operations
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun upsertFolder(folder: PlaylistFolderEntity)
+
+    @Transaction
+    @Query("SELECT * FROM playlist_folder ORDER BY `position`")
+    fun allFolders(): Flow<List<PlaylistFolderEntity>>
+
+    @Transaction
+    @Query("SELECT * FROM playlist_folder WHERE id = :folderId")
+    fun folder(folderId: String): Flow<PlaylistFolderEntity?>
+
+    @Query("DELETE FROM playlist_folder WHERE id = :folderId")
+    fun deleteFolder(folderId: String)
+
+    @Query("UPDATE playlist SET folderId = :folderId WHERE id = :playlistId")
+    fun setPlaylistFolder(playlistId: String, folderId: String?)
+
+    @Query("SELECT * FROM playlist WHERE folderId = :folderId AND bookmarkedAt IS NOT NULL")
+    fun playlistsByFolder(folderId: String): Flow<List<PlaylistEntity>>
+
+    @Query("SELECT * FROM playlist WHERE folderId IS NULL AND bookmarkedAt IS NOT NULL")
+    fun unfiledPlaylists(): Flow<List<PlaylistEntity>>
+
+    @Query("UPDATE playlist_folder SET `position` = :position WHERE id = :folderId")
+    fun setFolderPosition(folderId: String, position: Int)
+
+    @Transaction
+    @Query(
+        """
+        SELECT pf.*, (SELECT COUNT(*) FROM playlist WHERE folderId = pf.id AND bookmarkedAt IS NOT NULL) AS playlistCount
+        FROM playlist_folder pf
+        ORDER BY pf.`position`
+        """
+    )
+    fun allFoldersWithCount(): Flow<List<PlaylistFolderWithCount>>
 }

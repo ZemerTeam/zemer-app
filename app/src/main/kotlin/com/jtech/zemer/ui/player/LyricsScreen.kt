@@ -68,6 +68,7 @@ import coil3.compose.AsyncImage
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.AutoFetchLyricsKey
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.SliderStyle
@@ -83,6 +84,7 @@ import com.jtech.zemer.ui.menu.LyricsMenu
 import com.jtech.zemer.ui.theme.PlayerSliderColors
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.utils.rememberEnumPreference
+import com.jtech.zemer.utils.rememberPreference
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -124,8 +126,10 @@ fun LyricsScreen(
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
     val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
 
+    val (autoFetchLyrics, _) = rememberPreference(key = AutoFetchLyricsKey, defaultValue = true)
+
     LaunchedEffect(mediaMetadata.id, currentLyrics) {
-        if (currentLyrics == null) {
+        if (currentLyrics == null && autoFetchLyrics) {
             delay(500)
             coroutineScope.launch(Dispatchers.IO) {
                 try {

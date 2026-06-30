@@ -27,6 +27,8 @@ import com.jtech.zemer.extensions.toInetSocketAddress
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.CrashReportingTree
+import com.jtech.zemer.utils.LogBufferTree
+import com.jtech.zemer.utils.ArtistBlacklistManager
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.SyncUtils
@@ -86,6 +88,10 @@ class App : Application(), SingletonImageLoader.Factory {
                 recordNonFatal = { FirebaseCrashlytics.getInstance().recordException(it) },
             )
         )
+        Timber.plant(LogBufferTree)
+
+        // Initialize artist blacklist from DataStore
+        ArtistBlacklistManager.initialize(this)
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }

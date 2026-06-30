@@ -6,6 +6,8 @@ import android.net.Uri
 import androidx.core.content.getSystemService
 import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.AudioQualityKey
+import com.jtech.zemer.constants.DownloadFormat
+import com.jtech.zemer.constants.DownloadFormatKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.db.entities.SongAlbumMap
@@ -67,6 +69,7 @@ constructor(
     private val connectivityManager = context.getSystemService<ConnectivityManager>()
         ?: throw IllegalStateException("ConnectivityManager not available on this device")
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
+    private val downloadFormat by enumPreference(context, DownloadFormatKey, DownloadFormat.OPUS)
     private val httpClient = OkHttpClient.Builder()
         .dns(ResilientDns())
         .proxy(YouTube.proxy)
@@ -441,8 +444,8 @@ constructor(
                     else -> "mp4" // Default to mp4 for videos
                 }
             } else {
-                // For audio downloads, convert to audio extensions
-                when {
+                // Determine the native extension from the stream's mime type
+                val nativeExtension = when {
                     mimeTypeRaw.contains("webm") -> "webm"
                     mimeTypeRaw.contains("mp4") -> "m4a"
                     mimeTypeRaw.contains("ogg") -> "ogg"
@@ -450,6 +453,9 @@ constructor(
                     mimeTypeRaw.contains("mpeg") -> "mp3"
                     else -> mimeTypeRaw.substringAfterLast("/")
                 }
+                // If user selected a specific format, use its extension regardless of native type
+                // The file is saved with the preferred container extension for compatibility
+                if (downloadFormat != DownloadFormat.OPUS) downloadFormat.extension else nativeExtension
             }
             val tempFile = File(context.cacheDir, "temp_${song.id}.$extension")
 

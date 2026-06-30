@@ -26,9 +26,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,8 +49,14 @@ import androidx.navigation.NavController
 import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.DeveloperModeEnabledKey
 import com.jtech.zemer.ui.component.IconButton
+import com.jtech.zemer.ui.component.PreferenceEntry
+import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.utils.backToMain
+import com.jtech.zemer.utils.rememberPreference
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -55,8 +65,11 @@ fun AboutScreen(
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
+    var devTapCount by remember { mutableIntStateOf(0) }
+    val (developerMode, onDeveloperModeChange) = rememberPreference(DeveloperModeEnabledKey, false)
 
     LaunchedEffect(Unit) {
         firstFocus.requestFocus()
@@ -123,7 +136,19 @@ fun AboutScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     AssistChip(
-                        onClick = {},
+                        onClick = {
+                            devTapCount++
+                            if (devTapCount >= 7) {
+                                devTapCount = 0
+                                val newValue = !developerMode
+                                onDeveloperModeChange(newValue)
+                                Toast.makeText(
+                                    context,
+                                    if (newValue) R.string.developer_mode_enabled else R.string.developer_mode_disabled,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
                         label = { Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME)) },
                         colors = AssistChipDefaults.assistChipColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -166,6 +191,15 @@ fun AboutScreen(
                     Text(stringResource(R.string.github))
                 }
             }
+        }
+
+        if (developerMode) {
+            PreferenceGroupTitle(title = stringResource(R.string.log_viewer))
+            PreferenceEntry(
+                title = { Text(stringResource(R.string.log_viewer)) },
+                description = stringResource(R.string.enable_debug_logging_desc),
+                onClick = { navController.navigate("settings/log_viewer") },
+            )
         }
 
         Spacer(Modifier.height(32.dp))
