@@ -103,6 +103,7 @@
     <string name="video">Video</string>
     <string name="video_songs">Video songs</string>
     <string name="filter_video_songs">Video songs</string>
+    <string name="watch_video">Watch video</string>
     <string name="play_videos_as_audio">Play videos as audio</string>
     <string name="play_videos_as_audio_desc">Play music videos as audio in the player instead of opening the video player</string>
     <string name="music">Music</string>
