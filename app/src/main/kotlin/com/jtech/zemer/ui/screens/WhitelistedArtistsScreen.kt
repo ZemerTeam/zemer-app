@@ -75,7 +75,10 @@ import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
 import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.constants.RecognizeMusicFabKey
 import com.jtech.zemer.constants.YtmSyncKey
+import com.jtech.zemer.ui.component.AlphabetScrollbar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
+import com.jtech.zemer.ui.component.MIN_ITEMS_FOR_FAST_SCROLL
+import com.jtech.zemer.ui.component.alphabetIndexOf
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.screens.LoadingScreen
 import com.jtech.zemer.ui.component.WhitelistedArtistGridItem
@@ -83,6 +86,19 @@ import com.jtech.zemer.ui.component.WhitelistedArtistListItem
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.WhitelistedArtistsViewModel
+
+// The always-present lazy items ("search", "header") that precede the artists in BOTH the list
+// and the grid — the letter index scrolls to artistIndex + this, so a header item added to one
+// container must be added to the other and counted here.
+private const val ARTIST_HEADER_ITEM_COUNT = 2
+
+// Geometry of the bottom-end button stack, shared between the back-to-top button below and the
+// letter strip's clearance so the two can never drift apart.
+private val BackToTopButtonSize = 36.dp
+private val BackToTopBottomPadding = 16.dp
+// Clears the Recognize-music FAB (56dp) + gap when it occupies this corner.
+private val BackToTopBottomPaddingAboveFab = 80.dp
+private val AlphabetStripBottomGap = 16.dp
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -118,8 +134,29 @@ fun WhitelistedArtistsScreen(
         }
     }
 
+    // Single source for what the lazy containers actually render: both view types and the letter
+    // index must agree on items and positions, so the de-duplication happens once, here.
+    val displayedArtists = remember(artists) { artists.distinctBy { it.artist.name } }
+    val alphabetEntries = remember(displayedArtists) {
+        alphabetIndexOf(displayedArtists.map { it.artist.name })
+    }
+
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
+
+    // The one "scroll whichever container the view type shows" dispatch — the scroll-to-top
+    // signal, the back-to-top button and the letter index must all move the same container.
+    val scrollActiveListTo: suspend (index: Int, animate: Boolean) -> Unit = { index, animate ->
+        when (viewType) {
+            LibraryViewType.LIST -> with(lazyListState) {
+                if (animate) animateScrollToItem(index) else scrollToItem(index)
+            }
+            LibraryViewType.GRID -> with(lazyGridState) {
+                if (animate) animateScrollToItem(index) else scrollToItem(index)
+            }
+        }
+    }
+
     val backStackEntry by navController.currentBackStackEntryAsState()
     val scrollToTop =
         backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
@@ -140,10 +177,7 @@ fun WhitelistedArtistsScreen(
 
     LaunchedEffect(scrollToTop?.value) {
         if (scrollToTop?.value == true) {
-            when (viewType) {
-                LibraryViewType.LIST -> lazyListState.animateScrollToItem(0)
-                LibraryViewType.GRID -> lazyGridState.animateScrollToItem(0)
-            }
+            scrollActiveListTo(0, true)
             backStackEntry?.savedStateHandle?.set("scrollToTop", false)
         }
     }
@@ -288,7 +322,7 @@ fun WhitelistedArtistsScreen(
                     }
 
                     itemsIndexed(
-                        items = artists.distinctBy { it.artist.name },
+                        items = displayedArtists,
                         key = { _, item -> item.id },
                         contentType = { _, _ -> CONTENT_TYPE_ARTIST },
                     ) { index, artist ->
@@ -345,7 +379,7 @@ fun WhitelistedArtistsScreen(
                     }
 
                     itemsIndexed(
-                        items = artists.distinctBy { it.artist.name },
+                        items = displayedArtists,
                         key = { _, item -> item.id },
                         contentType = { _, _ -> CONTENT_TYPE_ARTIST },
                     ) { index, artist ->
@@ -363,6 +397,29 @@ fun WhitelistedArtistsScreen(
                 }
         }
 
+        // Letter fast-scroll strip: only when the list is long enough for jumping to beat swiping.
+        if (displayedArtists.size >= MIN_ITEMS_FOR_FAST_SCROLL) {
+            AlphabetScrollbar(
+                entries = alphabetEntries,
+                onSelect = { entry ->
+                    coroutineScope.launch {
+                        scrollActiveListTo(entry.itemIndex + ARTIST_HEADER_ITEM_COUNT, false)
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .windowInsetsPadding(
+                        LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Vertical)
+                    )
+                    // Stay clear of the bottom-end button stack (back-to-top button + its gap).
+                    .padding(
+                        top = 8.dp,
+                        bottom = (if (recognizeMusicFab) BackToTopBottomPaddingAboveFab else BackToTopBottomPadding) +
+                            BackToTopButtonSize + AlphabetStripBottomGap,
+                    ),
+            )
+        }
+
         // Back to top button - inconspicuous but clear
         AnimatedVisibility(
             visible = showBackToTop,
@@ -377,8 +434,7 @@ fun WhitelistedArtistsScreen(
                 .padding(
                     end = 16.dp,
                     top = 16.dp,
-                    // Clear the Recognize-music FAB (56dp) + small gap when it sits in this corner.
-                    bottom = if (recognizeMusicFab) 80.dp else 16.dp,
+                    bottom = if (recognizeMusicFab) BackToTopBottomPaddingAboveFab else BackToTopBottomPadding,
                 )
         ) {
             SmallFloatingActionButton(
@@ -386,13 +442,10 @@ fun WhitelistedArtistsScreen(
                     coroutineScope.launch {
                         // Reset TopAppBar height offset to prevent visual glitch
                         scrollBehavior.state.heightOffset = 0f
-                        when (viewType) {
-                            LibraryViewType.LIST -> lazyListState.scrollToItem(0)
-                            LibraryViewType.GRID -> lazyGridState.scrollToItem(0)
-                        }
+                        scrollActiveListTo(0, false)
                     }
                 },
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier.size(BackToTopButtonSize),
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {

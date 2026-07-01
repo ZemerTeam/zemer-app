@@ -35,6 +35,10 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
 
+/** Lists shorter than this scroll comfortably without a fast-scroll affordance — one threshold
+ * shared by every fast-scroll surface ([DraggableScrollbar], the alphabet strip). */
+const val MIN_ITEMS_FOR_FAST_SCROLL = 15
+
 @Composable
 fun DraggableScrollbar(
     scrollState: LazyListState,
@@ -45,7 +49,7 @@ fun DraggableScrollbar(
     thumbWidth: Dp = 8.dp,
     thumbCornerRadius: Dp = 4.dp,
     trackWidth: Dp = 24.dp,
-    minItemCountForScroll: Int = 15,
+    minItemCountForScroll: Int = MIN_ITEMS_FOR_FAST_SCROLL,
     minScrollRangeForDrag: Int = 5,
     headerItems: Int = 0
 ) {
