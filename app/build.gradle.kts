@@ -27,6 +27,11 @@ android {
         buildConfigField("String", "ARCHITECTURE", "\"universal\"")
         val googleTokenExchangeUrl = (project.findProperty("googleTokenExchangeUrl") as String?) ?: ""
         buildConfigField("String", "GOOGLE_TOKEN_EXCHANGE_URL", "\"$googleTokenExchangeUrl\"")
+        // Read-only content mirror (content.zemer.io) used mirror-first with the Firebase SDK as
+        // fallback (see ZemerContentClient). Override with -PcontentMirrorUrl=; empty disables the
+        // mirror so every content read goes straight to Firebase (debug force-Firebase / A-B).
+        val contentMirrorUrl = (project.findProperty("contentMirrorUrl") as String?) ?: "https://content.zemer.io"
+        buildConfigField("String", "CONTENT_MIRROR_URL", "\"$contentMirrorUrl\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -263,6 +268,8 @@ dependencies {
     // Music recognition: standalone ktor client (CIO) talking to the Shazam discovery endpoint
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.content.negotiation)
+    // Gzip for the content mirror (ZemerContentClient): the /whitelist payload is ~432 KB raw / ~70 KB gzipped.
+    implementation(libs.ktor.client.encoding)
 
     // Self-update installers (Shizuku / root); hidden PackageInstaller APIs via refine
     compileOnly(libs.rikka.hidden.stub)
