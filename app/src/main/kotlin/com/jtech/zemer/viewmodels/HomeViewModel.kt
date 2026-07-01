@@ -253,6 +253,12 @@ class HomeViewModel @Inject constructor(
     private suspend fun loadTrendingSongs(filters: ContentFilterConfig, hideExplicit: Boolean): List<SongItem> {
         val start = System.currentTimeMillis()
         val allowedIds = WhitelistCache.allowedEntries(database, filters).map { it.artistId }.toSet()
+        // Fail closed: with no whitelisted artists there is nothing to show — never fall back to raw charts.
+        // Reached only when the whitelist is empty; the whitelist-present path below is unchanged.
+        if (allowedIds.isEmpty()) {
+            Timber.w("HomeViewModel: whitelist empty — trending fail-closed (no raw charts)")
+            return emptyList()
+        }
         val charts = YouTube.getChartsPage().getOrNull()
         Timber.d("NET: YouTube.getChartsPage() took ${System.currentTimeMillis() - start}ms")
         if (charts == null) return emptyList()
@@ -1012,7 +1018,11 @@ class HomeViewModel @Inject constructor(
                         selectionRandom,
                         recentArtistIds.toSet(),
                     )
-                } else loadHomePage(hideExplicit)
+                } else {
+                    // Fail closed: no whitelist -> no raw YouTube home feed (reached only when whitelist is empty).
+                    Timber.w("HomeViewModel: whitelist empty — home feed fail-closed (no raw content)")
+                    null
+                }
             }
             val exploreDeferred = viewModelScope.async(Dispatchers.IO) {
                 if (useWhitelist) {
@@ -1023,7 +1033,11 @@ class HomeViewModel @Inject constructor(
                         selectionRandom,
                         recentArtistIds.toSet(),
                     )
-                } else loadExplorePage(hideExplicit)
+                } else {
+                    // Fail closed: no whitelist -> no raw YouTube explore feed (reached only when whitelist is empty).
+                    Timber.w("HomeViewModel: whitelist empty — explore feed fail-closed (no raw content)")
+                    null
+                }
             }
 
             val trendingSongs = trendingDeferred.await()
