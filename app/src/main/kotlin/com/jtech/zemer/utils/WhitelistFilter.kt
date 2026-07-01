@@ -228,6 +228,8 @@ fun shouldKeepPlaylistSong(
     allowedArtistIds: Set<String>,
 ): Boolean {
     if (allowedArtistIds.isEmpty()) return false
+    val allIds = remoteArtistIds + localArtistIds
+    if (allIds.any { ArtistBlacklistManager.isBlacklisted(it) }) return false
     return remoteArtistIds.any { it in allowedArtistIds } || localArtistIds.any { it in allowedArtistIds }
 }
 
@@ -257,6 +259,11 @@ private suspend fun MusicDatabase.artistMatchesFilters(
 ): ArtistFilterDecision {
     if (!config.filtersEnabled) {
         return ArtistFilterDecision(allowed = true, isChasidish = false)
+    }
+
+    // Check artist blacklist first — blacklisted artists are always blocked
+    if (ArtistBlacklistManager.isBlacklisted(artistId)) {
+        return ArtistFilterDecision(allowed = false, isChasidish = false)
     }
 
     allowedIds?.let { ids ->

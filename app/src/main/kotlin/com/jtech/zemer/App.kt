@@ -27,6 +27,7 @@ import com.jtech.zemer.extensions.toInetSocketAddress
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.CrashReportingTree
+import com.jtech.zemer.utils.ArtistBlacklistManager
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.SyncUtils
@@ -89,6 +90,8 @@ class App : Application(), SingletonImageLoader.Factory {
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
+
+        ArtistBlacklistManager.initialize(this)
         // Hidden-API exemptions for the Shizuku installer are applied lazily on first use
         // (AppInstaller.ensureHiddenApiBypass) so non-Shizuku users don't pay for it at startup.
 

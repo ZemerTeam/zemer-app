@@ -356,6 +356,13 @@ fun ContentSettings(
             isEnabled = enableContentFilters && togglesEnabled
         )
 
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.artist_blacklist)) },
+            description = stringResource(R.string.artist_blacklist_desc),
+            icon = { Icon(painterResource(R.drawable.error), null) },
+            onClick = { navController.navigate("settings/artist_blacklist") }
+        )
+
         PreferenceGroupTitle(title = stringResource(R.string.recommendations))
         SwitchPreference(
             title = { Text(stringResource(R.string.i_am_chasidish)) },

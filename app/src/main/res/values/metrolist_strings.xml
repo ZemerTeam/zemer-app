@@ -551,4 +551,7 @@
     <string name="recognize_music_play">Play</string>
     <string name="recognize_music_try_again">Try again</string>
     <string name="recognize_music_close">Close</string>
+
+    <string name="artist_blacklist">Artist Blacklist</string>
+    <string name="artist_blacklist_desc">Block specific artists from appearing anywhere in the app</string>
 </resources>
