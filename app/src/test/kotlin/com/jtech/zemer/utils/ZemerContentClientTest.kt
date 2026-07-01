@@ -51,6 +51,21 @@ class ZemerContentClientTest {
     }
 
     @Test
+    fun `whitelist doc reads the thumbnail when present, null when absent`() {
+        val withThumb = json.decodeFromString(
+            ContentWhitelistDoc.serializer(),
+            """{"id":"UC1","name":"A","thumbnail":"https://yt3.googleusercontent.com/abc"}""",
+        )
+        assertEquals("https://yt3.googleusercontent.com/abc", withThumb.thumbnail)
+
+        val noThumb = json.decodeFromString(
+            ContentWhitelistDoc.serializer(),
+            """{"id":"UC2","name":"B"}""",
+        )
+        assertNull(noThumb.thumbnail)        // the ~3 artists without a server thumb -> null -> default avatar
+    }
+
+    @Test
     fun `whitelist doc tolerates the artistId or artistName fallback fields`() {
         val doc = json.decodeFromString(
             ContentWhitelistDoc.serializer(),

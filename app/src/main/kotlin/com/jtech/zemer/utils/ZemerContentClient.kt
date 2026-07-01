@@ -164,6 +164,8 @@ data class ContentWhitelistDoc(
     val isFamous: Boolean? = null,
     val isDJ: Boolean? = null,
     val isGroup: Boolean? = null,
+    // Per-artist channel image (yt3/lh3 URL), resolved once server-side so devices don't each fetch it.
+    val thumbnail: String? = null,
 )
 
 /**

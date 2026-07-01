@@ -30,6 +30,8 @@ import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.ArtistMenu
 import com.jtech.zemer.ui.menu.PlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
+import com.jtech.zemer.ui.utils.ARTIST_AVATAR_PX
+import com.jtech.zemer.ui.utils.resize
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.WatchEndpoint
 import kotlinx.coroutines.CoroutineScope
@@ -87,9 +89,9 @@ fun WhitelistedArtistListItem(
         }
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
-                .data(artist.artist.thumbnailUrl)
+                .data(artist.artist.thumbnailUrl?.resize(ARTIST_AVATAR_PX, ARTIST_AVATAR_PX))
                 .scale(Scale.FILL) // fill the target bounds to avoid narrow slices
-                .size(ListThumbnailSize.value.toInt())
+                .size(ARTIST_AVATAR_PX)
                 .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
                 .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
                 .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -102,6 +104,8 @@ fun WhitelistedArtistListItem(
             alignment = Alignment.Center,
             placeholder = painterResource(R.drawable.artist),
             error = painterResource(R.drawable.artist),
+            // Fallback: a synced URL that rotated/404s re-resolves on-device (rare, bounded in the VM).
+            onError = { onRequestThumb() },
         )
     },
     trailingContent = {
@@ -179,13 +183,17 @@ fun WhitelistedArtistGridItem(
         }
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
-                .data(artist.artist.thumbnailUrl)
+                .data(artist.artist.thumbnailUrl?.resize(ARTIST_AVATAR_PX, ARTIST_AVATAR_PX))
+                .size(ARTIST_AVATAR_PX)
                 .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
                 .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
                 .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
                 .build(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
+            error = painterResource(R.drawable.artist),
+            // Fallback: a synced URL that rotated/404s re-resolves on-device (rare, bounded in the VM).
+            onError = { onRequestThumb() },
             modifier = Modifier
                 .fillMaxSize()
                 .clip(CircleShape)

@@ -58,7 +58,7 @@ object WhitelistFetcher {
                                 isGenZ = doc.isGenZ ?: false,
                                 isKids = doc.isKids ?: false,
                                 isKidZone = doc.isKidZone ?: false,
-                            )
+                            ).also { it.thumbnailUrl = doc.thumbnail?.takeIf { t -> t.isNotBlank() } }
                         )
                     }
                     lastFetchTime = System.currentTimeMillis()
@@ -84,6 +84,7 @@ object WhitelistFetcher {
                         val isGenZ = doc.getBoolean("isGenZ") ?: false
                         val isKids = doc.getBoolean("isKids") ?: false
                         val isKidZone = doc.getBoolean("isKidZone") ?: false
+                        val thumbnailUrl = doc.getString("thumbnail")?.takeIf { it.isNotBlank() }
 
                         whitelistEntities.add(
                             ArtistWhitelistEntity(
@@ -97,7 +98,7 @@ object WhitelistFetcher {
                                 isGenZ = isGenZ,
                                 isKids = isKids,
                                 isKidZone = isKidZone
-                            )
+                            ).also { it.thumbnailUrl = thumbnailUrl }
                         )
                         processed++
                         onProgress(processed, total)

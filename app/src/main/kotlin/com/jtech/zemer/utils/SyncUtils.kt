@@ -618,9 +618,18 @@ class SyncUtils @Inject constructor(
                     val existingArtistIds = getAllArtistIdsSync().toSet()
                     val missingArtists = whitelistEntries
                         .filter { it.artistId !in existingArtistIds }
-                        .map { ArtistEntity(id = it.artistId, name = it.artistName) }
+                        .map { ArtistEntity(id = it.artistId, name = it.artistName, thumbnailUrl = it.thumbnailUrl) }
                     if (missingArtists.isNotEmpty()) {
                         insertArtists(missingArtists)
+                    }
+                    // Populate the per-artist thumbnail (carried in the synced whitelist) onto EXISTING artist
+                    // rows too. Batched inside this transaction, so it's a single flow re-emit — not the old
+                    // write-per-thumbnail recompose storm. A null/blank thumbnail never wipes an existing one.
+                    whitelistEntries.forEach { entry ->
+                        val thumb = entry.thumbnailUrl
+                        if (!thumb.isNullOrBlank() && entry.artistId in existingArtistIds) {
+                            updateArtistThumbnailUrl(entry.artistId, thumb)
+                        }
                     }
                 }
                 WhitelistCache.updateAll(whitelistEntries)

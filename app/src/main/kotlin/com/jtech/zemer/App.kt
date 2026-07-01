@@ -54,6 +54,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Credentials
+import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -383,6 +384,10 @@ class App : Application(), SingletonImageLoader.Factory {
     override fun newImageLoader(context: PlatformContext): ImageLoader {
         val cacheSize = dataStore.get(MaxImageCacheSizeKey, 256).coerceIn(0, 512)
         val okHttpClient = OkHttpClient.Builder()
+            // Coil shares one host for many thumbnails (yt3.googleusercontent.com etc.). OkHttp's default
+            // is 5 concurrent per host, so a screenful of same-host avatars loads in staggered waves.
+            // Raise it so a full grid of avatars fetches in one wave.
+            .dispatcher(Dispatcher().apply { maxRequestsPerHost = 12 })
             .dns(ResilientDns())
             .proxy(YouTube.proxy)
             .proxyAuthenticator { _, response ->

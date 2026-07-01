@@ -1439,6 +1439,10 @@ interface DatabaseDao {
     @Update
     fun update(artist: ArtistEntity)
 
+    /** Set only the artist image; used to batch-populate thumbnails from the whitelist sync in one transaction. */
+    @Query("UPDATE artist SET thumbnailUrl = :thumbnailUrl WHERE id = :artistId")
+    fun updateArtistThumbnailUrl(artistId: String, thumbnailUrl: String)
+
     @Update
     fun update(album: AlbumEntity)
 

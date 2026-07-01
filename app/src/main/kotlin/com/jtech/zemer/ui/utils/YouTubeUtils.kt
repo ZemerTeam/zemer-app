@@ -2,6 +2,13 @@
 
 package com.jtech.zemer.ui.utils
 
+/**
+ * Pixel size requested for whitelisted-artist avatars (list + grid + the sync prewarm all use this, so
+ * the prewarmed image is a cache hit whichever view opens). The source yt3 URLs are ~2880px / ~290 KB;
+ * a 256px crop is a few tens of KB and crisp in a small circular avatar.
+ */
+const val ARTIST_AVATAR_PX = 256
+
 fun String.resize(
     width: Int? = null,
     height: Int? = null,
