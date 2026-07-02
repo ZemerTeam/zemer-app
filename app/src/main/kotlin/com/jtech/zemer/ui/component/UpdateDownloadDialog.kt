@@ -43,9 +43,6 @@ fun UpdateDownloadDialog(
     onDownload: () -> Unit,
     onInstall: (File) -> Unit,
     onDismiss: () -> Unit,
-    // Optional caller-supplied guidance shown under the version line (e.g. the downgrade hint
-    // when a nightly user force-downloads the current stable release).
-    infoNote: String? = null,
 ) {
     val isDownloading = downloadState is UpdateChecker.DownloadState.Downloading
     val downloadProgress = (downloadState as? UpdateChecker.DownloadState.Downloading)?.progress ?: 0f
@@ -59,15 +56,6 @@ fun UpdateDownloadDialog(
         title = { Text(stringResource(R.string.update_available)) },
         content = {
             Text(stringResource(R.string.update_available_message, currentVersion, latestVersion))
-
-            if (!infoNote.isNullOrBlank()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = infoNote,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
 
             if (!notes.isNullOrBlank()) {
                 Spacer(Modifier.height(12.dp))

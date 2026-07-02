@@ -267,7 +267,6 @@
     <string name="force_download_stable">Download current stable release</string>
     <string name="release_coming_soon_title">Coming soon</string>
     <string name="release_coming_soon_message">A newer version is on the way. Please wait for the stable release.</string>
-    <string name="stable_downgrade_hint">If the stable release won\'t install on top because of a lower version, uninstall the app and download the latest release from https://zemer.io.</string>
     <string name="check_for_updates_now">Check for updates now</string>
     <string name="update_notifications">Enable update notifications</string>
     <string name="update_available_title">Update available</string>

@@ -301,8 +301,6 @@ fun UpdaterScreen(
             title = { Text(stringResource(R.string.nightly_builds)) },
             content = {
                 Text(stringResource(R.string.nightly_builds_notice))
-                Spacer(Modifier.height(8.dp))
-                Text(stringResource(R.string.stable_downgrade_hint))
             },
             buttons = {
                 TextButton(onClick = { showNightlyNotice = false }) {
@@ -343,13 +341,6 @@ fun UpdaterScreen(
                         showResultDialog = false
                         downloadState = UpdateChecker.DownloadState.Idle
                         installError = null
-                    },
-                    // A stable offer while on the nightly channel is the forced return path —
-                    // warn how to recover if the system blocks it as a downgrade.
-                    infoNote = if (!result.isNightly && nightlyUpdates) {
-                        stringResource(R.string.stable_downgrade_hint)
-                    } else {
-                        null
                     },
                 )
             }
