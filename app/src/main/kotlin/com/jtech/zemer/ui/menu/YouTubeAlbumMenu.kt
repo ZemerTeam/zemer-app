@@ -39,10 +39,13 @@ import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.di.ZemerSearchEntryPoint
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
 import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
+import com.jtech.zemer.search.resolveAlbumPage
+import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.ui.component.AlreadyInPlaylistDialog
 import com.jtech.zemer.ui.component.ArtistChoice
 import com.jtech.zemer.ui.component.Material3MenuGroup
@@ -55,6 +58,8 @@ import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
+import com.metrolist.innertube.pages.AlbumPage
+import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -66,6 +71,9 @@ fun YouTubeAlbumMenu(
     albumItem: AlbumItem,
     navController: NavController,
     onDismiss: () -> Unit,
+    // True when the item came from a Zemer search surface: the album page then loads through the
+    // server's `/album` endpoint with InnerTube as the failure fallback (see resolveAlbumPage).
+    isZemer: Boolean = false,
 ) {
     val context = LocalContext.current
     val database = LocalDatabase.current
@@ -74,11 +82,24 @@ fun YouTubeAlbumMenu(
     val album by database.albumWithSongs(albumItem.id).collectAsState(initial = null)
     val coroutineScope = rememberCoroutineScope()
 
+    // One fetch for both the on-open DB populate and the download fetch-if-empty, so the two can
+    // never resolve the album through different sources.
+    val fetchAlbumPage: suspend () -> Result<AlbumPage> = {
+        resolveAlbumPage(
+            zemer = isZemer,
+            fromZemer = {
+                EntryPointAccessors.fromApplication(context.applicationContext, ZemerSearchEntryPoint::class.java)
+                    .zemerSearchRepository()
+                    .album(albumItem.browseId, albumItem.playlistId, zemerSearchOptions(context))
+            },
+            fromInnerTube = { YouTube.album(albumItem.id) },
+        )
+    }
+
     LaunchedEffect(Unit) {
         database.album(albumItem.id).collect { album ->
             if (album == null) {
-                YouTube
-                    .album(albumItem.id)
+                fetchAlbumPage()
                     .onSuccess { albumPage ->
                         database.transaction {
                             insert(albumPage)
@@ -312,7 +333,7 @@ fun YouTubeAlbumMenu(
                             coroutineScope.launch(Dispatchers.IO) {
                                 var toDownload = database.albumWithSongs(albumItem.id).first()?.songs.orEmpty()
                                 if (toDownload.isEmpty()) {
-                                    YouTube.album(albumItem.id)
+                                    fetchAlbumPage()
                                         .onSuccess { page -> database.transaction { insert(page) } }
                                         .onFailure { reportException(it) }
                                     toDownload = database.albumWithSongs(albumItem.id).first()?.songs.orEmpty()

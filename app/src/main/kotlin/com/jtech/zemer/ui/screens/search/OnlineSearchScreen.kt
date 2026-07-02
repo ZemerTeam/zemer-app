@@ -242,7 +242,8 @@ fun OnlineSearchScreen(
                                         onDismiss = {
                                             menuState.dismiss()
                                             onDismiss()
-                                        }
+                                        },
+                                        isZemer = searchProvider == SearchProvider.ZEMER,
                                     )
                                     is ArtistItem -> YouTubeArtistMenu(
                                         artist = item,
@@ -315,7 +316,8 @@ fun OnlineSearchScreen(
                                         onDismiss = {
                                             menuState.dismiss()
                                             onDismiss()
-                                        }
+                                        },
+                                        isZemer = searchProvider == SearchProvider.ZEMER,
                                     )
                                     is ArtistItem -> YouTubeArtistMenu(
                                         artist = item,

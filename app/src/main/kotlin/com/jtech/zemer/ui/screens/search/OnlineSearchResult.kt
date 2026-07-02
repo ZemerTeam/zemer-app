@@ -160,6 +160,7 @@ fun OnlineSearchResult(
                             albumItem = item,
                             navController = navController,
                             onDismiss = menuState::dismiss,
+                            isZemer = searchProvider == SearchProvider.ZEMER,
                         )
 
                     is ArtistItem ->
