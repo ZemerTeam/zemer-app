@@ -1,5 +1,7 @@
 package com.jtech.zemer.search
 
+import com.metrolist.innertube.models.AlbumItem
+
 /**
  * Which engine backs the online search screen.
  *
@@ -21,3 +23,17 @@ enum class SearchProvider {
  */
 fun SearchProvider.onlinePlaylistRoute(playlistId: String): String =
     if (this == SearchProvider.ZEMER) "online_playlist/$playlistId?zemer=true" else "online_playlist/$playlistId"
+
+/**
+ * The `album` nav route for an album opened from a search result. Zemer-sourced albums carry
+ * `?zemer=true` so the screen loads them through the server's `/album` endpoint (whitelist-scoped,
+ * immune to on-device InnerTube bot-gating) plus the search card's playlistId — the server's album
+ * header doesn't return one, and the persisted album needs the real OLAK… id for share/radio.
+ * YouTube-sourced albums keep the plain InnerTube path.
+ */
+fun SearchProvider.onlineAlbumRoute(album: AlbumItem): String =
+    if (this == SearchProvider.ZEMER) {
+        "album/${album.browseId}?zemer=true&playlistId=${album.playlistId}"
+    } else {
+        "album/${album.browseId}"
+    }

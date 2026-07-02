@@ -47,6 +47,9 @@ data class ZemerTrack(
     val title: String = "",
     val artist: String = "",
     val explicit: Boolean = false,
+    // `/album` tracks only; absent (null) on the search categories.
+    val durationSec: Int? = null,
+    val trackNumber: Int? = null,
 )
 
 @Serializable
@@ -90,5 +93,26 @@ data class ZemerPlaylistHeader(
     val id: String = "",
     val title: String = "",
     val artist: String = "",
+    val thumbnail: String? = null,
+)
+
+/**
+ * Wire model for `GET /album` (search.zemer.io). [tracks] arrive already whitelist-scoped and
+ * content-filtered server-side (an entirely blocked album is a 404, not an empty list), so the opened
+ * album matches the search card — never re-run the local artist whitelist over it. The header carries
+ * no playlistId; the search card's rides along on the nav route instead.
+ */
+@Serializable
+data class ZemerAlbumResponse(
+    val album: ZemerAlbumHeader = ZemerAlbumHeader(),
+    val tracks: List<ZemerTrack> = emptyList(),
+)
+
+@Serializable
+data class ZemerAlbumHeader(
+    val id: String = "",
+    val title: String = "",
+    val artist: String = "",
+    val year: Int? = null,
     val thumbnail: String? = null,
 )

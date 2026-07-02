@@ -2,12 +2,14 @@ package com.jtech.zemer.search
 
 import android.content.Context
 import com.jtech.zemer.R
+import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
 import com.jtech.zemer.search.ZemerResultMapper.toSongItems
 import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SearchSuggestions
 import com.metrolist.innertube.models.SongItem
+import com.metrolist.innertube.pages.AlbumPage
 import com.metrolist.innertube.pages.SearchResult
 import com.metrolist.innertube.pages.SearchSummaryPage
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -77,6 +79,16 @@ class ZemerSearchRepository @Inject constructor(
         )
         return ZemerPlaylistPage(header, songs)
     }
+
+    /**
+     * Open an album through the server's `/album` endpoint: the InnerTube album fetch runs on the
+     * server (immune to on-device bot-gating/rate limits) and comes back already whitelist-scoped +
+     * content-filtered, mapped to the same [AlbumPage] the YouTube path yields so the album screen
+     * and DB persist flow are reused unchanged. [playlistId] is the search card's OP playlist id —
+     * the server's album header doesn't return one. Not cached — each open is a single fetch.
+     */
+    suspend fun album(browseId: String, playlistId: String?, options: ZemerSearchOptions): AlbumPage =
+        client.album(browseId, options.allowFemale, options.blockVideos).toAlbumPage(playlistId)
 
     private val cacheMutex = Mutex()
     private val cache = object : LinkedHashMap<String, ZemerSearchResponse>(16, 0.75f, true) {

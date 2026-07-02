@@ -5,6 +5,7 @@ import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
+import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
 import com.jtech.zemer.search.ZemerResultMapper.toSongItems
 import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.utils.ContentFilterConfig
@@ -383,10 +384,71 @@ class ZemerResultMapperTest {
         assertEquals(listOf("clean", "dirty"), resp.toSongItems(hideExplicit = false).map { it.id })
     }
 
+    @Test
+    fun `album response maps to an AlbumPage ordered by track number`() {
+        val resp = ZemerAlbumResponse(
+            album = ZemerAlbumHeader(
+                id = "MPRE1",
+                title = "Journeys, Vol. 1",
+                artist = "Abie Rotenberg",
+                year = 2010,
+                thumbnail = "https://art",
+            ),
+            tracks = listOf(
+                // Out of order + a null duration (the live server really returns those), plus a
+                // blank-videoId row that must be dropped rather than crash the id-keyed list.
+                ZemerTrack("v2", "Second", "Abie Rotenberg", durationSec = null, trackNumber = 2),
+                ZemerTrack("v1", "First", "Abie Rotenberg", durationSec = 257, trackNumber = 1),
+                ZemerTrack("", "No id", "X", trackNumber = 3),
+            ),
+        )
+
+        val page = resp.toAlbumPage(playlistId = "OLAK1")
+
+        assertEquals("MPRE1", page.album.browseId)
+        assertEquals("OLAK1", page.album.playlistId)
+        assertEquals(2010, page.album.year)
+        assertEquals("Abie Rotenberg", page.album.artists?.single()?.name)
+        assertEquals(listOf("v1", "v2"), page.songs.map { it.id })
+        assertEquals(257, page.songs.first().duration)
+        assertNull(page.songs.last().duration)
+        // Tracks carry the album back-reference + the square album art, not the derived video frame.
+        assertEquals("MPRE1", page.songs.first().album?.id)
+        assertEquals("https://art", page.songs.first().thumbnail)
+    }
+
+    @Test
+    fun `album playlistId falls back to the browseId and untagged tracks keep server order`() {
+        val resp = ZemerAlbumResponse(
+            album = ZemerAlbumHeader(id = "MPRE1", title = "T", artist = ""),
+            tracks = listOf(ZemerTrack("a", "A", "X"), ZemerTrack("b", "B", "X")),
+        )
+
+        val page = resp.toAlbumPage(playlistId = null)
+
+        assertEquals("MPRE1", page.album.playlistId)
+        assertNull(page.album.artists) // blank artist => no artist list
+        assertEquals(listOf("a", "b"), page.songs.map { it.id })
+        // No album art from the server -> the derived video thumbnail.
+        assertEquals("https://i.ytimg.com/vi/a/hqdefault.jpg", page.songs.first().thumbnail)
+    }
+
     @After
     fun clearBlockedIds() {
         BlockedIdsCache.updateAll(emptyMap())
         ContentFilterState.current = ContentFilterConfig()
+    }
+
+    @Test
+    fun `blocked ids are dropped from album tracks`() {
+        BlockedIdsCache.updateAll(mapOf("blockedTrack" to "global"))
+        ContentFilterState.current = ContentFilterConfig(filtersEnabled = true)
+        val resp = ZemerAlbumResponse(
+            album = ZemerAlbumHeader(id = "MPRE1", title = "T", artist = "A"),
+            tracks = listOf(ZemerTrack("ok", "OK", "A"), ZemerTrack("blockedTrack", "Blocked", "A")),
+        )
+
+        assertEquals(listOf("ok"), resp.toAlbumPage(playlistId = null).songs.map { it.id })
     }
 
     @Test

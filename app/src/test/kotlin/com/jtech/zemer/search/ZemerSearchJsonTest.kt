@@ -56,6 +56,26 @@ class ZemerSearchJsonTest {
     }
 
     @Test
+    fun `album response decodes null durations and unknown fields, not an exception`() {
+        // Mirrors the live /album payload: extra header fields the app doesn't model (type,
+        // releaseDate, trackCount, totalDurationSec) and an explicit-null durationSec on a track.
+        val payload =
+            """{"album":{"id":"MPRE1","title":"Journeys, Vol. 1","artist":"Abie Rotenberg","year":2010,""" +
+                """"type":"album","releaseDate":"2015-10-05","trackCount":9,"totalDurationSec":257,"thumbnail":null},""" +
+                """"tracks":[{"videoId":"v1","title":"T","artist":"A","explicit":false,""" +
+                """"durationSec":null,"trackNumber":1,"releaseDate":"2015-10-05"}]}"""
+
+        val resp = zemerResponseJson.decodeFromString(ZemerAlbumResponse.serializer(), payload)
+
+        assertEquals("Journeys, Vol. 1", resp.album.title)
+        assertEquals(2010, resp.album.year)
+        assertEquals(null, resp.album.thumbnail)
+        assertEquals(listOf("v1"), resp.tracks.map { it.videoId })
+        assertEquals(null, resp.tracks.single().durationSec) // nullable stays null
+        assertEquals(1, resp.tracks.single().trackNumber)
+    }
+
+    @Test
     fun `sparse playlist response degrades to defaults, not an exception`() {
         // A null header / null tracks (older or odd payload) must not fail the whole response.
         val resp = zemerResponseJson.decodeFromString(

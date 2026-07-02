@@ -1,6 +1,7 @@
 package com.jtech.zemer.search
 
 import com.metrolist.innertube.YouTube.SearchFilter
+import com.metrolist.innertube.models.Album
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.ArtistItem
@@ -8,6 +9,7 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
 import com.metrolist.innertube.models.filterExplicit
+import com.metrolist.innertube.pages.AlbumPage
 import com.metrolist.innertube.pages.SearchResult
 import com.metrolist.innertube.pages.SearchSummary
 import com.metrolist.innertube.pages.SearchSummaryPage
@@ -130,6 +132,40 @@ object ZemerResultMapper {
      */
     fun ZemerPlaylistResponse.toSongItems(hideExplicit: Boolean): List<SongItem> =
         songItems(tracks, hideExplicit)
+
+    /**
+     * A Zemer `/album` response as the [AlbumPage] the album screen + DB persist flow already consume,
+     * so the Zemer path reuses that whole pipeline unchanged. Like every Zemer surface the tracks are
+     * whitelist-scoped server-side, so only the surgical id-overrides ([dropBlocked]) run here
+     * (hide-explicit is applied by the album screen itself, over the persisted rows). [playlistId] is
+     * the search card's OP playlist id — the server header carries none — falling back to the browseId
+     * (whose only consumer then is the disabled automix).
+     */
+    fun ZemerAlbumResponse.toAlbumPage(playlistId: String?): AlbumPage {
+        val albumItem = AlbumItem(
+            browseId = album.id,
+            playlistId = playlistId ?: album.id,
+            title = album.title,
+            artists = if (album.artist.isBlank()) null else listOf(Artist(name = album.artist, id = null)),
+            year = album.year,
+            thumbnail = album.thumbnail.orEmpty(),
+        )
+        val songs = tracks
+            .filter { it.videoId.isNotBlank() }
+            // sortedBy is stable, so untagged tracks keep server order (after the numbered ones).
+            .sortedBy { it.trackNumber ?: Int.MAX_VALUE }
+            .map { track ->
+                track.toSongItem().copy(
+                    album = Album(name = albumItem.title, id = albumItem.browseId),
+                    duration = track.durationSec,
+                    // Prefer the square album art over the derived (letterboxed) video frame.
+                    thumbnail = album.thumbnail ?: thumbnailFor(track.videoId),
+                )
+            }
+            .distinctBy { it.id }
+            .dropBlocked()
+        return AlbumPage(album = albumItem, songs = songs)
+    }
 
     /**
      * The grouped summary view (`filter == null`), matching the YouTube summary's shape exactly

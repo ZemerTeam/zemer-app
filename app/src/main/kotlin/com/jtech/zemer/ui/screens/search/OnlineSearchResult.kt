@@ -50,6 +50,7 @@ import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.SearchProviderKey
 import com.jtech.zemer.search.SearchProvider
+import com.jtech.zemer.search.onlineAlbumRoute
 import com.jtech.zemer.search.onlinePlaylistRoute
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
@@ -222,7 +223,7 @@ fun OnlineSearchResult(
                                         )
                                     }
                                 }
-                                is AlbumItem -> navController.navigate("album/${item.id}")
+                                is AlbumItem -> navController.navigate(searchProvider.onlineAlbumRoute(item))
                                 is ArtistItem -> navController.navigate("artist/${item.id}")
                                 is PlaylistItem -> navController.navigate(searchProvider.onlinePlaylistRoute(item.id))
                             }
@@ -252,7 +253,7 @@ fun OnlineSearchResult(
                                 }
                             }
 
-                            is AlbumItem -> navController.navigate("album/${item.id}")
+                            is AlbumItem -> navController.navigate(searchProvider.onlineAlbumRoute(item))
                             is ArtistItem -> navController.navigate("artist/${item.id}")
                             is PlaylistItem -> navController.navigate(searchProvider.onlinePlaylistRoute(item.id))
                         }

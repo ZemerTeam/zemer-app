@@ -66,6 +66,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.SearchProviderKey
 import com.jtech.zemer.constants.SuggestionItemHeight
 import com.jtech.zemer.search.SearchProvider
+import com.jtech.zemer.search.onlineAlbumRoute
 import com.jtech.zemer.search.onlinePlaylistRoute
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.extensions.togglePlayPause
@@ -283,7 +284,7 @@ fun OnlineSearchScreen(
                                     }
                                 }
                                 is AlbumItem -> {
-                                    navController.navigate("album/${item.id}")
+                                    navController.navigate(searchProvider.onlineAlbumRoute(item))
                                     onDismiss()
                                 }
                                 is ArtistItem -> {
@@ -357,7 +358,7 @@ fun OnlineSearchScreen(
                                     }
                                 }
                                 is AlbumItem -> {
-                                    navController.navigate("album/${item.id}")
+                                    navController.navigate(searchProvider.onlineAlbumRoute(item))
                                     onDismiss()
                                 }
                                 is ArtistItem -> {

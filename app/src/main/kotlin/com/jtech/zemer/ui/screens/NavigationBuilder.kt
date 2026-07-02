@@ -141,11 +141,22 @@ fun NavGraphBuilder.navigationBuilder(
         OnlineSearchResult(navController)
     }
     composable(
-        route = "album/{albumId}",
+        // Optional args (their defaults keep every existing `album/{albumId}` link matching): `zemer`
+        // routes a Zemer-search album open through the server's `/album` endpoint, and `playlistId`
+        // carries the search card's OP playlist id (the server's album header doesn't return one).
+        route = "album/{albumId}?zemer={zemer}&playlistId={playlistId}",
         arguments =
         listOf(
             navArgument("albumId") {
                 type = NavType.StringType
+            },
+            navArgument("zemer") {
+                type = NavType.BoolType
+                defaultValue = false
+            },
+            navArgument("playlistId") {
+                type = NavType.StringType
+                nullable = true
             },
         ),
     ) {

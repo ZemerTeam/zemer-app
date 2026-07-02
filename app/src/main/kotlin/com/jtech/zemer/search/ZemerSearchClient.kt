@@ -112,6 +112,31 @@ class ZemerSearchClient @Inject constructor() {
         return zemerResponseJson.decodeFromString(ZemerPlaylistResponse.serializer(), response.bodyAsText())
     }
 
+    /**
+     * Fetch a single album already scoped to the whitelist + content flags by the server (an entirely
+     * blocked album is a 404). The flags are sent explicitly (same fail-closed contract as [search] —
+     * the server is default-OPEN); `kidZone` is always off because the album screen is only reachable
+     * from search, never from inside KidZone. The server fetches the album upstream on a cold cache,
+     * so this user-initiated one-shot open gets the larger request ceiling.
+     */
+    suspend fun album(
+        id: String,
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+    ): ZemerAlbumResponse {
+        val response: HttpResponse = client.get("$BASE_URL/album") {
+            parameter("id", id)
+            parameter("allowFemale", if (allowFemale) "1" else "0")
+            parameter("blockVideos", if (blockVideos) "1" else "0")
+            parameter("kidZone", "0")
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer album returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerAlbumResponse.serializer(), response.bodyAsText())
+    }
+
     companion object {
         const val BASE_URL = "https://search.zemer.io"
         private const val REQUEST_TIMEOUT_MS = 8_000L
