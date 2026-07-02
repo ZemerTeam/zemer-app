@@ -54,6 +54,42 @@ object NightlyUpdates {
     fun currentVersionLabel(versionName: String, installedSha: String): String =
         if (installedSha.isBlank()) versionName else "$versionName (${installedSha.take(7)})"
 
+    /** Raw build.gradle.kts at [sha] — the authoritative version of the nightly at that commit. */
+    fun buildGradleUrl(sha: String): String =
+        "https://raw.githubusercontent.com/ZemerTeam/zemer-app/$sha/app/build.gradle.kts"
+
+    data class BuildVersion(val versionCode: Int, val versionName: String)
+
+    private val VERSION_CODE_REGEX = Regex("""versionCode\s*=\s*(\d+)""")
+    private val VERSION_NAME_REGEX = Regex("""versionName\s*=\s*"([^"]+)"""")
+
+    /** Parses versionCode/versionName out of a build.gradle.kts; null if either is absent. */
+    fun parseBuildVersion(buildGradle: String): BuildVersion? {
+        val code = VERSION_CODE_REGEX.find(buildGradle)?.groupValues?.get(1)?.toIntOrNull() ?: return null
+        val name = VERSION_NAME_REGEX.find(buildGradle)?.groupValues?.get(1) ?: return null
+        return BuildVersion(code, name)
+    }
+
+    /** True when [candidate] is a strictly higher dotted-numeric version than [base] (e.g. 35 > 34). */
+    fun isNameGreater(candidate: String, base: String): Boolean {
+        val a = candidate.split(".").map { it.toIntOrNull() ?: 0 }
+        val b = base.split(".").map { it.toIntOrNull() ?: 0 }
+        for (i in 0 until maxOf(a.size, b.size)) {
+            val x = a.getOrElse(i) { 0 }
+            val y = b.getOrElse(i) { 0 }
+            if (x != y) return x > y
+        }
+        return false
+    }
+
+    /**
+     * A new nightly whose versionCode AND versionName are both above the installed build is a
+     * release being prepared — nightly users should wait for the stable release rather than jump
+     * to what is effectively the release candidate.
+     */
+    fun isReleaseComingSoon(installedCode: Int, installedName: String, nightly: BuildVersion): Boolean =
+        nightly.versionCode > installedCode && isNameGreater(nightly.versionName, installedName)
+
     /**
      * Extracts the single APK inside a nightly.link artifact zip into [destination]. Throws when
      * the archive holds no APK so a broken artifact surfaces as a download error, not a dead file.

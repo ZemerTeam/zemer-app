@@ -368,6 +368,21 @@ fun UpdaterScreen(
                     }
                 )
             }
+            is UpdateChecker.UpdateResult.ReleaseComingSoon -> {
+                DefaultDialog(
+                    onDismiss = { showResultDialog = false },
+                    horizontalAlignment = Alignment.Start,
+                    title = { Text(stringResource(R.string.release_coming_soon_title)) },
+                    content = {
+                        Text(stringResource(R.string.release_coming_soon_message))
+                    },
+                    buttons = {
+                        TextButton(onClick = { showResultDialog = false }) {
+                            Text(stringResource(android.R.string.ok))
+                        }
+                    }
+                )
+            }
             is UpdateChecker.UpdateResult.Error -> {
                 DefaultDialog(
                     onDismiss = { showResultDialog = false },

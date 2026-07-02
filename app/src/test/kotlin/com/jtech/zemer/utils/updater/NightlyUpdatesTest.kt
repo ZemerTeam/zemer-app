@@ -127,4 +127,62 @@ class NightlyUpdatesTest {
 
         assertTrue(result.isFailure)
     }
+
+    @Test
+    fun `parses versionCode and versionName from a build gradle`() {
+        val gradle = """
+            defaultConfig {
+                applicationId = "com.jtech.zemer"
+                versionCode = 35
+                versionName = "35"
+                buildConfigField("String", "ARCHITECTURE", "\"universal\"")
+            }
+        """.trimIndent()
+
+        val version = NightlyUpdates.parseBuildVersion(gradle)!!
+        assertEquals(35, version.versionCode)
+        assertEquals("35", version.versionName)
+    }
+
+    @Test
+    fun `parseBuildVersion returns null when a field is missing`() {
+        assertNull(NightlyUpdates.parseBuildVersion("""versionName = "35""""))     // no versionCode
+        assertNull(NightlyUpdates.parseBuildVersion("versionCode = 35"))           // no versionName
+        assertNull(NightlyUpdates.parseBuildVersion("nothing here"))
+    }
+
+    @Test
+    fun `isNameGreater compares dotted-numeric versions`() {
+        assertTrue(NightlyUpdates.isNameGreater("35", "34"))
+        assertTrue(NightlyUpdates.isNameGreater("34.1", "34"))
+        assertFalse(NightlyUpdates.isNameGreater("34", "34"))
+        assertFalse(NightlyUpdates.isNameGreater("34", "35"))
+    }
+
+    @Test
+    fun `release is coming soon only when both code and name are higher`() {
+        // Installed build is code 34 / name "34".
+        assertTrue(
+            NightlyUpdates.isReleaseComingSoon(34, "34", NightlyUpdates.BuildVersion(35, "35")),
+        )
+        // Same version (a normal same-release nightly) => offer it, not "coming soon".
+        assertFalse(
+            NightlyUpdates.isReleaseComingSoon(34, "34", NightlyUpdates.BuildVersion(34, "34")),
+        )
+        // Only one of the two higher => not a release bump; still offer it.
+        assertFalse(
+            NightlyUpdates.isReleaseComingSoon(34, "34", NightlyUpdates.BuildVersion(35, "34")),
+        )
+        assertFalse(
+            NightlyUpdates.isReleaseComingSoon(34, "34", NightlyUpdates.BuildVersion(34, "35")),
+        )
+    }
+
+    @Test
+    fun `buildGradleUrl points at the raw file for the commit`() {
+        assertEquals(
+            "https://raw.githubusercontent.com/ZemerTeam/zemer-app/abc123/app/build.gradle.kts",
+            NightlyUpdates.buildGradleUrl("abc123"),
+        )
+    }
 }

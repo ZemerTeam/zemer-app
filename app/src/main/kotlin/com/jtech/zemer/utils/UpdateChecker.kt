@@ -38,6 +38,9 @@ object UpdateChecker {
         ) : UpdateResult()
         data class UpToDate(val currentVersion: String) : UpdateResult()
         data class Error(val message: String) : UpdateResult()
+        // Nightly-only: the latest nightly is a higher version than this build, i.e. a release is
+        // being prepared. Nightly users are told to wait for the stable release instead.
+        data class ReleaseComingSoon(val currentVersion: String) : UpdateResult()
     }
 
     sealed class DownloadState {
@@ -74,12 +77,31 @@ object UpdateChecker {
             val currentVersion =
                 NightlyUpdates.currentVersionLabel(BuildConfig.VERSION_NAME, BuildConfig.COMMIT_HASH)
             if (NightlyUpdates.isUpdateAvailable(BuildConfig.COMMIT_HASH, run.headSha)) {
-                UpdateResult.UpdateAvailable(
-                    latestVersion = NightlyUpdates.versionLabel(run),
-                    currentVersion = currentVersion,
-                    notes = run.commitTitle,
-                    isNightly = true,
-                )
+                // A higher-versioned nightly means a release is being prepared — tell nightly users
+                // to wait for stable rather than hand them the release candidate. The version lives
+                // in build.gradle.kts at that commit; a failed fetch must not block the update, so
+                // fall through to offering the nightly.
+                val nightlyVersion = runCatching {
+                    val gradle = httpClient.get(NightlyUpdates.buildGradleUrl(run.headSha)) {
+                        header(HttpHeaders.UserAgent, "Zemer-Updater")
+                    }.bodyAsText()
+                    NightlyUpdates.parseBuildVersion(gradle)
+                }.getOrNull()
+
+                if (nightlyVersion != null &&
+                    NightlyUpdates.isReleaseComingSoon(
+                        BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME, nightlyVersion,
+                    )
+                ) {
+                    UpdateResult.ReleaseComingSoon(currentVersion)
+                } else {
+                    UpdateResult.UpdateAvailable(
+                        latestVersion = NightlyUpdates.versionLabel(run),
+                        currentVersion = currentVersion,
+                        notes = run.commitTitle,
+                        isNightly = true,
+                    )
+                }
             } else {
                 UpdateResult.UpToDate(currentVersion)
             }
