@@ -69,8 +69,11 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -160,6 +163,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.jtech.zemer.constants.AppBarHeight
 import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.CheckForUpdatesKey
+import com.jtech.zemer.constants.LastNightlyAnnouncedKey
 import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.DefaultOpenTabKey
 import com.jtech.zemer.constants.DisableScreenshotKey
@@ -255,6 +259,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -263,6 +268,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.Locale
+import timber.log.Timber
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.days
 
@@ -750,16 +756,41 @@ class MainActivity : ComponentActivity() {
                         var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
                         var pendingUpdateVersion by rememberSaveable { mutableStateOf<String?>(null) }
                         var pendingUpdateNotes by rememberSaveable { mutableStateOf<String?>(null) }
+                        var pendingUpdateIsNightly by rememberSaveable { mutableStateOf(false) }
                         var downloadState by remember { mutableStateOf<com.jtech.zemer.utils.UpdateChecker.DownloadState>(com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle) }
                         var installError by remember { mutableStateOf<String?>(null) }
                         val updateScope = rememberCoroutineScope()
+                        val snackbarHostState = remember { SnackbarHostState() }
 
+                        // Collected, not read once: the startup check finishes after the first
+                        // composition on most launches, so a one-shot peek would miss the result.
                         LaunchedEffect(Unit) {
-                            App.pendingUpdateVersion?.let { version ->
-                                pendingUpdateVersion = version
-                                pendingUpdateNotes = App.pendingUpdateNotes
-                                showUpdateDialog = true
+                            App.pendingUpdate.filterNotNull().collect { update ->
                                 App.clearPendingUpdate()
+                                pendingUpdateVersion = update.version
+                                pendingUpdateNotes = update.notes
+                                pendingUpdateIsNightly = update.isNightly
+                                if (update.isNightly) {
+                                    // Nightlies land with every push to main — a modal dialog per
+                                    // launch would be relentless. Announce each build once, as a
+                                    // quiet snackbar whose action opens the full update dialog.
+                                    if (dataStore.get(LastNightlyAnnouncedKey, "") == update.version) return@collect
+                                    Timber.d("Nightly update snackbar: ${update.version}")
+                                    val action = snackbarHostState.showSnackbar(
+                                        message = getString(R.string.nightly_update_available, update.version),
+                                        actionLabel = getString(R.string.update_action),
+                                        withDismissAction = true,
+                                        duration = SnackbarDuration.Long,
+                                    )
+                                    // Marked announced only after the snackbar was actually shown,
+                                    // so a launch that never displayed it doesn't swallow the build.
+                                    dataStore.edit { it[LastNightlyAnnouncedKey] = update.version }
+                                    if (action == SnackbarResult.ActionPerformed) {
+                                        showUpdateDialog = true
+                                    }
+                                } else {
+                                    showUpdateDialog = true
+                                }
                             }
                         }
 
@@ -796,7 +827,7 @@ class MainActivity : ComponentActivity() {
                                     downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Downloading(0f)
                                     installError = null
                                     updateScope.launch {
-                                        com.jtech.zemer.utils.UpdateChecker.downloadUpdate(this@MainActivity).collect { state ->
+                                        com.jtech.zemer.utils.UpdateChecker.downloadUpdate(this@MainActivity, pendingUpdateIsNightly).collect { state ->
                                             downloadState = state
                                         }
                                     }
@@ -1107,7 +1138,6 @@ class MainActivity : ComponentActivity() {
                     val burgerFocusRequester = remember { FocusRequester() }
                     val contentFocusRequester = remember { FocusRequester() }
                     val drawerScrollState = rememberScrollState()
-                    val snackbarHostState = remember { SnackbarHostState() }
 
                     // Observe playback errors and show snackbar
                     LaunchedEffect(playerConnection) {
@@ -1352,9 +1382,11 @@ class MainActivity : ComponentActivity() {
                             }
 
                             Scaffold(
-                            snackbarHost = {
-                                SnackbarHost(hostState = snackbarHostState)
-                            },
+                            // NOTE: no snackbarHost here on purpose. This Scaffold's bottomBar hosts
+                            // the full-height BottomSheetPlayer, and Material3 stacks the snackbar
+                            // ABOVE the bottomBar — i.e. off the top of the screen. The SnackbarHost
+                            // is instead rendered as a top-level overlay below (aligned to the bottom,
+                            // padded above the mini player) so snackbars are actually visible.
                             topBar = {
                                 AnimatedVisibility(
                                     visible = shouldShowTopBar,
@@ -1862,6 +1894,32 @@ class MainActivity : ComponentActivity() {
                                         bottom = playerAwareWindowInsets.asPaddingValues()
                                             .calculateBottomPadding() + 16.dp,
                                     ),
+                            )
+                        }
+
+                        // Top-level snackbar overlay (see the NOTE on the Scaffold above). Aligned to
+                        // the bottom and padded above the mini player / nav bar via the same
+                        // player-aware insets the FAB uses, so it floats clear of the transport.
+                        SnackbarHost(
+                            hostState = snackbarHostState,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(
+                                    bottom = playerAwareWindowInsets.asPaddingValues()
+                                        .calculateBottomPadding(),
+                                ),
+                        ) { data ->
+                            // Themed to match the app's dialog surfaces instead of Material's default
+                            // dark inverse-surface bar: app surface color (pure black in AMOLED like
+                            // the nav bar), onSurface text, primary action, rounded like the app cards.
+                            Snackbar(
+                                snackbarData = data,
+                                shape = RoundedCornerShape(12.dp),
+                                containerColor = if (pureBlack) Color(0xFF0A0A0A)
+                                    else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                contentColor = MaterialTheme.colorScheme.onSurface,
+                                actionColor = MaterialTheme.colorScheme.primary,
+                                dismissActionContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
 

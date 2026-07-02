@@ -73,6 +73,9 @@ val LastWhitelistSyncTimeKey = longPreferencesKey("lastWhitelistSyncTime")  // T
 // blocklist is active before the first sync of the session and survives offline launches.
 val BlockedContentIdsKey = stringPreferencesKey("blockedContentIds")
 val CheckForUpdatesKey = booleanPreferencesKey("checkForUpdates")
+val NightlyUpdatesKey = booleanPreferencesKey("nightlyUpdates") // opt-in nightly update channel
+// Last nightly build announced via the startup snackbar, so each nightly is announced only once.
+val LastNightlyAnnouncedKey = stringPreferencesKey("lastNightlyAnnounced")
 val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 val InstallerTypeKey = intPreferencesKey("installerType") // InstallerType ordinal
 val LastWhitelistVersionKey = longPreferencesKey("lastWhitelistVersion")

@@ -25,6 +25,14 @@ android {
         versionCode = 34
         versionName = "34"
         buildConfigField("String", "ARCHITECTURE", "\"universal\"")
+        // Git commit of this build — the nightly-updater's identity (every main build shares the
+        // same versionName, so "is a newer nightly available" is a SHA comparison, not a version
+        // one). Empty when git is unavailable, which makes any nightly count as an update.
+        val commitHash = runCatching {
+            providers.exec { commandLine("git", "rev-parse", "HEAD") }
+                .standardOutput.asText.get().trim()
+        }.getOrDefault("")
+        buildConfigField("String", "COMMIT_HASH", "\"$commitHash\"")
         val googleTokenExchangeUrl = (project.findProperty("googleTokenExchangeUrl") as String?) ?: ""
         buildConfigField("String", "GOOGLE_TOKEN_EXCHANGE_URL", "\"$googleTokenExchangeUrl\"")
         // Read-only content mirror (content.zemer.io) used mirror-first with the Firebase SDK as

@@ -259,6 +259,13 @@
     <!-- Updater -->
     <string name="updater">Updater</string>
     <string name="check_for_updates">Automatically check for updates</string>
+    <string name="nightly_builds">Nightly builds</string>
+    <string name="nightly_builds_notice">Nightly builds have new features implemented. However, they may have bugs. Going back to stable release builds may require you to clear data of the app.</string>
+    <string name="enable">Enable</string>
+    <string name="nightly_update_available">Update available: %1$s</string>
+    <string name="update_action">Update</string>
+    <string name="force_download_stable">Download current stable release</string>
+    <string name="stable_downgrade_hint">If the stable release won\'t install on top because of a lower version, uninstall the app and download the latest release from https://zemer.io.</string>
     <string name="check_for_updates_now">Check for updates now</string>
     <string name="update_notifications">Enable update notifications</string>
     <string name="update_available_title">Update available</string>

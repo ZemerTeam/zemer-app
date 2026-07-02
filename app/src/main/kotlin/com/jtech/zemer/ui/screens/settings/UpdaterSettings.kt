@@ -44,6 +44,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.constants.CheckForUpdatesKey
 import com.jtech.zemer.constants.InstallerTypeKey
+import com.jtech.zemer.constants.NightlyUpdatesKey
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.UpdateDownloadDialog
 import com.jtech.zemer.ui.component.ListPreference
@@ -73,10 +74,13 @@ fun UpdaterScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val (checkForUpdates, onCheckForUpdatesChange) = rememberPreference(CheckForUpdatesKey, false)
+    val (nightlyUpdates, onNightlyUpdatesChange) = rememberPreference(NightlyUpdatesKey, false)
+    var showNightlyNotice by remember { mutableStateOf(false) }
     val (installerTypeOrdinal, onInstallerTypeChange) = rememberPreference(InstallerTypeKey, InstallerType.NATIVE.ordinal)
     val installerType = InstallerType.fromOrdinal(installerTypeOrdinal)
 
     var isChecking by remember { mutableStateOf(false) }
+    var isFetchingStable by remember { mutableStateOf(false) }
     var showResultDialog by remember { mutableStateOf(false) }
     var updateResult by remember { mutableStateOf<UpdateChecker.UpdateResult?>(null) }
     var downloadState by remember { mutableStateOf<UpdateChecker.DownloadState>(UpdateChecker.DownloadState.Idle) }
@@ -196,6 +200,19 @@ fun UpdaterScreen(
 
             Spacer(Modifier.height(4.dp))
 
+            // Opt-in only after the notice dialog is confirmed; switching back to stable is instant.
+            SwitchPreference(
+                title = { Text(stringResource(R.string.nightly_builds)) },
+                icon = { Icon(painterResource(R.drawable.dark_mode), null) },
+                checked = nightlyUpdates,
+                onCheckedChange = { checked ->
+                    if (checked) showNightlyNotice = true else onNightlyUpdatesChange(false)
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(4.dp))
+
             ListPreference(
                 title = { Text(stringResource(R.string.installer_method)) },
                 icon = { Icon(painterResource(R.drawable.download), null) },
@@ -233,7 +250,7 @@ fun UpdaterScreen(
                     if (!isChecking) {
                         isChecking = true
                         scope.launch {
-                            updateResult = UpdateChecker.checkForUpdates()
+                            updateResult = UpdateChecker.checkForUpdates(nightlyUpdates)
                             isChecking = false
                             showResultDialog = true
                         }
@@ -241,9 +258,64 @@ fun UpdaterScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // The way back from the nightly channel: the regular check compares versions and a
+            // stable release shares the nightly's versionName, so it is offered unconditionally.
+            if (nightlyUpdates) {
+                Spacer(Modifier.height(4.dp))
+
+                PreferenceEntry(
+                    title = { Text(stringResource(R.string.force_download_stable)) },
+                    icon = {
+                        if (isFetchingStable) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(painterResource(R.drawable.download), null)
+                        }
+                    },
+                    onClick = {
+                        if (!isFetchingStable) {
+                            isFetchingStable = true
+                            scope.launch {
+                                updateResult = UpdateChecker.forceStableUpdate()
+                                isFetchingStable = false
+                                showResultDialog = true
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
 
         Spacer(Modifier.height(32.dp))
+    }
+
+    if (showNightlyNotice) {
+        DefaultDialog(
+            onDismiss = { showNightlyNotice = false },
+            horizontalAlignment = Alignment.Start,
+            title = { Text(stringResource(R.string.nightly_builds)) },
+            content = {
+                Text(stringResource(R.string.nightly_builds_notice))
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.stable_downgrade_hint))
+            },
+            buttons = {
+                TextButton(onClick = { showNightlyNotice = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+                TextButton(onClick = {
+                    showNightlyNotice = false
+                    onNightlyUpdatesChange(true)
+                }) {
+                    Text(stringResource(R.string.enable))
+                }
+            }
+        )
     }
 
     if (showResultDialog) {
@@ -261,7 +333,7 @@ fun UpdaterScreen(
                         downloadState = UpdateChecker.DownloadState.Downloading(0f)
                         installError = null
                         scope.launch {
-                            UpdateChecker.downloadUpdate(context).collectLatest { state ->
+                            UpdateChecker.downloadUpdate(context, result.isNightly).collectLatest { state ->
                                 downloadState = state
                             }
                         }
@@ -271,6 +343,13 @@ fun UpdaterScreen(
                         showResultDialog = false
                         downloadState = UpdateChecker.DownloadState.Idle
                         installError = null
+                    },
+                    // A stable offer while on the nightly channel is the forced return path —
+                    // warn how to recover if the system blocks it as a downgrade.
+                    infoNote = if (!result.isNightly && nightlyUpdates) {
+                        stringResource(R.string.stable_downgrade_hint)
+                    } else {
+                        null
                     },
                 )
             }

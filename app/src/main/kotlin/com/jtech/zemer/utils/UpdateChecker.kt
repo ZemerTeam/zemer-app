@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import com.jtech.zemer.BuildConfig
+import com.jtech.zemer.utils.updater.NightlyUpdates
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -24,9 +25,17 @@ object UpdateChecker {
     private const val CHANGELOG_URL = "https://ghtrack.zemer.io/changelog"
     private const val DOWNLOAD_URL = "https://ghtrack.zemer.io/download"
     private const val APK_FILENAME = "zemer-update.apk"
+    private const val NIGHTLY_ZIP_FILENAME = "zemer-nightly.zip"
 
     sealed class UpdateResult {
-        data class UpdateAvailable(val latestVersion: String, val currentVersion: String, val notes: String? = null) : UpdateResult()
+        data class UpdateAvailable(
+            val latestVersion: String,
+            val currentVersion: String,
+            val notes: String? = null,
+            // Tags the result with its channel so the download uses the source this result came
+            // from, even if the nightly preference is toggled between check and download.
+            val isNightly: Boolean = false,
+        ) : UpdateResult()
         data class UpToDate(val currentVersion: String) : UpdateResult()
         data class Error(val message: String) : UpdateResult()
     }
@@ -38,8 +47,51 @@ object UpdateChecker {
         data class Error(val message: String) : DownloadState()
     }
 
-    suspend fun checkForUpdates(): UpdateResult = withContext(Dispatchers.IO) {
-        try {
+    suspend fun checkForUpdates(nightly: Boolean = false): UpdateResult = withContext(Dispatchers.IO) {
+        if (nightly) checkForNightlyUpdate() else checkForStableUpdate()
+    }
+
+    /**
+     * The nightly channel's way back to stable: always offers the current stable release, even
+     * when the version comparison says up to date — nightlies share the stable versionName, so a
+     * regular check can never offer the stable build a nightly user wants to return to.
+     */
+    suspend fun forceStableUpdate(): UpdateResult = withContext(Dispatchers.IO) {
+        checkForStableUpdate(force = true)
+    }
+
+    private suspend fun checkForNightlyUpdate(): UpdateResult {
+        val httpClient = HttpClient()
+        return try {
+            val responseText = httpClient.get(NightlyUpdates.RUNS_URL) {
+                // GitHub's API rejects requests without a User-Agent.
+                header(HttpHeaders.UserAgent, "Zemer-Updater")
+                header(HttpHeaders.Accept, "application/vnd.github+json")
+            }.bodyAsText()
+
+            val run = NightlyUpdates.parseLatestRun(responseText)
+                ?: return UpdateResult.Error("Invalid API response")
+            val currentVersion =
+                NightlyUpdates.currentVersionLabel(BuildConfig.VERSION_NAME, BuildConfig.COMMIT_HASH)
+            if (NightlyUpdates.isUpdateAvailable(BuildConfig.COMMIT_HASH, run.headSha)) {
+                UpdateResult.UpdateAvailable(
+                    latestVersion = NightlyUpdates.versionLabel(run),
+                    currentVersion = currentVersion,
+                    notes = run.commitTitle,
+                    isNightly = true,
+                )
+            } else {
+                UpdateResult.UpToDate(currentVersion)
+            }
+        } catch (e: Exception) {
+            UpdateResult.Error(e.message ?: "Failed to check for updates")
+        } finally {
+            httpClient.close()
+        }
+    }
+
+    private suspend fun checkForStableUpdate(force: Boolean = false): UpdateResult {
+        return try {
             val httpClient = HttpClient()
             val response = httpClient.get(API_URL)
             val responseText = response.bodyAsText()
@@ -48,14 +100,14 @@ object UpdateChecker {
             val latestVersionRaw = json.jsonObject["latestVersion"]?.jsonPrimitive?.content
                 ?: run {
                     httpClient.close()
-                    return@withContext UpdateResult.Error("Invalid API response")
+                    return UpdateResult.Error("Invalid API response")
                 }
 
             // Strip "v" prefix if present (API returns "v4", app version is "4")
             val latestVersion = latestVersionRaw.removePrefix("v").removePrefix("V")
             val currentVersion = BuildConfig.VERSION_NAME
 
-            if (isNewerVersion(latestVersion, currentVersion)) {
+            if (force || isNewerVersion(latestVersion, currentVersion)) {
                 // Fetch changelog notes
                 val notes = try {
                     val changelogResponse = httpClient.get(CHANGELOG_URL)
@@ -66,7 +118,17 @@ object UpdateChecker {
                     null
                 }
                 httpClient.close()
-                UpdateResult.UpdateAvailable(latestVersion, currentVersion, notes)
+                UpdateResult.UpdateAvailable(
+                    latestVersion = latestVersion,
+                    // A forced download is the nightly user's return path — show which build
+                    // they are leaving by labelling the current version with its commit.
+                    currentVersion = if (force) {
+                        NightlyUpdates.currentVersionLabel(currentVersion, BuildConfig.COMMIT_HASH)
+                    } else {
+                        currentVersion
+                    },
+                    notes = notes,
+                )
             } else {
                 httpClient.close()
                 UpdateResult.UpToDate(currentVersion)
@@ -76,13 +138,15 @@ object UpdateChecker {
         }
     }
 
-    fun downloadUpdate(context: Context): Flow<DownloadState> = flow {
+    fun downloadUpdate(context: Context, nightly: Boolean = false): Flow<DownloadState> = flow {
         emit(DownloadState.Downloading(0f))
 
         try {
             val httpClient = HttpClient()
 
-            val response = httpClient.prepareGet(DOWNLOAD_URL).execute()
+            val response = httpClient
+                .prepareGet(if (nightly) NightlyUpdates.DOWNLOAD_URL else DOWNLOAD_URL)
+                .execute()
 
             // Size of the actual body we'll read, taken after redirects. A separate HEAD
             // is unreliable here: /download redirects through a worker + CDN, so a HEAD can
@@ -94,16 +158,21 @@ object UpdateChecker {
             val contentLength = if (isEncoded) -1L else response.contentLength() ?: -1L
 
             val apkFile = File(context.cacheDir, APK_FILENAME)
+            // A nightly arrives as the artifact zip; the APK is extracted from it afterwards.
+            val targetFile = if (nightly) File(context.cacheDir, NIGHTLY_ZIP_FILENAME) else apkFile
 
-            // Delete existing file if present
+            // Delete existing files if present
             if (apkFile.exists()) {
                 apkFile.delete()
+            }
+            if (nightly && targetFile.exists()) {
+                targetFile.delete()
             }
 
             val channel = response.bodyAsChannel()
             var downloadedBytes = 0L
 
-            apkFile.outputStream().use { output ->
+            targetFile.outputStream().use { output ->
                 val buffer = ByteArray(8192)
                 while (!channel.isClosedForRead) {
                     val bytesRead = channel.readAvailable(buffer)
@@ -122,6 +191,10 @@ object UpdateChecker {
             }
 
             httpClient.close()
+            if (nightly) {
+                NightlyUpdates.extractApk(targetFile, apkFile)
+                targetFile.delete()
+            }
             emit(DownloadState.Downloaded(apkFile))
         } catch (e: Exception) {
             emit(DownloadState.Error(e.message ?: "Download failed"))

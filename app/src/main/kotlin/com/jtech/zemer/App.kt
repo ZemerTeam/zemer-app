@@ -45,6 +45,7 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -143,10 +144,10 @@ class App : Application(), SingletonImageLoader.Factory {
         val settings = dataStore.data.first()
         if (settings[CheckForUpdatesKey] != true) return
 
-        when (val result = UpdateChecker.checkForUpdates()) {
+        when (val result = UpdateChecker.checkForUpdates(settings[NightlyUpdatesKey] == true)) {
             is UpdateChecker.UpdateResult.UpdateAvailable -> {
-                pendingUpdateVersion = result.latestVersion
-                pendingUpdateNotes = result.notes
+                pendingUpdate.value =
+                    PendingUpdate(result.latestVersion, result.notes, result.isNightly)
             }
             else -> { /* No action needed */ }
         }
@@ -417,13 +418,15 @@ class App : Application(), SingletonImageLoader.Factory {
     }
 
     companion object {
-        // Holds pending update version and notes detected on startup
-        var pendingUpdateVersion: String? = null
-        var pendingUpdateNotes: String? = null
+        data class PendingUpdate(val version: String, val notes: String?, val isNightly: Boolean)
+
+        // An update found by the startup check. A StateFlow, not a plain var: the check finishes
+        // after MainActivity's first composition on virtually every launch, so a one-shot read
+        // there would miss it — the UI must observe the result whenever it lands.
+        val pendingUpdate = MutableStateFlow<PendingUpdate?>(null)
 
         fun clearPendingUpdate() {
-            pendingUpdateVersion = null
-            pendingUpdateNotes = null
+            pendingUpdate.value = null
         }
 
         suspend fun forgetAccount(context: Context) {
