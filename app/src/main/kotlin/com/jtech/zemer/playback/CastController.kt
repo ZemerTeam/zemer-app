@@ -74,11 +74,15 @@ class CastController(
                 val dur = handler.remoteDuration.value
                 val pos = handler.remoteTime.value
                 // End-of-track shows up differently across receivers and never as one reliable signal:
-                //  - IDLE coming from PLAYING (generous window — a coarse clock may stop reporting early), or
+                //  - IDLE coming from PLAYING (generous window — a coarse clock may stop reporting early).
+                //    Chromecast resets the reported clock to 0 milliseconds BEFORE the IDLE report, so the
+                //    IDLE check reads the end-edge position (last real progress report when the current one
+                //    is a fresh 0) — judging the raw 0 is exactly the bug that froze the queue at track end.
                 //  - PAUSED coming from PLAYING at pos==duration (some receivers auto-pause at the end instead
                 //    of going IDLE or sending an END event; the TIGHT epsilon separates it from a mid-track
                 //    pause). The debounce inside advanceRemoteAfterEnd stops double-advancing.
-                val endedIdle = state == PlaybackState.IDLE && CastAutoAdvance.finishedNearEnd(dur, pos)
+                val endedIdle = state == PlaybackState.IDLE &&
+                    CastAutoAdvance.finishedNearEnd(dur, CastAutoAdvance.endEdgePositionSec(pos, handler.lastProgressSec))
                 val endedPause = state == PlaybackState.PAUSED &&
                     CastAutoAdvance.nearEnd(dur, pos, CastAutoAdvance.PAUSED_END_EPSILON_SEC)
                 if (casting && lastState == PlaybackState.PLAYING && (endedIdle || endedPause)) {
@@ -173,6 +177,7 @@ class CastController(
         handler.remoteTime.value = 0.0
         handler.remoteDuration.value = 0.0
         handler.remoteTimeUpdatedAt = System.currentTimeMillis()
+        handler.lastProgressSec = 0.0
         // Cancel any still-in-flight resolve for a previous track so a slow earlier resolve can't land on
         // the receiver after a faster later one (rapid skips would otherwise play whichever URL resolved
         // last by network latency, not the current track).

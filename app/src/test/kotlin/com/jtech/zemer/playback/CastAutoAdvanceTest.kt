@@ -62,6 +62,46 @@ class CastAutoAdvanceTest {
         assertFalse(CastAutoAdvance.finishedNearEnd(200.0, 0.0))
     }
 
+    // --- endEdgePositionSec (Chromecast resets the clock to 0 right before IDLE) -
+
+    @Test
+    fun `chromecast end-of-track advances - clock reset to 0 just before IDLE falls back to the last progress report`() {
+        // Regression for Chromecast receivers freezing the queue at end-of-track. Observed on a
+        // Chromecast-with-Google-TV: PLAYING at 240.537/241.641, then `timeChanged -> 0.0` arrives a few
+        // ms BEFORE the IDLE report — so judging the raw reported position (0.0) made finishedNearEnd
+        // false and the queue never auto-advanced. The end-edge position falls back to the last real
+        // progress report, which is near the end, so the IDLE detector fires.
+        val pos = CastAutoAdvance.endEdgePositionSec(reportedSec = 0.0, lastProgressSec = 240.537117)
+        assertTrue(CastAutoAdvance.finishedNearEnd(241.641, pos))
+        // The raw reported 0 was the bug: never finished.
+        assertFalse(CastAutoAdvance.finishedNearEnd(241.641, 0.0))
+    }
+
+    @Test
+    fun `endEdgePositionSec prefers a genuine report and only falls back on a fresh 0`() {
+        // A real (> 0) report always wins — an FCast receiver that goes IDLE with the clock still near
+        // the end keeps its own position.
+        assertTrue(CastAutoAdvance.endEdgePositionSec(239.5, 120.0) == 239.5)
+        // Only a reset-to-0 clock consults the last progress report.
+        assertTrue(CastAutoAdvance.endEdgePositionSec(0.0, 239.5) == 239.5)
+    }
+
+    @Test
+    fun `a mid-track stop on the receiver does not advance even with the clock reset to 0`() {
+        // User stops the receiver mid-track: the clock may also reset to 0, but the last progress report
+        // is mid-track, so the IDLE edge is not "finished" and the queue must not skip forward.
+        val pos = CastAutoAdvance.endEdgePositionSec(reportedSec = 0.0, lastProgressSec = 90.0)
+        assertFalse(CastAutoAdvance.finishedNearEnd(241.641, pos))
+    }
+
+    @Test
+    fun `a freshly loaded track with no progress yet never looks finished on the IDLE edge`() {
+        // Both the reported clock and the progress tracker are reset on every content (re)load, so an
+        // IDLE right after a load (before any progress report) cannot consume a stale near-end position.
+        val pos = CastAutoAdvance.endEdgePositionSec(reportedSec = 0.0, lastProgressSec = 0.0)
+        assertFalse(CastAutoAdvance.finishedNearEnd(241.641, pos))
+    }
+
     // --- end-as-PAUSED (some receivers auto-pause at pos==duration) -------------
 
     @Test

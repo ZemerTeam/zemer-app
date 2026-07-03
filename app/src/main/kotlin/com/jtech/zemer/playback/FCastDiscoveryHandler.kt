@@ -85,6 +85,10 @@ class DevEventHandler(
     }
 
     override fun timeChanged(time: Double) {
+        // Keep the last real progress report: a 0 here can be the receiver resetting its clock right
+        // before the end-of-track IDLE (Chromecast does this), and the IDLE end detector needs the
+        // position from just before that reset — see CastAutoAdvance.endEdgePositionSec.
+        if (time > 0.0) handler.lastProgressSec = time
         handler.remoteTime.value = time
         handler.remoteTimeUpdatedAt = System.currentTimeMillis()
     }
@@ -140,6 +144,13 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     // extrapolates between reports — smoothing the seek bar and letting the stall detector reach the end.
     @Volatile var remoteTimeUpdatedAt: Long = System.currentTimeMillis()
 
+    // The receiver's last REAL (> 0) position report (sec). Chromecast-protocol receivers reset the
+    // reported clock to 0 immediately before the end-of-track IDLE, so remoteTime already reads 0 on
+    // the IDLE edge and the end detector falls back to this (CastAutoAdvance.endEdgePositionSec).
+    // Every content (re)load resets it alongside remoteTime so it can never carry a previous track's
+    // near-end position into a fresh one.
+    @Volatile var lastProgressSec: Double = 0.0
+
     val discoveredDevicesFlow = MutableStateFlow<List<DeviceInfo>>(emptyList())
     val connectedDeviceFlow = MutableStateFlow<CastingDevice?>(null)
 
@@ -178,6 +189,7 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         remoteTime.value = 0.0
         remoteDuration.value = 0.0
         remoteTimeUpdatedAt = System.currentTimeMillis()
+        lastProgressSec = 0.0
 
         // Assign the @Volatile field synchronously (before the old device's async Disconnected lands) so
         // the connectionStateChanged guard recognises it; connectedDeviceFlow publishes only from
@@ -197,6 +209,7 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         remoteTime.value = resumePosition
         remoteDuration.value = 0.0
         remoteTimeUpdatedAt = System.currentTimeMillis()
+        lastProgressSec = resumePosition
         connectedDevice?.let { d ->
             castCall { d.load(urlLoadRequest(streamUrl, contentType, resumePosition, metadata)) }
             // The receiver auto-plays a freshly loaded item; honour the user's play intent and re-pause when
@@ -211,6 +224,7 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         connectedDeviceFlow.value = null
         remotePlaybackState.value = null
         remoteConnectionState.value = DeviceConnectionState.Disconnected
+        lastProgressSec = 0.0
         onDisconnect?.invoke(lastPos)
     }
 

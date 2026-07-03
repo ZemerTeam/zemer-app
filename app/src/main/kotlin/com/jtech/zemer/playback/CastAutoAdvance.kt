@@ -42,6 +42,17 @@ object CastAutoAdvance {
         durationSec > 0.0 && lastPositionSec >= durationSec - epsilonSec
 
     /**
+     * The position (sec) to judge an IDLE end-of-track edge against. Chromecast-protocol receivers
+     * reset the reported clock to 0 immediately BEFORE reporting IDLE at end-of-track (observed:
+     * `timeChanged -> 0.0` a few ms ahead of the IDLE report), so on the IDLE edge the current report
+     * already reads 0 and only the last real progress report still holds the true end position. A
+     * genuine report (> 0) always wins; the fallback stands in only when the clock was just reset.
+     * FCast receivers go IDLE with the clock still near the end, so for them this is the identity.
+     */
+    fun endEdgePositionSec(reportedSec: Double, lastProgressSec: Double): Double =
+        if (reportedSec > 0.0) reportedSec else lastProgressSec
+
+    /**
      * Whether an IDLE-after-PLAYING report should count as "the track finished". Generous on purpose: a
      * coarse FCast clock can stop reporting several seconds before the real end, so we accept the last
      * report being within the larger of [IDLE_END_WINDOW_SEC] or [IDLE_END_TAIL_FRACTION] of the duration.
