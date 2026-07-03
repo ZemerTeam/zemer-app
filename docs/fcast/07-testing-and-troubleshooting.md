@@ -74,6 +74,8 @@ Wi-Fi. The high-value paths:
 
 | Symptom | Likely cause / where to look |
 | --- | --- |
+| Tap a device, toast "Couldn't connect" (was: nothing happens) | The entry was discovered without addresses and the click-time re-resolve also failed (`CastDeviceAddressResolver`), or the TCP connect was refused / timed out (receiver not actually listening — firewall on port 46899, receiver app closed). `adb logcat -s NsdDeviceDiscoverer:V` shows found vs. resolved services; `MissingAddresses` non-fatals mean the re-resolve path regressed. The failed tap prunes the entry from the picker (it re-appears via refresh if actually alive). |
+| A closed receiver stays listed after refresh | Expected for a **force-closed** receiver's Chromecast-protocol entry: no mDNS goodbye was sent, the burst still finds the cached advertisement, and its failed resolve blocks pruning by design (non-authoritative — a flaky resolve must not hide live devices). One failed tap prunes it. |
 | "Enable casting" then nothing downloads | `Failed(UNSUPPORTED_DEVICE)` (ABI) or `DOWNLOAD_FAILED` (network / GitHub release reachability). Check `castLibState`; non-fatals via `reportException`. |
 | Cast crashes on first connect after an SDK bump | A trusted stale/corrupt `.so`. The marker SHA should prevent this; verify `CastNativeLib.ABIS` SHAs match the `zemer-cast` `sdk-<ver>` release assets. |
 | Receiver rejects the stream | Wrong content type. `currentContentType`/`streamContentType` must return the **container** MIME from `songMimeCache` (populated by `resolveStreamUrl`), never the codec MIME. |

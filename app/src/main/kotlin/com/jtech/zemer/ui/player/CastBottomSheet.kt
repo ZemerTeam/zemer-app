@@ -29,6 +29,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,9 +46,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.playback.CastConnectResult
 import com.jtech.zemer.playback.CastLibState
 import com.jtech.zemer.playback.PlayerConnection
-import com.jtech.zemer.playback.toCastMetadata
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.focusBorder
 import kotlinx.coroutines.launch
@@ -98,43 +101,44 @@ fun CastPicker(
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
 
-    // Once the lib is present (e.g. just downloaded), start NSD discovery so devices appear.
+    val refreshing by service.castDeviceRefresher.refreshing.collectAsState()
+
+    // Once the lib is present (e.g. just downloaded), start NSD discovery so devices appear, and run
+    // one refresh burst so the list reflects what is advertised NOW — the SDK's long-lived discoverer
+    // never re-checks a device once found, so without this a receiver that closed or changed IP since
+    // the last picker open would still be listed.
     LaunchedEffect(libState) {
-        if (libState is CastLibState.Ready) service.startDiscovery()
+        if (libState is CastLibState.Ready) {
+            service.startDiscovery()
+            service.castDeviceRefresher.refresh()
+        }
     }
 
+    // Name of the device a connect is in flight to; blocks further taps and drives the row spinner.
+    var connectingDevice by remember { mutableStateOf<String?>(null) }
+
     fun connect(device: DeviceInfo) {
-        playerConnection.player.pause()
+        if (connectingDevice != null) return
+        connectingDevice = device.name
         playerConnection.scope.launch {
-            val currentId = playerConnection.player.currentMediaItem?.mediaId
-            val streamUrl = currentId?.let { service.resolveStreamUrl(it) } ?: service.currentStreamUrl
-            if (streamUrl == null) {
-                // No playable stream resolved (transient cipher/poToken/network failure). Don't connect to
-                // a device that would just sit silent — tell the user instead of failing invisibly.
-                Toast.makeText(context, R.string.cast_stream_failed, Toast.LENGTH_SHORT).show()
-                return@launch
+            when (val result = service.castConnector.connect(device, mediaMetadata)) {
+                CastConnectResult.Connected -> onDismiss()
+                // No playable stream resolved (transient cipher/poToken/network failure). Don't connect
+                // to a device that would just sit silent — tell the user instead of failing invisibly.
+                CastConnectResult.NoStream -> {
+                    Toast.makeText(context, R.string.cast_stream_failed, Toast.LENGTH_SHORT).show()
+                    connectingDevice = null
+                }
+                is CastConnectResult.Failed -> {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.cast_connect_failed, result.deviceName),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    connectingDevice = null
+                }
             }
-            // Resume position, clamped away from the track end. Connecting at the exact instant a track is
-            // ending locally would otherwise cast the outgoing item at pos==duration — a full progress bar
-            // that immediately trips the end-of-track auto-advance. At the boundary, start from 0 instead;
-            // the queue's upcoming PLAYLIST_CHANGED reloads the correct (now-current) item either way.
-            val posMs = playerConnection.player.currentPosition
-            val durMs = playerConnection.player.duration
-            val resumeSec = if (durMs > 0 && posMs >= durMs - 1500) 0.0 else (posMs / 1000.0).coerceAtLeast(0.0)
-            handler.connectTo(
-                deviceInfo = device,
-                streamUrl = streamUrl,
-                contentType = service.currentContentType,
-                metadata = mediaMetadata?.toCastMetadata(),
-                resumePosition = resumeSec,
-                // Captures the (process-scoped) controller, not this Activity's connection, so the SDK's
-                // end-of-track callback keeps auto-advancing even if the Activity is later destroyed.
-                onTrackEnded = { service.castController.advanceRemoteAfterEnd() },
-            )
-            // Record what the receiver is now playing so the first PLAYLIST_CHANGED doesn't reload it.
-            service.castController.markRemoteLoaded(currentId)
         }
-        onDismiss()
     }
 
     Column(
@@ -144,7 +148,14 @@ fun CastPicker(
             .padding(bottom = 24.dp),
     ) {
         val connected = connectedDevice
-        CastHeader(connected = connected != null)
+        CastHeader(
+            connected = connected != null,
+            // Reload only makes sense over the device list — not while connected (only the Stop row
+            // shows) and not before the lib is ready (no discovery yet).
+            showRefresh = libState is CastLibState.Ready && connected == null,
+            refreshing = refreshing,
+            onRefresh = { playerConnection.scope.launch { service.castDeviceRefresher.refresh() } },
+        )
 
         when (val s = libState) {
             CastLibState.Idle -> CastCenteredColumn {
@@ -192,7 +203,14 @@ fun CastPicker(
 
                 else -> {
                     devices.forEach { device ->
-                        CastDeviceRow(iconRes = R.drawable.cast, name = device.name, onClick = { connect(device) })
+                        val isConnecting = connectingDevice == device.name
+                        CastDeviceRow(
+                            iconRes = R.drawable.cast,
+                            name = device.name,
+                            subtitle = if (isConnecting) stringResource(R.string.cast_connecting) else null,
+                            connecting = isConnecting,
+                            onClick = { connect(device) },
+                        )
                     }
                     Spacer(Modifier.height(12.dp))
                     CastFcastSection(uriHandler = uriHandler, context = context)
@@ -257,10 +275,17 @@ fun CastDownloadDialog(
 }
 
 @Composable
-private fun CastHeader(connected: Boolean) {
+private fun CastHeader(
+    connected: Boolean,
+    showRefresh: Boolean = false,
+    refreshing: Boolean = false,
+    onRefresh: () -> Unit = {},
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(vertical = 16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
     ) {
         Icon(
             painter = painterResource(if (connected) R.drawable.cast_connected else R.drawable.cast),
@@ -273,7 +298,17 @@ private fun CastHeader(connected: Boolean) {
             text = stringResource(if (connected) R.string.casting else R.string.cast_dialog_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f),
         )
+        if (showRefresh) {
+            if (refreshing) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(44.dp)) {
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                }
+            } else {
+                CastCircleButton(iconRes = R.drawable.sync, descRes = R.string.cast_refresh, onClick = onRefresh)
+            }
+        }
     }
 }
 
@@ -358,6 +393,7 @@ private fun CastDeviceRow(
     onClick: () -> Unit,
     subtitle: String? = null,
     trailing: String? = null,
+    connecting: Boolean = false,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -369,12 +405,16 @@ private fun CastDeviceRow(
             .clickable(onClick = onClick)
             .padding(vertical = 12.dp, horizontal = 8.dp),
     ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-            tint = if (subtitle != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-        )
+        if (connecting) {
+            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+        } else {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = if (subtitle != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            )
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
             if (subtitle != null) {

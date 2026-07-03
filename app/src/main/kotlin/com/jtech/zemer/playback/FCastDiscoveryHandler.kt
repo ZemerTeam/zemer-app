@@ -43,11 +43,16 @@ class DevEventHandler(
     private var wasConnected = false
 
     override fun connectionStateChanged(state: DeviceConnectionState) {
+        // Ignore callbacks from a device we've already replaced (connectTo to a new device) or already
+        // tore down (disconnect() ran onConnectionDisconnected synchronously): a stale async Disconnected
+        // must not null out the new connection or fire onDisconnect twice, and a stale state publish must
+        // not overwrite the new attempt's Connecting/Connected in remoteConnectionState — the picker
+        // awaits that flow (CastConnect.awaitOutcome) to decide whether the connect succeeded.
+        if (handler.connectedDevice !== device) return
         handler.remoteConnectionState.value = state
         if (state is DeviceConnectionState.Connected) {
             val isReconnect = wasConnected
             wasConnected = true
-            handler.connectedDevice = device
             handler.connectedDeviceFlow.value = device
 
             val url = handler.currentStreamUrl
@@ -63,12 +68,7 @@ class DevEventHandler(
                 if (!handler.shouldPlay) castCall { device.pausePlayback() }
             }
         } else if (state is DeviceConnectionState.Disconnected) {
-            // Ignore a disconnect from a device we've already replaced (connectTo to a new device) or
-            // already tore down (disconnect() ran onConnectionDisconnected synchronously), so a stale
-            // async callback can't null out the new connection or fire onDisconnect twice.
-            if (handler.connectedDevice === device) {
-                handler.onConnectionDisconnected()
-            }
+            handler.onConnectionDisconnected()
         }
     }
 
@@ -170,6 +170,13 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         return (base + elapsedSec).coerceAtMost(dur)
     }
 
+    /**
+     * Issues a connect to [deviceInfo]. Returns false when the attempt could not even be started
+     * (device creation or the connect call threw — e.g. the SDK's MissingAddresses); the async outcome
+     * of a started attempt — Connected or Disconnected — lands on [remoteConnectionState], which is
+     * preset to Connecting here so callers can await the transition (CastConnect.awaitOutcome) without
+     * mistaking the previous session's Disconnected for this attempt failing.
+     */
     fun connectTo(
         deviceInfo: DeviceInfo,
         streamUrl: String? = null,
@@ -177,26 +184,39 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         metadata: Metadata? = null,
         resumePosition: Double = 0.0,
         onTrackEnded: (() -> Unit)? = null
-    ) {
+    ): Boolean {
         castCall { connectedDevice?.disconnect() }
 
-        // Reset tracking state for the new connection.
+        // Reset tracking state for the new connection. The clock starts at the resume position (like
+        // load()) so a failed attempt recovers the local player to where the user left off, not to 0.
         shouldPlay = true
         currentStreamUrl = streamUrl
         currentContentType = contentType
         currentMetadata = metadata
         initialResumePosition = resumePosition
-        remoteTime.value = 0.0
+        remoteTime.value = resumePosition
         remoteDuration.value = 0.0
         remoteTimeUpdatedAt = System.currentTimeMillis()
-        lastProgressSec = 0.0
+        lastProgressSec = resumePosition
 
         // Assign the @Volatile field synchronously (before the old device's async Disconnected lands) so
         // the connectionStateChanged guard recognises it; connectedDeviceFlow publishes only from
         // Connected — see isConnected — so the UI never shows "connected" while transport still routes local.
-        val newDevice = castContext.createDeviceFromInfo(deviceInfo)
+        val newDevice = runCatching { castContext.createDeviceFromInfo(deviceInfo) }
+            .onFailure { reportException(it, "FCast createDeviceFromInfo") }
+            .getOrNull()
+        if (newDevice == null) {
+            // Tear down through the single path so a previously connected device's UI state is cleared too.
+            onConnectionDisconnected()
+            return false
+        }
         connectedDevice = newDevice
-        castCall { newDevice.connect(null, DevEventHandler(this, newDevice, onTrackEnded), 1000u) }
+        remoteConnectionState.value = DeviceConnectionState.Connecting
+        val issued = runCatching { newDevice.connect(null, DevEventHandler(this, newDevice, onTrackEnded), 1000u) }
+            .onFailure { reportException(it, "FCast connect") }
+            .isSuccess
+        if (!issued) onConnectionDisconnected()
+        return issued
     }
 
     fun load(streamUrl: String, contentType: String, metadata: Metadata? = null, resumePosition: Double = 0.0) {
@@ -262,6 +282,29 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     override fun deviceAvailable(deviceInfo: DeviceInfo) = upsertDevice(deviceInfo)
 
     override fun deviceChanged(deviceInfo: DeviceInfo) = upsertDevice(deviceInfo)
+
+    /**
+     * Apply a refresh burst's findings ([CastDeviceRefresher]) over the discovery map: fresh
+     * addresses win, entries absent from an authoritative burst are pruned, live entries keep their
+     * instance. Merge semantics live in [CastDeviceCatalog.merge]; this only holds the lock.
+     */
+    fun applyRefreshedDevices(fresh: List<DeviceInfo>, authoritativeProtocols: Set<ProtocolType>) {
+        discoveredDevicesFlow.value = synchronized(devicesLock) {
+            val merged = CastDeviceCatalog.merge(discoveredDevices.toMap(), fresh, authoritativeProtocols)
+            discoveredDevices.clear()
+            discoveredDevices.putAll(merged)
+            discoveredDevices.values.toList()
+        }
+    }
+
+    /**
+     * Drop a device the app just failed to connect to. A failed/timed-out connect is the definitive
+     * "this entry is unreachable right now" signal — stronger than anything discovery offers: a
+     * force-closed receiver sends no mDNS goodbye, so its advertisement lingers in caches, the refresh
+     * burst still "finds" it, and its failed resolve deliberately blocks pruning (non-authoritative).
+     * If the device is actually alive, the SDK's events or the next refresh re-add it within seconds.
+     */
+    fun pruneDevice(deviceName: String) = deviceRemoved(deviceName)
 
     override fun deviceRemoved(deviceName: String) {
         // Only drop it from the picker list. Do NOT disconnect an active session here: NSD "Service lost"

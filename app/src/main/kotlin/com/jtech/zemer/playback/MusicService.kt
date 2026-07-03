@@ -204,6 +204,14 @@ class MusicService :
     // is destroyed. Lazily built on first cast use; its init wires the detectors and the onDisconnect hook.
     val castController by lazy { CastController(this, scope) }
 
+    // Orchestration for a user-initiated connect from the picker: stream resolve + click-time NSD
+    // address re-resolve + awaiting the receiver's Connected/Disconnected outcome (see CastConnector).
+    val castConnector by lazy { CastConnector(this) }
+
+    // On-demand rebuild of the picker's device list (discovery burst + re-resolve + prune) — the SDK's
+    // own discoverer never re-checks a device once found (see CastDeviceRefresher).
+    val castDeviceRefresher by lazy { CastDeviceRefresher(this, discoveryHandler) }
+
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
     private var lastAudioFocusState = AudioManager.AUDIOFOCUS_NONE

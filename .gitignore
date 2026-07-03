@@ -107,6 +107,8 @@ tests/_oauth_*.json
 
 # CLAUDE.md is a local-only symlink to the canonical AGENTS.md — never track or push it
 CLAUDE.md
+# machine-local agent notes (signing keys absent locally, JDK path, …) — never track or push
+CLAUDE.local.md
 
 # local search-harness cache (whitelist data fetched from Firestore; never commit)
 tests/search/.cache/

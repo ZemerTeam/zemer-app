@@ -59,8 +59,9 @@ class CastController(
 
         scope.launch {
             handler.remoteTime.collect { time ->
-                // Track unconditionally: connectTo()/load() reset remoteTime to 0 for a new track, and that
-                // 0 must clear a previous track's near-end position — otherwise a fresh connect or a device
+                // Track unconditionally: connectTo()/load() reset remoteTime to the (usually 0) resume
+                // position for a new track, and that reset must clear a previous track's near-end
+                // position — otherwise a fresh connect or a device
                 // switch leaves the stall detector comparing the new track's duration against the old
                 // track's near-end position and spuriously auto-skipping. nearEnd(dur, 0) is false, so a
                 // genuine mid-track 0 is harmless.
