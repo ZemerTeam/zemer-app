@@ -101,11 +101,14 @@ Three app-side pieces close the gap:
   demand — the SDK's discoverer never re-checks a device once found, and can't
   even be restarted. A refresh runs a short discovery **burst** with our own NSD
   listeners (a fresh listener is immediately told about every service currently
-  advertised), resolves each found service, and merges via
-  `CastDeviceCatalog.merge`: fresh addresses win, vanished entries are pruned —
-  but only when that protocol's burst is **authoritative** (discovery started
-  and every found service resolved), so a flaky resolve can only fail to prune,
-  never hide a live device. Chromecast naming (SDK keys those entries by TXT
+  advertised), resolves each found service, **TCP-probes** the resolved port
+  (mDNS caches keep answering resolves for a force-closed receiver until the
+  records' TTL runs out — only an actual connection attempt separates alive from
+  lingering; an unreachable service contributes no entry and is pruned), and
+  merges via `CastDeviceCatalog.merge`: fresh addresses win, vanished entries
+  are pruned — but only when that protocol's burst is **authoritative**
+  (discovery started and every found service resolved), so a flaky resolve can
+  only fail to prune, never hide a live device. Chromecast naming (SDK keys those entries by TXT
   `fn`, not the instance name) is mirrored in `CastDeviceCatalog.displayName`;
   an unresolved Chromecast contributes no entry for exactly that reason. The
   picker triggers one refresh automatically when opened and offers a manual

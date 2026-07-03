@@ -47,6 +47,14 @@ object CastConnect {
     const val BURST_RESOLVE_TIMEOUT_MS = 2_000L
 
     /**
+     * TCP connect budget for the refresh burst's per-address reachability probe. mDNS caches answer
+     * resolves for a dead receiver until the records' TTL runs out (a force-closed receiver sends no
+     * goodbye), so only an actual connection attempt separates alive from lingering; live LAN
+     * receivers accept in a few ms.
+     */
+    const val REACHABILITY_PROBE_TIMEOUT_MS = 750L
+
+    /**
      * Whether a tapped device's addresses should be re-resolved before connecting. FCast entries are
      * named by their mDNS instance name, so a re-resolve always works and picks up a new DHCP lease.
      * Chromecast entries are named by their TXT friendly name (`fn`) — not a resolvable instance name —

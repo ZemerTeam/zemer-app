@@ -8,11 +8,16 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.withContext
 import org.fcast.sender_sdk.DeviceInfo
 import org.fcast.sender_sdk.ProtocolType
 import timber.log.Timber
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -56,16 +61,27 @@ class CastDeviceRefresher(
                 if (services == null) continue // discovery didn't start — no knowledge, prune nothing
                 var allResolved = true
                 for (service in services.distinctBy { it.serviceName }) {
-                    val resolved = resolver.resolveWithRetry(
+                    val info = resolver.resolveWithRetry(
                         service.serviceName, protocol, CastConnect.BURST_RESOLVE_TIMEOUT_MS,
-                    )?.let { info ->
-                        CastDeviceCatalog.ResolvedService(
-                            addresses = resolver.hostAddresses(info).mapNotNull { CastConnect.toIpAddr(it) },
-                            port = info.port.toUShort(),
-                            txt = info.attributes ?: emptyMap(),
-                        )
+                    )
+                    if (info == null) {
+                        allResolved = false
+                        CastDeviceCatalog.freshEntry(service.serviceName, protocol, resolved = null)?.let { fresh += it }
+                        continue
                     }
-                    if (resolved == null) allResolved = false
+                    // A resolve can be answered by a stale mDNS cache for a receiver that force-closed
+                    // (no goodbye sent) — the records outlive the process by their TTL. Probe the port:
+                    // nothing listening is *definitive* knowledge, so contribute no entry and leave the
+                    // burst authoritative — the merge then prunes the lingering row.
+                    if (info.port != 0 && !probeReachable(resolver.hostAddresses(info), info.port)) {
+                        Timber.d("Cast refresh: %s resolved but unreachable — pruning", service.serviceName)
+                        continue
+                    }
+                    val resolved = CastDeviceCatalog.ResolvedService(
+                        addresses = resolver.hostAddresses(info).mapNotNull { CastConnect.toIpAddr(it) },
+                        port = info.port.toUShort(),
+                        txt = info.attributes ?: emptyMap(),
+                    )
                     CastDeviceCatalog.freshEntry(service.serviceName, protocol, resolved)?.let { fresh += it }
                 }
                 if (allResolved) authoritative += protocol
@@ -79,6 +95,23 @@ class CastDeviceRefresher(
             running.set(false)
         }
     }
+
+    /**
+     * True when any of [addresses] accepts a TCP connection on [port] within the probe budget.
+     * I/O-bound ground truth (no unit test without a live socket): live LAN receivers accept in a few
+     * ms; a stale cache entry's host refuses or times out.
+     */
+    private suspend fun probeReachable(addresses: List<InetAddress>, port: Int): Boolean =
+        withContext(Dispatchers.IO) {
+            addresses.any { address ->
+                runCatching {
+                    Socket().use {
+                        it.connect(InetSocketAddress(address, port), CastConnect.REACHABILITY_PROBE_TIMEOUT_MS.toInt())
+                    }
+                    true
+                }.getOrDefault(false)
+            }
+        }
 
     /**
      * Listens for [CastConnect.DISCOVERY_BURST_MS] and returns the services advertised right now, or
