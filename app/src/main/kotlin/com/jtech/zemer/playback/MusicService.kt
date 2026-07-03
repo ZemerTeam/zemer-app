@@ -878,7 +878,10 @@ class MusicService :
         queue.preloadItem?.let { preloadItem ->
             player.setMediaItem(preloadItem.toMediaItem())
             player.prepare()
-            player.playWhenReady = playWhenReady
+            // While casting, the receiver is the one that plays: onMediaItemTransition() (via
+            // CastController) pauses local and triggers the remote load. Never let local playback
+            // start on top of it.
+            player.playWhenReady = CastPlayback.shouldStartLocalPlayback(playWhenReady, discoveryHandler.isConnected)
         }
         scope.launch(SilentHandler) {
             val initialStatus =
@@ -927,7 +930,8 @@ class MusicService :
                     initialStatus.position,
                 )
                 player.prepare()
-                player.playWhenReady = playWhenReady
+                // Same cast guard as the preload branch above.
+                player.playWhenReady = CastPlayback.shouldStartLocalPlayback(playWhenReady, discoveryHandler.isConnected)
             }
         }
     }

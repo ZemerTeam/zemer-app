@@ -38,4 +38,14 @@ object CastPlayback {
 
     /** App/player milliseconds → remote clock (seconds). */
     fun msToRemoteSeconds(ms: Long): Double = ms / 1000.0
+
+    /**
+     * Whether the LOCAL ExoPlayer should be told to start playing. While connected to a receiver it
+     * never should — the receiver is the one that plays, and starting local audio on top of it is the
+     * dual-playback bug (a new queue's songs can resolve asynchronously well after the initial
+     * cast-connect pause, so callers must re-check the live connection state here rather than trusting
+     * an earlier pause to still hold).
+     */
+    fun shouldStartLocalPlayback(playWhenReady: Boolean, isCasting: Boolean): Boolean =
+        playWhenReady && !isCasting
 }

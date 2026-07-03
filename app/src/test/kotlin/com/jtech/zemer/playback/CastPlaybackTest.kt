@@ -64,4 +64,19 @@ class CastPlaybackTest {
         assertEquals(1_500L, CastPlayback.remoteSecondsToMs(CastPlayback.msToRemoteSeconds(1_500)))
         assertEquals(42.0, CastPlayback.msToRemoteSeconds(CastPlayback.remoteSecondsToMs(42.0)), 0.0)
     }
+
+    @Test
+    fun `shouldStartLocalPlayback never starts local audio while casting`() {
+        // Regression for the dual-playback bug: a community/online playlist's songs resolve
+        // asynchronously, and that completion must not be allowed to flip the local player's
+        // playWhenReady while a receiver is connected, no matter what the caller requested.
+        assertFalse(CastPlayback.shouldStartLocalPlayback(playWhenReady = true, isCasting = true))
+        assertFalse(CastPlayback.shouldStartLocalPlayback(playWhenReady = false, isCasting = true))
+    }
+
+    @Test
+    fun `shouldStartLocalPlayback follows the caller's intent when not casting`() {
+        assertTrue(CastPlayback.shouldStartLocalPlayback(playWhenReady = true, isCasting = false))
+        assertFalse(CastPlayback.shouldStartLocalPlayback(playWhenReady = false, isCasting = false))
+    }
 }
