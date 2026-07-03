@@ -15,7 +15,9 @@ import java.security.MessageDigest
 /** State of the on-demand FCast native library. */
 sealed interface CastLibState {
     data object Idle : CastLibState          // not present, not requested
-    data object Downloading : CastLibState
+
+    /** [progress] is the 0..1 downloaded fraction, or null while the total size is still unknown. */
+    data class Downloading(val progress: Float? = null) : CastLibState
     data object Ready : CastLibState          // present + verified + override applied; the SDK can load
 
     /** A localizable failure reason (the UI maps it to a string resource — never a raw English string). */
@@ -66,6 +68,13 @@ object CastNativeLib {
      */
     fun cacheIsValid(libExists: Boolean, storedSha: String?, expectedSha: String?): Boolean =
         libExists && expectedSha != null && storedSha != null && storedSha.equals(expectedSha, ignoreCase = true)
+
+    /**
+     * Downloaded fraction for the progress bar: null when the server sent no usable Content-Length
+     * (→ indeterminate bar), otherwise clamped to 0..1 so a lying length can never push past 100%.
+     */
+    fun downloadProgress(bytesReceived: Long, totalBytes: Long): Float? =
+        if (totalBytes <= 0L) null else (bytesReceived.toFloat() / totalBytes).coerceIn(0f, 1f)
 }
 
 /**
@@ -129,11 +138,13 @@ class CastNativeLibLoader(context: Context) {
             _state.value = CastLibState.Failed(CastLibState.Failed.Reason.UNSUPPORTED_DEVICE)
             return false
         }
-        _state.value = CastLibState.Downloading
+        _state.value = CastLibState.Downloading()
         return try {
             libDir.mkdirs()
             val tmp = File(libDir, "${CastNativeLib.LIB_FILE_NAME}.download")
-            val sha = downloadTo(abiLib.url, tmp)
+            val sha = downloadTo(abiLib.url, tmp) { progress ->
+                _state.value = CastLibState.Downloading(progress)
+            }
             if (!sha.equals(abiLib.sha256, ignoreCase = true)) {
                 tmp.delete()
                 reportException(IllegalStateException("FCast lib checksum mismatch (got $sha, want ${abiLib.sha256})"))
@@ -158,8 +169,11 @@ class CastNativeLibLoader(context: Context) {
         }
     }
 
-    /** Streams [url] to [dest], returning the lowercase-hex SHA-256 of the bytes received. */
-    private fun downloadTo(url: String, dest: File): String {
+    /**
+     * Streams [url] to [dest], returning the lowercase-hex SHA-256 of the bytes received. Reports the
+     * downloaded fraction (null while unknown) via [onProgress] as chunks arrive.
+     */
+    private fun downloadTo(url: String, dest: File, onProgress: (Float?) -> Unit): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val conn = (URL(url).openConnection() as HttpURLConnection).apply {
             instanceFollowRedirects = true // GitHub release assets 302 to githubusercontent (https->https)
@@ -170,6 +184,8 @@ class CastNativeLibLoader(context: Context) {
             if (conn.responseCode != HttpURLConnection.HTTP_OK) {
                 throw IOException("HTTP ${conn.responseCode} for $url")
             }
+            val totalBytes = conn.contentLengthLong
+            var received = 0L
             conn.inputStream.use { input ->
                 dest.outputStream().use { out ->
                     val buf = ByteArray(64 * 1024)
@@ -178,6 +194,8 @@ class CastNativeLibLoader(context: Context) {
                         if (n < 0) break
                         digest.update(buf, 0, n)
                         out.write(buf, 0, n)
+                        received += n
+                        onProgress(CastNativeLib.downloadProgress(received, totalBytes))
                     }
                 }
             }

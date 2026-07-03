@@ -49,6 +49,20 @@ class CastNativeLibLoaderTest {
     }
 
     @Test
+    fun `downloadProgress is a clamped fraction, and null while the total size is unknown`() {
+        // No usable Content-Length (chunked/absent → -1, or a bogus 0): indeterminate, never divide by it.
+        assertNull(CastNativeLib.downloadProgress(bytesReceived = 1024, totalBytes = -1))
+        assertNull(CastNativeLib.downloadProgress(bytesReceived = 1024, totalBytes = 0))
+
+        assertEquals(0f, CastNativeLib.downloadProgress(0, 100)!!, 0f)
+        assertEquals(0.5f, CastNativeLib.downloadProgress(50, 100)!!, 1e-6f)
+        assertEquals(1f, CastNativeLib.downloadProgress(100, 100)!!, 0f)
+
+        // A server under-reporting the length must never push the bar past 100%.
+        assertEquals(1f, CastNativeLib.downloadProgress(150, 100)!!, 0f)
+    }
+
+    @Test
     fun `cacheIsValid only trusts a present lib whose recorded sha matches the expected sha`() {
         val expected = CastNativeLib.ABIS.first().sha256
 

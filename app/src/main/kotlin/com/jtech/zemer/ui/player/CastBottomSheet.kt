@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -103,6 +104,8 @@ fun CastPicker(
 
     val refreshing by service.castDeviceRefresher.refreshing.collectAsState()
 
+    CastDownloadSuccessEffect(libState)
+
     // Once the lib is present (e.g. just downloaded), start NSD discovery so devices appear, and run
     // one refresh burst so the list reflects what is advertised NOW — the SDK's long-lived discoverer
     // never re-checks a device once found, so without this a receiver that closed or changed IP since
@@ -168,8 +171,8 @@ fun CastPicker(
                 Button(onClick = { service.downloadCastLib() }) { Text(stringResource(R.string.cast_download)) }
             }
 
-            CastLibState.Downloading -> CastCenteredColumn {
-                CastSpinnerText(R.string.cast_downloading_support)
+            is CastLibState.Downloading -> CastCenteredColumn {
+                CastDownloadProgress(s.progress)
             }
 
             is CastLibState.Failed -> CastCenteredColumn {
@@ -233,6 +236,7 @@ fun CastDownloadDialog(
     val service = playerConnection.service
     val libState by service.castLibState.collectAsState()
 
+    CastDownloadSuccessEffect(libState)
     LaunchedEffect(libState) {
         if (libState is CastLibState.Ready) onDismiss()
     }
@@ -243,7 +247,7 @@ fun CastDownloadDialog(
         title = { Text(stringResource(R.string.cast_download_title)) },
         buttons = {
             when (libState) {
-                CastLibState.Downloading -> {}
+                is CastLibState.Downloading -> {}
                 is CastLibState.Failed -> {
                     val s = libState as CastLibState.Failed
                     TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
@@ -259,8 +263,8 @@ fun CastDownloadDialog(
         },
     ) {
         when (val s = libState) {
-            CastLibState.Downloading -> {
-                CastSpinnerText(R.string.cast_downloading_support)
+            is CastLibState.Downloading -> {
+                CastDownloadProgress(s.progress)
             }
             is CastLibState.Failed -> {
                 CenteredText(stringResource(castFailureMessageRes(s.reason)), style = MaterialTheme.typography.bodyLarge)
@@ -372,6 +376,54 @@ private fun CastCenteredColumn(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 private fun CenteredText(text: String, style: TextStyle, color: Color = Color.Unspecified) {
     Text(text = text, style = style, color = color, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+}
+
+/**
+ * The shared downloading body for the picker and the settings dialog: a determinate bar with a percent
+ * caption once the total size is known, an indeterminate bar until then.
+ */
+@Composable
+private fun CastDownloadProgress(progress: Float?) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (progress != null) {
+            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+        } else {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+        Spacer(Modifier.height(16.dp))
+        CenteredText(
+            text = if (progress != null) {
+                stringResource(R.string.cast_downloading_support_percent, (progress * 100).toInt())
+            } else {
+                stringResource(R.string.cast_downloading_support)
+            },
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * One-shot success toast on the Downloading → Ready transition — only for a download this surface
+ * actually watched, never for a lib that was already cached when the surface opened.
+ */
+@Composable
+private fun CastDownloadSuccessEffect(libState: CastLibState) {
+    val context = LocalContext.current
+    var wasDownloading by remember { mutableStateOf(false) }
+    LaunchedEffect(libState) {
+        when (libState) {
+            is CastLibState.Downloading -> wasDownloading = true
+            CastLibState.Ready -> if (wasDownloading) {
+                wasDownloading = false
+                Toast.makeText(context, R.string.cast_download_success, Toast.LENGTH_SHORT).show()
+            }
+            else -> {}
+        }
+    }
 }
 
 /** Spinner + a centered caption — the shared "working…" body for the downloading and searching states. */
