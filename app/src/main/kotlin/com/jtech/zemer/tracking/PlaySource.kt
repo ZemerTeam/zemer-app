@@ -30,9 +30,17 @@ object PlaySource {
  */
 class PlaySourceResolver {
     private val sources = ConcurrentHashMap<String, String>()
+    private val previous = ConcurrentHashMap<String, String>()
 
-    /** A new queue started: forget the old context entirely, register its chosen items. */
+    /**
+     * A new queue started. The old registry is kept ONE generation (in [previous]) instead of being
+     * wiped: the listen this queue interrupts ends — and resolves its source — only after the new
+     * queue has registered, so a plain clear would misattribute every queue-replacement-terminated
+     * listen to "other". Bounded by two queues' sizes.
+     */
     fun onQueueStarted(source: String, contextIds: List<String>) {
+        previous.clear()
+        previous.putAll(sources)
         sources.clear()
         registerContext(source, contextIds)
     }
@@ -48,5 +56,7 @@ class PlaySourceResolver {
         ids.forEach { if (it.isNotEmpty()) sources.putIfAbsent(it, PlaySource.RADIO) }
     }
 
-    fun sourceFor(mediaId: String): String = sources[mediaId] ?: PlaySource.OTHER
+    /** The current queue's registration wins; the previous generation covers the outgoing listen. */
+    fun sourceFor(mediaId: String): String =
+        sources[mediaId] ?: previous[mediaId] ?: PlaySource.OTHER
 }

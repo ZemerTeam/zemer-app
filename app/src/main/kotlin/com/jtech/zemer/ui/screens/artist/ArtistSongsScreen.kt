@@ -44,6 +44,7 @@ import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -160,6 +161,7 @@ fun ArtistSongsScreen(
                                             title = context.getString(R.string.queue_all_songs),
                                             items = songs.map { it.toMediaItem() },
                                             startIndex = index,
+                                            playSource = PlaySource.artist(viewModel.artistId),
                                         ),
                                     )
                                 }
@@ -203,6 +205,7 @@ fun ArtistSongsScreen(
                     ListQueue(
                         title = artist?.artist?.name,
                         items = songs.shuffled().map { it.toMediaItem() },
+                        playSource = PlaySource.artist(viewModel.artistId),
                     ),
                 )
             },

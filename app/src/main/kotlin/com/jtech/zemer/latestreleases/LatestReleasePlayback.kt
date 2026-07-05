@@ -7,6 +7,7 @@ import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.tracking.PlaySource
 
 /**
  * Decides what tapping a [LatestRelease] does, shared by the Home shelf and the "See all" list so the
@@ -60,7 +61,7 @@ fun LatestRelease.openOrPlay(
 ) {
     val single = playableSingle()
     if (single != null) {
-        playerConnection.playQueue(YouTubeQueue.radio(single, database))
+        playerConnection.playQueue(YouTubeQueue.radio(single, database, PlaySource.NEW))
     } else {
         navController.navigate("album/$browseId")
     }
@@ -76,5 +77,5 @@ fun List<LatestRelease>.sampleTracks(): List<MediaMetadata> = mapNotNull { it.sa
 fun List<LatestRelease>.shufflePlay(playerConnection: PlayerConnection, title: String) {
     val items = sampleTracks().map { it.toMediaItem() }
     if (items.isEmpty()) return
-    playerConnection.playQueue(ListQueue(title = title, items = items.shuffled()))
+    playerConnection.playQueue(ListQueue(title = title, items = items.shuffled(), playSource = PlaySource.NEW))
 }

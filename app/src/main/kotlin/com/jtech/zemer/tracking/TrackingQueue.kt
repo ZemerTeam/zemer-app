@@ -8,9 +8,10 @@ import java.io.File
  * events, dropping the OLDEST on overflow — telemetry must never grow unbounded, and losing old
  * events is fine by contract.
  *
- * Not thread-safe by itself: [Tracker] confines all access to a single dispatcher. Every mutation
- * persists via an atomic tmp-file rename; a corrupt/partial file degrades to the lines that parse
- * as JSON objects (never a crash, never a poisoned queue).
+ * Not thread-safe by itself: [Tracker] confines all access to a single dispatcher. A plain append
+ * is an O(1) file append; only evictions/removals rewrite the file (atomic tmp rename), so a bulk
+ * burst never does O(n²) disk work. A corrupt/partial file degrades to the lines that parse as
+ * JSON objects (never a crash, never a poisoned queue).
  */
 internal class TrackingQueue(
     private val file: File,
@@ -28,20 +29,41 @@ internal class TrackingQueue(
     fun append(eventLine: String) {
         ensureLoaded()
         events.addLast(eventLine)
-        while (events.size > maxSize) events.removeFirst()
-        persist()
+        if (events.size > maxSize) {
+            while (events.size > maxSize) events.removeFirst()
+            rewrite()
+        } else {
+            runCatching {
+                file.parentFile?.mkdirs()
+                file.appendText(eventLine + "\n")
+            }
+        }
     }
 
-    /** The oldest [max] events, in chronological (insertion) order, left in place until [removeFirst]. */
+    /** The oldest [max] events, in chronological (insertion) order, left in place until [removeBatch]. */
     fun peekBatch(max: Int = BATCH_SIZE): List<String> {
         ensureLoaded()
         return events.take(max)
     }
 
-    fun removeFirst(count: Int) {
+    /**
+     * Removes exactly the events of an uploaded [batch] that are STILL at the head of the queue.
+     * While an upload was in flight, cap-eviction may have already dropped the batch's oldest lines
+     * — a plain remove-first-N would then delete newer, never-uploaded events. The walk aligns the
+     * batch against the head (evictions only drop from the head, appends only go to the tail), so
+     * an evicted batch line is skipped and unrelated events are never touched.
+     */
+    fun removeBatch(batch: List<String>) {
         ensureLoaded()
-        repeat(count.coerceAtMost(events.size)) { events.removeFirst() }
-        persist()
+        var removed = false
+        for (line in batch) {
+            if (events.isEmpty()) break
+            if (events.first() == line) {
+                events.removeFirst()
+                removed = true
+            }
+        }
+        if (removed) rewrite()
     }
 
     private fun ensureLoaded() {
@@ -56,13 +78,14 @@ internal class TrackingQueue(
         }
     }
 
-    private fun persist() {
+    private fun rewrite() {
         runCatching {
             file.parentFile?.mkdirs()
+            val content = if (events.isEmpty()) "" else events.joinToString("\n", postfix = "\n")
             val tmp = File(file.parentFile, "${file.name}.tmp")
-            tmp.writeText(events.joinToString("\n"))
+            tmp.writeText(content)
             if (!tmp.renameTo(file)) {
-                file.writeText(events.joinToString("\n"))
+                file.writeText(content)
                 tmp.delete()
             }
         }

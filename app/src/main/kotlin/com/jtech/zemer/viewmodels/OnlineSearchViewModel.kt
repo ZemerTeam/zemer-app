@@ -50,7 +50,7 @@ constructor(
     @ApplicationContext val context: Context,
     val database: MusicDatabase,
     private val zemerRepo: ZemerSearchRepository,
-    savedStateHandle: SavedStateHandle,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     val query =
         requireNotNull(savedStateHandle.get<String>("query")) {
@@ -82,8 +82,14 @@ constructor(
 
     // Telemetry: ONE `search` event per executed query (this ViewModel is created per submitted
     // query) — the first successful load fires it; chip switches and engine toggles never re-fire.
-    // A zero-result search is the most valuable event and is sent faithfully.
-    private var searchTracked = false
+    // A zero-result search is the most valuable event and is sent faithfully. Persisted in the
+    // SavedStateHandle: a back-stack entry restored after process death recreates the ViewModel and
+    // reloads results, and must NOT re-fire an event for a query executed in a past session.
+    private var searchTracked: Boolean
+        get() = savedStateHandle.get<Boolean>(SEARCH_TRACKED_KEY) ?: false
+        set(value) {
+            savedStateHandle[SEARCH_TRACKED_KEY] = value
+        }
 
     private fun trackSearchOnce(results: Int) {
         if (searchTracked) return
@@ -336,5 +342,9 @@ constructor(
                     radioEndpoint = null
                 )
             }
+    }
+
+    private companion object {
+        const val SEARCH_TRACKED_KEY = "searchTracked"
     }
 }

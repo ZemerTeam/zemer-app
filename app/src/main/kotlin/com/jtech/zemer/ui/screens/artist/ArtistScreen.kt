@@ -92,6 +92,7 @@ import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.IconButton
@@ -380,7 +381,7 @@ fun ArtistScreen(
                                             artistPage?.artist?.radioEndpoint?.let { radioEndpoint ->
                                                 OutlinedButton(
                                                     onClick = {
-                                                        playerConnection.playQueue(YouTubeQueue(radioEndpoint, preloadItem = null, database))
+                                                        playerConnection.playQueue(YouTubeQueue(radioEndpoint, preloadItem = null, database, playSource = PlaySource.artist(viewModel.artistId)))
                                                     },
                                                     shape = RoundedCornerShape(50),
                                                     modifier = Modifier.height(40.dp)
@@ -403,7 +404,7 @@ fun ArtistScreen(
                                             artistPage?.artist?.shuffleEndpoint?.let { shuffleEndpoint ->
                                                 IconButton(
                                                     onClick = {
-                                                        playerConnection.playQueue(YouTubeQueue(shuffleEndpoint, preloadItem = null, database))
+                                                        playerConnection.playQueue(YouTubeQueue(shuffleEndpoint, preloadItem = null, database, playSource = PlaySource.artist(viewModel.artistId)))
                                                     },
                                                     modifier = Modifier
                                                         .size(48.dp)
@@ -428,7 +429,8 @@ fun ArtistScreen(
                                                         playerConnection.playQueue(
                                                             ListQueue(
                                                                 title = libraryArtist?.artist?.name ?: unknownArtistTitle,
-                                                                items = shuffledSongs.map { it.toMediaItem() }
+                                                                items = shuffledSongs.map { it.toMediaItem() },
+                                                                playSource = PlaySource.artist(viewModel.artistId)
                                                             )
                                                         )
                                                     }
@@ -512,7 +514,8 @@ fun ArtistScreen(
                                                     ListQueue(
                                                         title = libraryArtist?.artist?.name ?: unknownArtistTitle,
                                                         items = librarySongs.map { it.toMediaItem() },
-                                                        startIndex = index
+                                                        startIndex = index,
+                                                        playSource = PlaySource.artist(viewModel.artistId)
                                                     )
                                                 )
                                             }
@@ -676,7 +679,8 @@ fun ArtistScreen(
                                                             YouTubeQueue(
                                                                 WatchEndpoint(videoId = song.id),
                                                                 song.toMediaMetadata(),
-                                                                database
+                                                                database,
+                                                                playSource = PlaySource.artist(viewModel.artistId)
                                                             ),
                                                         )
                                                     }
@@ -737,7 +741,8 @@ fun ArtistScreen(
                                                                         YouTubeQueue(
                                                                             WatchEndpoint(videoId = item.id),
                                                                             item.toMediaMetadata(),
-                                                                            database
+                                                                            database,
+                                                                            playSource = PlaySource.artist(viewModel.artistId)
                                                                         ),
                                                                     )
                                                                 }

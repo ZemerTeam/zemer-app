@@ -17,6 +17,7 @@ import kotlinx.serialization.json.JsonObject
 import timber.log.Timber
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Anonymous usage telemetry (the tracking spec: `docs/tracking/README.md`). The whole feature is
@@ -29,8 +30,10 @@ import java.util.UUID
  * [UUID.randomUUID] output is ever sent.
  *
  * Flush triggers (spec §2): queue ≥ [FLUSH_THRESHOLD], 60 s with a non-empty queue, or the app
- * going to background. One in-flight upload at a time; failures back off via [trackingRetryDelayMs];
- * a 400 drops the batch; the queue caps at 500 dropping oldest ([TrackingQueue]).
+ * going to background. One in-flight upload at a time, and EVERY trigger honors the failure
+ * backoff ([FlushSchedule]): while the server fails/rate-limits, threshold and background triggers
+ * wait out the 30 s → 2 min → 10 min ladder instead of re-hammering. A 400 drops the batch; the
+ * queue caps at 500 dropping oldest ([TrackingQueue]).
  */
 object Tracker {
 
@@ -47,8 +50,9 @@ object Tracker {
     private var appVer: String = BuildConfig.VERSION_NAME
 
     private var inFlight = false
-    private var consecutiveFailures = 0
+    private val schedule = FlushSchedule(::now)
     private var pendingFlushJob: Job? = null
+    private var pendingFlushAt = Long.MAX_VALUE
 
     /** Idempotent; called once from [com.jtech.zemer.App.onCreate]. */
     fun initialize(context: Context) {
@@ -85,6 +89,8 @@ object Tracker {
         enqueue { TrackingEvents.play(now(), videoId, secs, dur, source, stream?.first, stream?.second) }
     }
 
+    fun action(kind: String, id: String) = enqueue { TrackingEvents.action(now(), kind, id) }
+
     /**
      * The player service reports which stream client (and, for deciphered web clients, which
      * player_ias hash) served a videoId, so the listen's `play` event can carry it. Bounded: cleared
@@ -95,15 +101,13 @@ object Tracker {
         streamInfo[videoId] = client to playerHash?.takeIf { it.isNotBlank() }
     }
 
-    private val streamInfo = java.util.concurrent.ConcurrentHashMap<String, Pair<String, String?>>()
+    private val streamInfo = ConcurrentHashMap<String, Pair<String, String?>>()
 
-    fun action(kind: String, id: String) = enqueue { TrackingEvents.action(now(), kind, id) }
-
-    /** Background transition: flush whatever is queued (spec §2). */
+    /** Background transition: flush whatever is queued (spec §2), still honoring the backoff. */
     fun onAppBackgrounded() {
         scope.launch {
             ready.await()
-            flush()
+            if ((queue?.size ?: 0) > 0) scheduleFlush(0L)
         }
     }
 
@@ -114,11 +118,9 @@ object Tracker {
             ready.await()
             val q = queue ?: return@launch
             q.append(line)
-            if (q.size >= FLUSH_THRESHOLD) {
-                flush()
-            } else if (pendingFlushJob?.isActive != true) {
-                scheduleFlush(TIMER_FLUSH_MS)
-            }
+            // Both triggers route through scheduleFlush, which enforces the failure backoff — a
+            // threshold-full queue during a server outage must NOT fire a POST per new event.
+            scheduleFlush(if (q.size >= FLUSH_THRESHOLD) 0L else TIMER_FLUSH_MS)
         }
     }
 
@@ -127,27 +129,28 @@ object Tracker {
         val q = queue ?: return
         val device = deviceId ?: return
         if (inFlight || q.size == 0) return
+        // Belt-and-braces: even a mistimed trigger never violates the backoff window.
+        schedule.delayUntilAllowed().takeIf { it > 0 }?.let {
+            scheduleFlush(it)
+            return
+        }
         inFlight = true
         try {
             val batch = q.peekBatch()
-            // Debug builds run the identical path; the server ACKs-and-discards on debug=true.
             when (val result = uploader.upload(device, appVer, BuildConfig.DEBUG, batch)) {
                 TrackingUploader.Result.Success, TrackingUploader.Result.DropBatch -> {
-                    q.removeFirst(batch.size)
-                    consecutiveFailures = 0
+                    q.removeBatch(batch)
+                    schedule.onSuccess()
                     if (result == TrackingUploader.Result.DropBatch) {
                         Timber.tag(TAG).w("Server rejected a batch as malformed; dropped ${batch.size} events")
                     }
                     if (q.size > 0) scheduleFlush(0L)
                 }
                 TrackingUploader.Result.RateLimited, TrackingUploader.Result.Retry -> {
-                    consecutiveFailures++
-                    scheduleFlush(
-                        trackingRetryDelayMs(
-                            consecutiveFailures,
-                            rateLimited = result == TrackingUploader.Result.RateLimited,
-                        )
+                    val delayMs = schedule.onFailure(
+                        rateLimited = result == TrackingUploader.Result.RateLimited,
                     )
+                    scheduleFlush(delayMs)
                 }
             }
         } finally {
@@ -155,10 +158,19 @@ object Tracker {
         }
     }
 
+    /**
+     * Schedules a flush attempt, keeping the EARLIEST pending one (a 60 s timer must not push out
+     * an imminent threshold flush, nor a threshold trigger cancel a sooner retry) and never earlier
+     * than the backoff window allows.
+     */
     private fun scheduleFlush(delayMs: Long) {
+        val target = now() + maxOf(delayMs, schedule.delayUntilAllowed())
+        if (pendingFlushJob?.isActive == true && pendingFlushAt <= target) return
         pendingFlushJob?.cancel()
+        pendingFlushAt = target
         pendingFlushJob = scope.launch {
-            delay(delayMs)
+            delay((target - now()).coerceAtLeast(0L))
+            pendingFlushAt = Long.MAX_VALUE
             flush()
         }
     }

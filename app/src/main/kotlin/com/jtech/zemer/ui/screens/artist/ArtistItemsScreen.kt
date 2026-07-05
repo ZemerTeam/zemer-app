@@ -43,6 +43,7 @@ import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.YouTubeGridItem
@@ -194,7 +195,8 @@ fun ArtistItemsScreen(
                                                 YouTubeQueue(
                                                     item.endpoint ?: WatchEndpoint(videoId = item.id),
                                                     metadata,
-                                                    database
+                                                    database,
+                                                    playSource = PlaySource.artist(viewModel.artistId)
                                                 ),
                                             )
                                         }
@@ -256,7 +258,8 @@ fun ArtistItemsScreen(
                                                 YouTubeQueue(
                                                     item.endpoint ?: WatchEndpoint(videoId = item.id),
                                                     metadata,
-                                                    database
+                                                    database,
+                                                    playSource = PlaySource.artist(viewModel.artistId)
                                                 )
                                             )
                                         }

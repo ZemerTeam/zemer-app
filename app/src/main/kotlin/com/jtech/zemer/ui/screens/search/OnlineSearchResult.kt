@@ -33,8 +33,10 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -237,7 +239,12 @@ fun OnlineSearchResult(
                 }
                 .onKeyEvent { event ->
                     when {
-                        event.key == Key.Enter || event.key == Key.DirectionCenter -> {
+                        // KeyDown only (the app's D-pad convention, e.g. KidZoneScreen) and never
+                        // auto-repeats: one press = one activation = one telemetry click. Consuming
+                        // the KeyDown also stops clickable's internal KeyUp-onClick from doubling it.
+                        event.type == KeyEventType.KeyDown &&
+                            event.nativeKeyEvent.repeatCount == 0 &&
+                            (event.key == Key.Enter || event.key == Key.DirectionCenter) -> {
                             activate()
                             true
                         }

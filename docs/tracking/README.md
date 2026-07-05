@@ -28,12 +28,17 @@ batch rather than poison-pilling the queue. Losing events is fine. Breaking play
   extension fields, `client` + `player` (see below).
 - `TrackingQueue.kt` — JSONL file queue under `filesDir/tracking/` (deliberately NOT a Room
   table: no schema risk for droppable telemetry). 500-cap drop-oldest, ≤100-event batches,
-  corrupt-line tolerant, atomic writes.
+  corrupt-line tolerant; appends are O(1) file appends (only evictions/removals rewrite). After an
+  upload, **`removeBatch` aligns the uploaded lines against the head** instead of removing the
+  first N — cap-eviction during an in-flight upload must never delete never-uploaded events
+  (review-confirmed data-loss race, regression-tested).
 - `TrackingUploader.kt` — one POST per batch; 400 → drop batch, 429 → wait ≥2 min, else backoff
   30 s → 2 min → 10 min (`trackingRetryDelayMs`, tested). `expectSuccess = false` — non-2xx is a
   mapped outcome, never an exception.
-- `Tracker.kt` — the façade + flush loop. Triggers: queue ≥ 20, 60 s with a non-empty queue, app
-  backgrounded. ONE in-flight upload. Device id: `UUID.randomUUID()` only — **the server 400s any
+- `Tracker.kt` + `FlushSchedule.kt` — the façade + flush loop. Triggers: queue ≥ 20, 60 s with a
+  non-empty queue, app backgrounded. ONE in-flight upload, and **every trigger honors the failure
+  backoff** (`FlushSchedule`, tested): a ≥20-event queue during a server outage must NOT fire a
+  POST per newly enqueued event. Device id: `UUID.randomUUID()` only — **the server 400s any
   non-canonical UUID** (verified live), guarded by `isCanonicalUuid`.
 - **Debug builds are server-exempt**: the envelope carries `debug: BuildConfig.DEBUG`; the server
   ACKs a debug batch exactly like production (responding `debug:true`) but stores nothing, so test
@@ -41,27 +46,38 @@ batch rather than poison-pilling the queue. Losing events is fine. Breaking play
   gate the tracker on `BuildConfig.DEBUG` in the app.
 - `TrackingLifecycle.kt` — `open` session semantics via ActivityLifecycleCallbacks (cold start +
   return-to-foreground after >30 min; service-only process starts fire nothing) and the
-  flush-on-background trigger. Registered with `Tracker.initialize` in `App.onCreate`.
+  flush-on-background trigger. Configuration changes (rotation, theme) transit the started-count
+  through 0 without leaving the foreground — `isChangingConfigurations` gates them out of both the
+  flush and the session arithmetic — and the gap is measured on monotonic
+  `SystemClock.elapsedRealtime`, never wall clock (an NTP step must not fabricate/suppress opens).
+  Registered with `Tracker.initialize` in `App.onCreate`.
 
 ## Where each event fires (the wiring)
 
 - **`open`** — `TrackingLifecycle` only.
 - **`search`** — `OnlineSearchViewModel`: ONE event per executed query (the VM is per submitted
-  query; `searchTracked` guard), on the first successful load, both engines; `results` = items
-  shown; zero results sent faithfully; chip switches and engine toggles never re-fire.
-- **`click`** — `OnlineSearchResult`'s single `activate` path (tap AND D-pad select): the query,
-  tapped id, `kind` (`clickKind()` — Videos chip → `video`, Community chip → `community`), and
-  0-based rank within the displayed category.
+  query; `searchTracked` guard, persisted in the SavedStateHandle so a back-stack entry restored
+  after process death never re-fires), on the first successful load, both engines; `results` =
+  items shown; zero results sent faithfully; chip switches and engine toggles never re-fire.
+- **`click`** — `OnlineSearchResult`'s single `activate` path (tap AND D-pad select — KeyDown
+  only, auto-repeats ignored, so a held Enter is ONE click): the query, tapped id, `kind`
+  (`clickKind()` — Videos chip → `video`, Community chip → `community`), and 0-based rank within
+  the displayed category.
 - **`play`** — `MusicService.onPlaybackStatsReady`: one event per listen when it ENDS, however
   short (Media3's `PlaybackStats.totalPlayTimeMs` = accumulated real play time; pauses excluded,
   seek-backs not double-counted; fires on skip/complete/queue-advance and on player release =
-  app killed). Downloaded/offline playback is tracked identically. NOT yet covered: the separate
-  video-player screen's own player (`VideoPlayerScreen`) — known follow-up.
+  app killed). Zero-play-time sessions are skipped — a restored persisted queue opens a stats
+  session without the user pressing play, and those phantoms must not count as listens.
+  Downloaded/offline playback is tracked identically. NOT yet covered: the separate video-player
+  screen's own player (`VideoPlayerScreen`) — known follow-up.
 - **`action`** — central chokepoints: the four entity `toggleLike()`s (`favorite`/`unfavorite` —
-  every UI path converges there), `DownloadUtil.downloadToMediaStore`/`downloadVideoToMediaStore`
-  (`download`, with `fromUser = false` for auto-download-on-like and the missing-file self-repair
-  so the signal stays user-intent), `DatabaseDao.addSongToPlaylist` (`add_playlist`, one per song;
-  playlist SYNC writes maps directly and correctly bypasses it), and the ten share buttons
+  every UI path converges there); `MediaStoreDownloadManager.downloadSong/downloadVideo`
+  (`download`, fired AFTER the already-downloading/completed no-op check so a re-tap that enqueues
+  nothing reports nothing, and only with `fromUser = true` — retries, self-repair and
+  auto-download-on-like never report); `DatabaseDao.addSongToPlaylist` (`add_playlist`: a single
+  add reports the videoId, a bulk add (playlist import) reports ONE collection-level event with
+  the playlist id per the spec's id rule — a 500-song import must not flood the 500-cap queue;
+  playlist SYNC writes maps directly and correctly bypasses it); and the ten share buttons
   (`share`).
 
 ## `play.source` — where a listen started
@@ -69,15 +85,26 @@ batch rather than poison-pilling the queue. Losing events is fine. Breaking play
 Set when a queue is built, never per-surface guesswork:
 
 - `Queue.playSource` (default `"other"`) is passed at construction by the surfaces with a spec
-  taxonomy value: search taps (`search`), Latest Releases (`new`), artist pages (`artist:UC…`),
-  albums (`album:…` — intrinsic to `LocalAlbumRadio`/`YouTubeAlbumRadio`), online playlists
-  (`playlist:PL…`), curated playlists (`zemer:<slug>`).
+  taxonomy value — all wired: search taps (`OnlineSearchResult` → `search`), Latest Releases
+  (`LatestReleasePlayback` → `new`), artist pages (`ArtistScreen`/`ArtistSongsScreen`/
+  `ArtistItemsScreen` → `artist:UC…`), albums (`album:…` — intrinsic to
+  `LocalAlbumRadio`/`YouTubeAlbumRadio`, covers `AlbumScreen`), online playlists
+  (`OnlinePlaylistScreen` + `YouTubePlaylistMenu` → `playlist:PL…`), curated playlists
+  (`ZemerCuratedPlaylistScreen` → `zemer:<slug>`).
 - `MusicService.playQueue` registers the chosen items in `Tracker.playSources`
-  (`PlaySourceResolver`, tested); `Queue.initialItemsAreContext` distinguishes an album/playlist's
-  tracks (context) from a radio queue's autoplay fill (`YouTubeQueue`: real playlist id = context,
-  bare videoId or `RD…` watch playlist = fill → `radio`).
-- Continuation pages and seamless-radio adds register as `radio`; anything unregistered (manual
-  queue adds, a restored persisted queue) resolves `other`.
+  (`PlaySourceResolver`, tested); `Queue.initialItemsAreContext` distinguishes chosen tracks from
+  a radio queue's autoplay fill. Only the `RDAMVM` song-radio watch-playlist prefix (or a bare
+  videoId) is fill: other RD ids — YT Music editorial playlists (`RDCLAK5uy_…`), artist shuffle
+  (`RDAO…`) — are user-CHOSEN contexts. The async registration is guarded against a slow-loading
+  queue the user already replaced.
+- `Queue.continuationIsContext`: page 2+ of a CHOSEN playlist keeps the context source (spec:
+  tracks continuing from an originally-chosen context keep it); only a radio queue's pages and the
+  album radios' beyond-the-album continuation register `radio`. Seamless-radio registers only the
+  ADDED items — the current song keeps its source.
+- The resolver keeps TWO generations: starting a new queue demotes (not wipes) the old registry,
+  because the interrupted listen resolves its source after the new queue registered — otherwise
+  every tap-A-then-tap-B listen would misreport `other`. Anything unregistered (manual queue adds,
+  a restored persisted queue) resolves `other`.
 - Known imprecision: community playlists can't be distinguished from artist-owned on every path,
   so online playlists report `playlist:<id>` unless the surface knows better.
 

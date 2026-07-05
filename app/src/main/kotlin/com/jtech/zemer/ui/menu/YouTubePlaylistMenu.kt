@@ -52,6 +52,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.AlreadyInPlaylistDialog
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.Material3MenuGroup
@@ -307,7 +308,7 @@ fun YouTubePlaylistMenu(
                                 },
                                 text = stringResource(R.string.play),
                                 onClick = {
-                                    playerConnection.playQueue(YouTubeQueue(playEndpoint, preloadItem = null, database))
+                                    playerConnection.playQueue(YouTubeQueue(playEndpoint, preloadItem = null, database, playSource = PlaySource.playlist(playlist.id)))
                                     onDismiss()
                                 }
                             )
@@ -326,7 +327,7 @@ fun YouTubePlaylistMenu(
                                 },
                                 text = stringResource(R.string.shuffle),
                                 onClick = {
-                                    playerConnection.playQueue(YouTubeQueue(shuffleEndpoint, preloadItem = null, database))
+                                    playerConnection.playQueue(YouTubeQueue(shuffleEndpoint, preloadItem = null, database, playSource = PlaySource.playlist(playlist.id)))
                                     onDismiss()
                                 }
                             )
@@ -345,7 +346,7 @@ fun YouTubePlaylistMenu(
                                 },
                                 text = stringResource(R.string.start_radio),
                                 onClick = {
-                                    playerConnection.playQueue(YouTubeQueue(radioEndpoint, preloadItem = null, database))
+                                    playerConnection.playQueue(YouTubeQueue(radioEndpoint, preloadItem = null, database, playSource = PlaySource.RADIO))
                                     onDismiss()
                                 }
                             )

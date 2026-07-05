@@ -61,6 +61,7 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.latestreleases.LatestReleaseFilter
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
 import com.jtech.zemer.ui.component.AutoResizeText
@@ -225,6 +226,7 @@ fun ZemerCuratedPlaylistScreen(
                                             ListQueue(
                                                 title = playlist.title,
                                                 items = visibleSongs.map { it.toMediaItem() },
+                                                playSource = PlaySource.zemer(playlist.id),
                                             )
                                         )
                                     },
@@ -233,6 +235,7 @@ fun ZemerCuratedPlaylistScreen(
                                             ListQueue(
                                                 title = playlist.title,
                                                 items = visibleSongs.map { it.toMediaItem() }.shuffled(),
+                                                playSource = PlaySource.zemer(playlist.id),
                                             )
                                         )
                                     },
@@ -332,6 +335,7 @@ fun ZemerCuratedPlaylistScreen(
                                                     title = playlist.title,
                                                     items = visibleSongs.map { it.toMediaItem() },
                                                     startIndex = index,
+                                                    playSource = PlaySource.zemer(playlist.id),
                                                 )
                                             )
                                         }

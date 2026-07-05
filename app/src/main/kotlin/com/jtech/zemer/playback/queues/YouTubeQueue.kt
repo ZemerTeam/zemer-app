@@ -20,11 +20,16 @@ class YouTubeQueue(
 ) : Queue {
     private var continuation: String? = null
 
-    // A real playlist endpoint (PL…/OLAK…) makes the initial items user-chosen context; a bare
-    // videoId or a radio watch-playlist (RD…) means everything beyond the tapped song is autoplay
-    // fill, which must report as "radio". Captured at construction — the endpoint mutates later.
+    // A real playlist endpoint makes the initial items user-chosen context; a bare videoId or a
+    // song-radio watch-playlist (RDAMVM<videoId>) means everything beyond the tapped song is
+    // autoplay fill, which must report as "radio". Only the RDAMVM song-radio prefix is fill —
+    // other RD-prefixed ids are user-CHOSEN contexts (YT Music editorial playlists "RDCLAK5uy_…",
+    // artist shuffle "RDAO…") and keep their source. Captured at construction — endpoint mutates.
     override val initialItemsAreContext: Boolean =
-        endpoint.playlistId?.startsWith("RD") == false
+        endpoint.playlistId?.startsWith("RDAMVM") == false
+
+    // Page 2+ of a chosen playlist is still the chosen context; a radio queue's pages stay radio.
+    override val continuationIsContext: Boolean get() = initialItemsAreContext
 
     override suspend fun getInitialStatus(): Queue.Status {
         val nextResult =

@@ -23,8 +23,6 @@ import com.jtech.zemer.db.entities.FormatEntity
 import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.di.DownloadCache
 import com.jtech.zemer.di.PlayerCache
-import com.jtech.zemer.tracking.Tracker
-import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.enumPreferenceFlow
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -263,11 +261,12 @@ constructor(
 
     /**
      * [fromUser] = false for machine-initiated enqueues (auto-download-on-like, the missing-file
-     * self-repair) so the telemetry `download` action stays a pure user-intent signal.
+     * self-repair) so the telemetry `download` action stays a pure user-intent signal. The event
+     * itself fires inside the manager, AFTER its already-downloading/completed no-op check — a
+     * collection re-tap that enqueues nothing must not report downloads.
      */
     fun downloadToMediaStore(song: com.jtech.zemer.db.entities.Song, fromUser: Boolean = true) {
-        if (fromUser) Tracker.action(TrackingActionKind.DOWNLOAD, song.id)
-        mediaStoreDownloadManager.downloadSong(song)
+        mediaStoreDownloadManager.downloadSong(song, fromUser)
     }
 
     /**
@@ -279,8 +278,7 @@ constructor(
         maxVideoBitrateKbps: Int? = null,
         fromUser: Boolean = true,
     ) {
-        if (fromUser) Tracker.action(TrackingActionKind.DOWNLOAD, song.id)
-        mediaStoreDownloadManager.downloadVideo(song, maxVideoBitrateKbps)
+        mediaStoreDownloadManager.downloadVideo(song, maxVideoBitrateKbps, fromUser)
     }
 
     fun cancelMediaStoreDownload(songId: String) {

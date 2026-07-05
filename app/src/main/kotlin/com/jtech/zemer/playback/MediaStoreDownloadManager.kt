@@ -8,6 +8,8 @@ import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.AudioQualityKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.db.entities.SongAlbumMap
 import com.jtech.zemer.db.entities.SongArtistMap
 import com.jtech.zemer.utils.CoverArtEmbedder
@@ -132,7 +134,7 @@ constructor(
      *
      * @param song The song/video to download as video file
      */
-    fun downloadVideo(song: Song, maxVideoBitrateKbps: Int? = null) {
+    fun downloadVideo(song: Song, maxVideoBitrateKbps: Int? = null, fromUser: Boolean = false) {
         Timber.d("downloadVideo called: id=${song.id}, title=${song.song.title}, inputIsVideo=${song.song.isVideo}")
         scope.launch {
             // Start notification service
@@ -145,6 +147,9 @@ constructor(
                 Timber.d("downloadVideo skipped - already downloading or completed: status=${currentState?.status}")
                 return@launch
             }
+            // Telemetry: AFTER the no-op check, so a re-tap that enqueues nothing reports nothing;
+            // fromUser=false (retries, self-repair, auto-download-on-like) never reports.
+            if (fromUser) Tracker.action(TrackingActionKind.DOWNLOAD, song.id)
             // Remember the requested video bitrate for this download (consumed in performDownload).
             maxVideoBitrateKbps?.let { requestedVideoBitrate[song.id] = it }
 
@@ -179,7 +184,7 @@ constructor(
      *
      * @param song The song to download
      */
-    fun downloadSong(song: Song) {
+    fun downloadSong(song: Song, fromUser: Boolean = false) {
         Timber.d("downloadSong called: id=${song.id}, title=${song.song.title}, isVideo=${song.song.isVideo}")
         scope.launch {
             // Start notification service
@@ -191,6 +196,9 @@ constructor(
             ) {
                 return@launch
             }
+            // Telemetry: AFTER the no-op check, so a re-tap that enqueues nothing reports nothing;
+            // fromUser=false (retries, self-repair, auto-download-on-like) never reports.
+            if (fromUser) Tracker.action(TrackingActionKind.DOWNLOAD, song.id)
 
             // For audio downloads, ensure isVideo is false (song may have been marked as video previously)
             val audioSong = song.copy(song = song.song.copy(isVideo = false))

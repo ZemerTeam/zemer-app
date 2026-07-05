@@ -824,11 +824,15 @@ class MusicService :
                 }
             // Tracking: initial items keep the queue's source when they are the chosen context
             // (album/playlist tracks); a radio queue's fill beyond the tapped song reports "radio".
-            initialStatus.items.map { it.mediaId }.let { ids ->
-                if (queue.initialItemsAreContext) {
-                    Tracker.playSources.registerContext(queue.playSource, ids)
-                } else {
-                    Tracker.playSources.registerRadio(ids)
+            // Guarded: a slow-loading queue the user already replaced must not register its items
+            // over the newer queue's registrations.
+            if (currentQueue === queue) {
+                initialStatus.items.map { it.mediaId }.let { ids ->
+                    if (queue.initialItemsAreContext) {
+                        Tracker.playSources.registerContext(queue.playSource, ids)
+                    } else {
+                        Tracker.playSources.registerRadio(ids)
+                    }
                 }
             }
             if (queue.preloadItem != null && player.playbackState == STATE_IDLE) return@launch
@@ -893,9 +897,10 @@ class MusicService :
 
             // Add radio songs after current song
             player.addMediaItems(initialStatus.items.drop(1))
-            // Tracking: everything a seamless radio adds is autoplay beyond the original context
-            // (the current song keeps whatever source it already had).
-            Tracker.playSources.registerRadio(initialStatus.items.map { it.mediaId })
+            // Tracking: only the ADDED items are autoplay — item 0 is the currently-playing song,
+            // which must keep whatever source it already had (registerRadio would flip an
+            // unregistered current song to "radio" mid-listen).
+            Tracker.playSources.registerRadio(initialStatus.items.drop(1).map { it.mediaId })
             currentQueue = radioQueue
         }
     }
@@ -1190,8 +1195,16 @@ class MusicService :
             scope.launch(SilentHandler) {
                 val mediaItems =
                     currentQueue.nextPage().filterExplicit(dataStore.get(HideExplicitKey, false))
-                // Tracking: continuation pages are autoplay beyond the original context.
-                Tracker.playSources.registerRadio(mediaItems.map { it.mediaId })
+                // Tracking: a chosen playlist's later pages are still the chosen context (spec:
+                // tracks continuing from an originally-chosen context KEEP its source); only a
+                // radio queue's pages are autoplay.
+                mediaItems.map { it.mediaId }.let { ids ->
+                    if (currentQueue.continuationIsContext) {
+                        Tracker.playSources.registerContext(currentQueue.playSource, ids)
+                    } else {
+                        Tracker.playSources.registerRadio(ids)
+                    }
+                }
                 if (player.playbackState != STATE_IDLE) {
                     player.addMediaItems(mediaItems.drop(1))
                 }
@@ -1643,13 +1656,17 @@ class MusicService :
         // Anonymous telemetry (docs/tracking/README.md): one event per listen, when it ends —
         // EVERY listen however short (a 5-second skip is the negative signal the algorithm needs;
         // the server applies any qualification gate at analysis time). totalPlayTimeMs is the
-        // accumulated actual play time: pauses excluded, seek-backs not double-counted.
-        Tracker.play(
-            videoId = mediaItem.mediaId,
-            secs = (playbackStats.totalPlayTimeMs / 1000L).toInt(),
-            dur = mediaItem.metadata?.duration?.takeIf { it > 0 },
-            source = Tracker.playSources.sourceFor(mediaItem.mediaId),
-        )
+        // accumulated actual play time: pauses excluded, seek-backs not double-counted. A session
+        // with ZERO play time is not a listen — a restored persisted queue opens a stats session
+        // for the current item without the user ever pressing play; those phantoms must not count.
+        if (playbackStats.totalPlayTimeMs > 0) {
+            Tracker.play(
+                videoId = mediaItem.mediaId,
+                secs = (playbackStats.totalPlayTimeMs / 1000L).toInt(),
+                dur = mediaItem.metadata?.duration?.takeIf { it > 0 },
+                source = Tracker.playSources.sourceFor(mediaItem.mediaId),
+            )
+        }
 
         if (playbackStats.totalPlayTimeMs >= (
                     dataStore[HistoryDuration]?.times(1000f)

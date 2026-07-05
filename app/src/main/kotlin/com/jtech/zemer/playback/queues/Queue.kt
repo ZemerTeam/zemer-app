@@ -22,6 +22,13 @@ interface Queue {
      */
     val initialItemsAreContext: Boolean get() = true
 
+    /**
+     * Tracking: whether [nextPage] items STILL belong to the chosen context. Spec §3.3: tracks that
+     * continue from an originally-chosen context KEEP its source — page 2+ of a chosen playlist is
+     * context; an album radio's continuation beyond the album is autoplay ("radio").
+     */
+    val continuationIsContext: Boolean get() = false
+
     suspend fun getInitialStatus(): Status
 
     fun hasNextPage(): Boolean
