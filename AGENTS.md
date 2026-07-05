@@ -128,6 +128,8 @@ Five events (`open`/`search`/`play`/`click`/`action`) POSTed to `tracking.zemer.
 - **Identity is one random UUID** (`TrackingDeviceIdKey`) and nothing else — the server 400s
   non-canonical ids, so only `UUID.randomUUID()` output is ever sent. Never add account/device/
   location identifiers to an event.
+- **Debug builds send `debug: true` in the batch envelope and the SERVER discards them** — the
+  client path is identical in debug and release; never gate the tracker on `BuildConfig.DEBUG`.
 - **`play` fires for EVERY listen, however short** (`MusicService.onPlaybackStatsReady`), one per
   listen when it ends; `source` comes from `Queue.playSource` + `Tracker.playSources`
   (context vs radio-fill vs other) — new queue types/surfaces must declare their source, and radio

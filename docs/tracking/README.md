@@ -35,6 +35,10 @@ batch rather than poison-pilling the queue. Losing events is fine. Breaking play
 - `Tracker.kt` — the façade + flush loop. Triggers: queue ≥ 20, 60 s with a non-empty queue, app
   backgrounded. ONE in-flight upload. Device id: `UUID.randomUUID()` only — **the server 400s any
   non-canonical UUID** (verified live), guarded by `isCanonicalUuid`.
+- **Debug builds are server-exempt**: the envelope carries `debug: BuildConfig.DEBUG`; the server
+  ACKs a debug batch exactly like production (responding `debug:true`) but stores nothing, so test
+  devices never pollute the stats. Debug and release run the IDENTICAL client code path — never
+  gate the tracker on `BuildConfig.DEBUG` in the app.
 - `TrackingLifecycle.kt` — `open` session semantics via ActivityLifecycleCallbacks (cold start +
   return-to-foreground after >30 min; service-only process starts fire nothing) and the
   flush-on-background trigger. Registered with `Tracker.initialize` in `App.onCreate`.

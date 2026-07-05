@@ -32,11 +32,11 @@ internal class TrackingUploader(private val baseUrl: String = BASE_URL) {
         expectSuccess = false
     }
 
-    suspend fun upload(device: String, appVer: String, eventLines: List<String>): Result =
+    suspend fun upload(device: String, appVer: String, debug: Boolean, eventLines: List<String>): Result =
         runCatching {
             val response = client.post("$baseUrl/v1/events") {
                 contentType(ContentType.Application.Json)
-                setBody(trackingBatchBody(device, appVer, eventLines))
+                setBody(trackingBatchBody(device, appVer, debug, eventLines))
             }
             when {
                 response.status.value in 200..299 -> Result.Success

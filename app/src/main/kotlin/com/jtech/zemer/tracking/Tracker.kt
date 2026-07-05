@@ -130,7 +130,8 @@ object Tracker {
         inFlight = true
         try {
             val batch = q.peekBatch()
-            when (val result = uploader.upload(device, appVer, batch)) {
+            // Debug builds run the identical path; the server ACKs-and-discards on debug=true.
+            when (val result = uploader.upload(device, appVer, BuildConfig.DEBUG, batch)) {
                 TrackingUploader.Result.Success, TrackingUploader.Result.DropBatch -> {
                     q.removeFirst(batch.size)
                     consecutiveFailures = 0

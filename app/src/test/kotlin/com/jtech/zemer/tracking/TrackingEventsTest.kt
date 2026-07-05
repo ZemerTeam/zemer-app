@@ -52,15 +52,21 @@ class TrackingEventsTest {
     }
 
     @Test
-    fun `batch body wraps device, app_ver and raw event lines - strings JSON-escaped`() {
+    fun `batch body wraps device, app_ver, debug flag and raw event lines - strings JSON-escaped`() {
         val body = trackingBatchBody(
             device = "08e84a6b-9389-49fe-8c80-098322f7490a",
             appVer = "34\"x",
+            debug = false,
             eventLines = listOf("""{"type":"open","t":1}""", """{"type":"open","t":2}"""),
         )
         assertEquals(
-            """{"device":"08e84a6b-9389-49fe-8c80-098322f7490a","app_ver":"34\"x","events":[{"type":"open","t":1},{"type":"open","t":2}]}""",
+            """{"device":"08e84a6b-9389-49fe-8c80-098322f7490a","app_ver":"34\"x","debug":false,"events":[{"type":"open","t":1},{"type":"open","t":2}]}""",
             body,
+        )
+        // Debug builds send debug:true — the server ACKs identically but stores nothing.
+        assertEquals(
+            """{"device":"d","app_ver":"34","debug":true,"events":[]}""",
+            trackingBatchBody("d", "34", debug = true, eventLines = emptyList()),
         )
     }
 

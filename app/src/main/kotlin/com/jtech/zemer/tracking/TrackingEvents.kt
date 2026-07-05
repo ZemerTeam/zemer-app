@@ -77,13 +77,19 @@ internal object TrackingActionKind {
     const val SHARE = "share"
 }
 
-/** Batch body: `{"device":…,"app_ver":…,"events":[…]}` from already-encoded event lines. */
-internal fun trackingBatchBody(device: String, appVer: String, eventLines: List<String>): String =
+/**
+ * Batch body: `{"device":…,"app_ver":…,"debug":…,"events":[…]}` from already-encoded event lines.
+ * [debug] = `BuildConfig.DEBUG`: debug builds run the identical client path, but the server ACKs
+ * and DISCARDS their batches (responding `debug:true`) so test devices never pollute the stats.
+ */
+internal fun trackingBatchBody(device: String, appVer: String, debug: Boolean, eventLines: List<String>): String =
     buildString {
         append("{\"device\":")
         append(JsonPrimitive(device))
         append(",\"app_ver\":")
         append(JsonPrimitive(appVer))
+        append(",\"debug\":")
+        append(debug)
         append(",\"events\":[")
         eventLines.joinTo(this, ",")
         append("]}")
