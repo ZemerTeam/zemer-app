@@ -58,6 +58,8 @@ import com.metrolist.innertube.models.AlbumItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.tracking.TrackingActionKind
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("MutableCollectionMutableState")
@@ -242,6 +244,7 @@ fun YouTubeAlbumMenu(
                         text = stringResource(R.string.share),
                         onClick = {
                             onDismiss()
+                            Tracker.action(TrackingActionKind.SHARE, albumItem.browseId)
                             val intent = Intent().apply {
                                 action = Intent.ACTION_SEND
                                 type = "text/plain"

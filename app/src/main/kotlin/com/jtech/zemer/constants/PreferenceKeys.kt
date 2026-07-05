@@ -375,6 +375,8 @@ enum class SearchSource {
         }
 }
 
+// Anonymous telemetry install id (a random UUID, the ONLY identity the tracking server ever sees).
+val TrackingDeviceIdKey = stringPreferencesKey("trackingDeviceId")
 val VisitorDataKey = stringPreferencesKey("visitorData")
 val DataSyncIdKey = stringPreferencesKey("dataSyncId")
 val AndroidAutoYouTubePlaylistsKey = booleanPreferencesKey("androidAutoYoutubePlaylists")

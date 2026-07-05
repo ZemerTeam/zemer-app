@@ -145,6 +145,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import me.saket.squiggles.SquigglySlider
 import kotlin.math.roundToInt
+import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.tracking.TrackingActionKind
 
 @Suppress("LocalVariableName")
 @SuppressLint("ConfigurationScreenWidthHeight")
@@ -709,6 +711,7 @@ fun BottomSheetPlayer(
                                 .focusable()
                                 .onFocusChanged { shareFocused.value = it.isFocused }
                                 .clickable {
+                                    Tracker.action(TrackingActionKind.SHARE, mediaMetadata.id)
                                     val intent = Intent().apply {
                                         action = Intent.ACTION_SEND
                                         type = "text/plain"
@@ -777,6 +780,7 @@ fun BottomSheetPlayer(
                             .focusable()
                             .onFocusChanged { oldShareFocused.value = it.isFocused }
                             .clickable {
+                                Tracker.action(TrackingActionKind.SHARE, mediaMetadata.id)
                                 val intent =
                                     Intent().apply {
                                         action = Intent.ACTION_SEND

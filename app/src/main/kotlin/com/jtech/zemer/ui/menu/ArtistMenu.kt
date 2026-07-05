@@ -52,6 +52,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.tracking.TrackingActionKind
 
 @Composable
 fun ArtistMenu(
@@ -211,6 +213,7 @@ fun ArtistMenu(
                                 text = stringResource(R.string.share),
                                 onClick = {
                                     onDismiss()
+                                    Tracker.action(TrackingActionKind.SHARE, artist.id)
                                     val intent = Intent().apply {
                                         action = Intent.ACTION_SEND
                                         type = "text/plain"

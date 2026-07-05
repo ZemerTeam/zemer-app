@@ -17,6 +17,8 @@ import com.jtech.zemer.constants.ArtistSongSortType
 import com.jtech.zemer.constants.ArtistSortType
 import com.jtech.zemer.constants.PlaylistSortType
 import com.jtech.zemer.constants.SongSortType
+import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.db.entities.AlbumArtistMap
 import com.jtech.zemer.db.entities.AlbumEntity
@@ -1024,6 +1026,10 @@ interface DatabaseDao {
     fun addSongToPlaylist(playlist: Playlist, songIds: List<String>) {
         var position = playlist.songCount
         songIds.forEach { id ->
+            // Anonymous telemetry (spec §3.5): every user add-to-playlist path converges here
+            // (dialogs, import, Android Auto); playlist SYNC writes PlaylistSongMap directly and
+            // correctly bypasses this.
+            Tracker.action(TrackingActionKind.ADD_PLAYLIST, id)
             insert(
                 PlaylistSongMap(
                     songId = id,

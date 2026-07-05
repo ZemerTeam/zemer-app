@@ -7,6 +7,7 @@ import com.metrolist.innertube.models.WatchEndpoint
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.utils.filterWhitelisted
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.withContext
@@ -16,6 +17,9 @@ class YouTubeAlbumRadio(
     private val database: MusicDatabase,
 ) : Queue {
     override val preloadItem: MediaMetadata? = null
+
+    // The album's tracks are the chosen context; the radio continuation beyond them is "radio".
+    override val playSource: String = PlaySource.album(playlistId)
 
     private val endpoint: WatchEndpoint
         get() = WatchEndpoint(

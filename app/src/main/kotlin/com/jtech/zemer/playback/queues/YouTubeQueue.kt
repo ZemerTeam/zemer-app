@@ -7,6 +7,7 @@ import com.metrolist.innertube.models.WatchEndpoint
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.utils.filterWhitelisted
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.withContext
@@ -15,8 +16,15 @@ class YouTubeQueue(
     private var endpoint: WatchEndpoint,
     override val preloadItem: MediaMetadata? = null,
     private val database: MusicDatabase,
+    override val playSource: String = PlaySource.OTHER,
 ) : Queue {
     private var continuation: String? = null
+
+    // A real playlist endpoint (PL…/OLAK…) makes the initial items user-chosen context; a bare
+    // videoId or a radio watch-playlist (RD…) means everything beyond the tapped song is autoplay
+    // fill, which must report as "radio". Captured at construction — the endpoint mutates later.
+    override val initialItemsAreContext: Boolean =
+        endpoint.playlistId?.startsWith("RD") == false
 
     override suspend fun getInitialStatus(): Queue.Status {
         val nextResult =
@@ -53,6 +61,10 @@ class YouTubeQueue(
     }
 
     companion object {
-        fun radio(song: MediaMetadata, database: MusicDatabase) = YouTubeQueue(WatchEndpoint(song.id), song, database)
+        fun radio(
+            song: MediaMetadata,
+            database: MusicDatabase,
+            playSource: String = PlaySource.OTHER,
+        ) = YouTubeQueue(WatchEndpoint(song.id), song, database, playSource)
     }
 }

@@ -61,6 +61,8 @@ import com.jtech.zemer.ui.component.SongListItem
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.tracking.TrackingActionKind
 
 @SuppressLint("MutableCollectionMutableState")
 @Composable
@@ -258,6 +260,7 @@ fun AlbumMenu(
                         text = stringResource(R.string.share),
                         onClick = {
                             onDismiss()
+                            Tracker.action(TrackingActionKind.SHARE, album.id)
                             val intent = Intent().apply {
                                 action = Intent.ACTION_SEND
                                 type = "text/plain"

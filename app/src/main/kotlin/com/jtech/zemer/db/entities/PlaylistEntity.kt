@@ -5,6 +5,8 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
+import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.tracking.TrackingActionKind
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -50,6 +52,9 @@ data class PlaylistEntity(
     )
 
     fun toggleLike() = localToggleLike().also {
+        // Anonymous telemetry (spec §3.5): every playlist-favorite path converges here. Prefer the
+        // remote id (meaningful server-side) over the local random id for online playlists.
+        Tracker.action(if (bookmarkedAt == null) TrackingActionKind.FAVORITE else TrackingActionKind.UNFAVORITE, browseId ?: id)
         // Anonymous (pooled) sessions are local-only — only a personal account pushes to remote.
         if (isPersonalAccountSignedIn) {
             CoroutineScope(Dispatchers.IO).launch {

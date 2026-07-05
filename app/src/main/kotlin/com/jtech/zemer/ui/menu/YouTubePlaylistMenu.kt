@@ -71,6 +71,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.tracking.TrackingActionKind
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("MutableCollectionMutableState")
@@ -450,6 +452,7 @@ fun YouTubePlaylistMenu(
                             icon = { Icon(painterResource(R.drawable.share), null, Modifier.size(24.dp)) },
                             title = { Text(stringResource(R.string.share)) },
                             onClick = {
+                                Tracker.action(TrackingActionKind.SHARE, playlist.id)
                                 val intent = Intent().apply {
                                     action = Intent.ACTION_SEND
                                     type = "text/plain"

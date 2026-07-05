@@ -23,6 +23,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
+import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
@@ -78,6 +79,17 @@ constructor(
     /** The engine in effect for the current load; updated reactively from the preference. */
     private var provider: SearchProvider = SearchProvider.ZEMER
     private var lastProvider: SearchProvider? = null
+
+    // Telemetry: ONE `search` event per executed query (this ViewModel is created per submitted
+    // query) — the first successful load fires it; chip switches and engine toggles never re-fire.
+    // A zero-result search is the most valuable event and is sent faithfully.
+    private var searchTracked = false
+
+    private fun trackSearchOnce(results: Int) {
+        if (searchTracked) return
+        searchTracked = true
+        Tracker.search(query, results)
+    }
 
     init {
         viewModelScope.launch {
@@ -149,6 +161,7 @@ constructor(
             summaryPage = SearchSummaryPage(
                 summaries = summaries
             )
+            trackSearchOnce(results = summaries.sumOf { it.items.size })
 
             if (summaries.isEmpty()) {
                 summaryError.value = "No results found for \"$query\""
@@ -243,6 +256,7 @@ constructor(
 
         result.onSuccess { itemsPage ->
             viewStateMap[key] = itemsPage
+            trackSearchOnce(results = itemsPage.items.size)
             if (itemsPage.items.isEmpty()) {
                 filterError[key] = "No results found for \"$query\""
             }

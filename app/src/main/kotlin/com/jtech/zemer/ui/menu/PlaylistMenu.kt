@@ -50,6 +50,8 @@ import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.PlaylistListItem
 import kotlinx.coroutines.CoroutineScope
+import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.tracking.TrackingActionKind
 
 @Composable
 fun PlaylistMenu(
@@ -178,6 +180,7 @@ fun PlaylistMenu(
                         },
                         text = stringResource(R.string.share),
                         onClick = {
+                            dbPlaylist?.playlist?.let { Tracker.action(TrackingActionKind.SHARE, it.browseId ?: it.id) }
                             val intent = Intent().apply {
                                 action = Intent.ACTION_SEND
                                 type = "text/plain"

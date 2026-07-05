@@ -117,6 +117,28 @@ full detail in `docs/zemer_playlists/README.md`. The rules that must not regress
 - App↔server field changes travel as request docs in `~/zemer-fix/handoff-docs/`, never as direct
   edits to the zemer-search repo.
 
+### Tracking (anonymous usage telemetry)
+
+Five events (`open`/`search`/`play`/`click`/`action`) POSTed to `tracking.zemer.io`; full detail in
+`docs/tracking/README.md`. The rules that must not regress:
+
+- **Telemetry may never break the app**: every `Tracker` entry point is a fire-and-forget
+  `scope.launch`; failures are silent; the on-disk queue caps at 500 dropping oldest; a 400 drops
+  the batch. It's a JSONL file under `filesDir` — deliberately NOT a Room table.
+- **Identity is one random UUID** (`TrackingDeviceIdKey`) and nothing else — the server 400s
+  non-canonical ids, so only `UUID.randomUUID()` output is ever sent. Never add account/device/
+  location identifiers to an event.
+- **`play` fires for EVERY listen, however short** (`MusicService.onPlaybackStatsReady`), one per
+  listen when it ends; `source` comes from `Queue.playSource` + `Tracker.playSources`
+  (context vs radio-fill vs other) — new queue types/surfaces must declare their source, and radio
+  continuation must keep registering as `radio`.
+- **`action` hooks live at chokepoints** (entity `toggleLike()`s, `DownloadUtil` download entry
+  with `fromUser=false` for machine enqueues, `DatabaseDao.addSongToPlaylist`, share buttons) —
+  don't add per-surface duplicates, and keep machine-initiated work out of the user-intent signal.
+- One `search` event per executed query (the per-query ViewModel guard) — never per keystroke or
+  per chip switch. Everything is tracked (KidZone and the YouTube engine included), no opt-out —
+  a product decision, 2026-07-05.
+
 ### The player background system (one effective style, one extractor)
 
 The full player (`ui/player/Player.kt`) and the mini player (`ui/player/MiniPlayer.kt`) share a

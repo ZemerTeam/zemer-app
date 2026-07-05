@@ -76,6 +76,8 @@ import com.jtech.zemer.viewmodels.CachePlaylistViewModel
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.tracking.TrackingActionKind
 
 @Suppress("unused")
 @Composable
@@ -329,6 +331,7 @@ fun SongMenu(
                         text = stringResource(R.string.share),
                         onClick = {
                             onDismiss()
+                            Tracker.action(TrackingActionKind.SHARE, song.id)
                             val intent = Intent().apply {
                                 action = Intent.ACTION_SEND
                                 type = "text/plain"

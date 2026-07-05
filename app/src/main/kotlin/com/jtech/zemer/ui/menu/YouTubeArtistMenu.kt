@@ -37,6 +37,8 @@ import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.metrolist.innertube.models.ArtistItem
+import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.tracking.TrackingActionKind
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -133,6 +135,7 @@ fun YouTubeArtistMenu(
                             },
                             text = stringResource(R.string.share),
                             onClick = {
+                                Tracker.action(TrackingActionKind.SHARE, artist.id)
                                 val intent = Intent().apply {
                                     action = Intent.ACTION_SEND
                                     type = "text/plain"

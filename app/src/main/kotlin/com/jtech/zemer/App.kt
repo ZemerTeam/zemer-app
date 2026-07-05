@@ -19,6 +19,8 @@ import coil3.request.CachePolicy
 import coil3.request.allowHardware
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
+import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.tracking.TrackingLifecycle
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.YouTubeLocale
 import com.jtech.zemer.constants.*
@@ -95,6 +97,12 @@ class App : Application(), SingletonImageLoader.Factory {
         }
         // Hidden-API exemptions for the Shizuku installer are applied lazily on first use
         // (AppInstaller.ensureHiddenApiBypass) so non-Shizuku users don't pay for it at startup.
+
+        // Anonymous usage telemetry (docs/tracking/README.md): fire-and-forget by contract, so a
+        // failure here can never affect startup. The lifecycle callbacks own the `open` session
+        // semantics and the flush-on-background trigger.
+        Tracker.initialize(this)
+        registerActivityLifecycleCallbacks(TrackingLifecycle())
 
         // Initialize cipher library for WEB_REMIX streaming
         ZemerCipher.initialize(

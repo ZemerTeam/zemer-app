@@ -3,9 +3,24 @@ package com.jtech.zemer.playback.queues
 import androidx.media3.common.MediaItem
 import com.jtech.zemer.extensions.metadata
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.tracking.PlaySource
 
 interface Queue {
     val preloadItem: MediaMetadata?
+
+    /**
+     * Tracking (docs/tracking/README.md): where plays of this queue's user-chosen items report as
+     * starting. Surfaces with a spec taxonomy value (search, album:…, zemer:…) pass it at
+     * construction; everything else defaults to "other".
+     */
+    val playSource: String get() = PlaySource.OTHER
+
+    /**
+     * Tracking: whether [getInitialStatus] items are the user-chosen context (an album/playlist's
+     * tracks) or autoplay fill beyond [preloadItem] (a radio watch playlist) — the latter reports
+     * as "radio".
+     */
+    val initialItemsAreContext: Boolean get() = true
 
     suspend fun getInitialStatus(): Status
 

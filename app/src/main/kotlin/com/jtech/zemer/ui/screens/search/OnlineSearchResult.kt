@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -47,6 +48,8 @@ import com.jtech.zemer.R
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.tracking.PlaySource
+import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.SearchProviderKey
 import com.jtech.zemer.search.SearchProvider
@@ -142,7 +145,37 @@ fun OnlineSearchResult(
         }
     }
 
-    val ytItemContent: @Composable LazyItemScope.(YTItem) -> Unit = { item: YTItem ->
+    // rank = the row's 0-based position within its displayed category (telemetry `click` events).
+    val ytItemContent: @Composable LazyItemScope.(YTItem, Int) -> Unit = { item: YTItem, rank: Int ->
+        // ONE activation path for tap and D-pad select: fires the telemetry click, then the
+        // existing navigation/playback behavior (search-tapped songs play with source "search").
+        val activate = {
+            Tracker.click(viewModel.query, item.id, clickKind(item, searchFilter?.value), rank)
+            when (item) {
+                is SongItem -> {
+                    val isVideoFilter = !blockVideos && searchFilter?.value == FILTER_VIDEO.value
+                    if (isVideoFilter) {
+                        val artistDisplay = item.artists.joinToString(" • ") { it.name }
+                        navController.navigate(videoRoute(item.id, item.title, artistDisplay))
+                    } else if (item.id == mediaMetadata?.id) {
+                        playerConnection.player.togglePlayPause()
+                    } else {
+                        playerConnection.playQueue(
+                            YouTubeQueue(
+                                WatchEndpoint(videoId = item.id),
+                                item.toMediaMetadata(),
+                                database,
+                                playSource = PlaySource.SEARCH,
+                            )
+                        )
+                    }
+                }
+
+                is AlbumItem -> navController.navigate(searchProvider.onlineAlbumRoute(item))
+                is ArtistItem -> navController.navigate("artist/${item.id}")
+                is PlaylistItem -> navController.navigate(searchProvider.onlinePlaylistRoute(item.id))
+            }
+        }
         val longClick = {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             menuState.show {
@@ -205,59 +238,14 @@ fun OnlineSearchResult(
                 .onKeyEvent { event ->
                     when {
                         event.key == Key.Enter || event.key == Key.DirectionCenter -> {
-                            when (item) {
-                                is SongItem -> {
-                                    val isVideoFilter = !blockVideos && searchFilter?.value == FILTER_VIDEO.value
-                                    if (isVideoFilter) {
-                                        val artistDisplay = item.artists.joinToString(" • ") { it.name }
-                                        navController.navigate(videoRoute(item.id, item.title, artistDisplay))
-                                    } else if (item.id == mediaMetadata?.id) {
-                                        playerConnection.player.togglePlayPause()
-                                    } else {
-                                        playerConnection.playQueue(
-                                            YouTubeQueue(
-                                                WatchEndpoint(videoId = item.id),
-                                                item.toMediaMetadata(),
-                                                database
-                                            )
-                                        )
-                                    }
-                                }
-                                is AlbumItem -> navController.navigate(searchProvider.onlineAlbumRoute(item))
-                                is ArtistItem -> navController.navigate("artist/${item.id}")
-                                is PlaylistItem -> navController.navigate(searchProvider.onlinePlaylistRoute(item.id))
-                            }
+                            activate()
                             true
                         }
                         else -> false
                     }
                 }
                 .combinedClickable(
-                    onClick = {
-                        when (item) {
-                            is SongItem -> {
-                                val isVideoFilter = !blockVideos && searchFilter?.value == FILTER_VIDEO.value
-                                if (isVideoFilter) {
-                                    val artistDisplay = item.artists.joinToString(" • ") { it.name }
-                                    navController.navigate(videoRoute(item.id, item.title, artistDisplay))
-                                } else if (item.id == mediaMetadata?.id) {
-                                    playerConnection.player.togglePlayPause()
-                                } else {
-                                    playerConnection.playQueue(
-                                        YouTubeQueue(
-                                            WatchEndpoint(videoId = item.id),
-                                            item.toMediaMetadata(),
-                                            database
-                                        )
-                                    )
-                                }
-                            }
-
-                            is AlbumItem -> navController.navigate(searchProvider.onlineAlbumRoute(item))
-                            is ArtistItem -> navController.navigate("artist/${item.id}")
-                            is PlaylistItem -> navController.navigate(searchProvider.onlinePlaylistRoute(item.id))
-                        }
-                    },
+                    onClick = activate,
                     onLongClick = longClick,
                 )
                 .animateItem(),
@@ -379,11 +367,10 @@ fun OnlineSearchResult(
                                 )
                             }
 
-                            items(
+                            itemsIndexed(
                                 items = summary.items,
-                                key = { "${summary.title}/${it.id}/${summary.items.indexOf(it)}" },
-                                itemContent = ytItemContent,
-                            )
+                                key = { index, it -> "${summary.title}/${it.id}/$index" },
+                            ) { index, it -> ytItemContent(it, index) }
                         }
                     }
                 }
@@ -435,11 +422,10 @@ fun OnlineSearchResult(
                 }
 
                 else -> {
-                    items(
+                    itemsIndexed(
                         items = itemsPage?.items.orEmpty().distinctBy { it.id },
-                        key = { "filtered_${it.id}" },
-                        itemContent = ytItemContent,
-                    )
+                        key = { _, it -> "filtered_${it.id}" },
+                    ) { index, it -> ytItemContent(it, index) }
 
                     if (itemsPage?.continuation != null) {
                         item(key = "loading") {
@@ -454,6 +440,18 @@ fun OnlineSearchResult(
             }
         }
     }
+}
+
+/**
+ * Telemetry `click.kind` (spec §3.4): the tapped item's category as displayed. SongItems on the
+ * Videos chip are videos; PlaylistItems on the Community chip are community playlists — elsewhere
+ * the app can't reliably tell, so the base category is sent.
+ */
+private fun clickKind(item: YTItem, filterValue: String?): String = when (item) {
+    is SongItem -> if (filterValue == FILTER_VIDEO.value) "video" else "song"
+    is AlbumItem -> "album"
+    is ArtistItem -> "artist"
+    is PlaylistItem -> if (filterValue == FILTER_COMMUNITY_PLAYLIST.value) "community" else "playlist"
 }
 
 private fun mapItemToFilter(item: YTItem): com.metrolist.innertube.YouTube.SearchFilter? =
