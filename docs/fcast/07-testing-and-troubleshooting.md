@@ -10,6 +10,7 @@ runtime:
 | --- | --- |
 | `CastPlaybackTest` (11) | `isPlaying`/`isPaused`/`playIntentForState` state mapping; seconds↔ms conversion + round-trip; `steppedVolume` step/clamp math; `shouldStartLocalPlayback` (the async-queue dual-playback guard). |
 | `CastAutoAdvanceTest` (16) | `nearEnd` boundary/zero-duration; `debouncePassed`/`stalled` strict windows; combined idle/stall scenarios; the stale-position-reset regression for the device-switch auto-skip; `endEdgePositionSec` with the exact positions from a captured Chromecast sender log (zero-clock-before-IDLE). |
+| `CastErrorRecoveryTest` (7) | The receiver-playback-error ladder: reload → fresh resolve → advance escalation; the consecutive-abandoned-tracks cap; give-up when the queue can't advance (repeat-one / last track); error-burst dedupe; the progress threshold that resets the counters. |
 | `CastNativeLibLoaderTest` (6) | `cacheIsValid` (exists + SHA match, stale/missing/partial rejection), `pickAbi`, and `downloadProgress` (fraction / null-when-unknown). |
 | `CastConnectTest` (8) | The connect-flow decisions: terminal-result mapping and which results prune the tapped device from the picker (only `Failed`; `NoStream` never proved the device dead). |
 | `CastDeviceCatalogTest` (10) | Rebuilding the picker list from a refresh burst: the FCast instance-name vs. Chromecast TXT-`fn` naming rules that merge refreshed entries onto the SDK's map keys. |
@@ -123,7 +124,8 @@ non-fatals to look for in Crashlytics, and what each means:
 | --- | --- |
 | `FCast SDK call` | Any SDK call threw (`castCall` wraps every one — receivers misbehave; we never crash). |
 | `FCast connect` / `FCast createDeviceFromInfo` | The connect handshake or device construction failed. |
-| `FCast playback error: <msg>` | The receiver itself reported a playback error. |
+| `FCast playback error: <msg>` | The receiver itself reported a playback error. Also triggers the recovery ladder (`CastErrorRecovery`): reload → fresh resolve → advance (capped) instead of leaving the session dead. |
+| `FCast: cast error recovery gave up …` | The ladder exhausted its options (repeated errors across tracks, or repeat-one/last-track with a dead load); the user got a toast. |
 | `FCast: could not resolve a stream URL for <id>` | `CastController` had nothing castable for the current item. |
 | `Cast NSD resolve` / `Cast refresh discovery` | The Android NSD layer threw during re-resolve / the refresh burst. |
 | `FCast lib checksum mismatch` | The downloaded `.so` failed SHA verification (see [02](02-on-demand-native-lib.md)). |
@@ -141,6 +143,7 @@ non-fatals to look for in Crashlytics, and what each means:
 | Track auto-skips right after connecting / switching | Stale `lastRemotePosition` — confirm the `remoteTime` collector records position unconditionally (the `0` reset must clear it). Regression-tested in `CastAutoAdvanceTest`. |
 | Local audio plays on top of the cast | A transport site routing on `connectedDevice != null` instead of `isConnected`/`isCasting`, or a `player.*` call that bypassed the seam. |
 | Double-skip at end of track | Two reload owners or a broken debounce — only `PlayerConnection` may reload; `advanceRemoteAfterEnd` must stamp `lastTransitionTime`. |
+| Receiver errors `Not authorized to access resource.` (instant) or `Could not read from resource.` (mid-track) | GStreamer-speak for **googlevideo refusing the receiver's HTTP fetch** (403) — the stream URL is network-identity-bound and the *receiver* fetches it from its own address. Measured on T-Mobile home internet (2026-07): every IPv4/CGNAT fetch is 403 (CGNAT egress IP is per-flow, the binding never matches) while any IPv6 fetch in the home /64 succeeds — so the receiver's per-connection IPv4-vs-IPv6 pick makes it intermittent: an unlucky first connection dies instantly, an unlucky buffer-refill reconnect dies minutes in. It looks exactly like "auto-advance broke" but the advance logic is fine. The recovery ladder (`CastErrorRecovery`) now reloads / re-resolves / advances instead of dying silently; the root fix (receiver fetches via a relay on the phone) is future work. Diagnose with the `tests/` harness: mint a URL and `curl` it with `-4` vs `-6`. |
 
 ## When you bump the FCast SDK version
 

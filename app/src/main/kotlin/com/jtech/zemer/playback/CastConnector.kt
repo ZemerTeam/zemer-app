@@ -68,6 +68,9 @@ class CastConnector(private val service: MusicService) {
             // Captures the (process-scoped) controller, so the SDK's end-of-track callback keeps
             // auto-advancing even if the UI Activity is later destroyed.
             onTrackEnded = { service.castController.advanceRemoteAfterEnd() },
+            // Receiver fetch failures (e.g. googlevideo 403ing the receiver's connection) escalate
+            // through the recovery ladder instead of silently killing the session.
+            onPlaybackError = { message -> service.castController.onRemotePlaybackError(message) },
         )
         if (!issued) return CastConnectResult.Failed(device.name)
         // Record what the receiver will be playing so the first PLAYLIST_CHANGED doesn't reload it.

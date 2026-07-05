@@ -39,7 +39,8 @@ fun MediaMetadata.toCastMetadata(): Metadata =
 class DevEventHandler(
     private val handler: FCastDiscoveryHandler,
     val device: CastingDevice,
-    private val onTrackEnded: (() -> Unit)? = null
+    private val onTrackEnded: (() -> Unit)? = null,
+    private val onPlaybackError: ((String) -> Unit)? = null,
 ) : DeviceEventHandler {
     private var wasConnected = false
 
@@ -108,6 +109,10 @@ class DevEventHandler(
     }
     override fun playbackError(message: String) {
         reportException(IllegalStateException("FCast playback error: $message"))
+        // Same stale-device guard as the other callbacks: an error from a replaced device must not
+        // trigger recovery against the new connection's load.
+        if (handler.connectedDevice !== device) return
+        onPlaybackError?.invoke(message)
     }
 }
 
@@ -193,7 +198,8 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         contentType: String? = null,
         metadata: Metadata? = null,
         resumePosition: Double = 0.0,
-        onTrackEnded: (() -> Unit)? = null
+        onTrackEnded: (() -> Unit)? = null,
+        onPlaybackError: ((String) -> Unit)? = null,
     ): Boolean {
         castCall { connectedDevice?.disconnect() }
 
@@ -223,7 +229,7 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         }
         connectedDevice = newDevice
         remoteConnectionState.value = DeviceConnectionState.Connecting
-        val issued = runCatching { newDevice.connect(null, DevEventHandler(this, newDevice, onTrackEnded), 1000u) }
+        val issued = runCatching { newDevice.connect(null, DevEventHandler(this, newDevice, onTrackEnded, onPlaybackError), 1000u) }
             .onFailure { reportException(it, "FCast connect") }
             .isSuccess
         if (!issued) onConnectionDisconnected()

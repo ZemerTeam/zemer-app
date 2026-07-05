@@ -1314,6 +1314,15 @@ class MusicService :
         }
     }
 
+    /**
+     * Drops the cached stream URL + MIME for [mediaId] so the next [resolveStreamUrl] fetches a fresh
+     * one — used by the cast error recovery when the receiver repeatedly fails to fetch the cached URL.
+     */
+    fun invalidateStreamCache(mediaId: String) {
+        songUrlCache.remove(mediaId)
+        songMimeCache.remove(mediaId)
+    }
+
     override fun onMediaItemTransition(
         mediaItem: MediaItem?,
         reason: Int,

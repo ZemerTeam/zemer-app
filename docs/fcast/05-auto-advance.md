@@ -137,6 +137,34 @@ position/duration — a full progress bar that then drops to 0. And
 `interpolatedRemoteTimeSec()` returns the raw value (no extrapolation) until a real
 duration arrives, so the bar doesn't creep up from 0 on the just-loaded track.
 
+## Errors are not ends: the receiver-error recovery ladder
+
+The three detectors deliberately advance only *near the end* — a mid-track stop or error must
+never skip a track the user is listening to. That leaves a gap: when the **receiver's own fetch
+of the stream URL fails** (googlevideo refuses its connection — see the symptom table in
+[07](07-testing-and-troubleshooting.md)), the track dies at an arbitrary position and no end
+detector can ever fire. Historically the error was swallowed (report-only) and the session sat
+silent — indistinguishable from auto-advance breaking.
+
+`DevEventHandler.playbackError` now drives `CastController.onRemotePlaybackError`, which
+escalates per the pure, unit-tested `CastErrorRecovery` ladder:
+
+1. **RELOAD** — re-send the URL the receiver already had, resuming from `lastProgressSec`
+   (a fresh receiver connection re-rolls its network path; a track that died minutes in
+   picks up where it stopped, not from 0).
+2. **RESOLVE_FRESH** — drop the cached URL (`MusicService.invalidateStreamCache`), re-resolve,
+   reload (still resuming).
+3. **ADVANCE** — abandon the track and let the queue continue, **capped** at
+   `MAX_CONSECUTIVE_ERROR_ADVANCES` consecutively abandoned tracks so a dead network can't
+   machine-gun the whole queue. With repeat-one or no next item there is nowhere to go, so the
+   ladder **gives up** instead (a toast + non-fatal; never an endless replay loop).
+
+Bookkeeping that keeps the ladder honest: error callbacks within `ERROR_BURST_WINDOW_MS` count
+as one failure (a broken pipeline can emit several); each media-item transition resets the
+per-track attempt count (every track gets a fresh ladder) but **not** the abandoned-tracks
+streak; real playback progress (`PROGRESS_RESET_SEC` of remote clock) resets both; and
+connect/disconnect reset everything.
+
 ## Advance survives the Activity being destroyed
 
 All three detectors and the reload live in `CastController`, owned by the

@@ -589,6 +589,7 @@
     <string name="cast_download_failed">Couldn\'t download cast support</string>
     <string name="cast_stream_failed">Couldn\'t start casting — no playable stream</string>
     <string name="cast_unsupported_device">Casting isn\'t supported on this device</string>
+    <string name="cast_playback_failed">Cast playback keeps failing — check the receiver\'s connection</string>
     <string name="cast_download_title">Download cast support?</string>
     <string name="cast_downloading_support">Downloading cast support…</string>
     <string name="cast_downloading_support_percent">Downloading cast support… %1$d%%</string>
