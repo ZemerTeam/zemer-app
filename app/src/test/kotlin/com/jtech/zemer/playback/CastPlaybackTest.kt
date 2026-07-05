@@ -79,4 +79,30 @@ class CastPlaybackTest {
         assertTrue(CastPlayback.shouldStartLocalPlayback(playWhenReady = true, isCasting = false))
         assertFalse(CastPlayback.shouldStartLocalPlayback(playWhenReady = false, isCasting = false))
     }
+
+    @Test
+    fun `steppedVolume clamps at the floor`() {
+        // A press down near 0 must not go negative — repeated presses at the bottom are no-ops.
+        assertEquals(0.0, CastPlayback.steppedVolume(current = 0.03, direction = -1), 1e-9)
+    }
+
+    @Test
+    fun `steppedVolume clamps at the ceiling`() {
+        // A press up near 1.0 must not exceed full volume.
+        assertEquals(1.0, CastPlayback.steppedVolume(current = 0.98, direction = 1), 1e-9)
+    }
+
+    @Test
+    fun `steppedVolume steps up and down by VOLUME_STEP from mid-range`() {
+        assertEquals(
+            0.5 + CastPlayback.VOLUME_STEP,
+            CastPlayback.steppedVolume(current = 0.5, direction = 1),
+            1e-9
+        )
+        assertEquals(
+            0.5 - CastPlayback.VOLUME_STEP,
+            CastPlayback.steppedVolume(current = 0.5, direction = -1),
+            1e-9
+        )
+    }
 }

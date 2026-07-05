@@ -193,6 +193,8 @@ import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.SearchHistory
 import com.jtech.zemer.models.DpadDirection
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.playback.CastVolumeKeyAction
+import com.jtech.zemer.playback.CastVolumeKeys
 import com.jtech.zemer.playback.DownloadUtil
 import com.jtech.zemer.playback.MusicService
 import com.jtech.zemer.playback.MusicService.MusicBinder
@@ -2159,6 +2161,26 @@ class MainActivity : ComponentActivity() {
 
     private fun isProtectedKey(keyCode: Int): Boolean {
         return keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_POWER
+    }
+
+    // Routes hardware volume keys to the cast receiver's volume while FCast/Chromecast is connected —
+    // see CastVolumeKeys.decide for why ACTION_UP is consumed rather than ignored. Independent of the
+    // D-pad remapping above; does not touch handleAccessibilityKey/handleMappedKeyEvent.
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val handler = playerConnection?.service?.discoveryHandler
+        when (CastVolumeKeys.decide(event.keyCode, event.action, handler?.isConnected == true)) {
+            CastVolumeKeyAction.AdjustUp -> {
+                handler?.adjustVolume(+1)
+                return true
+            }
+            CastVolumeKeyAction.AdjustDown -> {
+                handler?.adjustVolume(-1)
+                return true
+            }
+            CastVolumeKeyAction.Consume -> return true
+            CastVolumeKeyAction.Ignore -> {}
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {

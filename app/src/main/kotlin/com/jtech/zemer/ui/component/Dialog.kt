@@ -73,7 +73,9 @@ fun DefaultDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier
+                .then(castVolumeKeyModifier(seedFocus = false))
+                .padding(24.dp),
             shape = AlertDialogDefaults.shape,
             color = dialogContainerColor(),
             tonalElevation = AlertDialogDefaults.TonalElevation
@@ -160,7 +162,9 @@ fun ActionPromptDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier
+                .then(castVolumeKeyModifier(seedFocus = false))
+                .padding(24.dp),
             shape = AlertDialogDefaults.shape,
             color = dialogContainerColor(),
             tonalElevation = AlertDialogDefaults.TonalElevation,
@@ -231,7 +235,9 @@ fun ListDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier
+                .then(castVolumeKeyModifier(seedFocus = false))
+                .padding(24.dp),
             shape = AlertDialogDefaults.shape,
             color = dialogContainerColor(),
             tonalElevation = AlertDialogDefaults.TonalElevation,

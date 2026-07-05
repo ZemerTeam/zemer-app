@@ -38,7 +38,9 @@ for us) is detected by `PlayerConnection` and pushed back to the handler.
 | `playback/FCastDiscoveryHandler.kt` | SDK boundary | The singleton that owns discovery, connection, load, transport, and the remote-state `StateFlow`s. Also `DevEventHandler` (the SDK callback sink) and the pure helpers `castCall`, `urlLoadRequest`, `MediaMetadata.toCastMetadata()`. |
 | `playback/CastNativeLibLoader.kt` | SDK boundary | Downloads + verifies the FCast native `.so` on demand and points uniffi/JNA at it. Pure metadata in `CastNativeLib`. |
 | `playback/CastAwarePlayer.kt` | session seam | `ForwardingPlayer` wrapping ExoPlayer for the `MediaLibrarySession`: routes transport + the notification scrubber clock to the receiver while casting, forwards everything else. |
-| `playback/CastPlayback.kt` | pure logic | Remote `PlaybackState` → play/pause intent, and seconds↔milliseconds clock conversion. Unit-tested. |
+| `playback/CastPlayback.kt` | pure logic | Remote `PlaybackState` → play/pause intent, seconds↔milliseconds clock conversion, and the `steppedVolume`/`VOLUME_STEP` volume math. Unit-tested. |
+| `playback/CastVolumeKeys.kt` | pure logic | `CastVolumeKeys.decide(keyCode, action, isCasting)` → `AdjustUp/AdjustDown/Consume/Ignore` — the app-scoped hardware-volume-key routing rule. Unit-tested. |
+| `ui/component/CastVolumeKeyHandler.kt` | UI | `castVolumeKeyModifier()` — routes volume keys to the receiver inside overlay windows (menus/dialogs) via Compose `onPreviewKeyEvent`, since those windows bypass `MainActivity.dispatchKeyEvent` and the platform `OnUnhandledKeyEventListener` is API 28+. |
 | `playback/CastAutoAdvance.kt` | pure logic | End-of-track thresholds + the `nearEnd`/`stalled`/`debouncePassed` decisions. Unit-tested. |
 | `playback/PlayerConnection.kt` (cast parts) | UI seam | `isCasting`, cast-aware `playPause`/`seekTo`/`currentPositionMs`, the three end-of-track detectors, `triggerRemoteLoad`, the reload de-dup, and disconnect → resume-local. |
 | `playback/MusicService.kt` (cast parts) | host | Owns the handler + lib loader, `startDiscovery`/`downloadCastLib`, `resolveStreamUrl`/`streamContentType`, and the widget transport branches. Wraps the player in `CastAwarePlayer`. |
@@ -52,7 +54,7 @@ for us) is detected by `PlayerConnection` and pushed back to the handler.
 1. [01-architecture.md](01-architecture.md) — the layering, the seam approach, who owns what, lifecycles.
 2. [02-on-demand-native-lib.md](02-on-demand-native-lib.md) — why the `.so` isn't bundled, how it's fetched/verified/loaded.
 3. [03-discovery-and-connection.md](03-discovery-and-connection.md) — NSD discovery, connect/load, the SDK callback handler, the state flows, threading.
-4. [04-playback-and-transport.md](04-playback-and-transport.md) — the three seams, the unified `isConnected` predicate, play-intent, the reload de-dup.
+4. [04-playback-and-transport.md](04-playback-and-transport.md) — the three seams, the unified `isConnected` predicate, play-intent, volume control, the reload de-dup.
 5. [05-auto-advance.md](05-auto-advance.md) — the three end-of-track detectors and their thresholds.
 6. [06-ui.md](06-ui.md) — the picker, dialog, buttons, settings, shared components, drawables, strings.
 7. [07-testing-and-troubleshooting.md](07-testing-and-troubleshooting.md) — what's unit-tested, what needs Robolectric, manual checks, known limitations.

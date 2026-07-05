@@ -107,6 +107,58 @@ the connect window the notification/widget would route to a not-yet-ready device
 while the in-app UI still drove the local player — a split-brain where a press
 goes to the wrong target. Unifying on `Connected` removes that class of bug.
 
+## Volume control
+
+While casting, the phone's volume becomes a remote for the **receiver's** volume.
+`CastingDevice.changeVolume(Double)` (0.0–1.0) drives it, and because Chromecast is
+just another FCast `ProtocolType`, one call covers **both** protocols. The handler
+holds the tracked receiver volume as the single source of truth:
+
+```kotlin
+val remoteVolume = MutableStateFlow(1.0)                 // source of truth the UI observes
+override fun volumeChanged(volume: Double) {             // receiver's own reports (e.g. TV remote)
+    handler.remoteVolume.value = volume.coerceIn(0.0, 1.0)
+}
+fun setVolume(v: Double)      { remoteVolume.value = v.coerceIn(0.0,1.0); castCall { connectedDevice?.changeVolume(v) } }
+fun adjustVolume(dir: Int)    { setVolume(CastPlayback.steppedVolume(remoteVolume.value, dir)) }  // dir = +1 / -1
+```
+
+`CastPlayback.steppedVolume(current, dir, step = VOLUME_STEP)` is the pure,
+unit-tested step math (`VOLUME_STEP = 1/15`, matching Android's default music
+granularity), clamped to `[0,1]`. `remoteVolume` is reset to `1.0` on `connectTo`
+and re-synced by the receiver's first `volumeChanged`. Three inputs feed the one
+flow, so they can never disagree:
+
+1. **The player-menu slider** (`PlayerMenu` `BigSeekBar`) is cast-aware: while
+   `isCasting` it reads `remoteVolume` and writes `setVolume`, otherwise it drives
+   the local ExoPlayer gain (`MusicService.playerVolume`) as before.
+2. **Hardware volume buttons**, decided by the pure `CastVolumeKeys.decide(keyCode,
+   action, isCasting)` → `AdjustUp / AdjustDown / Consume / Ignore`. `Ignore` (not
+   casting, or a non-volume key) lets the OS handle it — so **volume stays app-scoped:
+   in another app the buttons control that app's local audio**, never the receiver.
+   Casting `ACTION_UP` is `Consume`d so the system volume UI doesn't flash.
+3. The **receiver itself** (its own remote) via `volumeChanged`, which moves the
+   slider.
+
+The key-button path is app-scoped by design — a MediaSession remote
+`VolumeProvider` is deliberately **not** used, as it could hijack volume even while
+the user is in another app. That means it has to be wired into every window the app
+can present:
+
+- **The Activity window** — `MainActivity.dispatchKeyEvent` delegates to
+  `CastVolumeKeys.decide` and calls `adjustVolume`.
+- **Overlay windows** (Compose `ModalBottomSheet` menus, `Dialog`s) live in their
+  **own** window and never route key events to the Activity, so `dispatchKeyEvent`
+  can't reach them. `castVolumeKeyModifier()` (in `ui/component`) handles those via
+  Compose's focus-based `onPreviewKeyEvent`, applied to the overlay's **content
+  root** (an ancestor of the menu/dialog items, so it keeps catching keys after
+  D-pad focus moves to a child). It reuses the same `CastVolumeKeys.decide` rule.
+  Compose's pipeline is used rather than the platform `OnUnhandledKeyEventListener`
+  because that API is **28+** and the app supports `minSdk 26` (the G1 test device
+  is API 27, where the listener never fires). The 3-dot menu seeds focus so keys
+  flow immediately; dialogs pass `seedFocus = false` so a text field keeps its own
+  auto-focus.
+
 ## Play intent (`shouldPlay`)
 
 `shouldPlay` (a `@Volatile` on the handler) records *what the user wants*, so a

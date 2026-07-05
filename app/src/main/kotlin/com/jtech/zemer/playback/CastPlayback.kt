@@ -48,4 +48,15 @@ object CastPlayback {
      */
     fun shouldStartLocalPlayback(playWhenReady: Boolean, isCasting: Boolean): Boolean =
         playWhenReady && !isCasting
+
+    /** Fraction of full [0.0, 1.0] volume a single hardware-key press adjusts by. */
+    const val VOLUME_STEP = 1.0 / 15
+
+    /**
+     * The receiver volume [current] would move to after one press in [direction] (+1 up / -1 down),
+     * clamped to the device's valid range so repeated presses at either end are no-ops instead of
+     * drifting out of bounds.
+     */
+    fun steppedVolume(current: Double, direction: Int, step: Double = VOLUME_STEP): Double =
+        (current + direction * step).coerceIn(0.0, 1.0)
 }

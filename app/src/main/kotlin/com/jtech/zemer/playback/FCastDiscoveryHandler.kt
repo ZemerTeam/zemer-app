@@ -92,7 +92,9 @@ class DevEventHandler(
         handler.remoteTime.value = time
         handler.remoteTimeUpdatedAt = System.currentTimeMillis()
     }
-    override fun volumeChanged(volume: Double) {}
+    override fun volumeChanged(volume: Double) {
+        handler.remoteVolume.value = volume.coerceIn(0.0, 1.0)
+    }
     override fun durationChanged(duration: Double) { handler.remoteDuration.value = duration }
     override fun speedChanged(speed: Double) {}
     override fun sourceChanged(source: Source) {}
@@ -138,6 +140,11 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     val remoteTime = MutableStateFlow(0.0)
     val remoteDuration = MutableStateFlow(0.0)
     val remoteConnectionState = MutableStateFlow<DeviceConnectionState>(DeviceConnectionState.Disconnected)
+
+    // Tracked receiver volume (0.0-1.0) — the source of truth the player-menu slider observes while
+    // casting. Seeded at full volume; the receiver's first volumeChanged report corrects it to
+    // whatever it's actually set to.
+    val remoteVolume = MutableStateFlow(1.0)
 
     // Wall-clock ms when the receiver last reported its position (timeChanged). FCast receivers report the
     // clock coarsely (~1 Hz, and sometimes stop a few seconds before the end), so interpolatedRemoteTimeSec()
@@ -198,6 +205,7 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         remoteDuration.value = 0.0
         remoteTimeUpdatedAt = System.currentTimeMillis()
         lastProgressSec = resumePosition
+        remoteVolume.value = 1.0
 
         // Assign the @Volatile field synchronously (before the old device's async Disconnected lands) so
         // the connectionStateChanged guard recognises it; connectedDeviceFlow publishes only from
@@ -268,6 +276,22 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
 
     fun seek(position: Double) {
         castCall { connectedDevice?.seek(position) }
+    }
+
+    /**
+     * Sets the receiver's volume, clamped to [0.0, 1.0]. Updates [remoteVolume] immediately (rather
+     * than waiting on the receiver's own volumeChanged echo) so the player-menu slider tracks the
+     * drag without a round-trip lag.
+     */
+    fun setVolume(volume: Double) {
+        val v = volume.coerceIn(0.0, 1.0)
+        remoteVolume.value = v
+        castCall { connectedDevice?.changeVolume(v) }
+    }
+
+    /** Steps the receiver's volume by one hardware-key press in [direction] (+1 up / -1 down). */
+    fun adjustVolume(direction: Int) {
+        setVolume(CastPlayback.steppedVolume(remoteVolume.value, direction))
     }
 
     // deviceAvailable and deviceChanged both upsert the device and republish the list (under devicesLock —

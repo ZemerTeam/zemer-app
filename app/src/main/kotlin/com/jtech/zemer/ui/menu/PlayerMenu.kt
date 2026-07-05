@@ -87,6 +87,8 @@ fun PlayerMenu(
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val playerVolume = playerConnection.service.playerVolume.collectAsState()
+    val isCasting by playerConnection.isCasting.collectAsState()
+    val remoteVolume by playerConnection.service.discoveryHandler.remoteVolume.collectAsState()
     val activityResultLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
     val coroutineScope = rememberCoroutineScope()
@@ -184,8 +186,11 @@ fun PlayerMenu(
             )
 
             BigSeekBar(
-                progressProvider = playerVolume::value,
-                onProgressChange = { playerConnection.service.playerVolume.value = it },
+                progressProvider = { if (isCasting) remoteVolume.toFloat() else playerVolume.value },
+                onProgressChange = {
+                    if (isCasting) playerConnection.service.discoveryHandler.setVolume(it.toDouble())
+                    else playerConnection.service.playerVolume.value = it
+                },
                 modifier = Modifier
                     .weight(1f)
                     .height(36.dp), // Reduced height from default (assumed ~48.dp) to 36.dp
