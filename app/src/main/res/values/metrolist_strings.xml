@@ -355,6 +355,9 @@
 
     <!-- Onboarding privacy policy (supersedes onboarding_privacy_body: discloses Crashlytics) -->
     <string name="onboarding_privacy_body_crash_reporting">Preferences and logins stay on your device, and network calls only fetch what you choose to play. We don\'t collect personal data or usage analytics, and nothing is sold or shared for marketing.\n\nTo keep the app working, automatic crash and error reports are sent to Google Firebase Crashlytics. These reports contain device information (such as model and Android version) and recent technical logs from the app, and are used only to diagnose and fix problems.</string>
+    <!-- Onboarding privacy policy (supersedes onboarding_privacy_body_crash_reporting: additionally
+         discloses the anonymous usage telemetry, per the tracking spec §7 — see docs/tracking/README.md) -->
+    <string name="onboarding_privacy_body_telemetry">Preferences and logins stay on your device, and nothing is ever sold or shared for marketing.\n\nTo improve search and build Zemer\'s own recommendations, the app sends anonymous usage data to Zemer\'s server: a random install identifier, the app version, search terms, plays (which track, how many seconds were listened, and which screen started it), search-result taps, and library actions such as favorites, downloads, playlist additions and shares, with their timestamps. This data is not linked to any account or person — no names, emails, contacts, location, or advertising identifiers are collected, and the server does not store IP addresses.\n\nTo keep the app working, automatic crash and error reports are sent to Google Firebase Crashlytics. These reports contain device information (such as model and Android version) and recent technical logs from the app, and are used only to diagnose and fix problems.</string>
 
     <!-- Logout confirmation -->
     <string name="logout_keep_library_title">Keep library data?</string>

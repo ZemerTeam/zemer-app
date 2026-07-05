@@ -449,7 +449,9 @@ private fun WelcomeScreen(
                     if (kind == LegalKind.TOS) R.string.onboarding_tos_title else R.string.onboarding_privacy_title
                 ),
                 body = stringResource(
-                    if (kind == LegalKind.TOS) R.string.onboarding_tos_body else R.string.onboarding_privacy_body_crash_reporting
+                    // The telemetry variant additionally discloses the anonymous usage tracking —
+                    // the older strings falsely claim "no usage analytics" once feat/track ships.
+                    if (kind == LegalKind.TOS) R.string.onboarding_tos_body else R.string.onboarding_privacy_body_telemetry
                 ),
                 onDismiss = { legal = null }
             )
