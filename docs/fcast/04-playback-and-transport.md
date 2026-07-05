@@ -115,19 +115,27 @@ just another FCast `ProtocolType`, one call covers **both** protocols. The handl
 holds the tracked receiver volume as the single source of truth:
 
 ```kotlin
-val remoteVolume = MutableStateFlow(1.0)                 // source of truth the UI observes
-override fun volumeChanged(volume: Double) {             // receiver's own reports (e.g. TV remote)
-    handler.remoteVolume.value = volume.coerceIn(0.0, 1.0)
+val volumeTracker = RemoteVolumeTracker()            // volume: StateFlow the UI observes + the known flag
+override fun volumeChanged(volume: Double) {         // receiver's own reports (e.g. TV remote)
+    if (handler.connectedDevice !== device) return   // stale-device guard, as in connectionStateChanged
+    handler.volumeTracker.onReceiverReport(volume)   // coerces to [0,1], marks the level known
 }
-fun setVolume(v: Double)      { remoteVolume.value = v.coerceIn(0.0,1.0); castCall { connectedDevice?.changeVolume(v) } }
-fun adjustVolume(dir: Int)    { setVolume(CastPlayback.steppedVolume(remoteVolume.value, dir)) }  // dir = +1 / -1
+fun setVolume(volume: Double)    { castCall { connectedDevice?.changeVolume(volumeTracker.setAbsolute(volume)) } }
+fun adjustVolume(direction: Int) { val v = volumeTracker.step(direction) ?: return
+                                   castCall { connectedDevice?.changeVolume(v) } }   // direction = +1 / -1
 ```
 
 `CastPlayback.steppedVolume(current, dir, step = VOLUME_STEP)` is the pure,
 unit-tested step math (`VOLUME_STEP = 1/15`, matching Android's default music
-granularity), clamped to `[0,1]`. `remoteVolume` is reset to `1.0` on `connectTo`
-and re-synced by the receiver's first `volumeChanged`. Three inputs feed the one
-flow, so they can never disagree:
+granularity), clamped to `[0,1]`. The tracked value starts as (and is reset on
+`connectTo` to) a `1.0` **placeholder**; the receiver's real level is *unknown*
+until its first `volumeChanged` report or an absolute slider set. Until then,
+`RemoteVolumeTracker.step` refuses relative hardware-key steps (`null` — the key is
+still consumed, the receiver untouched): stepping the placeholder would **set** a
+receiver that never reported — say a TV sitting at 20% — to ~93% on the first
+volume-*down* press. The slider (an absolute set) works immediately and also
+unlocks stepping; the rule is pinned by `RemoteVolumeTrackerTest`. Three inputs
+feed the one flow, so they can never disagree:
 
 1. **The player-menu slider** (`PlayerMenu` `BigSeekBar`) is cast-aware: while
    `isCasting` it reads `remoteVolume` and writes `setVolume`, otherwise it drives
@@ -155,9 +163,14 @@ can present:
   D-pad focus moves to a child). It reuses the same `CastVolumeKeys.decide` rule.
   Compose's pipeline is used rather than the platform `OnUnhandledKeyEventListener`
   because that API is **28+** and the app supports `minSdk 26` (the G1 test device
-  is API 27, where the listener never fires). The 3-dot menu seeds focus so keys
-  flow immediately; dialogs pass `seedFocus = false` so a text field keeps its own
-  auto-focus.
+  is API 27, where the listener never fires). Menus and dialogs without their own
+  auto-focus (the 3-dot menu, the share-intent song dialog, `AccountSettingsDialog`)
+  seed focus so keys flow immediately even in touch mode; the `Dialog.kt` dialogs
+  pass `seedFocus = false` so a text field keeps its own auto-focus — which means
+  keys route there only while *something* inside is focused (see the known
+  limitation in [07](07-testing-and-troubleshooting.md)). Any **new** dialog/sheet
+  window must apply `castVolumeKeyModifier()` too, or volume keys inside it fall
+  through to the system volume while casting.
 
 ## Play intent (`shouldPlay`)
 

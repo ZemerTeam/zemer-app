@@ -210,6 +210,7 @@ import com.jtech.zemer.ui.component.RecognizeMusicFab
 import com.jtech.zemer.ui.screens.recognition.RecognizeMusicDialogActivity
 import com.jtech.zemer.ui.component.SearchProviderToggle
 import com.jtech.zemer.ui.component.TopSearch
+import com.jtech.zemer.ui.component.castVolumeKeyModifier
 import com.jtech.zemer.constants.SearchProviderKey
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.ui.component.rememberBottomSheetState
@@ -1965,7 +1966,11 @@ class MainActivity : ComponentActivity() {
                                     properties = DialogProperties(usePlatformDefaultWidth = false),
                                 ) {
                                     Surface(
-                                        modifier = Modifier.padding(24.dp),
+                                        // A dialog is its own window: volume keys while casting need the
+                                        // overlay handler, same as the Dialog.kt dialogs.
+                                        modifier = Modifier
+                                            .then(castVolumeKeyModifier())
+                                            .padding(24.dp),
                                         shape = RoundedCornerShape(16.dp),
                                         color = AlertDialogDefaults.containerColor,
                                         tonalElevation = AlertDialogDefaults.TonalElevation,

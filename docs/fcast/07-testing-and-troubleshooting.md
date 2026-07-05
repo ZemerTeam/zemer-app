@@ -8,9 +8,11 @@ runtime:
 
 | Test | Covers |
 | --- | --- |
-| `CastPlaybackTest` (6) | `isPlaying`/`isPaused`/`playIntentForState` state mapping; seconds↔ms conversion + round-trip. |
+| `CastPlaybackTest` (9) | `isPlaying`/`isPaused`/`playIntentForState` state mapping; seconds↔ms conversion + round-trip; `steppedVolume` step/clamp math. |
 | `CastAutoAdvanceTest` (9) | `nearEnd` boundary/zero-duration; `debouncePassed`/`stalled` strict windows; combined idle/stall scenarios; the stale-position-reset regression for the device-switch auto-skip. |
 | `CastNativeLibLoaderTest` (5) | `cacheIsValid` (exists + SHA match, stale/missing/partial rejection) and `pickAbi`. |
+| `CastVolumeKeysTest` (5) | The hardware-volume-key routing rule (`decide`): app-scoped Ignore when not casting / non-volume key; Adjust on ACTION_DOWN; ACTION_UP consumed so the system volume UI doesn't flash. |
+| `RemoteVolumeTrackerTest` (5) | The unknown-until-reported stepping rule: steps refused (and the placeholder undisturbed) until the receiver reports or the slider sets; clamping; reset on a fresh connection. |
 
 Run them:
 
@@ -62,6 +64,12 @@ Wi-Fi. The high-value paths:
    not spuriously auto-skipped.
 10. **Disconnect** — "Stop casting" (and: device drops off Wi-Fi) → local resumes
     at the last remote position, **paused**.
+11. **Volume** — while casting: hardware buttons and the 3-dot slider move the
+    **receiver's** volume; a volume change from the TV's own remote moves the
+    slider; in another app the buttons stay local. Do this on **both** an FCast
+    receiver and a Chromecast — if the receiver never sends a `volumeChanged`
+    report, button steps stay inert until the slider is used once (by design, see
+    below), and that's worth knowing per receiver type.
 
 ## Known limitations (by design)
 
@@ -69,6 +77,16 @@ Wi-Fi. The high-value paths:
   stop API) — it runs from first `startDiscovery()` until the process dies.
 - **ABI** — only `arm64-v8a` / `armeabi-v7a`; other devices report
   `Failed(UNSUPPORTED_DEVICE)`.
+- **Volume buttons are inert until the receiver's level is known** (its first
+  `volumeChanged` report, or one slider set). The SDK has no volume *getter*, so
+  stepping before that would act on a `1.0` placeholder and could set a quiet
+  receiver to near-max on the first press (`RemoteVolumeTracker`).
+- **Touch-mode dialogs without focused content don't route volume keys.** The
+  `Dialog.kt` dialogs use `seedFocus = false` (so text fields keep their
+  auto-focus); Compose's key pipeline needs *a* focused node, so with nothing
+  focused (touch mode, no text field) volume keys fall through to the system
+  volume while such a dialog is open. D-pad use always focuses something, so the
+  G1 is unaffected.
 
 ## Troubleshooting
 

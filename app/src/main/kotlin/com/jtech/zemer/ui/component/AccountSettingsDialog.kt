@@ -47,7 +47,10 @@ fun AccountSettingsDialog(
             contentAlignment = Alignment.TopCenter
         ) {
             Surface(
+                // A dialog is its own window: volume keys while casting need the overlay handler,
+                // same as the Dialog.kt dialogs.
                 modifier = Modifier
+                    .then(castVolumeKeyModifier())
                     .fillMaxWidth()
                     .padding(top = 72.dp, start = 16.dp, end = 16.dp)
                     .clip(RoundedCornerShape(28.dp)),
