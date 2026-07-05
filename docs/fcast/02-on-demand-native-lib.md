@@ -74,8 +74,11 @@ that ordering:
 
 ## The download + verify state machine
 
-`CastLibState` is a sealed interface: `Idle` → `Downloading` → `Ready`, or
-`Failed(reason)` where `reason` is `UNSUPPORTED_DEVICE` or `DOWNLOAD_FAILED`.
+`CastLibState` is a sealed interface: `Idle` → `Downloading(progress)` → `Ready`,
+or `Failed(reason)` where `reason` is `UNSUPPORTED_DEVICE` or `DOWNLOAD_FAILED`.
+`Downloading.progress` is the 0..1 downloaded fraction driving the dialog's
+progress bar — or `null` (an indeterminate bar) when the server sent no usable
+`Content-Length` (`CastNativeLib.downloadProgress`, pure + unit-tested).
 The flow is exposed as `MusicService.castLibState` for the UI.
 
 `CastNativeLibLoader.ensure()` (blocking I/O, call off-main):
@@ -84,7 +87,8 @@ The flow is exposed as `MusicService.castLibState` for the UI.
 2. Otherwise delete any stale/partial copy, `pickAbi()` (→ `Failed` if none),
    set `Downloading`.
 3. Stream the asset to `…/castlib/libfcast_sender_sdk.so.download`, computing the
-   SHA-256 of the bytes received.
+   SHA-256 of the bytes received and re-emitting `Downloading(progress)` as
+   chunks arrive.
 4. If the SHA mismatches the pinned value → delete, report, `Failed`.
 5. Else rename into place, **then** write the marker file
    (`…/libfcast_sender_sdk.so.sha`), apply the override, set `Ready`.

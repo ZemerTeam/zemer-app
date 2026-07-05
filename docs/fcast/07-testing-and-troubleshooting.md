@@ -8,16 +8,22 @@ runtime:
 
 | Test | Covers |
 | --- | --- |
-| `CastPlaybackTest` (9) | `isPlaying`/`isPaused`/`playIntentForState` state mapping; seconds↔ms conversion + round-trip; `steppedVolume` step/clamp math. |
-| `CastAutoAdvanceTest` (9) | `nearEnd` boundary/zero-duration; `debouncePassed`/`stalled` strict windows; combined idle/stall scenarios; the stale-position-reset regression for the device-switch auto-skip. |
-| `CastNativeLibLoaderTest` (5) | `cacheIsValid` (exists + SHA match, stale/missing/partial rejection) and `pickAbi`. |
+| `CastPlaybackTest` (11) | `isPlaying`/`isPaused`/`playIntentForState` state mapping; seconds↔ms conversion + round-trip; `steppedVolume` step/clamp math; `shouldStartLocalPlayback` (the async-queue dual-playback guard). |
+| `CastAutoAdvanceTest` (16) | `nearEnd` boundary/zero-duration; `debouncePassed`/`stalled` strict windows; combined idle/stall scenarios; the stale-position-reset regression for the device-switch auto-skip; `endEdgePositionSec` with the exact positions from a captured Chromecast sender log (zero-clock-before-IDLE). |
+| `CastNativeLibLoaderTest` (6) | `cacheIsValid` (exists + SHA match, stale/missing/partial rejection), `pickAbi`, and `downloadProgress` (fraction / null-when-unknown). |
+| `CastConnectTest` (8) | The connect-flow decisions: terminal-result mapping and which results prune the tapped device from the picker (only `Failed`; `NoStream` never proved the device dead). |
+| `CastDeviceCatalogTest` (10) | Rebuilding the picker list from a refresh burst: the FCast instance-name vs. Chromecast TXT-`fn` naming rules that merge refreshed entries onto the SDK's map keys. |
 | `CastVolumeKeysTest` (5) | The hardware-volume-key routing rule (`decide`): app-scoped Ignore when not casting / non-volume key; Adjust on ACTION_DOWN; ACTION_UP consumed so the system volume UI doesn't flash. |
 | `RemoteVolumeTrackerTest` (5) | The unknown-until-reported stepping rule: steps refused (and the placeholder undisturbed) until the receiver reports or the slider sets; clamping; reset on a fresh connection. |
+| `SeekMathTest` (3) | `forwardSeekTarget`: clamp to a known duration, and the no-clamp rule for an unknown (0 / unset) duration — a cast track before the receiver reports its duration must not snap a forward double-tap to 0. |
 
-Run them:
+Run them (note `RemoteVolumeTracker*`/`SeekMath*` don't match `Cast*`):
 
 ```bash
-./gradlew :app:testDebugUnitTest --tests "com.jtech.zemer.playback.Cast*"
+./gradlew :app:testDebugUnitTest \
+  --tests "com.jtech.zemer.playback.Cast*" \
+  --tests "com.jtech.zemer.playback.RemoteVolumeTracker*" \
+  --tests "com.jtech.zemer.playback.SeekMath*"
 ```
 
 ## What is NOT unit-tested (and why)
@@ -87,6 +93,40 @@ Wi-Fi. The high-value paths:
   focused (touch mode, no text field) volume keys fall through to the system
   volume while such a dialog is open. D-pad use always focuses something, so the
   G1 is unaffected.
+
+## Debugging: log tags & error telemetry
+
+All cast logging goes through **Timber**. Debug builds plant `Timber.DebugTree`,
+which tags each line with the **calling class's simple name** — there are no
+hand-written cast log tags. The tags worth filtering:
+
+| Logcat tag | Source | What it shows |
+| --- | --- | --- |
+| `CastDeviceAddressResolver` | app (Timber) | Click-time NSD re-resolves: refreshed addresses/port, resolve failures + error codes. |
+| `CastDeviceRefresher` | app (Timber) | The refresh burst: what resolved, what TCP-probed unreachable and got pruned, discovery-start failures. |
+| `NsdDeviceDiscoverer` | FCast SDK | The SDK's own discovery: services found vs. resolved. |
+| `YTPlayerUtils` | app (streaming) | Stream URL resolution — casting resolves the URL through the same validated path as local playback (`resolveStreamUrl`), so a cast that "loads nothing" often debugs here. |
+| `MusicService` | app | General service lifecycle around the cast session. |
+
+One command for a cast session:
+
+```bash
+adb logcat -s CastDeviceAddressResolver:V CastDeviceRefresher:V NsdDeviceDiscoverer:V YTPlayerUtils:V MusicService:V
+```
+
+**Release builds have no logcat output** (only the `CrashReportingTree` is
+planted): every Timber log (DEBUG+) becomes a Crashlytics **breadcrumb**, and
+errors are reported as **non-fatal issues** via `reportException`. The cast
+non-fatals to look for in Crashlytics, and what each means:
+
+| Non-fatal context | Meaning |
+| --- | --- |
+| `FCast SDK call` | Any SDK call threw (`castCall` wraps every one — receivers misbehave; we never crash). |
+| `FCast connect` / `FCast createDeviceFromInfo` | The connect handshake or device construction failed. |
+| `FCast playback error: <msg>` | The receiver itself reported a playback error. |
+| `FCast: could not resolve a stream URL for <id>` | `CastController` had nothing castable for the current item. |
+| `Cast NSD resolve` / `Cast refresh discovery` | The Android NSD layer threw during re-resolve / the refresh burst. |
+| `FCast lib checksum mismatch` | The downloaded `.so` failed SHA verification (see [02](02-on-demand-native-lib.md)). |
 
 ## Troubleshooting
 

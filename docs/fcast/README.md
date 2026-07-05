@@ -28,23 +28,32 @@ remote device's state as `StateFlow`s. Three thin "cast seams" route transport
 to that handler **only while connected**: `CastAwarePlayer` (the media
 session / notification / Android Auto / headset), `PlayerConnection` (the
 in-app player UI), and a couple of branches in `MusicService.onStartCommand`
-(the home-screen widget). Auto-advance at end-of-track (which the SDK does not do
-for us) is detected by `PlayerConnection` and pushed back to the handler.
+(the home-screen widget). The **cast control plane** — end-of-track auto-advance
+(which the SDK does not do for us), the track-change reload, and disconnect
+recovery — lives in `CastController`, owned by the process-scoped `MusicService`
+so a cast session keeps advancing after the Activity is destroyed.
 
 ## Component map
 
 | File | Layer | Responsibility |
 | --- | --- | --- |
 | `playback/FCastDiscoveryHandler.kt` | SDK boundary | The singleton that owns discovery, connection, load, transport, and the remote-state `StateFlow`s. Also `DevEventHandler` (the SDK callback sink) and the pure helpers `castCall`, `urlLoadRequest`, `MediaMetadata.toCastMetadata()`. |
-| `playback/CastNativeLibLoader.kt` | SDK boundary | Downloads + verifies the FCast native `.so` on demand and points uniffi/JNA at it. Pure metadata in `CastNativeLib`. |
+| `playback/CastNativeLibLoader.kt` | SDK boundary | Downloads + verifies the FCast native `.so` on demand (with a live 0..1 progress fraction in `CastLibState.Downloading`) and points uniffi/JNA at it. Pure metadata in `CastNativeLib`. |
+| `playback/CastController.kt` | control plane | End-of-track auto-advance (all three detectors), the single track-change reload owner, and disconnect → resume-local. Owned by `MusicService` (process-scoped), so casting survives the Activity. |
+| `playback/CastConnector.kt` | control plane | Orchestrates a user-initiated connect: resolve stream → re-resolve address → connect → await the terminal result (`CastConnectResult`), for the picker to surface. |
+| `playback/CastConnect.kt` | pure logic | The connect-flow decisions: terminal-result mapping, whether a failed tap prunes the device from the picker. Unit-tested. |
+| `playback/CastDeviceAddressResolver.kt` | discovery | Click-time NSD re-resolve of a device whose discovery entry lost its addresses. |
+| `playback/CastDeviceRefresher.kt` | discovery | The pull-to-refresh NSD burst: re-discovers, re-resolves, and TCP-probes entries so cache-resolved dead receivers are pruned. |
+| `playback/CastDeviceCatalog.kt` | pure logic | Rebuilds the picker's device list from a refresh burst; naming rules mirror sender-sdk 0.4.0 so refreshed entries merge onto the SDK's map keys. Unit-tested. |
 | `playback/CastAwarePlayer.kt` | session seam | `ForwardingPlayer` wrapping ExoPlayer for the `MediaLibrarySession`: routes transport + the notification scrubber clock to the receiver while casting, forwards everything else. |
-| `playback/CastPlayback.kt` | pure logic | Remote `PlaybackState` → play/pause intent, seconds↔milliseconds clock conversion, and the `steppedVolume`/`VOLUME_STEP` volume math. Unit-tested. |
+| `playback/CastPlayback.kt` | pure logic | Remote `PlaybackState` → play/pause intent, seconds↔milliseconds clock conversion, the `steppedVolume`/`VOLUME_STEP` volume math, and `shouldStartLocalPlayback` (the async-queue dual-playback guard). Unit-tested. |
+| `playback/SeekMath.kt` | pure logic | `forwardSeekTarget`: the forward double-tap clamp that must NOT clamp to an unknown (0 / unset) duration — a cast track before the receiver reports its duration would snap to the start. Unit-tested. |
 | `playback/CastVolumeKeys.kt` | pure logic | `CastVolumeKeys.decide(keyCode, action, isCasting)` → `AdjustUp/AdjustDown/Consume/Ignore` — the app-scoped hardware-volume-key routing rule. Unit-tested. |
 | `playback/RemoteVolumeTracker.kt` | pure logic | The tracked receiver volume (`volume: StateFlow`) + the unknown-until-reported rule: relative key steps are refused until the receiver reports its level or the slider sets one, so the `1.0` placeholder is never stepped-and-sent. Unit-tested. |
 | `ui/component/CastVolumeKeyHandler.kt` | UI | `castVolumeKeyModifier()` — routes volume keys to the receiver inside overlay windows (menus/dialogs) via Compose `onPreviewKeyEvent`, since those windows bypass `MainActivity.dispatchKeyEvent` and the platform `OnUnhandledKeyEventListener` is API 28+. |
 | `playback/CastAutoAdvance.kt` | pure logic | End-of-track thresholds + the `nearEnd`/`stalled`/`debouncePassed` decisions. Unit-tested. |
-| `playback/PlayerConnection.kt` (cast parts) | UI seam | `isCasting`, cast-aware `playPause`/`seekTo`/`currentPositionMs`, the three end-of-track detectors, `triggerRemoteLoad`, the reload de-dup, and disconnect → resume-local. |
-| `playback/MusicService.kt` (cast parts) | host | Owns the handler + lib loader, `startDiscovery`/`downloadCastLib`, `resolveStreamUrl`/`streamContentType`, and the widget transport branches. Wraps the player in `CastAwarePlayer`. |
+| `playback/PlayerConnection.kt` (cast parts) | UI seam | `isCasting`, cast-aware `playPause`/`seekTo`/`currentPositionMs`. Drives no cast logic of its own — its few cast hooks (queue-start bookkeeping, `markRemoteLoaded`, `advanceRemoteAfterEnd`) delegate to `CastController`. |
+| `playback/MusicService.kt` (cast parts) | host | Owns the handler + lib loader + `CastController`, `startDiscovery`/`downloadCastLib`, `resolveStreamUrl`/`streamContentType`, and the widget transport branches. Wraps the player in `CastAwarePlayer`. |
 | `ui/player/CastButton.kt` | UI | The artwork cast button + the single `openCastPicker()` launch helper. |
 | `ui/player/CastBottomSheet.kt` | UI | The device picker (`CastPicker`), the consent/download dialog (`CastDownloadDialog`), and their sub-composables. |
 | `ui/player/MiniPlayer.kt` / `Thumbnail.kt` (cast parts) | UI | Cast buttons on the mini and full players. |

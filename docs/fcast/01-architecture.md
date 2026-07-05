@@ -98,7 +98,7 @@ delegates its few cast hooks to `CastController`. See
   NSD discovery losing the service is a transient flap and must not kill the active
   TCP session. Both funnel through `onConnectionDisconnected()`, which clears the
   remote state and
-  invokes `PlayerConnection`'s `onDisconnect` callback to seek the **local**
+  invokes `CastController`'s `onDisconnect` callback to seek the **local**
   player to the last remote position and leave it paused (so the user can resume
   on the phone).
 
@@ -110,7 +110,7 @@ delegates its few cast hooks to `CastController`. See
   [04](04-playback-and-transport.md).
 - **"Where does a play/pause from the in-app button go?"** →
   `PlayerConnection.playPause`, [04](04-playback-and-transport.md).
-- **"Who decides a cast track ended?"** → `PlayerConnection` detectors +
+- **"Who decides a cast track ended?"** → `CastController` detectors +
   `CastAutoAdvance`, [05](05-auto-advance.md).
 - **"Where does the `.so` come from?"** → `CastNativeLibLoader`,
   [02](02-on-demand-native-lib.md).

@@ -193,6 +193,19 @@ Net effect:
 | **Skip while paused** | next track loads **paused** (intent stayed `false`) |
 | Pause from the TV remote | mirrored into intent; survives the next reload |
 
+### Local playback must stay suppressed while casting (`shouldStartLocalPlayback`)
+
+Starting a queue while casting pauses the local player up front
+(`onPlayQueueWhileCasting`), but that pause is **not enough**: `ListQueue`
+(community/online playlists, local playlists, albums) has no `preloadItem`, so
+`playQueue()` sets `playWhenReady` on the raw local ExoPlayer only after an
+**async fetch** completes — well after the initial pause ran. Without a guard,
+local audio started on top of the receiver (the dual-playback bug). Every site
+that would flip local `playWhenReady` on must therefore re-check the **live**
+connection state at that moment via
+`CastPlayback.shouldStartLocalPlayback(playWhenReady, isCasting)` (pure,
+unit-tested) rather than trusting an earlier pause to still hold.
+
 ## The receiver-reload de-dup (`remoteLoadedMediaId`)
 
 `CastController.onMediaItemTransition` (driven from `MusicService.onMediaItemTransition`)

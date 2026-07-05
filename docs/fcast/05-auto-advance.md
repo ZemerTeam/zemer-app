@@ -15,12 +15,16 @@ object CastAutoAdvance {
     const val ADVANCE_DEBOUNCE_MS    = 8000L   // detectors + a real transition can't double-advance
     const val IDLE_END_WINDOW_SEC    = 10.0    // IDLE-from-PLAYING within this window of the end == finished
     const val IDLE_END_TAIL_FRACTION = 0.1     // …or within this proportional tail (whichever is larger)
+    const val PAUSED_END_EPSILON_SEC = 2.0     // PAUSED-from-PLAYING this close to the end == finished (tight!)
 
     fun nearEnd(durationSec, lastPositionSec, epsilonSec) =
         durationSec > 0.0 && lastPositionSec >= durationSec - epsilonSec
     // Generous on purpose — a coarse FCast clock can stop reporting several seconds before the real end.
     fun finishedNearEnd(durationSec, lastPositionSec) = durationSec > 0.0 &&
         lastPositionSec >= durationSec - maxOf(IDLE_END_WINDOW_SEC, durationSec * IDLE_END_TAIL_FRACTION)
+    // Chromecast zeroes the clock just BEFORE IDLE — judge the IDLE edge by the last real (> 0) report.
+    fun endEdgePositionSec(reportedSec, lastProgressSec) =
+        if (reportedSec > 0.0) reportedSec else lastProgressSec
     fun debouncePassed(nowMs, lastTransitionMs) = nowMs - lastTransitionMs > ADVANCE_DEBOUNCE_MS
     fun stalled(stalledForMs) = stalledForMs > STALL_SILENCE_MS
 }
@@ -47,6 +51,17 @@ Android** app ends a track by going `PLAYING → PAUSED` at `pos == duration`, s
 2. **End state from PLAYING** — a collector on `remotePlaybackState`. Two end signals:
    - `PLAYING → IDLE` while `finishedNearEnd(dur, pos)` — a **generous** window (a
      coarse clock stops reporting early). IDLE far from the end is a stop/error.
+     The position judged is `endEdgePositionSec(pos, handler.lastProgressSec)`:
+     **Chromecast-protocol receivers reset the reported clock to 0 a few ms
+     BEFORE reporting IDLE** at end-of-track, so on the IDLE edge the current
+     report already reads 0 and only the last real (> 0) progress report still
+     holds the true end position — without the fallback the queue froze at track
+     end on Chromecast (and the stall detector can't recover: once IDLE the
+     interpolated clock stays at 0). FCast receivers go IDLE with the clock still
+     near the end, so for them the fallback is the identity.
+     `FCastDiscoveryHandler.lastProgressSec` is reset on every content (re)load,
+     connect, and disconnect, so it can never carry a previous track's near-end
+     position into a new one; a mid-track stop on the TV still does not advance.
    - `PLAYING → PAUSED` while `nearEnd(dur, pos, PAUSED_END_EPSILON_SEC)` — a **tight**
      window (2 s). Some receivers auto-pause at `pos == duration` to signal the end;
      the tight epsilon distinguishes that from a deliberate mid-track pause (which must
