@@ -584,7 +584,7 @@
     <string name="cast_connecting">Connecting…</string>
     <string name="cast_refresh">Refresh device list</string>
     <string name="cast_connect_failed">Couldn\'t connect to %1$s</string>
-    <string name="cast_consent_message">Casting needs a one-time download of FCast support (about 5 MB).</string>
+    <string name="cast_consent_message">Casting needs a one-time download of cast support (about 5 MB).</string>
     <string name="cast_download">Download</string>
     <string name="cast_download_failed">Couldn\'t download cast support</string>
     <string name="cast_stream_failed">Couldn\'t start casting — no playable stream</string>
@@ -595,12 +595,12 @@
     <string name="cast_downloading_support">Downloading cast support…</string>
     <string name="cast_downloading_support_percent">Downloading cast support… %1$d%%</string>
     <string name="cast_download_success">Cast support downloaded</string>
-    <string name="cast_get_fcast">Don\'t have a receiver? Get FCast</string>
+    <string name="cast_get_fcast">No Chromecast handy? Get FCast for any screen</string>
     <string name="cast_same_wifi_hint">Make sure your device is on the same Wi-Fi network</string>
     <string name="cast_searching">Searching for devices…</string>
     <string name="casting">Casting</string>
     <string name="connected">Connected</string>
     <string name="enable_casting">Enable casting</string>
-    <string name="enable_casting_description">Show a cast button to play to FCast devices on your network.</string>
+    <string name="enable_casting_description">Show a cast button to play to Chromecast and FCast devices on your network.</string>
     <string name="stop_casting">Stop casting</string>
 </resources>
