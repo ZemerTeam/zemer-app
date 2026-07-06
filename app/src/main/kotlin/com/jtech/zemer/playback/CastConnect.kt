@@ -89,6 +89,34 @@ object CastConnect {
         }
     }
 
+    /** SDK address → JVM address (the reverse of [toIpAddr]), or null when it can't be materialised. */
+    fun toInetAddress(address: IpAddr): InetAddress? = runCatching {
+        when (address) {
+            is IpAddr.V4 -> InetAddress.getByAddress(
+                byteArrayOf(address.o1.toByte(), address.o2.toByte(), address.o3.toByte(), address.o4.toByte()),
+            )
+            is IpAddr.V6 -> Inet6Address.getByAddress(
+                null,
+                byteArrayOf(
+                    address.o1.toByte(), address.o2.toByte(), address.o3.toByte(), address.o4.toByte(),
+                    address.o5.toByte(), address.o6.toByte(), address.o7.toByte(), address.o8.toByte(),
+                    address.o9.toByte(), address.o10.toByte(), address.o11.toByte(), address.o12.toByte(),
+                    address.o13.toByte(), address.o14.toByte(), address.o15.toByte(), address.o16.toByte(),
+                ),
+                address.scopeId.toInt(),
+            )
+        }
+    }.getOrNull()
+
+    /**
+     * The receiver address the stream relay derives its URL host toward ([CastStreamRelay.receiverAddress]).
+     * Prefer IPv4: the relay URL host must be reachable from the receiver, and v4 LAN addressing is the
+     * common denominator — mDNS-advertised v6 entries are often link-local, which can't be expressed as
+     * a URL host the receiver can resolve.
+     */
+    fun relayTargetAddress(addresses: List<IpAddr>): InetAddress? =
+        (addresses.firstOrNull { it is IpAddr.V4 } ?: addresses.firstOrNull())?.let { toInetAddress(it) }
+
     /**
      * Waits for the attempt started by [FCastDiscoveryHandler.connectTo] to reach a terminal state:
      * Connected → CONNECTED, Disconnected → FAILED (refused/dropped), neither within [timeoutMs] →

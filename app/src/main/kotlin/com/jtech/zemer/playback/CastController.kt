@@ -14,6 +14,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.fcast.sender_sdk.DeviceConnectionState
 import org.fcast.sender_sdk.PlaybackState
 import timber.log.Timber
 
@@ -33,6 +34,11 @@ class CastController(
     private val service: MusicService,
     private val scope: CoroutineScope,
 ) {
+    private companion object {
+        /** See the onDisconnect handler: long enough for a device switch's new connect to re-arm. */
+        const val RELAY_STOP_GRACE_MS = 2_000L
+    }
+
     private val player get() = service.player
     private val handler get() = service.discoveryHandler
 
@@ -66,6 +72,16 @@ class CastController(
                 player.seekTo(lastRemotePosMs)
                 player.prepare()
                 player.playWhenReady = false
+                // Stop the stream relay only after a grace period, and only if still disconnected: a
+                // device SWITCH disconnects the old device first, and its deferred Disconnected
+                // callback lands here AFTER the new connect has already handed out a relay URL —
+                // stopping immediately would kill the URL the new receiver is about to fetch.
+                launch {
+                    delay(RELAY_STOP_GRACE_MS)
+                    if (!casting && handler.remoteConnectionState.value is DeviceConnectionState.Disconnected) {
+                        service.stopCastRelay()
+                    }
+                }
             }
         }
 
@@ -220,7 +236,11 @@ class CastController(
                 reportException(IllegalStateException("FCast: could not resolve a stream URL for $mediaId"))
                 return@launch
             }
-            handler.load(url, service.streamContentType(mediaId), mediaItem.metadata?.toCastMetadata(), resumeSec)
+            // Prefer the phone-side relay URL (Stage 2 of the cast-403 fix; falls back to the direct
+            // googlevideo URL when the relay can't serve). Suspends on IO — re-check supersession after.
+            val castUrl = service.relayedStreamUrl(mediaId, url)
+            if (!isActive) return@launch
+            handler.load(castUrl, service.streamContentType(mediaId), mediaItem.metadata?.toCastMetadata(), resumeSec)
         }
     }
 

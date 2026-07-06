@@ -9,6 +9,7 @@ import org.fcast.sender_sdk.IpAddr
 import org.fcast.sender_sdk.ProtocolType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.net.InetAddress
@@ -85,6 +86,31 @@ class CastConnectTest {
             0u, // scope id (none for a global address)
         )
         assertEquals(expected, CastConnect.toIpAddr(InetAddress.getByName("2001:db8::1")))
+    }
+
+    // --- toInetAddress / relayTargetAddress ---
+
+    @Test
+    fun `toInetAddress round-trips both families through toIpAddr`() {
+        // High octets are negative as signed bytes — the round-trip catches a missing toByte/toUByte.
+        val v4 = InetAddress.getByName("192.168.0.182")
+        assertEquals(v4, CastConnect.toInetAddress(CastConnect.toIpAddr(v4)!!))
+        val v6 = InetAddress.getByName("2001:db8::1")
+        assertEquals(v6, CastConnect.toInetAddress(CastConnect.toIpAddr(v6)!!))
+    }
+
+    @Test
+    fun `relayTargetAddress prefers an IPv4 address for the relay route probe`() {
+        val v6 = CastConnect.toIpAddr(InetAddress.getByName("2001:db8::1"))!!
+        val v4 = IpAddr.V4(192.toUByte(), 168.toUByte(), 0.toUByte(), 7.toUByte())
+        // v4 wins even when listed after v6 (mDNS-advertised v6 is often link-local, unusable in a URL).
+        assertEquals(
+            InetAddress.getByName("192.168.0.7"),
+            CastConnect.relayTargetAddress(listOf(v6, v4)),
+        )
+        // v6-only receivers still get a target; an empty list gets none.
+        assertEquals(InetAddress.getByName("2001:db8::1"), CastConnect.relayTargetAddress(listOf(v6)))
+        assertNull(CastConnect.relayTargetAddress(emptyList()))
     }
 
     // --- shouldPruneDevice ---

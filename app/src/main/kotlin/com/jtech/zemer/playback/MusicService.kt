@@ -276,6 +276,46 @@ class MusicService :
 
     fun streamContentType(mediaId: String): String = songMimeCache[mediaId] ?: "audio/mp4"
 
+    /**
+     * Stage 2 of the cast-403 fix: the receiver fetches googlevideo *through the phone*, so the
+     * fetching network identity equals the minting one by construction (googlevideo binds stream URLs
+     * to the minter's address and 403s other identities past the first free MiB — receivers behind
+     * CGNAT IPv4 or on a different v6 prefix can never fetch our URLs directly). The resolver runs on
+     * relay worker threads, never the main thread, so blocking on the resolve is fine.
+     */
+    val castStreamRelay = CastStreamRelay { mediaId, forceRefresh ->
+        if (forceRefresh) invalidateStreamCache(mediaId)
+        runBlocking { resolveStreamUrl(mediaId) }?.let { RelayUpstream(it, streamContentType(mediaId)) }
+    }
+
+    // lazy: a Service has no Context until attachBaseContext, and stopping the relay on a session that
+    // never acquired must not eagerly construct the system-service locks just to no-op release them.
+    private val castSessionLocks by lazy { CastSessionLocks(this) }
+
+    /**
+     * The URL the cast receiver should be handed for [mediaId]: the relay URL when the relay can
+     * serve, else [rawUrl] (direct googlevideo — Stage 1's error-recovery ladder still backs that up).
+     * Runs the relay's socket bind + route probe on IO.
+     */
+    suspend fun relayedStreamUrl(mediaId: String, rawUrl: String): String = withContext(Dispatchers.IO) {
+        val relayed = runCatching { castStreamRelay.urlFor(mediaId) }
+            .onFailure { reportException(it, "Cast relay URL") }
+            .getOrNull()
+        if (relayed != null) {
+            castSessionLocks.acquire()
+            relayed
+        } else {
+            Timber.tag("CastRelay").w("Relay unavailable — handing the receiver the direct URL for %s", mediaId)
+            rawUrl
+        }
+    }
+
+    /** Tears down the relay + its Wi-Fi/CPU locks; called when a cast session is truly over. */
+    fun stopCastRelay() {
+        castStreamRelay.stop()
+        castSessionLocks.release()
+    }
+
     /** Cast-lib state for the picker UI (downloading / failed / ready); the native lib isn't bundled. */
     val castLibState get() = castLibLoader.state
 
@@ -1931,6 +1971,8 @@ class MusicService :
             runCatching { device.stopPlayback() }
             runCatching { device.disconnect() }
         }
+        // After the receiver is told to stop: nothing will fetch through the relay anymore.
+        stopCastRelay()
         connectivityObserver.unregister()
         abandonAudioFocus()
         releaseLoudnessEnhancer()

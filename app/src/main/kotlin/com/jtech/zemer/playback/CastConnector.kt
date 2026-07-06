@@ -59,9 +59,15 @@ class CastConnector(private val service: MusicService) {
         val durMs = player.duration
         val resumeSec = if (durMs > 0 && posMs >= durMs - 1500) 0.0 else (posMs / 1000.0).coerceAtLeast(0.0)
         if (!addressResolver.refreshAddresses(device)) return CastConnectResult.Failed(device.name)
+        // Route the stream through the phone-side relay (Stage 2 of the cast-403 fix) whenever
+        // possible; relayedStreamUrl falls back to the direct googlevideo URL when the relay can't
+        // serve. currentId can be null only on the currentStreamUrl fallback path above, where no
+        // media id exists to token — direct URL there too.
+        service.castStreamRelay.receiverAddress = CastConnect.relayTargetAddress(device.addresses)
+        val castUrl = currentId?.let { service.relayedStreamUrl(it, streamUrl) } ?: streamUrl
         val issued = handler.connectTo(
             deviceInfo = device,
-            streamUrl = streamUrl,
+            streamUrl = castUrl,
             contentType = service.currentContentType,
             metadata = metadata?.toCastMetadata(),
             resumePosition = resumeSec,
