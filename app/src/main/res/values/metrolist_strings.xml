@@ -597,7 +597,7 @@
     <string name="cast_download_success">Cast support downloaded</string>
     <string name="cast_get_fcast">No Chromecast handy? Get FCast for any screen</string>
     <string name="cast_same_wifi_hint">Make sure your device is on the same Wi-Fi network</string>
-    <string name="cast_searching">Searching for Chromecast and FCast devices…</string>
+    <string name="cast_searching">Searching for cast devices…</string>
     <string name="casting">Casting</string>
     <string name="connected">Connected</string>
     <string name="enable_casting">Enable casting</string>
