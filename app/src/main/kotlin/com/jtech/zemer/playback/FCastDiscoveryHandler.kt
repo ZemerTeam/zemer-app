@@ -75,6 +75,10 @@ class DevEventHandler(
     }
 
     override fun playbackStateChanged(state: PlaybackState) {
+        // Same stale-device guard as connectionStateChanged: connectTo's stopPlayback on the outgoing
+        // device solicits a final state report (e.g. PAUSED), which must not flip the new connection's
+        // shouldPlay off — the switched-to device would load and immediately re-pause.
+        if (handler.connectedDevice !== device) return
         handler.remotePlaybackState.value = state
         // Mirror the receiver's own state into our play intent so a pause/resume from the TV's remote
         // sticks. EXCEPT a PAUSED report at the very end of the track: some receivers auto-pause at
@@ -87,6 +91,10 @@ class DevEventHandler(
     }
 
     override fun timeChanged(time: Double) {
+        // Stale-device guard: the outgoing device's stop-solicited clock reset (Chromecast reports 0 on
+        // stop) must not overwrite the new connection's resume position — a failed connect recovers the
+        // local player from remoteTime, which would land at 0:00 instead of where the user left off.
+        if (handler.connectedDevice !== device) return
         // Keep the last real progress report: a 0 here can be the receiver resetting its clock right
         // before the end-of-track IDLE (Chromecast does this), and the IDLE end detector needs the
         // position from just before that reset — see CastAutoAdvance.endEdgePositionSec.
@@ -100,11 +108,17 @@ class DevEventHandler(
         if (handler.connectedDevice !== device) return
         handler.volumeTracker.onReceiverReport(volume)
     }
-    override fun durationChanged(duration: Double) { handler.remoteDuration.value = duration }
+    override fun durationChanged(duration: Double) {
+        // Stale-device guard, as in timeChanged.
+        if (handler.connectedDevice !== device) return
+        handler.remoteDuration.value = duration
+    }
     override fun speedChanged(speed: Double) {}
     override fun sourceChanged(source: Source) {}
     override fun keyEvent(event: KeyEvent) {}
     override fun mediaEvent(event: MediaEvent) {
+        // Stale-device guard: a replaced device ending its (stopped) track must not auto-advance the queue.
+        if (handler.connectedDevice !== device) return
         if (event.type == MediaItemEventType.END) onTrackEnded?.invoke()
     }
     override fun playbackError(message: String) {
@@ -201,7 +215,13 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         onTrackEnded: (() -> Unit)? = null,
         onPlaybackError: ((String) -> Unit)? = null,
     ): Boolean {
-        castCall { connectedDevice?.disconnect() }
+        // Silence the outgoing receiver before dropping its socket (same order as disconnect()): a bare
+        // disconnect leaves its loaded stream playing — the relay keeps serving it — so switching devices
+        // would otherwise leave the old and new receivers playing simultaneously.
+        connectedDevice?.let { d ->
+            castCall { d.stopPlayback() }
+            castCall { d.disconnect() }
+        }
 
         // Reset tracking state for the new connection. The clock starts at the resume position (like
         // load()) so a failed attempt recovers the local player to where the user left off, not to 0.
@@ -272,6 +292,13 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
         }
         onConnectionDisconnected()
     }
+
+    /**
+     * Whether the receiver is playing, for toggle decisions — see [CastPlayback.isRemotePlaying]:
+     * the reported state once known, else the play intent, matching what the UI's isPlaying displays.
+     */
+    fun isRemotePlaying(): Boolean =
+        CastPlayback.isRemotePlaying(remotePlaybackState.value, shouldPlay)
 
     fun play() {
         shouldPlay = true

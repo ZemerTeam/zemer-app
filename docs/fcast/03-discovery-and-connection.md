@@ -118,7 +118,10 @@ Three app-side pieces close the gap:
 
 ```kotlin
 fun connectTo(deviceInfo, streamUrl, contentType, metadata, resumePosition, onTrackEnded): Boolean {
-    castCall { connectedDevice?.disconnect() }       // drop any previous device
+    connectedDevice?.let { d ->                       // silence + drop any previous device:
+        castCall { d.stopPlayback() }                 // a bare disconnect leaves its loaded stream
+        castCall { d.disconnect() }                   // playing (the relay keeps serving it) — a
+    }                                                 // device switch must not leave both playing
     shouldPlay = true                                 // explicit play intent
     currentStreamUrl = streamUrl; currentContentType = contentType
     currentMetadata = metadata; initialResumePosition = resumePosition
@@ -173,14 +176,26 @@ override fun connectionStateChanged(state: DeviceConnectionState) {
 }
 
 override fun playbackStateChanged(state) {
+    if (handler.connectedDevice !== device) return   // stale-device guard — see below
     handler.remotePlaybackState.value = state
     CastPlayback.playIntentForState(state)?.let { handler.shouldPlay = it }  // mirror TV remote
 }
-override fun timeChanged(t)     { handler.remoteTime.value = t }
-override fun durationChanged(d) { handler.remoteDuration.value = d }
-override fun mediaEvent(e)      { if (e.type == END) onTrackEnded?.invoke() }   // → auto-advance
-override fun playbackError(m)   { reportException(IllegalStateException("FCast playback error: $m")) }
+override fun timeChanged(t)     { /* stale guard */ handler.remoteTime.value = t }
+override fun durationChanged(d) { /* stale guard */ handler.remoteDuration.value = d }
+override fun mediaEvent(e)      { /* stale guard */ if (e.type == END) onTrackEnded?.invoke() }   // → auto-advance
+override fun playbackError(m)   { reportException(…); /* stale guard */ onPlaybackError?.invoke(m) }
 ```
+
+**Every callback carries the stale-device guard** (`handler.connectedDevice !==
+device`), not just `connectionStateChanged`. The `stopPlayback` that `connectTo`
+sends to the outgoing device *solicits* final reports from it — a `PAUSED`
+state, a clock reset to `0` (Chromecast does this on stop), an `END` media
+event — and its `DevEventHandler` stays live until the SDK's reader thread
+dies. Unguarded, those reports would race the new connection's freshly-reset
+state: a stale `PAUSED` flips `shouldPlay` off (the switched-to device loads
+and immediately re-pauses — a silent device switch), a stale `timeChanged(0)`
+clobbers the resume position a failed connect recovers the local player to,
+and a stale `END` auto-advances the queue mid-switch.
 
 Note the **reconnect** branch: if the device drops and re-establishes mid-track
 (`wasConnected` was already true), it resumes from the last known `remoteTime`

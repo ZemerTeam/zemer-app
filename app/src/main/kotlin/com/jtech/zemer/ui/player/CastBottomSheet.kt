@@ -123,23 +123,26 @@ fun CastPicker(
     fun connect(device: DeviceInfo) {
         if (connectingDevice != null) return
         connectingDevice = device.name
-        playerConnection.scope.launch {
-            when (val result = service.castConnector.connect(device, mediaMetadata)) {
-                CastConnectResult.Connected -> onDismiss()
-                // No playable stream resolved (transient cipher/poToken/network failure). Don't connect
-                // to a device that would just sit silent — tell the user instead of failing invisibly.
-                CastConnectResult.NoStream -> {
-                    Toast.makeText(context, R.string.cast_stream_failed, Toast.LENGTH_SHORT).show()
-                    connectingDevice = null
+        // Launch on the service scope, not the Activity-bound connection scope: backgrounding the app
+        // mid-connect disposes the latter, which would strand the spinner (connectingDevice never
+        // resets) and skip CastConnector's timeout abort of the still-pending SDK attempt.
+        service.scope.launch {
+            try {
+                when (val result = service.castConnector.connect(device, mediaMetadata)) {
+                    CastConnectResult.Connected -> onDismiss()
+                    // No playable stream resolved (transient cipher/poToken/network failure). Don't connect
+                    // to a device that would just sit silent — tell the user instead of failing invisibly.
+                    CastConnectResult.NoStream ->
+                        Toast.makeText(context, R.string.cast_stream_failed, Toast.LENGTH_SHORT).show()
+                    is CastConnectResult.Failed ->
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.cast_connect_failed, result.deviceName),
+                            Toast.LENGTH_SHORT,
+                        ).show()
                 }
-                is CastConnectResult.Failed -> {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.cast_connect_failed, result.deviceName),
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                    connectingDevice = null
-                }
+            } finally {
+                connectingDevice = null
             }
         }
     }
@@ -157,7 +160,7 @@ fun CastPicker(
             // shows) and not before the lib is ready (no discovery yet).
             showRefresh = libState is CastLibState.Ready && connected == null,
             refreshing = refreshing,
-            onRefresh = { playerConnection.scope.launch { service.castDeviceRefresher.refresh() } },
+            onRefresh = { service.scope.launch { service.castDeviceRefresher.refresh() } },
         )
 
         when (val s = libState) {

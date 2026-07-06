@@ -37,6 +37,25 @@ class CastPlaybackTest {
     }
 
     @Test
+    fun `isRemotePlaying mirrors the reported state once known`() {
+        // Once the receiver has reported, the intent fallback must be ignored — a PAUSED report with a
+        // stale shouldPlay=true still reads as paused, so the next tap sends play(), not pause().
+        assertTrue(CastPlayback.isRemotePlaying(PlaybackState.PLAYING, shouldPlay = false))
+        assertFalse(CastPlayback.isRemotePlaying(PlaybackState.PAUSED, shouldPlay = true))
+        assertFalse(CastPlayback.isRemotePlaying(PlaybackState.BUFFERING, shouldPlay = true))
+        assertFalse(CastPlayback.isRemotePlaying(PlaybackState.IDLE, shouldPlay = true))
+    }
+
+    @Test
+    fun `isRemotePlaying falls back to the play intent before the first report`() {
+        // Regression for the connect-window pause bug: right after connectTo the state is still null but
+        // the button shows "pause" (shouldPlay=true) — a tap must decide "playing" and send pause(),
+        // not re-assert play() and discard the user's pause until the first PLAYING report.
+        assertTrue(CastPlayback.isRemotePlaying(state = null, shouldPlay = true))
+        assertFalse(CastPlayback.isRemotePlaying(state = null, shouldPlay = false))
+    }
+
+    @Test
     fun `playIntentForState maps PLAYING and PAUSED, ignores transient states`() {
         assertEquals(true, CastPlayback.playIntentForState(PlaybackState.PLAYING))
         assertEquals(false, CastPlayback.playIntentForState(PlaybackState.PAUSED))

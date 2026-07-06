@@ -63,18 +63,37 @@ val isCasting = discoveryHandler.remoteConnectionState
 
 fun playPause() {
     if (isCasting.value) {
-        if (CastPlayback.isPlaying(remotePlaybackState.value)) discoveryHandler.pause()
+        if (discoveryHandler.isRemotePlaying()) discoveryHandler.pause()   // NOT raw isPlaying — see below
         else discoveryHandler.play()
     } else player.togglePlayPause()
 }
 fun seekTo(ms)            { if (isCasting.value) discoveryHandler.seek(msToRemoteSeconds(ms)) else player.seekTo(ms) }
+fun seekToPrevious()      { if (isCasting.value) player.seekToPreviousMediaItem() else { player.seekToPrevious(); … } }
 fun currentPositionMs()   = if (isCasting.value) remoteSecondsToMs(interpolatedRemoteTimeSec()) else player.currentPosition
 fun currentDurationMs()   = if (isCasting.value) remoteSecondsToMs(remoteDuration.value)        else player.duration
 ```
 
-`Player.kt`, `MiniPlayer.kt`, `Lyrics.kt`, and `Thumbnail.kt` all read
-`currentPositionMs()` / `currentDurationMs()` and call `playPause()` / `seekTo()`
-— never the remote flows directly — so the seek bar can't drift between surfaces.
+Toggles decide from `isRemotePlaying()` (`CastPlayback.isRemotePlaying(state,
+shouldPlay)`, pinned by `CastPlaybackTest`), **not** the raw reported state: in
+the window after `connectTo` but before the receiver's first
+`playbackStateChanged`, the state is still `null` while the button already
+shows "pause" (from the `shouldPlay` intent — the same fallback the `isPlaying`
+flow uses). Deciding from the raw state there would turn a pause tap into
+`play()` and re-arm the intent, discarding the user's pause until the first
+`PLAYING` report.
+
+`seekToPrevious()` uses `seekToPreviousMediaItem()` while casting for the same
+reason as the widget's `PREV` (below): the paused local clock is meaningless
+remotely, and a within-item restart fires no media-item transition, so the
+receiver would never be reloaded.
+
+`Player.kt`, `MiniPlayer.kt`, `Lyrics.kt`, `Thumbnail.kt`, and the fullscreen
+`LyricsScreen.kt` all read `currentPositionMs()` / `currentDurationMs()` and call
+`playPause()` / `seekTo()` — never the remote flows directly — so the seek bar
+(and synced lyrics) can't drift between surfaces. Every list screen's
+tap-the-active-row toggle likewise calls `playerConnection.playPause()`, never
+`player.togglePlayPause()` — the raw toggle would resume the deliberately-paused
+local player **on top of** the cast stream.
 The position is the **interpolated** remote clock (`interpolatedRemoteTimeSec()`),
 which extrapolates between the receiver's coarse ~1 Hz reports so the bar moves
 smoothly — see [05](05-auto-advance.md).
@@ -87,7 +106,7 @@ collector in `PlayerConnection.init` (the stall poll) and by the UI, so
 
 ```kotlin
 MusicWidget.ACTION_PLAY_PAUSE -> if (discoveryHandler.isConnected) {
-        if (CastPlayback.isPlaying(remotePlaybackState.value)) discoveryHandler.pause() else discoveryHandler.play()
+        if (discoveryHandler.isRemotePlaying()) discoveryHandler.pause() else discoveryHandler.play()
     } else { /* local toggle */ }
 MusicWidget.ACTION_NEXT -> player.seekToNext()    // local skip advances the queue → reload (below)
 MusicWidget.ACTION_PREV -> if (discoveryHandler.isConnected) player.seekToPreviousMediaItem()
@@ -97,6 +116,27 @@ MusicWidget.ACTION_PREV -> if (discoveryHandler.isConnected) player.seekToPrevio
 `PREV` uses `seekToPreviousMediaItem()` while casting because the local clock is
 meaningless remotely, so `seekToPrevious()`'s "restart current track if >3 s in"
 would misfire.
+
+The widget's **rendering** is cast-aware too, not just its actions:
+`updateWidget()` / `widgetIsPlaying()` render the receiver's state and the
+interpolated remote clock while connected (the local player is paused and its
+clock frozen — rendering it would show a "play" icon whose tap *pauses* the
+audibly-playing receiver). Local-player callbacks are silent while casting, so a
+`combine(remoteConnectionState, remotePlaybackState)` collector in
+`MusicService.onCreate` repaints the widget on remote connect/play/pause edges
+and runs the 1 Hz seek-bar ticker off the remote clock (`.drop(1)` skips the
+initial not-casting emission so service start doesn't flash an empty widget).
+
+## Seam 3b — everything else that pauses: the sleep timer
+
+`SleepTimer` routes its pause through the same branch
+(`pausePlayback()`: `discoveryHandler.pause()` when connected, else
+`player.pause()`). The local player is already paused while casting, so a raw
+`player.pause()` would be an audible no-op — the receiver would play all night.
+Routing through `discoveryHandler.pause()` also sets `shouldPlay = false`, which
+keeps the *pause-when-song-ends* mode correct across the end-of-track
+auto-advance: the advance reloads the next track on the receiver, and `load()`
+re-pauses it because the intent is off (see [play intent](#play-intent-shouldplay)).
 
 ## Why one predicate everywhere
 

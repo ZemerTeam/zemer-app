@@ -58,20 +58,39 @@ Wi-Fi. The high-value paths:
 2. **Connect & play** — open picker, pick a device → local pauses, receiver plays
    from the current position; the in-app + notification scrubbers track the TV.
 3. **Transport parity** — play/pause and seek from: in-app button, notification,
-   lock screen, and the home-screen widget all act on the receiver.
-4. **Skip** — next/previous (in-app, notification, widget) advance the receiver;
-   skip-previous doesn't restart on a >3 s position.
+   lock screen, and the home-screen widget all act on the receiver. Include a
+   list screen's active-row tap (e.g. a curated playlist) — it must toggle the
+   receiver, never resume phone audio on top of it. A pause tap **immediately
+   after connecting** (before the receiver's first state report) must pause,
+   not silently re-assert play.
+4. **Skip** — next/previous (in-app, notification, widget, fullscreen lyrics
+   screen) advance the receiver; skip-previous doesn't restart on a >3 s
+   position (it must skip to the previous item — a within-item restart never
+   reloads the receiver).
 5. **Auto-advance** — let a track end → the next loads automatically, exactly once
    (no double-skip).
 6. **Pause near end** — pause within ~3 s of the end → it must NOT auto-skip.
 7. **Repeat-one** — replays the same track on the receiver.
 8. **New queue = current song** — start a playlist whose first track is the one
    already casting → it reloads/restarts on the receiver.
-9. **Device switch** — connect A, then connect B → B plays from its start; B is
-   not spuriously auto-skipped.
+9. **Device switch** — connect A, then connect B → **A stops** (stopPlayback is
+   sent before its socket drops — two receivers must never play at once); B
+   plays from its start and is not spuriously auto-skipped (A's stop-solicited
+   reports are dropped by the stale-device guards).
 10. **Disconnect** — "Stop casting" (and: device drops off Wi-Fi) → local resumes
     at the last remote position, **paused**.
-11. **Volume** — while casting: hardware buttons and the 3-dot slider move the
+11. **Sleep timer** — set a short timer (and the end-of-song mode) while casting
+    → the **receiver** pauses when it fires; in end-of-song mode the next track
+    loads paused instead of playing on.
+12. **Widget state** — while casting, the widget's icon mirrors the receiver
+    (pause icon while the TV plays; flips on remote play/pause) and its seek bar
+    tracks the remote clock.
+13. **Lyrics screen** — open fullscreen lyrics while casting → synced lyrics
+    advance with the receiver and the slider moves.
+14. **Background mid-connect** — tap a device, immediately background the app,
+    return → the picker is not stuck on "Connecting…"; the attempt resolves (or
+    times out and aborts) and rows re-enable.
+15. **Volume** — while casting: hardware buttons and the 3-dot slider move the
     **receiver's** volume; a volume change from the TV's own remote moves the
     slider; in another app the buttons stay local. Do this on **both** an FCast
     receiver and a Chromecast — if the receiver never sends a `volumeChanged`

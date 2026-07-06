@@ -150,6 +150,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -218,7 +219,10 @@ class MusicService :
     private var wasPlayingBeforeAudioFocusLoss = false
     private var hasAudioFocus = false
 
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    // Service-lifetime scope. Also used by the cast picker to launch connects: an Activity-bound scope
+    // would be cancelled by onStop mid-connect, stranding the picker's spinner and skipping the
+    // timeout abort (CastConnector's TIMED_OUT handler.disconnect()).
+    val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var startRadioJob: Job? = null
     private val binder = MusicBinder()
 
@@ -404,7 +408,7 @@ class MusicService :
                 .build()
                 .apply {
                     addListener(this@MusicService)
-                    sleepTimer = SleepTimer(scope, this)
+                    sleepTimer = SleepTimer(scope, this@MusicService)
                     addListener(sleepTimer)
                     addAnalyticsListener(PlaybackStatsListener(false, this@MusicService))
                     setOffloadEnabled(dataStore.get(AudioOffload, false))
@@ -501,6 +505,21 @@ class MusicService :
             updateNotification()
             updateWidget()
         }
+
+        // The widget otherwise repaints only from local-player callbacks, which are silent while casting
+        // (the local player stays paused): repaint on remote connect/play/pause edges so its icon always
+        // matches what a tap will do, and run the seek-bar ticker off the remote clock while it plays.
+        combine(
+            discoveryHandler.remoteConnectionState,
+            discoveryHandler.remotePlaybackState,
+        ) { _, state -> discoveryHandler.isConnected && CastPlayback.isPlaying(state) }
+            .distinctUntilChanged()
+            // Skip the initial not-casting emission: repainting at service start would flash an empty
+            // widget before the restored queue's metadata lands. Cast edges all come later.
+            .drop(1)
+            .collect(scope) { remotePlaying ->
+                if (remotePlaying) startWidgetTicker() else updateWidget()
+            }
 
         combine(
             currentMediaMetadata.distinctUntilChangedBy { it?.id },
@@ -774,15 +793,27 @@ class MusicService :
 
     private var widgetTickerJob: Job? = null
 
+    /** The playing state the widget should render — the receiver's while casting, else the local player's. */
+    private fun widgetIsPlaying(): Boolean =
+        if (discoveryHandler.isConnected) discoveryHandler.isRemotePlaying() else player.isPlaying
+
     private fun updateWidget() {
         scope.launch {
+            // While casting the local player is deliberately paused and its clock frozen, so render the
+            // remote state/clock instead — otherwise the widget's icon contradicts what a tap does
+            // (its ACTION_PLAY_PAUSE routes to the receiver).
+            val casting = discoveryHandler.isConnected
             val metadata = currentMediaMetadata.value
-            val isPlaying = player.isPlaying
+            val isPlaying = widgetIsPlaying()
             val title = metadata?.title ?: getString(R.string.app_name)
             val artist = metadata?.artists?.joinToString(", ") { it.name } ?: ""
             val albumArtUrl = metadata?.thumbnailUrl
-            val positionMs = player.currentPosition.coerceAtLeast(0L)
-            val durationMs = player.duration.takeIf { it > 0L } ?: 0L
+            val positionMs =
+                (if (casting) CastPlayback.remoteSecondsToMs(discoveryHandler.interpolatedRemoteTimeSec()) else player.currentPosition)
+                    .coerceAtLeast(0L)
+            val durationMs =
+                (if (casting) CastPlayback.remoteSecondsToMs(discoveryHandler.remoteDuration.value) else player.duration)
+                    .takeIf { it > 0L } ?: 0L
 
             MusicWidget.updateWidget(
                 context = this@MusicService,
@@ -803,7 +834,7 @@ class MusicService :
             // Only spin the per-second ticker when a widget is actually placed — checked once per
             // playback session rather than every tick, so users with no widget pay nothing.
             if (!MusicWidget.hasPlacedWidget(this@MusicService)) return@launch
-            while (isActive && player.isPlaying) {
+            while (isActive && widgetIsPlaying()) {
                 updateWidget()
                 delay(1000)
             }
@@ -1991,7 +2022,9 @@ class MusicService :
         when (intent?.action) {
             MusicWidget.ACTION_PLAY_PAUSE -> {
                 if (discoveryHandler.isConnected) {
-                    if (CastPlayback.isPlaying(discoveryHandler.remotePlaybackState.value)) {
+                    // isRemotePlaying falls back to the play intent before the receiver's first state
+                    // report, matching the widget's rendered icon (widgetIsPlaying).
+                    if (discoveryHandler.isRemotePlaying()) {
                         discoveryHandler.pause()
                     } else {
                         discoveryHandler.play()

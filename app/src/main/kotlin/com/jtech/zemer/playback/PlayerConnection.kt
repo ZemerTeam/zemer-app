@@ -143,8 +143,9 @@ class PlayerConnection(
 
     fun playPause() {
         if (isCasting.value) {
-            val remoteState = service.discoveryHandler.remotePlaybackState.value
-            if (CastPlayback.isPlaying(remoteState)) {
+            // isRemotePlaying falls back to the play intent before the receiver's first state report,
+            // matching the isPlaying flow — so the tap toggles what the button shows.
+            if (service.discoveryHandler.isRemotePlaying()) {
                 service.discoveryHandler.pause()
             } else {
                 service.discoveryHandler.play()
@@ -221,8 +222,14 @@ class PlayerConnection(
     fun seekToPrevious() {
         if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) {
             try {
-                player.seekToPrevious()
-                if (!isCasting.value) {
+                // While casting the local clock is frozen at the connect position, so seekToPrevious's
+                // "restart current track if >3s in" misfires: a within-item seek fires no media-item
+                // transition and the receiver is never reloaded. Skip straight to the previous item,
+                // like the widget path (MusicService.onStartCommand ACTION_PREV).
+                if (isCasting.value) {
+                    player.seekToPreviousMediaItem()
+                } else {
+                    player.seekToPrevious()
                     player.prepare()
                     player.playWhenReady = true
                 }

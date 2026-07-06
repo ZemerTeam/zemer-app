@@ -14,7 +14,7 @@ import kotlin.time.Duration.Companion.minutes
 
 class SleepTimer(
     private val scope: CoroutineScope,
-    val player: Player,
+    private val service: MusicService,
 ) : Player.Listener {
     private var sleepTimerJob: Job? = null
     var triggerTime by mutableLongStateOf(-1L)
@@ -23,6 +23,19 @@ class SleepTimer(
         private set
     val isActive: Boolean
         get() = triggerTime != -1L || pauseWhenSongEnd
+
+    /**
+     * While casting the local player is already paused, so player.pause() would be an audible no-op and
+     * the receiver would play on — pause the receiver instead (its shouldPlay=false also keeps the
+     * auto-advance's next reload paused). Locally, pause the player as before.
+     */
+    private fun pausePlayback() {
+        if (service.discoveryHandler.isConnected) {
+            service.discoveryHandler.pause()
+        } else {
+            service.player.pause()
+        }
+    }
 
     fun start(minute: Int) {
         sleepTimerJob?.cancel()
@@ -34,7 +47,7 @@ class SleepTimer(
             sleepTimerJob =
                 scope.launch {
                     delay(minute.minutes)
-                    player.pause()
+                    pausePlayback()
                     triggerTime = -1L
                 }
         }
@@ -53,7 +66,7 @@ class SleepTimer(
     ) {
         if (pauseWhenSongEnd) {
             pauseWhenSongEnd = false
-            player.pause()
+            pausePlayback()
         }
     }
 
@@ -62,7 +75,7 @@ class SleepTimer(
     ) {
         if (playbackState == Player.STATE_ENDED && pauseWhenSongEnd) {
             pauseWhenSongEnd = false
-            player.pause()
+            pausePlayback()
         }
     }
 }

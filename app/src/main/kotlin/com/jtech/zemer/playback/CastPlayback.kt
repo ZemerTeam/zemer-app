@@ -23,6 +23,15 @@ object CastPlayback {
     fun isPaused(state: PlaybackState?): Boolean = state == PlaybackState.PAUSED
 
     /**
+     * Whether the receiver should be treated as playing for a toggle decision: its reported state once
+     * the first playbackStateChanged has arrived, else the play intent ([shouldPlay]). This is the same
+     * fallback the UI's isPlaying uses, so a tap in the pre-first-report window (button already showing
+     * "pause" from the connect intent) toggles what the button shows instead of re-asserting play().
+     */
+    fun isRemotePlaying(state: PlaybackState?, shouldPlay: Boolean): Boolean =
+        if (state != null) isPlaying(state) else shouldPlay
+
+    /**
      * The play intent a remote state change implies: PLAYING -> keep playing, PAUSED -> keep paused,
      * transient/unknown states (buffering, idle, null) -> no change. Lets a pause/resume from the TV's
      * own remote be mirrored into our intent without fighting it.
