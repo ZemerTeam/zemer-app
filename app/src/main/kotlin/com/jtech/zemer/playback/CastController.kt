@@ -37,6 +37,12 @@ class CastController(
     private companion object {
         /** See the onDisconnect handler: long enough for a device switch's new connect to re-arm. */
         const val RELAY_STOP_GRACE_MS = 2_000L
+
+        /**
+         * Minimum increase (sec) in the remote clock that counts as real forward progress for the idle
+         * watchdog. Above the receivers' clock jitter, below one coarse (~1 Hz) report's worth of play.
+         */
+        const val PROGRESS_EPSILON_SEC = 0.25
     }
 
     private val player get() = service.player
@@ -47,6 +53,11 @@ class CastController(
     private var lastTransitionTime = 0L
     private var lastRemotePosition = 0.0
     private var lastRemoteTimeUpdateAt = System.currentTimeMillis()
+    // Wall-clock ms of the last time the remote clock actually moved FORWARD (real playback progress) —
+    // as opposed to lastRemoteTimeUpdateAt, which a paused receiver's repeated same-position reports keep
+    // bumping. Drives the CastIdleWatchdog: a pause or a frozen-playing stall stops advancing this, a
+    // genuine play resumes it. Reset to "now" on every fresh load/connect so each track gets full grace.
+    private var lastForwardProgressAt = System.currentTimeMillis()
     private var remoteLoadedMediaId: String? = null
     private var remoteLoadJob: Job? = null
 
@@ -64,6 +75,7 @@ class CastController(
             scope.launch {
                 lastRemotePosition = 0.0
                 lastRemoteTimeUpdateAt = System.currentTimeMillis()
+                lastForwardProgressAt = System.currentTimeMillis()
                 lastTransitionTime = System.currentTimeMillis()
                 remoteLoadedMediaId = null
                 errorAttempts = 0
@@ -93,6 +105,12 @@ class CastController(
                 // switch leaves the stall detector comparing the new track's duration against the old
                 // track's near-end position and spuriously auto-skipping. nearEnd(dur, 0) is false, so a
                 // genuine mid-track 0 is harmless.
+                // A strictly-increasing clock is real playback progress — feed the idle watchdog. A pause
+                // freezes the clock and a track-load reset moves it backward (to 0/resume), so neither
+                // counts, exactly as intended.
+                if (time > lastRemotePosition + PROGRESS_EPSILON_SEC) {
+                    lastForwardProgressAt = System.currentTimeMillis()
+                }
                 lastRemotePosition = time
                 lastRemoteTimeUpdateAt = System.currentTimeMillis()
                 // Real playback progress proves the current load works: restart the error-recovery
@@ -124,6 +142,11 @@ class CastController(
                 if (casting && lastState == PlaybackState.PLAYING && (endedIdle || endedPause)) {
                     advanceRemoteAfterEnd()
                 }
+                // A resume restarts the idle grace: give a just-un-paused track the full stalled-idle
+                // window to make progress before the watchdog judges it dead.
+                if (state == PlaybackState.PLAYING && lastState != PlaybackState.PLAYING) {
+                    lastForwardProgressAt = System.currentTimeMillis()
+                }
                 lastState = state
             }
         }
@@ -134,15 +157,25 @@ class CastController(
                 while (casting) {
                     delay(1000)
                     val dur = handler.remoteDuration.value
+                    val state = handler.remotePlaybackState.value
                     val stalledFor = System.currentTimeMillis() - lastRemoteTimeUpdateAt
+                    val nearEnd = CastAutoAdvance.nearEnd(
+                        dur, handler.interpolatedRemoteTimeSec(), CastAutoAdvance.STALL_END_EPSILON_SEC,
+                    )
                     // A deliberately PAUSED track also freezes the remote clock — never treat that as a
                     // finished track, or pausing near the end would silently auto-skip it. nearEnd reads the
                     // *interpolated* clock so a coarse clock that stopped reporting still reaches the end.
-                    if (!CastPlayback.isPaused(handler.remotePlaybackState.value) &&
-                        CastAutoAdvance.nearEnd(dur, handler.interpolatedRemoteTimeSec(), CastAutoAdvance.STALL_END_EPSILON_SEC) &&
-                        CastAutoAdvance.stalled(stalledFor)
-                    ) {
+                    if (!CastPlayback.isPaused(state) && nearEnd && CastAutoAdvance.stalled(stalledFor)) {
                         advanceRemoteAfterEnd()
+                    } else if (CastIdleWatchdog.shouldEndIdleSession(
+                            state, System.currentTimeMillis() - lastForwardProgressAt,
+                        )
+                    ) {
+                        // The session has gone dead — paused-and-abandoned, or playing-but-cut-off with no
+                        // Disconnected from the SDK. Tear it down so it doesn't hold the relay/service open
+                        // forever. disconnect() recovers the local player (paused, at the last position) and
+                        // stops the relay via onDisconnect; casting then goes false and this loop exits.
+                        endIdleSession()
                     }
                 }
             }
@@ -156,10 +189,11 @@ class CastController(
      */
     fun markRemoteLoaded(mediaId: String?) {
         remoteLoadedMediaId = mediaId
-        // A fresh connect starts a fresh error-recovery ladder.
+        // A fresh connect starts a fresh error-recovery ladder and a fresh idle-watchdog grace window.
         errorAttempts = 0
         consecutiveErrorAdvances = 0
         lastErrorHandledAt = 0L
+        lastForwardProgressAt = System.currentTimeMillis()
     }
 
     /**
@@ -206,6 +240,18 @@ class CastController(
         !player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
 
     /**
+     * Auto-end a cast session the [CastIdleWatchdog] has judged dead (paused-and-abandoned, or
+     * playing-but-cut-off with no SDK Disconnected). [FCastDiscoveryHandler.disconnect] tears the
+     * receiver connection down through the single teardown path — recovering the local player to the
+     * last position (paused) and stopping the stream relay via the onDisconnect callback.
+     */
+    private fun endIdleSession() {
+        Timber.tag("CastController").i("Auto-ending idle/stalled cast session (nothing playing)")
+        Toast.makeText(service, service.getString(R.string.cast_session_ended_idle), Toast.LENGTH_LONG).show()
+        handler.disconnect()
+    }
+
+    /**
      * [resumeSec] is 0 for a normal track change; an error-recovery reload passes the last played
      * position so a track that failed minutes in resumes there instead of restarting. [useRelay] is
      * false only for the ladder's DIRECT_URL rung — hand the receiver the raw googlevideo URL in case
@@ -220,6 +266,7 @@ class CastController(
         // duration against the just-switched new track (a full bar that then drops to 0).
         lastRemotePosition = resumeSec
         lastRemoteTimeUpdateAt = System.currentTimeMillis()
+        lastForwardProgressAt = System.currentTimeMillis() // fresh track: full idle-watchdog grace
         handler.remoteTime.value = resumeSec
         handler.remoteDuration.value = 0.0
         handler.remoteTimeUpdatedAt = System.currentTimeMillis()
@@ -306,6 +353,9 @@ class CastController(
                         IllegalStateException("FCast: cast error recovery gave up after repeated receiver errors: $message"),
                     )
                     Toast.makeText(service, service.getString(R.string.cast_playback_failed), Toast.LENGTH_LONG).show()
+                    // End the dead session rather than leaving it connected but silent — the receiver will
+                    // never play, so keeping the relay/service alive for it is pointless.
+                    handler.disconnect()
                 }
             }
         }
