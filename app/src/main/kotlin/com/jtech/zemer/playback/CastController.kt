@@ -207,9 +207,11 @@ class CastController(
 
     /**
      * [resumeSec] is 0 for a normal track change; an error-recovery reload passes the last played
-     * position so a track that failed minutes in resumes there instead of restarting.
+     * position so a track that failed minutes in resumes there instead of restarting. [useRelay] is
+     * false only for the ladder's DIRECT_URL rung — hand the receiver the raw googlevideo URL in case
+     * it's the relay itself the receiver can't fetch from.
      */
-    private fun triggerRemoteLoad(mediaItem: MediaItem?, resumeSec: Double = 0.0) {
+    private fun triggerRemoteLoad(mediaItem: MediaItem?, resumeSec: Double = 0.0, useRelay: Boolean = true) {
         val mediaId = mediaItem?.mediaId ?: return
         remoteLoadedMediaId = mediaId
         // Reset remote-clock tracking for the new track (see the remoteTime collector for the full why), and
@@ -238,7 +240,7 @@ class CastController(
             }
             // Prefer the phone-side relay URL (Stage 2 of the cast-403 fix; falls back to the direct
             // googlevideo URL when the relay can't serve). Suspends on IO — re-check supersession after.
-            val castUrl = service.relayedStreamUrl(mediaId, url)
+            val castUrl = if (useRelay) service.relayedStreamUrl(mediaId, url) else url
             if (!isActive) return@launch
             handler.load(castUrl, service.streamContentType(mediaId), mediaItem.metadata?.toCastMetadata(), resumeSec)
         }
@@ -247,9 +249,9 @@ class CastController(
     /**
      * Recovery for a receiver-reported playback error (its fetch of the stream URL failed — on some
      * networks googlevideo refuses the receiver's connections intermittently; see [CastErrorRecovery]).
-     * Escalates reload → fresh resolve → advance (capped) → give up, instead of the old behaviour of
-     * silently leaving the session dead. Invoked from the SDK's native callback thread — hops onto
-     * [scope] before touching state.
+     * Escalates reload → fresh resolve → direct (de-relayed) URL → advance (capped) → give up, instead
+     * of the old behaviour of silently leaving the session dead. Invoked from the SDK's native callback
+     * thread — hops onto [scope] before touching state.
      */
     fun onRemotePlaybackError(message: String) {
         scope.launch {
@@ -263,8 +265,10 @@ class CastController(
             // track that died minutes in resumes there instead of restarting from 0.
             val resumeSec = handler.lastProgressSec
             val canAdvance = player.repeatMode != REPEAT_MODE_ONE && canSkipNext()
+            // The de-relay rung only makes sense when what the receiver is failing on IS a relay URL.
+            val canTryDirect = service.castStreamRelay.servesUrl(handler.currentStreamUrl)
             val attempt = errorAttempts++
-            val action = CastErrorRecovery.actionForAttempt(attempt, consecutiveErrorAdvances, canAdvance)
+            val action = CastErrorRecovery.actionForAttempt(attempt, consecutiveErrorAdvances, canAdvance, canTryDirect)
             Timber.tag("CastController").w(
                 "Receiver playback error (attempt=%d, action=%s, resume=%.1fs): %s", attempt, action, resumeSec, message,
             )
@@ -283,6 +287,12 @@ class CastController(
                 CastErrorRecovery.Action.RESOLVE_FRESH -> {
                     player.currentMediaItem?.mediaId?.let { service.invalidateStreamCache(it) }
                     triggerRemoteLoad(player.currentMediaItem, resumeSec)
+                }
+                CastErrorRecovery.Action.DIRECT_URL -> {
+                    // Maybe the receiver can't fetch from the relay at all (cleartext policy, phone
+                    // unreachable) — try the raw googlevideo URL, already freshly minted by the
+                    // RESOLVE_FRESH rung. Per-track and non-sticky: the next track relays again.
+                    triggerRemoteLoad(player.currentMediaItem, resumeSec, useRelay = false)
                 }
                 CastErrorRecovery.Action.ADVANCE -> {
                     consecutiveErrorAdvances++

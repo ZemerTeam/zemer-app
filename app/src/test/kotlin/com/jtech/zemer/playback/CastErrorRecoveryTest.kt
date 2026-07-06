@@ -15,31 +15,52 @@ class CastErrorRecoveryTest {
 
     // --- actionForAttempt: the escalation ladder --------------------------------
 
+    private fun action(attempt: Int, consecutive: Int = 0, canAdvance: Boolean = true, canTryDirect: Boolean = false) =
+        CastErrorRecovery.actionForAttempt(attempt, consecutive, canAdvance, canTryDirect)
+
     @Test
     fun `first error reloads the same URL, second re-resolves, third advances`() {
-        assertEquals(CastErrorRecovery.Action.RELOAD, CastErrorRecovery.actionForAttempt(0, 0, canAdvance = true))
-        assertEquals(CastErrorRecovery.Action.RESOLVE_FRESH, CastErrorRecovery.actionForAttempt(1, 0, canAdvance = true))
-        assertEquals(CastErrorRecovery.Action.ADVANCE, CastErrorRecovery.actionForAttempt(2, 0, canAdvance = true))
+        assertEquals(CastErrorRecovery.Action.RELOAD, action(0))
+        assertEquals(CastErrorRecovery.Action.RESOLVE_FRESH, action(1))
+        assertEquals(CastErrorRecovery.Action.ADVANCE, action(2))
         // any later error on the same track keeps advancing (the load after ADVANCE is a new track,
         // which resets the attempt count; this is only reachable if that load never happened)
-        assertEquals(CastErrorRecovery.Action.ADVANCE, CastErrorRecovery.actionForAttempt(5, 0, canAdvance = true))
+        assertEquals(CastErrorRecovery.Action.ADVANCE, action(5))
+    }
+
+    @Test
+    fun `a failing relay URL gets a de-relayed direct attempt before the track is abandoned`() {
+        // The error callback can't say WHY the receiver failed; a receiver that can't fetch from the
+        // phone relay at all (cleartext-http policy, unreachable phone) must not burn the whole ladder
+        // on relay URLs. The rung sits after RESOLVE_FRESH so the direct URL is freshly minted.
+        assertEquals(CastErrorRecovery.Action.RELOAD, action(0, canTryDirect = true))
+        assertEquals(CastErrorRecovery.Action.RESOLVE_FRESH, action(1, canTryDirect = true))
+        assertEquals(CastErrorRecovery.Action.DIRECT_URL, action(2, canTryDirect = true))
+        assertEquals(CastErrorRecovery.Action.ADVANCE, action(3, canTryDirect = true))
+        // A load that was already direct gets no de-relay rung — it would just re-send the same thing.
+        assertEquals(CastErrorRecovery.Action.ADVANCE, action(2, canTryDirect = false))
     }
 
     @Test
     fun `advance is capped by consecutive abandoned tracks so a dead network cannot machine-gun the queue`() {
         val cap = CastErrorRecovery.MAX_CONSECUTIVE_ERROR_ADVANCES
-        assertEquals(CastErrorRecovery.Action.ADVANCE, CastErrorRecovery.actionForAttempt(2, cap - 1, canAdvance = true))
-        assertEquals(CastErrorRecovery.Action.GIVE_UP, CastErrorRecovery.actionForAttempt(2, cap, canAdvance = true))
-        assertEquals(CastErrorRecovery.Action.GIVE_UP, CastErrorRecovery.actionForAttempt(2, cap + 1, canAdvance = true))
+        assertEquals(CastErrorRecovery.Action.ADVANCE, action(2, cap - 1))
+        assertEquals(CastErrorRecovery.Action.GIVE_UP, action(2, cap))
+        assertEquals(CastErrorRecovery.Action.GIVE_UP, action(2, cap + 1))
+        // The de-relay rung is positional (attempt 2), not advance-budgeted — still offered at the cap.
+        assertEquals(CastErrorRecovery.Action.DIRECT_URL, action(2, cap, canTryDirect = true))
+        assertEquals(CastErrorRecovery.Action.GIVE_UP, action(3, cap, canTryDirect = true))
     }
 
     @Test
     fun `when the queue cannot advance (repeat-one or last track) the ladder gives up instead of looping`() {
-        // Reload and re-resolve are still worth trying…
-        assertEquals(CastErrorRecovery.Action.RELOAD, CastErrorRecovery.actionForAttempt(0, 0, canAdvance = false))
-        assertEquals(CastErrorRecovery.Action.RESOLVE_FRESH, CastErrorRecovery.actionForAttempt(1, 0, canAdvance = false))
+        // Reload, re-resolve, and the de-relay attempt are still worth trying…
+        assertEquals(CastErrorRecovery.Action.RELOAD, action(0, canAdvance = false))
+        assertEquals(CastErrorRecovery.Action.RESOLVE_FRESH, action(1, canAdvance = false))
+        assertEquals(CastErrorRecovery.Action.DIRECT_URL, action(2, canAdvance = false, canTryDirect = true))
         // …but abandoning the track has nowhere to go: never replay the same failing load forever.
-        assertEquals(CastErrorRecovery.Action.GIVE_UP, CastErrorRecovery.actionForAttempt(2, 0, canAdvance = false))
+        assertEquals(CastErrorRecovery.Action.GIVE_UP, action(2, canAdvance = false))
+        assertEquals(CastErrorRecovery.Action.GIVE_UP, action(3, canAdvance = false, canTryDirect = true))
     }
 
     // --- isNewFailure: burst dedupe ---------------------------------------------
@@ -79,18 +100,21 @@ class CastErrorRecoveryTest {
         // Track loads, receiver errors at ~0s. Attempt 0: reload. Still 403 -> attempt 1: fresh URL.
         // Still 403 -> attempt 2: abandon, advance. Each abandoned track increments the consecutive
         // count until the cap stops the skipping.
-        var consecutive = 0
-        val actions = (0..2).map { CastErrorRecovery.actionForAttempt(it, consecutive, canAdvance = true) }
+        // Relay-served loads (the normal Stage-2 case) get the de-relay attempt before abandonment.
+        val actions = (0..3).map { action(it, canTryDirect = true) }
         assertEquals(
             listOf(
                 CastErrorRecovery.Action.RELOAD,
                 CastErrorRecovery.Action.RESOLVE_FRESH,
+                CastErrorRecovery.Action.DIRECT_URL,
                 CastErrorRecovery.Action.ADVANCE,
             ),
             actions,
         )
-        // Three tracks in a row abandoned -> the fourth track's third error gives up.
-        consecutive = CastErrorRecovery.MAX_CONSECUTIVE_ERROR_ADVANCES
-        assertEquals(CastErrorRecovery.Action.GIVE_UP, CastErrorRecovery.actionForAttempt(2, consecutive, canAdvance = true))
+        // Three tracks in a row abandoned -> the fourth track's post-rungs error gives up.
+        assertEquals(
+            CastErrorRecovery.Action.GIVE_UP,
+            action(3, CastErrorRecovery.MAX_CONSECUTIVE_ERROR_ADVANCES, canTryDirect = true),
+        )
     }
 }

@@ -10,6 +10,7 @@ import java.net.HttpURLConnection
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.URI
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.security.SecureRandom
@@ -92,6 +93,17 @@ class CastStreamRelay(private val resolver: RelayUpstreamResolver) {
             CastRelayProtocol.newToken(random).also { mediaIdsByToken[it] = id }
         }
         return "http://$host:$port${CastRelayProtocol.STREAM_PATH_PREFIX}$token"
+    }
+
+    /**
+     * Whether [url] is one of this relay's live stream URLs — used by the error-recovery ladder to
+     * decide if a de-relay (direct googlevideo URL) rung is worth trying. False after [stop] (tokens
+     * are cleared) and for any foreign URL.
+     */
+    fun servesUrl(url: String?): Boolean {
+        val path = runCatching { URI(url ?: return false).path }.getOrNull() ?: return false
+        val token = CastRelayProtocol.tokenFromPath(path) ?: return false
+        return mediaIdsByToken.containsKey(token)
     }
 
     /** Starts the server if needed and returns its port; null when listening can't be established. */

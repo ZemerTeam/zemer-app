@@ -16,7 +16,12 @@ package com.jtech.zemer.playback
  *  1. [Action.RELOAD] — re-send the same URL; a fresh receiver connection re-rolls its address family,
  *     so a mid-track failure usually resumes (from the last reported position).
  *  2. [Action.RESOLVE_FRESH] — drop the cached URL, re-resolve, reload; covers an expired/poisoned URL.
- *  3. [Action.ADVANCE] — abandon the track and let the queue continue, capped by
+ *  3. [Action.DIRECT_URL] — only when the failing load went through the phone-side stream relay
+ *     ([CastStreamRelay]): hand the receiver the raw googlevideo URL instead. The error callback can't
+ *     say WHY the receiver failed, and a receiver that can't fetch from the relay at all (cleartext-http
+ *     policy, phone unreachable) would otherwise burn the whole ladder on relay URLs it can never use.
+ *     Blind but strictly additive: it runs where the ladder previously abandoned the track.
+ *  4. [Action.ADVANCE] — abandon the track and let the queue continue, capped by
  *     [MAX_CONSECUTIVE_ERROR_ADVANCES] consecutive abandoned tracks so a fully-broken network doesn't
  *     machine-gun through the whole queue; then [Action.GIVE_UP].
  */
@@ -38,17 +43,24 @@ object CastErrorRecovery {
     /** Max consecutive tracks abandoned via [Action.ADVANCE] before recovery stops trying. */
     const val MAX_CONSECUTIVE_ERROR_ADVANCES = 3
 
-    enum class Action { RELOAD, RESOLVE_FRESH, ADVANCE, GIVE_UP }
+    enum class Action { RELOAD, RESOLVE_FRESH, DIRECT_URL, ADVANCE, GIVE_UP }
 
     /**
      * The recovery action for the [attempt]-th error on the currently loaded track (0-based: the first
      * error is attempt 0). [canAdvance] is false when the queue can't move on (repeat-one, or no next
      * item) — abandoning the track is then meaningless, so the ladder gives up instead of looping the
-     * same failing load forever.
+     * same failing load forever. [canTryDirect] is true only when the receiver's failing load is a
+     * relay URL — the de-relay rung is skipped entirely for a load that was already direct.
      */
-    fun actionForAttempt(attempt: Int, consecutiveErrorAdvances: Int, canAdvance: Boolean): Action = when {
+    fun actionForAttempt(
+        attempt: Int,
+        consecutiveErrorAdvances: Int,
+        canAdvance: Boolean,
+        canTryDirect: Boolean,
+    ): Action = when {
         attempt <= 0 -> Action.RELOAD
         attempt == 1 -> Action.RESOLVE_FRESH
+        attempt == 2 && canTryDirect -> Action.DIRECT_URL
         canAdvance && consecutiveErrorAdvances < MAX_CONSECUTIVE_ERROR_ADVANCES -> Action.ADVANCE
         else -> Action.GIVE_UP
     }

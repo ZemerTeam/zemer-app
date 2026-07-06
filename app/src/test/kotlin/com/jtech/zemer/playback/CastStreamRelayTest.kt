@@ -57,6 +57,21 @@ class CastStreamRelayTest {
         assertNotEquals(a, relay.urlFor("song-2")) // tokens are per track
     }
 
+    @Test
+    fun `servesUrl recognizes only this relay's live URLs`() {
+        val url = relay.urlFor("song-1")!!
+        assertTrue(relay.servesUrl(url))
+        // Foreign / malformed URLs and unknown tokens are not ours (the error ladder must not offer a
+        // de-relay rung for a load that was already direct).
+        assertTrue(!relay.servesUrl("https://rr3---sn-x.googlevideo.com/videoplayback?a=1"))
+        assertTrue(!relay.servesUrl("http://127.0.0.1:9/stream/${"ab".repeat(16)}"))
+        assertTrue(!relay.servesUrl(null))
+        assertTrue(!relay.servesUrl("not a url"))
+        // stop() clears the token table: the URL is dead, so it stops counting as relay-served.
+        relay.stop()
+        assertTrue(!relay.servesUrl(url))
+    }
+
     // --- basic serving ---
 
     @Test
