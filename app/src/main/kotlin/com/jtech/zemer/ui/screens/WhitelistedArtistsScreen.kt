@@ -75,10 +75,11 @@ import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
 import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.constants.RecognizeMusicFabKey
 import com.jtech.zemer.constants.YtmSyncKey
-import com.jtech.zemer.ui.component.AlphabetScrollbar
+import com.jtech.zemer.ui.component.ALPHABET_OTHER_BUCKET
 import com.jtech.zemer.ui.component.EmptyPlaceholder
+import com.jtech.zemer.ui.component.LetterFastScrollbar
 import com.jtech.zemer.ui.component.MIN_ITEMS_FOR_FAST_SCROLL
-import com.jtech.zemer.ui.component.alphabetIndexOf
+import com.jtech.zemer.ui.component.alphabetBucketOf
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.screens.LoadingScreen
 import com.jtech.zemer.ui.component.WhitelistedArtistGridItem
@@ -88,17 +89,17 @@ import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.WhitelistedArtistsViewModel
 
 // The always-present lazy items ("search", "header") that precede the artists in BOTH the list
-// and the grid — the letter index scrolls to artistIndex + this, so a header item added to one
+// and the grid — the fast scroller scrolls to artistIndex + this, so a header item added to one
 // container must be added to the other and counted here.
 private const val ARTIST_HEADER_ITEM_COUNT = 2
 
 // Geometry of the bottom-end button stack, shared between the back-to-top button below and the
-// letter strip's clearance so the two can never drift apart.
+// fast scroller's clearance so the two can never drift apart.
 private val BackToTopButtonSize = 36.dp
 private val BackToTopBottomPadding = 16.dp
 // Clears the Recognize-music FAB (56dp) + gap when it occupies this corner.
 private val BackToTopBottomPaddingAboveFab = 80.dp
-private val AlphabetStripBottomGap = 16.dp
+private val FastScrollBottomGap = 16.dp
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -134,15 +135,29 @@ fun WhitelistedArtistsScreen(
         }
     }
 
-    // Single source for what the lazy containers actually render: both view types and the letter
-    // index must agree on items and positions, so the de-duplication happens once, here.
+    // Single source for what the lazy containers actually render: both view types and the fast
+    // scroller must agree on items and positions, so the de-duplication happens once, here.
     val displayedArtists = remember(artists) { artists.distinctBy { it.artist.name } }
-    val alphabetEntries = remember(displayedArtists) {
-        alphabetIndexOf(displayedArtists.map { it.artist.name })
-    }
 
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
+
+    // Approximate scroll position of the active container as a 0..1 fraction, driving the fast
+    // scroller's thumb. Item-index based, which is exact enough for a uniform artists list/grid.
+    val fastScrollProgress by remember(viewType, displayedArtists.size) {
+        derivedStateOf {
+            val (firstIndex, visibleCount) = when (viewType) {
+                LibraryViewType.LIST ->
+                    lazyListState.firstVisibleItemIndex to lazyListState.layoutInfo.visibleItemsInfo.size
+                LibraryViewType.GRID ->
+                    lazyGridState.firstVisibleItemIndex to lazyGridState.layoutInfo.visibleItemsInfo.size
+            }
+            val contentFirst = (firstIndex - ARTIST_HEADER_ITEM_COUNT).coerceAtLeast(0)
+            val maxFirst = (displayedArtists.size - (visibleCount - ARTIST_HEADER_ITEM_COUNT))
+                .coerceAtLeast(1)
+            (contentFirst.toFloat() / maxFirst).coerceIn(0f, 1f)
+        }
+    }
 
     // The one "scroll whichever container the view type shows" dispatch — the scroll-to-top
     // signal, the back-to-top button and the letter index must all move the same container.
@@ -397,13 +412,22 @@ fun WhitelistedArtistsScreen(
                 }
         }
 
-        // Letter fast-scroll strip: only when the list is long enough for jumping to beat swiping.
+        // Fast scroller: only when the list is long enough for jumping to beat swiping.
         if (displayedArtists.size >= MIN_ITEMS_FOR_FAST_SCROLL) {
-            AlphabetScrollbar(
-                entries = alphabetEntries,
-                onSelect = { entry ->
+            LetterFastScrollbar(
+                itemCount = displayedArtists.size,
+                scrollProgress = fastScrollProgress,
+                listScrollInProgress = when (viewType) {
+                    LibraryViewType.LIST -> lazyListState.isScrollInProgress
+                    LibraryViewType.GRID -> lazyGridState.isScrollInProgress
+                },
+                letterFor = { index ->
+                    displayedArtists.getOrNull(index)?.artist?.name?.let(::alphabetBucketOf)
+                        ?: ALPHABET_OTHER_BUCKET
+                },
+                onScrollToItem = { index ->
                     coroutineScope.launch {
-                        scrollActiveListTo(entry.itemIndex + ARTIST_HEADER_ITEM_COUNT, false)
+                        scrollActiveListTo(index + ARTIST_HEADER_ITEM_COUNT, false)
                     }
                 },
                 modifier = Modifier
@@ -415,7 +439,7 @@ fun WhitelistedArtistsScreen(
                     .padding(
                         top = 8.dp,
                         bottom = (if (recognizeMusicFab) BackToTopBottomPaddingAboveFab else BackToTopBottomPadding) +
-                            BackToTopButtonSize + AlphabetStripBottomGap,
+                            BackToTopButtonSize + FastScrollBottomGap,
                     ),
             )
         }
