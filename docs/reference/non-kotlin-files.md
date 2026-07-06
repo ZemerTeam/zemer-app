@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `359`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `362`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -9,15 +9,15 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/player-monitor.yml` | 195 lines | text `.yml` |
 | `.github/workflows/release-build.yml` | 171 lines | text `.yml` |
 | `.github/workflows/ui-audit.yml` | 38 lines | text `.yml` |
-| `.gitignore` | 115 lines | text `[none]` |
+| `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 6 lines | text `[none]` |
 | `AGENTS.md` | 309 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 19 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
-| `app/build.gradle.kts` | 300 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
+| `app/build.gradle.kts` | 308 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
 | `app/lint.xml` | 12 lines | text `.xml`; XML root `lint` |
-| `app/proguard-rules.pro` | 257 lines | text `.pro` |
+| `app/proguard-rules.pro` | 269 lines | text `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/10.json` | 814 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/11.json` | 796 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -80,10 +80,13 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/bookmark_filled.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/cached.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/casino.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/cast.xml` | 9 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/cast_connected.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/check.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/check_box.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/clear_all.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/close.xml` | 9 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/content_copy.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/contrast.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/dark_mode.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/delete.xml` | 9 lines | text `.xml`; XML root `vector` |
@@ -249,7 +252,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 580 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 606 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 560 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
