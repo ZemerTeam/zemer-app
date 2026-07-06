@@ -49,6 +49,23 @@ object CastPlayback {
     fun shouldStartLocalPlayback(playWhenReady: Boolean, isCasting: Boolean): Boolean =
         playWhenReady && !isCasting
 
+    /**
+     * Whether opening a full-screen local video (which plays audio through the phone) should pause the
+     * cast receiver so the two don't play at once. Only when actually casting AND the receiver is
+     * playing — a receiver the user already paused is left alone so we don't later resume something we
+     * never interrupted.
+     */
+    fun shouldPauseCastForVideo(isCasting: Boolean, remoteState: PlaybackState?): Boolean =
+        isCasting && isPlaying(remoteState)
+
+    /**
+     * Whether closing the local video should resume the cast receiver: only if we were the one that
+     * paused it ([pausedByVideo]) and the session is still connected. A session that dropped or ended
+     * while the video was open must not be revived.
+     */
+    fun shouldResumeCastAfterVideo(pausedByVideo: Boolean, isCasting: Boolean): Boolean =
+        pausedByVideo && isCasting
+
     /** Fraction of full [0.0, 1.0] volume a single hardware-key press adjusts by. */
     const val VOLUME_STEP = 1.0 / 15
 

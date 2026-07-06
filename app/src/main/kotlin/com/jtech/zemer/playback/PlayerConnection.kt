@@ -176,6 +176,23 @@ class PlayerConnection(
         }
     }
 
+    /**
+     * Pause the cast receiver because a full-screen local video is taking over the phone's audio, so the
+     * receiver isn't playing underneath it. Returns whether we actually paused an active cast, so the
+     * caller can [resumeCastAfterVideo] only what it interrupted. No-op (returns false) when not casting
+     * or the receiver was already paused.
+     */
+    fun pauseCastForVideo(): Boolean {
+        val pause = CastPlayback.shouldPauseCastForVideo(isCasting.value, service.discoveryHandler.remotePlaybackState.value)
+        if (pause) service.discoveryHandler.pause()
+        return pause
+    }
+
+    /** Resume the cast receiver after the local video closed — only if we paused it and it's still connected. */
+    fun resumeCastAfterVideo(pausedByVideo: Boolean) {
+        if (CastPlayback.shouldResumeCastAfterVideo(pausedByVideo, isCasting.value)) service.discoveryHandler.play()
+    }
+
     /** Current playback position (ms) — the smoothed remote clock while casting, else the local player. */
     fun currentPositionMs(): Long =
         if (isCasting.value) CastPlayback.remoteSecondsToMs(service.discoveryHandler.interpolatedRemoteTimeSec())

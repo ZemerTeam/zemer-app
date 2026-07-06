@@ -223,9 +223,16 @@ fun VideoPlayerScreen(
         }
     }
 
-    // Pause any music playback while the user is watching video
-    LaunchedEffect(Unit) {
+    // Video takes over the phone's audio, so silence anything else: pause the local player, and — while
+    // casting — pause the receiver too (the local pause is a no-op there; the audio is on the receiver,
+    // driven through discoveryHandler). Resume the receiver when the screen closes, but only if we're the
+    // one that paused an active cast and it's still connected.
+    DisposableEffect(playerConnection) {
         playerConnection?.player?.pause()
+        val pausedCast = playerConnection?.pauseCastForVideo() == true
+        onDispose {
+            playerConnection?.resumeCastAfterVideo(pausedCast)
+        }
     }
 
     DisposableEffect(playerInstance) {
