@@ -52,8 +52,10 @@ function extractHashesFromJs(playerJs) {
 }
 
 export function extractSignatureTimestamp(playerJs, hashes = []) {
-  for (const p of SIG_TS_PATTERNS) { const m = playerJs.match(p); if (m) return Number(m[1]); }
+  // Validated config first, regex heuristics as fallback — mirrors
+  // FunctionNameExtractor.extractSignatureTimestamp's precedence on-device.
   for (const h of hashes) if (knownPlayerConfigs()[h]) return knownPlayerConfigs()[h].sts;
+  for (const p of SIG_TS_PATTERNS) { const m = playerJs.match(p); if (m) return Number(m[1]); }
   return null;
 }
 
