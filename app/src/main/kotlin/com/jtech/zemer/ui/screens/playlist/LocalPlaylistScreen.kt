@@ -144,6 +144,7 @@ import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.utils.remotePlaylistRemovalArgs
 import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.viewmodels.LocalPlaylistViewModel
 import com.metrolist.innertube.YouTube
@@ -518,17 +519,18 @@ fun LocalPlaylistScreen(
 
                         fun deleteFromPlaylist() {
                             database.transaction {
-                                // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
-                                if (isPersonalAccountSignedIn) {
+                                // Remote removal needs the entry's setVideoId, persisted on the map
+                                // row by the playlist sync (the set_video_id TABLE was never
+                                // populated — reading it here silently skipped every remote removal).
+                                // Anonymous (pooled) sessions are local-only.
+                                remotePlaylistRemovalArgs(
+                                    isPersonalAccountSignedIn,
+                                    playlist?.playlist?.browseId,
+                                    currentItem.map.songId,
+                                    currentItem.map.setVideoId,
+                                )?.let { args ->
                                     coroutineScope.launch {
-                                        playlist?.playlist?.browseId?.let { it1 ->
-                                            val setVideoId = getSetVideoId(currentItem.map.songId)
-                                            if (setVideoId?.setVideoId != null) {
-                                                YouTube.removeFromPlaylist(
-                                                    it1, currentItem.map.songId, setVideoId.setVideoId
-                                                )
-                                            }
-                                        }
+                                        YouTube.removeFromPlaylist(args.browseId, args.videoId, args.setVideoId)
                                     }
                                 }
                                 move(

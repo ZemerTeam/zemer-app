@@ -18,7 +18,7 @@
 | Workflow fact | Value |
 | --- | --- |
 | Triggers | `workflow_dispatch`, `push`, `pull_request` |
-| Path filters (`paths-ignore`) | `docs/**`, `tests/**`, `**.md`, `scripts/**`, `.github/**`, `.idea/**`, `.vscode/**`, `.gitignore`, `.gitattributes`, `.editorconfig`, `LICENSE` |
+| Path filters (`paths-ignore`) | `docs/**`, `tests/**`, `**.md`, `scripts/**`, `.github/**`, `.idea/**`, `.vscode/**`, `.gitignore`, `.gitattributes`, `.editorconfig`, `LICENSE`, `cipher` |
 | Environment | `USE_PREBUILT_NATIVE: true` |
 | Job | `assemble-release` on `ubuntu-latest` |
 | Permissions | `contents: write` |

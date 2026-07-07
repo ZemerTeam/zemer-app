@@ -8,7 +8,6 @@ import com.jtech.zemer.constants.LastWhitelistVersionKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.db.entities.PlaylistEntity
-import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toSQLiteQuery
@@ -430,10 +429,13 @@ class SyncUtils @Inject constructor(
                     .filter { it.id in allowedSongIds }  // Only use pre-filtered songs
                     .filterIsInstance<SongItem>()
                     .map(SongItem::toMediaMetadata)
-                val remoteIds = songs.map { it.id }
-                val localIds = database.playlistSongs(playlistId).first().sortedBy { it.map.position }.map { it.song.id }
+                val localRows = database.playlistSongs(playlistId).first().sortedBy { it.map.position }
+                val localIds = localRows.map { it.song.id }
 
-                if (remoteIds == localIds) return@onSuccess
+                // Compare (id, setVideoId) pairs, not just ids: setVideoId is what remote
+                // remove/reorder need, so an unchanged-membership playlist still rebuilds once to
+                // backfill entry ids that were never persisted.
+                if (songs.map { it.id to it.setVideoId } == localRows.map { it.song.id to it.map.setVideoId }) return@onSuccess
                 // Filtering left nothing while the playlist locally still has songs — skip rather than
                 // clear, so a transient sparse read can't empty an otherwise-populated playlist.
                 if (songs.isEmpty() && localIds.isNotEmpty()) return@onSuccess
@@ -464,16 +466,8 @@ class SyncUtils @Inject constructor(
                         }
                     }
 
-                    // Add playlist song mappings
-                    songs.forEachIndexed { index, mediaMetadata ->
-                        insert(
-                            PlaylistSongMap(
-                                songId = mediaMetadata.id,
-                                playlistId = playlistId,
-                                position = index
-                            )
-                        )
-                    }
+                    // Add playlist song mappings (setVideoId included — remote edits depend on it)
+                    playlistSongMaps(songs, playlistId).forEach { insert(it) }
                 }
             }
         } catch (e: Exception) {
