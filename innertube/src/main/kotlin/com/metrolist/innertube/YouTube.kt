@@ -735,41 +735,6 @@ object YouTube {
         }
     }
 
-    suspend fun libraryRecentActivity(): Result<LibraryPage> = runCatching {
-        val continuation = LibraryFilter.FILTER_RECENT_ACTIVITY.value
-
-        val response = innerTube.browse(
-            client = WEB_REMIX,
-            continuation = continuation,
-            setLogin = true
-        ).body<BrowseResponse>()
-
-        val items = response.continuationContents?.sectionListContinuation?.contents?.firstOrNull()
-            ?.gridRenderer?.items!!.mapNotNull {
-                it.musicTwoRowItemRenderer?.let { renderer ->
-                    LibraryPage.fromMusicTwoRowItemRenderer(renderer)
-                }
-            }.toMutableList()
-
-        /*
-         * We need to fetch the artist page when accessing the library because it allows to have
-         * a proper playEndpoint, which is needed to correctly report the playing indicator in
-         * the home page.
-         *
-         * Despite this, we need to use the old thumbnail because it's the proper format for a
-         * square picture, which is what we need.
-         */
-        items.forEachIndexed { index, item ->
-            if (item is ArtistItem)
-                items[index] = artist(item.id).getOrNull()?.artist!!.copy(thumbnail = item.thumbnail)
-        }
-
-        LibraryPage(
-            items = items,
-            continuation = null
-        )
-    }
-
     suspend fun getChartsPage(continuation: String? = null): Result<ChartsPage> = runCatching {
         val response = innerTube.browse(
             client = WEB_REMIX,
@@ -1154,20 +1119,6 @@ object YouTube {
         }!!
     }
 
-// --Commented out by Inspection START (12/1/25, 12:23 PM):
-//    suspend fun visitorData(): Result<String> = runCatching {
-//        Json.parseToJsonElement(innerTube.getSwJsData().bodyAsText().substring(5))
-//            .jsonArray[0]
-//            .jsonArray[2]
-//            .jsonArray.first {
-//                (it as? JsonPrimitive)?.contentOrNull?.let { candidate ->
-//                    VISITOR_DATA_REGEX.containsMatchIn(candidate)
-//                } ?: false
-//            }
-//            .jsonPrimitive.content
-//    }
-// --Commented out by Inspection STOP (12/1/25, 12:23 PM)
-
     suspend fun accountInfo(): Result<AccountInfo> = runCatching {
         innerTube.accountMenu(WEB_REMIX).body<AccountMenuResponse>()
             .actions[0].openPopupAction.popup.multiPageMenuRenderer
@@ -1198,7 +1149,6 @@ object YouTube {
     @JvmInline
     value class LibraryFilter(val value: String) {
         companion object {
-            val FILTER_RECENT_ACTIVITY = LibraryFilter("4qmFsgIrEhdGRW11c2ljX2xpYnJhcnlfbGFuZGluZxoQZ2dNR0tnUUlCaEFCb0FZQg%3D%3D")
             val FILTER_RECENTLY_PLAYED = LibraryFilter("4qmFsgIrEhdGRW11c2ljX2xpYnJhcnlfbGFuZGluZxoQZ2dNR0tnUUlCUkFCb0FZQg%3D%3D")
             val FILTER_PLAYLISTS_ALPHABETICAL = LibraryFilter("4qmFsgIrEhdGRW11c2ljX2xpa2VkX3BsYXlsaXN0cxoQZ2dNR0tnUUlBUkFBb0FZQg%3D%3D")
             val FILTER_PLAYLISTS_RECENTLY_SAVED = LibraryFilter("4qmFsgIrEhdGRW11c2ljX2xpa2VkX3BsYXlsaXN0cxoQZ2dNR0tnUUlBQkFCb0FZQg%3D%3D")
@@ -1207,48 +1157,4 @@ object YouTube {
 
     const val MAX_GET_QUEUE_SIZE = 1000
 
-    private val VISITOR_DATA_REGEX = Regex("^Cg[t|s]")
-
-    fun getNewPipeStreamUrls(videoId: String): List<Pair<Int, String>> {
-        return NewPipeUtils.newPipePlayer(videoId)
-    }
-
-    suspend fun newPipePlayer(
-        videoId: String,
-        tempRes: PlayerResponse,
-    ): PlayerResponse? {
-        if (tempRes.playabilityStatus.status != "OK") {
-            return null
-        }
-
-        val streamsList = getNewPipeStreamUrls(videoId)
-        if (streamsList.isEmpty()) return null
-
-        val decodedSigResponse = tempRes.copy(
-            streamingData = tempRes.streamingData?.copy(
-                formats = tempRes.streamingData.formats?.map { format ->
-                    format.copy(
-                        url = streamsList.find { it.first == format.itag }?.second ?: format.url,
-                    )
-                },
-                adaptiveFormats = tempRes.streamingData.adaptiveFormats.map { adaptiveFormat ->
-                    adaptiveFormat.copy(
-                        url = streamsList.find { it.first == adaptiveFormat.itag }?.second ?: adaptiveFormat.url,
-                    )
-                },
-            ),
-        )
-
-        val urlList = (
-            decodedSigResponse.streamingData?.adaptiveFormats?.mapNotNull { it.url }?.toMutableList() ?: mutableListOf()
-        ).apply {
-            decodedSigResponse.streamingData?.formats?.mapNotNull { it.url }?.let { addAll(it) }
-        }
-
-        return if (urlList.isNotEmpty()) {
-            decodedSigResponse
-        } else {
-            null
-        }
-    }
 }

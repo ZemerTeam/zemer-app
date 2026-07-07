@@ -11,10 +11,6 @@ object WhitelistCache {
         entries.forEach { memory[it.artistId] = it }
     }
 
-    fun upsert(entry: ArtistWhitelistEntity) {
-        memory[entry.artistId] = entry
-    }
-
     fun get(artistId: String): ArtistWhitelistEntity? = memory[artistId]
 
     fun snapshot(): Collection<ArtistWhitelistEntity> = memory.values

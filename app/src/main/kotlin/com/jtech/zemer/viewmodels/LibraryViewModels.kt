@@ -3,8 +3,6 @@
 package com.jtech.zemer.viewmodels
 
 import android.content.Context
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -23,7 +21,6 @@ import com.jtech.zemer.constants.ArtistSortDescendingKey
 import com.jtech.zemer.constants.ArtistSortType
 import com.jtech.zemer.constants.ArtistSortTypeKey
 import com.jtech.zemer.constants.HideExplicitKey
-import com.jtech.zemer.constants.LibraryFilter
 import com.jtech.zemer.constants.MyTopFilter
 import com.jtech.zemer.constants.PlaylistSortDescendingKey
 import com.jtech.zemer.constants.PlaylistSortType
@@ -451,12 +448,4 @@ class LibraryAutoPlaylistViewModel @Inject constructor(
         const val CACHED_PLAYLIST_ID = "LP_CACHED"
         const val TOP_PLAYLIST_ID = "LP_TOP"
     }
-}
-
-@HiltViewModel
-class LibraryViewModel
-@Inject
-constructor() : ViewModel() {
-    private val curScreen = mutableStateOf(LibraryFilter.LIBRARY)
-    val filter: MutableState<LibraryFilter> = curScreen
 }

@@ -69,7 +69,6 @@ val ProxyTypeKey = stringPreferencesKey("proxyType")
 val ProxyUsernameKey = stringPreferencesKey("proxyUsername")
 val ProxyPasswordKey = stringPreferencesKey("proxyPassword")
 val YtmSyncKey = booleanPreferencesKey("ytmSync")
-val LastWhitelistSyncTimeKey = longPreferencesKey("lastWhitelistSyncTime")  // Timestamp in milliseconds
 // Persisted snapshot of the server's blockedContentIds list (newline-joined), loaded at startup so the
 // blocklist is active before the first sync of the session and survives offline launches.
 val BlockedContentIdsKey = stringPreferencesKey("blockedContentIds")
@@ -123,8 +122,6 @@ val SongSortTypeKey = stringPreferencesKey("songSortType")
 val SongSortDescendingKey = booleanPreferencesKey("songSortDescending")
 val PlaylistSongSortTypeKey = stringPreferencesKey("playlistSongSortType")
 val PlaylistSongSortDescendingKey = booleanPreferencesKey("playlistSongSortDescending")
-val AutoPlaylistSongSortTypeKey = stringPreferencesKey("autoPlaylistSongSortType")
-val AutoPlaylistSongSortDescendingKey = booleanPreferencesKey("autoPlaylistSongSortDescending")
 val ArtistSortTypeKey = stringPreferencesKey("artistSortType")
 val ArtistSortDescendingKey = booleanPreferencesKey("artistSortDescending")
 val AlbumSortTypeKey = stringPreferencesKey("albumSortType")
@@ -141,15 +138,8 @@ val SongFilterKey = stringPreferencesKey("songFilter")
 val ArtistFilterKey = stringPreferencesKey("artistFilter")
 val AlbumFilterKey = stringPreferencesKey("albumFilter")
 
-val LastLikeSongSyncKey = longPreferencesKey("last_like_song_sync")
-val LastLibSongSyncKey = longPreferencesKey("last_library_song_sync")
-val LastAlbumSyncKey = longPreferencesKey("last_album_sync")
-val LastArtistSyncKey = longPreferencesKey("last_artist_sync")
-val LastPlaylistSyncKey = longPreferencesKey("last_playlist_sync")
-
 // Home screen cache
 val HomeCacheKey = stringPreferencesKey("home_cache_json")
-val HomeCacheTimestampKey = longPreferencesKey("home_cache_timestamp")
 
 // Artist profiles cache (Firebase whitelist)
 val ArtistProfilesCacheKey = stringPreferencesKey("artist_profiles_cache")
@@ -161,7 +151,6 @@ val PlaylistViewTypeKey = stringPreferencesKey("playlistViewType")
 
 val PlaylistEditLockKey = booleanPreferencesKey("playlistEditLock")
 val QuickPicksKey = stringPreferencesKey("discover")
-val PreferredLyricsProviderKey = stringPreferencesKey("lyricsProvider")
 val QueueEditLockKey = booleanPreferencesKey("queueEditLock")
 val AllowFemaleSingersKey = booleanPreferencesKey("allowFemaleSingers")
 val FemalePasscodeHashKey = stringPreferencesKey("femalePasscodeHash")
@@ -172,13 +161,6 @@ val EnableContentFiltersKey = booleanPreferencesKey("enableContentFilters")
 // Online search engine: SearchProvider.name (ZEMER default, or YOUTUBE)
 val SearchProviderKey = stringPreferencesKey("searchProvider")
 
-// Sync-related preference keys
-val LastContentFilterSyncTimeKey = longPreferencesKey("last_content_filter_sync_time")
-val IsContentFilterSyncEnabledKey = booleanPreferencesKey("content_filter_sync_enabled")
-val CurrentUserIdKey = stringPreferencesKey("current_user_id")
-val IsAuthenticatedKey = booleanPreferencesKey("is_authenticated")
-val DeviceIdKey = stringPreferencesKey("device_id")
-val DeviceNameKey = stringPreferencesKey("device_name")
 val ContentFiltersAutoRestoredKey = booleanPreferencesKey("content_filters_auto_restored")
 val ContentFiltersRestoredEmailKey = stringPreferencesKey("content_filters_restored_email")
 val ContentFiltersLockedKey = booleanPreferencesKey("content_filters_locked")
@@ -189,7 +171,6 @@ val ShowDownloadedPlaylistKey = booleanPreferencesKey("show_downloaded_playlist"
 val ShowTopPlaylistKey = booleanPreferencesKey("show_top_playlist")
 val ShowCachedPlaylistKey = booleanPreferencesKey("show_cached_playlist")
 val ShowUploadedPlaylistKey = booleanPreferencesKey("show_uploaded_playlist")
-val DefaultLinkHandlerKey = booleanPreferencesKey("defaultLinkHandler")
 
 enum class LibraryViewType {
     LIST,
@@ -230,13 +211,6 @@ enum class SongSortType {
 
 enum class PlaylistSongSortType {
     CUSTOM,
-    CREATE_DATE,
-    NAME,
-    ARTIST,
-    PLAY_TIME,
-}
-
-enum class AutoPlaylistSongSortType {
     CREATE_DATE,
     NAME,
     ARTIST,
@@ -331,10 +305,6 @@ enum class QuickPicks {
     LAST_LISTEN,
 }
 
-enum class PreferredLyricsProvider {
-    LRCLIB,
-}
-
 enum class PlayerButtonsStyle {
     DEFAULT,
     SECONDARY,
@@ -360,21 +330,8 @@ val TranslateLyricsKey = booleanPreferencesKey("translateLyrics")
 val PlayerVolumeKey = floatPreferencesKey("playerVolume")
 val RepeatModeKey = intPreferencesKey("repeatMode")
 
-val SearchSourceKey = stringPreferencesKey("searchSource")
 val SwipeThumbnailKey = booleanPreferencesKey("swipeThumbnail")
 val SwipeSensitivityKey = floatPreferencesKey("swipeSensitivity")
-
-enum class SearchSource {
-    LOCAL,
-    ONLINE,
-    ;
-
-    fun toggle() =
-        when (this) {
-            LOCAL -> ONLINE
-            ONLINE -> LOCAL
-        }
-}
 
 // Anonymous telemetry install id (a random UUID, the ONLY identity the tracking server ever sees).
 val TrackingDeviceIdKey = stringPreferencesKey("trackingDeviceId")

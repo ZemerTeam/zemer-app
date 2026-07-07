@@ -4,20 +4,13 @@
     <string name="replay">Replay</string>
     <string name="crop_album_art">Crop album art</string>
     <string name="crop_album_art_desc">Fill the player with the cover art instead of fitting it (edges may be cropped)</string>
-    <string name="explore">Explore</string>
     <string name="not_applicable">N/A</string>
 
     <string name="local_history">Local</string>
     <string name="remote_history">Remote</string>
 
     <string name="charts">Charts</string>
-    <string name="back_button_desc">Back</string>
-    <string name="no_title">No title</string>
     <string name="unknown_artist">Unknown artist</string>
-    <string name="unknown_item_type">Unknown item type</string>
-    <string name="loading_charts">Loading charts…</string>
-    <string name="retry_button">Retry</string>
-    <string name="album_cover_desc">Album cover</string>
     <string name="trending">Trending</string>
     <string name="latest_releases">Latest Releases</string>
     <string name="zemer_playlists">Zemer Playlists</string>
@@ -56,8 +49,6 @@
     <string name="secondary_text_color">Secondary text color</string>
     <string name="background_color">Background color</string>
 
-    <string name="added_to_play_next">Added to play next</string>
-    <string name="added_to_queue">Added to the queue</string>
     <string name="remove_from_cache">Remove from cache</string>
     <string name="copy_link">Copy link</string>
     <string name="select">Select all</string>
@@ -71,8 +62,6 @@
 
     <string name="lyrics">Lyrics</string>
     <string name="close">Close</string>
-    <string name="minimum_volume">Minimum Volume</string>
-    <string name="maximum_volume">Maximum Volume</string>
     <string name="hide_player_thumbnail">Hide Player Thumbnail</string>
     <string name="hide_player_thumbnail_desc">Replace album artwork with app logo in player</string>
 
@@ -87,15 +76,11 @@
         <item quantity="other">%d times</item>
     </plurals>
 
-    <string name="seek_backward">5 seconds backward</string>
-    <string name="seek_forward">5 seconds forward</string>
     <string name="seek_forward_dynamic">+%1$d seconds forwards</string>
     <string name="seek_backward_dynamic">-%1$d seconds backwards</string>
     <string name="seek_seconds_addup">Progressive seek</string>
     <string name="seek_seconds_addup_description">If enabled,  Adds up 5 extra seconds incrementally on each seek skip</string>
 
-    <string name="login_settings">Login settings</string>
-    <string name="general_settings">General settings</string>
 
     <string name="player_background_style">Player background style</string>
     <string name="follow_theme">Follow theme</string>
@@ -117,7 +102,6 @@
     <string name="player_buttons_style">Player button colors</string>
     <string name="default_style">Default</string>
     <string name="secondary_color_style">Secondary</string>
-    <string name="enable_squiggly_slider">Enable squiggly slider</string>
     <string name="enable_swipe_thumbnail">Enable swipe to change song</string>
     <string name="swipe_song_to_add">Swipe song to the left to add it to the queue or to the right to play it next</string>
     <string name="swipe_song_to_remove">Swipe song to remove it from the playlist</string>
@@ -126,11 +110,6 @@
     <string name="slim">Slim</string>
     <string name="bottom_nav_bar">Bottom navigation bar</string>
     <string name="customize_bottom_navigation">Customize Bottom Navigation</string>
-    <string name="select_and_arrange_bottom_nav">Select which items to show in the bottom navigation bar and arrange them in your preferred order</string>
-    <string name="select_at_least_one_item">Please select at least one item</string>
-    <string name="selected_items_order">Selected Items (Order):</string>
-    <string name="add_remove_items">Add/Remove Items:</string>
-    <string name="slim_navbar">Slim bottom navigation bar</string>
     <string name="auto_playlists">Auto playlists</string>
     <string name="show_liked_playlist">Show \"Liked\" playlist</string>
     <string name="show_downloaded_playlist">Show \"Downloaded\" playlist</string>
@@ -138,12 +117,7 @@
     <string name="show_cached_playlist">Show \"Cached\" playlist</string>
     <string name="show_uploaded_playlist">Show \"Uploaded\" playlist</string>
 
-    <string name="google">Google</string>
-    <string name="advanced_login">Login with token</string>
-    <string name="token_hidden">Tap to show token</string>
-    <string name="token_shown">Tap again to copy or edit</string>
     <string name="token_adv_login_description">This is an ADVANCED login method. As an alternative to the web portal, you may directly enter or update your login token here. For example, this can speed up logging in on multiple devices. Please note that any invalid token formats the app fails to parse will not be accepted</string>
-    <string name="ytm_sync">Automatically sync with your YouTube Music account</string>
     <string name="yt_sync">Auto sync with account</string>
     <string name="integrations">Integrations</string>
     <string name="more_content">More content</string>
@@ -157,27 +131,11 @@
 
     <!-- General -->
     <string name="general">General</string>
-    <string name="proxy">Proxy</string>
     <string name="default_lib_chips">Change default library chip</string>
     <string name="set_quick_picks">Set quick picks</string>
     <string name="last_song_listened">Based on last song listened</string>
     <string name="app_language">App language</string>
-    <string name="configure_app_language">Configure app languages</string>
-    <string name="intent_app_language_not_found">Couldn\'t find app language settings, please configure them manually</string>
-    <string name="open_supported_links">Open supported link by default</string>
-    <string name="configure_supported_links">Configure supported links</string>
-    <string name="intent_supported_links_not_found">Couldn\'t find supported links settings, please configure them manually</string>
-    <string name="set_first_lyrics_provider">Preferred lyrics provider</string>
-    <string name="config_proxy">Configure proxy</string>
-    <string name="proxy_username">Proxy username</string>
-    <string name="proxy_password">Proxy password</string>
-    <string name="enable_authentication">Enable authentication</string>
 
-    <string name="audio_quality_max">Max (beta)</string>
-    <string name="min_playback_duration_title">Minimum playback duration</string>
-    <string name="min_playback_duration_description">The minimum amount of a song that must be played before it is considered \"played\"</string>
-    <string name="percentage_format">%d%%</string>
-    <string name="minimum_playback_duration">Minimum playback duration</string>
 
     <string name="import_online">Import a \"m3u\" playlists</string>
     <string name="import_csv">Import a \"csv\" playlists</string>
@@ -187,7 +145,6 @@
     <string name="auto_download_on_like_desc">Automatically download songs when you like them</string>
 
     <string name="swipe_sensitivity">Mini player swipe sensitivity</string>
-    <string name="swipe_sensitivity_desc">Adjust how sensitive swipe gestures are for changing songs</string>
     <string name="sensitivity_percentage">%1$d%%</string>
 
     <string name="clear_song_cache_dialog">  Are you sure you want to clear all cached songs?</string>
@@ -196,14 +153,10 @@
 
     <string name="disable">Disable</string>
 
-    <string name="pause_remote_listen_history">Pause share listen history with YouTube Music</string>
     <string name="not_logged_in_youtube">Not logged in to YouTube</string>
     <string name="signed_in_as">Signed in as</string>
 
-    <string name="default_links">Open supported links</string>
-    <string name="open_app_settings_error">Couldn\'t open app settings</string>
 
-    <string name="release_notes">Release notes</string>
 
     <string name="all_time">All time</string>
     <string name="past_24_hours">Past 24 hours</string>
@@ -214,7 +167,6 @@
     <string name="history_duration">History duration</string>
     <string name="information">Information</string>
     <string name="description">Description</string>
-    <string name="numbers">Numbers</string>
     <string name="subscribers">Subscribers</string>
     <string name="views">Views</string>
     <string name="likes">Likes</string>
@@ -235,29 +187,10 @@
     <string name="disable_load_more_when_repeat_all_desc">Don\'t auto load more songs when repeat all mode is enabled</string>
 
     <!-- Romanization Settings -->
-    <string name="lyrics_romanization_cyrillic">Cyrillic</string>
-    <string name="lyrics_romanize_title">Romanization</string>
-    <string name="lyrics_romanization">Lyrics romanization</string>
-    <string name="romanization">Romanization</string>
-    <string name="lyrics_romanize_japanese">Romanize Japanese lyrics</string>
-    <string name="lyrics_romanize_korean">Romanize Korean lyrics</string>
-    <string name="lyrics_romanize_russian">Romanize Russian lyrics</string>
-    <string name="lyrics_romanize_ukrainian">Romanize Ukrainian lyrics</string>
-    <string name="lyrics_romanize_belarusian">Romanize Belarusian lyrics</string>
-    <string name="lyrics_romanize_kyrgyz">Romanize Kyrgyz lyrics</string>
-    <string name="lyrics_romanize_serbian">Romanize Serbian lyrics</string>
-    <string name="lyrics_romanize_bulgarian">Romanize Bulgarian lyrics</string>
-    <string name="line_by_line_option_title">EXPERIMENTAL: Detect language line by line</string>
-    <string name="line_by_line_option_desc">The Cyrillic language will be detected line by line instead of the entire song.</string>
-    <string name="line_by_line_dialog_title">Are you sure?</string>
-    <string name="line_by_line_dialog_desc">This is a hit or miss experimental feature. \n\nBy default, language is determined from the whole song, but with this option on, it will be determined line by line instead. This will allow multi-language songs to work BUT the language might not always be correct (for example if there is a Ukrainian lyric that doesn\'t contain any Ukrainian-specific letters, it might be romanized as Russian instead). \n\nIf you do not have issues, it is recommended to keep this option off.</string>
-    <string name="line_by_line_dialog_enable">Enable</string>
-    <string name="romanize_current_track">Romanize current track</string>
 
     <!-- Material 3 Settings Sections -->
     <string name="settings_section_ui">Interface</string>
     <string name="settings_section_privacy">Privacy &amp; Security</string>
-    <string name="settings_section_player">Player &amp; Media</string>
     <string name="settings_section_player_content">Player &amp; Content</string>
     <string name="settings_section_storage">Storage &amp; Data</string>
     <string name="settings_section_system">System &amp; About</string>
@@ -274,7 +207,6 @@
     <string name="release_coming_soon_title">Coming soon</string>
     <string name="release_coming_soon_message">A newer version is on the way. Please wait for the stable release.</string>
     <string name="check_for_updates_now">Check for updates now</string>
-    <string name="update_notifications">Enable update notifications</string>
     <string name="update_available_title">Update available</string>
     <string name="update_available">Update available</string>
     <string name="update_available_message">You are on version %1$s. Version %2$s is available.</string>
@@ -282,7 +214,6 @@
     <string name="up_to_date_message">You are running the latest version (%1$s).</string>
     <string name="update_channel_name">App updates</string>
     <string name="update_channel_desc">Notifications about new versions</string>
-    <string name="download">Download</string>
     <string name="download_and_install">Download &amp; Install</string>
     <string name="downloading_update">Downloading update…</string>
     <string name="later">Later</string>
@@ -310,11 +241,7 @@
     <!-- Offload -->
     <string name="audio_offload">Enable offload</string>
     <string name="audio_offload_description">Use the offload audio path for audio playback. Disabling this may increase power usage but can be useful if you experience issues with audio playback or post processing</string>
-    <string name="lyrics_romanize_macedonian">Romanize Macedonian lyrics</string>
 
-    <string name="username">Username</string>
-    <string name="password">Password</string>
-    <string name="random_playlist">Random playlist</string>
 
     <!-- Stream sources -->
     <string name="stream_sources">Stream sources</string>
@@ -347,15 +274,11 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">Visible sections</string>
     <string name="android_auto_reorder_hint">Tap a section to enable or disable it.\nLong-press the drag handle to reorder. The first section will be shown by default</string>
-    <string name="android_auto_youtube_playlists">Show YouTube suggested playlists</string>
-    <string name="android_auto_youtube_playlists_desc">Show YouTube Music recommended playlists in the playlists section while browsing with Android Auto</string>
     <string name="android_auto_target_playlist">Quick-add destination</string>
-    <string name="android_auto_target_playlist_desc">Choose the playlist where songs are saved when using the quick-add button in Android Auto</string>
     <string name="android_auto_target_playlist_auto">Not set</string>
     <string name="android_auto_target_playlist_not_set">No playlist selected. Choose one in Android Auto settings</string>
 
     <!-- Onboarding privacy policy (supersedes onboarding_privacy_body: discloses Crashlytics) -->
-    <string name="onboarding_privacy_body_crash_reporting">Preferences and logins stay on your device, and network calls only fetch what you choose to play. We don\'t collect personal data or usage analytics, and nothing is sold or shared for marketing.\n\nTo keep the app working, automatic crash and error reports are sent to Google Firebase Crashlytics. These reports contain device information (such as model and Android version) and recent technical logs from the app, and are used only to diagnose and fix problems.</string>
     <!-- Onboarding privacy policy (supersedes onboarding_privacy_body_crash_reporting: additionally
          discloses the anonymous usage telemetry, per the tracking spec §7 — see docs/tracking/README.md) -->
     <string name="onboarding_privacy_body_telemetry">Preferences and logins stay on your device, and nothing is ever sold or shared for marketing.\n\nTo improve search and build Zemer\'s own recommendations, the app sends anonymous usage data to Zemer\'s server: a random install identifier, the app version, search terms, plays (which track, how many seconds were listened, and which screen started it), search-result taps, and library actions such as favorites, downloads, playlist additions and shares, with their timestamps. This data is not linked to any account or person — no names, emails, contacts, location, or advertising identifiers are collected, and the server does not store IP addresses.\n\nTo keep the app working, automatic crash and error reports are sent to Google Firebase Crashlytics. These reports contain device information (such as model and Android version) and recent technical logs from the app, and are used only to diagnose and fix problems.</string>
@@ -409,7 +332,6 @@
     <!-- Onboarding -->
     <string name="onboarding_all_set">All set!</string>
     <!-- Video download -->
-    <string name="video_download_failed">Download failed</string>
     <string name="restart_required_message">The display density change will take effect after restarting the app. Do you want to restart now?</string>
 
     <!-- Network state -->
@@ -419,17 +341,12 @@
     <string name="network_connected">Connected to internet</string>
     <string name="network_no_connection">No internet connection</string>
     <string name="network_internet_required">Internet Required</string>
-    <string name="network_required_title">Internet Connection Required</string>
-    <string name="network_required_message">Please connect to Wi-Fi or mobile data to continue. An internet connection is required to save your preferences and settings.</string>
     <string name="network_required_to_continue">An internet connection is required to continue.</string>
     <string name="network_required_setup">An internet connection is required to continue with setup and save your preferences.</string>
 
     <!-- Sync account (auth dialogs and status) -->
-    <string name="signing_in">Signing in…</string>
-    <string name="sync_your_settings">Sync Your Settings</string>
     <string name="sync_account_creating_short">Creating account…</string>
     <string name="sync_account_intro_no_google">Create an anonymous account to sync and backup your preferences across devices. No Google account required.</string>
-    <string name="sync_account_intro_link_later">Create an anonymous account to sync and backup your preferences across devices. You can link this to a Google account later.</string>
     <string name="sync_account_lock_note">Your settings will be locked and backed up to prevent accidental changes.</string>
     <string name="sync_account_create_desc">Create an account to sync your content filter preferences and restore them after app reinstallation.</string>
     <string name="sync_account_created">Sync Account Created</string>
@@ -510,7 +427,6 @@
     <string name="queue_cache_songs">Cache Songs</string>
 
     <!-- Video player -->
-    <string name="video_saved">Video saved to Movies/Zemer</string>
     <string name="video_playback_error">Playback error</string>
     <string name="pip_unable">Unable to start PiP</string>
     <string name="pip_unavailable">PiP unavailable: %s</string>
@@ -573,8 +489,6 @@
     <!-- Search engine toggle (search bar) -->
     <string name="search_provider_zemer">Zemer</string>
     <string name="search_provider_youtube_short">YT</string>
-    <string name="search_provider_youtube">YouTube Music</string>
-    <string name="cd_search_provider">Search engine</string>
     <!-- Offered on the Zemer search error / no-results state to switch engines -->
     <string name="search_try_youtube">Search with YouTube</string>
     <!-- FCast -->

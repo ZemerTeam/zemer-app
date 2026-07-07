@@ -1,8 +1,8 @@
 # Android resource index
 
-Tracked Android resource paths under `app/src/**/res`: `199`.
+Tracked Android resource paths under `app/src/**/res`: `166`.
 
-## `drawable` (155 paths)
+## `drawable` (123 paths)
 
 | Path | Lines/bytes | XML root | Resource names / metadata |
 | --- | ---: | --- | --- |
@@ -10,7 +10,6 @@ Tracked Android resource paths under `app/src/**/res`: `199`.
 | `app/src/main/res/drawable/add.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/add_circle.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/album.xml` | 16 lines | `vector` |  |
-| `app/src/main/res/drawable/alphabet_cyrillic.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/arrow_back.xml` | 16 lines | `vector` |  |
 | `app/src/main/res/drawable/arrow_downward.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/arrow_forward.xml` | 10 lines | `vector` |  |
@@ -19,12 +18,8 @@ Tracked Android resource paths under `app/src/**/res`: `199`.
 | `app/src/main/res/drawable/artist.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/backup.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/bedtime.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/bookmark.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/bookmark_filled.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/cached.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/casino.xml` | 10 lines | `vector` |  |
 | `app/src/main/res/drawable/check.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/check_box.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/clear_all.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/close.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/contrast.xml` | 9 lines | `vector` |  |
@@ -32,27 +27,20 @@ Tracked Android resource paths under `app/src/**/res`: `199`.
 | `app/src/main/res/drawable/delete.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/delete_history.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/deselect.xml` | 10 lines | `vector` |  |
-| `app/src/main/res/drawable/discord.xml` | 31 lines | `vector` |  |
 | `app/src/main/res/drawable/discover_tune.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/done.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/download.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/drag_handle.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/drop_down.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/edit.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/equalizer.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/error.xml` | 10 lines | `vector` |  |
 | `app/src/main/res/drawable/expand_less.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/expand_more.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/explicit.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/explore_filled.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/explore_outlined.xml` | 16 lines | `vector` |  |
 | `app/src/main/res/drawable/fast_forward.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/favorite.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/favorite_border.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/format_align_center.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/format_align_left.xml` | 10 lines | `vector` |  |
 | `app/src/main/res/drawable/github.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/google_logo.xml` | 18 lines | `vector` |  |
 | `app/src/main/res/drawable/google_webview.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/gradient.xml` | 10 lines | `vector` |  |
 | `app/src/main/res/drawable/graphic_eq.xml` | 9 lines | `vector` |  |
@@ -68,19 +56,13 @@ Tracked Android resource paths under `app/src/**/res`: `199`.
 | `app/src/main/res/drawable/ic_launcher_foreground_v31.xml` | 17 lines | `vector` |  |
 | `app/src/main/res/drawable/ic_launcher_monochrome.xml` | 17 lines | `vector` |  |
 | `app/src/main/res/drawable/ic_pip.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/ic_rotate_screen.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/ic_speedometer.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/ic_video_hd.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/incognito.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/info.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/input.xml` | 10 lines | `vector` |  |
 | `app/src/main/res/drawable/insert_photo.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/instagram.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/integration.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/kid_zone.xml` | 18 lines | `vector` |  |
 | `app/src/main/res/drawable/language.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/language_japanese_latin.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/language_korean_latin.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/library_add.xml` | 19 lines | `vector` |  |
 | `app/src/main/res/drawable/library_add_check.xml` | 16 lines | `vector` |  |
 | `app/src/main/res/drawable/library_music.xml` | 16 lines | `vector` |  |
@@ -91,25 +73,18 @@ Tracked Android resource paths under `app/src/**/res`: `199`.
 | `app/src/main/res/drawable/location_on.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/lock.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/lock_open.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/login.xml` | 10 lines | `vector` |  |
-| `app/src/main/res/drawable/logout.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/lyrics.xml` | 37 lines | `vector` |  |
-| `app/src/main/res/drawable/manage_search.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/menu.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/mood.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/more_horiz.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/more_vert.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/music_note.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/nav_bar.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/navigate_next.xml` | 10 lines | `vector` |  |
-| `app/src/main/res/drawable/notification.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/offline.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/palette.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/pause.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/person.xml` | 10 lines | `vector` |  |
 | `app/src/main/res/drawable/play.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/playlist_add.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/playlist_import.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/playlist_play.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/queue_music.xml` | 10 lines | `vector` |  |
 | `app/src/main/res/drawable/radio.xml` | 9 lines | `vector` |  |
@@ -126,16 +101,13 @@ Tracked Android resource paths under `app/src/**/res`: `199`.
 | `app/src/main/res/drawable/search.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/search_off.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/security.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/select.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/select_all.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/settings.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/share.xml` | 15 lines | `vector` |  |
-| `app/src/main/res/drawable/shortcut_explore.xml` | 11 lines | `vector` |  |
 | `app/src/main/res/drawable/shortcut_library.xml` | 15 lines | `vector` |  |
 | `app/src/main/res/drawable/shortcut_search.xml` | 14 lines | `vector` |  |
 | `app/src/main/res/drawable/shuffle.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/shuffle_on.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/similar.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/skip_next.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/skip_previous.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/sliders.xml` | 9 lines | `vector` |  |
@@ -149,15 +121,11 @@ Tracked Android resource paths under `app/src/**/res`: `199`.
 | `app/src/main/res/drawable/swipe.xml` | 16 lines | `vector` |  |
 | `app/src/main/res/drawable/sync.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/tab.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/token.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/trending_up.xml` | 10 lines | `vector` |  |
 | `app/src/main/res/drawable/tune.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/uncheck_box.xml` | 9 lines | `vector` |  |
 | `app/src/main/res/drawable/update.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/volume_off.xml` | 10 lines | `vector` |  |
 | `app/src/main/res/drawable/volume_up.xml` | 10 lines | `vector` |  |
 | `app/src/main/res/drawable/warning.xml` | 9 lines | `vector` |  |
-| `app/src/main/res/drawable/waves.xml` | 10 lines | `vector` |  |
 | `app/src/main/res/drawable/widget_background.xml` | 6 lines | `shape` |  |
 | `app/src/main/res/drawable/widget_preview.xml` | 18 lines | `layer-list` |  |
 | `app/src/main/res/drawable/wifi_proxy.xml` | 9 lines | `vector` |  |
@@ -228,11 +196,10 @@ Tracked Android resource paths under `app/src/**/res`: `199`.
 | `app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.webp` | 2592 bytes | `` |  |
 | `app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp` | 4890 bytes | `` |  |
 
-## `raw` (3 paths)
+## `raw` (2 paths)
 
 | Path | Lines/bytes | XML root | Resource names / metadata |
 | --- | ---: | --- | --- |
-| `app/src/main/res/raw/loading_bar_progress.lottie` | 7909 bytes | `` |  |
 | `app/src/main/res/raw/loading_dots_blue.lottie` | 1221 bytes | `` |  |
 | `app/src/main/res/raw/welcome.lottie` | 2138 bytes | `` |  |
 

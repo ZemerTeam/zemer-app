@@ -15,7 +15,6 @@ object PlaySource {
     fun artist(id: String) = "artist:$id"
     fun album(id: String) = "album:$id"
     fun playlist(id: String) = "playlist:$id"
-    fun community(id: String) = "community:$id"
     fun zemer(id: String) = "zemer:$id"
 }
 

@@ -354,8 +354,6 @@ class InnerTube {
         )
     }
 
-    suspend fun getSwJsData() = httpClient.get("https://music.youtube.com/sw.js_data")
-
     suspend fun accountMenu(client: YouTubeClient) = httpClient.post("account/account_menu") {
         ytClient(client, setLogin = true)
         setBody(AccountMenuBody(client.toContext(locale, visitorData, dataSyncId)))
