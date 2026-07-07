@@ -6,7 +6,10 @@ name: UI audit
 #  - check-download-unification.sh: whole-app guard that download/progress state stays on the one
 #    path (no legacy DownloadUtil.downloads/getDownload reads, no Download.STATE_* outside the
 #    download infra, no per-surface Icon.Download). See docs/ui/standards.md §12.
-# Runs when UI/playback code or the checks themselves change.
+#  - check-dead-resources.sh: dead-resource ratchet — every string/drawable/raw resource must be
+#    referenced; known-dead strings.xml entries are grandfathered in
+#    scripts/dead-resources-baseline.txt (shrink-only).
+# Runs when UI/playback code, resources, or the checks themselves change.
 
 on:
   push:
@@ -14,15 +17,21 @@ on:
     paths:
       - 'app/src/main/kotlin/com/jtech/zemer/ui/**'
       - 'app/src/main/kotlin/com/jtech/zemer/playback/**'
+      - 'app/src/main/res/**'
       - 'scripts/ui-audit*'
       - 'scripts/check-download-unification.sh'
+      - 'scripts/check-dead-resources.sh'
+      - 'scripts/dead-resources-baseline.txt'
   pull_request:
     branches: [ main ]
     paths:
       - 'app/src/main/kotlin/com/jtech/zemer/ui/**'
       - 'app/src/main/kotlin/com/jtech/zemer/playback/**'
+      - 'app/src/main/res/**'
       - 'scripts/ui-audit*'
       - 'scripts/check-download-unification.sh'
+      - 'scripts/check-dead-resources.sh'
+      - 'scripts/dead-resources-baseline.txt'
 
 jobs:
   ui-audit:
@@ -36,3 +45,6 @@ jobs:
 
       - name: Download unification guard
         run: bash scripts/check-download-unification.sh
+
+      - name: Dead-resource ratchet
+        run: bash scripts/check-dead-resources.sh

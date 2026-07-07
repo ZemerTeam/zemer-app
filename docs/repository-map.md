@@ -110,7 +110,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/docs-regenerate.yml` | 74 lines | `.yml` |
 | `.github/workflows/player-monitor.yml` | 195 lines | `.yml` |
 | `.github/workflows/release-build.yml` | 171 lines | `.yml` |
-| `.github/workflows/ui-audit.yml` | 38 lines | `.yml` |
+| `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
 | `AGENTS.md` | 309 lines | `.md` |
