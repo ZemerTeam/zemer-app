@@ -77,12 +77,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `916`
+- Files counted: `920`
 - By extension:
   - `.kt`: `533`
   - `.xml`: `155`
   - `.mjs`: `72`
-  - `.md`: `61`
+  - `.md`: `65`
   - `.json`: `36`
   - `.webp`: `15`
   - `[none]`: `7`
@@ -703,7 +703,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/values/colors.xml` | 9 lines | `.xml` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | `.xml` |
 | `app/src/main/res/values/metrolist_strings.xml` | 520 lines | `.xml` |
-| `app/src/main/res/values/strings.xml` | 560 lines | `.xml` |
+| `app/src/main/res/values/strings.xml` | 435 lines | `.xml` |
 | `app/src/main/res/values/styles.xml` | 26 lines | `.xml` |
 | `app/src/main/res/values/values.xml` | 8 lines | `.xml` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | `.xml` |
@@ -807,6 +807,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 556 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 336 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 336 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 336 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
 | `docs/remote_cipher_config/02-file-format.md` | 116 lines | `.md` |
@@ -816,7 +818,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1024 lines | `.md` |
+| `docs/repository-map.md` | 1028 lines | `.md` |
+| `docs/repository-map.md` | 1028 lines | `.md` |
+| `docs/repository-map.md` | 1028 lines | `.md` |
 | `docs/tracking/README.md` | 184 lines | `.md` |
 | `docs/ui/README.md` | 317 lines | `.md` |
 | `docs/ui/standards.md` | 290 lines | `.md` |
@@ -933,7 +937,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `scripts/check-16kb-alignment.sh` | 67 lines | `.sh` |
 | `scripts/check-dead-resources.sh` | 94 lines | `.sh` |
 | `scripts/check-download-unification.sh` | 58 lines | `.sh` |
-| `scripts/dead-resources-baseline.txt` | 125 lines | `.txt` |
+| `scripts/dead-resources-baseline.txt` | 2 lines | `.txt` |
 | `scripts/telegram-chats.sh` | 38 lines | `.sh` |
 | `scripts/ui-audit-baseline.tsv` | 13 lines | `.tsv` |
 | `scripts/ui-audit.sh` | 125 lines | `.sh` |

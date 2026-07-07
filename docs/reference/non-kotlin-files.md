@@ -219,7 +219,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/metrolist_strings.xml` | 520 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/strings.xml` | 560 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/strings.xml` | 435 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
@@ -247,7 +247,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `scripts/check-16kb-alignment.sh` | 67 lines | text `.sh` |
 | `scripts/check-dead-resources.sh` | 94 lines | text `.sh` |
 | `scripts/check-download-unification.sh` | 58 lines | text `.sh` |
-| `scripts/dead-resources-baseline.txt` | 125 lines | text `.txt` |
+| `scripts/dead-resources-baseline.txt` | 2 lines | text `.txt` |
 | `scripts/telegram-chats.sh` | 38 lines | text `.sh` |
 | `scripts/ui-audit-baseline.tsv` | 13 lines | text `.tsv` |
 | `scripts/ui-audit.sh` | 125 lines | text `.sh` |
