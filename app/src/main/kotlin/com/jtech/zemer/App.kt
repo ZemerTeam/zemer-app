@@ -36,6 +36,7 @@ import com.jtech.zemer.utils.CrashReportingTree
 import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.IsraeliArtistRegistry
+import com.jtech.zemer.utils.LogBufferTree
 import com.jtech.zemer.utils.SyncUtils
 import com.zemer.cipher.ZemerCipher
 import timber.log.Timber
@@ -102,6 +103,10 @@ class App : Application(), SingletonImageLoader.Factory {
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
+        // Plant a ring-buffer tree so the Log viewer screen has recent entries to show.
+        // Always planted (small bounded memory footprint), and the debug-logging switch in the
+        // viewer controls the auto-refresh polling rather than whether logs are captured here.
+        Timber.plant(LogBufferTree)
         // Hidden-API exemptions for the Shizuku installer are applied lazily on first use
         // (AppInstaller.ensureHiddenApiBypass) so non-Shizuku users don't pay for it at startup.
 

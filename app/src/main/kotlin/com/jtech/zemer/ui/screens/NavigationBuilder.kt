@@ -35,6 +35,7 @@ import com.jtech.zemer.ui.screens.settings.BackupAndRestore
 import com.jtech.zemer.ui.screens.settings.ButtonSetupScreen
 import com.jtech.zemer.ui.screens.settings.ContentSettings
 import com.jtech.zemer.ui.screens.settings.GeneralSettings
+import com.jtech.zemer.ui.screens.settings.LogViewerScreen
 import com.jtech.zemer.ui.screens.settings.PlayerSettings
 import com.jtech.zemer.ui.screens.settings.PrivacySettings
 import com.jtech.zemer.ui.screens.settings.SettingsScreen
@@ -374,6 +375,9 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("settings/updater") {
         UpdaterScreen(navController, scrollBehavior)
+    }
+    composable("settings/log_viewer") {
+        LogViewerScreen(navController, scrollBehavior)
     }
     composable("settings/about") {
         AboutScreen(navController, scrollBehavior)

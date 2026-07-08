@@ -416,6 +416,24 @@
     <string name="about_based_on">Based on Metrolist by MO AGAMY</string>
     <string name="github">GitHub</string>
 
+    <!-- Developer mode (About screen easter egg) -->
+    <string name="developer_mode_enabled">Developer mode enabled</string>
+    <string name="developer_mode_disabled">Developer mode disabled</string>
+
+    <!-- Log viewer -->
+    <string name="log_viewer">Log viewer</string>
+    <string name="enable_debug_logging">Enable debug logging</string>
+    <string name="enable_debug_logging_desc">Capture detailed logs for debugging and troubleshooting</string>
+    <string name="clear_logs">Clear logs</string>
+    <string name="no_logs">No logs</string>
+    <string name="export_logs">Export logs</string>
+    <string name="logs_exported">Logs exported to %s</string>
+    <string name="logs_export_failed">Failed to export logs</string>
+    <string name="log_export_range">Time range</string>
+    <string name="log_export_from">From</string>
+    <string name="log_export_to">To</string>
+    <string name="log_filter_hint">Filter by tag or text</string>
+
     <!-- Player / library misc -->
     <string name="error_playing">Error playing</string>
     <string name="progress_percent">Progress %d%%</string>
