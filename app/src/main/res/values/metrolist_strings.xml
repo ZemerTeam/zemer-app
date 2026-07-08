@@ -92,6 +92,9 @@
     <string name="featured_videos">Featured videos</string>
     <string name="videos">Videos</string>
     <string name="video">Video</string>
+    <string name="song">Song</string>
+    <string name="enter_fullscreen">Enter fullscreen</string>
+    <string name="exit_fullscreen">Exit fullscreen</string>
     <string name="video_songs">Video songs</string>
     <string name="filter_video_songs">Video songs</string>
     <string name="watch_video">Watch video</string>
