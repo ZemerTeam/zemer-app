@@ -309,17 +309,6 @@ constructor(
         }
     }
 
-    fun markPermissionMissing(songId: String) {
-        updateDownloadState(
-            songId,
-            DownloadState(
-                songId = songId,
-                status = DownloadState.Status.FAILED,
-                error = "Storage permission required"
-            )
-        )
-    }
-
     /**
      * Delete a downloaded song (or cancel and clear pending state) and remove it from MediaStore/DB.
      */
@@ -794,21 +783,5 @@ constructor(
      */
     fun getDownloadState(songId: String): DownloadState? {
         return _downloadStates.value[songId]
-    }
-
-    /**
-     * Check if a song is downloaded
-     */
-    suspend fun isDownloaded(songId: String): Boolean {
-        return database.song(songId).first()?.song?.isDownloaded == true
-    }
-
-    /**
-     * Clear completed downloads from state
-     */
-    fun clearCompletedDownloads() {
-        _downloadStates.value = _downloadStates.value.filterValues {
-            it.status != DownloadState.Status.COMPLETED
-        }
     }
 }

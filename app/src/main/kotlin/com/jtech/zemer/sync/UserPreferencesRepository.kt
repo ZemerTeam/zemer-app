@@ -362,48 +362,6 @@ class UserPreferencesRepository @Inject constructor(
     }
 
     /**
-     * Delete device preferences from Firestore (NEW STRUCTURE)
-     */
-    suspend fun deleteDevicePreferences(): Result<Unit> {
-        return try {
-            // No email needed for deleting preferences - we use UID as document ID
-            val deviceId = deviceIdGenerator.getDeviceId()
-
-            // NEW: Fetch the user document and remove the device from the devices array
-            val document = firestore
-                .collection(USER_PREFERENCES_COLLECTION)
-                .document(getDocumentId())
-                .get()
-                .await()
-
-            if (document.exists()) {
-                val entity = document.toObject(DevicePreferencesEntity::class.java)
-                    ?: return Result.failure(Exception("Failed to parse user preferences"))
-
-                // Remove the device from the devices array
-                val updatedDevices = entity.devices.filter { it.deviceId != deviceId }
-
-                // Update the document with the modified devices array
-                firestore
-                    .collection(USER_PREFERENCES_COLLECTION)
-                    .document(getDocumentId())
-                    .update(
-                        "devices", updatedDevices,
-                        "updatedAt", Date()
-                    )
-                    .await()
-            }
-
-            // Clear local sync data
-            clearSyncData()
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    /**
      * Get all devices for the current user (NEW STRUCTURE)
      */
     suspend fun getUserDevices(): Result<List<UserDevice>> {
@@ -594,16 +552,6 @@ class UserPreferencesRepository @Inject constructor(
     private suspend fun storeDeviceId(deviceId: String) {
         syncDataStore.edit { preferences ->
             preferences[deviceIdKey] = deviceId
-        }
-    }
-
-    /**
-     * Clear sync-related data
-     */
-    private suspend fun clearSyncData() {
-        syncDataStore.edit { preferences ->
-            preferences.remove(lastSyncTimeKey)
-            preferences.remove(deviceIdKey)
         }
     }
 

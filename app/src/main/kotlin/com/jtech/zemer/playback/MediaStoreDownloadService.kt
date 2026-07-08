@@ -64,10 +64,6 @@ class MediaStoreDownloadService : Service() {
             kotlin.runCatching { context.startForegroundService(intent) }
                 .onFailure { Timber.e(it, "Failed to start MediaStoreDownloadService") }
         }
-
-        fun stop(context: Context) {
-            context.stopService(Intent(context, MediaStoreDownloadService::class.java))
-        }
     }
 
     override fun onCreate() {

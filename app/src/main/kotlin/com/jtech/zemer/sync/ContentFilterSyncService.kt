@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.util.Log
@@ -144,31 +143,6 @@ class ContentFilterSyncService @Inject constructor(
     }
 
     /**
-     * Pull preferences from server and apply locally
-     */
-    suspend fun pullFromServer(): Result<ContentFilterConfig> {
-        return withContext(Dispatchers.IO) {
-            try {
-                _syncState.value = SyncState.SYNCING
-                _isApplyingServerPreferences = true
-
-                val result = userPreferencesRepository.syncFromServer()
-
-                _syncState.value = SyncState.IDLE
-                _lastSyncResult.value = result.map { }
-
-                result
-            } catch (e: Exception) {
-                _syncState.value = SyncState.ERROR(e.message ?: "Unknown error")
-                _lastSyncResult.value = Result.failure(e)
-                Result.failure(e)
-            } finally {
-                _isApplyingServerPreferences = false
-            }
-        }
-    }
-
-    /**
      * Sync to server only
      */
     suspend fun syncToServer(): Result<Unit> {
@@ -180,28 +154,6 @@ class ContentFilterSyncService @Inject constructor(
 
                 _syncState.value = SyncState.IDLE
                 _lastSyncResult.value = result
-
-                result
-            } catch (e: Exception) {
-                _syncState.value = SyncState.ERROR(e.message ?: "Unknown error")
-                _lastSyncResult.value = Result.failure(e)
-                Result.failure(e)
-            }
-        }
-    }
-
-    /**
-     * Sync from server only
-     */
-    suspend fun syncFromServer(): Result<ContentFilterConfig> {
-        return withContext(Dispatchers.IO) {
-            try {
-                _syncState.value = SyncState.SYNCING
-
-                val result = userPreferencesRepository.syncFromServer()
-
-                _syncState.value = SyncState.IDLE
-                _lastSyncResult.value = result.map { }
 
                 result
             } catch (e: Exception) {
@@ -234,36 +186,10 @@ class ContentFilterSyncService @Inject constructor(
     }
 
     /**
-     * Get combined sync information
-     */
-    fun getSyncInfoFlow(): Flow<SyncInfo> {
-        return combine(
-            syncState,
-            lastSyncResult,
-            getSyncStatusFlow()
-        ) { state, result, status ->
-            SyncInfo(
-                syncState = state,
-                lastSyncResult = result,
-                syncStatus = status,
-                deviceCount = 0, // Simplified for now
-                hasAuthenticatedSync = userPreferencesRepository.hasAuthenticatedSync()
-            )
-        }
-    }
-
-    /**
      * Get user's devices
      */
     suspend fun getUserDevices(): Result<List<UserDevice>> {
         return userPreferencesRepository.getUserDevices()
-    }
-
-    /**
-     * Delete device preferences
-     */
-    suspend fun deleteDevicePreferences(): Result<Unit> {
-        return userPreferencesRepository.deleteDevicePreferences()
     }
 
     /**
@@ -405,14 +331,6 @@ class ContentFilterSyncService @Inject constructor(
 
         return Result.failure(lastException ?: Exception("Retry timeout after $timeoutMs ms"))
     }
-
-    /**
-     * Reset sync state
-     */
-    fun resetSyncState() {
-        _syncState.value = SyncState.IDLE
-        _lastSyncResult.value = null
-    }
 }
 
 /**
@@ -423,24 +341,6 @@ sealed class SyncState {
     object SYNCING : SyncState()
     data class ERROR(val message: String) : SyncState()
 
-    val isIdle: Boolean get() = this is IDLE
     val isSyncing: Boolean get() = this is SYNCING
     val isError: Boolean get() = this is ERROR
-    val errorMessage: String? get() = (this as? ERROR)?.message
-}
-
-/**
- * Data class containing comprehensive sync information
- */
-data class SyncInfo(
-    val syncState: SyncState,
-    val lastSyncResult: Result<Unit>?,
-    val syncStatus: SyncStatus,
-    val deviceCount: Int,
-    val hasAuthenticatedSync: Boolean
-) {
-    val isCurrentlySyncing: Boolean get() = syncState.isSyncing
-    val hasSyncError: Boolean get() = syncState.isError || lastSyncResult?.isFailure == true
-    val lastSyncError: Throwable? get() = lastSyncResult?.exceptionOrNull()
-    val canSync: Boolean get() = syncStatus != SyncStatus.NOT_AUTHENTICATED && syncStatus != SyncStatus.DISABLED
 }

@@ -53,10 +53,6 @@ object BlockedIdsCache {
         }
     }
 
-    fun isEmpty(): Boolean = blocked.isEmpty()
-
-    fun snapshot(): Map<String, String> = blocked
-
     // --- DataStore (de)serialization: one "id\treason" per line. Pure so both the sync writer and the
     // startup loader share exactly one format, and it is unit-testable. ---
 

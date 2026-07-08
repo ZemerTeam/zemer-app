@@ -12,7 +12,6 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadNotificationHelper
-import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.utils.ResilientDns
@@ -287,10 +286,6 @@ constructor(
 
     fun retryMediaStoreDownload(songId: String) {
         mediaStoreDownloadManager.retryDownload(songId)
-    }
-
-    suspend fun isDownloadedInMediaStore(songId: String): Boolean {
-        return database.song(songId).firstOrNull()?.song?.isDownloaded == true
     }
 
     /**

@@ -258,13 +258,6 @@ object LrcLib {
         return matrix[len1][len2]
     }
 
-    suspend fun lyrics(
-        artist: String,
-        title: String,
-    ) = runCatching {
-        queryLyrics(artist = artist, title = title, album = null)
-    }
-
     @JvmInline
     value class Lyrics(
         val text: String,

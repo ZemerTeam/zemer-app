@@ -18,7 +18,7 @@
 | Workflow fact | Value |
 | --- | --- |
 | Triggers | `workflow_dispatch`, `push`, `pull_request` |
-| Path filters (`paths-ignore`) | `docs/**`, `tests/**`, `**.md`, `scripts/**`, `.github/**`, `.idea/**`, `.vscode/**`, `.gitignore`, `.gitattributes`, `.editorconfig`, `LICENSE` |
+| Path filters (`paths-ignore`) | `docs/**`, `tests/**`, `**.md`, `scripts/**`, `.github/**`, `.idea/**`, `.vscode/**`, `.gitignore`, `.gitattributes`, `.editorconfig`, `LICENSE`, `cipher` |
 | Environment | `USE_PREBUILT_NATIVE: true` |
 | Job | `assemble-release` on `ubuntu-latest` |
 | Permissions | `contents: write` |
@@ -52,7 +52,7 @@
 
 | Module | Package | Plugins | Dependencies (`libs.*`) | Kotlin files |
 | --- | --- | --- | --- | --- |
-| `:innertube` | `com.metrolist.innertube` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.okhttp`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `ktor.client.encoding`, `okhttp.dnsoverhttps`, `extractor`, `junit` | 96 files (see `reference/kotlin-files.md`) |
+| `:innertube` | `com.metrolist.innertube` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.okhttp`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `ktor.client.encoding`, `okhttp.dnsoverhttps`, `extractor`, `junit` | 95 files (see `reference/kotlin-files.md`) |
 | `:lrclib` | `com.metrolist.lrclib` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.cio`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `junit` | `LrcLib.kt`, `models/Track.kt` |
 | `:simpmusic` | `com.metrolist.simpmusic` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.cio`, `ktor.client.content.negotiation`, `ktor.serialization.json` | `SimpMusicLyrics.kt`, `models/LyricsResponse.kt` |
 

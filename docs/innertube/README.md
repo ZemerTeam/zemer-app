@@ -59,9 +59,9 @@
 | --- | --- |
 | Search | `searchSuggestions`, `searchSummary`, `search`, `searchContinuation` |
 | Catalog pages | `album`, `albumSongs`, `artist`, `artistItems`, `artistItemsContinuation`, `playlist`, `playlistContinuation`, `home`, `explore`, `newReleaseAlbums`, `moodAndGenres`, `browse` |
-| Library/history/charts | `library`, `libraryContinuation`, `libraryRecentActivity`, `getChartsPage`, `musicHistory` |
+| Library/history/charts | `library`, `libraryContinuation`, `getChartsPage`, `musicHistory` |
 | Mutations | `likeVideo`, `likePlaylist`, `subscribeChannel`, `addToPlaylist`, `addPlaylistToPlaylist`, `removeFromPlaylist`, `moveSongPlaylist`, `createPlaylist`, `renamePlaylist`, `uploadCustomThumbnailLink`, `removeThumbnailPlaylist`, `deletePlaylist`, `feedback` |
-| Playback | `player`, `registerPlayback`, `next`, `lyrics`, `related`, `queue`, `transcript`, `getMediaInfo`, `getNewPipeStreamUrls`, `newPipePlayer` |
+| Playback | `player`, `registerPlayback`, `next`, `lyrics`, `related`, `queue`, `transcript`, `getMediaInfo` |
 | Account | `accountInfo`, `getChannelId` |
 
 ## InnerTube consumers in `app`
@@ -89,7 +89,6 @@ The app imports `com.metrolist.innertube.YouTube` from source files in these are
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/ExplorePage.kt` | 8 | class ExplorePage, val newReleaseAlbums, val moodAndGenres |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/HistoryPage.kt` | 68 | class HistoryPage, val sections, class HistorySection, val title, val songs, fun fromMusicShelfRenderer, fun fromMusicResponsiveListItemRenderer |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/HomePage.kt` | 166 | class HomePage, val chips, val sections, val continuation, class Chip, val title, val endpoint, val deselectEndPoint, fun fromChipCloudChipRenderer, class Section, val title, val label |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/LibraryAlbumsPage.kt` | 36 | class LibraryAlbumsPage, val albums, val continuation, fun fromMusicTwoRowItemRenderer |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/LibraryContinuationPage.kt` | 8 | class LibraryContinuationPage, val items, val continuation |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/LibraryPage.kt` | 148 | class LibraryPage, val items, val continuation, fun fromMusicTwoRowItemRenderer, fun fromMusicResponsiveListItemRenderer, fun parseArtists, val artists |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/MoodAndGenres.kt` | 47 | class MoodAndGenres, val title, val items, class Item, val title, val stripeColor, val endpoint, fun fromSectionListRendererContent, fun fromMusicNavigationButtonRenderer |

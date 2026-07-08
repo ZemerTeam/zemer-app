@@ -6,6 +6,9 @@ on:
     branches: [ main ]
     # Skip the heavy, signing release build for changes that can't affect the APK
     # (docs, the tests/ harness, repo meta). Use workflow_dispatch to build these manually.
+    # 'cipher' (the submodule POINTER) is skipped too: deployed apps fetch player configs
+    # from the cipher repo's raw master at runtime, so a pointer-only bump doesn't need an
+    # APK — the refreshed bundled defaults ride along with the next real release.
     paths-ignore:
       - 'docs/**'
       - 'tests/**'
@@ -18,6 +21,7 @@ on:
       - '.gitattributes'
       - '.editorconfig'
       - 'LICENSE'
+      - 'cipher'
   pull_request:
     branches: [ main ]
     paths-ignore:
@@ -32,6 +36,7 @@ on:
       - '.gitattributes'
       - '.editorconfig'
       - 'LICENSE'
+      - 'cipher'
 
 env:
   USE_PREBUILT_NATIVE: true

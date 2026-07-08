@@ -22,8 +22,8 @@ android {
         applicationId = "com.jtech.zemer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 34
-        versionName = "34"
+        versionCode = 35
+        versionName = "35"
         buildConfigField("String", "ARCHITECTURE", "\"universal\"")
         // Git commit of this build — the nightly-updater's identity (every main build shares the
         // same versionName, so "is a newer nightly available" is a SHA comparison, not a version

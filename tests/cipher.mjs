@@ -33,7 +33,10 @@ function knownPlayerConfigs() {
   return knownPlayerConfigsCache;
 }
 
-const SIG_TS_PATTERNS = [/signatureTimestamp['":\s]+(\d+)/, /\bsts['":\s]+(\d+)/];
+// Anchored pattern = the player's own embedded field (ground truth); the loose \bsts
+// pattern can false-match and is fallback-only, tried after the config.
+const SIG_TS_ANCHORED = /signatureTimestamp['":\s]+(\d+)/;
+const SIG_TS_LOOSE = /\bsts['":\s]+(\d+)/;
 
 function md5hash4(s) {
   return crypto.createHash("md5").update(Buffer.from(s.slice(0, 10000), "utf8")).digest("hex").slice(0, 8);
@@ -52,9 +55,14 @@ function extractHashesFromJs(playerJs) {
 }
 
 export function extractSignatureTimestamp(playerJs, hashes = []) {
-  for (const p of SIG_TS_PATTERNS) { const m = playerJs.match(p); if (m) return Number(m[1]); }
+  // Precedence (mirrors FunctionNameExtractor.extractSignatureTimestamp on-device):
+  // 1. the anchored literal in the JS itself — the field configs are copied from, immune
+  //    to config typos/stale aliases; 2. the config; 3. the false-match-prone loose pattern.
+  const anchored = playerJs.match(SIG_TS_ANCHORED);
+  if (anchored) return Number(anchored[1]);
   for (const h of hashes) if (knownPlayerConfigs()[h]) return knownPlayerConfigs()[h].sts;
-  return null;
+  const loose = playerJs.match(SIG_TS_LOOSE);
+  return loose ? Number(loose[1]) : null;
 }
 
 export async function fetchPlayerJs() {

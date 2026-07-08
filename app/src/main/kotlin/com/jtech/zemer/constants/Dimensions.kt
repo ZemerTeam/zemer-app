@@ -8,7 +8,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 const val CONTENT_TYPE_HEADER = 0
-const val CONTENT_TYPE_LIST = 1
 const val CONTENT_TYPE_SONG = 2
 const val CONTENT_TYPE_ARTIST = 3
 const val CONTENT_TYPE_ALBUM = 4
@@ -23,9 +22,7 @@ val AppBarHeight = 64.dp
 
 val ListItemHeight = 64.dp
 val SuggestionItemHeight = 56.dp
-val SearchFilterHeight = 48.dp
 val ListThumbnailSize = 48.dp
-val SmallGridThumbnailHeight = 104.dp
 val GridThumbnailHeight = 128.dp
 val AlbumThumbnailSize = 144.dp
 
@@ -34,6 +31,3 @@ val ThumbnailCornerRadius = 6.dp
 val PlayerHorizontalPadding = 32.dp
 
 val NavigationBarAnimationSpec = spring<Dp>(stiffness = Spring.StiffnessMediumLow)
-val BottomSheetAnimationSpec = spring<Dp>(stiffness = Spring.StiffnessMediumLow)
-@Suppress("unused")
-val BottomSheetSoftAnimationSpec = spring<Dp>(stiffness = Spring.StiffnessLow)

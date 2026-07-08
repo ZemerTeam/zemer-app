@@ -253,34 +253,6 @@ interface DatabaseDao {
     )
     fun quickPicks(now: Long = System.currentTimeMillis()): Flow<List<Song>>
 
-    @Transaction
-    @Query(
-        """
-        SELECT
-            song.*
-        FROM
-            event
-        JOIN
-            song ON event.songId = song.id
-        WHERE
-            event.timestamp > (:now - 86400000 * 7 * 2)
-            AND song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist))
-        GROUP BY
-            song.albumId
-        HAVING
-            song.albumId IS NOT NULL
-        ORDER BY
-            sum(event.playTime) DESC
-        LIMIT :limit
-        OFFSET :offset
-
-        """,
-    )
-    fun getRecommendationAlbum(
-        now: Long = System.currentTimeMillis(),
-        limit: Int = 5,
-        offset: Int = 0,
-    ): Flow<List<Song>>
 
     @Transaction
     @Query(
@@ -454,10 +426,6 @@ interface DatabaseDao {
     """)
     fun artistAlbumsPreview(artistId: String, previewSize: Int = 6): Flow<List<Album>>
 
-    @Query("SELECT sum(count) from playCount WHERE song = :songId")
-    fun getLifetimePlayCount(songId: String?): Flow<Int>
-    @Query("SELECT sum(count) from playCount WHERE song = :songId AND year = :year")
-    fun getPlayCountByYear(songId: String?, year: Int): Flow<Int>
     @Query("SELECT count from playCount WHERE song = :songId AND year = :year AND month = :month")
     fun getPlayCountByMonth(songId: String?, year: Int, month: Int): Flow<Int>
 
@@ -485,28 +453,6 @@ interface DatabaseDao {
     """
     )
     fun forgottenFavorites(now: Long = System.currentTimeMillis()): Flow<List<Song>>
-
-    @Transaction
-    @Query(
-        """
-        SELECT song.*
-        FROM event
-                 JOIN
-             song ON event.songId = song.id
-        WHERE event.timestamp > (:now - 86400000 * 7 * 2)
-          AND song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist))
-        GROUP BY song.albumId
-        HAVING song.albumId IS NOT NULL
-        ORDER BY sum(event.playTime) DESC
-        LIMIT :limit
-        OFFSET :offset
-        """,
-    )
-    fun recommendedAlbum(
-        now: Long = System.currentTimeMillis(),
-        limit: Int = 5,
-        offset: Int = 0,
-    ): Flow<List<Song>>
 
     @Transaction
     @Query("SELECT * FROM song WHERE id = :songId")
@@ -964,24 +910,6 @@ interface DatabaseDao {
     @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE bookmarkedAt IS NOT NULL ORDER BY songCount")
     fun playlistsBySongCountAsc(): Flow<List<Playlist>>
 
-    @Transaction
-    @Query(
-        """
-        SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount
-        FROM playlist
-        WHERE bookmarkedAt IS NOT NULL
-          AND id IN (
-            SELECT DISTINCT psm.playlistId
-            FROM playlist_song_map psm
-            JOIN song_artist_map sam ON sam.songId = psm.songId
-            WHERE sam.artistId IN (:artistIds)
-          )
-        ORDER BY RANDOM()
-        LIMIT :limit
-        """
-    )
-    suspend fun randomPlaylistsByArtists(artistIds: List<String>, limit: Int = 6): List<Playlist>
-
     fun playlists(
         sortType: PlaylistSortType,
         descending: Boolean,
@@ -1009,13 +937,6 @@ interface DatabaseDao {
     @Transaction
     @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE browseId = :browseId")
     fun playlistByBrowseId(browseId: String): Flow<Playlist?>
-
-    @Transaction
-    @Query("SELECT COUNT(*) from playlist_song_map WHERE playlistId = :playlistId AND songId = :songId LIMIT 1")
-    fun checkInPlaylist(
-        playlistId: String,
-        songId: String,
-    ): Int
 
     @Query("SELECT songId from playlist_song_map WHERE playlistId = :playlistId AND songId IN (:songIds)")
     fun playlistDuplicates(
@@ -1275,23 +1196,7 @@ interface DatabaseDao {
     @Transaction
     @Query(
         """
-        SELECT song.*
-        FROM (SELECT *
-              FROM related_song_map
-              GROUP BY relatedSongId) map
-                 JOIN
-             song
-             ON song.id = map.relatedSongId
-        WHERE songId = :songId
-        AND song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist))
-        """
-    )
-    fun relatedSongs(songId: String): List<Song>
-
-    @Transaction
-    @Query(
-        """
-        UPDATE playlist_song_map SET position = 
+        UPDATE playlist_song_map SET position =
             CASE 
                 WHEN position < :fromPosition THEN position + 1
                 WHEN position > :fromPosition THEN position - 1
@@ -1313,9 +1218,6 @@ interface DatabaseDao {
     @Transaction
     @Query("SELECT * FROM artist WHERE artist.name = :name")
     fun artistByName(name: String): ArtistEntity?
-
-    @Query("SELECT * FROM artist WHERE artist.id = :id LIMIT 1")
-    fun getArtistById(id: String): ArtistEntity?
 
     @Query("SELECT id FROM artist")
     fun getAllArtistIdsSync(): List<String>
@@ -1619,9 +1521,6 @@ interface DatabaseDao {
     @Delete
     fun delete(playlistSongMap: PlaylistSongMap)
 
-    @Query("DELETE FROM playlist WHERE browseId = :browseId")
-    fun deletePlaylistById(browseId: String)
-
     @Delete
     fun delete(lyrics: LyricsEntity)
 
@@ -1674,9 +1573,6 @@ interface DatabaseDao {
     @Query("SELECT EXISTS(SELECT 1 FROM artist_whitelist WHERE artistId = :artistId)")
     suspend fun isArtistWhitelisted(artistId: String): Boolean
 
-    @Query("SELECT artistId FROM artist_whitelist ORDER BY RANDOM() LIMIT :limit")
-    suspend fun getRandomWhitelistedArtistIds(limit: Int): List<String>
-
     @Query(
         """
         SELECT artist.id FROM artist
@@ -1689,9 +1585,6 @@ interface DatabaseDao {
 
     @Query("DELETE FROM artist_whitelist")
     fun clearWhitelist()
-
-    @Query("DELETE FROM artist_whitelist WHERE artistId = :artistId")
-    fun removeFromWhitelist(artistId: String)
 
     // Recognize-music history
     @Query("SELECT * FROM recognition_history ORDER BY recognizedAt DESC")
@@ -1716,23 +1609,8 @@ interface DatabaseDao {
     @Query("SELECT albumId FROM album_artist_map WHERE artistId = :artistId")
     suspend fun getAlbumIdsByArtist(artistId: String): List<String>
 
-    @Query("DELETE FROM playCount WHERE song = :songId")
-    suspend fun deletePlayCountBySong(songId: String)
-
-    @Query("DELETE FROM format WHERE id = :songId")
-    suspend fun deleteFormatBySong(songId: String)
-
-    @Query("DELETE FROM lyrics WHERE id = :songId")
-    suspend fun deleteLyricsBySong(songId: String)
-
-    @Query("DELETE FROM song WHERE id = :songId")
-    suspend fun deleteSongById(songId: String)
-
     @Query("SELECT COUNT(*) FROM song_album_map WHERE albumId = :albumId")
     suspend fun getAlbumSongCount(albumId: String): Int
-
-    @Query("DELETE FROM album WHERE id = :albumId")
-    suspend fun deleteAlbumById(albumId: String)
 
     @Query("DELETE FROM artist WHERE id = :artistId")
     suspend fun deleteArtistById(artistId: String)
@@ -1752,7 +1630,4 @@ interface DatabaseDao {
 
     @Query("DELETE FROM album WHERE id IN (:albumIds)")
     suspend fun deleteAlbumsByIds(albumIds: List<String>)
-
-    @Query("DELETE FROM artist WHERE id IN (:artistIds)")
-    suspend fun deleteArtistsByIds(artistIds: List<String>)
 }

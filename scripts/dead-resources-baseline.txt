@@ -1,0 +1,2 @@
+# Dead-resource ratchet baseline: one "type/name" per line; may only shrink. Empty since the
+# values/strings.xml cleanup — every new dead resource fails CI immediately.

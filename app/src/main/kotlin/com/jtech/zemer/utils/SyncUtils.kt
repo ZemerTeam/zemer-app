@@ -4,12 +4,10 @@ import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.constants.BlockedContentIdsKey
-import com.jtech.zemer.constants.LastWhitelistSyncTimeKey
 import com.jtech.zemer.constants.LastWhitelistVersionKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.db.entities.PlaylistEntity
-import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toSQLiteQuery
@@ -66,19 +64,6 @@ class SyncUtils @Inject constructor(
 
     private val _whitelistSyncProgress = MutableStateFlow(WhitelistSyncProgress())
     val whitelistSyncProgress: StateFlow<WhitelistSyncProgress> = _whitelistSyncProgress.asStateFlow()
-
-    fun runAllSyncs() {
-        syncScope.launch {
-            syncArtistWhitelist()
-            syncLikedSongs()
-            syncLibrarySongs()
-            syncUploadedSongs()
-            syncLikedAlbums()
-            syncUploadedAlbums()
-            syncArtistsSubscriptions()
-            syncSavedPlaylists()
-        }
-    }
 
     fun likeSong(s: SongEntity) {
         if (!isPersonalAccountSignedIn) return
@@ -424,41 +409,6 @@ class SyncUtils @Inject constructor(
         }
     }
 
-    private suspend fun syncPlaylist(browseId: String, playlistId: String) {
-        try {
-            YouTube.playlist(browseId).completed().onSuccess { page ->
-                val songs = page.songs
-                    .filterWhitelisted(database)
-                    .filterIsInstance<SongItem>()
-                    .map(SongItem::toMediaMetadata)
-                val remoteIds = songs.map { it.id }
-                val localIds = database.playlistSongs(playlistId).first().sortedBy { it.map.position }.map { it.song.id }
-
-                if (remoteIds == localIds) return@onSuccess
-                if (database.playlist(playlistId).firstOrNull() == null) return@onSuccess
-
-                // Pre-load existing songs to avoid blocking inside transaction
-                val existingSongIds = songs.mapNotNull { song ->
-                    database.song(song.id).firstOrNull()?.song?.id
-                }.toSet()
-
-                database.transaction {
-                    clearPlaylist(playlistId)
-                    val songEntities = songs.onEach { song ->
-                        if (song.id !in existingSongIds) {
-                            insert(song)
-                        }
-                    }
-                    val playlistSongMaps = songEntities.mapIndexed { position, song ->
-                        PlaylistSongMap(songId = song.id, playlistId = playlistId, position = position, setVideoId = song.setVideoId)
-                    }
-                    playlistSongMaps.forEach { insert(it) }
-                }
-            }
-        } catch (e: Exception) {
-        }
-    }
-
     private suspend fun syncPlaylist(browseId: String, playlistId: String, allowedSongIds: Set<String>) {
         // Only sync if we have pre-filtered allowed songs
         if (allowedSongIds.isEmpty()) {
@@ -479,10 +429,13 @@ class SyncUtils @Inject constructor(
                     .filter { it.id in allowedSongIds }  // Only use pre-filtered songs
                     .filterIsInstance<SongItem>()
                     .map(SongItem::toMediaMetadata)
-                val remoteIds = songs.map { it.id }
-                val localIds = database.playlistSongs(playlistId).first().sortedBy { it.map.position }.map { it.song.id }
+                val localRows = database.playlistSongs(playlistId).first().sortedBy { it.map.position }
+                val localIds = localRows.map { it.song.id }
 
-                if (remoteIds == localIds) return@onSuccess
+                // Compare (id, setVideoId) pairs, not just ids: setVideoId is what remote
+                // remove/reorder need, so an unchanged-membership playlist still rebuilds once to
+                // backfill entry ids that were never persisted.
+                if (songs.map { it.id to it.setVideoId } == localRows.map { it.song.id to it.map.setVideoId }) return@onSuccess
                 // Filtering left nothing while the playlist locally still has songs — skip rather than
                 // clear, so a transient sparse read can't empty an otherwise-populated playlist.
                 if (songs.isEmpty() && localIds.isNotEmpty()) return@onSuccess
@@ -513,16 +466,8 @@ class SyncUtils @Inject constructor(
                         }
                     }
 
-                    // Add playlist song mappings
-                    songs.forEachIndexed { index, mediaMetadata ->
-                        insert(
-                            PlaylistSongMap(
-                                songId = mediaMetadata.id,
-                                playlistId = playlistId,
-                                position = index
-                            )
-                        )
-                    }
+                    // Add playlist song mappings (setVideoId included — remote edits depend on it)
+                    playlistSongMaps(songs, playlistId).forEach { insert(it) }
                 }
             }
         } catch (e: Exception) {
@@ -647,7 +592,6 @@ class SyncUtils @Inject constructor(
                 )
 
                 context.dataStore.edit { settings ->
-                    settings[LastWhitelistSyncTimeKey] = System.currentTimeMillis()
                     remoteVersion?.let { settings[LastWhitelistVersionKey] = it }
                 }
             } catch (e: Exception) {

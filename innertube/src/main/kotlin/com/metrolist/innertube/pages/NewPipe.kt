@@ -80,25 +80,6 @@ object NewPipeUtils {
         YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId)
     }
 
-    /**
-     * Fetches all stream URLs for a video using NewPipe's StreamInfo.
-     * Returns a list of (itag, url) pairs with fully deobfuscated URLs.
-     */
-    fun newPipePlayer(videoId: String): List<Pair<Int, String>> {
-        return try {
-            val streamInfo = org.schabi.newpipe.extractor.stream.StreamInfo.getInfo(
-                NewPipe.getService(0),
-                "https://www.youtube.com/watch?v=$videoId"
-            )
-            val streamsList = streamInfo.audioStreams + streamInfo.videoStreams + streamInfo.videoOnlyStreams
-            streamsList.mapNotNull {
-                (it.itagItem?.id ?: return@mapNotNull null) to it.content
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
     fun getStreamUrl(format: PlayerResponse.StreamingData.Format, videoId: String): Result<String> =
         runCatching {
             val cipherValue = format.signatureCipher

@@ -10,7 +10,7 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
 - Look in `app/src/main/kotlin/com/jtech/zemer/ui/component/` first. There are ready components for
   settings rows (`Preference.kt`), grouped settings cards (`Material3SettingsGroup.kt`), grouped
   menu / detail rows (`Material3MenuItem.kt`), dialogs (`Dialog.kt`, `*Dialog.kt`), bottom sheets
-  (`BottomSheet*.kt`), menus (`GridMenu.kt`, `NewMenuComponents.kt`), list items (`Items.kt`),
+  (`BottomSheet*.kt`), menus (`NewMenuComponents.kt`), list items (`Items.kt`),
   icon buttons (`IconButton.kt`), chips (`ChipsRow.kt`), placeholders (`EmptyPlaceholder.kt`,
   `AppStateViews.kt`), and more.
 - Do not introduce a second component that duplicates one of these. (For example, settings rows use
