@@ -52,9 +52,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.tracking.Tracker
-import com.jtech.zemer.playback.videoPlaysAsAudio
 import com.jtech.zemer.constants.BlockVideosKey
-import com.jtech.zemer.constants.PlayVideosAsAudioKey
 import com.jtech.zemer.constants.SearchProviderKey
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
@@ -85,7 +83,6 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.YTItem
-import com.jtech.zemer.ui.screens.videoRoute
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -115,7 +112,6 @@ fun OnlineSearchResult(
 
     val searchFilter by viewModel.filter.collectAsState()
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
-    val (playVideosAsAudio, _) = rememberPreference(PlayVideosAsAudioKey, false)
     // On the default (Zemer) engine, the error / no-results states offer a one-tap switch to YouTube
     // search — the documented recovery — since the engine toggle (only in the expanded search bar) is
     // not reachable from this results screen. Flipping the preference reloads via the ViewModel.
@@ -158,12 +154,9 @@ fun OnlineSearchResult(
             Tracker.click(viewModel.query, item.id, clickKind(item, searchFilter?.value), rank)
             when (item) {
                 is SongItem -> {
-                    val watchVideo = !videoPlaysAsAudio(item.isVideo, blockVideos, playVideosAsAudio) &&
-                        searchFilter?.value == FILTER_VIDEO.value
-                    if (watchVideo) {
-                        val artistDisplay = item.artists.joinToString(" • ") { it.name }
-                        navController.navigate(videoRoute(item.id, item.title, artistDisplay))
-                    } else if (item.id == mediaMetadata?.id) {
+                    // Audio-first always (I2): every result plays as a normal song; video is a per-play
+                    // in-player toggle, never a separate watch entry point (D3).
+                    if (item.id == mediaMetadata?.id) {
                         playerConnection.playPause()
                     } else {
                         playerConnection.playQueue(
@@ -191,10 +184,10 @@ fun OnlineSearchResult(
                             song = item,
                             navController = navController,
                             onDismiss = menuState::dismiss,
-                            // Treat as a video (video download / video share) only when it will actually
-                            // be watched; an audio-mode video-song downloads/shares as ordinary audio.
+                            // Video download / video share is offered only for a video item while video
+                            // imagery is not blocked; otherwise it downloads/shares as ordinary audio.
                             isVideo = item.isVideo &&
-                                !videoPlaysAsAudio(item.isVideo, blockVideos, playVideosAsAudio) &&
+                                !blockVideos &&
                                 searchFilter?.value == FILTER_VIDEO.value,
                         )
 
@@ -279,10 +272,10 @@ fun OnlineSearchResult(
                 buildList {
                     add(null to stringResource(R.string.filter_all))
                     add(FILTER_SONG to stringResource(R.string.filter_songs))
-                    // Videos are always browsable now: when shown as audio they appear as "video song"
-                    // rows rather than being hidden, so the chip stays available — and is labelled
-                    // "Video songs" in that mode, "Videos" only when they are actually watchable.
-                    val videosAsAudio = blockVideos || playVideosAsAudio
+                    // Videos are always browsable and audio-first now. When imagery is blocked they are
+                    // audio-only "Video songs"; otherwise they are labelled "Videos" (watchable via the
+                    // in-player toggle). The chip is always available either way.
+                    val videosAsAudio = blockVideos
                     add(
                         FILTER_VIDEO to stringResource(
                             if (videosAsAudio) R.string.filter_video_songs else R.string.filter_videos
@@ -377,7 +370,7 @@ fun OnlineSearchResult(
                                         }
                                 val isVideoSection = (summary.items.firstOrNull() as? SongItem)?.isVideo == true
                                 NavigationTitle(
-                                    title = if (isVideoSection && (blockVideos || playVideosAsAudio))
+                                    title = if (isVideoSection && blockVideos)
                                         stringResource(R.string.video_songs) else summary.title,
                                     onClick = {
                                         summaryFilter?.let {

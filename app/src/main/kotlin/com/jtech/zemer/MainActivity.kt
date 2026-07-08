@@ -223,7 +223,6 @@ import com.jtech.zemer.ui.screens.Screens
 import com.jtech.zemer.ui.screens.SplashScreen
 import com.jtech.zemer.ui.screens.navigationBuilder
 import com.jtech.zemer.ui.screens.search.OnlineSearchScreen
-import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.screens.settings.DarkMode
 import com.jtech.zemer.ui.screens.settings.NavigationTab
 import com.jtech.zemer.ui.theme.ColorSaver
@@ -712,9 +711,6 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
-                        val isVideoScreen = remember(navBackStackEntry) {
-                            navBackStackEntry?.destination?.route?.startsWith("video/") == true
-                        }
                         val homeViewModel: HomeViewModel = hiltViewModel()
                         val accountImageUrl by homeViewModel.accountImageUrl.collectAsState()
 
@@ -948,7 +944,7 @@ class MainActivity : ComponentActivity() {
                         label = "navigationBarHeight"
                     )
 
-                    val floatingMiniPlayerAllowed = floatingMiniPlayerEnabled && !isVideoScreen
+                    val floatingMiniPlayerAllowed = floatingMiniPlayerEnabled
 
                     val collapsedBound = remember(
                         bottomInset,
@@ -2007,9 +2003,6 @@ class MainActivity : ComponentActivity() {
         val uri = intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri() ?: return
         val coroutineScope = lifecycleScope
 
-        // Check if it's a video.zemer.io link
-        val isVideoLink = uri.host == "video.zemer.io"
-
         when (val path = uri.pathSegments.firstOrNull()) {
             "playlist" -> uri.getQueryParameter("list")?.let { playlistId ->
                 if (playlistId.startsWith("OLAK5uy_")) {
@@ -2084,33 +2077,29 @@ class MainActivity : ComponentActivity() {
                 val playlistId = uri.getQueryParameter("list")
 
                 videoId?.let {
-                    if (isVideoLink) {
-                        // For video.zemer.io links, navigate directly to video player
-                        navController.navigate(videoRoute(it))
-                    } else {
-                        // For other links, use audio player
-                        coroutineScope.launch(Dispatchers.IO) {
-                            YouTube.queue(listOf(it), playlistId).onSuccess { queue ->
-                                // Filter by whitelist
-                                val filteredQueue = queue.filterWhitelisted(database).filterIsInstance<SongItem>()
+                    // Incoming watch links always play through the normal audio-first player now — video is
+                    // a per-play in-player toggle, so video.zemer.io links are no longer special-cased.
+                    coroutineScope.launch(Dispatchers.IO) {
+                        YouTube.queue(listOf(it), playlistId).onSuccess { queue ->
+                            // Filter by whitelist
+                            val filteredQueue = queue.filterWhitelisted(database).filterIsInstance<SongItem>()
 
-                                // Silently ignore if no whitelisted songs
-                                if (filteredQueue.isEmpty()) {
-                                    return@onSuccess
-                                }
-
-                                withContext(Dispatchers.Main) {
-                                    playerConnection?.playQueue(
-                                        YouTubeQueue(
-                                            WatchEndpoint(videoId = filteredQueue.firstOrNull()?.id, playlistId = playlistId),
-                                            filteredQueue.firstOrNull()?.toMediaMetadata(),
-                                            database
-                                        )
-                                    )
-                                }
-                            }.onFailure { ex ->
-                                reportException(ex)
+                            // Silently ignore if no whitelisted songs
+                            if (filteredQueue.isEmpty()) {
+                                return@onSuccess
                             }
+
+                            withContext(Dispatchers.Main) {
+                                playerConnection?.playQueue(
+                                    YouTubeQueue(
+                                        WatchEndpoint(videoId = filteredQueue.firstOrNull()?.id, playlistId = playlistId),
+                                        filteredQueue.firstOrNull()?.toMediaMetadata(),
+                                        database
+                                    )
+                                )
+                            }
+                        }.onFailure { ex ->
+                            reportException(ex)
                         }
                     }
                 }

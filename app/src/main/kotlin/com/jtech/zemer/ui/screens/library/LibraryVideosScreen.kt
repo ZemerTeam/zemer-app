@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
@@ -34,12 +34,12 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
 import com.jtech.zemer.extensions.metadata
 import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.menu.SongMenu
-import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.viewmodels.LibraryVideosViewModel
 import com.metrolist.innertube.models.WatchEndpoint
 
@@ -58,6 +58,7 @@ fun LibraryVideosScreen(
     val mediaMetadata = playerConnection.mediaMetadata.collectAsState().value
 
     val videos = viewModel.videos.collectAsState().value
+    val videosTitle = stringResource(R.string.videos)
 
     val lazyListState = rememberLazyListState()
 
@@ -90,7 +91,7 @@ fun LibraryVideosScreen(
                 )
             }
 
-            items(videos, key = { it.id }) { video ->
+            itemsIndexed(videos, key = { _, it -> it.id }) { index, video ->
                 SongListItem(
                     song = video.copy(song = video.song.copy(isVideo = true)),
                     showInLibraryIcon = true,
@@ -118,8 +119,18 @@ fun LibraryVideosScreen(
                     Modifier
                         .combinedClickable(
                             onClick = {
-                                val artistDisplay = video.artists.joinToString(" • ") { it.name }
-                                navController.navigate(videoRoute(video.id, video.song.title, artistDisplay))
+                                // Audio-first always (I2); video is a per-play in-player toggle, not an entry point (D3).
+                                if (video.id == mediaMetadata?.id) {
+                                    playerConnection.playPause()
+                                } else {
+                                    playerConnection.playQueue(
+                                        ListQueue(
+                                            title = videosTitle,
+                                            items = videos.map { it.toMediaItem() },
+                                            startIndex = index,
+                                        )
+                                    )
+                                }
                             },
                             onLongClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)

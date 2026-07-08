@@ -86,7 +86,6 @@ import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
-import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.makeTimeString
@@ -109,6 +108,7 @@ fun DownloadedVideosScreen(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
 
     val videos by viewModel.downloadedVideos.collectAsState(null)
+    val downloadedVideosTitle = stringResource(R.string.downloaded_videos)
     val mutableVideos = remember { mutableStateListOf<Song>() }
 
     var isSearching by remember { mutableStateOf(false) }
@@ -255,10 +255,13 @@ fun DownloadedVideosScreen(
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Button(
                                         onClick = {
-                                            videos!!.firstOrNull()?.let { first ->
-                                                val artistDisplay = first.artists.joinToString(" • ") { it.name }
-                                                navController.navigate(videoRoute(first.id, first.song.title, artistDisplay))
-                                            }
+                                            // Audio-first always (I2); video is a per-play in-player toggle (D3).
+                                            playerConnection.playQueue(
+                                                ListQueue(
+                                                    title = downloadedVideosTitle,
+                                                    items = videos!!.map { it.toMediaItem() },
+                                                )
+                                            )
                                         },
                                         contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                                         modifier = Modifier.weight(1f),
@@ -274,10 +277,13 @@ fun DownloadedVideosScreen(
 
                                     OutlinedButton(
                                         onClick = {
-                                            videos!!.shuffled().firstOrNull()?.let { first ->
-                                                val artistDisplay = first.artists.joinToString(" • ") { it.name }
-                                                navController.navigate(videoRoute(first.id, first.song.title, artistDisplay))
-                                            }
+                                            // Audio-first always (I2); video is a per-play in-player toggle (D3).
+                                            playerConnection.playQueue(
+                                                ListQueue(
+                                                    title = downloadedVideosTitle,
+                                                    items = videos!!.shuffled().map { it.toMediaItem() },
+                                                )
+                                            )
                                         },
                                         contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                                         modifier = Modifier.weight(1f),
@@ -352,8 +358,14 @@ fun DownloadedVideosScreen(
                             .combinedClickable(
                                 onClick = {
                                     if (!selection) {
-                                        val artistDisplay = videoWrapper.item.artists.joinToString(" • ") { it.name }
-                                        navController.navigate(videoRoute(videoWrapper.item.id, videoWrapper.item.song.title, artistDisplay))
+                                        // Audio-first always (I2); video is a per-play in-player toggle (D3).
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = downloadedVideosTitle,
+                                                items = filteredVideos.map { it.item.toMediaItem() },
+                                                startIndex = index,
+                                            )
+                                        )
                                     } else {
                                         videoWrapper.isSelected = !videoWrapper.isSelected
                                     }
