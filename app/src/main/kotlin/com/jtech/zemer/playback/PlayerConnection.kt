@@ -104,6 +104,15 @@ class PlayerConnection(
      */
     val isStationBroadcast = service.isStationBroadcast
 
+    // Video mode (the in-player Song/Video toggle). The service-scoped controller already encodes every
+    // condition (blocked/casting/availability); the UI reads these flows and must NOT re-derive them.
+    val videoModeAvailable = service.videoModeController.videoModeAvailable
+    val isVideoMode = service.videoModeController.isVideoMode
+    val videoErrorEvents = service.videoModeController.videoErrorEvents
+    fun setVideoMode(enabled: Boolean) = service.videoModeController.setVideoMode(enabled)
+    fun requestVideoAvailability(mediaId: String) = service.videoModeController.requestVideoAvailability(mediaId)
+    fun setVideoSurface(view: android.view.SurfaceView?) = service.videoModeController.setVideoSurface(view)
+
     init {
         player.addListener(this)
 

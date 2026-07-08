@@ -57,12 +57,13 @@ class ListenAccumulator {
     }
 
     /**
-     * A real track transition happened — clear any stale swap mark and stash so a dangling mark (e.g. a
-     * swap that was aborted, or whose stats-ready never arrived) can never suppress a later real listen.
+     * A real track transition happened — clear any stale swap mark so a dangling mark (a swap whose
+     * stats-ready never arrived) can never suppress a later real listen. Deliberately does NOT clear the
+     * accumulating stash: the departed listen's final stats-ready still needs it, and that Emit path
+     * clears the stash itself — so this stays correct regardless of whether the transition callback or
+     * the final stats-ready fires first.
      */
     fun onTrackTransition() {
         swapPendingForId = null
-        accumulatingId = null
-        stashedMs = 0L
     }
 }
