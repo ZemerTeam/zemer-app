@@ -119,9 +119,14 @@ async function drainWhole(url, ua, capBytes) {
   try {
     const r = await fetch(url, { headers: { "User-Agent": ua, Range: "bytes=0-" } });
     if (r.status !== 200 && r.status !== 206) return { status: r.status, read: 0, ms: performance.now() - t0 };
+    // The true byte size, from content-range total (preferred) or content-length.
+    const cr = r.headers.get("content-range");
+    const total = cr && cr.includes("/") ? Number(cr.split("/").pop()) : Number(r.headers.get("content-length")) || null;
     let read = 0; const reader = r.body.getReader();
     for (;;) { const { done, value } = await reader.read(); if (done) break; read += value.length; if (capBytes && read >= capBytes) { await reader.cancel(); break; } }
-    return { status: r.status, read, ms: performance.now() - t0, capped: capBytes && read >= capBytes };
+    // "whole file" = the server delivered every byte (drain reached EOF at total), i.e. NOT stopped by us.
+    const whole = total != null ? read >= total : !(capBytes && read >= capBytes);
+    return { status: r.status, read, total, ms: performance.now() - t0, whole };
   } catch (e) { return { status: "ERR", error: e.message, read: 0, ms: performance.now() - t0 }; }
 }
 
@@ -196,8 +201,9 @@ async function battery(label, r, ua, { reResolve, potVariants } = {}) {
   const cH = await fetchRange(url, seekOff, seekOff + CHUNK - 1, { ua });
   console.log(`C  seek @${toSec(seekOff)} (byte ${seekOff})  HEADER -> ${cH.status}`);
 
-  const d = await drainWhole(url, ua, contentLength ? contentLength + 1 : CHUNK * 400);
-  console.log(`D  one open GET bytes=0-  -> ${d.status} delivered ${kb(d.read)}${contentLength ? ` / ${kb(contentLength)}` : ""} (${secAt(d.read, contentLength, approxDurationMs)?.toFixed(1) ?? "?"}s) ${d.capped ? "[WHOLE FILE ✓]" : "[server ended early — past-1MiB WALL?]"} ${msOf(0, d.ms)}`);
+  const d = await drainWhole(url, ua, null);
+  const dTotal = d.total ?? contentLength;
+  console.log(`D  one open GET bytes=0-  -> ${d.status} delivered ${kb(d.read)}${dTotal ? ` / ${kb(dTotal)}` : ""} (${secAt(d.read, dTotal, approxDurationMs)?.toFixed(1) ?? "?"}s) ${d.whole ? "[WHOLE FILE ✓ — past-1MiB wall PASSED]" : "[STOPPED EARLY — 1-MiB WALL?]"} ${msOf(0, d.ms)}`);
 
   if (potVariants) {
     const off = (bh.firstFail || { offset: seekOff }).offset;

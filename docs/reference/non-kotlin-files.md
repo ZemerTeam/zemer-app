@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `333`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `335`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -274,6 +274,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/full-stream.mjs` | 87 lines | text `.mjs` |
 | `tests/gen-player-dates.mjs` | 41 lines | text `.mjs` |
 | `tests/inspect-player.mjs` | 48 lines | text `.mjs` |
+| `tests/next-counterpart-auth.mjs` | 92 lines | text `.mjs` |
 | `tests/package-lock.json` | 554 lines | text `.json`; JSON keys `name, lockfileVersion, requires, packages` |
 | `tests/package.json` | 7 lines | text `.json`; JSON keys `dependencies` |
 | `tests/player-configs.mjs` | 96 lines | text `.mjs` |
@@ -335,5 +336,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/sts-mismatch.mjs` | 125 lines | text `.mjs` |
 | `tests/test-mweb-cipher.mjs` | 142 lines | text `.mjs` |
 | `tests/validate-player-config.mjs` | 186 lines | text `.mjs` |
+| `tests/video-progressive-stream.mjs` | 275 lines | text `.mjs` |
 | `tests/web-creator-stream.mjs` | 142 lines | text `.mjs` |
 | `tests/web-remix-stream.mjs` | 277 lines | text `.mjs` |
