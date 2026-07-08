@@ -1,0 +1,119 @@
+package com.jtech.zemer.playback
+
+import com.metrolist.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
+
+/**
+ * Pure decision logic for video mode — no player, no Android, fully JVM-unit-tested. [VideoModeController]
+ * owns the state machine and player mutations; everything that can be a pure function lives here so the
+ * "when is video available / is this transition my own swap" rules are provable without a device.
+ */
+object VideoModeLogic {
+
+    /** Which video rendition (if any) the current queue item can show. */
+    enum class RenditionKind {
+        /** The item already plays a downloaded muxed video file — attach a surface, no source swap (works offline). */
+        LOCAL,
+
+        /** The item is itself a video (musicVideoType != ATV) — the rendition id is its own id. */
+        SELF,
+
+        /** The item is an audio song with a known video counterpart — the rendition id is the counterpart's id. */
+        COUNTERPART,
+    }
+
+    /**
+     * @param renditionVideoId the id to resolve a video stream for on a swap; null for [RenditionKind.LOCAL]
+     *   (no swap — the current source already carries the video track).
+     */
+    data class Rendition(val kind: RenditionKind, val renditionVideoId: String?)
+
+    /**
+     * The single source of truth for "can the current item show video, and as what". Returns null when
+     * video is unavailable (the toggle must then be hidden). Re-evaluated whenever any input changes
+     * (current item, cast state, block flag, availability cache) and again at the moment the toggle is
+     * pressed.
+     *
+     * @param mediaId the current queue item's id (the audio/canonical id).
+     * @param casting true while a cast session is connected (I5: video and cast are mutually exclusive).
+     * @param blockVideos the [com.jtech.zemer.constants.BlockVideosKey] content filter (I1: blocked ⇒ no video anywhere).
+     * @param localVideoFile true when the item is playing from a downloaded muxed video file.
+     * @param musicVideoType the item's own music-video type from the availability cache (null = unknown).
+     * @param counterpartVideoId a known video counterpart id for the item, or null.
+     * @param isBlockedRendition content-filter check for a specific rendition id (BlockedIdsCache) — a
+     *   Firestore-blocked video is never watchable even when its audio side is fine.
+     */
+    fun availability(
+        mediaId: String,
+        casting: Boolean,
+        blockVideos: Boolean,
+        localVideoFile: Boolean,
+        musicVideoType: String?,
+        counterpartVideoId: String?,
+        isBlockedRendition: (String) -> Boolean,
+    ): Rendition? {
+        // I5 + I1: no video while casting or when videos are blocked.
+        if (casting || blockVideos) return null
+
+        // LOCAL first: a downloaded muxed file plays the video track with no swap and works offline.
+        if (localVideoFile && !isBlockedRendition(mediaId)) {
+            return Rendition(RenditionKind.LOCAL, null)
+        }
+
+        // SELF: the item is itself a video. Requires a KNOWN non-ATV type (never guess on unknown).
+        if (musicVideoType != null && musicVideoType != MUSIC_VIDEO_TYPE_ATV) {
+            return if (isBlockedRendition(mediaId)) null else Rendition(RenditionKind.SELF, mediaId)
+        }
+
+        // COUNTERPART: an audio song with an authoritative video counterpart.
+        if (counterpartVideoId != null) {
+            return if (isBlockedRendition(counterpartVideoId)) null
+            else Rendition(RenditionKind.COUNTERPART, counterpartVideoId)
+        }
+
+        return null
+    }
+
+    /**
+     * Whether the availability cache should be probed on-demand for the current item — true only when a
+     * counterpart could still turn up (type is ATV or unknown AND we haven't resolved a counterpart yet)
+     * and video is otherwise permitted. Keeps the UI from firing a `next()` for items we already know
+     * about (a resolved item, or a self-video which needs no counterpart).
+     */
+    fun shouldRequestAvailability(
+        casting: Boolean,
+        blockVideos: Boolean,
+        musicVideoType: String?,
+        counterpartResolved: Boolean,
+    ): Boolean {
+        if (casting || blockVideos || counterpartResolved) return false
+        // A known self-video needs no counterpart lookup; only ATV/unknown items do.
+        return musicVideoType == null || musicVideoType == MUSIC_VIDEO_TYPE_ATV
+    }
+
+    enum class TransitionClass {
+        /** Our own rendition swap (replaceMediaItem of the current item) — keep video mode, skip side effects. */
+        OWN_SWAP,
+
+        /** A real move to another listen (auto-advance, skip, repeat restart) — revert to audio (I2). */
+        TRACK_CHANGE,
+    }
+
+    /**
+     * Classifies an `onMediaItemTransition`. Because a swap preserves the item's mediaId, our own swap is
+     * the transition that arrives while a swap is pending AND still on the same item; everything else — a
+     * different id (advance/skip) or a repeat restart of the same id (pendingSwap false) — is a real track
+     * change that must revert video mode. Robust to the swap firing no transition at all: the pending mark
+     * is cleared deterministically by the controller after the swap, so a later real transition always
+     * classifies as TRACK_CHANGE.
+     */
+    fun classifyTransition(
+        pendingSwap: Boolean,
+        newMediaId: String?,
+        videoModeItemId: String?,
+    ): TransitionClass =
+        if (pendingSwap && videoModeItemId != null && newMediaId == videoModeItemId) {
+            TransitionClass.OWN_SWAP
+        } else {
+            TransitionClass.TRACK_CHANGE
+        }
+}
