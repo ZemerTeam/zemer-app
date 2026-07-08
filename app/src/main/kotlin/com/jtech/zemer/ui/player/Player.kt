@@ -120,6 +120,7 @@ import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.extensions.copyToClipboard
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.playback.PlayerVideoUiLogic
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.BottomSheet
 import com.jtech.zemer.ui.component.BottomSheetState
@@ -217,6 +218,39 @@ fun BottomSheetPlayer(
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
+
+    // Video mode (the in-player Song/Video toggle). videoModeAvailable already encodes blocked +
+    // casting + rendition availability (VideoModeController) — read it, never re-derive those.
+    val videoModeAvailable by playerConnection.videoModeAvailable.collectAsState()
+    val isVideoMode by playerConnection.isVideoMode.collectAsState()
+    var isFullscreen by rememberSaveable { mutableStateOf(false) }
+
+    // Fullscreen is a per-play, in-video affordance: exit it the instant video mode ends (a track
+    // advance/skip/error revert — I2/D4) or the sheet collapses. isVideoMode flipping false here is
+    // exactly what makes "track end in fullscreen → advance as audio" fall out for free.
+    LaunchedEffect(isVideoMode, state.isExpanded) {
+        if (PlayerVideoUiLogic.shouldExitFullscreen(isFullscreen, isVideoMode, state.isExpanded)) {
+            isFullscreen = false
+        }
+    }
+
+    // A video-mode playback failure reverted to audio (I8) — surface it once.
+    LaunchedEffect(Unit) {
+        playerConnection.videoErrorEvents.collect {
+            Toast.makeText(
+                context,
+                context.getString(R.string.video_playback_error),
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+
+    // Kick the on-demand counterpart lookup when the expanded player shows a new item (a no-op today —
+    // the counterpart source is dormant per step 3 — but the call site is kept for when it re-lights).
+    LaunchedEffect(state.isExpanded, mediaMetadata?.id) {
+        val id = mediaMetadata?.id
+        if (state.isExpanded && id != null) playerConnection.requestVideoAvailability(id)
+    }
 
     var position by rememberSaveable(playbackState) {
         mutableLongStateOf(playerConnection.player.currentPosition)
@@ -516,6 +550,24 @@ fun BottomSheetPlayer(
         },
     ) {
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
+            // Song/Video toggle (YTM-style pill), shown only when the current item actually has a
+            // video rendition. videoModeAvailable already gates blocked/casting/availability.
+            androidx.compose.animation.AnimatedVisibility(visible = videoModeAvailable) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    SongVideoToggle(
+                        isVideoMode = isVideoMode,
+                        onSelect = { playerConnection.setVideoMode(it) },
+                        accentColor = accentColor,
+                        contentColor = TextBackgroundColor,
+                    )
+                }
+            }
+
             val playPauseRoundness by animateDpAsState(
                 targetValue = if (isPlaying) 24.dp else 36.dp,
                 animationSpec = tween(durationMillis = 90, easing = LinearEasing),
@@ -1169,7 +1221,9 @@ fun BottomSheetPlayer(
                         Thumbnail(
                             sliderPositionProvider = { sliderPosition },
                             modifier = Modifier.size(thumbnailSize),
-                            isPlayerExpanded = state.isExpanded
+                            isPlayerExpanded = state.isExpanded,
+                            showVideo = PlayerVideoUiLogic.showInlineVideo(isVideoMode, isFullscreen),
+                            onEnterFullscreen = { isFullscreen = true },
                         )
                     }
                     Column(
@@ -1202,7 +1256,9 @@ fun BottomSheetPlayer(
                         Thumbnail(
                             sliderPositionProvider = { sliderPosition },
                             modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
-                            isPlayerExpanded = state.isExpanded
+                            isPlayerExpanded = state.isExpanded,
+                            showVideo = PlayerVideoUiLogic.showInlineVideo(isVideoMode, isFullscreen),
+                            onEnterFullscreen = { isFullscreen = true },
                         )
                     }
 
@@ -1258,6 +1314,12 @@ fun BottomSheetPlayer(
                     )
                 }
             }
+        }
+
+        // Fullscreen video overlay — drawn last so it covers the expanded player (I6: same surface,
+        // re-parented). Only while expanded + in video mode + fullscreen requested.
+        if (PlayerVideoUiLogic.showFullscreenVideo(state.isExpanded, isVideoMode, isFullscreen)) {
+            PlayerVideoFullscreen(onExit = { isFullscreen = false })
         }
     }
 }
@@ -1342,6 +1404,78 @@ private fun TransportSkipButton(
             painter = painterResource(iconRes),
             contentDescription = contentDescription,
             modifier = Modifier.size(32.dp),
+        )
+    }
+}
+
+/**
+ * The YTM-style Song/Video segmented pill. Two segments; the selected one fills with the accent, the
+ * other stays transparent with theme-colored text. Each segment is focusable + accent-focus-bordered
+ * for D-pad. Shown by [BottomSheetPlayer] only while `videoModeAvailable` (blocked/casting/rendition
+ * gating already lives in that flow — the pill never re-derives it).
+ */
+@Composable
+private fun SongVideoToggle(
+    isVideoMode: Boolean,
+    onSelect: (Boolean) -> Unit,
+    accentColor: Color,
+    contentColor: Color,
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(contentColor.copy(alpha = 0.12f))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SongVideoSegment(
+            label = stringResource(R.string.song),
+            selected = !isVideoMode,
+            accentColor = accentColor,
+            contentColor = contentColor,
+            onClick = { onSelect(false) },
+        )
+        SongVideoSegment(
+            label = stringResource(R.string.video),
+            selected = isVideoMode,
+            accentColor = accentColor,
+            contentColor = contentColor,
+            onClick = { onSelect(true) },
+        )
+    }
+}
+
+@Composable
+private fun SongVideoSegment(
+    label: String,
+    selected: Boolean,
+    accentColor: Color,
+    contentColor: Color,
+    onClick: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val borderColor by animateColorAsState(
+        targetValue = if (focused) accentColor else Color.Transparent,
+        label = "song_video_focus",
+    )
+    val shape = RoundedCornerShape(50)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .clip(shape)
+            .background(if (selected) accentColor else Color.Transparent)
+            .border(2.dp, borderColor, shape)
+            .focusable()
+            .onFocusChanged { focused = it.isFocused }
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 6.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            color = if (selected) Color.White else contentColor,
         )
     }
 }
