@@ -17,7 +17,6 @@ import com.jtech.zemer.ui.screens.artist.ArtistItemsScreen
 import com.jtech.zemer.ui.screens.artist.ArtistScreen
 import com.jtech.zemer.ui.screens.artist.ArtistSongsScreen
 import com.jtech.zemer.ui.screens.library.LibraryScreen
-import com.jtech.zemer.ui.screens.player.VideoPlayerScreen
 import com.jtech.zemer.ui.screens.playlist.AutoPlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.CachePlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.DownloadedContentScreen
@@ -216,29 +215,6 @@ fun NavGraphBuilder.navigationBuilder(
         ),
     ) {
         ArtistItemsScreen(navController, scrollBehavior)
-    }
-    composable(
-        route = "video/{videoId}?title={title}&artist={artist}",
-        arguments = listOf(
-            navArgument("videoId") {
-                type = NavType.StringType
-            },
-            navArgument("title") {
-                type = NavType.StringType
-                nullable = true
-                defaultValue = null
-            },
-            navArgument("artist") {
-                type = NavType.StringType
-                nullable = true
-                defaultValue = null
-            }
-        )
-    ) { backStackEntry ->
-        val videoId = backStackEntry.arguments?.getString("videoId") ?: return@composable
-        val title = backStackEntry.arguments?.getString("title")
-        val artist = backStackEntry.arguments?.getString("artist")
-        VideoPlayerScreen(navController, videoId, title, artist)
     }
     composable(
         // Optional `zemer` flag (default false) routes a Zemer-search playlist open through the
