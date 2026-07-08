@@ -17,5 +17,8 @@ data class PlaylistPanelRenderer(
     data class Content(
         val playlistPanelVideoRenderer: PlaylistPanelVideoRenderer?,
         val automixPreviewVideoRenderer: AutomixPreviewVideoRenderer?,
+        // Additive (default null so absence never breaks parsing of the common, wrapper-less response):
+        // an authenticated response may deliver a queue row wrapped with its song↔video counterpart.
+        val playlistPanelVideoWrapperRenderer: PlaylistPanelVideoWrapperRenderer? = null,
     )
 }

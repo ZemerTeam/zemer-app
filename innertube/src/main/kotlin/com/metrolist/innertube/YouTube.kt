@@ -1033,12 +1033,15 @@ object YouTube {
             ?.watchNextTabbedResultsRenderer?.tabs?.get(0)?.tabRenderer?.content?.musicQueueRenderer
             ?.header?.musicQueueHeaderRenderer?.subtitle?.runs?.firstOrNull()?.text
         val items = playlistPanelRenderer.contents.mapNotNull { content ->
-            content.playlistPanelVideoRenderer
-                ?.let(NextPage::fromPlaylistPanelVideoRenderer)
-                ?.let { it to content.playlistPanelVideoRenderer.selected }
+            // Unwrap so a `playlistPanelVideoWrapperRenderer` row (song↔video counterpart carrier) still
+            // feeds the queue instead of being silently dropped as an all-null Content.
+            NextPage.primaryRendererOf(content)
+                ?.let { renderer -> NextPage.fromPlaylistPanelVideoRenderer(renderer)?.let { it to renderer.selected } }
         }
         val songs = items.map { it.first }
         val currentIndex = items.indexOfFirst { it.second }.takeIf { it != -1 }
+        // Authoritative song→video counterpart mapping (empty for the common wrapper-less response).
+        val counterparts = NextPage.counterpartsFrom(playlistPanelRenderer.contents)
 
         // load automix items
         playlistPanelRenderer.contents.lastOrNull()?.automixPreviewVideoRenderer?.content?.automixPlaylistVideoRenderer?.navigationEndpoint?.watchPlaylistEndpoint?.let { watchPlaylistEndpoint ->
@@ -1049,7 +1052,8 @@ object YouTube {
                     lyricsEndpoint = response.contents.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.getOrNull(1)?.tabRenderer?.endpoint?.browseEndpoint,
                     relatedEndpoint = response.contents.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.getOrNull(2)?.tabRenderer?.endpoint?.browseEndpoint,
                     currentIndex = currentIndex,
-                    endpoint = watchPlaylistEndpoint
+                    endpoint = watchPlaylistEndpoint,
+                    counterparts = counterparts + result.counterparts,
                 )
             }
         }
@@ -1060,7 +1064,8 @@ object YouTube {
             lyricsEndpoint = response.contents.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.getOrNull(1)?.tabRenderer?.endpoint?.browseEndpoint,
             relatedEndpoint = response.contents.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.getOrNull(2)?.tabRenderer?.endpoint?.browseEndpoint,
             continuation = playlistPanelRenderer.continuations?.getContinuation(),
-            endpoint = endpoint
+            endpoint = endpoint,
+            counterparts = counterparts,
         )
     }
 
