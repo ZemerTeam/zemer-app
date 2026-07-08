@@ -97,9 +97,6 @@
     <string name="exit_fullscreen">Exit fullscreen</string>
     <string name="video_songs">Video songs</string>
     <string name="filter_video_songs">Video songs</string>
-    <string name="watch_video">Watch video</string>
-    <string name="play_videos_as_audio">Play videos as audio</string>
-    <string name="play_videos_as_audio_desc">Play music videos as audio in the player instead of opening the video player</string>
     <string name="music">Music</string>
     <string name="downloaded_videos">Downloaded videos</string>
     <string name="no_downloaded_videos">No downloaded videos</string>
@@ -314,17 +311,6 @@
     <string name="sync_account_create">Create Account</string>
     <string name="sync_account_please_wait">Please wait…</string>
 
-    <!-- Video player dialogs -->
-    <string name="video_download_title">Download video</string>
-    <string name="video_choose_quality">Choose a quality</string>
-    <string name="video_loading_qualities">Loading available qualities…</string>
-    <string name="video_playback_speed">Playback speed</string>
-    <string name="video_speed_normal">1.0x (Normal)</string>
-    <string name="video_quality">Video quality</string>
-    <string name="video_quality_current_auto">Current: Auto</string>
-    <string name="video_quality_auto">Auto</string>
-    <string name="video_quality_track">Track %d</string>
-
     <!-- Lyrics image sharing -->
     <string name="lyrics_image_failed">Failed to create image: %s</string>
 
@@ -437,16 +423,10 @@
 
     <!-- Video player -->
     <string name="video_playback_error">Playback error</string>
-    <string name="pip_unable">Unable to start PiP</string>
-    <string name="pip_unavailable">PiP unavailable: %s</string>
 
     <!-- Accessibility content descriptions -->
     <string name="cd_repeat">Repeat</string>
     <string name="cd_play_pause">Play/Pause</string>
-    <string name="cd_pause">Pause</string>
-    <string name="cd_previous">Previous</string>
-    <string name="cd_next">Next</string>
-    <string name="cd_fullscreen">Fullscreen</string>
     <string name="cd_fetch_from_ytm">Fetch from YouTube Music</string>
     <string name="cd_suggestions_available">Suggestions available</string>
 
@@ -462,7 +442,6 @@
     <string name="clip_label_artist">Artist</string>
     <string name="clip_label_song_link">Song link</string>
     <string name="clip_label_artist_link">Artist link</string>
-    <string name="clip_label_video_link">Video link</string>
 
     <!-- Song details sheet -->
     <string name="format_itag">Itag</string>

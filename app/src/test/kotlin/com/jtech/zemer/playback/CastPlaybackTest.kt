@@ -100,29 +100,6 @@ class CastPlaybackTest {
     }
 
     @Test
-    fun `shouldPauseCastForVideo pauses only an actively-playing receiver`() {
-        // Opening a full-screen video plays audio on the phone; a playing receiver must be paused so
-        // the two don't sound at once (the dual-audio bug this fixes).
-        assertTrue(CastPlayback.shouldPauseCastForVideo(isCasting = true, remoteState = PlaybackState.PLAYING))
-        // A receiver the user already paused is left alone — we must not later resume what we never paused.
-        assertFalse(CastPlayback.shouldPauseCastForVideo(isCasting = true, remoteState = PlaybackState.PAUSED))
-        assertFalse(CastPlayback.shouldPauseCastForVideo(isCasting = true, remoteState = PlaybackState.BUFFERING))
-        assertFalse(CastPlayback.shouldPauseCastForVideo(isCasting = true, remoteState = null))
-        // Not casting: nothing to pause, whatever the (stale) remote state says.
-        assertFalse(CastPlayback.shouldPauseCastForVideo(isCasting = false, remoteState = PlaybackState.PLAYING))
-    }
-
-    @Test
-    fun `shouldResumeCastAfterVideo resumes only what the video paused and only while still connected`() {
-        assertTrue(CastPlayback.shouldResumeCastAfterVideo(pausedByVideo = true, isCasting = true))
-        // We didn't pause it (it was already paused, or we weren't casting) — leave it.
-        assertFalse(CastPlayback.shouldResumeCastAfterVideo(pausedByVideo = false, isCasting = true))
-        // Session dropped/ended while the video was open — never revive it.
-        assertFalse(CastPlayback.shouldResumeCastAfterVideo(pausedByVideo = true, isCasting = false))
-        assertFalse(CastPlayback.shouldResumeCastAfterVideo(pausedByVideo = false, isCasting = false))
-    }
-
-    @Test
     fun `steppedVolume clamps at the floor`() {
         // A press down near 0 must not go negative — repeated presses at the bottom are no-ops.
         assertEquals(0.0, CastPlayback.steppedVolume(current = 0.03, direction = -1), 1e-9)
