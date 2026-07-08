@@ -19,7 +19,6 @@ import com.jtech.zemer.ui.screens.artist.ArtistScreen
 import com.jtech.zemer.ui.screens.artist.ArtistSectionScreen
 import com.jtech.zemer.ui.screens.artist.ArtistSongsScreen
 import com.jtech.zemer.ui.screens.library.LibraryScreen
-import com.jtech.zemer.ui.screens.player.VideoPlayerScreen
 import com.jtech.zemer.ui.screens.statuses.SavedStatusScreen
 import com.jtech.zemer.ui.screens.statuses.StatusDownloadsScreen
 import com.jtech.zemer.ui.screens.statuses.StatusesScreen
@@ -267,29 +266,6 @@ fun NavGraphBuilder.navigationBuilder(
         ),
     ) {
         ArtistItemsScreen(navController, scrollBehavior)
-    }
-    composable(
-        route = "video/{videoId}?title={title}&artist={artist}",
-        arguments = listOf(
-            navArgument("videoId") {
-                type = NavType.StringType
-            },
-            navArgument("title") {
-                type = NavType.StringType
-                nullable = true
-                defaultValue = null
-            },
-            navArgument("artist") {
-                type = NavType.StringType
-                nullable = true
-                defaultValue = null
-            }
-        )
-    ) { backStackEntry ->
-        val videoId = backStackEntry.arguments?.getString("videoId") ?: return@composable
-        val title = backStackEntry.arguments?.getString("title")
-        val artist = backStackEntry.arguments?.getString("artist")
-        VideoPlayerScreen(navController, videoId, title, artist)
     }
     // The full-screen JewishStatus story viewer, opened from the Home "Music Status" row by the tapped
     // creator's STABLE id (the creators list comes from the shared session cache; the viewer resolves
