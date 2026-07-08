@@ -70,6 +70,11 @@ class VideoModeController(
     private var pendingSwap: Boolean = false
     private var currentSurface: SurfaceView? = null
 
+    // Latest BlockVideosKey value, kept current by the block collector below — so availability never does
+    // a blocking dataStore read on the main thread (the combine transform + setVideoMode are hot/UI paths).
+    @Volatile
+    private var blockVideosNow: Boolean = service.dataStore.get(BlockVideosKey, false)
+
     private val _isVideoMode = MutableStateFlow(false)
     val isVideoMode: StateFlow<Boolean> = _isVideoMode.asStateFlow()
 
@@ -108,7 +113,10 @@ class VideoModeController(
         }
         // I1: blocking videos mid-playback must drop video mode immediately.
         scope.launch {
-            blockVideosFlow.collect { blocked -> if (blocked && _isVideoMode.value) revertToAudio() }
+            blockVideosFlow.collect { blocked ->
+                blockVideosNow = blocked
+                if (blocked && _isVideoMode.value) revertToAudio()
+            }
         }
     }
 
@@ -120,7 +128,7 @@ class VideoModeController(
         return VideoModeLogic.availability(
             mediaId = id,
             casting = service.discoveryHandler.isConnected,
-            blockVideos = service.dataStore.get(BlockVideosKey, false),
+            blockVideos = blockVideosNow,
             localVideoFile = meta.isVideo && service.playbackSourceIsLocalFile(id),
             musicVideoType = avail?.musicVideoType,
             counterpartVideoId = avail?.counterpartVideoId,
