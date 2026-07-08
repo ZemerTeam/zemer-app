@@ -85,7 +85,6 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AppBarHeight
 import com.jtech.zemer.constants.BlockVideosKey
-import com.jtech.zemer.constants.PlayVideosAsAudioKey
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.extensions.toMediaItem
@@ -94,7 +93,6 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.tracking.PlaySource
-import com.jtech.zemer.playback.videoPlaysAsAudio
 import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.IconButton
@@ -113,7 +111,6 @@ import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
-import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.fadingEdge
 import com.jtech.zemer.ui.utils.resize
@@ -149,9 +146,9 @@ fun ArtistScreen(
     val libraryAlbums by viewModel.libraryAlbums.collectAsState()
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
-    val (playVideosAsAudio, _) = rememberPreference(PlayVideosAsAudioKey, false)
-    // A video section is shown as audio "video song" rows when imagery is blocked or the audio pref is on.
-    val videosAsAudio = blockVideos || playVideosAsAudio
+    // A video section is shown as audio "video song" rows when video imagery is blocked; otherwise the
+    // rows are labelled by their raw section title and play audio-first (video via the in-player toggle).
+    val videosAsAudio = blockVideos
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
     val visibleCounts = remember { mutableStateMapOf<String, Int>() }
@@ -594,10 +591,21 @@ fun ArtistScreen(
                         }
                     }
                 } else {
+                    // One-result-per-song (I3, unified-video DESIGN §7): when videos are unblocked, drop a
+                    // video-section row whose audio counterpart (same videoId) already appears in a
+                    // non-video section on this page. This mirrors ResultDedupe rule 1 (authoritative,
+                    // same-id only — ATV↔OMV ids never collide in practice, so it is a safety net, not a
+                    // common drop). Frozen off when blocked (spec §1(a)).
+                    val songSectionIds: Set<String> =
+                        if (blockVideos) emptySet()
+                        else artistPage?.sections.orEmpty()
+                            .filterNot { it.title.contains("video", true) || it.title.contains("short", true) }
+                            .flatMap { it.items }.filterIsInstance<SongItem>().map { it.id }.toSet()
                     artistPage?.sections?.fastForEach { section ->
-                        val distinctItems = section.items.distinctBy { it.id }
                         val isVideoSection = section.title.contains("video", ignoreCase = true) ||
                             section.title.contains("short", ignoreCase = true)
+                        val distinctItems = section.items.distinctBy { it.id }
+                            .let { rows -> if (isVideoSection && !blockVideos) rows.filterNot { it.id in songSectionIds } else rows }
 
                         // Video sections are no longer hidden: when imagery is blocked (or the audio
                         // pref is on) they render as audio "video song" rows instead of watchable tiles.
@@ -672,23 +680,18 @@ fun ArtistScreen(
                                     modifier = Modifier
                                         .combinedClickable(
                                             onClick = {
-                                                if (isVideoSection &&
-                                                    !videoPlaysAsAudio(true, blockVideos, playVideosAsAudio)) {
-                                                    val artistDisplay = song.artists.joinToString(" • ") { it.name }
-                                                    navController.navigate(videoRoute(song.id, song.title, artistDisplay))
+                                                // Audio-first always (I2); video is a per-play in-player toggle, not an entry point (D3).
+                                                if (song.id == mediaMetadata?.id) {
+                                                    playerConnection.playPause()
                                                 } else {
-                                                    if (song.id == mediaMetadata?.id) {
-                                                        playerConnection.playPause()
-                                                    } else {
-                                                        playerConnection.playQueue(
-                                                            YouTubeQueue(
-                                                                WatchEndpoint(videoId = song.id),
-                                                                song.toMediaMetadata(),
-                                                                database,
-                                                                playSource = PlaySource.artist(viewModel.artistId)
-                                                            ),
-                                                        )
-                                                    }
+                                                    playerConnection.playQueue(
+                                                        YouTubeQueue(
+                                                            WatchEndpoint(videoId = song.id),
+                                                            song.toMediaMetadata(),
+                                                            database,
+                                                            playSource = PlaySource.artist(viewModel.artistId)
+                                                        ),
+                                                    )
                                                 }
                                             },
                                             onLongClick = {
@@ -736,26 +739,21 @@ fun ArtistScreen(
                                             modifier = Modifier
                                                 .combinedClickable(
                                                     onClick = {
-                                                        if (isVideoSection && item is SongItem &&
-                                                            !videoPlaysAsAudio(true, blockVideos, playVideosAsAudio)) {
-                                                            val artistDisplay = item.artists.joinToString(" • ") { it.name }
-                                                            navController.navigate(videoRoute(item.id, item.title, artistDisplay))
-                                                        } else {
-                                                            when (item) {
-                                                                is SongItem -> {
-                                                                    playerConnection.playQueue(
-                                                                        YouTubeQueue(
-                                                                            WatchEndpoint(videoId = item.id),
-                                                                            item.toMediaMetadata(),
-                                                                            database,
-                                                                            playSource = PlaySource.artist(viewModel.artistId)
-                                                                        ),
-                                                                    )
-                                                                }
-                                                                is AlbumItem -> navController.navigate("album/${item.id}")
-                                                                is ArtistItem -> navController.navigate("artist/${item.id}")
-                                                                is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                                                        // Audio-first always (I2); video is a per-play in-player toggle, not an entry point (D3).
+                                                        when (item) {
+                                                            is SongItem -> {
+                                                                playerConnection.playQueue(
+                                                                    YouTubeQueue(
+                                                                        WatchEndpoint(videoId = item.id),
+                                                                        item.toMediaMetadata(),
+                                                                        database,
+                                                                        playSource = PlaySource.artist(viewModel.artistId)
+                                                                    ),
+                                                                )
                                                             }
+                                                            is AlbumItem -> navController.navigate("album/${item.id}")
+                                                            is ArtistItem -> navController.navigate("artist/${item.id}")
+                                                            is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
                                                         }
                                                     },
                                                     onLongClick = {
@@ -767,8 +765,7 @@ fun ArtistScreen(
                                                                         song = item,
                                                                         navController = navController,
                                                                         onDismiss = menuState::dismiss,
-                                                                        isVideo = isVideoSection &&
-                                                                            !videoPlaysAsAudio(true, blockVideos, playVideosAsAudio),
+                                                                        isVideo = isVideoSection && !blockVideos,
                                                                     )
 
                                                                 is AlbumItem ->

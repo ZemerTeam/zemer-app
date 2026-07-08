@@ -14,12 +14,14 @@ import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.models.filterExplicit
 import com.metrolist.innertube.pages.SearchSummaryPage
 import com.metrolist.innertube.pages.SearchSummary
+import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.SearchProviderKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.ItemsPage
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.search.ResultDedupe
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
@@ -141,7 +143,7 @@ constructor(
         val result =
             withContext(Dispatchers.IO) {
                 runCatching {
-                    if (provider == SearchProvider.ZEMER) {
+                    val summaries = if (provider == SearchProvider.ZEMER) {
                         // Zemer results are already whitelist-scoped server-side; do not re-filter.
                         zemerRepo.summary(query, zemerSearchOptions(context)).summaries
                     } else {
@@ -160,6 +162,11 @@ constructor(
                             }
                             .orEmpty()
                     }
+                    // One-result-per-song (I3): drop a video row whose audio counterpart is present on the
+                    // same summary (authoritative match only — see ResultDedupe). Only when videos are
+                    // unblocked; blocked mode is frozen byte-for-byte (spec §1(a)).
+                    val blockVideos = context.dataStore.getSuspend(BlockVideosKey, false)
+                    if (blockVideos) summaries else ResultDedupe.dedupeSummaries(summaries)
                 }
             }
 
