@@ -7,6 +7,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -15,8 +18,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -95,9 +103,12 @@ import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.latestreleases.LatestReleaseCard
+import com.jtech.zemer.supabase.SupabaseItem
+import com.jtech.zemer.supabase.toSongItem
 import com.jtech.zemer.viewmodels.HomeViewModel
 import com.jtech.zemer.viewmodels.LatestReleasesViewModel
 import com.jtech.zemer.viewmodels.ZemerCuratedPlaylistsViewModel
+import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
@@ -132,6 +143,7 @@ fun HomeScreen(
     val quickPicks = homeUiState.quickPicks
     val featuredPlaylists = homeUiState.featuredPlaylists
     val trendingSongs = homeUiState.trendingSongs
+    val trendingByCategory = homeUiState.trendingByCategory
     val forgottenFavorites = homeUiState.forgottenFavorites
     val keepListening = homeUiState.keepListening
     val featuredAlbums = homeUiState.featuredAlbums
@@ -445,6 +457,7 @@ fun HomeScreen(
                 featuredAlbums.isNotEmpty() ||
                 (!blockVideos && featuredVideos.isNotEmpty()) ||
                 trendingSongs.isNotEmpty() ||
+                trendingByCategory.isNotEmpty() ||
                 latestReleases.isNotEmpty() ||
                 zemerPlaylists.isNotEmpty()
         val shouldShowShimmer = isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent)
@@ -836,6 +849,94 @@ fun HomeScreen(
                 }
             }
 
+            // 24six trending by category
+            fun play24six(item: SupabaseItem.TrendingWithComparison) {
+                scope.launch {
+                    val query = "${item.songName} ${item.singerName}"
+                    YouTube.search(query, YouTube.SearchFilter.FILTER_SONG).onSuccess { result ->
+                        val song = result.items.firstOrNull { it is SongItem } as? SongItem
+                        song?.let {
+                            playerConnection.playQueue(YouTubeQueue(
+                                it.endpoint ?: WatchEndpoint(videoId = it.id),
+                                preloadItem = null,
+                                database = database,
+                            ))
+                        }
+                    }
+                }
+            }
+
+            val supabaseCategoryFilter = mapOf(
+                "Trending" to "24six Trending",
+                "New Singles" to "24six New Music",
+            )
+            supabaseCategoryFilter.forEach { (rawCategory, displayName) ->
+                val items = trendingByCategory[rawCategory].orEmpty()
+                if (items.isEmpty()) return@forEach
+                item(key = "24six_${rawCategory}_title", contentType = "header") {
+                    NavigationTitle(
+                        title = displayName,
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+                items.chunked(2).forEachIndexed { rowIndex, rowItems ->
+                    item(key = "24six_${rawCategory}_row_$rowIndex", contentType = "grid") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp)
+                                .animateItem(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            rowItems.forEach { supaItem ->
+                                TrendingCategoryCard(
+                                    item = supaItem,
+                                    onClick = { play24six(supaItem) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            if (rowItems.size < 2) {
+                                Spacer(Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 24six Acapella (filtered across all categories)
+            val acapellaItems = trendingByCategory.values.flatten()
+                .filter { it.songName.contains("acapella", ignoreCase = true) }
+            if (acapellaItems.isNotEmpty()) {
+                item(key = "24six_Acapella_title", contentType = "header") {
+                    NavigationTitle(
+                        title = "24six Acapella",
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+                acapellaItems.chunked(2).forEachIndexed { rowIndex, rowItems ->
+                    item(key = "24six_Acapella_row_$rowIndex", contentType = "grid") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp)
+                                .animateItem(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            rowItems.forEach { supaItem ->
+                                TrendingCategoryCard(
+                                    item = supaItem,
+                                    onClick = { play24six(supaItem) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            if (rowItems.size < 2) {
+                                Spacer(Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+
             // Show featured artists
             if (featuredArtists.isNotEmpty()) {
                 item(key = "featured_artists_title", contentType = "header") {
@@ -975,4 +1076,20 @@ fun HomeScreen(
                 .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues()),
         )
     }
+}
+
+@Composable
+private fun TrendingCategoryCard(
+    item: SupabaseItem.TrendingWithComparison,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val songItem = remember(item.songName, item.singerName) { item.toSongItem() }
+    YouTubeGridItem(
+        item = songItem,
+        modifier = modifier.combinedClickable(
+            onClick = onClick,
+            onLongClick = { },
+        ),
+    )
 }
