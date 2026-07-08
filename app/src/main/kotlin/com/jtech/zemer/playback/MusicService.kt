@@ -2054,6 +2054,13 @@ class MusicService :
         // the canonical hook for a recents-swipe (more reliable than the Activity's onDestroy).
         // onDestroy() still persists the queue first, so resume state is kept for next launch.
         if (dataStore.get(StopMusicOnTaskClearKey, false)) {
+            // While casting, a bare local pause() leaves the receiver playing (its own socket + the
+            // relay keep the stream alive), so end the cast session too — otherwise "stop on task
+            // clear" wouldn't actually stop the music. disconnect() stops receiver playback and drops
+            // the session; the local player is recovered paused via onDisconnect before it's torn down.
+            if (CastPlayback.shouldEndCastOnTaskClear(true, discoveryHandler.isConnected)) {
+                discoveryHandler.disconnect()
+            }
             player.pause()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()

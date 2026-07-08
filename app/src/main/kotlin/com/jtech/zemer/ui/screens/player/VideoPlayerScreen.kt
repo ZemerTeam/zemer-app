@@ -229,8 +229,13 @@ fun VideoPlayerScreen(
     // one that paused an active cast and it's still connected.
     DisposableEffect(playerConnection) {
         playerConnection?.player?.pause()
+        // Route hardware volume keys to this local video (the phone's own audio) instead of the cast
+        // receiver while the screen is up — set before pausing the receiver so the keys never briefly
+        // ride the (about-to-be-muted) receiver.
+        playerConnection?.setVideoPlaybackActive(true)
         val pausedCast = playerConnection?.pauseCastForVideo() == true
         onDispose {
+            playerConnection?.setVideoPlaybackActive(false)
             playerConnection?.resumeCastAfterVideo(pausedCast)
         }
     }

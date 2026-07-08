@@ -51,7 +51,12 @@ fun castVolumeKeyModifier(seedFocus: Boolean = true): Modifier {
 private fun onCastVolumeKeyEvent(event: KeyEvent, handler: FCastDiscoveryHandler?): Boolean {
     if (handler == null) return false
     val native = event.nativeKeyEvent
-    return when (CastVolumeKeys.decide(native.keyCode, native.action, handler.isConnected)) {
+    return when (CastVolumeKeys.decide(
+        native.keyCode,
+        native.action,
+        isCasting = handler.isConnected,
+        videoPlaybackActive = handler.videoPlaybackActive,
+    )) {
         CastVolumeKeyAction.AdjustUp -> {
             handler.adjustVolume(+1)
             true

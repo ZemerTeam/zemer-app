@@ -152,6 +152,12 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     // gates on this so they can never disagree about whether a play/pause/seek goes local vs remote.
     val isConnected: Boolean get() = remoteConnectionState.value is DeviceConnectionState.Connected
 
+    // True while a full-screen local video screen is driving the phone's own audio (the receiver is
+    // paused underneath it). Read by the hardware-volume-key routing so those keys adjust the local
+    // video rather than the muted receiver — see CastVolumeKeys.decide. Written from the UI (main
+    // thread), read on the key-dispatch (main) thread; @Volatile for safe publication regardless.
+    @Volatile var videoPlaybackActive: Boolean = false
+
     // Tracking current playback intent and content for reconnections.
     @Volatile var shouldPlay: Boolean = true
     @Volatile var currentStreamUrl: String? = null

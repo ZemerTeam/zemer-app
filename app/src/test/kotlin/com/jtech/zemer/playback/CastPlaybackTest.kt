@@ -123,6 +123,16 @@ class CastPlaybackTest {
     }
 
     @Test
+    fun `shouldEndCastOnTaskClear ends the session only when stopping on task clear and casting`() {
+        assertTrue(CastPlayback.shouldEndCastOnTaskClear(stopOnTaskClear = true, isCasting = true))
+        // Setting off — leave the cast running.
+        assertFalse(CastPlayback.shouldEndCastOnTaskClear(stopOnTaskClear = false, isCasting = true))
+        // Not casting — nothing remote to disconnect.
+        assertFalse(CastPlayback.shouldEndCastOnTaskClear(stopOnTaskClear = true, isCasting = false))
+        assertFalse(CastPlayback.shouldEndCastOnTaskClear(stopOnTaskClear = false, isCasting = false))
+    }
+
+    @Test
     fun `steppedVolume clamps at the floor`() {
         // A press down near 0 must not go negative — repeated presses at the bottom are no-ops.
         assertEquals(0.0, CastPlayback.steppedVolume(current = 0.03, direction = -1), 1e-9)

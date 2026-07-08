@@ -30,12 +30,23 @@ object CastVolumeKeys {
      * system's own volume UI/toast even though the system volume didn't move, which is confusing.
      * Not casting, or a non-volume key, is always [CastVolumeKeyAction.Ignore] so system volume
      * control is completely unaffected.
+     *
+     * [videoPlaybackActive] short-circuits back to system volume even while connected: a full-screen
+     * local video takes over the phone's own audio (the receiver is paused underneath it), so its
+     * volume must be adjusted on the phone, not sent to the muted receiver.
      */
-    fun decide(keyCode: Int, action: Int, isCasting: Boolean): CastVolumeKeyAction {
+    fun decide(
+        keyCode: Int,
+        action: Int,
+        isCasting: Boolean,
+        // Deliberately no default: every dispatch path must state the video-playback state, so a new
+        // caller can't silently route volume keys to the muted receiver during local video playback.
+        videoPlaybackActive: Boolean,
+    ): CastVolumeKeyAction {
         if (keyCode != KeyEvent.KEYCODE_VOLUME_UP && keyCode != KeyEvent.KEYCODE_VOLUME_DOWN) {
             return CastVolumeKeyAction.Ignore
         }
-        if (!isCasting) return CastVolumeKeyAction.Ignore
+        if (!isCasting || videoPlaybackActive) return CastVolumeKeyAction.Ignore
         if (action != KeyEvent.ACTION_DOWN) return CastVolumeKeyAction.Consume
         return if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
             CastVolumeKeyAction.AdjustUp

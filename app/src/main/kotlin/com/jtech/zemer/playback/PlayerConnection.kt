@@ -189,6 +189,16 @@ class PlayerConnection(
         return pause
     }
 
+    /**
+     * Mark whether a full-screen local video is currently driving the phone's own audio. While active,
+     * hardware volume keys control that local video instead of the (paused) cast receiver — see
+     * [CastVolumeKeys.decide]. Independent of [pauseCastForVideo]'s result: even if the receiver was
+     * already paused, the video is on the phone, so its volume must stay local.
+     */
+    fun setVideoPlaybackActive(active: Boolean) {
+        service.discoveryHandler.videoPlaybackActive = active
+    }
+
     /** Resume the cast receiver after the local video closed — only if we paused it and it's still connected. */
     fun resumeCastAfterVideo(pausedByVideo: Boolean) {
         if (CastPlayback.shouldResumeCastAfterVideo(pausedByVideo, isCasting.value)) service.discoveryHandler.play()
