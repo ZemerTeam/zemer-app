@@ -36,6 +36,7 @@ import com.jtech.zemer.constants.CastEnabledKey
 import com.jtech.zemer.constants.DisableLoadMoreWhenRepeatAllKey
 import com.jtech.zemer.constants.HistoryDuration
 import com.jtech.zemer.constants.PersistentQueueKey
+import com.jtech.zemer.constants.PlayVideosAsAudioKey
 import com.jtech.zemer.constants.SeekExtraSeconds
 import com.jtech.zemer.constants.SkipSilenceKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
@@ -91,6 +92,10 @@ fun PlayerSettings(
     val (autoLoadMore, onAutoLoadMoreChange) = rememberPreference(
         AutoLoadMoreKey,
         defaultValue = true
+    )
+    val (playVideosAsAudio, onPlayVideosAsAudioChange) = rememberPreference(
+        PlayVideosAsAudioKey,
+        defaultValue = false
     )
     val (disableLoadMoreWhenRepeatAll, onDisableLoadMoreWhenRepeatAllChange) = rememberPreference(
         DisableLoadMoreWhenRepeatAllKey,
@@ -200,6 +205,14 @@ fun PlayerSettings(
             icon = { Icon(painterResource(R.drawable.playlist_add), null) },
             checked = autoLoadMore,
             onCheckedChange = onAutoLoadMoreChange,
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.play_videos_as_audio)) },
+            description = stringResource(R.string.play_videos_as_audio_desc),
+            icon = { Icon(painterResource(R.drawable.ondemand_video), null) },
+            checked = playVideosAsAudio,
+            onCheckedChange = onPlayVideosAsAudioChange,
         )
 
         SwitchPreference(

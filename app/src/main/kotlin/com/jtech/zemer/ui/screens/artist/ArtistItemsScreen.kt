@@ -38,12 +38,14 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.PlayVideosAsAudioKey
 import com.jtech.zemer.constants.GridThumbnailHeight
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.tracking.PlaySource
+import com.jtech.zemer.playback.videoPlaysAsAudio
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.YouTubeGridItem
@@ -82,6 +84,8 @@ fun ArtistItemsScreen(
     val lazyGridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    val (playVideosAsAudio, _) = rememberPreference(PlayVideosAsAudioKey, false)
+    val videosAsAudio = blockVideos || playVideosAsAudio
 
     val title by viewModel.title.collectAsState()
     val itemsPage by viewModel.itemsPage.collectAsState()
@@ -143,7 +147,8 @@ fun ArtistItemsScreen(
                                                 song = item,
                                                 navController = navController,
                                                 onDismiss = menuState::dismiss,
-                                                isVideo = isVideoSection && !blockVideos,
+                                                isVideo = isVideoSection &&
+                                                    !videoPlaysAsAudio(true, blockVideos, playVideosAsAudio),
                                             )
 
                                         is AlbumItem ->
@@ -178,10 +183,11 @@ fun ArtistItemsScreen(
                     modifier =
                     Modifier
                         .clickable {
-                            if (isVideoSection && item is SongItem && !blockVideos) {
+                            if (isVideoSection && item is SongItem &&
+                                !videoPlaysAsAudio(true, blockVideos, playVideosAsAudio)) {
                                 val artistDisplay = item.artists.joinToString(" • ") { it.name }
                                 navController.navigate(videoRoute(item.id, item.title, artistDisplay))
-                            } else if (!isVideoSection) {
+                            } else {
                                 when (item) {
                                     is SongItem -> {
                                         if (item.id == mediaMetadata?.id) {
@@ -189,7 +195,7 @@ fun ArtistItemsScreen(
                                         } else {
                                             // Mark as video if from video section
                                             val metadata = item.toMediaMetadata().let {
-                                                if (isVideoSection) it.copy(isVideo = true) else it
+                                                if (isVideoSection && !videosAsAudio) it.copy(isVideo = true) else it
                                             }
                                             playerConnection.playQueue(
                                                 YouTubeQueue(
@@ -244,15 +250,16 @@ fun ArtistItemsScreen(
                     modifier = Modifier
                         .combinedClickable(
                             onClick = {
-                                if (isVideoSection && item is SongItem && !blockVideos) {
+                                if (isVideoSection && item is SongItem &&
+                                    !videoPlaysAsAudio(true, blockVideos, playVideosAsAudio)) {
                                     val artistDisplay = item.artists.joinToString(" • ") { it.name }
                                     navController.navigate(videoRoute(item.id, item.title, artistDisplay))
-                                } else if (!isVideoSection) {
+                                } else {
                                     when (item) {
                                         is SongItem -> {
                                             // Mark as video if from video section
                                             val metadata = item.toMediaMetadata().let {
-                                                if (isVideoSection) it.copy(isVideo = true) else it
+                                                if (isVideoSection && !videosAsAudio) it.copy(isVideo = true) else it
                                             }
                                             playerConnection.playQueue(
                                                 YouTubeQueue(

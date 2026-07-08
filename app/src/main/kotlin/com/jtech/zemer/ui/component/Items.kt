@@ -820,6 +820,7 @@ fun YouTubeListItem(
             Icon.Favorite()
         }
         if (item.explicit) Icon.Explicit()
+        if (item is SongItem && item.isVideo) Icon.Video()
         if (item is SongItem && song?.song?.inLibrary != null) {
             Icon.Library()
         }
@@ -1565,6 +1566,18 @@ private object Icon {
             contentDescription = null,
             modifier = Modifier
                 .size(18.dp)
+                .padding(end = 2.dp)
+        )
+    }
+
+    /** Marks a row that is a video being surfaced as a "video song" (played as audio). */
+    @Composable
+    fun Video() {
+        Icon(
+            painter = painterResource(R.drawable.ondemand_video),
+            contentDescription = stringResource(R.string.video),
+            modifier = Modifier
+                .size(15.dp)
                 .padding(end = 2.dp)
         )
     }

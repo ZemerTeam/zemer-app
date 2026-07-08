@@ -46,6 +46,7 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.LocalSyncUtils
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.SongEntity
@@ -298,6 +299,21 @@ fun YouTubeSongMenu(
             Material3MenuGroup(
                 modifier = Modifier.padding(horizontal = 4.dp),
                 items = buildList {
+                    // Per-item choice: a video shown as audio can still be watched on demand, as long as
+                    // video imagery is not blocked by the content filter.
+                    if ((song.isVideo || isVideo) && !blockVideos) {
+                        add(
+                            Material3MenuItemData(
+                                icon = { Icon(painterResource(R.drawable.ondemand_video), null, Modifier.size(24.dp)) },
+                                title = { Text(stringResource(R.string.watch_video)) },
+                                onClick = {
+                                    val artistDisplay = song.artists.joinToString(" • ") { it.name }
+                                    navController.navigate(videoRoute(song.id, song.title, artistDisplay))
+                                    onDismiss()
+                                },
+                            )
+                        )
+                    }
                     add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.radio), null, Modifier.size(24.dp)) },

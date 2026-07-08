@@ -49,6 +49,9 @@ data class SearchSummaryPage(
             return when {
                 renderer.onTap.watchEndpoint != null -> {
                     SongItem(
+                        isVideo = renderer.onTap.watchEndpoint
+                            .watchEndpointMusicSupportedConfigs?.watchEndpointMusicConfig?.musicVideoType
+                            ?.let { it != "MUSIC_VIDEO_TYPE_ATV" } ?: false,
                         id = renderer.onTap.watchEndpoint.videoId ?: return null,
                         title =
                             renderer.title.runs
@@ -194,6 +197,7 @@ data class SearchSummaryPage(
             return when {
                 renderer.isSong -> {
                     SongItem(
+                        isVideo = renderer.isVideo,
                         id = renderer.playlistItemData?.videoId
                             ?: renderer.navigationEndpoint?.watchEndpoint?.videoId
                             ?: renderer.overlay?.musicItemThumbnailOverlayRenderer

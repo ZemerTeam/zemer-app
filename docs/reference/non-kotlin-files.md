@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `332`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `333`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -143,6 +143,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/music_note.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/nav_bar.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/offline.xml` | 9 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/ondemand_video.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/palette.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/pause.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/person.xml` | 10 lines | text `.xml`; XML root `vector` |
@@ -220,7 +221,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 520 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 526 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 435 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |

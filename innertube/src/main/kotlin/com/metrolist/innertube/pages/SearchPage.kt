@@ -30,6 +30,7 @@ object SearchPage {
         return when {
             renderer.isSong -> {
                 SongItem(
+                    isVideo = renderer.isVideo,
                     id = renderer.playlistItemData?.videoId
                         ?: renderer.navigationEndpoint?.watchEndpoint?.videoId
                         ?: renderer.overlay?.musicItemThumbnailOverlayRenderer

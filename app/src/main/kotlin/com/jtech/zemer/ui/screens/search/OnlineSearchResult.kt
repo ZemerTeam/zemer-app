@@ -52,7 +52,9 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.playback.videoPlaysAsAudio
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.PlayVideosAsAudioKey
 import com.jtech.zemer.constants.SearchProviderKey
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
@@ -113,6 +115,7 @@ fun OnlineSearchResult(
 
     val searchFilter by viewModel.filter.collectAsState()
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    val (playVideosAsAudio, _) = rememberPreference(PlayVideosAsAudioKey, false)
     // On the default (Zemer) engine, the error / no-results states offer a one-tap switch to YouTube
     // search — the documented recovery — since the engine toggle (only in the expanded search bar) is
     // not reachable from this results screen. Flipping the preference reloads via the ViewModel.
@@ -155,8 +158,9 @@ fun OnlineSearchResult(
             Tracker.click(viewModel.query, item.id, clickKind(item, searchFilter?.value), rank)
             when (item) {
                 is SongItem -> {
-                    val isVideoFilter = !blockVideos && searchFilter?.value == FILTER_VIDEO.value
-                    if (isVideoFilter) {
+                    val watchVideo = !videoPlaysAsAudio(item.isVideo, blockVideos, playVideosAsAudio) &&
+                        searchFilter?.value == FILTER_VIDEO.value
+                    if (watchVideo) {
                         val artistDisplay = item.artists.joinToString(" • ") { it.name }
                         navController.navigate(videoRoute(item.id, item.title, artistDisplay))
                     } else if (item.id == mediaMetadata?.id) {
@@ -187,7 +191,11 @@ fun OnlineSearchResult(
                             song = item,
                             navController = navController,
                             onDismiss = menuState::dismiss,
-                            isVideo = !blockVideos && searchFilter?.value == FILTER_VIDEO.value,
+                            // Treat as a video (video download / video share) only when it will actually
+                            // be watched; an audio-mode video-song downloads/shares as ordinary audio.
+                            isVideo = item.isVideo &&
+                                !videoPlaysAsAudio(item.isVideo, blockVideos, playVideosAsAudio) &&
+                                searchFilter?.value == FILTER_VIDEO.value,
                         )
 
                     is AlbumItem ->
@@ -271,9 +279,15 @@ fun OnlineSearchResult(
                 buildList {
                     add(null to stringResource(R.string.filter_all))
                     add(FILTER_SONG to stringResource(R.string.filter_songs))
-                    if (!blockVideos) {
-                        add(FILTER_VIDEO to stringResource(R.string.filter_videos))
-                    }
+                    // Videos are always browsable now: when shown as audio they appear as "video song"
+                    // rows rather than being hidden, so the chip stays available — and is labelled
+                    // "Video songs" in that mode, "Videos" only when they are actually watchable.
+                    val videosAsAudio = blockVideos || playVideosAsAudio
+                    add(
+                        FILTER_VIDEO to stringResource(
+                            if (videosAsAudio) R.string.filter_video_songs else R.string.filter_videos
+                        )
+                    )
                     add(FILTER_ALBUM to stringResource(R.string.filter_albums))
                     add(FILTER_ARTIST to stringResource(R.string.filter_artists))
                     add(FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists))
@@ -356,13 +370,15 @@ fun OnlineSearchResult(
                                             "albums" -> FILTER_ALBUM
                                             "songs" -> FILTER_SONG
                                             "artists" -> FILTER_ARTIST
-                                            "videos" -> if (!blockVideos) FILTER_VIDEO else null
+                                            "videos" -> FILTER_VIDEO
                                             "community playlists" -> FILTER_COMMUNITY_PLAYLIST
                                             "featured playlists" -> FILTER_FEATURED_PLAYLIST
                                             else -> null
                                         }
+                                val isVideoSection = (summary.items.firstOrNull() as? SongItem)?.isVideo == true
                                 NavigationTitle(
-                                    title = summary.title,
+                                    title = if (isVideoSection && (blockVideos || playVideosAsAudio))
+                                        stringResource(R.string.video_songs) else summary.title,
                                     onClick = {
                                         summaryFilter?.let {
                                             viewModel.filter.value = summaryFilter
@@ -463,7 +479,7 @@ private fun clickKind(item: YTItem, filterValue: String?): String = when (item) 
 
 private fun mapItemToFilter(item: YTItem): com.metrolist.innertube.YouTube.SearchFilter? =
     when (item) {
-        is SongItem -> FILTER_SONG
+        is SongItem -> if (item.isVideo) FILTER_VIDEO else FILTER_SONG
         is AlbumItem -> FILTER_ALBUM
         is ArtistItem -> FILTER_ARTIST
         is PlaylistItem -> FILTER_COMMUNITY_PLAYLIST

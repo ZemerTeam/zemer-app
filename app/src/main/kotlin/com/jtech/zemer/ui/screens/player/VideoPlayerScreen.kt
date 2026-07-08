@@ -88,6 +88,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.exoplayer.ExoPlayer
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
+import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.metrolist.innertube.models.WatchEndpoint
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.constants.AudioQuality
@@ -125,40 +127,18 @@ fun VideoPlayerScreen(
     val context = LocalContext.current
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
 
-    // Check if videos are blocked and show blocking message
+    // When video imagery is blocked, the full-screen player is never shown. Instead of a dead-end
+    // "blocked" message (e.g. for a video.zemer.io deep link), play the track as audio and leave —
+    // so a blocked user still gets the music. The local "Play videos as audio" pref does NOT block
+    // watching, so it is intentionally not consulted here; only the content filter does.
     if (blockVideos) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_video_hd),
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+        val redirectConnection = LocalPlayerConnection.current
+        val redirectDatabase = LocalDatabase.current
+        LaunchedEffect(videoId) {
+            redirectConnection?.playQueue(
+                YouTubeQueue(WatchEndpoint(videoId = videoId), null, redirectDatabase)
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = stringResource(R.string.videos_blocked),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = stringResource(R.string.videos_blocked_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            TextButton(
-                onClick = { navController.navigateUp() }
-            ) {
-                Text(stringResource(R.string.onboarding_back))
-            }
+            navController.navigateUp()
         }
         return
     }
