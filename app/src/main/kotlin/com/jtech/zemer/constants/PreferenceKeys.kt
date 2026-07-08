@@ -167,10 +167,6 @@ val AllowFemaleSingersKey = booleanPreferencesKey("allowFemaleSingers")
 val FemalePasscodeHashKey = stringPreferencesKey("femalePasscodeHash")
 val AllowChasidishKey = booleanPreferencesKey("allowChasidish")
 val BlockVideosKey = booleanPreferencesKey("blockVideos")
-// LOCAL playback preference (NOT a synced/locked content filter): when on, videos default to playing
-// as audio (rendered as "video song" rows) even when video imagery is allowed. When videos ARE blocked
-// they are always audio regardless of this flag. See playback/VideoPlayback.kt.
-val PlayVideosAsAudioKey = booleanPreferencesKey("playVideosAsAudio")
 val EnableContentFiltersKey = booleanPreferencesKey("enableContentFilters")
 
 val DeveloperModeEnabledKey = booleanPreferencesKey("developerModeEnabled")

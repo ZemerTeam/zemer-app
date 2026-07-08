@@ -93,7 +93,6 @@ import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.menu.ytItemMenu
-import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.storyRoute
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
@@ -977,8 +976,14 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .combinedClickable(
                                         onClick = {
-                                            val artistDisplay = video.artists.joinToString(" • ") { it.name }
-                                            navController.navigate(videoRoute(video.id, video.title, artistDisplay))
+                                            // Audio-first always (I2); video is a per-play in-player toggle, not an entry point (D3).
+                                            playerConnection.playQueue(
+                                                YouTubeQueue(
+                                                    WatchEndpoint(videoId = video.id),
+                                                    video.toMediaMetadata(),
+                                                    database,
+                                                )
+                                            )
                                         },
                                         onLongClick = {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
