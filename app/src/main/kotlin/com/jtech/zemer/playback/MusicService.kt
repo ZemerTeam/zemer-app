@@ -59,6 +59,7 @@ import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
 import androidx.media3.extractor.mp4.FragmentedMp4Extractor
+import androidx.media3.extractor.mp4.Mp4Extractor
 import timber.log.Timber
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -212,6 +213,10 @@ class MusicService :
     // On-demand rebuild of the picker's device list (discovery burst + re-resolve + prune) — the SDK's
     // own discoverer never re-checks a device once found (see CastDeviceRefresher).
     val castDeviceRefresher by lazy { CastDeviceRefresher(this, discoveryHandler) }
+
+    // The audio↔video rendition swap for the current item (the in-player Song/Video toggle). Service-
+    // scoped like the cast control plane so its cast/block auto-revert works even with no UI bound.
+    val videoModeController by lazy { VideoModeController(this, scope) }
 
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -925,9 +930,11 @@ class MusicService :
             else if (song.song.duration == -1) update(song.song.copy(duration = duration))
         }
         if (!database.hasRelatedSongs(mediaId)) {
-            val relatedEndpoint =
-                YouTube.next(WatchEndpoint(videoId = mediaId)).getOrNull()?.relatedEndpoint
-                    ?: return
+            val nextResult = YouTube.next(WatchEndpoint(videoId = mediaId)).getOrNull()
+            // Video mode: passively fold in any song→video counterpart the response carries (free — this
+            // next() already runs for related songs). Empty for the common wrapper-less response.
+            nextResult?.counterparts?.let { videoModeController.recordCounterparts(it) }
+            val relatedEndpoint = nextResult?.relatedEndpoint ?: return
             val relatedPage = YouTube.related(relatedEndpoint).getOrNull() ?: return
             val filteredSongs = relatedPage.songs.filterWhitelisted(database).filterIsInstance<SongItem>()
             database.query {
@@ -1398,6 +1405,12 @@ class MusicService :
         mediaItem: MediaItem?,
         reason: Int,
     ) {
+        // Video mode: our own rendition swap surfaces here as a same-item transition — skip ALL the
+        // real-transition side effects (cast reload, auto-load-more, save-queue) and keep video mode. A
+        // real track change instead reverts video to audio (I2) inside the controller, then falls through
+        // to the normal handling below. onEvents still updates currentMediaMetadata either way.
+        if (videoModeController.onMediaItemTransition(mediaItem, reason)) return
+
         lastPlaybackSpeed = -1.0f // force update song
 
         setupLoudnessEnhancer()
@@ -1533,6 +1546,11 @@ class MusicService :
         super.onPlayerError(error)
         Timber.w(error, "Player error occurred: ${error.message}")
 
+        // Video mode (I8): a video-rendition failure reverts to audio at the captured position and surfaces
+        // a snackbar. Must run BEFORE the audio 403-refresh path — that operates on the real id and would
+        // invalidate the wrong (audio) cache entry and loop.
+        if (videoModeController.onPlayerError(error)) return
+
         // Check for expired URL (403 error) - needs immediate URL refresh
         if (isExpiredUrlError(error)) {
             Timber.d("Expired URL detected (403), refreshing stream URL")
@@ -1660,6 +1678,9 @@ class MusicService :
      *  guessing per read here. Deliberately deferred; do not "fix" this map/probe further — replace it. */
     private val playbackSourceIsLocal = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
 
+    /** Whether [mediaId] is currently playing from its downloaded local file (drives the LOCAL video rendition). */
+    fun playbackSourceIsLocalFile(mediaId: String): Boolean = playbackSourceIsLocal[mediaId] == true
+
     /** Whether the downloaded file at [uriString] actually opens. Returns false on ANY failure to open
      *  (ENOENT / null descriptor / FileNotFound / a SecurityException or other resolver error) so that
      *  playback falls back to STREAMING rather than handing ExoPlayer a URI we just failed to open
@@ -1685,6 +1706,45 @@ class MusicService :
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 
+            // Video-mode rendition: a `video:<id>` key resolves a PROGRESSIVE MUXED stream via the same
+            // YTPlayerUtils path as audio (preferVideo=true), bypassing all the audio-only machinery —
+            // the local-file/downloadCache branch, the FormatEntity upsert, recoverSong, and the
+            // Tracker.onStreamResolved record (a transient rendition must never pollute the formats table
+            // or the listen's stream record). Its own namespaced cache entries (songUrlCache[videoKey] +
+            // playerCache keyed on the video: key) keep video bytes isolated from the audio cache.
+            if (VideoRendition.isVideoKey(mediaId)) {
+                val renditionId = VideoRendition.renditionId(mediaId)
+                if (playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
+                    return@Factory dataSpec
+                }
+                songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
+                    return@Factory dataSpec.withUri(it.first.toUri())
+                }
+                // Metered cap 1500 kbps, else 6000 (the old VideoPlayerScreen's constants).
+                val maxVideoBitrateKbps = if (connectivityManager.isActiveNetworkMetered) 1500 else 6000
+                val videoPlayback = runBlocking(Dispatchers.IO) {
+                    YTPlayerUtils.playerResponseForPlayback(
+                        renditionId,
+                        audioQuality = com.jtech.zemer.constants.AudioQuality.HIGH,
+                        connectivityManager = connectivityManager,
+                        preferVideo = true,
+                        maxVideoBitrateKbps = maxVideoBitrateKbps,
+                    )
+                }.getOrElse { throwable ->
+                    when (throwable) {
+                        is PlaybackException -> throw throwable
+                        else -> throw PlaybackException(
+                            getString(R.string.error_unknown), throwable, PlaybackException.ERROR_CODE_REMOTE_ERROR
+                        )
+                    }
+                }
+                val nonNullVideo = requireNotNull(videoPlayback) { getString(R.string.error_unknown) }
+                val videoUrl = nonNullVideo.streamUrl
+                songUrlCache[mediaId] =
+                    videoUrl to System.currentTimeMillis() + (nonNullVideo.streamExpiresInSeconds * 1000L)
+                return@Factory dataSpec.withUri(videoUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
+            }
+
             // Check for MediaStore URI first (local playback).
             // Use a blocking call here because ResolvingDataSource.Factory requires synchronous code.
             val song = runBlocking(Dispatchers.IO) {
@@ -1706,6 +1766,9 @@ class MusicService :
                 if (dataSpec.position == 0L) {
                     // Start of playback for this item: pick the source and record it.
                     playbackSourceIsLocal[mediaId] = fileOpens
+                    // A downloaded muxed video file just became the source → the LOCAL video rendition may
+                    // now be available; nudge the availability flow (it can't observe this map directly).
+                    videoModeController.onPlaybackSourceResolved()
                     if (fileOpens) {
                         scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                         return@Factory dataSpec.withUri(mediaStoreUri.toUri())
@@ -1829,6 +1892,10 @@ class MusicService :
                         null
                     },
                 )
+                // Video mode: remember this item's music-video type (ATV song vs OMV/UGC video) so the
+                // Song/Video toggle knows whether a SELF video rendition exists — free, from the audio
+                // resolution the item already needed.
+                videoModeController.recordMusicVideoType(mediaId, nonNullPlayback.videoDetails?.musicVideoType)
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId, nonNullPlayback) }
 
                 val streamUrl = nonNullPlayback.streamUrl
@@ -1851,7 +1918,10 @@ class MusicService :
         DefaultMediaSourceFactory(
             dataSourceFactory,
             ExtractorsFactory {
-                arrayOf(MatroskaExtractor(), FragmentedMp4Extractor())
+                // Mp4Extractor added for the video-mode progressive muxed MP4 (plain-moov container the
+                // fragmented/mkv extractors can't parse); purely additive (sniffing tries in order), and
+                // it also lets a downloaded muxed video file play inside the music queue.
+                arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor())
             },
         )
 
@@ -1880,35 +1950,43 @@ class MusicService :
     ) {
         val mediaItem = eventTime.timeline.getWindow(eventTime.windowIndex, Timeline.Window()).mediaItem
 
+        // Video mode (I4): a rendition swap ends this PlaybackStats session mid-listen, firing this
+        // callback. The accumulator SUPPRESSES a swap-ended session (stashing its play time) and EMITS
+        // the accumulated total once at the real end — so an audio↔video toggle never double-fires the
+        // `play` event, the history insert, or the YT playback registration for one listen.
+        val listen = videoModeController.onStatsReady(mediaItem.mediaId, playbackStats.totalPlayTimeMs)
+        if (listen is ListenAccumulator.Result.Suppress) return
+        val totalPlayTimeMs = (listen as ListenAccumulator.Result.Emit).totalMs
+
         // Anonymous telemetry (docs/tracking/README.md): one event per listen, when it ends —
         // EVERY listen however short (a 5-second skip is the negative signal the algorithm needs;
         // the server applies any qualification gate at analysis time). totalPlayTimeMs is the
         // accumulated actual play time: pauses excluded, seek-backs not double-counted. A session
         // with ZERO play time is not a listen — a restored persisted queue opens a stats session
         // for the current item without the user ever pressing play; those phantoms must not count.
-        if (playbackStats.totalPlayTimeMs > 0) {
+        if (totalPlayTimeMs > 0) {
             Tracker.play(
                 videoId = mediaItem.mediaId,
-                secs = (playbackStats.totalPlayTimeMs / 1000L).toInt(),
+                secs = (totalPlayTimeMs / 1000L).toInt(),
                 dur = mediaItem.metadata?.duration?.takeIf { it > 0 },
                 source = Tracker.playSources.sourceFor(mediaItem.mediaId),
             )
         }
 
-        if (playbackStats.totalPlayTimeMs >= (
+        if (totalPlayTimeMs >= (
                     dataStore[HistoryDuration]?.times(1000f)
                         ?: 10000f
                     ) &&
             !dataStore.get(PauseListenHistoryKey, false)
         ) {
             database.query {
-                incrementTotalPlayTime(songId = mediaItem.mediaId, playTime = playbackStats.totalPlayTimeMs)
+                incrementTotalPlayTime(songId = mediaItem.mediaId, playTime = totalPlayTimeMs)
                 try {
                     insert(
                         Event(
                             songId = mediaItem.mediaId,
                             timestamp = LocalDateTime.now(),
-                            playTime = playbackStats.totalPlayTimeMs,
+                            playTime = totalPlayTimeMs,
                         ),
                     )
                 } catch (_: SQLException) {
