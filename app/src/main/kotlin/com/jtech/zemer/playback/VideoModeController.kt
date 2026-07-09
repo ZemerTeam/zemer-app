@@ -95,13 +95,29 @@ class VideoModeController(
      */
     val videoModeAvailable: StateFlow<Boolean> =
         combine(
-            service.currentMediaMetadata,
-            service.discoveryHandler.remoteConnectionState,
-            blockVideosFlow,
-            availabilityCache.revision,
-            recompute,
-        ) { _, _, _, _, _ -> computeAvailability() != null }
+            combine(
+                service.currentMediaMetadata,
+                service.discoveryHandler.remoteConnectionState,
+                blockVideosFlow,
+                availabilityCache.revision,
+                recompute,
+            ) { _, _, _, _, _ -> },
+            // Connectivity gates the streaming renditions (a downloaded LOCAL file stays available offline).
+            service.isNetworkConnected,
+        ) { _, _ -> computeAvailability() != null }
             .stateIn(scope, SharingStarted.Eagerly, false)
+
+    /**
+     * Whether the CURRENT item should download its muxed video rather than audio-only (Option A). The
+     * player download menu reads this so a video-capable item is never saved audio-only (which would
+     * leave the toggle silently streaming). Connectivity-independent (you download while online, and a
+     * blocked item's row is hidden by [DownloadMenuLogic] regardless).
+     */
+    val currentItemIsVideo: StateFlow<Boolean> =
+        combine(service.currentMediaMetadata, availabilityCache.revision) { meta, _ ->
+            meta != null &&
+                VideoModeLogic.isVideoDownloadItem(availabilityCache.get(meta.id)?.musicVideoType, meta.isVideo)
+        }.stateIn(scope, SharingStarted.Eagerly, false)
 
     init {
         // I5: a cast session starting forces audio (the receiver only ever gets the audio stream, keyed
@@ -130,6 +146,7 @@ class VideoModeController(
             casting = service.discoveryHandler.isConnected,
             blockVideos = blockVideosNow,
             localVideoFile = meta.isVideo && service.playbackSourceIsLocalFile(id),
+            online = service.isNetworkConnected.value,
             musicVideoType = avail?.musicVideoType,
             counterpartVideoId = avail?.counterpartVideoId,
             isBlockedRendition = { rid -> BlockedIdsCache.isBlocked(rid, ContentFilterState.current) },

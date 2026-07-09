@@ -16,6 +16,7 @@ class VideoModeLogicTest {
         casting: Boolean = false,
         blockVideos: Boolean = false,
         localVideoFile: Boolean = false,
+        online: Boolean = true,
         musicVideoType: String? = null,
         counterpartVideoId: String? = null,
         isBlockedRendition: (String) -> Boolean = neverBlocked,
@@ -24,6 +25,7 @@ class VideoModeLogicTest {
         casting = casting,
         blockVideos = blockVideos,
         localVideoFile = localVideoFile,
+        online = online,
         musicVideoType = musicVideoType,
         counterpartVideoId = counterpartVideoId,
         isBlockedRendition = isBlockedRendition,
@@ -79,6 +81,37 @@ class VideoModeLogicTest {
     @Test
     fun `unknown type, no counterpart ⇒ unavailable (never guess self-video on unknown)`() {
         assertNull(availability(musicVideoType = null))
+    }
+
+    // --- offline gating (I8: streaming renditions need internet) ------------
+
+    @Test
+    fun `offline ⇒ a streaming self-video is unavailable (no source error)`() {
+        assertNull(availability(online = false, musicVideoType = OMV))
+    }
+
+    @Test
+    fun `offline ⇒ a streaming counterpart is unavailable`() {
+        assertNull(availability(online = false, musicVideoType = ATV, counterpartVideoId = "VID"))
+    }
+
+    @Test
+    fun `offline ⇒ a downloaded LOCAL muxed file is STILL available`() {
+        assertEquals(RenditionKind.LOCAL, availability(online = false, localVideoFile = true)?.kind)
+    }
+
+    // --- isVideoDownloadItem (Option A: video-capable ⇒ muxed download) -----
+
+    @Test
+    fun `video item downloads muxed — by flag or by non-ATV type`() {
+        assertEquals(true, VideoModeLogic.isVideoDownloadItem(musicVideoType = null, metadataIsVideo = true))
+        assertEquals(true, VideoModeLogic.isVideoDownloadItem(musicVideoType = OMV, metadataIsVideo = false))
+    }
+
+    @Test
+    fun `plain ATV or unknown song stays an audio download`() {
+        assertEquals(false, VideoModeLogic.isVideoDownloadItem(musicVideoType = ATV, metadataIsVideo = false))
+        assertEquals(false, VideoModeLogic.isVideoDownloadItem(musicVideoType = null, metadataIsVideo = false))
     }
 
     // --- content-filter id gate (BlockedIdsCache) ---------------------------

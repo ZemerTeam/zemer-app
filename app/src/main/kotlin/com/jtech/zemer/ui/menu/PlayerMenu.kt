@@ -307,7 +307,11 @@ fun PlayerMenu(
                     }
                     // Unified download row: persisted-or-live state, live progress, video-aware, and the
                     // menu stays open so it animates Download -> progress -> Remove. (DownloadMenuItems.kt)
-                    val songIsVideo = librarySong?.song?.isVideo == true || mediaMetadata.isVideo
+                    // Option A: a video-capable item downloads its MUXED video (audio+video) so the
+                    // Song/Video toggle then works offline (LOCAL) and never streams. currentItemIsVideo
+                    // adds the playback-truth signal (musicVideoType) for items the classification missed.
+                    val currentItemIsVideo by playerConnection.currentItemIsVideo.collectAsState()
+                    val songIsVideo = librarySong?.song?.isVideo == true || mediaMetadata.isVideo || currentItemIsVideo
                     val downloadStatus = DownloadStateResolver.forSong(librarySong?.song?.isDownloaded == true, mediaStoreDownload)
                     val downloadProgress = when {
                         librarySong?.song?.isDownloaded == true ||
