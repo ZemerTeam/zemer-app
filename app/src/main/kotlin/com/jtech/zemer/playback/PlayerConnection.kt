@@ -111,7 +111,8 @@ class PlayerConnection(
     val videoErrorEvents = service.videoModeController.videoErrorEvents
     fun setVideoMode(enabled: Boolean) = service.videoModeController.setVideoMode(enabled)
     fun requestVideoAvailability(mediaId: String) = service.videoModeController.requestVideoAvailability(mediaId)
-    fun setVideoSurface(view: android.view.SurfaceView?) = service.videoModeController.setVideoSurface(view)
+    fun setVideoSurface(view: android.view.TextureView?) = service.videoModeController.setVideoSurface(view)
+    fun clearVideoSurface(view: android.view.TextureView) = service.videoModeController.clearVideoSurface(view)
 
     init {
         player.addListener(this)
