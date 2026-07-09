@@ -116,4 +116,23 @@ object VideoModeLogic {
         } else {
             TransitionClass.TRACK_CHANGE
         }
+
+    /**
+     * Whether reverting a departed video-mode item should write the audio item back at its old index.
+     *
+     * Only true when the item STILL sitting at that index is our own video rendition — i.e. the same
+     * mediaId AND a `video:` cache key. A within-queue transition (skip/seek/auto-advance) leaves our
+     * rendition parked at that index, so we restore it to audio (a skip-back must not land on video).
+     *
+     * But a fresh `playQueue()`/`setMediaItems()` replaces the whole timeline: the old index now holds a
+     * DIFFERENT item (the just-tapped song). Blindly writing there clobbers it — the "tap a new song while
+     * in video mode plays the wrong item" bug. In that case (id mismatch, or same id but no longer a video
+     * key) return false and leave the new queue untouched.
+     */
+    fun shouldRestoreDepartedItem(
+        departedItemId: String?,
+        itemAtIndexId: String?,
+        itemAtIndexIsVideoKey: Boolean,
+    ): Boolean =
+        departedItemId != null && itemAtIndexId == departedItemId && itemAtIndexIsVideoKey
 }

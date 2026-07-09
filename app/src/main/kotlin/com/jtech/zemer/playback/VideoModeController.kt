@@ -297,9 +297,18 @@ class VideoModeController(
         val audioItem = videoModeAudioItem
         val index = videoModeItemIndex
         if (kind != RenditionKind.LOCAL && audioItem != null && index in 0 until player.mediaItemCount) {
-            // A non-current replaceMediaItem fires no transition, so no pendingSwap dance is needed; this
-            // just ensures a skip-back doesn't land on the video rendition.
-            player.replaceMediaItem(index, audioItem)
+            // Only restore if OUR video rendition is still parked at that index. A within-queue transition
+            // (skip/seek/auto-advance) leaves it there, so restoring to audio keeps a skip-back off the
+            // video rendition. But a fresh playQueue()/setMediaItems() replaced the whole timeline — the
+            // index now holds the just-tapped song, and writing there would clobber it (the "tap a new song
+            // while in video mode plays the wrong item" bug). The video-key check distinguishes the two.
+            val itemAtIndex = player.getMediaItemAt(index)
+            val isVideoKey = itemAtIndex.localConfiguration?.customCacheKey
+                ?.let { VideoRendition.isVideoKey(it) } ?: false
+            if (VideoModeLogic.shouldRestoreDepartedItem(videoModeItemId, itemAtIndex.mediaId, isVideoKey)) {
+                // A non-current replaceMediaItem fires no transition, so no pendingSwap dance is needed.
+                player.replaceMediaItem(index, audioItem)
+            }
         }
         clearState()
     }
