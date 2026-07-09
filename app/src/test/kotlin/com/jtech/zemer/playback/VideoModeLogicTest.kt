@@ -137,6 +137,36 @@ class VideoModeLogicTest {
     fun `transition while not in video mode ⇒ TRACK_CHANGE`() {
         assertEquals(TransitionClass.TRACK_CHANGE, VideoModeLogic.classifyTransition(false, "SONG", null))
     }
+
+    // --- shouldRestoreDepartedItem (the "tap a new song in video mode" bug) --
+
+    @Test
+    fun `restore departed item when our video rendition is still parked at the index`() {
+        // Within-queue skip/seek: index still holds SONG as a video rendition → restore it to audio.
+        assertEquals(true, VideoModeLogic.shouldRestoreDepartedItem("SONG", "SONG", itemAtIndexIsVideoKey = true))
+    }
+
+    @Test
+    fun `do NOT restore when a fresh playQueue replaced the index with the tapped song`() {
+        // The bug: index now holds a DIFFERENT tapped song (audio, no video key) → must not clobber it.
+        assertEquals(false, VideoModeLogic.shouldRestoreDepartedItem("SONG", "TAPPED", itemAtIndexIsVideoKey = false))
+    }
+
+    @Test
+    fun `do NOT restore when the same id sits at the index but is no longer a video rendition`() {
+        // Re-tapping the same song: id matches but the new item is plain audio (not a video key) → skip.
+        assertEquals(false, VideoModeLogic.shouldRestoreDepartedItem("SONG", "SONG", itemAtIndexIsVideoKey = false))
+    }
+
+    @Test
+    fun `do NOT restore when the index holds a different id even if it were a video key`() {
+        assertEquals(false, VideoModeLogic.shouldRestoreDepartedItem("SONG", "OTHER", itemAtIndexIsVideoKey = true))
+    }
+
+    @Test
+    fun `do NOT restore when there is no departed item id`() {
+        assertEquals(false, VideoModeLogic.shouldRestoreDepartedItem(null, "SONG", itemAtIndexIsVideoKey = true))
+    }
 }
 
 private typealias Rendition = VideoModeLogic.Rendition
