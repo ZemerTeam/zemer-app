@@ -559,24 +559,9 @@ fun BottomSheetPlayer(
         },
     ) {
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
-            // Song/Video toggle (YTM-style pill), shown only when the current item actually has a
-            // video rendition. videoModeAvailable already gates blocked/casting/availability.
-            androidx.compose.animation.AnimatedVisibility(visible = videoModeAvailable) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 4.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    SongVideoToggle(
-                        isVideoMode = isVideoMode,
-                        onSelect = { playerConnection.setVideoMode(it) },
-                        accentColor = accentColor,
-                        contentColor = TextBackgroundColor,
-                    )
-                }
-            }
-
+            // The Song/Video toggle now lives as an icon pill overlaid on the art slot (see
+            // Thumbnail's showVideoToggle / VideoModePill, D7) so higher display densities can't
+            // clip it — it is no longer part of this controls column.
             val playPauseRoundness by animateDpAsState(
                 targetValue = if (isPlaying) 24.dp else 36.dp,
                 animationSpec = tween(durationMillis = 90, easing = LinearEasing),
@@ -1233,6 +1218,9 @@ fun BottomSheetPlayer(
                             isPlayerExpanded = state.isExpanded,
                             showVideo = PlayerVideoUiLogic.showInlineVideo(isVideoMode, isFullscreen),
                             onEnterFullscreen = { isFullscreen = true },
+                            showVideoToggle = videoModeAvailable,
+                            isVideoMode = isVideoMode,
+                            onToggleVideoMode = { playerConnection.setVideoMode(it) },
                         )
                     }
                     Column(
@@ -1268,6 +1256,9 @@ fun BottomSheetPlayer(
                             isPlayerExpanded = state.isExpanded,
                             showVideo = PlayerVideoUiLogic.showInlineVideo(isVideoMode, isFullscreen),
                             onEnterFullscreen = { isFullscreen = true },
+                            showVideoToggle = videoModeAvailable,
+                            isVideoMode = isVideoMode,
+                            onToggleVideoMode = { playerConnection.setVideoMode(it) },
                         )
                     }
 
@@ -1413,78 +1404,6 @@ private fun TransportSkipButton(
             painter = painterResource(iconRes),
             contentDescription = contentDescription,
             modifier = Modifier.size(32.dp),
-        )
-    }
-}
-
-/**
- * The YTM-style Song/Video segmented pill. Two segments; the selected one fills with the accent, the
- * other stays transparent with theme-colored text. Each segment is focusable + accent-focus-bordered
- * for D-pad. Shown by [BottomSheetPlayer] only while `videoModeAvailable` (blocked/casting/rendition
- * gating already lives in that flow — the pill never re-derives it).
- */
-@Composable
-private fun SongVideoToggle(
-    isVideoMode: Boolean,
-    onSelect: (Boolean) -> Unit,
-    accentColor: Color,
-    contentColor: Color,
-) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(contentColor.copy(alpha = 0.12f))
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        SongVideoSegment(
-            label = stringResource(R.string.song),
-            selected = !isVideoMode,
-            accentColor = accentColor,
-            contentColor = contentColor,
-            onClick = { onSelect(false) },
-        )
-        SongVideoSegment(
-            label = stringResource(R.string.video),
-            selected = isVideoMode,
-            accentColor = accentColor,
-            contentColor = contentColor,
-            onClick = { onSelect(true) },
-        )
-    }
-}
-
-@Composable
-private fun SongVideoSegment(
-    label: String,
-    selected: Boolean,
-    accentColor: Color,
-    contentColor: Color,
-    onClick: () -> Unit,
-) {
-    var focused by remember { mutableStateOf(false) }
-    val borderColor by animateColorAsState(
-        targetValue = if (focused) accentColor else Color.Transparent,
-        label = "song_video_focus",
-    )
-    val shape = RoundedCornerShape(50)
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .clip(shape)
-            .background(if (selected) accentColor else Color.Transparent)
-            .border(2.dp, borderColor, shape)
-            .focusable()
-            .onFocusChanged { focused = it.isFocused }
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 6.dp),
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) Color.White else contentColor,
         )
     }
 }

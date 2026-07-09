@@ -93,6 +93,9 @@ fun Thumbnail(
     isPlayerExpanded: Boolean = true, // Add parameter to control swipe based on player state
     showVideo: Boolean = false, // render the shared player's video surface in the current item's art slot
     onEnterFullscreen: () -> Unit = {},
+    showVideoToggle: Boolean = false, // overlay the Song/Video pill on the current item's art slot (= videoModeAvailable)
+    isVideoMode: Boolean = false,
+    onToggleVideoMode: (Boolean) -> Unit = {},
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
@@ -423,6 +426,21 @@ fun Thumbnail(
                                                 )
                                             }
                                         }
+                                    }
+
+                                    // Song/Video toggle (D7): an icon pill on the TopStart corner of
+                                    // the art slot — inside the square, so no player-controls density
+                                    // can cover it. Opposite corner from the fullscreen button
+                                    // (BottomEnd); cast lives at TopEnd. Shown only for the current
+                                    // item, gated by videoModeAvailable (passed as showVideoToggle).
+                                    if (showVideoToggle && item.mediaId == currentMediaItem?.mediaId) {
+                                        VideoModePill(
+                                            isVideoMode = isVideoMode,
+                                            onSelect = onToggleVideoMode,
+                                            modifier = Modifier
+                                                .align(Alignment.TopStart)
+                                                .padding(8.dp),
+                                        )
                                     }
 
                                     // Cast button at the top-right corner of the artwork
