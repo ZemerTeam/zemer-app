@@ -58,6 +58,15 @@ object CastPlayback {
     fun shouldStartLocalPlayback(playWhenReady: Boolean, isCasting: Boolean): Boolean =
         playWhenReady && !isCasting
 
+    /**
+     * Whether swiping the app from recents (with "stop music on task clear" enabled) should also end
+     * the cast session. Pausing the local player is a no-op on the receiver — its own socket and the
+     * stream relay keep it playing — so "stop on task clear" wouldn't actually stop the music unless
+     * the session is disconnected. Only relevant while connected.
+     */
+    fun shouldEndCastOnTaskClear(stopOnTaskClear: Boolean, isCasting: Boolean): Boolean =
+        stopOnTaskClear && isCasting
+
     /** Fraction of full [0.0, 1.0] volume a single hardware-key press adjusts by. */
     const val VOLUME_STEP = 1.0 / 15
 

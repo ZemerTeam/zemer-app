@@ -213,8 +213,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/raw/loading_dots_blue.lottie` | 1221 bytes | binary `.lottie` |
 | `app/src/main/res/raw/welcome.lottie` | 2138 bytes | binary `.lottie` |
 | `app/src/main/res/resources.properties` | 1 lines | text `.properties` |
-| `app/src/main/res/values-iw/metrolist_strings.xml` | 44 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values-iw/strings.xml` | 376 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values-iw/metrolist_strings.xml` | 36 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values-iw/strings.xml` | 294 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values-night/colors.xml` | 6 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |

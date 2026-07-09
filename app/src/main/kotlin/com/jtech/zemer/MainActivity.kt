@@ -2162,7 +2162,7 @@ class MainActivity : ComponentActivity() {
     // D-pad remapping above; does not touch handleAccessibilityKey/handleMappedKeyEvent.
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val handler = playerConnection?.service?.discoveryHandler
-        when (CastVolumeKeys.decide(event.keyCode, event.action, handler?.isConnected == true)) {
+        when (CastVolumeKeys.decide(event.keyCode, event.action, isCasting = handler?.isConnected == true)) {
             CastVolumeKeyAction.AdjustUp -> {
                 handler?.adjustVolume(+1)
                 return true

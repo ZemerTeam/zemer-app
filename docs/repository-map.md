@@ -260,7 +260,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastErrorRecovery.kt` | 73 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastIdleWatchdog.kt` | 53 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastNativeLibLoader.kt` | 207 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/CastPlayback.kt` | 71 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/CastPlayback.kt` | 80 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastRelayProtocol.kt` | 89 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastSessionLocks.kt` | 48 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastStreamRelay.kt` | 375 lines | `.kt` |
@@ -274,7 +274,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 809 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 787 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 302 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2182 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2189 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 313 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogic.kt` | 49 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/RemoteVolumeTracker.kt` | 54 lines | `.kt` |
@@ -706,8 +706,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/raw/loading_dots_blue.lottie` | 1221 bytes | `.lottie` |
 | `app/src/main/res/raw/welcome.lottie` | 2138 bytes | `.lottie` |
 | `app/src/main/res/resources.properties` | 1 lines | `.properties` |
-| `app/src/main/res/values-iw/metrolist_strings.xml` | 44 lines | `.xml` |
-| `app/src/main/res/values-iw/strings.xml` | 376 lines | `.xml` |
+| `app/src/main/res/values-iw/metrolist_strings.xml` | 36 lines | `.xml` |
+| `app/src/main/res/values-iw/strings.xml` | 294 lines | `.xml` |
 | `app/src/main/res/values-night/colors.xml` | 6 lines | `.xml` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/main/res/values/colors.xml` | 9 lines | `.xml` |
@@ -733,7 +733,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastErrorRecoveryTest.kt` | 120 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastIdleWatchdogTest.kt` | 65 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastNativeLibLoaderTest.kt` | 84 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/playback/CastPlaybackTest.kt` | 127 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/CastPlaybackTest.kt` | 137 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastRelayProtocolTest.kt` | 125 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastStreamRelayTest.kt` | 330 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastVolumeKeysTest.kt` | 62 lines | `.kt` |

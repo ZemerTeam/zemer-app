@@ -102,7 +102,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastErrorRecovery.kt` | 73 | `com.jtech.zemer.playback` | no | 0 | 8 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastIdleWatchdog.kt` | 53 | `com.jtech.zemer.playback` | no | 1 | 5 | org.fcast |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastNativeLibLoader.kt` | 207 | `com.jtech.zemer.playback` | no | 11 | 44 | android.content, android.os, java.io, java.net, java.security, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/playback/CastPlayback.kt` | 71 | `com.jtech.zemer.playback` | no | 1 | 10 | org.fcast |
+| `app/src/main/kotlin/com/jtech/zemer/playback/CastPlayback.kt` | 80 | `com.jtech.zemer.playback` | no | 1 | 11 | org.fcast |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastRelayProtocol.kt` | 89 | `com.jtech.zemer.playback` | no | 4 | 27 | java.net, java.security |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastSessionLocks.kt` | 48 | `com.jtech.zemer.playback` | no | 4 | 6 | android.annotation, android.content, android.net, android.os |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastStreamRelay.kt` | 375 | `com.jtech.zemer.playback` | no | 19 | 75 | java.io, java.net, java.nio, java.security, java.util, timber.log |
@@ -116,7 +116,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 809 | `com.jtech.zemer.playback` | no | 59 | 80 | android.content, android.net, android.os, androidx.annotation, androidx.core, androidx.media3, com.google, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 787 | `com.jtech.zemer.playback` | no | 42 | 99 | android.content, android.net, androidx.core, dagger.hilt, java.io, java.time, java.util, javax.inject, kotlin.math, kotlinx.coroutines, okhttp3.OkHttpClient, okhttp3.Request, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 302 | `com.jtech.zemer.playback` | no | 27 | 48 | android.app, android.content, android.os, androidx.core, dagger.hilt, javax.inject, kotlin.math, kotlinx.coroutines, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2182 | `com.jtech.zemer.playback` | no | 168 | 230 | android.app, android.content, android.media, android.net, android.os, android.widget, androidx.core, androidx.datastore, androidx.media3, com.zemer, dagger.hilt, java.io, java.sql, java.time, java.util, javax.inject, kotlin.time, kotlinx.coroutines, okhttp3.OkHttpClient, org.fcast, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2189 | `com.jtech.zemer.playback` | no | 168 | 230 | android.app, android.content, android.media, android.net, android.os, android.widget, androidx.core, androidx.datastore, androidx.media3, com.zemer, dagger.hilt, java.io, java.sql, java.time, java.util, javax.inject, kotlin.time, kotlinx.coroutines, okhttp3.OkHttpClient, org.fcast, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 313 | `com.jtech.zemer.playback` | no | 27 | 55 | android.content, androidx.media3, kotlinx.coroutines, org.fcast |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogic.kt` | 49 | `com.jtech.zemer.playback` | no | 0 | 5 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/RemoteVolumeTracker.kt` | 54 | `com.jtech.zemer.playback` | no | 3 | 9 | kotlinx.coroutines |
@@ -407,7 +407,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastErrorRecoveryTest.kt` | 120 | `com.jtech.zemer.playback` | no | 4 | 5 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastIdleWatchdogTest.kt` | 65 | `com.jtech.zemer.playback` | no | 4 | 4 | org.fcast, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastNativeLibLoaderTest.kt` | 84 | `com.jtech.zemer.playback` | no | 5 | 2 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/playback/CastPlaybackTest.kt` | 127 | `com.jtech.zemer.playback` | no | 6 | 1 | org.fcast, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/playback/CastPlaybackTest.kt` | 137 | `com.jtech.zemer.playback` | no | 6 | 1 | org.fcast, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastRelayProtocolTest.kt` | 125 | `com.jtech.zemer.playback` | no | 6 | 7 | java.net, java.security, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastStreamRelayTest.kt` | 330 | `com.jtech.zemer.playback` | no | 15 | 62 | java.io, java.net, java.nio, java.util, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastVolumeKeysTest.kt` | 62 | `com.jtech.zemer.playback` | no | 3 | 1 | android.view, org.junit |
