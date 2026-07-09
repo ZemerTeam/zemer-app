@@ -458,6 +458,15 @@ fun BottomSheetPlayer(
         initialAnchor = 1
     )
 
+    // Opening lyrics over an inline video would leave the video decoding invisibly behind the sheet
+    // (DESIGN §4) — revert to audio (position-continuous). Video is a per-play opt-in; closing lyrics
+    // does not auto-restore it.
+    LaunchedEffect(lyricsSheetState.isExpanded, isVideoMode) {
+        if (PlayerVideoUiLogic.shouldRevertVideoForLyrics(lyricsSheetState.isExpanded, isVideoMode)) {
+            playerConnection.setVideoMode(false)
+        }
+    }
+
     val bottomSheetBackgroundColor = when (playerBackground) {
         PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT -> 
             MaterialTheme.colorScheme.surfaceContainer
