@@ -37,6 +37,10 @@ object VideoModeLogic {
      * @param casting true while a cast session is connected (I5: video and cast are mutually exclusive).
      * @param blockVideos the [com.jtech.zemer.constants.BlockVideosKey] content filter (I1: blocked ⇒ no video anywhere).
      * @param localVideoFile true when the item is playing from a downloaded muxed video file.
+     * @param online true when the device has validated internet. A [RenditionKind.SELF]/[RenditionKind.COUNTERPART]
+     *   rendition STREAMS (I8: the toggle makes no offline promises beyond a downloaded muxed file), so it is
+     *   offered only when online — otherwise tapping it would just throw a source error and revert. [RenditionKind.LOCAL]
+     *   plays from disk and stays available offline.
      * @param musicVideoType the item's own music-video type from the availability cache (null = unknown).
      * @param counterpartVideoId a known video counterpart id for the item, or null.
      * @param isBlockedRendition content-filter check for a specific rendition id (BlockedIdsCache) — a
@@ -47,6 +51,7 @@ object VideoModeLogic {
         casting: Boolean,
         blockVideos: Boolean,
         localVideoFile: Boolean,
+        online: Boolean,
         musicVideoType: String?,
         counterpartVideoId: String?,
         isBlockedRendition: (String) -> Boolean,
@@ -58,6 +63,10 @@ object VideoModeLogic {
         if (localVideoFile && !isBlockedRendition(mediaId)) {
             return Rendition(RenditionKind.LOCAL, null)
         }
+
+        // Everything past here STREAMS the video — never offer it offline (it would only throw a source
+        // error and revert). A downloaded muxed file is the sole offline video path (LOCAL, above).
+        if (!online) return null
 
         // SELF: the item is itself a video. Requires a KNOWN non-ATV type (never guess on unknown).
         if (musicVideoType != null && musicVideoType != MUSIC_VIDEO_TYPE_ATV) {
@@ -89,6 +98,18 @@ object VideoModeLogic {
         // A known self-video needs no counterpart lookup; only ATV/unknown items do.
         return musicVideoType == null || musicVideoType == MUSIC_VIDEO_TYPE_ATV
     }
+
+    /**
+     * Whether the current playing item should download its **muxed video** (Option A) rather than
+     * audio-only. True when the item is itself a video — either already flagged ([metadataIsVideo]) or a
+     * known non-ATV music-video type from the availability cache. Saving the muxed file means the
+     * Song/Video toggle then works fully offline via [RenditionKind.LOCAL] (no streaming, no source
+     * error), and one "Remove" truthfully covers both renditions — a video item never gets downloaded
+     * audio-only, which would leave the toggle silently streaming (the reported "download → toggle
+     * source error" bug). A plain ATV song stays an audio download.
+     */
+    fun isVideoDownloadItem(musicVideoType: String?, metadataIsVideo: Boolean): Boolean =
+        metadataIsVideo || (musicVideoType != null && musicVideoType != MUSIC_VIDEO_TYPE_ATV)
 
     enum class TransitionClass {
         /** Our own rendition swap (replaceMediaItem of the current item) — keep video mode, skip side effects. */

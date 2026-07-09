@@ -239,7 +239,10 @@ class MusicService :
     private lateinit var connectivityManager: ConnectivityManager
     lateinit var connectivityObserver: NetworkConnectivityObserver
     val waitingForNetworkConnection = MutableStateFlow(false)
-    private val isNetworkConnected = MutableStateFlow(false)
+    // Non-private so VideoModeController (same package) can gate the streaming Song/Video toggle on it
+    // (a SELF/COUNTERPART rendition streams — never offer it offline; a downloaded muxed LOCAL file is
+    // the only offline video path). Updated by the connectivityObserver collector above.
+    val isNetworkConnected = MutableStateFlow(false)
 
     private val audioQualityFlow = enumPreferenceFlow(
         this,
