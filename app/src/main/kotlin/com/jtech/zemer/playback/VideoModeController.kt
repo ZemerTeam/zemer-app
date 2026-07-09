@@ -2,7 +2,7 @@ package com.jtech.zemer.playback
 
 import android.os.Handler
 import android.os.Looper
-import android.view.SurfaceView
+import android.view.TextureView
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -68,7 +68,7 @@ class VideoModeController(
     private var renditionKind: RenditionKind? = null
     private var videoRenditionId: String? = null
     private var pendingSwap: Boolean = false
-    private var currentSurface: SurfaceView? = null
+    private var currentSurface: TextureView? = null
 
     // Latest BlockVideosKey value, kept current by the block collector below — so availability never does
     // a blocking dataStore read on the main thread (the combine transform + setVideoMode are hot/UI paths).
@@ -149,10 +149,21 @@ class VideoModeController(
         }
     }
 
-    /** Attach/detach the render surface. Applied to the player only while in video mode. */
-    fun setVideoSurface(view: SurfaceView?) {
+    /** Attach the render surface. Applied to the player only while in video mode. */
+    fun setVideoSurface(view: TextureView?) {
         currentSurface = view
-        if (_isVideoMode.value) player.setVideoSurfaceView(view)
+        if (_isVideoMode.value) player.setVideoTextureView(view)
+    }
+
+    /**
+     * Detach [view] — but only if it is still the attached surface. Makes the inline↔fullscreen handoff
+     * order-independent: a leaving view's `onDispose` can't detach the surface a newly-composed view just
+     * attached (the two live in different Compose subtrees, so their dispose/attach order is not
+     * guaranteed). `clearVideoTextureView` is itself a no-op in ExoPlayer if [view] isn't the active one.
+     */
+    fun clearVideoSurface(view: TextureView) {
+        if (currentSurface === view) currentSurface = null
+        player.clearVideoTextureView(view)
     }
 
     /**
@@ -233,7 +244,7 @@ class VideoModeController(
         videoModeAudioItem = audioItem
         renditionKind = rendition.kind
         videoRenditionId = rendition.renditionVideoId
-        currentSurface?.let { player.setVideoSurfaceView(it) }
+        currentSurface?.let { player.setVideoTextureView(it) }
 
         if (rendition.kind == RenditionKind.LOCAL) {
             // The current (downloaded muxed) source already carries the video track — attaching the
@@ -261,7 +272,7 @@ class VideoModeController(
     /** Exit video mode on the CURRENT item, position-continuous (user toggle-off / cast / block / error). */
     private fun exitVideoModeSameItem() {
         if (!_isVideoMode.value) return
-        currentSurface?.let { player.clearVideoSurfaceView(it) }
+        currentSurface?.let { player.clearVideoTextureView(it) }
         val kind = renditionKind
         val audioItem = videoModeAudioItem
         val index = player.currentMediaItemIndex
@@ -281,7 +292,7 @@ class VideoModeController(
 
     /** A real track change moved off the video-mode item — restore the DEPARTED index to audio (I2). */
     private fun revertDepartedItem() {
-        currentSurface?.let { player.clearVideoSurfaceView(it) }
+        currentSurface?.let { player.clearVideoTextureView(it) }
         val kind = renditionKind
         val audioItem = videoModeAudioItem
         val index = videoModeItemIndex
