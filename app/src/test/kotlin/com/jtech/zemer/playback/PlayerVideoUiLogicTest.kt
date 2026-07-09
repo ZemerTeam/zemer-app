@@ -57,4 +57,18 @@ class PlayerVideoUiLogicTest {
     fun `never exit when not fullscreen`() {
         assertFalse(PlayerVideoUiLogic.shouldExitFullscreen(isFullscreen = false, isVideoMode = false, expanded = false))
     }
+
+    // --- lyrics-over-video reverts to audio (DESIGN §4) ---------------------
+
+    @Test
+    fun `opening lyrics while in video mode reverts to audio`() {
+        assertTrue(PlayerVideoUiLogic.shouldRevertVideoForLyrics(lyricsExpanded = true, isVideoMode = true))
+    }
+
+    @Test
+    fun `lyrics closed or not in video mode does not revert`() {
+        assertFalse(PlayerVideoUiLogic.shouldRevertVideoForLyrics(lyricsExpanded = false, isVideoMode = true))
+        assertFalse(PlayerVideoUiLogic.shouldRevertVideoForLyrics(lyricsExpanded = true, isVideoMode = false))
+        assertFalse(PlayerVideoUiLogic.shouldRevertVideoForLyrics(lyricsExpanded = false, isVideoMode = false))
+    }
 }
