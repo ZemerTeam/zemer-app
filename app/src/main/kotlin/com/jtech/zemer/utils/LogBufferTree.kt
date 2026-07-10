@@ -23,6 +23,14 @@ object LogBufferTree : Timber.Tree() {
     /** Bumped on every [log]/[clear]; collect it and re-read [entries] on change. */
     val revision: StateFlow<Long> get() = _revision
 
+    /**
+     * Capture gate, driven by the "Enable debug logging" preference
+     * ([com.jtech.zemer.constants.DebugLoggingEnabledKey]) via the App-level settings observer.
+     * When off, [log] drops entries so nothing new accumulates or becomes exportable.
+     */
+    @Volatile
+    var isEnabled: Boolean = true
+
     data class LogEntry(
         val timestamp: Long,
         val priority: Int,
@@ -40,6 +48,7 @@ object LogBufferTree : Timber.Tree() {
     }
 
     override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+        if (!isEnabled) return
         synchronized(buffer) {
             buffer.addLast(LogEntry(System.currentTimeMillis(), priority, tag, message, t))
             while (buffer.size > MAX_ENTRIES) {

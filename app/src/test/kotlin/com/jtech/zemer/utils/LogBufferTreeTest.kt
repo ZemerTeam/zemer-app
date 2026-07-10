@@ -12,6 +12,7 @@ class LogBufferTreeTest {
     @Before
     fun setUp() {
         LogBufferTree.clear()
+        LogBufferTree.isEnabled = true
         Timber.plant(LogBufferTree)
     }
 
@@ -19,6 +20,7 @@ class LogBufferTreeTest {
     fun tearDown() {
         Timber.uprootAll()
         LogBufferTree.clear()
+        LogBufferTree.isEnabled = true
     }
 
     @Test
@@ -49,6 +51,17 @@ class LogBufferTreeTest {
 
         assertTrue(afterLog > before)
         assertTrue(afterClear > afterLog)
+    }
+
+    @Test
+    fun `disabled tree captures nothing and re-enabling resumes capture`() {
+        LogBufferTree.isEnabled = false
+        Timber.tag("T").e("dropped")
+        assertTrue(LogBufferTree.entries.isEmpty())
+
+        LogBufferTree.isEnabled = true
+        Timber.tag("T").e("kept")
+        assertEquals(listOf("kept"), LogBufferTree.entries.map { it.message })
     }
 
     @Test

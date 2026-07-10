@@ -103,9 +103,9 @@ class App : Application(), SingletonImageLoader.Factory {
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
-        // Plant a ring-buffer tree so the Log viewer screen has recent entries to show.
-        // Always planted (small bounded memory footprint), and the debug-logging switch in the
-        // viewer controls the auto-refresh polling rather than whether logs are captured here.
+        // Plant a ring-buffer tree so the Log viewer screen has recent entries to show
+        // (small bounded memory footprint). Whether it captures at all is gated by the
+        // "Enable debug logging" preference, wired in observeSettingsChanges().
         Timber.plant(LogBufferTree)
         // Hidden-API exemptions for the Shizuku installer are applied lazily on first use
         // (AppInstaller.ensureHiddenApiBypass) so non-Shizuku users don't pay for it at startup.
@@ -347,6 +347,13 @@ class App : Application(), SingletonImageLoader.Factory {
                 .collect { visitorData ->
                     YouTube.visitorData = visitorData?.takeIf { it != "null" }
                 }
+        }
+
+        applicationScope.launch(Dispatchers.IO) {
+            dataStore.data
+                .map { it[DebugLoggingEnabledKey] ?: true }
+                .distinctUntilChanged()
+                .collect { LogBufferTree.isEnabled = it }
         }
 
         applicationScope.launch(Dispatchers.IO) {
