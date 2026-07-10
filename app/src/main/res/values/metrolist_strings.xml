@@ -427,6 +427,7 @@
     <string name="clear_logs">Clear logs</string>
     <string name="no_logs">No logs</string>
     <string name="export_logs">Export logs</string>
+    <string name="log_export_subject">Zemer logs</string>
     <string name="logs_exported">Logs exported to %s</string>
     <string name="logs_export_failed">Failed to export logs</string>
     <string name="log_export_range">Time range</string>

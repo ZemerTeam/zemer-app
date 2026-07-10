@@ -49,6 +49,7 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.DebugLoggingEnabledKey
+import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
@@ -248,11 +249,14 @@ private fun ExportRangeDialog(
     onExport: (from: Long, to: Long) -> Unit,
 ) {
     val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
+    DefaultDialog(
+        onDismiss = onDismiss,
         title = { Text(stringResource(R.string.export_logs)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        content = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(stringResource(R.string.log_export_range), style = MaterialTheme.typography.bodyMedium)
                 OutlinedButton(onClick = onFromClick, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.fillMaxWidth()) {
@@ -268,14 +272,12 @@ private fun ExportRangeDialog(
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = { onExport(fromMillis, toMillis) }) {
-                Text(stringResource(R.string.export_logs))
-            }
-        },
-        dismissButton = {
+        buttons = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(android.R.string.cancel))
+            }
+            TextButton(onClick = { onExport(fromMillis, toMillis) }) {
+                Text(stringResource(R.string.export_logs))
             }
         },
     )

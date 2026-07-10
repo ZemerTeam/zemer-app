@@ -3,6 +3,7 @@ package com.jtech.zemer.utils
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
+import com.jtech.zemer.R
 import java.io.File
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -96,10 +97,10 @@ object LogExport {
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                putExtra(Intent.EXTRA_SUBJECT, "Zemer logs")
+                putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.log_export_subject))
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            val chooserIntent = Intent.createChooser(shareIntent, "Export logs").apply {
+            val chooserIntent = Intent.createChooser(shareIntent, context.getString(R.string.export_logs)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(chooserIntent)
