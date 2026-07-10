@@ -196,10 +196,14 @@ fun AboutScreen(
         }
 
         if (BuildConfig.DEBUG && developerMode) {
+            Spacer(Modifier.height(16.dp))
             PreferenceEntry(
                 title = { Text(stringResource(R.string.log_viewer)) },
                 description = stringResource(R.string.enable_debug_logging_desc),
                 onClick = { navController.navigate("settings/log_viewer") },
+                // Align the entry text (16 dp internal padding) with the card above
+                // (20 dp horizontal margin).
+                modifier = Modifier.padding(horizontal = 4.dp),
             )
         }
 
