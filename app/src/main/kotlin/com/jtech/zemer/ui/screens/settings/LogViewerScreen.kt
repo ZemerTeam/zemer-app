@@ -1,6 +1,5 @@
 package com.jtech.zemer.ui.screens.settings
 
-import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,7 +45,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
@@ -62,7 +60,6 @@ import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -191,7 +188,7 @@ fun LogViewerScreen(
                 showExportRangePicker = false
                 coroutineScope.launch {
                     val result = withContext(Dispatchers.IO) {
-                        exportLogs(context, from, to)
+                        LogExport.writeAndShare(context, from, to)
                     }
                     snackbarHostState.showSnackbar(
                         if (result != null) {
@@ -358,58 +355,3 @@ private fun ExportDateTimePicker(
     }
 }
 
-private fun exportLogs(
-    context: android.content.Context,
-    fromMillis: Long,
-    toMillis: Long,
-): String? {
-    return try {
-        val logs = LogBufferTree.entries.filter { it.timestamp in fromMillis..toMillis }
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault())
-        val fileName = "zemer_logs_${dateFormat.format(Date(fromMillis))}_to_${dateFormat.format(Date(toMillis))}.txt"
-        val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
-        val exportFile = File(exportDir, fileName)
-        exportFile.writeText(buildLogText(logs))
-
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.FileProvider",
-            exportFile,
-        )
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, "Zemer logs")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        val chooserIntent = Intent.createChooser(shareIntent, "Export logs").apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(chooserIntent)
-        fileName
-    } catch (e: Exception) {
-        com.jtech.zemer.utils.reportException(e)
-        null
-    }
-}
-
-private fun buildLogText(entries: List<LogBufferTree.LogEntry>): String {
-    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
-    val sb = StringBuilder()
-    sb.appendLine("# Zemer log export")
-    sb.appendLine("# Range: ${dateFormat.format(Date(entries.firstOrNull()?.timestamp ?: 0))} - ${dateFormat.format(Date(entries.lastOrNull()?.timestamp ?: 0))}")
-    sb.appendLine("# Entries: ${entries.size}")
-    sb.appendLine()
-    for (entry in entries) {
-        val time = dateFormat.format(Date(entry.timestamp))
-        val priority = LogBufferTree.priorityName(entry.priority)
-        val tag = entry.tag ?: "Zemer"
-        sb.append("[$time] $priority/$tag: ${entry.message}")
-        entry.throwable?.let { t ->
-            sb.append("\n")
-            t.toString().lines().forEach { sb.append("    $it\n") }
-        }
-        sb.appendLine()
-    }
-    return sb.toString()
-}
