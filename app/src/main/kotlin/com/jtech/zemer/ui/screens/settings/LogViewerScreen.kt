@@ -43,7 +43,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
@@ -52,6 +55,7 @@ import com.jtech.zemer.constants.DebugLoggingEnabledKey
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.focusBorder
+import com.jtech.zemer.ui.theme.logPriorityColor
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SwitchPreference
@@ -172,16 +176,19 @@ fun LogViewerScreen(
                 }
             } else {
                 items(visibleEntries) { entry ->
-                    val color = when (entry.priority) {
-                        android.util.Log.ERROR -> MaterialTheme.colorScheme.error
-                        android.util.Log.WARN -> MaterialTheme.colorScheme.tertiary
-                        else -> MaterialTheme.colorScheme.onSurface
-                    }
+                    // Two-tone row: the "D/Tag:" prefix carries the priority color,
+                    // the message itself stays in the normal reading color.
+                    val prefixColor = logPriorityColor(entry.priority)
                     Text(
-                        text = "${LogBufferTree.priorityName(entry.priority)}/${entry.tag ?: "Zemer"}: ${entry.message}",
+                        text = buildAnnotatedString {
+                            withStyle(SpanStyle(color = prefixColor)) {
+                                append("${LogBufferTree.priorityName(entry.priority)}/${entry.tag ?: "Zemer"}:")
+                            }
+                            append(" ${entry.message}")
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         fontFamily = FontFamily.Monospace,
-                        color = color,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
                             .fillMaxWidth()
                             .focusBorder()
