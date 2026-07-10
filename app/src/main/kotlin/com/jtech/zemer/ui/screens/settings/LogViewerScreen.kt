@@ -57,12 +57,15 @@ import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.LogBufferTree
+import com.jtech.zemer.utils.LogExport
 import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.ZoneId
 import java.util.Date
 import java.util.Locale
 
@@ -205,6 +208,7 @@ fun LogViewerScreen(
     pickingField?.let { field ->
         val initial = if (field == ExportField.FROM) exportFromMillis else exportToMillis
         ExportDateTimePicker(
+            titleRes = if (field == ExportField.FROM) R.string.log_export_from else R.string.log_export_to,
             initialMillis = initial,
             onConfirm = { pickedMillis ->
                 if (field == ExportField.FROM) exportFromMillis = pickedMillis
@@ -283,19 +287,24 @@ private fun ExportRangeDialog(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExportDateTimePicker(
+    titleRes: Int,
     initialMillis: Long,
     onConfirm: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val initialDate = remember(initialMillis) { Date(initialMillis) }
-    val calendar = remember(initialMillis) {
-        java.util.Calendar.getInstance().apply { time = initialDate }
+    val initialLocal = remember(initialMillis) {
+        Instant.ofEpochMilli(initialMillis).atZone(ZoneId.systemDefault())
+    }
+    // The DatePicker speaks UTC-day millis, log timestamps are local instants —
+    // LogExport owns the translation in both directions (seed here, confirm below).
+    val initialUtcDay = remember(initialMillis) {
+        LogExport.utcDayMillis(initialMillis, ZoneId.systemDefault())
     }
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = initialMillis.coerceAtLeast(0),
+        initialSelectedDateMillis = initialUtcDay,
     )
     var pickingTime by remember { mutableStateOf(false) }
-    var pickedDateMillis by remember { mutableLongStateOf(initialMillis) }
+    var pickedDateMillis by remember { mutableLongStateOf(initialUtcDay) }
 
     if (!pickingTime) {
         DatePickerDialog(
@@ -317,21 +326,21 @@ private fun ExportDateTimePicker(
         }
     } else {
         val timePickerState = rememberTimePickerState(
-            initialHour = calendar.get(java.util.Calendar.HOUR_OF_DAY),
-            initialMinute = calendar.get(java.util.Calendar.MINUTE),
+            initialHour = initialLocal.hour,
+            initialMinute = initialLocal.minute,
         )
         DatePickerDialog(
             onDismissRequest = onDismiss,
             confirmButton = {
                 TextButton(onClick = {
-                    val cal = java.util.Calendar.getInstance().apply {
-                        timeInMillis = pickedDateMillis
-                        set(java.util.Calendar.HOUR_OF_DAY, timePickerState.hour)
-                        set(java.util.Calendar.MINUTE, timePickerState.minute)
-                        set(java.util.Calendar.SECOND, 0)
-                        set(java.util.Calendar.MILLISECOND, 0)
-                    }
-                    onConfirm(cal.timeInMillis)
+                    onConfirm(
+                        LogExport.localInstantMillis(
+                            pickedDateMillis,
+                            timePickerState.hour,
+                            timePickerState.minute,
+                            ZoneId.systemDefault(),
+                        )
+                    )
                 }) { Text(stringResource(android.R.string.ok)) }
             },
             dismissButton = {
@@ -341,7 +350,7 @@ private fun ExportDateTimePicker(
             },
         ) {
             Column(Modifier.padding(16.dp), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                Text(stringResource(R.string.log_export_from), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(titleRes), style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.padding(top = 8.dp))
                 TimePicker(state = timePickerState)
             }
