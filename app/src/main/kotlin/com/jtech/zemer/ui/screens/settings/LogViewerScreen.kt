@@ -30,6 +30,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -58,8 +59,6 @@ import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.LogBufferTree
 import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -84,20 +83,13 @@ fun LogViewerScreen(
     }
 
     val (debugLogging, onDebugLoggingChange) = rememberPreference(DebugLoggingEnabledKey, true)
-    val entries = remember { LogBufferTree.entries }
-    var refreshTick by remember { mutableStateOf(0) }
+    val revision by LogBufferTree.revision.collectAsState()
+    val entries = remember(revision) { LogBufferTree.entries }
     var filterText by remember { mutableStateOf("") }
     var showExportRangePicker by remember { mutableStateOf(false) }
     var exportFromMillis by remember { mutableLongStateOf(0L) }
     var exportToMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var pickingField by remember { mutableStateOf<ExportField?>(null) }
-
-    LaunchedEffect(debugLogging) {
-        while (isActive) {
-            delay(1000)
-            refreshTick++
-        }
-    }
 
     Column(
         Modifier
@@ -149,16 +141,13 @@ fun LogViewerScreen(
 
             HorizontalDivider()
 
-            val visibleEntries = entries
-                .asSequence()
-                .filter { entry ->
-                    if (filterText.isBlank()) return@filter true
-                    val tag = entry.tag ?: "Zemer"
-                    val message = entry.message
-                    tag.contains(filterText, ignoreCase = true) ||
-                        message.contains(filterText, ignoreCase = true)
+            val visibleEntries = remember(entries, filterText) {
+                if (filterText.isBlank()) entries
+                else entries.filter { entry ->
+                    (entry.tag ?: "Zemer").contains(filterText, ignoreCase = true) ||
+                        entry.message.contains(filterText, ignoreCase = true)
                 }
-                .toList()
+            }
 
             if (visibleEntries.isEmpty()) {
                 Text(
