@@ -65,7 +65,7 @@ class LogExportTest {
     }
 
     private fun entry(timestamp: Long, message: String = "m", tag: String? = "Tag", priority: Int = 6) =
-        LogBufferTree.LogEntry(timestamp, priority, tag, message, null)
+        LogBufferTree.LogEntry(timestamp, priority, tag, message)
 
     @Test
     fun `range filter is inclusive on both bounds`() {

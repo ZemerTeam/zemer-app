@@ -31,12 +31,13 @@ object LogBufferTree : Timber.Tree() {
     @Volatile
     var isEnabled: Boolean = true
 
+    // No throwable field: Timber embeds the full stack trace into `message` before trees
+    // see it, and storing the Throwable would pin its object graph for the buffer lifetime.
     data class LogEntry(
         val timestamp: Long,
         val priority: Int,
         val tag: String?,
         val message: String,
-        val throwable: Throwable?,
     )
 
     val entries: List<LogEntry>
@@ -50,7 +51,7 @@ object LogBufferTree : Timber.Tree() {
     override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
         if (!isEnabled) return
         synchronized(buffer) {
-            buffer.addLast(LogEntry(System.currentTimeMillis(), priority, tag, message, t))
+            buffer.addLast(LogEntry(System.currentTimeMillis(), priority, tag, message))
             while (buffer.size > MAX_ENTRIES) {
                 buffer.removeFirst()
             }
