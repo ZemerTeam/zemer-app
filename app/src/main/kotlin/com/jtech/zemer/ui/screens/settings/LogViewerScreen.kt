@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,6 +51,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.DebugLoggingEnabledKey
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.IconButton
+import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SwitchPreference
@@ -92,73 +93,85 @@ fun LogViewerScreen(
     var exportToMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var pickingField by remember { mutableStateOf<ExportField?>(null) }
 
+    val visibleEntries = remember(entries, filterText) {
+        if (filterText.isBlank()) entries
+        else entries.filter { entry ->
+            (entry.tag ?: "Zemer").contains(filterText, ignoreCase = true) ||
+                entry.message.contains(filterText, ignoreCase = true)
+        }
+    }
+
     Column(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .fillMaxSize(),
     ) {
-        Column(
-            Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState()),
-        ) {
-            PreferenceGroupTitle(title = stringResource(R.string.log_viewer))
+        // LazyColumn (not a verticalScroll Column): only visible rows compose, and the
+        // focusable log rows are what lets D-pad focus travel into — and scroll — the list.
+        LazyColumn(Modifier.weight(1f)) {
+            item {
+                PreferenceGroupTitle(title = stringResource(R.string.log_viewer))
+            }
 
-            SwitchPreference(
-                title = { Text(stringResource(R.string.enable_debug_logging)) },
-                description = stringResource(R.string.enable_debug_logging_desc),
-                icon = { Icon(painterResource(R.drawable.info), null) },
-                checked = debugLogging,
-                onCheckedChange = onDebugLoggingChange,
-            )
+            item {
+                SwitchPreference(
+                    title = { Text(stringResource(R.string.enable_debug_logging)) },
+                    description = stringResource(R.string.enable_debug_logging_desc),
+                    icon = { Icon(painterResource(R.drawable.info), null) },
+                    checked = debugLogging,
+                    onCheckedChange = onDebugLoggingChange,
+                )
+            }
 
-            PreferenceEntry(
-                title = { Text(stringResource(R.string.clear_logs)) },
-                onClick = {
-                    LogBufferTree.clear()
-                },
-            )
+            item {
+                PreferenceEntry(
+                    title = { Text(stringResource(R.string.clear_logs)) },
+                    onClick = {
+                        LogBufferTree.clear()
+                    },
+                )
+            }
 
-            PreferenceEntry(
-                title = { Text(stringResource(R.string.export_logs)) },
-                description = stringResource(R.string.log_export_range),
-                onClick = {
-                    exportFromMillis = entries.firstOrNull()?.timestamp ?: System.currentTimeMillis()
-                    exportToMillis = entries.lastOrNull()?.timestamp ?: System.currentTimeMillis()
-                    showExportRangePicker = true
-                },
-                modifier = Modifier.focusRequester(firstFocus),
-            )
+            item {
+                PreferenceEntry(
+                    title = { Text(stringResource(R.string.export_logs)) },
+                    description = stringResource(R.string.log_export_range),
+                    onClick = {
+                        exportFromMillis = entries.firstOrNull()?.timestamp ?: System.currentTimeMillis()
+                        exportToMillis = entries.lastOrNull()?.timestamp ?: System.currentTimeMillis()
+                        showExportRangePicker = true
+                    },
+                    modifier = Modifier.focusRequester(firstFocus),
+                )
+            }
 
-            OutlinedTextField(
-                value = filterText,
-                onValueChange = { filterText = it },
-                label = { Text(stringResource(R.string.log_filter_hint)) },
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            )
+            item {
+                OutlinedTextField(
+                    value = filterText,
+                    onValueChange = { filterText = it },
+                    label = { Text(stringResource(R.string.log_filter_hint)) },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
 
-            HorizontalDivider()
-
-            val visibleEntries = remember(entries, filterText) {
-                if (filterText.isBlank()) entries
-                else entries.filter { entry ->
-                    (entry.tag ?: "Zemer").contains(filterText, ignoreCase = true) ||
-                        entry.message.contains(filterText, ignoreCase = true)
-                }
+            item {
+                HorizontalDivider()
             }
 
             if (visibleEntries.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.no_logs),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(16.dp),
-                )
+                item {
+                    Text(
+                        text = stringResource(R.string.no_logs),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
             } else {
-                visibleEntries.takeLast(200).forEach { entry ->
+                items(visibleEntries) { entry ->
                     val color = when (entry.priority) {
                         android.util.Log.ERROR -> MaterialTheme.colorScheme.error
                         android.util.Log.WARN -> MaterialTheme.colorScheme.tertiary
@@ -169,7 +182,10 @@ fun LogViewerScreen(
                         style = MaterialTheme.typography.bodySmall,
                         fontFamily = FontFamily.Monospace,
                         color = color,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 1.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusBorder()
+                            .padding(horizontal = 8.dp, vertical = 1.dp),
                     )
                 }
             }
