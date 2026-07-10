@@ -102,11 +102,12 @@ class App : Application(), SingletonImageLoader.Factory {
         )
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
+            // Ring-buffer tree for the developer-mode Log viewer. Debug builds ONLY —
+            // release builds must never capture logs into memory or expose them for
+            // export (breadcrumbs can carry signed stream URLs). Capture is further
+            // gated by the "Enable debug logging" preference in observeSettingsChanges().
+            Timber.plant(LogBufferTree)
         }
-        // Plant a ring-buffer tree so the Log viewer screen has recent entries to show
-        // (small bounded memory footprint). Whether it captures at all is gated by the
-        // "Enable debug logging" preference, wired in observeSettingsChanges().
-        Timber.plant(LogBufferTree)
         // Hidden-API exemptions for the Shizuku installer are applied lazily on first use
         // (AppInstaller.ensureHiddenApiBypass) so non-Shizuku users don't pay for it at startup.
 
@@ -349,11 +350,13 @@ class App : Application(), SingletonImageLoader.Factory {
                 }
         }
 
-        applicationScope.launch(Dispatchers.IO) {
-            dataStore.data
-                .map { it[DebugLoggingEnabledKey] ?: true }
-                .distinctUntilChanged()
-                .collect { LogBufferTree.isEnabled = it }
+        if (BuildConfig.DEBUG) {
+            applicationScope.launch(Dispatchers.IO) {
+                dataStore.data
+                    .map { it[DebugLoggingEnabledKey] ?: true }
+                    .distinctUntilChanged()
+                    .collect { LogBufferTree.isEnabled = it }
+            }
         }
 
         applicationScope.launch(Dispatchers.IO) {

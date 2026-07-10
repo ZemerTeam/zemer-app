@@ -136,7 +136,10 @@ fun AboutScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     AssistChip(
+                        // Developer-mode easter egg — debug builds only; the chip is inert in
+                        // release so the Log viewer can never be surfaced there.
                         onClick = {
+                            if (!BuildConfig.DEBUG) return@AssistChip
                             devTapCount++
                             if (devTapCount >= 7) {
                                 devTapCount = 0
@@ -193,7 +196,7 @@ fun AboutScreen(
             }
         }
 
-        if (developerMode) {
+        if (BuildConfig.DEBUG && developerMode) {
             PreferenceGroupTitle(title = stringResource(R.string.log_viewer))
             PreferenceEntry(
                 title = { Text(stringResource(R.string.log_viewer)) },

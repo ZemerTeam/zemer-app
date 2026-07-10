@@ -12,6 +12,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.ui.screens.artist.ArtistAlbumsScreen
 import com.jtech.zemer.ui.screens.artist.ArtistItemsScreen
 import com.jtech.zemer.ui.screens.artist.ArtistScreen
@@ -376,8 +377,11 @@ fun NavGraphBuilder.navigationBuilder(
     composable("settings/updater") {
         UpdaterScreen(navController, scrollBehavior)
     }
-    composable("settings/log_viewer") {
-        LogViewerScreen(navController, scrollBehavior)
+    if (BuildConfig.DEBUG) {
+        // Developer-mode Log viewer — the route itself doesn't exist in release builds.
+        composable("settings/log_viewer") {
+            LogViewerScreen(navController, scrollBehavior)
+        }
     }
     composable("settings/about") {
         AboutScreen(navController, scrollBehavior)
