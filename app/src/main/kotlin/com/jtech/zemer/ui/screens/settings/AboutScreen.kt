@@ -53,7 +53,6 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.DeveloperModeEnabledKey
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.PreferenceEntry
-import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberPreference
 import android.widget.Toast
@@ -197,7 +196,6 @@ fun AboutScreen(
         }
 
         if (BuildConfig.DEBUG && developerMode) {
-            PreferenceGroupTitle(title = stringResource(R.string.log_viewer))
             PreferenceEntry(
                 title = { Text(stringResource(R.string.log_viewer)) },
                 description = stringResource(R.string.enable_debug_logging_desc),
