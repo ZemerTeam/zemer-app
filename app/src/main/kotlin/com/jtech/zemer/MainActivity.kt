@@ -903,6 +903,9 @@ class MainActivity : ComponentActivity() {
                         { searchQuery ->
                             if (searchQuery.isNotEmpty()) {
                                 onActiveChange(false)
+                                if (navController.currentDestination?.route?.startsWith("search/") == true) {
+                                    navController.popBackStack()
+                                }
                                 navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}")
 
                                 if (dataStore[PauseSearchHistoryKey] != true) {
@@ -1300,12 +1303,13 @@ class MainActivity : ComponentActivity() {
                                                         searchBarScrollBehavior.state.resetHeightOffset()
                                                     }
                                                 } else {
+                                                    val isStartDest = screen.route == navController.graph.startDestinationRoute
                                                     navController.navigate(screen.route) {
                                                         popUpTo(navController.graph.startDestinationId) {
                                                             saveState = true
                                                         }
                                                         launchSingleTop = true
-                                                        restoreState = true
+                                                        restoreState = !isStartDest
                                                     }
                                                 }
                                             },
@@ -1340,7 +1344,7 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate(Screens.Home.route) {
                                             popUpTo(navController.graph.startDestinationId) { saveState = true }
                                             launchSingleTop = true
-                                            restoreState = true
+                                            restoreState = Screens.Home.route != navController.graph.startDestinationRoute
                                         }
                                         navController.getBackStackEntry(Screens.Home.route)
                                             .savedStateHandle["shuffleNow"] = true
@@ -1677,18 +1681,7 @@ class MainActivity : ComponentActivity() {
                                             query = query.text,
                                             onQueryChange = onQueryChange,
                                             navController = navController,
-                                            onSearch = { searchQuery ->
-                                                navController.navigate(
-                                                    "search/${URLEncoder.encode(searchQuery, "UTF-8")}"
-                                                )
-                                                if (dataStore[PauseSearchHistoryKey] != true) {
-                                                    lifecycleScope.launch(Dispatchers.IO) {
-                                                        database.query {
-                                                            insert(SearchHistory(query = searchQuery))
-                                                        }
-                                                    }
-                                                }
-                                            },
+                                            onSearch = onSearch,
                                             onDismiss = { onActiveChange(false) },
                                             pureBlack = pureBlack,
                                             firstResultFocusRequester = searchResultsFocusRequester,
@@ -1775,12 +1768,13 @@ class MainActivity : ComponentActivity() {
                                                 if (screen.route == Screens.Search.route) {
                                                     onActiveChange(true)
                                                 } else {
+                                                    val isStartDest = screen.route == navController.graph.startDestinationRoute
                                                     navController.navigate(screen.route) {
                                                         popUpTo(navController.graph.startDestinationId) {
                                                             saveState = true
                                                         }
                                                         launchSingleTop = true
-                                                        restoreState = true
+                                                        restoreState = !isStartDest
                                                         }
                                                     }
                                                 }
