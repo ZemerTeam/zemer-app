@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` — a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline — they are not duplicated here.
 
-## `app` Kotlin files (442)
+## `app` Kotlin files (443)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -279,7 +279,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/recognition/RecognizeMusicDialogActivity.kt` | 336 | `com.jtech.zemer.ui.screens.recognition` | yes | 65 | 19 | android.content, android.os, androidx.activity, androidx.compose, androidx.core, androidx.hilt, coil3.compose, dagger.hilt |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/search/OnlineSearchResult.kt` | 470 | `com.jtech.zemer.ui.screens.search` | yes | 86 | 32 | androidx.compose, androidx.hilt, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/search/OnlineSearchScreen.kt` | 469 | `com.jtech.zemer.ui.screens.search` | yes | 88 | 21 | androidx.compose, androidx.hilt, androidx.navigation, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AboutScreen.kt` | 228 | `com.jtech.zemer.ui.screens.settings` | yes | 57 | 9 | android.widget, androidx.compose, androidx.navigation |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AboutScreen.kt` | 229 | `com.jtech.zemer.ui.screens.settings` | yes | 55 | 9 | android.widget, androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AccountSettings.kt` | 523 | `com.jtech.zemer.ui.screens.settings` | yes | 76 | 46 | android.widget, androidx.compose, androidx.hilt, androidx.navigation, coil3.compose, io.ktor, kotlinx.coroutines, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AndroidAutoSettings.kt` | 269 | `com.jtech.zemer.ui.screens.settings` | yes | 50 | 29 | androidx.compose, androidx.lifecycle, androidx.navigation, kotlinx.coroutines, sh.calvin |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AppearanceSettings.kt` | 1059 | `com.jtech.zemer.ui.screens.settings` | yes | 111 | 98 | android.annotation, android.content, androidx.compose, androidx.core, androidx.navigation, kotlin.math, me.saket |
@@ -287,7 +287,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ButtonSetupScreen.kt` | 374 | `com.jtech.zemer.ui.screens.settings` | yes | 56 | 17 | android.view, androidx.activity, androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 679 | `com.jtech.zemer.ui.screens.settings` | yes | 91 | 66 | android.content, android.os, android.provider, androidx.activity, androidx.compose, androidx.core, androidx.hilt, androidx.navigation, com.google, dagger.hilt, java.text, java.util, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/GeneralSettings.kt` | 88 | `com.jtech.zemer.ui.screens.settings` | yes | 29 | 4 | android.content, android.net, android.os, android.provider, androidx.compose, androidx.navigation |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LogViewerScreen.kt` | 375 | `com.jtech.zemer.ui.screens.settings` | yes | 67 | 30 | androidx.compose, androidx.navigation, java.text, java.time, java.util, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LogViewerScreen.kt` | 381 | `com.jtech.zemer.ui.screens.settings` | yes | 70 | 30 | androidx.compose, androidx.navigation, java.text, java.time, java.util, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/PlayerSettings.kt` | 282 | `com.jtech.zemer.ui.screens.settings` | yes | 48 | 31 | androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/PrivacySettings.kt` | 208 | `com.jtech.zemer.ui.screens.settings` | yes | 39 | 12 | androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/SettingsScreen.kt` | 263 | `com.jtech.zemer.ui.screens.settings` | yes | 36 | 21 | android.os, android.widget, androidx.compose, androidx.navigation, com.google |
@@ -295,6 +295,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/StreamSourceSettings.kt` | 218 | `com.jtech.zemer.ui.screens.settings` | yes | 46 | 20 | androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/UpdaterSettings.kt` | 413 | `com.jtech.zemer.ui.screens.settings` | yes | 64 | 27 | android.content, androidx.compose, androidx.navigation, java.io, kotlinx.coroutines, rikka.shizuku, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/integrations/IntegrationScreen.kt` | 50 | `com.jtech.zemer.ui.screens.settings.integrations` | yes | 18 | 1 | androidx.compose, androidx.navigation |
+| `app/src/main/kotlin/com/jtech/zemer/ui/theme/LogColors.kt` | 26 | `com.jtech.zemer.ui.theme` | yes | 5 | 2 | android.util, androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/PlayerColorExtractor.kt` | 159 | `com.jtech.zemer.ui.theme` | no | 5 | 42 | androidx.compose, androidx.palette, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/PlayerSliderColors.kt` | 146 | `com.jtech.zemer.ui.theme` | yes | 6 | 12 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/Theme.kt` | 134 | `com.jtech.zemer.ui.theme` | yes | 28 | 22 | android.graphics, android.os, androidx.compose, androidx.palette, com.materialkolor |
@@ -327,7 +328,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/utils/FirestoreUtils.kt` | 41 | `com.jtech.zemer.utils` | no | 0 | 2 |  |
 | `app/src/main/kotlin/com/jtech/zemer/utils/FutureUtils.kt` | 43 | `com.jtech.zemer.utils` | no | 8 | 3 | androidx.concurrent, com.google, java.util, kotlin.coroutines, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/utils/IsraeliArtistRegistry.kt` | 56 | `com.jtech.zemer.utils` | no | 5 | 7 | com.google, kotlinx.coroutines, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/utils/LogBufferTree.kt` | 70 | `com.jtech.zemer.utils` | no | 5 | 16 | android.util, java.util, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/utils/LogBufferTree.kt` | 71 | `com.jtech.zemer.utils` | no | 5 | 15 | android.util, java.util, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/LogExport.kt` | 113 | `com.jtech.zemer.utils` | no | 11 | 19 | android.content, androidx.core, java.io, java.text, java.time, java.util |
 | `app/src/main/kotlin/com/jtech/zemer/utils/MediaStoreHelper.kt` | 688 | `com.jtech.zemer.utils` | no | 17 | 83 | android.content, android.net, android.os, android.provider, androidx.documentfile, java.io, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/NetworkConnectivityObserver.kt` | 74 | `com.jtech.zemer.utils` | no | 7 | 15 | android.content, android.net, kotlinx.coroutines |

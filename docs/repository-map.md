@@ -77,12 +77,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `930`
+- Files counted: `927`
 - By extension:
-  - `.kt`: `541`
+  - `.kt`: `542`
   - `.xml`: `155`
   - `.mjs`: `72`
-  - `.md`: `65`
+  - `.md`: `61`
   - `.json`: `36`
   - `.webp`: `15`
   - `[none]`: `7`
@@ -437,7 +437,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/recognition/RecognizeMusicDialogActivity.kt` | 336 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/search/OnlineSearchResult.kt` | 470 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/search/OnlineSearchScreen.kt` | 469 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AboutScreen.kt` | 228 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AboutScreen.kt` | 229 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AccountSettings.kt` | 523 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AndroidAutoSettings.kt` | 269 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AppearanceSettings.kt` | 1059 lines | `.kt` |
@@ -445,7 +445,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ButtonSetupScreen.kt` | 374 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 679 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/GeneralSettings.kt` | 88 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LogViewerScreen.kt` | 375 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LogViewerScreen.kt` | 381 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/PlayerSettings.kt` | 282 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/PrivacySettings.kt` | 208 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/SettingsScreen.kt` | 263 lines | `.kt` |
@@ -453,6 +453,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/StreamSourceSettings.kt` | 218 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/UpdaterSettings.kt` | 413 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/integrations/IntegrationScreen.kt` | 50 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/theme/LogColors.kt` | 26 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/PlayerColorExtractor.kt` | 159 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/PlayerSliderColors.kt` | 146 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/Theme.kt` | 134 lines | `.kt` |
@@ -485,7 +486,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/FirestoreUtils.kt` | 41 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/FutureUtils.kt` | 43 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/IsraeliArtistRegistry.kt` | 56 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/LogBufferTree.kt` | 70 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/LogBufferTree.kt` | 71 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/LogExport.kt` | 113 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/MediaStoreHelper.kt` | 688 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/NetworkConnectivityObserver.kt` | 74 lines | `.kt` |
@@ -816,9 +817,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 564 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 564 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 564 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 565 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 338 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
@@ -829,9 +828,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1039 lines | `.md` |
-| `docs/repository-map.md` | 1039 lines | `.md` |
-| `docs/repository-map.md` | 1039 lines | `.md` |
+| `docs/repository-map.md` | 1036 lines | `.md` |
 | `docs/tracking/README.md` | 184 lines | `.md` |
 | `docs/ui/README.md` | 317 lines | `.md` |
 | `docs/ui/standards.md` | 290 lines | `.md` |
