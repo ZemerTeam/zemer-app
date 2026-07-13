@@ -158,6 +158,9 @@ val AllowChasidishKey = booleanPreferencesKey("allowChasidish")
 val BlockVideosKey = booleanPreferencesKey("blockVideos")
 val EnableContentFiltersKey = booleanPreferencesKey("enableContentFilters")
 
+val DeveloperModeEnabledKey = booleanPreferencesKey("developerModeEnabled")
+val DebugLoggingEnabledKey = booleanPreferencesKey("debugLoggingEnabled")
+
 // Online search engine: SearchProvider.name (ZEMER default, or YOUTUBE)
 val SearchProviderKey = stringPreferencesKey("searchProvider")
 

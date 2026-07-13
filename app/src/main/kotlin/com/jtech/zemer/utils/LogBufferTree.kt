@@ -1,0 +1,71 @@
+package com.jtech.zemer.utils
+
+import android.util.Log
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import timber.log.Timber
+import java.util.ArrayDeque
+
+/**
+ * In-memory ring buffer Timber tree. Keeps the last [MAX_ENTRIES] log entries so the
+ * Log viewer screen can show them without touching logcat. Planted in [com.jtech.zemer.App]
+ * alongside the Crashlytics tree so every Timber call also lands here for live inspection.
+ *
+ * Thread-safe: the buffer is guarded by a synchronized lock. [revision] bumps on every
+ * mutation so observers re-read [entries] only when the buffer actually changed, keeping
+ * the per-log cost a single append (no copy, no flow emission of the list itself).
+ */
+object LogBufferTree : Timber.Tree() {
+    private const val MAX_ENTRIES = 500
+    private val buffer = ArrayDeque<LogEntry>(MAX_ENTRIES)
+    private val _revision = MutableStateFlow(0L)
+
+    /** Bumped on every [log]/[clear]; collect it and re-read [entries] on change. */
+    val revision: StateFlow<Long> get() = _revision
+
+    /**
+     * Capture gate, driven by the "Enable debug logging" preference
+     * ([com.jtech.zemer.constants.DebugLoggingEnabledKey]) via the App-level settings observer.
+     * When off, [log] drops entries so nothing new accumulates or becomes exportable.
+     */
+    @Volatile
+    var isEnabled: Boolean = true
+
+    // No throwable field: Timber embeds the full stack trace into `message` before trees
+    // see it, and storing the Throwable would pin its object graph for the buffer lifetime.
+    data class LogEntry(
+        val timestamp: Long,
+        val priority: Int,
+        val tag: String?,
+        val message: String,
+    )
+
+    val entries: List<LogEntry>
+        get() = synchronized(buffer) { buffer.toList() }
+
+    fun clear() {
+        synchronized(buffer) { buffer.clear() }
+        _revision.value++
+    }
+
+    override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+        if (!isEnabled) return
+        synchronized(buffer) {
+            buffer.addLast(LogEntry(System.currentTimeMillis(), priority, tag, message))
+            while (buffer.size > MAX_ENTRIES) {
+                buffer.removeFirst()
+            }
+        }
+        _revision.value++
+    }
+
+    fun priorityName(priority: Int): String = when (priority) {
+        Log.VERBOSE -> "V"
+        Log.DEBUG -> "D"
+        Log.INFO -> "I"
+        Log.WARN -> "W"
+        Log.ERROR -> "E"
+        Log.ASSERT -> "A"
+        else -> "?"
+    }
+}
