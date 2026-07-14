@@ -36,6 +36,7 @@ import com.jtech.zemer.utils.CrashReportingTree
 import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.IsraeliArtistRegistry
+import com.jtech.zemer.utils.LogBufferTree
 import com.jtech.zemer.utils.SyncUtils
 import com.zemer.cipher.ZemerCipher
 import timber.log.Timber
@@ -101,6 +102,11 @@ class App : Application(), SingletonImageLoader.Factory {
         )
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
+            // Ring-buffer tree for the developer-mode Log viewer. Debug builds ONLY —
+            // release builds must never capture logs into memory or expose them for
+            // export (breadcrumbs can carry signed stream URLs). Capture is further
+            // gated by the "Enable debug logging" preference in observeSettingsChanges().
+            Timber.plant(LogBufferTree)
         }
         // Hidden-API exemptions for the Shizuku installer are applied lazily on first use
         // (AppInstaller.ensureHiddenApiBypass) so non-Shizuku users don't pay for it at startup.
@@ -342,6 +348,15 @@ class App : Application(), SingletonImageLoader.Factory {
                 .collect { visitorData ->
                     YouTube.visitorData = visitorData?.takeIf { it != "null" }
                 }
+        }
+
+        if (BuildConfig.DEBUG) {
+            applicationScope.launch(Dispatchers.IO) {
+                dataStore.data
+                    .map { it[DebugLoggingEnabledKey] ?: true }
+                    .distinctUntilChanged()
+                    .collect { LogBufferTree.isEnabled = it }
+            }
         }
 
         applicationScope.launch(Dispatchers.IO) {
