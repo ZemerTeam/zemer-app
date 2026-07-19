@@ -80,7 +80,8 @@ object Tracker {
 
     fun open() = enqueue { TrackingEvents.open(now()) }
 
-    fun search(q: String, results: Int) = enqueue { TrackingEvents.search(now(), q, results) }
+    fun search(q: String, results: Int, provider: String? = null) =
+        enqueue { TrackingEvents.search(now(), q, results, provider) }
 
     fun click(q: String, id: String, kind: String, rank: Int) =
         enqueue { TrackingEvents.click(now(), q, id, kind, rank) }

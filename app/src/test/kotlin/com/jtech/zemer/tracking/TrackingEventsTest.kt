@@ -16,10 +16,22 @@ class TrackingEventsTest {
     }
 
     @Test
-    fun `search event matches the spec exactly - zero results sent faithfully`() {
+    fun `search event matches the spec exactly - zero results sent faithfully, provider omitted when absent`() {
         assertEquals(
             """{"type":"search","t":1,"q":"shwekey","results":0}""",
             TrackingEvents.search(1, "shwekey", 0).toString(),
+        )
+    }
+
+    @Test
+    fun `search event carries the provider extension when known - exactly zemer or youtube`() {
+        assertEquals(
+            """{"type":"search","t":1,"q":"acapella","results":49,"provider":"zemer"}""",
+            TrackingEvents.search(1, "acapella", 49, "zemer").toString(),
+        )
+        assertEquals(
+            """{"type":"search","t":1,"q":"acapella","results":0,"provider":"youtube"}""",
+            TrackingEvents.search(1, "acapella", 0, "youtube").toString(),
         )
     }
 

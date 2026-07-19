@@ -59,6 +59,9 @@ batch rather than poison-pilling the queue. Losing events is fine. Breaking play
   query; `searchTracked` guard, persisted in the SavedStateHandle so a back-stack entry restored
   after process death never re-fires), on the first successful load, both engines; `results` =
   items shown; zero results sent faithfully; chip switches and engine toggles never re-fire.
+  Carries `provider` (Zemer extension, `handoff-docs/zemer-tracking-search-provider-request.md`):
+  `"zemer"` or `"youtube"` = the engine that served the query (`SearchProvider.name.lowercase()`),
+  so the dashboard separates a real whitelist-expansion demand gap from a legacy YouTube-path zero.
 - **`click`** — `OnlineSearchResult`'s single `activate` path (tap AND D-pad select — KeyDown
   only, auto-repeats ignored, so a held Enter is ONE click): the query, tapped id, `kind`
   (`clickKind()` — Videos chip → `video`, Community chip → `community`), and 0-based rank within

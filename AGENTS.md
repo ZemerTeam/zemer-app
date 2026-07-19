@@ -139,7 +139,12 @@ Five events (`open`/`search`/`play`/`click`/`action`) POSTed to `tracking.zemer.
   don't add per-surface duplicates, and keep machine-initiated work out of the user-intent signal.
 - One `search` event per executed query (the per-query ViewModel guard) — never per keystroke or
   per chip switch. Everything is tracked (KidZone and the YouTube engine included), no opt-out —
-  a product decision, 2026-07-05.
+  a product decision, 2026-07-05. Each event carries `provider` (`"zemer"`/`"youtube"`, a Zemer
+  extension per `handoff-docs/zemer-tracking-search-provider-request.md`) so the dashboard tells a
+  real whitelist-expansion demand gap apart from a legacy YouTube-path zero. It is the engine
+  **snapshotted per load** (`val engine = provider` in `loadSummary`/`loadFiltered`), NOT the shared
+  `provider` field read at emit time — `refresh()` mutates `provider` on a coroutine `collectLatest`
+  can't cancel, so an emit-time read could tag a Zemer result `"youtube"` under a concurrent toggle.
 - The one-shot **history backfill** (`PlayHistoryBackfill`) uploads the local listen history as
   `play_backfill` events through `Tracker.uploadBackfill` — NEVER through the live queue (its 500
   cap must not be flooded) but sharing the single-in-flight + backoff discipline; row-ID cursor
