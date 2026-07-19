@@ -40,4 +40,16 @@ class SearchProviderTest {
     fun `youtube albums keep the plain innertube path`() {
         assertEquals("album/MPRE1", SearchProvider.YOUTUBE.onlineAlbumRoute(album))
     }
+
+    /**
+     * The search-provider telemetry field (handoff-docs/zemer-tracking-search-provider-request.md) is
+     * sent as `name.lowercase()`, and the server contract accepts exactly `"zemer"`/`"youtube"`
+     * (anything else stored as NULL). Renaming an enum constant would silently start NULLing the field,
+     * so the mapping is pinned here.
+     */
+    @Test
+    fun `enum names lowercase to the exact tracking-contract provider values`() {
+        assertEquals("zemer", SearchProvider.ZEMER.name.lowercase())
+        assertEquals("youtube", SearchProvider.YOUTUBE.name.lowercase())
+    }
 }

@@ -93,10 +93,14 @@ constructor(
             savedStateHandle[SEARCH_TRACKED_KEY] = value
         }
 
-    private fun trackSearchOnce(results: Int) {
+    private fun trackSearchOnce(results: Int, servedBy: SearchProvider) {
         if (searchTracked) return
         searchTracked = true
-        Tracker.search(query, results)
+        // Tag the event with the engine that actually served these results — the caller's per-load
+        // snapshot, NOT the shared `provider` field, which a concurrent engine toggle (or a refresh()
+        // launched outside the collectLatest) can mutate between fetch and emit. Enum names map exactly
+        // to the server's contract values ("zemer"/"youtube").
+        Tracker.search(query, results, servedBy.name.lowercase())
     }
 
     init {
@@ -140,10 +144,14 @@ constructor(
         isSummaryLoading.value = true
         summaryError.value = null
 
+        // Snapshot the engine for this load so the fetch and its telemetry can't disagree if `provider`
+        // is mutated mid-flight (concurrent toggle or refresh()).
+        val engine = provider
+
         val result =
             withContext(Dispatchers.IO) {
                 runCatching {
-                    val summaries = if (provider == SearchProvider.ZEMER) {
+                    val summaries = if (engine == SearchProvider.ZEMER) {
                         // Zemer results are already whitelist-scoped server-side; do not re-filter.
                         zemerRepo.summary(query, zemerSearchOptions(context)).summaries
                     } else {
@@ -174,7 +182,7 @@ constructor(
             summaryPage = SearchSummaryPage(
                 summaries = summaries
             )
-            trackSearchOnce(results = summaries.sumOf { it.items.size })
+            trackSearchOnce(results = summaries.sumOf { it.items.size }, servedBy = engine)
 
             if (summaries.isEmpty()) {
                 summaryError.value = "No results found for \"$query\""
@@ -200,6 +208,10 @@ constructor(
 
         filterLoading[key] = true
         filterError[key] = null
+
+        // Snapshot the engine for this load so the fetch and its telemetry can't disagree if `provider`
+        // is mutated mid-flight (concurrent toggle or refresh()).
+        val engine = provider
 
         val result =
             withContext(Dispatchers.IO) {
@@ -249,7 +261,7 @@ constructor(
                         else -> {} // Songs/videos/playlists: online only (local songs are local search)
                     }
 
-                    if (provider == SearchProvider.ZEMER) {
+                    if (engine == SearchProvider.ZEMER) {
                         // Already whitelist-scoped; Zemer has no pagination (continuation == null).
                         items.addAll(zemerRepo.filtered(query, filter, zemerSearchOptions(context)).items)
                         ItemsPage(items.distinctBy { it.id }, null)
@@ -269,7 +281,7 @@ constructor(
 
         result.onSuccess { itemsPage ->
             viewStateMap[key] = itemsPage
-            trackSearchOnce(results = itemsPage.items.size)
+            trackSearchOnce(results = itemsPage.items.size, servedBy = engine)
             if (itemsPage.items.isEmpty()) {
                 filterError[key] = "No results found for \"$query\""
             }
