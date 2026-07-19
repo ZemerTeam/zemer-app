@@ -18,11 +18,19 @@ internal object TrackingEvents {
         put("t", t)
     }
 
-    fun search(t: Long, q: String, results: Int): JsonObject = buildJsonObject {
+    /**
+     * [provider] is a Zemer extension to the base spec (requested in
+     * handoff-docs/zemer-tracking-search-provider-request.md; the live server accepts it — verified):
+     * which of the app's two search paths served the query — `"zemer"` (search.zemer.io) or
+     * `"youtube"` (InnerTube + local whitelist filter). Omitted when unknown; the server stores
+     * absent/unknown as NULL, so pre-field builds stay interpretable.
+     */
+    fun search(t: Long, q: String, results: Int, provider: String? = null): JsonObject = buildJsonObject {
         put("type", "search")
         put("t", t)
         put("q", q)
         put("results", results)
+        if (provider != null) put("provider", provider)
     }
 
     fun click(t: Long, q: String, id: String, kind: String, rank: Int): JsonObject = buildJsonObject {
