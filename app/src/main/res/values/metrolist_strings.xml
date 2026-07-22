@@ -409,7 +409,6 @@
     <string name="recommendations">Recommendations</string>
 
     <!-- Equalizer -->
-    <string name="equalizer">Equalizer</string>
     <string name="equalizer_desc">Tune the sound with band filters and presets</string>
     <string name="equalizer_preset">Preset</string>
     <string name="equalizer_flat">Flat</string>

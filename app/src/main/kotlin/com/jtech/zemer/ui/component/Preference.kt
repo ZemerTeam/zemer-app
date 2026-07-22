@@ -275,6 +275,21 @@ fun EditTextPreference(
     )
 }
 
+@Composable
+fun SelectValuePreference(
+    modifier: Modifier = Modifier,
+    title: @Composable () -> Unit,
+    icon: (@Composable () -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    PreferenceEntry(
+        modifier = modifier,
+        title = title,
+        icon = icon,
+        onClick = onClick,
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SliderPreference(
