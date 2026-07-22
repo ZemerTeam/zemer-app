@@ -42,6 +42,7 @@ import com.jtech.zemer.constants.StopMusicOnTaskClearKey
 import com.jtech.zemer.ui.component.EnumListPreference
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.SelectValuePreference
 import com.jtech.zemer.ui.component.SliderPreference
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.player.CastDownloadDialog
@@ -180,6 +181,12 @@ fun PlayerSettings(
             icon = { Icon(painterResource(R.drawable.arrow_forward), null) },
             checked = seekExtraSeconds,
             onCheckedChange = onSeekExtraSeconds,
+        )
+
+        SelectValuePreference(
+            title = { Text(stringResource(R.string.equalizer)) },
+            icon = { Icon(painterResource(R.drawable.equalizer), null) },
+            onClick = { navController.navigate("settings/equalizer") },
         )
 
         PreferenceGroupTitle(

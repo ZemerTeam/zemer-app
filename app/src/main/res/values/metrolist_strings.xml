@@ -408,6 +408,15 @@
     <string name="settings_desc_android_auto">Customize browsing &amp; quick-add</string>
     <string name="recommendations">Recommendations</string>
 
+    <!-- Equalizer -->
+    <string name="equalizer">Equalizer</string>
+    <string name="equalizer_desc">Tune the sound with band filters and presets</string>
+    <string name="equalizer_preset">Preset</string>
+    <string name="equalizer_flat">Flat</string>
+    <string name="equalizer_custom">Custom</string>
+    <string name="equalizer_band">Band %1$d</string>
+    <string name="equalizer_band_hz">%1$d Hz</string>
+
     <!-- Bottom navigation customization -->
     <string name="bottom_nav_items">Bottom Navigation Items</string>
     <string name="bottom_nav_n_selected">%1$d/5 selected</string>

@@ -35,6 +35,7 @@ import com.jtech.zemer.ui.screens.settings.AppearanceSettings
 import com.jtech.zemer.ui.screens.settings.BackupAndRestore
 import com.jtech.zemer.ui.screens.settings.ButtonSetupScreen
 import com.jtech.zemer.ui.screens.settings.ContentSettings
+import com.jtech.zemer.ui.screens.settings.EqualizerSettings
 import com.jtech.zemer.ui.screens.settings.GeneralSettings
 import com.jtech.zemer.ui.screens.settings.LogViewerScreen
 import com.jtech.zemer.ui.screens.settings.PlayerSettings
@@ -368,6 +369,9 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("settings/player") {
         PlayerSettings(navController, scrollBehavior)
+    }
+    composable("settings/equalizer") {
+        EqualizerSettings(navController, scrollBehavior)
     }
     composable("settings/stream_sources") {
         StreamSourceSettings(navController, scrollBehavior)

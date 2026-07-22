@@ -269,6 +269,7 @@ class MusicService :
 
     private var isAudioEffectSessionOpened = false
     private var loudnessEnhancer: LoudnessEnhancer? = null
+    lateinit var audioEffects: AudioEffectsEngine
 
     private var lastPlaybackSpeed = 1.0f
 
@@ -416,6 +417,9 @@ class MusicService :
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         setupAudioFocusRequest()
+
+        audioEffects = AudioEffectsEngine(this)
+        audioEffects.initFromStore()
 
         mediaLibrarySessionCallback.apply {
             toggleLike = ::toggleLike
@@ -1332,6 +1336,7 @@ class MusicService :
         if (isAudioEffectSessionOpened) return
         isAudioEffectSessionOpened = true
         setupLoudnessEnhancer()
+        audioEffects.attach(player.audioSessionId)
         sendBroadcast(
             Intent(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
                 putExtra(AudioEffect.EXTRA_AUDIO_SESSION, player.audioSessionId)
@@ -2007,6 +2012,7 @@ class MusicService :
         connectivityObserver.unregister()
         abandonAudioFocus()
         releaseLoudnessEnhancer()
+        audioEffects.release()
         // Stop the widget ticker before releasing the player so a stray tick can't touch it.
         widgetTickerJob?.cancel()
         mediaSession.release()
