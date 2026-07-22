@@ -33,6 +33,7 @@ import com.jtech.zemer.constants.AutoDownloadOnLikeKey
 import com.jtech.zemer.constants.AutoLoadMoreKey
 import com.jtech.zemer.constants.AutoSkipNextOnErrorKey
 import com.jtech.zemer.constants.CastEnabledKey
+import com.jtech.zemer.constants.CrossfadeDurationKey
 import com.jtech.zemer.constants.DisableLoadMoreWhenRepeatAllKey
 import com.jtech.zemer.constants.HistoryDuration
 import com.jtech.zemer.constants.PersistentQueueKey
@@ -112,6 +113,10 @@ fun PlayerSettings(
         HistoryDuration,
         defaultValue = 30f
     )
+    val (crossfadeDuration, onCrossfadeDurationChange) = rememberPreference(
+        CrossfadeDurationKey,
+        defaultValue = 0
+    )
 
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
@@ -180,6 +185,17 @@ fun PlayerSettings(
             icon = { Icon(painterResource(R.drawable.arrow_forward), null) },
             checked = seekExtraSeconds,
             onCheckedChange = onSeekExtraSeconds,
+        )
+
+        SliderPreference(
+            title = { Text(stringResource(R.string.crossfade)) },
+            description = if (crossfadeDuration > 0) stringResource(R.string.crossfade_duration, crossfadeDuration)
+                else stringResource(R.string.crossfade_off),
+            icon = { Icon(painterResource(R.drawable.arrow_forward), null) },
+            value = crossfadeDuration.toFloat(),
+            onValueChange = { onCrossfadeDurationChange(it.toInt()) },
+            valueRange = 0f..12f,
+            steps = 11,
         )
 
         PreferenceGroupTitle(

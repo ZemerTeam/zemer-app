@@ -333,6 +333,8 @@ val TranslateLyricsKey = booleanPreferencesKey("translateLyrics")
 val PlayerVolumeKey = floatPreferencesKey("playerVolume")
 val RepeatModeKey = intPreferencesKey("repeatMode")
 
+val CrossfadeDurationKey = intPreferencesKey("crossfadeDuration")
+
 val SwipeThumbnailKey = booleanPreferencesKey("swipeThumbnail")
 val SwipeSensitivityKey = floatPreferencesKey("swipeSensitivity")
 

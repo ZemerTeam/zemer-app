@@ -17,6 +17,8 @@ import android.media.audiofx.AudioEffect
 import android.media.audiofx.LoudnessEnhancer
 import android.net.ConnectivityManager
 import android.os.Binder
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
@@ -78,6 +80,7 @@ import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.AudioOffload
 import com.jtech.zemer.constants.AudioQualityKey
 import com.jtech.zemer.constants.AutoDownloadOnLikeKey
+import com.jtech.zemer.constants.CrossfadeDurationKey
 import com.jtech.zemer.constants.AutoLoadMoreKey
 import com.jtech.zemer.constants.AutoSkipNextOnErrorKey
 import com.jtech.zemer.constants.DisableLoadMoreWhenRepeatAllKey
@@ -269,6 +272,9 @@ class MusicService :
 
     private var isAudioEffectSessionOpened = false
     private var loudnessEnhancer: LoudnessEnhancer? = null
+    private val crossfadeHandler = Handler(Looper.getMainLooper())
+    private var fadeToken = 0L
+    private var isCrossfading = false
 
     private var lastPlaybackSpeed = 1.0f
 
@@ -842,7 +848,13 @@ class MusicService :
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
-        if (isPlaying) startWidgetTicker() else updateWidget()
+        if (isPlaying) {
+            startWidgetTicker()
+            if (crossfadeMs > 0) scheduleCrossfadeWatch()
+        } else {
+            updateWidget()
+            stopCrossfadeWatch()
+        }
     }
 
     private fun updateNotification() {
@@ -1328,6 +1340,75 @@ class MusicService :
         }
     }
 
+    private val crossfadeMs: Int
+        get() = dataStore.get(CrossfadeDurationKey, 0)?.let { it * 1000 } ?: 0
+
+    private fun scheduleCrossfadeWatch() {
+        crossfadeHandler.removeCallbacksAndMessages(null)
+        fadeToken++
+        val token = fadeToken
+        val runnable = object : Runnable {
+            override fun run() {
+                if (token != fadeToken) return
+                if (!player.isPlaying || crossfadeMs <= 0) return
+                val dur = player.duration
+                val pos = player.currentPosition
+                if (dur > C.TIME_UNSET && dur > 0 && (dur - pos) <= crossfadeMs && !isCrossfading) {
+                    val remaining = (dur - pos).coerceAtLeast(200L)
+                    fadeOut(remaining)
+                }
+                crossfadeHandler.postDelayed(this, 150)
+            }
+        }
+        crossfadeHandler.postDelayed(runnable, 150)
+    }
+
+    private fun stopCrossfadeWatch() {
+        crossfadeHandler.removeCallbacksAndMessages(null)
+        fadeToken++
+        player.volume = playerVolume.value
+    }
+
+    private fun fadeOut(durationMs: Long) {
+        if (crossfadeMs <= 0) return
+        isCrossfading = true
+        val steps = 20
+        val stepMs = (durationMs / steps).coerceAtLeast(16)
+        val targetVol = playerVolume.value
+        val startVol = player.volume
+        fadeToken++
+        val token = fadeToken
+        repeat(steps) { i ->
+            crossfadeHandler.postDelayed({
+                if (token != fadeToken) return@postDelayed
+                val t = (i + 1) / steps.toFloat()
+                player.volume = (startVol * (1f - t)).coerceIn(0f, 1f)
+                if (i == steps - 1) isCrossfading = false
+            }, stepMs * (i + 1))
+        }
+    }
+
+    private fun fadeIn(ms: Long) {
+        if (ms <= 0 || crossfadeMs <= 0) {
+            player.volume = playerVolume.value
+            return
+        }
+        isCrossfading = false
+        val steps = 15
+        val stepMs = (ms / steps).coerceAtLeast(16)
+        val targetVol = playerVolume.value
+        fadeToken++
+        val token = fadeToken
+        player.volume = 0f
+        repeat(steps) { i ->
+            crossfadeHandler.postDelayed({
+                if (token != fadeToken) return@postDelayed
+                val t = (i + 1) / steps.toFloat()
+                player.volume = (targetVol * t).coerceIn(0f, 1f)
+            }, stepMs * (i + 1))
+        }
+    }
+
     private fun openAudioEffectSession() {
         if (isAudioEffectSessionOpened) return
         isAudioEffectSessionOpened = true
@@ -1439,6 +1520,8 @@ class MusicService :
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
         }
+
+        fadeIn(crossfadeMs.toLong())
     }
 
     override fun onPlaybackStateChanged(
