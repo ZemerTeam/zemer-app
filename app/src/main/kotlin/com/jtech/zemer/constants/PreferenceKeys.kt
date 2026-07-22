@@ -336,6 +336,12 @@ val RepeatModeKey = intPreferencesKey("repeatMode")
 val SwipeThumbnailKey = booleanPreferencesKey("swipeThumbnail")
 val SwipeSensitivityKey = floatPreferencesKey("swipeSensitivity")
 
+// Professional audio features (particles, equalizer)
+val ParticlesEnabledKey = booleanPreferencesKey("particlesEnabled")
+val EqualizerEnabledKey = booleanPreferencesKey("equalizerEnabled")
+val EqualizerPresetKey = stringPreferencesKey("equalizerPreset")
+val EqualizerBandsKey = stringPreferencesKey("equalizerBands")
+
 // Anonymous telemetry install id (a random UUID, the ONLY identity the tracking server ever sees).
 val TrackingDeviceIdKey = stringPreferencesKey("trackingDeviceId")
 // One-shot listen-history backfill: resume cursor (row id of the last acked event), the upper

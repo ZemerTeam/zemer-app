@@ -117,6 +117,7 @@ import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.PlayerButtonsStyle
 import com.jtech.zemer.constants.PlayerButtonsStyleKey
 import com.jtech.zemer.constants.PlayerHorizontalPadding
+import com.jtech.zemer.constants.ParticlesEnabledKey
 import com.jtech.zemer.constants.QueuePeekHeight
 import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
@@ -130,6 +131,7 @@ import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.PlayerSliderTrack
 import com.jtech.zemer.ui.component.ResizableIconButton
+import com.jtech.zemer.ui.component.AnimatedParticles
 import com.jtech.zemer.ui.component.rememberBottomSheetState
 import com.jtech.zemer.ui.menu.PlayerMenu
 import com.jtech.zemer.ui.screens.settings.DarkMode
@@ -218,6 +220,7 @@ fun BottomSheetPlayer(
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
+    val showParticles by rememberPreference(ParticlesEnabledKey, defaultValue = false)
 
     var position by rememberSaveable(playbackState) {
         mutableLongStateOf(playerConnection.player.currentPosition)
@@ -500,6 +503,16 @@ fun BottomSheetPlayer(
                     else -> {
                         PlayerBackgroundStyle.DEFAULT
                     }
+                }
+
+                if (showParticles) {
+                    AnimatedParticles(
+                        amplitudeFlow = playerConnection.service.audioEffects.amplitude,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .alpha(backgroundAlpha),
+                        color = Color.White,
+                    )
                 }
             }
         },
