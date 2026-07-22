@@ -28,6 +28,7 @@ import com.jtech.zemer.ui.screens.playlist.OnlinePlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.TopPlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.ZemerCuratedPlaylistScreen
 import com.jtech.zemer.ui.screens.recognition.RecognitionHistoryScreen
+import com.jtech.zemer.ui.screens.recommendations.RecommendationsScreen
 import com.jtech.zemer.ui.screens.search.OnlineSearchResult
 import com.jtech.zemer.ui.screens.settings.AboutScreen
 import com.jtech.zemer.ui.screens.settings.AndroidAutoSettings
@@ -407,5 +408,8 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("login_gate") {
         LoginGateScreen(navController = navController)
+    }
+    composable("recommendations") {
+        RecommendationsScreen(navController, scrollBehavior)
     }
 }

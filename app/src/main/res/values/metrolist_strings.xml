@@ -407,6 +407,9 @@
     <string name="settings_desc_about">About Zemer</string>
     <string name="settings_desc_android_auto">Customize browsing &amp; quick-add</string>
     <string name="recommendations">Recommendations</string>
+    <string name="recommended_for_you">Recommended for you</string>
+    <string name="recommended_empty">No recommendations yet. Listen to more music to get started!</string>
+    <string name="add_recommended_to_queue">Add all to queue</string>
 
     <!-- Bottom navigation customization -->
     <string name="bottom_nav_items">Bottom Navigation Items</string>

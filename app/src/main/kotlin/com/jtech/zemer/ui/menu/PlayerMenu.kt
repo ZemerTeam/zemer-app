@@ -1,4 +1,4 @@
-package com.jtech.zemer.ui.menu
+﻿package com.jtech.zemer.ui.menu
 
 import android.content.Intent
 import android.media.audiofx.AudioEffect
@@ -116,7 +116,7 @@ fun PlayerMenu(
             database.transaction {
                 insert(mediaMetadata)
             }
-            // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+            // Anonymous (pooled) sessions are local-only ΓÇö only a personal account writes to remote.
             if (isPersonalAccountSignedIn) {
                 coroutineScope.launch(Dispatchers.IO) {
                     playlist.playlist.browseId?.let { YouTube.addToPlaylist(it, mediaMetadata.id) }
@@ -345,6 +345,17 @@ fun PlayerMenu(
                         )
                     )
                     if (isQueueTrigger != true) {
+                        add(
+                            Material3MenuItemData(
+                                icon = { Icon(painterResource(R.drawable.trending_up), null, Modifier.size(24.dp)) },
+                                title = { Text(stringResource(R.string.recommendations)) },
+                                onClick = {
+                                    navController.navigate("recommendations")
+                                    playerBottomSheetState.collapseSoft()
+                                    onDismiss()
+                                },
+                            )
+                        )
                         add(
                             Material3MenuItemData(
                                 icon = { Icon(painterResource(R.drawable.equalizer), null, Modifier.size(24.dp)) },
