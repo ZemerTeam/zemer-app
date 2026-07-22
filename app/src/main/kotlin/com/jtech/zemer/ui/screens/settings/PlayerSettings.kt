@@ -36,6 +36,7 @@ import com.jtech.zemer.constants.CastEnabledKey
 import com.jtech.zemer.constants.DisableLoadMoreWhenRepeatAllKey
 import com.jtech.zemer.constants.HistoryDuration
 import com.jtech.zemer.constants.PersistentQueueKey
+import com.jtech.zemer.constants.ShowWaveformKey
 import com.jtech.zemer.constants.SeekExtraSeconds
 import com.jtech.zemer.constants.SkipSilenceKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
@@ -112,6 +113,10 @@ fun PlayerSettings(
         HistoryDuration,
         defaultValue = 30f
     )
+    val (showWaveform, onShowWaveformChange) = rememberPreference(
+        ShowWaveformKey,
+        defaultValue = false
+    )
 
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
@@ -180,6 +185,14 @@ fun PlayerSettings(
             icon = { Icon(painterResource(R.drawable.arrow_forward), null) },
             checked = seekExtraSeconds,
             onCheckedChange = onSeekExtraSeconds,
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.show_waveform)) },
+            description = stringResource(R.string.show_waveform_description),
+            icon = { Icon(painterResource(R.drawable.graphic_eq), null) },
+            checked = showWaveform,
+            onCheckedChange = onShowWaveformChange,
         )
 
         PreferenceGroupTitle(

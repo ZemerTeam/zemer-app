@@ -439,6 +439,10 @@
     <string name="log_export_to">To</string>
     <string name="log_filter_hint">Filter by tag or text</string>
 
+    <!-- Waveform visualizer -->
+    <string name="show_waveform">Waveform visualizer</string>
+    <string name="show_waveform_description">Show live frequency bars on the player seekbar</string>
+
     <!-- Player / library misc -->
     <string name="error_playing">Error playing</string>
     <string name="progress_percent">Progress %d%%</string>

@@ -334,6 +334,12 @@ val PlayerVolumeKey = floatPreferencesKey("playerVolume")
 val RepeatModeKey = intPreferencesKey("repeatMode")
 
 val SwipeThumbnailKey = booleanPreferencesKey("swipeThumbnail")
+
+// Professional audio features (waveform, equalizer)
+val ShowWaveformKey = booleanPreferencesKey("showWaveform")
+val EqualizerEnabledKey = booleanPreferencesKey("equalizerEnabled")
+val EqualizerPresetKey = stringPreferencesKey("equalizerPreset")
+val EqualizerBandsKey = stringPreferencesKey("equalizerBands")
 val SwipeSensitivityKey = floatPreferencesKey("swipeSensitivity")
 
 // Anonymous telemetry install id (a random UUID, the ONLY identity the tracking server ever sees).
