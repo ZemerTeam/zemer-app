@@ -36,6 +36,9 @@ import com.jtech.zemer.constants.CastEnabledKey
 import com.jtech.zemer.constants.DisableLoadMoreWhenRepeatAllKey
 import com.jtech.zemer.constants.HistoryDuration
 import com.jtech.zemer.constants.PersistentQueueKey
+import com.jtech.zemer.constants.ReplayGainMode
+import com.jtech.zemer.constants.ReplayGainModeKey
+import com.jtech.zemer.constants.ReplayGainPreampKey
 import com.jtech.zemer.constants.SeekExtraSeconds
 import com.jtech.zemer.constants.SkipSilenceKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
@@ -112,6 +115,14 @@ fun PlayerSettings(
         HistoryDuration,
         defaultValue = 30f
     )
+    val (replayGainMode, onReplayGainModeChange) = rememberEnumPreference(
+        ReplayGainModeKey,
+        defaultValue = ReplayGainMode.AUTO
+    )
+    val (replayGainPreamp, onReplayGainPreampChange) = rememberPreference(
+        ReplayGainPreampKey,
+        defaultValue = 0f
+    )
 
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
@@ -181,6 +192,32 @@ fun PlayerSettings(
             checked = seekExtraSeconds,
             onCheckedChange = onSeekExtraSeconds,
         )
+
+        EnumListPreference(
+            title = { Text(stringResource(R.string.replay_gain)) },
+            icon = { Icon(painterResource(R.drawable.volume_up), null) },
+            selectedValue = replayGainMode,
+            onValueSelected = onReplayGainModeChange,
+            valueText = {
+                when (it) {
+                    ReplayGainMode.OFF -> stringResource(R.string.replay_gain_off)
+                    ReplayGainMode.AUTO -> stringResource(R.string.replay_gain_auto)
+                    ReplayGainMode.FORCE -> stringResource(R.string.replay_gain_force)
+                }
+            },
+        )
+
+        if (replayGainMode != ReplayGainMode.OFF) {
+            SliderPreference(
+                title = { Text(stringResource(R.string.replay_gain_preamp)) },
+                description = stringResource(R.string.replay_gain_preamp_desc, replayGainPreamp),
+                icon = { Icon(painterResource(R.drawable.tune), null) },
+                value = replayGainPreamp,
+                onValueChange = onReplayGainPreampChange,
+                valueRange = -6f..6f,
+                steps = 24,
+            )
+        }
 
         PreferenceGroupTitle(
             title = stringResource(R.string.queue)

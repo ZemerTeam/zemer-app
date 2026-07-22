@@ -100,6 +100,21 @@ enum class AudioQuality {
 
 val AudioOffload = booleanPreferencesKey("enableOffload")
 
+// ── ReplayGain ──
+val ReplayGainModeKey = stringPreferencesKey("replayGainMode")
+val ReplayGainPreampKey = floatPreferencesKey("replayGainPreamp")
+
+enum class ReplayGainMode {
+    OFF,
+    AUTO,
+    FORCE,
+    ;
+
+    companion object {
+        fun from(value: String?): ReplayGainMode = entries.firstOrNull { it.name == value } ?: AUTO
+    }
+}
+
 val PersistentQueueKey = booleanPreferencesKey("persistentQueue")
 val SkipSilenceKey = booleanPreferencesKey("skipSilence")
 val AudioNormalizationKey = booleanPreferencesKey("audioNormalization")

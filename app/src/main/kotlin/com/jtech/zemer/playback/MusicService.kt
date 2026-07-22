@@ -76,6 +76,9 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.AndroidAutoTargetPlaylistKey
 import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.AudioOffload
+import com.jtech.zemer.constants.ReplayGainMode
+import com.jtech.zemer.constants.ReplayGainModeKey
+import com.jtech.zemer.constants.ReplayGainPreampKey
 import com.jtech.zemer.constants.AudioQualityKey
 import com.jtech.zemer.constants.AutoDownloadOnLikeKey
 import com.jtech.zemer.constants.AutoLoadMoreKey
@@ -1282,8 +1285,19 @@ class MusicService :
                 val normalizeAudio = withContext(Dispatchers.IO) {
                     dataStore.data.map { it[AudioNormalizationKey] ?: true }.first()
                 }
+                val replayGainMode = withContext(Dispatchers.IO) {
+                    dataStore.data.map { it[ReplayGainModeKey] ?: "AUTO" }.first()
+                }
+                val replayGainPreamp = withContext(Dispatchers.IO) {
+                    dataStore.data.map { it[ReplayGainPreampKey] ?: 0f }.first()
+                }
+                val useRg = when (ReplayGainMode.from(replayGainMode)) {
+                    ReplayGainMode.OFF -> normalizeAudio
+                    ReplayGainMode.AUTO -> normalizeAudio
+                    ReplayGainMode.FORCE -> true
+                }
 
-                if (normalizeAudio && currentMediaId != null) {
+                if (useRg && currentMediaId != null) {
                     val format = withContext(Dispatchers.IO) {
                         database.format(currentMediaId).first()
                     }
@@ -1292,7 +1306,7 @@ class MusicService :
 
                     withContext(Dispatchers.Main) {
                         if (loudnessDb != null) {
-                            val targetGain = (-loudnessDb * 100).toInt()
+                            val targetGain = ((-loudnessDb + replayGainPreamp) * 100).toInt()
                             val clampedGain = targetGain.coerceIn(MIN_GAIN_MB, MAX_GAIN_MB)
                             try {
                                 loudnessEnhancer?.setTargetGain(clampedGain)

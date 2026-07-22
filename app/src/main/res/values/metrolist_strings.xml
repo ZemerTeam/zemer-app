@@ -85,6 +85,14 @@
     <string name="seek_seconds_addup">Progressive seek</string>
     <string name="seek_seconds_addup_description">If enabled,  Adds up 5 extra seconds incrementally on each seek skip</string>
 
+    <!-- Replay Gain -->
+    <string name="replay_gain">Replay Gain</string>
+    <string name="replay_gain_off">Off</string>
+    <string name="replay_gain_auto">Auto</string>
+    <string name="replay_gain_force">Force</string>
+    <string name="replay_gain_preamp">Pre-amp</string>
+    <string name="replay_gain_preamp_desc">%1$.1f dB</string>
+
 
     <string name="player_background_style">Player background style</string>
     <string name="follow_theme">Follow theme</string>
