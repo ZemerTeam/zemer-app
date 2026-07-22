@@ -280,9 +280,12 @@ fun EditTextPreference(
 fun SliderPreference(
     modifier: Modifier = Modifier,
     title: @Composable () -> Unit,
+    description: String? = null,
     icon: (@Composable () -> Unit)? = null,
     value: Float,
     onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float> = 15f..60f,
+    steps: Int = 0,
     isEnabled: Boolean = true,
 ) {
     var showDialog by remember {
@@ -300,12 +303,7 @@ fun SliderPreference(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Text(
-                        text = stringResource(R.string.history_duration),
-                        overflow = TextOverflow.Ellipsis,
-                        maxLines = 1,
-                        style = MaterialTheme.typography.headlineSmall,
-                    )
+                    title()
                 }
             },
             onDismiss = { showDialog = false },
@@ -317,17 +315,11 @@ fun SliderPreference(
                 sliderValue = value
                 showDialog = false
             },
-            onReset = {
-                sliderValue = 30f // Default value or any reset value you prefer
-            },
+            onReset = null,
             content = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = pluralStringResource(
-                            R.plurals.seconds,
-                            sliderValue.roundToInt(),
-                            sliderValue.roundToInt()
-                        ),
+                        text = sliderValue.roundToInt().toString(),
                         style = MaterialTheme.typography.bodyLarge,
                     )
 
@@ -336,7 +328,8 @@ fun SliderPreference(
                     Slider(
                         value = sliderValue,
                         onValueChange = { sliderValue = it },
-                        valueRange = 15f..60f,
+                        valueRange = valueRange,
+                        steps = steps,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -347,7 +340,7 @@ fun SliderPreference(
     PreferenceEntry(
         modifier = modifier,
         title = title,
-        description = value.roundToInt().toString(),
+        description = description,
         icon = icon,
         onClick = { showDialog = true },
         isEnabled = isEnabled,
