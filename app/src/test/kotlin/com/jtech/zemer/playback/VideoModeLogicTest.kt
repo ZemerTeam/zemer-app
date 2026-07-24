@@ -100,20 +100,6 @@ class VideoModeLogicTest {
         assertEquals(RenditionKind.LOCAL, availability(online = false, localVideoFile = true)?.kind)
     }
 
-    // --- isVideoDownloadItem (Option A: video-capable ⇒ muxed download) -----
-
-    @Test
-    fun `video item downloads muxed — by flag or by non-ATV type`() {
-        assertEquals(true, VideoModeLogic.isVideoDownloadItem(musicVideoType = null, metadataIsVideo = true))
-        assertEquals(true, VideoModeLogic.isVideoDownloadItem(musicVideoType = OMV, metadataIsVideo = false))
-    }
-
-    @Test
-    fun `plain ATV or unknown song stays an audio download`() {
-        assertEquals(false, VideoModeLogic.isVideoDownloadItem(musicVideoType = ATV, metadataIsVideo = false))
-        assertEquals(false, VideoModeLogic.isVideoDownloadItem(musicVideoType = null, metadataIsVideo = false))
-    }
-
     // --- content-filter id gate (BlockedIdsCache) ---------------------------
 
     @Test

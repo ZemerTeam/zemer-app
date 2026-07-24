@@ -107,7 +107,6 @@ class PlayerConnection(
     // Video mode (the in-player Song/Video toggle). The service-scoped controller already encodes every
     // condition (blocked/casting/availability); the UI reads these flows and must NOT re-derive them.
     val videoModeAvailable = service.videoModeController.videoModeAvailable
-    val currentItemIsVideo = service.videoModeController.currentItemIsVideo
     val isVideoMode = service.videoModeController.isVideoMode
     val videoErrorEvents = service.videoModeController.videoErrorEvents
     fun setVideoMode(enabled: Boolean) = service.videoModeController.setVideoMode(enabled)

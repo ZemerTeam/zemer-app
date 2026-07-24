@@ -12,7 +12,6 @@ import com.jtech.zemer.playback.VideoModeLogic.TransitionClass
 import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -70,10 +69,13 @@ class VideoModeController(
     private var pendingSwap: Boolean = false
     private var currentSurface: TextureView? = null
 
-    // Latest BlockVideosKey value, kept current by the block collector below — so availability never does
-    // a blocking dataStore read on the main thread (the combine transform + setVideoMode are hot/UI paths).
+    // Latest BlockVideosKey value, kept current by the block collector in init{} — so availability never
+    // does a blocking dataStore read on the main thread (the combine transform + setVideoMode are hot/UI
+    // paths). Seeded false rather than read eagerly: this lazy controller is first constructed on the main
+    // thread (PlayerConnection reads its flows in its property initializers), and the collector below
+    // publishes the real value on its first emission (immediate for a DataStore flow) before any toggle.
     @Volatile
-    private var blockVideosNow: Boolean = service.dataStore.get(BlockVideosKey, false)
+    private var blockVideosNow: Boolean = false
 
     private val _isVideoMode = MutableStateFlow(false)
     val isVideoMode: StateFlow<Boolean> = _isVideoMode.asStateFlow()
@@ -106,18 +108,6 @@ class VideoModeController(
             service.isNetworkConnected,
         ) { _, _ -> computeAvailability() != null }
             .stateIn(scope, SharingStarted.Eagerly, false)
-
-    /**
-     * Whether the CURRENT item should download its muxed video rather than audio-only (Option A). The
-     * player download menu reads this so a video-capable item is never saved audio-only (which would
-     * leave the toggle silently streaming). Connectivity-independent (you download while online, and a
-     * blocked item's row is hidden by [DownloadMenuLogic] regardless).
-     */
-    val currentItemIsVideo: StateFlow<Boolean> =
-        combine(service.currentMediaMetadata, availabilityCache.revision) { meta, _ ->
-            meta != null &&
-                VideoModeLogic.isVideoDownloadItem(availabilityCache.get(meta.id)?.musicVideoType, meta.isVideo)
-        }.stateIn(scope, SharingStarted.Eagerly, false)
 
     init {
         // I5: a cast session starting forces audio (the receiver only ever gets the audio stream, keyed
@@ -302,29 +292,45 @@ class VideoModeController(
             player.seekTo(index, position)
             player.prepare()
             player.playWhenReady = playWhenReady
-            mainHandler.post { pendingSwap = false }
+            // Flip the UI to audio now, but keep the swap-classification identity
+            // (videoModeItemId + pendingSwap) alive until media3's swap callbacks have been
+            // dispatched — clearing it synchronously would make the restore swap's own
+            // onMediaItemTransition classify as a real TRACK_CHANGE, which clears the
+            // ListenAccumulator's swap mark and double-counts the listen (double play event +
+            // history insert). Mirrors enterVideoMode's deferred pendingSwap handling.
+            _isVideoMode.value = false
+            mainHandler.post {
+                pendingSwap = false
+                clearState()
+            }
+        } else {
+            clearState()
         }
-        clearState()
     }
 
-    /** A real track change moved off the video-mode item — restore the DEPARTED index to audio (I2). */
+    /** A real track change moved off the video-mode item — restore the DEPARTED item to audio (I2). */
     private fun revertDepartedItem() {
         currentSurface?.let { player.clearVideoTextureView(it) }
         val kind = renditionKind
         val audioItem = videoModeAudioItem
-        val index = videoModeItemIndex
-        if (kind != RenditionKind.LOCAL && audioItem != null && index in 0 until player.mediaItemCount) {
-            // Only restore if OUR video rendition is still parked at that index. A within-queue transition
-            // (skip/seek/auto-advance) leaves it there, so restoring to audio keeps a skip-back off the
-            // video rendition. But a fresh playQueue()/setMediaItems() replaced the whole timeline — the
-            // index now holds the just-tapped song, and writing there would clobber it (the "tap a new song
-            // while in video mode plays the wrong item" bug). The video-key check distinguishes the two.
-            val itemAtIndex = player.getMediaItemAt(index)
-            val isVideoKey = itemAtIndex.localConfiguration?.customCacheKey
-                ?.let { VideoRendition.isVideoKey(it) } ?: false
-            if (VideoModeLogic.shouldRestoreDepartedItem(videoModeItemId, itemAtIndex.mediaId, isVideoKey)) {
-                // A non-current replaceMediaItem fires no transition, so no pendingSwap dance is needed.
-                player.replaceMediaItem(index, audioItem)
+        val departedId = videoModeItemId
+        if (kind != RenditionKind.LOCAL && audioItem != null && departedId != null) {
+            // Find OUR parked video rendition by identity (same mediaId AND a video: cache key), not the
+            // stored index. A within-queue transition (skip/seek/auto-advance) leaves it where it was, but
+            // a queue reorder during video mode can move it off videoModeItemIndex WITHOUT firing a
+            // transition — so an index-only check would miss it and leave an orphaned video: item that
+            // later streams muxed video with no surface. A fresh playQueue()/setMediaItems() replaced the
+            // whole timeline, so nothing matches (different ids / no video key) and we clobber nothing —
+            // the "tap a new song while in video mode plays the wrong item" bug stays fixed.
+            for (i in 0 until player.mediaItemCount) {
+                val item = player.getMediaItemAt(i)
+                val isVideoKey = item.localConfiguration?.customCacheKey
+                    ?.let { VideoRendition.isVideoKey(it) } ?: false
+                if (VideoModeLogic.shouldRestoreDepartedItem(departedId, item.mediaId, isVideoKey)) {
+                    // A non-current replaceMediaItem fires no transition, so no pendingSwap dance is needed.
+                    player.replaceMediaItem(i, audioItem)
+                    break
+                }
             }
         }
         clearState()
