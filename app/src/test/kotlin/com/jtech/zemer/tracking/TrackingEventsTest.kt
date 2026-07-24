@@ -100,6 +100,29 @@ class TrackingEventsTest {
     }
 
     @Test
+    fun `a POST is capped at the server's impression-row limit, and the cap keeps a queue PREFIX`() {
+        fun impression(n: Int) = TrackingEvents.impression(1, List(n) { "id%09d".format(it) }, "s").toString()
+        val play = """{"type":"play","t":1,"videoId":"v","secs":5,"source":"other"}"""
+
+        // 12 full events = 600 rows; the drain is event-counted (100) so nothing else would stop it.
+        val batch = List(12) { impression(50) }
+        val capped = capImpressionRows(batch)
+        assertEquals(10, capped.size) // 500 rows exactly
+        assertEquals(batch.take(10), capped) // a PREFIX — removeBatch aligns against the queue head
+        assertEquals(500, capped.sumOf { impressionRowCount(it) })
+
+        // Other event types are free: they cost no impression rows and must not be cut short.
+        assertEquals(List(50) { play }, capImpressionRows(List(50) { play }))
+        assertEquals(0, impressionRowCount(play))
+
+        // Under the limit, everything travels.
+        assertEquals(batch.take(3), capImpressionRows(batch.take(3)))
+
+        // A single event larger than the whole cap still goes out rather than stalling the queue.
+        assertEquals(1, capImpressionRows(listOf(impression(50)), max = 10).size)
+    }
+
+    @Test
     fun `surface slugs stay inside the alphabet the server enforces`() {
         assertEquals(true, isTrackingSurface(TrackingSurface.SEARCH))
         assertEquals(true, isTrackingSurface(TrackingSurface.home("forgotten-favorites")))

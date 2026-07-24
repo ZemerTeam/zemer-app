@@ -348,11 +348,7 @@ fun ZemerCuratedPlaylistScreen(
                             isPlaying = isPlaying,
                             trailingContent = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    // rank = position in the list the user is looking at, 1-based.
-                                    ChartMovementBadge(
-                                        movement = uiState.page.movement[song.id],
-                                        rank = index + 1,
-                                    )
+                                    ChartMovementBadge(movement = uiState.page.movement[song.id])
                                     IconButton(onClick = { showSongMenu(song) }) {
                                         Icon(
                                             painter = painterResource(R.drawable.more_vert),

@@ -151,18 +151,20 @@ fun OnlineSearchResult(
 
     // Impressions (what was SHOWN, for the ranking side's exposure dampener). Keyed rather than
     // indexed: chips, section titles and shimmer rows share the list's index space with results, so
-    // an index says nothing about which song it is. Built from the SAME key expressions used below,
-    // so a key change can't silently start reporting the wrong ids — and only SongItems are mapped,
-    // since albums/artists/playlists have no videoId to expose.
+    // an index says nothing about which song it is. The keys come from [summaryItemKey]/
+    // [filteredItemKey], the same functions the lazy items below are keyed by — changing a key
+    // shape in one place and not the other would otherwise compile fine and silently report
+    // nothing, dropping `search` out of the server's coverage gate with no error anywhere. Only
+    // SongItems are mapped, since albums/artists/playlists have no videoId to expose.
     val impressionIdByKey = remember(searchSummary, itemsPage) {
         buildMap {
             searchSummary?.summaries?.forEach { summary ->
                 summary.items.forEachIndexed { index, item ->
-                    if (item is SongItem) put("${summary.title}/${item.id}/$index", item.id)
+                    if (item is SongItem) put(summaryItemKey(summary.title, item.id, index), item.id)
                 }
             }
             itemsPage?.items.orEmpty().distinctBy { it.id }.forEach { item ->
-                if (item is SongItem) put("filtered_${item.id}", item.id)
+                if (item is SongItem) put(filteredItemKey(item.id), item.id)
             }
         }
     }
@@ -401,7 +403,7 @@ fun OnlineSearchResult(
 
                             itemsIndexed(
                                 items = summary.items,
-                                key = { index, it -> "${summary.title}/${it.id}/$index" },
+                                key = { index, it -> summaryItemKey(summary.title, it.id, index) },
                             ) { index, it -> ytItemContent(it, index) }
                         }
                     }
@@ -456,7 +458,7 @@ fun OnlineSearchResult(
                 else -> {
                     itemsIndexed(
                         items = itemsPage?.items.orEmpty().distinctBy { it.id },
-                        key = { _, it -> "filtered_${it.id}" },
+                        key = { _, it -> filteredItemKey(it.id) },
                     ) { index, it -> ytItemContent(it, index) }
 
                     if (itemsPage?.continuation != null) {
@@ -479,6 +481,15 @@ fun OnlineSearchResult(
  * Videos chip are videos; PlaylistItems on the Community chip are community playlists — elsewhere
  * the app can't reliably tell, so the base category is sent.
  */
+/**
+ * The lazy-list item keys, defined once because they are read twice: by the list itself and by the
+ * impression map that translates a visible key back into a videoId. Duplicated string templates
+ * would let a key change compile cleanly and silently stop all impression reporting on this screen.
+ */
+private fun summaryItemKey(sectionTitle: String, id: String, index: Int) = "$sectionTitle/$id/$index"
+
+private fun filteredItemKey(id: String) = "filtered_$id"
+
 private fun clickKind(item: YTItem, filterValue: String?): String = when (item) {
     is SongItem -> if (filterValue == FILTER_VIDEO.value) "video" else "song"
     is AlbumItem -> "album"

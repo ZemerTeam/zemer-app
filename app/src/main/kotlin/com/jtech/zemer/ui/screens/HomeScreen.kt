@@ -71,7 +71,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.LocalAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeQueue
-import com.jtech.zemer.tracking.TrackImpressions
+import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.ArtistGridItem
@@ -464,13 +464,12 @@ fun HomeScreen(
                     }
 
                     item(key = "quick_picks_list", contentType = "grid") {
-                        TrackImpressions(
+                        TrackImpressionsByKey(
                             surface = TrackingSurface.home("quick-picks"),
                             state = quickPicksLazyGridState,
-                            items = uniqueQuickPicks,
-                            idOf = { it.id },
                             parent = lazylistState,
                             parentKey = "quick_picks_list",
+                            idOfKey = rememberRowImpressionIds(uniqueQuickPicks) { it.id },
                         )
                         LazyHorizontalGrid(
                             state = quickPicksLazyGridState,
@@ -661,13 +660,12 @@ fun HomeScreen(
                         val keepListeningGridState = rememberLazyGridState()
                         // Mixed row: albums and playlists sit alongside songs and simply have no
                         // videoId to report.
-                        TrackImpressions(
+                        TrackImpressionsByKey(
                             surface = TrackingSurface.home("keep-listening"),
                             state = keepListeningGridState,
-                            items = keepListening,
-                            idOf = { (it as? Song)?.id },
                             parent = lazylistState,
                             parentKey = "keep_listening_list",
+                            idOfKey = rememberRowImpressionIds(keepListening) { (it as? Song)?.id },
                         )
                         LazyHorizontalGrid(
                             state = keepListeningGridState,
@@ -702,13 +700,12 @@ fun HomeScreen(
                     }
 
                     item(key = "forgotten_favorites_list", contentType = "grid") {
-                        TrackImpressions(
+                        TrackImpressionsByKey(
                             surface = TrackingSurface.home("forgotten-favorites"),
                             state = forgottenFavoritesLazyGridState,
-                            items = uniqueForgottenFavorites,
-                            idOf = { it.id },
                             parent = lazylistState,
                             parentKey = "forgotten_favorites_list",
+                            idOfKey = rememberRowImpressionIds(uniqueForgottenFavorites) { it.id },
                         )
                         // take min in case list size is less than 4
                         val rows = min(4, forgottenFavorites.size)
@@ -801,13 +798,12 @@ fun HomeScreen(
                     // Declared here, not hoisted to the screen: the row's scroll position keeps the
                     // same lifetime it has always had (reset when the section leaves composition).
                     val trendingGridState = rememberLazyGridState()
-                    TrackImpressions(
+                    TrackImpressionsByKey(
                         surface = TrackingSurface.home("trending"),
                         state = trendingGridState,
-                        items = uniqueTrendingSongs,
-                        idOf = { it.id },
                         parent = lazylistState,
                         parentKey = "trending_list",
+                        idOfKey = rememberRowImpressionIds(uniqueTrendingSongs) { it.id },
                     )
                     LazyHorizontalGrid(
                         state = trendingGridState,
@@ -941,13 +937,12 @@ fun HomeScreen(
 
                 item(key = "featured_videos_list", contentType = "grid") {
                     val featuredVideosRowState = rememberLazyListState()
-                    TrackImpressions(
+                    TrackImpressionsByKey(
                         surface = TrackingSurface.home("featured-videos"),
                         state = featuredVideosRowState,
-                        items = uniqueFeaturedVideos,
-                        idOf = { it.id },
                         parent = lazylistState,
                         parentKey = "featured_videos_list",
+                        idOfKey = rememberRowImpressionIds(uniqueFeaturedVideos) { it.id },
                     )
                     LazyRow(
                         state = featuredVideosRowState,
@@ -958,7 +953,9 @@ fun HomeScreen(
                     ) {
                         items(
                             items = uniqueFeaturedVideos,
-                            key = { "featured_video_${it.id}" },
+                            // Keyed by the plain videoId (unique — the list is distinctBy id), so
+                            // the row's key IS its impression id and the two cannot drift.
+                            key = { it.id },
                             contentType = { "video" }
                         ) { video ->
                             YouTubeGridItem(
@@ -1026,4 +1023,20 @@ fun HomeScreen(
                 .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues()),
         )
     }
+}
+
+/**
+ * The impression key→videoId mapping for a home row. Every instrumented row keys its items by the
+ * item's own id, so membership in this set IS the mapping.
+ *
+ * Deriving it from the same list the row renders is deliberate, and safe in a way an index-based
+ * mapping is not: if the two ever drift, a key missing from the set is simply not reported and a set
+ * entry that is never rendered never appears as a visible key. The failure mode is under-reporting,
+ * which the exposure dampener treats as conservative — never reporting the wrong videoId under the
+ * right surface, which would silently penalise a song that was never on screen.
+ */
+@Composable
+private fun <T> rememberRowImpressionIds(items: List<T>, idOf: (T) -> String?): (Any?) -> String? {
+    val ids = remember(items) { items.mapNotNull(idOf).toSet() }
+    return remember(ids) { { key -> (key as? String)?.takeIf(ids::contains) } }
 }

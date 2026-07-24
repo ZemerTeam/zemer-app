@@ -45,7 +45,13 @@ internal class TrackingUploader(private val baseUrl: String = BASE_URL) {
             }
             when {
                 response.status.value in 200..299 -> {
-                    reportCounters(parseTrackingUploadCounters(response.bodyAsText()))
+                    // The body is read in its OWN runCatching: the server has already stored this
+                    // batch, so a connection reset or timeout while draining the body must never
+                    // reach the outer getOrDefault(Retry). Downgrading an accepted 2xx re-uploads
+                    // events the server ingested — double-counted plays, and a backfill batch whose
+                    // cursor never advances — to salvage a diagnostic counter.
+                    runCatching { response.bodyAsText() }
+                        .onSuccess { reportCounters(parseTrackingUploadCounters(it)) }
                     Result.Success
                 }
                 response.status == HttpStatusCode.BadRequest -> Result.DropBatch

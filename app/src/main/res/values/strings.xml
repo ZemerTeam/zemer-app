@@ -432,11 +432,17 @@
     <string name="chart_new">NEW</string>
     <string name="chart_reentry">RE</string>
     <string name="chart_movement_since">Movement since %1$s</string>
-    <string name="chart_movement_new">New entry, now number %1$d</string>
-    <string name="chart_movement_reentry">Re-entry, now number %1$d</string>
-    <string name="chart_movement_up">Up %1$d places, now number %2$d</string>
-    <string name="chart_movement_down">Down %1$d places, now number %2$d</string>
-    <string name="chart_movement_unchanged">No change, still number %1$d</string>
+    <string name="chart_movement_new">New entry</string>
+    <string name="chart_movement_reentry">Re-entry</string>
+    <string name="chart_movement_unchanged">No change</string>
+    <plurals name="chart_movement_up">
+        <item quantity="one">Up %1$d place</item>
+        <item quantity="other">Up %1$d places</item>
+    </plurals>
+    <plurals name="chart_movement_down">
+        <item quantity="one">Down %1$d place</item>
+        <item quantity="other">Down %1$d places</item>
+    </plurals>
 
     <!-- Widget -->
     <string name="widget_name">Zemer Music</string>

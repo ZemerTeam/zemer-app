@@ -1,9 +1,12 @@
 package com.jtech.zemer.tracking
 
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 
@@ -160,6 +163,42 @@ internal fun isTrackingSurface(value: String): Boolean = SURFACE_SLUG.matches(va
  */
 internal fun impressionChunks(ids: Iterable<String>, max: Int = MAX_IMPRESSION_IDS): List<List<String>> =
     ids.filter(::isVideoId).distinct().chunked(max)
+
+/** The server stores at most this many impression rows per POST, dropping whole events past it. */
+internal const val MAX_IMPRESSION_ROWS_PER_POST = 500
+
+private val IMPRESSION_PREFIX = "{\"type\":\"impression\""
+
+/** How many impression rows one queued event line would store; 0 for every other event type. */
+internal fun impressionRowCount(eventLine: String): Int {
+    if (!eventLine.startsWith(IMPRESSION_PREFIX)) return 0
+    return runCatching {
+        Json.parseToJsonElement(eventLine).jsonObject["ids"]?.jsonArray?.size ?: 0
+    }.getOrDefault(0)
+}
+
+/**
+ * Truncates a queued [batch] so one POST never carries more than [max] impression rows.
+ *
+ * Without this the drain is event-counted (up to 100) while the server's limit is row-counted, so a
+ * scroll-heavy queue can POST thousands of rows and the server silently drops everything past 500.
+ * That loss is NOT song-independent — it always falls on the events queued LAST, i.e. whatever the
+ * user scrolled to most recently — so it would bias exposure rather than merely thinning it.
+ *
+ * The result is always a PREFIX of [batch], which [TrackingQueue.removeBatch] relies on to align an
+ * uploaded batch against the queue head. Non-impression events before the cut still travel; the
+ * remainder simply goes out on the next flush, which costs nothing at 30 batches/minute.
+ */
+internal fun capImpressionRows(batch: List<String>, max: Int = MAX_IMPRESSION_ROWS_PER_POST): List<String> {
+    var rows = 0
+    val kept = batch.takeWhile { line ->
+        rows += impressionRowCount(line)
+        rows <= max
+    }
+    // takeWhile drops the event that crossed the limit; keep at least one so a single oversized
+    // event (impossible at 50 ids/event today) can never stall the queue forever.
+    return kept.ifEmpty { batch.take(1) }
+}
 
 /** The `action` kinds the server accepts. */
 internal object TrackingActionKind {

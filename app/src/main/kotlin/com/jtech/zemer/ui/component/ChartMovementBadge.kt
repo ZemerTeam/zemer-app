@@ -12,7 +12,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -36,23 +38,32 @@ import java.time.format.FormatStyle
  *   different users looking at the same chart.
  * - **The glyph never carries the meaning alone.** ▲ and ▼ differ mainly by colour in most palettes,
  *   so the whole badge exposes one spoken description and hides its parts from the accessibility
- *   tree. [rank] is the row's CURRENT 1-based position (its index in the list) — never `prevRank`,
- *   which is where the song was.
+ *   tree.
+ *
+ * The description states the MOVEMENT only, never a chart position. The obvious position to quote —
+ * the row's index — is an index into a client-filtered list (explicit-content filtering, plus the
+ * All/Albums/Songs chip), while the delta is measured against the server's unfiltered chart. Pairing
+ * them announced a position that contradicts its own delta, and two users with different filter
+ * settings heard different chart positions for the same song. The list shows no rank numbers either,
+ * so there is nothing on screen for the announcement to agree with.
  */
 @Composable
 fun ChartMovementBadge(
     movement: ChartMovement?,
-    rank: Int,
     modifier: Modifier = Modifier,
 ) {
     if (movement == null) return
 
     val description = when (movement) {
-        ChartMovement.New -> stringResource(R.string.chart_movement_new, rank)
-        ChartMovement.Reentry -> stringResource(R.string.chart_movement_reentry, rank)
-        is ChartMovement.Up -> stringResource(R.string.chart_movement_up, movement.places, rank)
-        is ChartMovement.Down -> stringResource(R.string.chart_movement_down, movement.places, rank)
-        ChartMovement.Unchanged -> stringResource(R.string.chart_movement_unchanged, rank)
+        ChartMovement.New -> stringResource(R.string.chart_movement_new)
+        ChartMovement.Reentry -> stringResource(R.string.chart_movement_reentry)
+        ChartMovement.Unchanged -> stringResource(R.string.chart_movement_unchanged)
+        // Plurals, not a hardcoded "places": a one-place move is the most common non-zero delta on a
+        // weekly chart, and this string is the ONLY thing a screen reader gets for the row.
+        is ChartMovement.Up ->
+            pluralStringResource(R.plurals.chart_movement_up, movement.places, movement.places)
+        is ChartMovement.Down ->
+            pluralStringResource(R.plurals.chart_movement_down, movement.places, movement.places)
     }
 
     Row(
@@ -125,9 +136,17 @@ private fun MovementArrow(icon: Int, places: Int, color: Color) {
  * rather than showing a raw ISO string: the server owns this format, and a future change to it must
  * degrade quietly instead of leaking machine text into the header.
  */
-fun chartAnchorLabel(anchorDate: String?): String? =
-    anchorDate?.takeIf { it.isNotBlank() }?.let { iso ->
+@Composable
+fun chartAnchorLabel(anchorDate: String?): String? {
+    // The Compose configuration locale, not Locale.getDefault(): with a per-app language set
+    // (Android 13+), the JVM default can still be the SYSTEM locale, which rendered an English date
+    // inside an otherwise-Hebrew label. Reading it here also recomposes on a locale change instead
+    // of leaving the previously formatted date on screen.
+    val locale = LocalConfiguration.current.locales[0]
+    return anchorDate?.takeIf { it.isNotBlank() }?.let { iso ->
         runCatching {
-            LocalDate.parse(iso).format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
+            LocalDate.parse(iso)
+                .format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
         }.getOrNull()
     }
+}
