@@ -31,9 +31,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
-import io.ktor.client.HttpClient
 import io.ktor.client.statement.bodyAsText
 import io.ktor.client.request.get
+import com.jtech.zemer.utils.AnonymousAuthClient
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import android.widget.Toast
@@ -202,7 +202,7 @@ fun AccountSettings(
                     tokenTestResult = null
                     scope.launch {
                         try {
-                            val httpClient = HttpClient()
+                            val httpClient = AnonymousAuthClient.create()
                             val responseText = httpClient.get(
                                 "https://mc.alltech.dev/credentials"
                             ).bodyAsText()

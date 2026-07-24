@@ -46,9 +46,9 @@ import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.utils.rememberPreference
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.utils.parseCookieString
-import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import com.jtech.zemer.utils.AnonymousAuthClient
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -154,7 +154,7 @@ fun LoginGateScreen(
                         isAnonymousLoading = true
                         coroutineScope.launch {
                             try {
-                                val httpClient = HttpClient()
+                                val httpClient = AnonymousAuthClient.create()
                                 val responseText = httpClient.get(
                                     "https://mc.alltech.dev/credentials"
                                 ).bodyAsText()
