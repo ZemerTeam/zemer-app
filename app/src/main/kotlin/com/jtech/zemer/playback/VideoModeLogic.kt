@@ -99,17 +99,6 @@ object VideoModeLogic {
         return musicVideoType == null || musicVideoType == MUSIC_VIDEO_TYPE_ATV
     }
 
-    /**
-     * Whether the current playing item should download its **muxed video** (Option A) rather than
-     * audio-only. True when the item is itself a video — either already flagged ([metadataIsVideo]) or a
-     * known non-ATV music-video type from the availability cache. Saving the muxed file means the
-     * Song/Video toggle then works fully offline via [RenditionKind.LOCAL] (no streaming, no source
-     * error), and one "Remove" truthfully covers both renditions — a video item never gets downloaded
-     * audio-only, which would leave the toggle silently streaming (the reported "download → toggle
-     * source error" bug). A plain ATV song stays an audio download.
-     */
-    fun isVideoDownloadItem(musicVideoType: String?, metadataIsVideo: Boolean): Boolean =
-        metadataIsVideo || (musicVideoType != null && musicVideoType != MUSIC_VIDEO_TYPE_ATV)
 
     enum class TransitionClass {
         /** Our own rendition swap (replaceMediaItem of the current item) — keep video mode, skip side effects. */
