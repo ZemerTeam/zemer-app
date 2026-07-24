@@ -34,6 +34,12 @@ data class ZemerCuratedPlaylistPage(
     val songs: List<SongItem>,
     val albums: List<AlbumItem>,
     val albumTrackIds: Set<String>,
+    /**
+     * videoId → chart movement, for the `auto-*` playlists. Kept beside [songs] rather than on the
+     * items themselves because [SongItem] is an innertube model shared with the YouTube path — the
+     * same reason [albumTrackIds] is a side set. Missing key = no badge (the common case).
+     */
+    val movement: Map<String, ChartMovement>,
 )
 
 /**
@@ -131,6 +137,10 @@ class ZemerSearchRepository @Inject constructor(
                     .filter { it.fromAlbum && it.videoId.isNotBlank() }
                     .map { it.videoId }
                     .toSet(),
+                movement = response.tracks
+                    .filter { it.videoId.isNotBlank() }
+                    .mapNotNull { track -> chartMovementOf(track)?.let { track.videoId to it } }
+                    .toMap(),
             )
         }
 

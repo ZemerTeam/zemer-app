@@ -52,6 +52,8 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.tracking.TrackImpressionsByKey
+import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.SearchProviderKey
 import com.jtech.zemer.search.SearchProvider
@@ -146,6 +148,29 @@ fun OnlineSearchResult(
             }
         }
     }
+
+    // Impressions (what was SHOWN, for the ranking side's exposure dampener). Keyed rather than
+    // indexed: chips, section titles and shimmer rows share the list's index space with results, so
+    // an index says nothing about which song it is. Built from the SAME key expressions used below,
+    // so a key change can't silently start reporting the wrong ids — and only SongItems are mapped,
+    // since albums/artists/playlists have no videoId to expose.
+    val impressionIdByKey = remember(searchSummary, itemsPage) {
+        buildMap {
+            searchSummary?.summaries?.forEach { summary ->
+                summary.items.forEachIndexed { index, item ->
+                    if (item is SongItem) put("${summary.title}/${item.id}/$index", item.id)
+                }
+            }
+            itemsPage?.items.orEmpty().distinctBy { it.id }.forEach { item ->
+                if (item is SongItem) put("filtered_${item.id}", item.id)
+            }
+        }
+    }
+    TrackImpressionsByKey(
+        surface = TrackingSurface.SEARCH,
+        state = lazyListState,
+        idOfKey = { impressionIdByKey[it] },
+    )
 
     // rank = the row's 0-based position within its displayed category (telemetry `click` events).
     val ytItemContent: @Composable LazyItemScope.(YTItem, Int) -> Unit = { item: YTItem, rank: Int ->

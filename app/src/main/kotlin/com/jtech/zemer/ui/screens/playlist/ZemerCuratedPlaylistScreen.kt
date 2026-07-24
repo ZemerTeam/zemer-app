@@ -62,9 +62,13 @@ import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.latestreleases.LatestReleaseFilter
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
+import com.jtech.zemer.tracking.TrackImpressionsByKey
+import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
 import com.jtech.zemer.ui.component.AutoResizeText
+import com.jtech.zemer.ui.component.ChartMovementBadge
+import com.jtech.zemer.ui.component.chartAnchorLabel
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
@@ -158,6 +162,21 @@ fun ZemerCuratedPlaylistScreen(
         }
     }
 
+    // Impressions. This screen matters more than any other surface: the exposure dampener exists to
+    // correct for songs being played BECAUSE we put them at the top of a chart, so leaving it
+    // uninstrumented would dock home- and search-surfaced songs while the chart's own picks accrued
+    // no exposure at all. Keyed rather than indexed — the header, chip row and album rows share the
+    // index space with tracks — and the id set is the songs currently shown, so a chip switch
+    // reports what the user is actually looking at.
+    loadedPage?.let { page ->
+        val impressionSongIds = remember(visibleSongs) { visibleSongs.map { it.id }.toSet() }
+        TrackImpressionsByKey(
+            surface = TrackingSurface.zemer(page.playlist.id),
+            state = lazyListState,
+            idOfKey = { key -> (key as? String)?.takeIf(impressionSongIds::contains) },
+        )
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             state = lazyListState,
@@ -214,6 +233,17 @@ fun ZemerCuratedPlaylistScreen(
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Normal,
                                     )
+
+                                    // Chart playlists only. Naming the anchor is the honest framing:
+                                    // it explains why the arrows don't move between two visits on
+                                    // the same day (the baseline is weekly; the data is twice-daily).
+                                    chartAnchorLabel(playlist.anchorDate)?.let { anchor ->
+                                        Text(
+                                            text = stringResource(R.string.chart_movement_since, anchor),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
                                 }
                             }
 
@@ -317,11 +347,18 @@ fun ZemerCuratedPlaylistScreen(
                             isActive = mediaMetadata?.id == song.id,
                             isPlaying = isPlaying,
                             trailingContent = {
-                                IconButton(onClick = { showSongMenu(song) }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.more_vert),
-                                        contentDescription = null,
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    // rank = position in the list the user is looking at, 1-based.
+                                    ChartMovementBadge(
+                                        movement = uiState.page.movement[song.id],
+                                        rank = index + 1,
                                     )
+                                    IconButton(onClick = { showSongMenu(song) }) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.more_vert),
+                                            contentDescription = null,
+                                        )
+                                    }
                                 }
                             },
                             modifier = Modifier

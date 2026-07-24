@@ -71,6 +71,8 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.LocalAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.tracking.TrackImpressions
+import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.ArtistGridItem
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
@@ -462,6 +464,14 @@ fun HomeScreen(
                     }
 
                     item(key = "quick_picks_list", contentType = "grid") {
+                        TrackImpressions(
+                            surface = TrackingSurface.home("quick-picks"),
+                            state = quickPicksLazyGridState,
+                            items = uniqueQuickPicks,
+                            idOf = { it.id },
+                            parent = lazylistState,
+                            parentKey = "quick_picks_list",
+                        )
                         LazyHorizontalGrid(
                             state = quickPicksLazyGridState,
                             rows = GridCells.Fixed(4),
@@ -648,8 +658,19 @@ fun HomeScreen(
 
                     item(key = "keep_listening_list", contentType = "grid") {
                         val rows = if (keepListening.size > 6) 2 else 1
+                        val keepListeningGridState = rememberLazyGridState()
+                        // Mixed row: albums and playlists sit alongside songs and simply have no
+                        // videoId to report.
+                        TrackImpressions(
+                            surface = TrackingSurface.home("keep-listening"),
+                            state = keepListeningGridState,
+                            items = keepListening,
+                            idOf = { (it as? Song)?.id },
+                            parent = lazylistState,
+                            parentKey = "keep_listening_list",
+                        )
                         LazyHorizontalGrid(
-                            state = rememberLazyGridState(),
+                            state = keepListeningGridState,
                             rows = GridCells.Fixed(rows),
                             contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues(),
@@ -681,6 +702,14 @@ fun HomeScreen(
                     }
 
                     item(key = "forgotten_favorites_list", contentType = "grid") {
+                        TrackImpressions(
+                            surface = TrackingSurface.home("forgotten-favorites"),
+                            state = forgottenFavoritesLazyGridState,
+                            items = uniqueForgottenFavorites,
+                            idOf = { it.id },
+                            parent = lazylistState,
+                            parentKey = "forgotten_favorites_list",
+                        )
                         // take min in case list size is less than 4
                         val rows = min(4, forgottenFavorites.size)
                         LazyHorizontalGrid(
@@ -769,7 +798,19 @@ fun HomeScreen(
                 }
 
                 item(key = "trending_list", contentType = "grid") {
+                    // Declared here, not hoisted to the screen: the row's scroll position keeps the
+                    // same lifetime it has always had (reset when the section leaves composition).
+                    val trendingGridState = rememberLazyGridState()
+                    TrackImpressions(
+                        surface = TrackingSurface.home("trending"),
+                        state = trendingGridState,
+                        items = uniqueTrendingSongs,
+                        idOf = { it.id },
+                        parent = lazylistState,
+                        parentKey = "trending_list",
+                    )
                     LazyHorizontalGrid(
+                        state = trendingGridState,
                         rows = GridCells.Fixed(2),
                         contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -899,7 +940,17 @@ fun HomeScreen(
                 }
 
                 item(key = "featured_videos_list", contentType = "grid") {
+                    val featuredVideosRowState = rememberLazyListState()
+                    TrackImpressions(
+                        surface = TrackingSurface.home("featured-videos"),
+                        state = featuredVideosRowState,
+                        items = uniqueFeaturedVideos,
+                        idOf = { it.id },
+                        parent = lazylistState,
+                        parentKey = "featured_videos_list",
+                    )
                     LazyRow(
+                        state = featuredVideosRowState,
                         contentPadding = WindowInsets.systemBars
                             .only(WindowInsetsSides.Horizontal)
                             .asPaddingValues(),

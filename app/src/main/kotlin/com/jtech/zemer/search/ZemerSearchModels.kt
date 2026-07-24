@@ -56,7 +56,43 @@ data class ZemerTrack(
     // handoff-docs/zemer-curated-playlists-track-provenance-request.md) — then every track reads
     // as a Song, which is safe.
     val fromAlbum: Boolean = false,
+    // Chart movement, `auto-*` playlists only (contract: the tracking thread's RESPONSE 3). All four
+    // are ADDITIVE and ABSENT — never zeroed — when unavailable: a curated (non-chart) playlist, a
+    // rank history too young, or a ranking-formula change that just reset the baseline. Absent means
+    // render NO badge; it must never fall back to a device-local snapshot, which would show
+    // different arrows to different users for the same chart. See [chartMovementOf].
+    val prevRank: Int? = null,
+    /** `prevRank − currentRank`, so **positive = climbed**. */
+    val delta: Int? = null,
+    @SerialName("new") val isNew: Boolean = false,
+    /** Charted before, fell off, now back — NOT inferable from [delta]. */
+    @SerialName("reentry") val isReentry: Boolean = false,
 )
+
+/**
+ * A track's movement on an `auto-*` chart, relative to the server's weekly anchor. Null (rather than
+ * a member of this type) is the normal "no badge" case — see [ZemerTrack.prevRank].
+ */
+sealed interface ChartMovement {
+    data object New : ChartMovement
+    data object Reentry : ChartMovement
+    data class Up(val places: Int) : ChartMovement
+    data class Down(val places: Int) : ChartMovement
+    data object Unchanged : ChartMovement
+}
+
+/**
+ * The server's documented precedence: `new`/`reentry` are checked BEFORE `delta`, because exactly one
+ * of the three is present per row and a new entry has no meaningful delta to render.
+ */
+fun chartMovementOf(track: ZemerTrack): ChartMovement? = when {
+    track.isNew -> ChartMovement.New
+    track.isReentry -> ChartMovement.Reentry
+    track.delta == null -> null
+    track.delta > 0 -> ChartMovement.Up(track.delta)
+    track.delta < 0 -> ChartMovement.Down(-track.delta)
+    else -> ChartMovement.Unchanged
+}
 
 @Serializable
 data class ZemerAlbum(
@@ -137,6 +173,11 @@ data class ZemerCuratedPlaylist(
     val trackCount: Int = 0,
     // Null = unknown; the runtime label is hidden then.
     val totalDurationSec: Int? = null,
+    // ISO date of the chart the per-track movement is measured against ("movement since"). Weekly,
+    // rolling over on Sundays — the chart data itself refreshes twice daily, but the BASELINE does
+    // not, so arrows are stable all week by design. Absent on non-chart playlists and whenever the
+    // per-track movement fields are absent too.
+    val anchorDate: String? = null,
 )
 
 /**
