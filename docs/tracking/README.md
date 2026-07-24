@@ -222,13 +222,16 @@ a number on all 50 rows is noise. The delta is not lost: it is spoken in the acc
   computed at read time, never a ranked chart, so it has no previous ordering); a rank history too
   young; and the window after a ranking-formula change, where the server drops the baseline on
   purpose so a reshuffle isn't rendered as a real surge.
-- **Rank is the row's index, never `prevRank`** — that field is where the song *was*. Note the row
-  index is a position in the CLIENT-filtered list (explicit-content filter, All/Albums/Songs chip),
-  while `delta` is measured against the server's unfiltered chart. The number shown and the number
-  spoken always agree, but for a filtered user neither is the true chart position — see the open
-  question in the impression thread about an explicit `rank` field.
-- **Only ranked charts get a rank column.** `anchorDate != null` is the test; curated playlists are
-  editorial order and carry no position.
+- **The position is the server's `rank`** — never the row index, and never `prevRank` (which is
+  where the song *was*). Our list is filtered both server-side and client-side, so a row index would
+  disagree with the `delta` beside it, which is measured against the unfiltered chart.
+- **A filtered list therefore shows GAPS** — …31, 32, 34… — because a filtered-out row's position is
+  left empty rather than absorbed. That is correct: it is a chart position, not a line number.
+  Consequently **row count does not equal the last position**; never derive one from the other.
+- **`rank` present is the test for "ranked chart"**, NOT `anchorDate`. The server sends a position
+  whenever a stored ordering exists, including during a post-formula-change blackout when there are
+  no badges at all — the chart is still a chart. Curated playlists and `auto-year-<YYYY>` have no
+  stored ordering, so no `rank`, so no column and no reserved space.
 - Arrows change **weekly** (Sunday), though chart data refreshes twice daily. `anchorDate` labels
   the comparison so the header can say what the movement is measured against.
 - Deltas are computed pre-filter, so a user with content filters on sees the same `▲3` as everyone

@@ -63,7 +63,7 @@ fun ChartRankCell(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
-            .width(RANK_COLUMN_WIDTH)
+            .width(ChartRankColumnWidth)
             .clearAndSetSemantics { contentDescription = description },
     ) {
         MarkerSlot {
@@ -113,7 +113,8 @@ private fun MarkerLabel(label: String) {
     )
 }
 
-private val RANK_COLUMN_WIDTH = 30.dp
+/** Exposed so a rank-less row on a ranked chart can hold the column open. */
+val ChartRankColumnWidth = 30.dp
 private val MARKER_SLOT_HEIGHT = 14.dp
 
 /**

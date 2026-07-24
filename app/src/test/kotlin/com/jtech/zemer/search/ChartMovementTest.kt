@@ -42,6 +42,32 @@ class ChartMovementTest {
     }
 
     @Test
+    fun `rank is parsed off the wire and is independent of the movement fields`() {
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+        val response = json.decodeFromString<ZemerCuratedPlaylistResponse>(
+            """
+            {"playlist":{"id":"auto-top-50","title":"Top 50","anchorDate":"2026-07-19"},
+             "tracks":[
+               {"videoId":"oRTnBuM5H_I","rank":31,"prevRank":34,"delta":3},
+               {"videoId":"uXhQc8v6Jic","rank":32,"new":true},
+               {"videoId":"kK7YfL2pQ1s","rank":34}
+             ]}
+            """.trimIndent(),
+        )
+
+        assertEquals("2026-07-19", response.playlist.anchorDate)
+        // A position exists even with no movement at all: `rank` — never anchorDate, and never the
+        // row index — is what decides whether this is a ranked chart.
+        assertEquals(listOf(31, 32, 34), response.tracks.map { it.rank })
+        assertEquals(
+            listOf(ChartMovement.Up(3), ChartMovement.New, null),
+            response.tracks.map(::chartMovementOf),
+        )
+        // 3 rows whose last position is 34: a filtered chart's row count is NOT its last position.
+        assertEquals(3, response.tracks.size)
+    }
+
+    @Test
     fun `absent movement is null, never Unchanged - no baseline must render NO badge`() {
         // Curated playlists, a too-young rank history, auto-year-<YYYY> (a dynamic rule, never a
         // ranked chart), and the window after a ranking-formula change all look like this. Rendering

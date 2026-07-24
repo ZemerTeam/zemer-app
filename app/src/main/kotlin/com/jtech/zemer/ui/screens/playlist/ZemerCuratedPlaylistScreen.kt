@@ -68,6 +68,7 @@ import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.ChartRankCell
+import com.jtech.zemer.ui.component.ChartRankColumnWidth
 import com.jtech.zemer.ui.component.chartAnchorLabel
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.FontSizeRange
@@ -347,13 +348,24 @@ fun ZemerCuratedPlaylistScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.animateItem(),
                         ) {
-                        // anchorDate present == this is a ranked chart. Curated playlists are
-                        // editorial order and carry no position at all, so they get no column.
-                        if (uiState.page.playlist.anchorDate != null) {
-                            ChartRankCell(
-                                rank = index + 1,
-                                movement = uiState.page.movement[song.id],
-                            )
+                        // Conditioned on `rank`, NOT on anchorDate: the server sends a position
+                        // whenever the chart has a stored ordering, including during a
+                        // post-formula-change blackout when no badges exist but the chart is still
+                        // a chart. The position is the RAW chart rank, so a filtered list shows
+                        // gaps (…31, 32, 34…) — correct, and the only number that agrees with the
+                        // delta beside it.
+                        if (uiState.page.rank.isNotEmpty()) {
+                            val chartRank = uiState.page.rank[song.id]
+                            if (chartRank != null) {
+                                ChartRankCell(
+                                    rank = chartRank,
+                                    movement = uiState.page.movement[song.id],
+                                )
+                            } else {
+                                // Shouldn't happen (rank is all-or-nothing per chart); keeps the
+                                // titles aligned if it ever does.
+                                Spacer(Modifier.width(ChartRankColumnWidth))
+                            }
                         }
                         YouTubeListItem(
                             item = song,

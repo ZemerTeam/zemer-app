@@ -61,6 +61,15 @@ data class ZemerTrack(
     // rank history too young, or a ranking-formula change that just reset the baseline. Absent means
     // render NO badge; it must never fall back to a device-local snapshot, which would show
     // different arrows to different users for the same chart. See [chartMovementOf].
+    /**
+     * 1-based position on the RAW, UNFILTERED chart — not this list's row index, which is filtered
+     * both server-side (the content flags we send) and client-side (explicit filter, chip). Present
+     * whenever the chart has a stored ordering, INDEPENDENTLY of the rank history: a position is
+     * knowable in cases the movement is not, so this is the test for "is this a ranked chart",
+     * never [ZemerCuratedPlaylist.anchorDate], which is absent during a post-formula-change blackout
+     * when the chart is still very much a chart.
+     */
+    val rank: Int? = null,
     val prevRank: Int? = null,
     /** `prevRank − currentRank`, so **positive = climbed**. */
     val delta: Int? = null,

@@ -40,6 +40,15 @@ data class ZemerCuratedPlaylistPage(
      * same reason [albumTrackIds] is a side set. Missing key = no badge (the common case).
      */
     val movement: Map<String, ChartMovement>,
+    /**
+     * videoId → 1-based position on the unfiltered chart. Non-empty IS the test for "ranked chart":
+     * the server emits `rank` whenever a stored ordering exists, even when no movement badges do.
+     * Because our list is filtered, the displayed positions legitimately have GAPS (…31, 32, 34…) —
+     * the dropped row's position is left empty rather than absorbed, so every position keeps meaning
+     * the same thing as the delta beside it. Row count therefore does NOT equal the last position;
+     * never derive one from the other.
+     */
+    val rank: Map<String, Int>,
 )
 
 /**
@@ -140,6 +149,10 @@ class ZemerSearchRepository @Inject constructor(
                 movement = response.tracks
                     .filter { it.videoId.isNotBlank() }
                     .mapNotNull { track -> chartMovementOf(track)?.let { track.videoId to it } }
+                    .toMap(),
+                rank = response.tracks
+                    .filter { it.videoId.isNotBlank() }
+                    .mapNotNull { track -> track.rank?.let { track.videoId to it } }
                     .toMap(),
             )
         }
