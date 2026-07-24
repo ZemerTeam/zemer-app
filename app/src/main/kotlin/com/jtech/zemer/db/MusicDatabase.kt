@@ -18,6 +18,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import com.jtech.zemer.db.entities.AlbumArtistMap
 import com.jtech.zemer.db.entities.AlbumEntity
+import com.jtech.zemer.db.entities.DownloadEntity
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.db.entities.ArtistWhitelistEntity
 import com.jtech.zemer.db.entities.Event
@@ -71,6 +72,7 @@ class MusicDatabase(
 @Database(
     entities = [
         SongEntity::class,
+        DownloadEntity::class,
         ArtistEntity::class,
         AlbumEntity::class,
         PlaylistEntity::class,
@@ -93,7 +95,7 @@ class MusicDatabase(
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 33,
+    version = 34,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -138,7 +140,7 @@ abstract class InternalDatabase : RoomDatabase() {
             val builtDb = try {
                 Room
                     .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
-                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_33_34)
                     .setJournalMode(JournalMode.TRUNCATE)
                     .enableMultiInstanceInvalidation()
                     .build().also {
@@ -417,6 +419,28 @@ val MIGRATION_31_32 =
     object : Migration(31, 32) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE format ADD COLUMN streamClient TEXT")
+        }
+    }
+
+// Independent per-rendition downloads: a song can hold BOTH an AUDIO and a VIDEO file at once, which the
+// single mediaStoreUri/isDownloaded/isVideo columns on `song` cannot represent. Add the `download` table
+// (per-kind source of truth) and backfill each existing single-file download into it by its isVideo flag.
+// song.isDownloaded stays as a denormalized "has any download" flag. (v33 -> v34)
+val MIGRATION_33_34 =
+    object : Migration(33, 34) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `download` (`songId` TEXT NOT NULL, `kind` TEXT NOT NULL, " +
+                    "`mediaStoreUri` TEXT NOT NULL, `dateDownload` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`songId`, `kind`))"
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_download_songId` ON `download` (`songId`)")
+            db.execSQL(
+                "INSERT OR IGNORE INTO `download` (`songId`, `kind`, `mediaStoreUri`, `dateDownload`) " +
+                    "SELECT `id`, CASE WHEN `isVideo` = 1 THEN 'VIDEO' ELSE 'AUDIO' END, `mediaStoreUri`, " +
+                    "COALESCE(`dateDownload`, CAST(strftime('%s','now') AS INTEGER) * 1000) " +
+                    "FROM `song` WHERE `isDownloaded` = 1 AND `mediaStoreUri` IS NOT NULL"
+            )
         }
     }
 
