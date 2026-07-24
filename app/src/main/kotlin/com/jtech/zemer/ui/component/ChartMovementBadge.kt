@@ -1,7 +1,6 @@
 package com.jtech.zemer.ui.component
 
 import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,6 +19,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import com.jtech.zemer.search.ChartMovement
+import com.jtech.zemer.ui.theme.chartClimbColor
+import com.jtech.zemer.ui.theme.chartFallColor
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -72,13 +73,13 @@ fun ChartMovementBadge(
             is ChartMovement.Up -> MovementArrow(
                 icon = R.drawable.arrow_upward,
                 places = movement.places,
-                color = climbColor(),
+                color = chartClimbColor(),
             )
 
             is ChartMovement.Down -> MovementArrow(
                 icon = R.drawable.arrow_downward,
                 places = movement.places,
-                color = MaterialTheme.colorScheme.error,
+                color = chartFallColor(),
             )
 
             // A dash reads better than a blank in a list of otherwise-badged rows.
@@ -117,14 +118,6 @@ private fun MovementArrow(icon: Int, places: Int, color: Color) {
         color = color,
     )
 }
-
-/**
- * M3 has no "success" role, and `tertiary` follows the wallpaper on dynamic-colour devices — where it
- * can land on red — so a climb is given an explicit green that stays legible on both surfaces.
- */
-@Composable
-private fun climbColor(): Color =
-    if (isSystemInDarkTheme()) Color(0xFF81C784) else Color(0xFF2E7D32)
 
 /**
  * The "movement since" date, formatted for the reader's locale — or null to hide the label, which is
