@@ -67,7 +67,7 @@ import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
 import com.jtech.zemer.ui.component.AutoResizeText
-import com.jtech.zemer.ui.component.ChartMovementBadge
+import com.jtech.zemer.ui.component.ChartRankCell
 import com.jtech.zemer.ui.component.chartAnchorLabel
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.FontSizeRange
@@ -339,25 +339,36 @@ fun ZemerCuratedPlaylistScreen(
                         items = visibleSongs,
                         key = { _, song -> song.id },
                     ) { index, song ->
-                        // No albumIndex: the shared row shows the number INSTEAD of the artwork (an
-                        // album-screen convention where all rows share one cover) — here every row
-                        // has its own art, so the art wins, like the online-playlist screen.
+                        // Chart playlists get a rank column; curated ones are editorial order and
+                        // carry no position at all. No albumIndex either way: that shows the number
+                        // INSTEAD of the artwork (an album-screen convention where all rows share
+                        // one cover), and here every row has its own art.
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.animateItem(),
+                        ) {
+                        // anchorDate present == this is a ranked chart. Curated playlists are
+                        // editorial order and carry no position at all, so they get no column.
+                        if (uiState.page.playlist.anchorDate != null) {
+                            ChartRankCell(
+                                rank = index + 1,
+                                movement = uiState.page.movement[song.id],
+                            )
+                        }
                         YouTubeListItem(
                             item = song,
                             isActive = mediaMetadata?.id == song.id,
                             isPlaying = isPlaying,
                             trailingContent = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    ChartMovementBadge(movement = uiState.page.movement[song.id])
-                                    IconButton(onClick = { showSongMenu(song) }) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.more_vert),
-                                            contentDescription = null,
-                                        )
-                                    }
+                                IconButton(onClick = { showSongMenu(song) }) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.more_vert),
+                                        contentDescription = null,
+                                    )
                                 }
                             },
                             modifier = Modifier
+                                .weight(1f)
                                 .combinedClickable(
                                     onClick = {
                                         if (song.id == mediaMetadata?.id) {
@@ -377,9 +388,9 @@ fun ZemerCuratedPlaylistScreen(
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         showSongMenu(song)
                                     },
-                                )
-                                .animateItem(),
+                                ),
                         )
+                        }
                     }
                 }
 

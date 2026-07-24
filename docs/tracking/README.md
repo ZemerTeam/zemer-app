@@ -208,7 +208,11 @@ worse: it silently reopens the partial-coverage hole the gate exists to close.
 Not telemetry — the other direction — but it shares the same "absent means absent" discipline, so
 it lives next to it. `/zemer-playlists?id=…` sends `prevRank`, `delta` (positive = climbed), `new`,
 `reentry` per track and `anchorDate` on the header; `chartMovementOf` turns them into a
-`ChartMovement`, and `ChartMovementBadge` renders `NEW` / `RE` / `▲n` / `▼n` / `–`.
+`ChartMovement`, and `ChartRankCell` renders the position with a triangle above it for a climb,
+below it for a fall, `NEW`/`RE` under it, and nothing at all when the song held its place.
+
+Direction is carried by position and colour, never magnitude — the standard chart convention, since
+a number on all 50 rows is noise. The delta is not lost: it is spoken in the accessible label.
 
 - **Absent fields must render NO badge** — not a dash, not a zero, and never a fallback to a
   device-local diff of a previous fetch. Movement is a property of the CHART: two users opening the
@@ -218,7 +222,13 @@ it lives next to it. `/zemer-playlists?id=…` sends `prevRank`, `delta` (positi
   computed at read time, never a ranked chart, so it has no previous ordering); a rank history too
   young; and the window after a ranking-formula change, where the server drops the baseline on
   purpose so a reshuffle isn't rendered as a real surge.
-- **Rank is the row's index, never `prevRank`** — that field is where the song *was*.
+- **Rank is the row's index, never `prevRank`** — that field is where the song *was*. Note the row
+  index is a position in the CLIENT-filtered list (explicit-content filter, All/Albums/Songs chip),
+  while `delta` is measured against the server's unfiltered chart. The number shown and the number
+  spoken always agree, but for a filtered user neither is the true chart position — see the open
+  question in the impression thread about an explicit `rank` field.
+- **Only ranked charts get a rank column.** `anchorDate != null` is the test; curated playlists are
+  editorial order and carry no position.
 - Arrows change **weekly** (Sunday), though chart data refreshes twice daily. `anchorDate` labels
   the comparison so the header can say what the movement is measured against.
 - Deltas are computed pre-filter, so a user with content filters on sees the same `▲3` as everyone

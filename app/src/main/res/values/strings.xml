@@ -432,17 +432,14 @@
     <string name="chart_new">NEW</string>
     <string name="chart_reentry">RE</string>
     <string name="chart_movement_since">Movement since %1$s</string>
-    <string name="chart_movement_new">New entry</string>
-    <string name="chart_movement_reentry">Re-entry</string>
-    <string name="chart_movement_unchanged">No change</string>
-    <plurals name="chart_movement_up">
-        <item quantity="one">Up %1$d place</item>
-        <item quantity="other">Up %1$d places</item>
-    </plurals>
-    <plurals name="chart_movement_down">
-        <item quantity="one">Down %1$d place</item>
-        <item quantity="other">Down %1$d places</item>
-    </plurals>
+    <!-- Spoken labels for the rank cell: one string per row, since the triangle and the number are
+         hidden from the accessibility tree. No plural noun, so no <plurals> needed. -->
+    <string name="chart_movement_new">New entry at number %1$d</string>
+    <string name="chart_movement_reentry">Re-entry at number %1$d</string>
+    <string name="chart_movement_unchanged">No change, number %1$d</string>
+    <string name="chart_movement_up">Up %1$d, now number %2$d</string>
+    <string name="chart_movement_down">Down %1$d, now number %2$d</string>
+    <string name="chart_rank_only">Number %1$d</string>
 
     <!-- Widget -->
     <string name="widget_name">Zemer Music</string>
