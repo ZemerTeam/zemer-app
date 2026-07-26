@@ -27,7 +27,6 @@ import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.YTItem
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
@@ -137,8 +136,10 @@ private fun <T : YTItem> YtItemGrid(
                 modifier = Modifier.combinedClickable(
                     onClick = {
                         when (item) {
-                            is SongItem -> playerConnection.playQueue(
-                                YouTubeQueue(item.endpoint ?: WatchEndpoint(videoId = item.id), item.toMediaMetadata(), database),
+                            // The only SongItems in this grid are the Featured Videos row — open the video
+                            // player (matching the Home row), not audio playback.
+                            is SongItem -> navController.navigate(
+                                videoRoute(item.id, item.title, item.artists.joinToString(" • ") { it.name }),
                             )
                             // Featured albums are Zemer-sourced: open via the server route (bot-gate-proof).
                             is AlbumItem ->
@@ -156,7 +157,9 @@ private fun <T : YTItem> YtItemGrid(
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         menuState.show {
                             when (item) {
-                                is SongItem -> YouTubeSongMenu(song = item, navController = navController, onDismiss = menuState::dismiss)
+                                // Videos row: isVideo = true so the menu offers "Download video" (video),
+                                // not the audio "Download".
+                                is SongItem -> YouTubeSongMenu(song = item, navController = navController, onDismiss = menuState::dismiss, isVideo = true)
                                 is AlbumItem -> YouTubeAlbumMenu(albumItem = item, navController = navController, onDismiss = menuState::dismiss)
                                 is ArtistItem -> YouTubeArtistMenu(artist = item, onDismiss = menuState::dismiss)
                                 is PlaylistItem -> YouTubePlaylistMenu(playlist = item, coroutineScope = scope, onDismiss = menuState::dismiss)
