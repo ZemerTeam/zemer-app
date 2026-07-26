@@ -112,6 +112,13 @@ class HomeViewModel @Inject constructor(
     @Volatile
     private var homeArtistProfilesCache: List<HomeArtistProfile> = emptyList()
 
+    // The community-playlist ids the row showed on the last load. Community `PlaylistItem`s carry no
+    // artist id, so they get none of `rotateByArtist`'s recently-used-artist avoidance — this is the
+    // equivalent for them: the next refresh prefers ids NOT just shown, so an 8-of-16 row turns over
+    // fully each pull-to-refresh instead of ~half-repeating. In-memory (resets on restart) is enough.
+    @Volatile
+    private var recentCommunityIds: Set<String> = emptySet()
+
     // Cache song IDs for instant load on next app start
     private suspend fun loadCachedLocalData(): Triple<List<Song>, List<Song>, List<LocalItem>> {
         val cachedIds = context.dataStore.getSuspend(com.jtech.zemer.constants.HomeCacheKey, "")
@@ -744,7 +751,14 @@ class HomeViewModel @Inject constructor(
             val finalFeaturedAlbums = rotateByArtist(albumsPool, maxPerArtist = 1, target = 20)
             val finalFeaturedArtists = rotateByArtist(artistsPool, maxPerArtist = 1, target = 20)
             val finalFeaturedVideos = rotateByArtist(videosPool, maxPerArtist = 1, target = 20)
-            val finalFeaturedPlaylists = rotateByArtist(communityPool, maxPerArtist = 1, target = 8)
+            // Community has no artist id (so no rotateByArtist recent-avoidance): shuffle, then prefer the
+            // playlists NOT shown on the previous load so a pull-to-refresh turns the 8-of-16 row over fully.
+            val communityShuffled = communityPool.shuffled(Random(System.nanoTime()))
+            val finalFeaturedPlaylists = (
+                communityShuffled.filterNot { it.id in recentCommunityIds } +
+                    communityShuffled.filter { it.id in recentCommunityIds }
+                ).take(8)
+            recentCommunityIds = finalFeaturedPlaylists.map { it.id }.toSet()
             val featuredAlbumsAreZemer = finalFeaturedAlbums.isNotEmpty()
             val featuredPlaylistsAreZemer = finalFeaturedPlaylists.isNotEmpty()
             val finalKeepListening = rotateByArtist(
