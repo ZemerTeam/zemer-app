@@ -112,6 +112,12 @@ internal fun isCuratedChipEmpty(
 ): Boolean = if (filter == LatestReleaseFilter.ALBUMS) albumCount == 0 else visibleSongCount == 0
 
 /**
+ * Whether to show the All/Albums/Songs chip row. Only when the playlist actually has albums: with none,
+ * ALL and SONGS are identical and ALBUMS is an empty dead end, so the plain track list is shown instead.
+ */
+internal fun curatedChipsVisible(albumCount: Int): Boolean = albumCount > 0
+
+/**
  * Detail screen for one hand-curated "Zemer Playlists" entry. Deliberately its OWN small screen —
  * the id is a server slug, not a YouTube playlist id, so it must never route through the
  * YouTube-playlist screen (whose save/like/menu actions all assume a YouTube id). Header + All/
@@ -150,8 +156,13 @@ fun ZemerCuratedPlaylistScreen(
     val loadedPage = (state as? UiState.Loaded)?.page
     val loadedSongs = loadedPage?.songs.orEmpty()
     var filter by rememberSaveable { mutableStateOf(LatestReleaseFilter.ALL) }
-    val visibleSongs = remember(loadedPage, filter) {
-        filterCuratedTracks(loadedSongs, loadedPage?.albumTrackIds.orEmpty(), filter)
+    // A playlist of only direct song picks carries no albums: All == Songs and Albums is empty, so the
+    // chips are redundant + a dead end. Hide the chip row for those and pin the filter to ALL, so a
+    // stale ALBUMS/SONGS selection can never apply once the chips are gone.
+    val hasAlbums = curatedChipsVisible(loadedPage?.albums.orEmpty().size)
+    val effectiveFilter = if (hasAlbums) filter else LatestReleaseFilter.ALL
+    val visibleSongs = remember(loadedPage, effectiveFilter) {
+        filterCuratedTracks(loadedSongs, loadedPage?.albumTrackIds.orEmpty(), effectiveFilter)
     }
 
     // Measured once for the whole list from its highest position, so every row shares one width —
@@ -292,20 +303,24 @@ fun ZemerCuratedPlaylistScreen(
                         }
                     }
 
-                    // All / Albums / Songs — scrolls with the list, like the Latest Releases screen.
-                    item(key = "filter") {
-                        ChipsRow(
-                            chips = listOf(
-                                LatestReleaseFilter.ALL to stringResource(R.string.filter_all),
-                                LatestReleaseFilter.ALBUMS to stringResource(R.string.filter_albums),
-                                LatestReleaseFilter.SONGS to stringResource(R.string.filter_songs),
-                            ),
-                            currentValue = filter,
-                            onValueUpdate = { filter = it },
-                        )
+                    // All / Albums / Songs — scrolls with the list, like the Latest Releases screen. Shown
+                    // only when the playlist actually has albums; an all-songs playlist renders the plain
+                    // track list (the three chips would be two duplicates + an empty Albums).
+                    if (hasAlbums) {
+                        item(key = "filter") {
+                            ChipsRow(
+                                chips = listOf(
+                                    LatestReleaseFilter.ALL to stringResource(R.string.filter_all),
+                                    LatestReleaseFilter.ALBUMS to stringResource(R.string.filter_albums),
+                                    LatestReleaseFilter.SONGS to stringResource(R.string.filter_songs),
+                                ),
+                                currentValue = filter,
+                                onValueUpdate = { filter = it },
+                            )
+                        }
                     }
 
-                    if (isCuratedChipEmpty(filter, uiState.page.albums.size, visibleSongs.size)) {
+                    if (isCuratedChipEmpty(effectiveFilter, uiState.page.albums.size, visibleSongs.size)) {
                         item(key = "empty_playlist") {
                             Column(
                                 modifier = Modifier
@@ -323,7 +338,7 @@ fun ZemerCuratedPlaylistScreen(
 
                     // Albums chip: the curated albums as browsable rows (tap opens the album screen
                     // via the server /album path). Play/Shuffle above still play the chip's tracks.
-                    if (filter == LatestReleaseFilter.ALBUMS) {
+                    if (effectiveFilter == LatestReleaseFilter.ALBUMS) {
                         items(
                             items = uiState.page.albums,
                             key = { it.browseId },

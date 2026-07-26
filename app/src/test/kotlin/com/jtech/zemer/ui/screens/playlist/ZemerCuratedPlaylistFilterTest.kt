@@ -52,6 +52,15 @@ class ZemerCuratedPlaylistFilterTest {
     }
 
     @Test
+    fun `chips show only when the playlist has albums`() {
+        // No albums -> ALL == SONGS and ALBUMS is empty, so the chip row is hidden (plain track list).
+        assertFalse(curatedChipsVisible(albumCount = 0))
+        // Any albums -> the split is meaningful, show the chips.
+        assertTrue(curatedChipsVisible(albumCount = 1))
+        assertTrue(curatedChipsVisible(albumCount = 5))
+    }
+
+    @Test
     fun `empty-state gates on the SELECTED chip's content, never the raw ALL list`() {
         // ALBUMS chip renders album rows: empty albums -> empty state even with visible songs.
         assertTrue(isCuratedChipEmpty(LatestReleaseFilter.ALBUMS, albumCount = 0, visibleSongCount = 5))
