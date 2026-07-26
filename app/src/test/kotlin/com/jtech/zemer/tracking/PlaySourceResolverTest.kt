@@ -23,6 +23,17 @@ class PlaySourceResolverTest {
     }
 
     @Test
+    fun `a community playlist queue tags its tracks community, distinct from artist playlists`() {
+        val r = PlaySourceResolver()
+        r.onQueueStarted(PlaySource.community("PL1"), listOf("v1", "v2"))
+
+        assertEquals("community:PL1", r.sourceFor("v1"))
+        assertEquals("community:PL1", r.sourceFor("v2"))
+        // Distinct from the artist-owned playlist source (the whole point of the split).
+        assertEquals("playlist:PL1", PlaySource.playlist("PL1"))
+    }
+
+    @Test
     fun `radio fill reports radio but never demotes a context item`() {
         val r = PlaySourceResolver()
         r.onQueueStarted(PlaySource.SEARCH, listOf("tapped"))

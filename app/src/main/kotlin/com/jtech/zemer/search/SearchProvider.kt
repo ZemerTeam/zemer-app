@@ -19,10 +19,16 @@ enum class SearchProvider {
 /**
  * The `online_playlist` nav route for a playlist opened from a search result. Zemer-sourced playlists
  * carry `?zemer=true` so the screen opens them through the server's `/playlist` endpoint (tracks/count/
- * cover match the search card); YouTube-sourced playlists keep the plain InnerTube path.
+ * cover match the search card); YouTube-sourced playlists keep the plain InnerTube path. [community] adds
+ * `&community=true` so the opened screen tags plays `community:<id>` (the discovery-sourced community
+ * lists — the home "Community playlists" row and the search Community chip) instead of `playlist:<id>`.
  */
-fun SearchProvider.onlinePlaylistRoute(playlistId: String): String =
-    if (this == SearchProvider.ZEMER) "online_playlist/$playlistId?zemer=true" else "online_playlist/$playlistId"
+fun SearchProvider.onlinePlaylistRoute(playlistId: String, community: Boolean = false): String =
+    if (this == SearchProvider.ZEMER) {
+        "online_playlist/$playlistId?zemer=true" + if (community) "&community=true" else ""
+    } else {
+        "online_playlist/$playlistId"
+    }
 
 /**
  * The `album` nav route for an album opened from a search result. Zemer-sourced albums carry

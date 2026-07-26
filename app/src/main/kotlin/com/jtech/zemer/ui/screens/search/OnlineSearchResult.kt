@@ -179,7 +179,7 @@ fun OnlineSearchResult(
         // ONE activation path for tap and D-pad select: fires the telemetry click, then the
         // existing navigation/playback behavior (search-tapped songs play with source "search").
         val activate = {
-            Tracker.click(viewModel.query, item.id, clickKind(item, searchFilter?.value), rank)
+            Tracker.click(viewModel.query, item.id, clickKind(item, searchFilter?.value, searchProvider), rank)
             when (item) {
                 is SongItem -> {
                     val isVideoFilter = !blockVideos && searchFilter?.value == FILTER_VIDEO.value
@@ -202,7 +202,15 @@ fun OnlineSearchResult(
 
                 is AlbumItem -> navController.navigate(searchProvider.onlineAlbumRoute(item))
                 is ArtistItem -> navController.navigate("artist/${item.id}")
-                is PlaylistItem -> navController.navigate(searchProvider.onlinePlaylistRoute(item.id))
+                // A discovery-sourced community playlist tags its plays `community:<id>` (same source as the
+                // home Community row); featured/artist-owned stay `playlist:`. Community-ness covers the
+                // Community chip AND the Zemer summary preview, not just the chip — see [playlistIsCommunity].
+                is PlaylistItem -> navController.navigate(
+                    searchProvider.onlinePlaylistRoute(
+                        item.id,
+                        community = playlistIsCommunity(searchFilter?.value, searchProvider),
+                    )
+                )
             }
         }
         val longClick = {
@@ -490,11 +498,24 @@ private fun summaryItemKey(sectionTitle: String, id: String, index: Int) = "$sec
 
 private fun filteredItemKey(id: String) = "filtered_$id"
 
-private fun clickKind(item: YTItem, filterValue: String?): String = when (item) {
+private fun clickKind(item: YTItem, filterValue: String?, provider: SearchProvider): String = when (item) {
     is SongItem -> if (filterValue == FILTER_VIDEO.value) "video" else "song"
     is AlbumItem -> "album"
     is ArtistItem -> "artist"
-    is PlaylistItem -> if (filterValue == FILTER_COMMUNITY_PLAYLIST.value) "community" else "playlist"
+    is PlaylistItem -> if (playlistIsCommunity(filterValue, provider)) "community" else "playlist"
+}
+
+/**
+ * Whether a tapped [PlaylistItem] is a discovery-sourced community playlist (tagged `community:<id>` and
+ * counted "community" for telemetry) vs. an artist-owned/featured one. The Community chip is community; and
+ * with no chip picked the Zemer engine's only playlist section IS the community preview
+ * (ZemerResultMapper's TITLE_PLAYLISTS = categories.community), so a Zemer-summary playlist is community
+ * too. The Featured chip and the YouTube engine are plain playlists (the `else`).
+ */
+private fun playlistIsCommunity(filterValue: String?, provider: SearchProvider): Boolean = when {
+    filterValue == FILTER_COMMUNITY_PLAYLIST.value -> true
+    filterValue == null -> provider == SearchProvider.ZEMER
+    else -> false
 }
 
 private fun mapItemToFilter(item: YTItem): com.metrolist.innertube.YouTube.SearchFilter? =

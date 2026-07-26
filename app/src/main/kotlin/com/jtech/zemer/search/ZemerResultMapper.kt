@@ -51,8 +51,10 @@ object ZemerResultMapper {
     fun ZemerTrack.toSongItem(): SongItem =
         SongItem(
             id = videoId,
+            // `artistId` is present on /home-rows video cards (null elsewhere) so the artist carries a
+            // real channel id — required for the home one-per-artist dedup + female/israeli check.
+            artists = listOf(Artist(name = artist, id = artistId)),
             title = title,
-            artists = listOf(Artist(name = artist, id = null)),
             album = null,
             // Present on /album and /zemer-playlists tracks; the search categories send none.
             duration = durationSec,
@@ -76,7 +78,8 @@ object ZemerResultMapper {
             browseId = id,
             playlistId = playlistId ?: id,
             title = title,
-            artists = if (artist.isBlank()) null else listOf(Artist(name = artist, id = null)),
+            // `artistId` present on /home-rows album cards (null elsewhere) — see [toSongItem].
+            artists = if (artist.isBlank()) null else listOf(Artist(name = artist, id = artistId)),
             year = year,
             thumbnail = thumbnail.orEmpty(),
         )
@@ -138,6 +141,42 @@ object ZemerResultMapper {
     /** Shared playlist adaptation — used for both the artist-owned `playlists` and the `community` lists. */
     private fun playlistItems(playlists: List<ZemerPlaylist>, formatSongCount: (Int) -> String?): List<PlaylistItem> =
         playlists.filter { it.id.isNotBlank() }.map { it.toPlaylistItem(formatSongCount) }.distinctBy { it.id }.dropBlocked()
+
+    /**
+     * The telemetry-ranked home rows as the app's native item types, in the server's ranked order.
+     * Each list is dropped of missing/duplicate ids and passed through [dropBlocked] (the surgical
+     * id-overrides). No explicit filtering — Zemer's whitelist-pure corpus has none. The artist-membership
+     * whitelist is NOT re-run (whitelist-pure server-side), but each card carries its artist channel id
+     * ([ZemerAlbum.artistId]/[ZemerTrack.artistId]/[ZemerArtist.id]) so the caller can run the home
+     * one-per-artist dedup + female/israeli defence-in-depth. `topCommunity` maps to [PlaylistItem]s for
+     * the featured-playlists row (discovery-sourced, view-ranked, whitelist-pure + content-filtered
+     * server-side); [formatSongCount] renders the localized "N songs" count and defaults to omitting it.
+     * See [HomeRows].
+     */
+    fun homeRows(
+        resp: ZemerHomeRowsResponse,
+        formatSongCount: (Int) -> String? = { null },
+    ): HomeRows =
+        HomeRows(
+            albums = resp.topAlbums.filter { it.id.isNotBlank() }
+                .map { it.toAlbumItem() }
+                .distinctBy { it.id }
+                .dropBlocked(),
+            videos = songItems(resp.topVideos, hideExplicit = false),
+            artists = resp.topArtists.filter { it.id.isNotBlank() }
+                .map { it.toArtistItem() }
+                .distinctBy { it.id }
+                .dropBlocked(),
+            community = playlistItems(resp.topCommunity, formatSongCount),
+        )
+
+    /** The four telemetry/discovery-ranked home rows in native item types (see [homeRows]). */
+    data class HomeRows(
+        val albums: List<AlbumItem>,
+        val videos: List<SongItem>,
+        val artists: List<ArtistItem>,
+        val community: List<PlaylistItem>,
+    )
 
     /**
      * A Zemer `/playlist` response as playable [SongItem]s. The server already whitelist-scoped and

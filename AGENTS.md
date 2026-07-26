@@ -111,11 +111,62 @@ full detail in `docs/zemer_playlists/README.md`. The rules that must not regress
   is backed by its own `ZemerCuratedPlaylistsViewModel` (LatestReleases isolation pattern) so a feed
   failure can never affect the rest of Home.
 - The detail screen's **All/Albums/Songs chips reuse `LatestReleaseFilter`** and split on the
-  server's `fromAlbum`/`albums` fields (both optional — an old server just empties the Albums chip).
-  Rows, Play and Shuffle all read the same filtered list; rows never pass `albumIndex` (the shared
-  row renders a number *instead of* artwork).
+  server's `fromAlbum`/`albums` fields. The **chip row shows ONLY when the playlist has albums**
+  (`curatedChipsVisible(albumCount)`, unit-tested): a direct-picks playlist has no albums, so All ==
+  Songs and Albums is an empty dead end — those render the plain track list instead. `effectiveFilter`
+  pins the filter to ALL whenever the chips are hidden. Rows, Play and Shuffle all read the same
+  filtered list; rows never pass `albumIndex` (the shared row renders a number *instead of* artwork).
 - App↔server field changes travel as request docs in `~/zemer-fix/handoff-docs/`, never as direct
   edits to the zemer-search repo.
+
+### The home tab (telemetry-ranked rows; zero-InnerTube for content)
+
+`HomeViewModel` + `HomeScreen`. The home tab is **InnerTube-free for content** — every row is served
+from the Zemer `/home-rows` endpoint, local Room, or the flipphoneguy Latest-Releases feed. The **only**
+`YouTube.*` call left in `HomeViewModel` is the account-card identity lookup (`accountInfo()` for a
+signed-in user's name/avatar); do not add others. Full detail in `docs/home_rows/README.md`.
+
+**Project direction (a real, ongoing goal):** progressively **replace as much InnerTube as we can across
+the app** with Zemer-served, whitelist-pure data. The home tab is the first surface fully migrated — treat
+it as the template. When you touch any surface that reaches YouTube for *discovery* content (home/explore
+feeds, charts, recommendations, related, browse shelves, search-adjacent rows), prefer a Zemer endpoint —
+or a handoff request for one (`~/zemer-fix/handoff-docs/`) — over deepening the InnerTube dependency, and
+delete the InnerTube path once the Zemer source lands. **Streaming/playback itself still needs InnerTube +
+the cipher** (see §The streaming pipeline — that's the irreducible core) and is out of scope; this goal is
+about *content discovery*, where YouTube's global feeds carry almost no kosher content anyway.
+
+Rules that must not regress:
+
+- **Featured Albums / Videos / Artists / Playlists come solely from `ZemerSearchRepository.homeRows()`**
+  (`GET /home-rows`, mapped by `ZemerResultMapper.homeRows()` → `HomeRows`). Ranked by real
+  distinct-device listening (albums/videos/artists) and YouTube view count (community playlists =
+  Featured Playlists row), 30-day live window, whitelist-pure + content-filtered server-side. There is
+  **no InnerTube scrape fallback** — an empty pool (only if search.zemer.io is unreachable) just hides
+  the row. `loadHomeRows()` returning null hides all four featured rows; it never breaks Home.
+- **The ranked content gate is female/israeli/blocked-ids ONLY — NOT the famous/american quality
+  proxy** (`isAllowedRanked`, distinct from `isBlockedArtist`). Real listening reach supersedes the
+  proxy that gates the (now-removed) scrape; applying famous/american here cut the rows to near-empty.
+  Cards carry the artist channel id (`ZemerAlbum/Track.artistId`, `ZemerArtist.id`) so the one-per-artist
+  `rotateByArtist` dedup and the female/israeli check work; without it both no-op.
+- **Zemer-sourced albums/playlists open via the server route** (`onlineAlbumRoute` / `onlinePlaylistRoute`,
+  `?zemer=true`), gated on `featuredAlbumsAreZemer` / `featuredPlaylistsAreZemer`, so the opened screen
+  is whitelist-scoped and immune to on-device InnerTube bot-gating. Telemetry artist cards carry no radio
+  endpoint, so they are kept OUT of the lucky-shuffle pool (`radioEndpoint != null` filter) — a lucky
+  pick must never dead-press.
+- **A brand-new user's empty Quick Picks seeds from Zemer**, not YouTube: `seedQuickPicksFromZemer`
+  pulls the `auto-top-50` curated playlist. Returning users seed from local history; the seed is a no-op
+  when Quick Picks is non-empty and never breaks Home on failure.
+- **Every content row has a "See all" arrow** → `home_see_all/{row}` (`HomeSeeAllRow`). The pages read a
+  process-wide `HomeSeeAllStore` snapshot that `HomeViewModel` publishes each load (the FULL, un-rotated
+  filtered pool), so See-all can never disagree with the row it opened from — no re-fetch, no re-filter.
+  Featured grids are 2-column (long Hebrew+English titles truncate at 3). Latest Releases / Zemer
+  Playlists keep their own see-all screens + ViewModels.
+- **The mainstream Trending row is gone** — `YouTube.getChartsPage()` charts carry ~no whitelisted
+  artists (it filtered to empty and never displayed); the `auto-trending` / `auto-top-50` Zemer playlists
+  in the Zemer-Playlists shelf are the real trending/top surface. Don't reintroduce a charts-scraped row.
+- The `/home-rows` contract and every design decision are recorded in
+  `~/zemer-fix/handoff-docs/zemer-app-home-rows-request.md` (the app↔server thread) and
+  `home-rows-plan.md`. App↔server field changes travel there, never as edits to the zemer-search repo.
 
 ### Tracking (anonymous usage telemetry)
 

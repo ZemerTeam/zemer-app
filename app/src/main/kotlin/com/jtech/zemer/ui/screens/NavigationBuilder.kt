@@ -44,6 +44,8 @@ import com.jtech.zemer.ui.screens.settings.StorageSettings
 import com.jtech.zemer.ui.screens.settings.StreamSourceSettings
 import com.jtech.zemer.ui.screens.settings.UpdaterScreen
 import com.jtech.zemer.ui.screens.settings.integrations.IntegrationScreen
+import androidx.compose.runtime.LaunchedEffect
+import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeViewModel
 
 
@@ -92,6 +94,15 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("zemer_playlists") {
         ZemerPlaylistsScreen(navController, scrollBehavior)
+    }
+    composable(
+        route = "home_see_all/{row}",
+        arguments = listOf(navArgument("row") { type = NavType.StringType }),
+    ) {
+        // An unknown/absent row slug is a broken deep link, not a crash — pop back to Home.
+        val row = HomeSeeAllRow.fromSlug(it.arguments?.getString("row"))
+        if (row == null) LaunchedEffect(Unit) { navController.navigateUp() }
+        else HomeSeeAllScreen(navController, scrollBehavior, row)
     }
     composable("charts_screen") {
        ChartsScreen(navController)
@@ -244,14 +255,19 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable(
         // Optional `zemer` flag (default false) routes a Zemer-search playlist open through the
-        // server's `/playlist` endpoint; existing `online_playlist/{id}` links keep the default.
-        route = "online_playlist/{playlistId}?zemer={zemer}",
+        // server's `/playlist` endpoint; `community` (default false) tags its plays `community:<id>`
+        // (discovery-sourced community lists) instead of `playlist:<id>`. Plain links keep both defaults.
+        route = "online_playlist/{playlistId}?zemer={zemer}&community={community}",
         arguments =
         listOf(
             navArgument("playlistId") {
                 type = NavType.StringType
             },
             navArgument("zemer") {
+                type = NavType.BoolType
+                defaultValue = false
+            },
+            navArgument("community") {
                 type = NavType.BoolType
                 defaultValue = false
             },

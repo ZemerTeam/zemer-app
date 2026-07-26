@@ -5,7 +5,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -21,7 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
@@ -30,7 +28,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -66,11 +63,14 @@ import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
-import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.LocalAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.search.SearchProvider
+import com.jtech.zemer.search.onlineAlbumRoute
+import com.jtech.zemer.search.onlinePlaylistRoute
+import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.ui.component.AlbumGridItem
@@ -82,7 +82,6 @@ import com.jtech.zemer.ui.component.ZemerCuratedPlaylistGridItem
 import com.jtech.zemer.ui.component.SongGridItem
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.YouTubeGridItem
-import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.shimmer.GridItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
@@ -133,12 +132,16 @@ fun HomeScreen(
 
     val quickPicks = homeUiState.quickPicks
     val featuredPlaylists = homeUiState.featuredPlaylists
-    val trendingSongs = homeUiState.trendingSongs
     val forgottenFavorites = homeUiState.forgottenFavorites
     val keepListening = homeUiState.keepListening
     val featuredAlbums = homeUiState.featuredAlbums
     val featuredArtists = homeUiState.featuredArtists
     val featuredVideos = homeUiState.featuredVideos
+    // Featured albums are Zemer-sourced (telemetry-ranked) rather than the scrape fallback: open them via
+    // the Zemer album route so the album screen loads through the server (immune to InnerTube bot-gating).
+    val featuredAlbumsAreZemer = homeUiState.featuredAlbumsAreZemer
+    // Same for featured playlists: Zemer community playlists open via the server /playlist route.
+    val featuredPlaylistsAreZemer = homeUiState.featuredPlaylistsAreZemer
     val latestReleasesViewModel: LatestReleasesViewModel = hiltViewModel()
     val latestReleases by latestReleasesViewModel.releases.collectAsState()
     val zemerPlaylistsViewModel: ZemerCuratedPlaylistsViewModel = hiltViewModel()
@@ -154,14 +157,20 @@ fun HomeScreen(
             (quickPicks + forgottenFavorites + keepListening).filter { it is Song || it is Album }
         }
     val allYtItems =
-        remember(featuredVideos, featuredAlbums, featuredArtists, trendingSongs, blockVideos) {
+        remember(featuredVideos, featuredAlbums, featuredArtists, blockVideos) {
             buildList {
                 if (!blockVideos) {
                     addAll(featuredVideos)
                 }
-                addAll(featuredAlbums)
-                addAll(featuredArtists)
-                addAll(trendingSongs)
+                // A featured (Zemer) album is lucky-playable only with a real OLAK playlist id: when
+                // /home-rows sends none, toAlbumItem falls playlistId back to the MPRE browseId, which
+                // YouTubeAlbumRadio's InnerTube lookup can't resolve — a lucky pick on it would dead-press.
+                // Keep only albums with a distinct (resolvable) playlist id, same guard as the artists below.
+                addAll(featuredAlbums.filter { it.playlistId != it.id })
+                // Telemetry-ranked (Zemer) artist cards carry no InnerTube radio endpoint, so the lucky
+                // shuffle can't start radio from them — keep only artists that can actually play (the
+                // scrape-fallback ones) in the pool, so a lucky pick never dead-presses.
+                addAll(featuredArtists.filter { it.radioEndpoint != null })
             }
         }
 
@@ -174,7 +183,6 @@ fun HomeScreen(
     val uniqueFeaturedArtists = remember(featuredArtists) { featuredArtists.distinctBy { it.id } }
     val uniqueFeaturedAlbums = remember(featuredAlbums) { featuredAlbums.distinctBy { it.id } }
     val uniqueFeaturedVideos = remember(featuredVideos) { featuredVideos.distinctBy { it.id } }
-    val uniqueTrendingSongs = remember(trendingSongs) { trendingSongs.distinctBy { it.id } }
 
     val isLoading: Boolean = homeUiState.isLoading
     val isRefreshing = homeUiState.isRefreshing
@@ -357,9 +365,23 @@ fun HomeScreen(
                                 )
                             )
 
-                            is AlbumItem -> navController.navigate("album/${item.id}")
+                            // Only the featured-albums row passes an AlbumItem through ytGridItem, so this
+                            // branch is the featured album; route Zemer-sourced ones via the server album path.
+                            is AlbumItem ->
+                                if (featuredAlbumsAreZemer) {
+                                    navController.navigate(SearchProvider.ZEMER.onlineAlbumRoute(item))
+                                } else {
+                                    navController.navigate("album/${item.id}")
+                                }
                             is ArtistItem -> navController.navigate("artist/${item.id}")
-                            is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                            // Featured playlists: Zemer community playlists open via the server /playlist path
+                            // and tag plays `community:<id>` (they're the discovery-sourced community row).
+                            is PlaylistItem ->
+                                if (featuredPlaylistsAreZemer) {
+                                    navController.navigate(SearchProvider.ZEMER.onlinePlaylistRoute(item.id, community = true))
+                                } else {
+                                    navController.navigate("online_playlist/${item.id}")
+                                }
                         }
                     },
                     onLongClick = {
@@ -446,7 +468,6 @@ fun HomeScreen(
             featuredArtists.isNotEmpty() ||
                 featuredAlbums.isNotEmpty() ||
                 (!blockVideos && featuredVideos.isNotEmpty()) ||
-                trendingSongs.isNotEmpty() ||
                 latestReleases.isNotEmpty() ||
                 zemerPlaylists.isNotEmpty()
         val shouldShowShimmer = isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent)
@@ -459,6 +480,7 @@ fun HomeScreen(
                     item(key = "quick_picks_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.quick_picks),
+                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.QUICK_PICKS.slug}") },
                             modifier = Modifier.animateItem()
                         )
                     }
@@ -625,6 +647,7 @@ fun HomeScreen(
                     item(key = "featured_playlists_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.featured_playlists),
+                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_PLAYLISTS.slug}") },
                             modifier = Modifier.animateItem()
                         )
                     }
@@ -651,6 +674,7 @@ fun HomeScreen(
                     item(key = "keep_listening_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.keep_listening),
+                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.KEEP_LISTENING.slug}") },
                             modifier = Modifier.animateItem()
                         )
                     }
@@ -695,6 +719,7 @@ fun HomeScreen(
                     item(key = "forgotten_favorites_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.forgotten_favorites),
+                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FORGOTTEN_FAVORITES.slug}") },
                             modifier = Modifier.animateItem()
                         )
                     }
@@ -786,98 +811,12 @@ fun HomeScreen(
                 }
             }
 
-            trendingSongs.takeIf { it.isNotEmpty() }?.let { songs ->
-                item(key = "trending_title", contentType = "header") {
-                    NavigationTitle(
-                        title = stringResource(R.string.trending),
-                        modifier = Modifier.animateItem()
-                    )
-                }
-
-                item(key = "trending_list", contentType = "grid") {
-                    // Declared here, not hoisted to the screen: the row's scroll position keeps the
-                    // same lifetime it has always had (reset when the section leaves composition).
-                    val trendingGridState = rememberLazyGridState()
-                    TrackImpressionsByKey(
-                        surface = TrackingSurface.home("trending"),
-                        state = trendingGridState,
-                        parent = lazylistState,
-                        parentKey = "trending_list",
-                        idOfKey = rememberRowImpressionIds(uniqueTrendingSongs) { it.id },
-                    )
-                    LazyHorizontalGrid(
-                        state = trendingGridState,
-                        rows = GridCells.Fixed(2),
-                        contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(ListItemHeight * 2.5f)
-                            .animateItem()
-                    ) {
-                        items(
-                            items = uniqueTrendingSongs,
-                            key = { it.id },
-                            contentType = { "yt_song" }
-                        ) { song ->
-                            YouTubeListItem(
-                                item = song,
-                                isActive = mediaMetadata?.id == song.id,
-                                isPlaying = isPlaying,
-                                trailingContent = {
-                                    IconButton(
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            menuState.show {
-                                                YouTubeSongMenu(
-                                                    song = song,
-                                                    navController = navController,
-                                                    onDismiss = menuState::dismiss,
-                                                )
-                                            }
-                                        }
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.more_vert),
-                                            contentDescription = null,
-                                        )
-                                    }
-                                },
-                                modifier = Modifier
-                                    .width(horizontalLazyGridItemWidth)
-                                    .combinedClickable(
-                                        onClick = {
-                                            playerConnection.playQueue(
-                                                YouTubeQueue(
-                                                    song.endpoint ?: WatchEndpoint(videoId = song.id),
-                                                    song.toMediaMetadata(),
-                                                    database = database
-                                                )
-                                            )
-                                        },
-                                        onLongClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            menuState.show {
-                                                YouTubeSongMenu(
-                                                    song = song,
-                                                    navController = navController,
-                                                    onDismiss = menuState::dismiss,
-                                                )
-                                            }
-                                        }
-                                    )
-                            )
-                        }
-                    }
-                }
-            }
-
             // Show featured artists
             if (featuredArtists.isNotEmpty()) {
                 item(key = "featured_artists_title", contentType = "header") {
                     NavigationTitle(
                         title = stringResource(R.string.featured_artists),
+                        onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_ARTISTS.slug}") },
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -905,6 +844,7 @@ fun HomeScreen(
                 item(key = "featured_albums_title", contentType = "header") {
                     NavigationTitle(
                         title = stringResource(R.string.featured_albums),
+                        onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_ALBUMS.slug}") },
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -931,6 +871,7 @@ fun HomeScreen(
                 item(key = "featured_videos_title", contentType = "header") {
                     NavigationTitle(
                         title = stringResource(R.string.featured_videos),
+                        onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_VIDEOS.slug}") },
                         modifier = Modifier.animateItem()
                     )
                 }
