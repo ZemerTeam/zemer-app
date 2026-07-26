@@ -750,7 +750,10 @@ class HomeViewModel @Inject constructor(
             val communityPool = homeRows?.community.orEmpty().filter { it.isAllowedRanked() }
             val finalFeaturedAlbums = rotateByArtist(albumsPool, maxPerArtist = 1, target = 20)
             val finalFeaturedArtists = rotateByArtist(artistsPool, maxPerArtist = 1, target = 20)
-            val finalFeaturedVideos = rotateByArtist(videosPool, maxPerArtist = 1, target = 20)
+            // Videos are content-limited (only ~19 whitelisted music videos clear the 30-day reach floor,
+            // ~14 distinct artists) — a 20-slot row would just show all of them every time. Cap the shown
+            // count so the row stays curated AND has headroom to turn over on refresh (server RESPONSE 18).
+            val finalFeaturedVideos = rotateByArtist(videosPool, maxPerArtist = 1, target = 8)
             // Community has no artist id (so no rotateByArtist recent-avoidance): shuffle, then prefer the
             // playlists NOT shown on the previous load so a pull-to-refresh turns the 8-of-16 row over fully.
             val communityShuffled = communityPool.shuffled(Random(System.nanoTime()))
@@ -772,17 +775,24 @@ class HomeViewModel @Inject constructor(
                 target = 20,
             )
 
-            // Publish the FULL (un-rotated, un-capped) filtered pools for the "See all" screens — exactly
-            // the pool each Home row draws from, so See-all can never disagree with the row.
+            // Publish the FULL filtered pool for each "See all" screen, but LED BY the items the Home row is
+            // currently showing, in the row's order — so tapping the arrow continues from exactly what you
+            // were looking at, then the rest of the pool. (De-duped by id; the row is a subset of the pool.)
+            fun <T> displayedFirst(displayed: List<T>, pool: List<T>, idOf: (T) -> String): List<T> {
+                val shown = displayed.mapTo(HashSet()) { idOf(it) }
+                return displayed + pool.filterNot { idOf(it) in shown }
+            }
+            val keepListeningAllowed = keepListening.filter { it.isAllowed() }
+            val forgottenAllowed = forgotten.filter { it.isAllowed() }
             HomeSeeAllStore.publish(
                 HomeSeeAllData(
-                    featuredAlbums = albumsPool,
-                    featuredArtists = artistsPool,
-                    featuredVideos = videosPool,
-                    featuredPlaylists = communityPool,
-                    keepListening = keepListening.filter { it.isAllowed() },
-                    forgottenFavorites = forgotten.filter { it.isAllowed() },
-                    quickPicks = filteredQuick,
+                    featuredAlbums = displayedFirst(finalFeaturedAlbums, albumsPool) { it.id },
+                    featuredArtists = displayedFirst(finalFeaturedArtists, artistsPool) { it.id },
+                    featuredVideos = displayedFirst(finalFeaturedVideos, videosPool) { it.id },
+                    featuredPlaylists = displayedFirst(finalFeaturedPlaylists, communityPool) { it.id },
+                    keepListening = displayedFirst(finalKeepListening, keepListeningAllowed) { it.id },
+                    forgottenFavorites = displayedFirst(finalForgotten, forgottenAllowed) { it.id },
+                    quickPicks = displayedFirst(finalQuick, filteredQuick) { it.id },
                     featuredAlbumsAreZemer = featuredAlbumsAreZemer,
                     featuredPlaylistsAreZemer = featuredPlaylistsAreZemer,
                 ),
