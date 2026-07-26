@@ -31,7 +31,21 @@ import com.jtech.zemer.utils.ContentFilterState
  */
 object ZemerResultMapper {
 
-    /** YouTube serves the video thumbnail for any videoId; `String.resize` no-ops on this host. */
+    /**
+     * YouTube serves the video thumbnail for any videoId. `String.resize` no-ops on this host (it
+     * only rewrites googleusercontent FIFE params), so the variant IS the sizing decision — and it
+     * is NOT a list-only decision: the same URL becomes the player, lockscreen and notification
+     * artwork through `SongItem.toMediaMetadata()`, which asks for 544x544.
+     *
+     * `hqdefault` (480x360) is kept for that reason. `mqdefault` (320x180) crops to a square
+     * without the letterbox bars `hqdefault` carries, which looks better in a 48dp row — but it
+     * leaves 180px behind a 544px request, so the now-playing art visibly degrades. The row is the
+     * cheaper thing to compromise.
+     *
+     * The real fix is the server sending real album art for playlist tracks the way it already does
+     * for `/album`; until then the bars stay. Do NOT "fix" this by switching variants again without
+     * checking the player surface.
+     */
     fun thumbnailFor(videoId: String): String = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
 
     fun ZemerTrack.toSongItem(): SongItem =

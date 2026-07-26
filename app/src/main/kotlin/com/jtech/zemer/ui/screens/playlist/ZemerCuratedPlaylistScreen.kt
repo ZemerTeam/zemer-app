@@ -64,11 +64,12 @@ import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
+import com.jtech.zemer.search.ChartMovement
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.ChartRankCell
-import com.jtech.zemer.ui.component.ChartRankColumnWidth
+import com.jtech.zemer.ui.component.rememberChartRankMetrics
 import com.jtech.zemer.ui.component.chartAnchorLabel
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.FontSizeRange
@@ -152,6 +153,22 @@ fun ZemerCuratedPlaylistScreen(
     val visibleSongs = remember(loadedPage, filter) {
         filterCuratedTracks(loadedSongs, loadedPage?.albumTrackIds.orEmpty(), filter)
     }
+
+    // Measured once for the whole list from its highest position, so every row shares one width —
+    // the artwork stays on a straight line — while the slots still fit the real text at the user's
+    // font size, in whatever language NEW/RE are rendered.
+    // Rank digits and movement magnitude are measured separately: a delta is a distance on the
+    // PREVIOUS chart, so it is not bounded by any rank in this response.
+    val rankMetrics = rememberChartRankMetrics(
+        maxRank = loadedPage?.rank?.values?.maxOrNull() ?: 0,
+        maxDelta = loadedPage?.movement?.values?.maxOfOrNull { movement ->
+            when (movement) {
+                is ChartMovement.Up -> movement.places
+                is ChartMovement.Down -> movement.places
+                else -> 0
+            }
+        } ?: 0,
+    )
 
     val showSongMenu: (SongItem) -> Unit = { song ->
         menuState.show {
@@ -360,11 +377,12 @@ fun ZemerCuratedPlaylistScreen(
                                 ChartRankCell(
                                     rank = chartRank,
                                     movement = uiState.page.movement[song.id],
+                                    metrics = rankMetrics,
                                 )
                             } else {
                                 // Shouldn't happen (rank is all-or-nothing per chart); keeps the
                                 // titles aligned if it ever does.
-                                Spacer(Modifier.width(ChartRankColumnWidth))
+                                Spacer(Modifier.width(rankMetrics.total))
                             }
                         }
                         YouTubeListItem(

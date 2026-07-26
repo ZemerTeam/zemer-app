@@ -83,6 +83,8 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.GridThumbnailHeight
 import com.jtech.zemer.constants.ListItemHeight
+import com.jtech.zemer.constants.ListItemHorizontalPadding
+import com.jtech.zemer.constants.ListThumbnailPadding
 import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.constants.SwipeToSongKey
 import com.jtech.zemer.constants.ThumbnailCornerRadius
@@ -146,12 +148,12 @@ inline fun ListItem(
             .focusable()
             .onFocusChanged { isFocused = it.isFocused }
             .height(ListItemHeight)
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = ListItemHorizontalPadding)
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
             .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(8.dp))
     ) {
-        Box(Modifier.padding(6.dp), contentAlignment = Alignment.Center) { thumbnailContent() }
+        Box(Modifier.padding(ListThumbnailPadding), contentAlignment = Alignment.Center) { thumbnailContent() }
         Column(Modifier.weight(1f).padding(horizontal = 6.dp)) {
             Text(
                 text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
