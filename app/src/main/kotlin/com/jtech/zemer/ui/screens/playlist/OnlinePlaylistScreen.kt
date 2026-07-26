@@ -388,7 +388,11 @@ fun OnlinePlaylistScreen(
                                                 playSource = viewModel.playSource,
                                             )
                                         )
-                                    }.takeIf { playlist.shuffleEndpoint != null },
+                                        // Shuffle just reorders the already-loaded `songs`, so a Zemer
+                                        // playlist (whole filtered list up front, no `shuffleEndpoint`) can
+                                        // offer it whenever there are songs — same as the curated screen.
+                                        // YouTube playlists keep the endpoint gate.
+                                    }.takeIf { if (viewModel.isZemer) songs.isNotEmpty() else playlist.shuffleEndpoint != null },
                                 )
                             }
                         }
