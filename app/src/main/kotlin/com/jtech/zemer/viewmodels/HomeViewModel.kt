@@ -1023,8 +1023,14 @@ class HomeViewModel @Inject constructor(
             // Telemetry-ranked featured rows, in parallel with the rest. Independent of the whitelist
             // scrape: the corpus is whitelist-pure, so these are served whether or not `useWhitelist`.
             val homeRowsDeferred = viewModelScope.async(Dispatchers.IO) { loadHomeRows() }
+            // YouTube.home()/explore() render NOTHING on the home tab (their `homePage`/`explorePage` are
+            // stored but never drawn). `home()` matters only as the cold-start seed for an empty Quick Picks
+            // (`seedQuickPicksFromHomePage`, which no-ops when quick is non-empty); `explore()` only fed a
+            // dedup bookkeeping set. So fetch them ONLY on a cold start (no local quick picks) — every
+            // returning-user home load skips two round-trips that produced nothing on screen.
+            val coldStart = quick.isEmpty()
             val homeDeferred = viewModelScope.async(Dispatchers.IO) {
-                if (useWhitelist) {
+                if (useWhitelist && coldStart) {
                     loadWhitelistHome(
                         hideExplicit,
                         baseProfiles,
@@ -1033,13 +1039,12 @@ class HomeViewModel @Inject constructor(
                         recentArtistIds.toSet(),
                     )
                 } else {
-                    // Fail closed: no whitelist -> no raw YouTube home feed (reached only when whitelist is empty).
-                    Timber.w("HomeViewModel: whitelist empty — home feed fail-closed (no raw content)")
+                    // No whitelist -> fail-closed (no raw feed); not cold start -> home() renders nothing, skip it.
                     null
                 }
             }
             val exploreDeferred = viewModelScope.async(Dispatchers.IO) {
-                if (useWhitelist) {
+                if (useWhitelist && coldStart) {
                     loadWhitelistExplore(
                         hideExplicit,
                         baseProfiles,
@@ -1048,8 +1053,6 @@ class HomeViewModel @Inject constructor(
                         recentArtistIds.toSet(),
                     )
                 } else {
-                    // Fail closed: no whitelist -> no raw YouTube explore feed (reached only when whitelist is empty).
-                    Timber.w("HomeViewModel: whitelist empty — explore feed fail-closed (no raw content)")
                     null
                 }
             }
