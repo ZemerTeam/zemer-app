@@ -44,6 +44,8 @@ import com.jtech.zemer.ui.screens.settings.StorageSettings
 import com.jtech.zemer.ui.screens.settings.StreamSourceSettings
 import com.jtech.zemer.ui.screens.settings.UpdaterScreen
 import com.jtech.zemer.ui.screens.settings.integrations.IntegrationScreen
+import androidx.compose.runtime.LaunchedEffect
+import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeViewModel
 
 
@@ -92,6 +94,15 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("zemer_playlists") {
         ZemerPlaylistsScreen(navController, scrollBehavior)
+    }
+    composable(
+        route = "home_see_all/{row}",
+        arguments = listOf(navArgument("row") { type = NavType.StringType }),
+    ) {
+        // An unknown/absent row slug is a broken deep link, not a crash — pop back to Home.
+        val row = HomeSeeAllRow.fromSlug(it.arguments?.getString("row"))
+        if (row == null) LaunchedEffect(Unit) { navController.navigateUp() }
+        else HomeSeeAllScreen(navController, scrollBehavior, row)
     }
     composable("charts_screen") {
        ChartsScreen(navController)

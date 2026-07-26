@@ -24,7 +24,6 @@ import com.jtech.zemer.utils.ContentWhitelistDoc
 import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.ZemerContentClient
 import com.jtech.zemer.utils.mirrorFirst
-import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.search.ZemerResultMapper
@@ -1259,6 +1258,24 @@ class HomeViewModel @Inject constructor(
             val finalFeaturedVideos = if (!videosNeedScrape) rankedVideos else
                 featuredTriple.third.filter { it.isAllowed() }.let { rotateByArtist(it, maxPerArtist = 1, target = 20) }
             val featuredAlbumsAreZemer = !albumsNeedScrape && finalFeaturedAlbums.isNotEmpty()
+
+            // Publish the FULL (un-rotated, un-capped) filtered rows for the "See all" screens — exactly
+            // the source each Home row draws from, so See-all can never disagree with the row. Featured
+            // rows use their actual source (ranked pool when healthy, scrape when it fell back).
+            HomeSeeAllStore.publish(
+                HomeSeeAllData(
+                    featuredAlbums = if (!albumsNeedScrape) homeRows?.albums.orEmpty().filter { it.isAllowedRanked() }
+                    else featuredTriple.first.filter { it.isAllowed() },
+                    featuredArtists = if (!artistsNeedScrape) homeRows?.artists.orEmpty().filter { it.isAllowedRanked() }
+                    else featuredTriple.second.filter { it.isAllowed() },
+                    featuredVideos = if (!videosNeedScrape) homeRows?.videos.orEmpty().filter { it.isAllowedRanked() }
+                    else featuredTriple.third.filter { it.isAllowed() },
+                    keepListening = keepListening.filter { it.isAllowed() },
+                    forgottenFavorites = forgotten.filter { it.isAllowed() },
+                    quickPicks = filteredQuick,
+                    featuredAlbumsAreZemer = featuredAlbumsAreZemer,
+                ),
+            )
             val isNewUser = finalQuick.isEmpty() && keepListening.isEmpty()
 
             val usedArtistIds = mutableSetOf<String>()

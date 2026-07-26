@@ -5,7 +5,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -21,7 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
@@ -30,7 +28,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -66,13 +63,13 @@ import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
-import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.LocalAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
+import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.ui.component.AlbumGridItem
@@ -469,6 +466,7 @@ fun HomeScreen(
                     item(key = "quick_picks_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.quick_picks),
+                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.QUICK_PICKS.slug}") },
                             modifier = Modifier.animateItem()
                         )
                     }
@@ -661,6 +659,7 @@ fun HomeScreen(
                     item(key = "keep_listening_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.keep_listening),
+                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.KEEP_LISTENING.slug}") },
                             modifier = Modifier.animateItem()
                         )
                     }
@@ -705,6 +704,7 @@ fun HomeScreen(
                     item(key = "forgotten_favorites_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.forgotten_favorites),
+                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FORGOTTEN_FAVORITES.slug}") },
                             modifier = Modifier.animateItem()
                         )
                     }
@@ -801,6 +801,7 @@ fun HomeScreen(
                 item(key = "featured_artists_title", contentType = "header") {
                     NavigationTitle(
                         title = stringResource(R.string.featured_artists),
+                        onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_ARTISTS.slug}") },
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -828,6 +829,7 @@ fun HomeScreen(
                 item(key = "featured_albums_title", contentType = "header") {
                     NavigationTitle(
                         title = stringResource(R.string.featured_albums),
+                        onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_ALBUMS.slug}") },
                         modifier = Modifier.animateItem()
                     )
                 }
@@ -854,6 +856,7 @@ fun HomeScreen(
                 item(key = "featured_videos_title", contentType = "header") {
                     NavigationTitle(
                         title = stringResource(R.string.featured_videos),
+                        onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_VIDEOS.slug}") },
                         modifier = Modifier.animateItem()
                     )
                 }
