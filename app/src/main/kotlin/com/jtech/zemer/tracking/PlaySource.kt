@@ -15,6 +15,10 @@ object PlaySource {
     fun artist(id: String) = "artist:$id"
     fun album(id: String) = "album:$id"
     fun playlist(id: String) = "playlist:$id"
+    // A discovery-sourced community playlist (the home "Community playlists" row + the search Community
+    // chip open the same screen). Distinct from [playlist] (artist-owned) so the server can rank the
+    // community home row by real per-playlist engagement. `id` is the bare YouTube playlist id (`PL…`).
+    fun community(id: String) = "community:$id"
     fun zemer(id: String) = "zemer:$id"
 }
 

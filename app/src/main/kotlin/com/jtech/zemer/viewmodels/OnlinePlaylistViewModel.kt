@@ -12,6 +12,7 @@ import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.filterWhitelisted
@@ -42,6 +43,15 @@ class OnlinePlaylistViewModel @Inject constructor(
     // A Zemer-sourced playlist opens through the server's `/playlist` endpoint (already whitelist-scoped)
     // so its tracks/count/cover match the search card, instead of the InnerTube + local-whitelist path.
     private val isZemer = savedStateHandle.get<Boolean>("zemer") == true
+
+    // A discovery-sourced community playlist (home "Community playlists" row / search Community chip);
+    // its plays are tagged `community:<id>` so the server can rank the community home row by real
+    // engagement. Artist-owned playlists stay `playlist:<id>`. See [playSource].
+    private val isCommunity = savedStateHandle.get<Boolean>("community") == true
+
+    /** The tracking source for plays started from this screen (used by both Play and Shuffle). */
+    val playSource: String =
+        if (isCommunity) PlaySource.community(playlistId) else PlaySource.playlist(playlistId)
 
     val playlist = MutableStateFlow<PlaylistItem?>(null)
     val playlistSongs = MutableStateFlow<List<SongItem>>(emptyList())

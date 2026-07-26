@@ -255,14 +255,19 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable(
         // Optional `zemer` flag (default false) routes a Zemer-search playlist open through the
-        // server's `/playlist` endpoint; existing `online_playlist/{id}` links keep the default.
-        route = "online_playlist/{playlistId}?zemer={zemer}",
+        // server's `/playlist` endpoint; `community` (default false) tags its plays `community:<id>`
+        // (discovery-sourced community lists) instead of `playlist:<id>`. Plain links keep both defaults.
+        route = "online_playlist/{playlistId}?zemer={zemer}&community={community}",
         arguments =
         listOf(
             navArgument("playlistId") {
                 type = NavType.StringType
             },
             navArgument("zemer") {
+                type = NavType.BoolType
+                defaultValue = false
+            },
+            navArgument("community") {
                 type = NavType.BoolType
                 defaultValue = false
             },

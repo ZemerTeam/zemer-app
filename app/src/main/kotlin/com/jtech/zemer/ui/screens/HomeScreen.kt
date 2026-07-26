@@ -370,10 +370,11 @@ fun HomeScreen(
                                     navController.navigate("album/${item.id}")
                                 }
                             is ArtistItem -> navController.navigate("artist/${item.id}")
-                            // Featured playlists: Zemer community playlists open via the server /playlist path.
+                            // Featured playlists: Zemer community playlists open via the server /playlist path
+                            // and tag plays `community:<id>` (they're the discovery-sourced community row).
                             is PlaylistItem ->
                                 if (featuredPlaylistsAreZemer) {
-                                    navController.navigate(SearchProvider.ZEMER.onlinePlaylistRoute(item.id))
+                                    navController.navigate(SearchProvider.ZEMER.onlinePlaylistRoute(item.id, community = true))
                                 } else {
                                     navController.navigate("online_playlist/${item.id}")
                                 }

@@ -145,9 +145,10 @@ private fun <T : YTItem> YtItemGrid(
                                 if (zemerAlbums) navController.navigate(SearchProvider.ZEMER.onlineAlbumRoute(item))
                                 else navController.navigate("album/${item.id}")
                             is ArtistItem -> navController.navigate("artist/${item.id}")
-                            // Community playlists are Zemer-sourced: open via the server /playlist route.
+                            // Community playlists are Zemer-sourced: open via the server /playlist route and
+                            // tag plays `community:<id>` (the discovery-sourced community row).
                             is PlaylistItem ->
-                                if (zemerPlaylists) navController.navigate(SearchProvider.ZEMER.onlinePlaylistRoute(item.id))
+                                if (zemerPlaylists) navController.navigate(SearchProvider.ZEMER.onlinePlaylistRoute(item.id, community = true))
                                 else navController.navigate("online_playlist/${item.id}")
                         }
                     },

@@ -23,6 +23,16 @@ class SearchProviderTest {
         assertEquals("online_playlist/PL1", SearchProvider.YOUTUBE.onlinePlaylistRoute("PL1"))
     }
 
+    @Test
+    fun `community flag adds community=true so plays tag community not playlist`() {
+        assertEquals(
+            "online_playlist/PL1?zemer=true&community=true",
+            SearchProvider.ZEMER.onlinePlaylistRoute("PL1", community = true),
+        )
+        // Default (artist-owned / non-community) is unchanged.
+        assertEquals("online_playlist/PL1?zemer=true", SearchProvider.ZEMER.onlinePlaylistRoute("PL1", community = false))
+    }
+
     private val album = AlbumItem(
         browseId = "MPRE1",
         playlistId = "OLAK1",

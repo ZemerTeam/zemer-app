@@ -202,7 +202,14 @@ fun OnlineSearchResult(
 
                 is AlbumItem -> navController.navigate(searchProvider.onlineAlbumRoute(item))
                 is ArtistItem -> navController.navigate("artist/${item.id}")
-                is PlaylistItem -> navController.navigate(searchProvider.onlinePlaylistRoute(item.id))
+                // A playlist on the Community chip is a discovery-sourced community list — tag its plays
+                // `community:<id>` (same source as the home Community row). Featured/artist-owned stay `playlist:`.
+                is PlaylistItem -> navController.navigate(
+                    searchProvider.onlinePlaylistRoute(
+                        item.id,
+                        community = searchFilter?.value == FILTER_COMMUNITY_PLAYLIST.value,
+                    )
+                )
             }
         }
         val longClick = {

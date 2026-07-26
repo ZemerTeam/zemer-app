@@ -90,7 +90,6 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
-import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.DraggableScrollbar
 import com.jtech.zemer.ui.component.FontSizeRange
@@ -377,7 +376,7 @@ fun OnlinePlaylistScreen(
                                             ListQueue(
                                                 title = playlist.title,
                                                 items = songs.map { it.toMediaItem() },
-                                                playSource = PlaySource.playlist(playlist.id),
+                                                playSource = viewModel.playSource,
                                             )
                                         )
                                     }.takeIf { songs.isNotEmpty() },
@@ -386,7 +385,7 @@ fun OnlinePlaylistScreen(
                                             ListQueue(
                                                 title = playlist.title,
                                                 items = songs.map { it.toMediaItem() }.shuffled(),
-                                                playSource = PlaySource.playlist(playlist.id),
+                                                playSource = viewModel.playSource,
                                             )
                                         )
                                     }.takeIf { playlist.shuffleEndpoint != null },
@@ -458,7 +457,7 @@ fun OnlinePlaylistScreen(
                                                         title = playlist.title,
                                                         items = filteredSongs.map { it.second.toMediaItem() },
                                                         startIndex = index,
-                                                        playSource = PlaySource.playlist(playlist.id)
+                                                        playSource = viewModel.playSource
                                                     )
                                                 )
                                             }
