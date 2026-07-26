@@ -34,7 +34,6 @@ import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
-import com.jtech.zemer.constants.GridThumbnailHeight
 import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.db.entities.LocalItem
@@ -118,7 +117,7 @@ private fun <T : YTItem> YtItemGrid(
     val scope = rememberCoroutineScope()
 
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = GridThumbnailHeight + 24.dp),
+        columns = GridCells.Fixed(3),
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) {
         items(items = items, key = { it.id }) { item ->
