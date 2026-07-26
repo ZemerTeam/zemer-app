@@ -23,7 +23,7 @@ batch rather than poison-pilling the queue. Losing events is fine. Breaking play
 
 ## The pieces (all in `com.jtech.zemer.tracking`, pure parts JVM-tested)
 
-- `TrackingEvents.kt` — the five wire-event builders + batch body, pinned byte-for-byte by
+- `TrackingEvents.kt` — the wire-event builders + batch body, pinned byte-for-byte by
   `TrackingEventsTest`. `t` = epoch millis at event time. The `play` event carries two Zemer
   extension fields, `client` + `player` (see below).
 - `TrackingQueue.kt` — JSONL file queue under `filesDir/tracking/` (deliberately NOT a Room
@@ -73,6 +73,8 @@ batch rather than poison-pilling the queue. Losing events is fine. Breaking play
   session without the user pressing play, and those phantoms must not count as listens.
   Downloaded/offline playback is tracked identically. NOT yet covered: the separate video-player
   screen's own player (`VideoPlayerScreen`) — known follow-up.
+- **`impression`** — `TrackImpressionsByKey` on the instrumented rows; see the `impression` section
+  below for the definition and the surface list (both are contracts).
 - **`action`** — central chokepoints: the four entity `toggleLike()`s (`favorite`/`unfavorite` —
   every UI path converges there); `MediaStoreDownloadManager.downloadSong/downloadVideo`
   (`download`, fired AFTER the already-downloading/completed no-op check so a re-tap that enqueues
@@ -118,6 +120,155 @@ accepts the fields — verified): `MusicService` records `PlaybackData.streamCli
 deciphered web clients in `WEB_STREAM_CLIENTS`, `CipherDeobfuscator.lastUsedPlayerHash`) at
 stream-resolution time via `Tracker.onStreamResolved`; the play event attaches them. Absent for
 downloaded/local playback. Session-level caveat: the last resolution per videoId wins.
+
+## `impression` — what the app SHOWED
+
+Plays alone can't tell "everyone chose this" from "everyone was handed this": a song on the home
+screen's top row is played by more devices *because it was shown to every device*. Impressions are
+the denominator that lets the ranking side divide the two (contract settled 2026-07-24 with the
+tracking maintainer; server shipped).
+
+Wire: `{"type":"impression","t":…,"ids":[…11-char videoIds…],"surface":"home:quick-picks"}`.
+
+**The definition of an impression — normative, and the reason the numbers mean anything.** An item
+counts once it is inside the viewport AND has stayed there ~300 ms:
+
+- **Viewport, not composition.** Compose composes ahead of the visible area, so "composed" is not
+  "seen". `TrackImpressionsByKey` reads `layoutInfo.visibleItemsInfo`.
+- **A nested row must also be visible ITSELF.** A `LazyRow` inside a `LazyColumn` item reports its
+  own viewport, which says nothing about whether the row is on screen — and the parent composes an
+  item or so past its own viewport. Callers inside a lazy parent pass `parent` + `parentKey` so both
+  viewports are ANDed. Forgetting this reports a screenful of songs the user never reached.
+- **No flung-past rows.** The dwell (`collectLatest` + `delay`, restarted by every scroll frame)
+  reports only what the user settled on.
+- **Matched by list KEY, never by visible index.** There is deliberately no index-based reporter:
+  headers, chips and section titles share the index space with results, and an index-based variant
+  would additionally require the caller to pass a list identical to the one it renders — an
+  invariant nothing can enforce, whose violation reports the WRONG videoId under the right surface.
+  A key mismatch can only under-report, which the dampener treats as conservative.
+- **Deduped per `(surface, videoId)` for the process lifetime** (`Tracker.seenImpressions`). The
+  server tolerates repeats — it aggregates distinct devices — but scroll jitter, recomposition and
+  back-navigation would otherwise re-report the same row forever, which is what actually consumes
+  the per-POST cap and the queue.
+
+Under-counting is the safe direction and over-counting is not: the dampener DOCKS a song for being
+widely shown, so a phantom impression silently penalises it. **When in doubt, do not report.**
+
+Client rules that must not regress:
+
+- **Impressions never evict plays.** They are the ONLY event type that may be thrown away rather
+  than queued: they share the one 500-event drop-oldest queue with plays and arrive an order of
+  magnitude more often. `Tracker.impression` drops them outright while the backoff window is open
+  and once the queue passes half its cap. The loss is song-independent (it tracks server health, not
+  what was on screen), so it shrinks exposure counts without skewing the exposed/instrumented share
+  the dampener divides by.
+- **We cap impression ROWS per POST** (`capImpressionRows`). The drain is event-counted (up to 100
+  events) while the server's limit is row-counted, so an uncapped scroll-heavy queue could POST
+  thousands of rows and have the tail dropped. That loss would NOT be song-independent — it always
+  lands on whatever was queued last, i.e. whatever the user scrolled to most recently — so it would
+  bias exposure rather than thin it, contradicting the argument the drop policy rests on. A non-zero
+  `impressionsDropped` from a released build therefore means THIS cap failed, not merely that a big
+  batch was sent.
+- **We chunk at 50 ids ourselves** (`impressionChunks`). The server truncates an over-long event by
+  keeping its HEAD, which would over-count the start of every long row and under-count its tail.
+- **`impressionsDropped` in the 200 body** means a POST carried more impression rows than the server
+  stores per batch (500, event-aligned — an event that doesn't fit is dropped whole).
+  `TrackingUploader` logs it and nothing retries: the fix is smaller batches or a raised ceiling,
+  and neither belongs in a fire-and-forget path. **Seeing it in normal use is a bug to report to the
+  tracking maintainer.** Debug builds run the real ingest in a rolled-back transaction, so both
+  counters are truthful there — impression batching can be validated without a release build.
+
+**Surfaces instrumented (`TrackingSurface`) — this list is a contract.** The server's declared-
+surface gate (`EXPOSURE_REQUIRED_SURFACES`) will not enable the dampener until every declared
+surface is reporting, so **renaming a slug reads as a surface disappearing** and re-closes the gate.
+Treat them as append-only, and send the tracking maintainer an updated list whenever a release adds
+one.
+
+| Surface | Where |
+|---|---|
+| `home:quick-picks` · `home:forgotten-favorites` · `home:keep-listening` · `home:trending` · `home:featured-videos` | `HomeScreen` — one slug per row, not a flat `home:top` |
+| `search` | `OnlineSearchResult` — keyed, not indexed: chips and section titles share the index space with results |
+| `zemer:<playlist-id>` | `ZemerCuratedPlaylistScreen` — the `auto-*` charts and the curated playlists |
+
+The `zemer:` surfaces matter most of all: the dampener exists to correct for a song being played
+*because* we put it at the top of Trending, so leaving that screen uninstrumented would dock
+home- and search-surfaced songs while the chart's own picks accrued no exposure at all — the
+exposure-bias loop running backwards.
+
+Not yet instrumented, and the reason the dampener stays off: artist pages, mood/genre, charts.
+Partial surface coverage is *worse* than none — it docks the instrumented discovery paths and
+leaves the rest untouched.
+
+**Declared to the server for this release** (the value of `EXPOSURE_REQUIRED_SURFACES`; a trailing
+`:` is a prefix match on their side):
+
+```
+home:,search,zemer:
+```
+
+Declare `zemer:` as a **prefix**, never the individual chart slugs — `zemer:auto-year-<YYYY>` rolls
+over every January, and `zemer:auto-acapella-top-50` exists only during the Three Weeks. A hardcoded
+slug for either would read as a surface that stopped reporting and close the gate for the rest of
+the year.
+
+Whenever a release instruments a new surface, send the tracking maintainer the updated list — until
+every declared surface reports ≥10 devices the dampener stays gated, and an *undeclared* surface is
+worse: it silently reopens the partial-coverage hole the gate exists to close.
+
+## Chart movement (`auto-*` playlists)
+
+Not telemetry — the other direction — but it shares the same "absent means absent" discipline, so
+it lives next to it. `/zemer-playlists?id=…` sends `prevRank`, `delta` (positive = climbed), `new`,
+`reentry` per track and `anchorDate` on the header; `chartMovementOf` turns them into a
+`ChartMovement`, and `ChartRankCell` renders the position in its own left column with the movement
+beside it: a triangle and how far it moved, `NEW`/`RE` for a debut or return, and nothing at all
+when the song held its place.
+
+The marker is drawn only on rows that actually moved — an unchanged row stays empty, so a 50-row
+chart shows markers only where something happened. Climb/fall colours are explicit values rather
+than M3 roles (`ui/theme/ChartColors.kt`): under dynamic colour `tertiary` follows the wallpaper and
+can land on red, which would be actively wrong for a climb. Since both markers share one slot, the
+triangle's ORIENTATION is the only non-colour cue a red/green colour-blind reader has — which is why
+it is sized at `labelMedium` rather than the smallest role available.
+
+- **Absent fields must render NO badge** — not a dash, not a zero, and never a fallback to a
+  device-local diff of a previous fetch. Movement is a property of the CHART: two users opening the
+  same chart on the same day must see the same arrows, which a local snapshot cannot guarantee (a
+  week-dormant device would diff against week-old data, a fresh install against nothing).
+- Absent is normal in four cases: curated non-chart playlists; `auto-year-<YYYY>` (a dynamic rule
+  computed at read time, never a ranked chart, so it has no previous ordering); a rank history too
+  young; and the window after a ranking-formula change, where the server drops the baseline on
+  purpose so a reshuffle isn't rendered as a real surge.
+- **The position is the server's `rank`** — never the row index, and never `prevRank` (which is
+  where the song *was*). Our list is filtered both server-side and client-side, so a row index would
+  disagree with the `delta` beside it, which is measured against the unfiltered chart.
+- **A filtered list therefore shows GAPS** — …31, 32, 34… — because a filtered-out row's position is
+  left empty rather than absorbed. That is correct: it is a chart position, not a line number.
+  Consequently **row count does not equal the last position**; never derive one from the other.
+- **`rank` present is the test for "ranked chart"**, NOT `anchorDate`. The server sends a position
+  whenever a stored ordering exists, including during a post-formula-change blackout when there are
+  no badges at all — the chart is still a chart. Curated playlists and `auto-year-<YYYY>` have no
+  stored ordering, so no `rank`, so no column and no reserved space.
+- Arrows change **weekly** (Sunday), though chart data refreshes twice daily. `anchorDate` labels
+  the comparison so the header can say what the movement is measured against.
+- Deltas are computed pre-filter, so a user with content filters on sees the same `▲3` as everyone
+  else even though rows are missing from their list. Deliberate: filtered-out rows must not shift
+  everyone below them into fake movement.
+
+Two things this is NOT:
+
+- **Not a CTR denominator.** `surface` shares an alphabet with `play.source` but not its meaning —
+  `play.source` is the queue context that got played, this is the row the user looked at. Home taps
+  can never report a `home:*` source and radio plays have no impression at all, so surface-level CTR
+  was dropped from scope; it would need a separate `play.surface` field.
+- **Not engagement.** The server never counts impressions toward active users, new devices or
+  retention. Server-side `n` is "distinct rows seen per session", NOT a render count — only
+  `devices` is meaningful.
+
+The exposure dampener is currently **off** server-side (`EXPOSURE_DAMPENER`, a permanent kill
+switch) and additionally gated on device coverage ≥60% plus the declared-surface list above. If the
+diverged Metrolist-fix sibling ever ships impressions it must count identically, or the
+distinct-device denominators silently diverge.
 
 ## One-time history backfill (`play_backfill`)
 

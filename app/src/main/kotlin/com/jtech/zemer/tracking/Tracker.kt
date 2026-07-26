@@ -94,6 +94,63 @@ object Tracker {
     fun action(kind: String, id: String) = enqueue { TrackingEvents.action(now(), kind, id) }
 
     /**
+     * One rendered row/screen: the videoIds actually on screen, on [surface].
+     *
+     * Impressions are the ONLY event type that may be thrown away rather than queued, and this is
+     * deliberate on two fronts. They arrive an order of magnitude more often than plays and share
+     * the one 500-event drop-OLDEST queue, so left unchecked a scroll-heavy session would evict the
+     * plays we actually care about — the highest-value events losing to the cheapest. So they are
+     * dropped outright while the upload backoff window is open (a server blip must not turn into
+     * lost listens) and once the queue is over [IMPRESSION_QUEUE_CEILING], which reserves the rest
+     * of it for everything else.
+     *
+     * Dropping them for those two reasons is free by contract: the server ranks on DISTINCT devices,
+     * and both drops are song-independent — they depend on when the server was unhealthy and on how
+     * full the queue is, never on what was on screen — so they shrink exposure counts without
+     * skewing the exposed/instrumented share the dampener divides by. (The per-POST row cap in
+     * [capImpressionRows] is what keeps the SERVER from dropping rows, which would not have that
+     * property: its truncation always lands on whatever was queued last.)
+     */
+    fun impression(ids: List<String>, surface: String?) {
+        if (ids.isEmpty()) return
+        val t = now()
+        scope.launch {
+            ready.await()
+            val q = queue ?: return@launch
+            if (schedule.delayUntilAllowed() > 0) return@launch
+            if (q.size >= IMPRESSION_QUEUE_CEILING) return@launch
+            // Evict BEFORE the add pass: clearing afterwards would wipe the very ids this call just
+            // reported, so the next dwell on those same rows would report them a second time and
+            // double their exposure — over-counting, the direction that silently penalises a song.
+            if (seenImpressions.size > SEEN_IMPRESSIONS_MAX) seenImpressions.clear()
+            // isVideoId first: albums/artists/playlists share these rows and would otherwise fill
+            // the dedup set with ids that can never be reported anyway.
+            val fresh = ids.filter { isVideoId(it) && seenImpressions.add(impressionKey(surface, it)) }
+            val chunks = impressionChunks(fresh)
+            if (chunks.isEmpty()) return@launch // every id already seen — nothing to flush
+            chunks.forEach { chunk ->
+                q.append(TrackingEvents.impression(t, chunk, surface).toString())
+            }
+            scheduleFlush(if (q.size >= FLUSH_THRESHOLD) 0L else TIMER_FLUSH_MS)
+        }
+    }
+
+    /**
+     * Per-`(surface, videoId)` dedup for the process lifetime — the normative definition of an
+     * impression. The server tolerates repeats (it aggregates distinct devices), but scroll jitter,
+     * recomposition and back-navigation would otherwise re-report the same row indefinitely, which
+     * is what actually consumes the per-POST cap and the queue. Bounded like [streamInfo]: cleared
+     * wholesale once it outgrows any realistic session rather than growing without limit.
+     */
+    private val seenImpressions = java.util.Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
+
+    // '|' is outside both alphabets (surface `[\w:.-]`, videoId `[A-Za-z0-9_-]`), so it can never
+    // appear inside either half and the key stays unambiguous. Deliberately NOT a NUL byte: one
+    // raw 0x00 anywhere in a source file makes git treat the whole file as binary, which hides
+    // every diff and turns a merge conflict into a silent take-one-side.
+    private fun impressionKey(surface: String?, videoId: String) = "${surface.orEmpty()}|$videoId"
+
+    /**
      * The player service reports which stream client (and, for deciphered web clients, which
      * player_ias hash) served a videoId, so the listen's `play` event can carry it. Bounded: cleared
      * once it outgrows any realistic queue so it can never accumulate across a long session.
@@ -179,7 +236,10 @@ object Tracker {
         }
         inFlight = true
         try {
-            val batch = q.peekBatch()
+            // Event-counted drain, row-counted server limit: cap the batch so the server never has
+            // to truncate it (its truncation always falls on the newest events, which would bias
+            // exposure toward whatever the user scrolled to first).
+            val batch = capImpressionRows(q.peekBatch())
             when (val result = uploader.upload(device, appVer, BuildConfig.DEBUG, batch)) {
                 TrackingUploader.Result.Success, TrackingUploader.Result.DropBatch -> {
                     q.removeBatch(batch)
@@ -214,6 +274,12 @@ object Tracker {
         pendingFlushJob = scope.launch {
             delay((target - now()).coerceAtLeast(0L))
             pendingFlushAt = Long.MAX_VALUE
+            // Past the delay this job IS the upload, and cancelling it mid-POST would abandon a
+            // batch the server may already have stored — so drop the handle before running. A
+            // later trigger then schedules a fresh job instead of killing this one; the flush
+            // reschedules itself for whatever is left in the queue. (Single-threaded dispatcher,
+            // so this is not a race.)
+            pendingFlushJob = null
             flush()
         }
     }
@@ -226,6 +292,10 @@ object Tracker {
     private const val TIMER_FLUSH_MS = 60_000L
     private const val STREAM_INFO_MAX = 300
     private const val IN_FLIGHT_POLL_MS = 250L
+
+    /** Impressions stop being queued here, reserving the rest of the 500-event queue for plays. */
+    private const val IMPRESSION_QUEUE_CEILING = TrackingQueue.MAX_SIZE / 2
+    private const val SEEN_IMPRESSIONS_MAX = 2_000
 }
 
 /** The server rejects any device id that isn't a canonical UUID (verified live) — enforce it here. */

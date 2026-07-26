@@ -62,9 +62,15 @@ import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.latestreleases.LatestReleaseFilter
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
+import com.jtech.zemer.tracking.TrackImpressionsByKey
+import com.jtech.zemer.tracking.TrackingSurface
+import com.jtech.zemer.search.ChartMovement
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
 import com.jtech.zemer.ui.component.AutoResizeText
+import com.jtech.zemer.ui.component.ChartRankCell
+import com.jtech.zemer.ui.component.rememberChartRankMetrics
+import com.jtech.zemer.ui.component.chartAnchorLabel
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
@@ -148,6 +154,22 @@ fun ZemerCuratedPlaylistScreen(
         filterCuratedTracks(loadedSongs, loadedPage?.albumTrackIds.orEmpty(), filter)
     }
 
+    // Measured once for the whole list from its highest position, so every row shares one width —
+    // the artwork stays on a straight line — while the slots still fit the real text at the user's
+    // font size, in whatever language NEW/RE are rendered.
+    // Rank digits and movement magnitude are measured separately: a delta is a distance on the
+    // PREVIOUS chart, so it is not bounded by any rank in this response.
+    val rankMetrics = rememberChartRankMetrics(
+        maxRank = loadedPage?.rank?.values?.maxOrNull() ?: 0,
+        maxDelta = loadedPage?.movement?.values?.maxOfOrNull { movement ->
+            when (movement) {
+                is ChartMovement.Up -> movement.places
+                is ChartMovement.Down -> movement.places
+                else -> 0
+            }
+        } ?: 0,
+    )
+
     val showSongMenu: (SongItem) -> Unit = { song ->
         menuState.show {
             YouTubeSongMenu(
@@ -156,6 +178,21 @@ fun ZemerCuratedPlaylistScreen(
                 onDismiss = menuState::dismiss,
             )
         }
+    }
+
+    // Impressions. This screen matters more than any other surface: the exposure dampener exists to
+    // correct for songs being played BECAUSE we put them at the top of a chart, so leaving it
+    // uninstrumented would dock home- and search-surfaced songs while the chart's own picks accrued
+    // no exposure at all. Keyed rather than indexed — the header, chip row and album rows share the
+    // index space with tracks — and the id set is the songs currently shown, so a chip switch
+    // reports what the user is actually looking at.
+    loadedPage?.let { page ->
+        val impressionSongIds = remember(visibleSongs) { visibleSongs.map { it.id }.toSet() }
+        TrackImpressionsByKey(
+            surface = TrackingSurface.zemer(page.playlist.id),
+            state = lazyListState,
+            idOfKey = { key -> (key as? String)?.takeIf(impressionSongIds::contains) },
+        )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -214,6 +251,17 @@ fun ZemerCuratedPlaylistScreen(
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Normal,
                                     )
+
+                                    // Chart playlists only. Naming the anchor is the honest framing:
+                                    // it explains why the arrows don't move between two visits on
+                                    // the same day (the baseline is weekly; the data is twice-daily).
+                                    chartAnchorLabel(playlist.anchorDate)?.let { anchor ->
+                                        Text(
+                                            text = stringResource(R.string.chart_movement_since, anchor),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
                                 }
                             }
 
@@ -309,9 +357,34 @@ fun ZemerCuratedPlaylistScreen(
                         items = visibleSongs,
                         key = { _, song -> song.id },
                     ) { index, song ->
-                        // No albumIndex: the shared row shows the number INSTEAD of the artwork (an
-                        // album-screen convention where all rows share one cover) — here every row
-                        // has its own art, so the art wins, like the online-playlist screen.
+                        // Chart playlists get a rank column; curated ones are editorial order and
+                        // carry no position at all. No albumIndex either way: that shows the number
+                        // INSTEAD of the artwork (an album-screen convention where all rows share
+                        // one cover), and here every row has its own art.
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.animateItem(),
+                        ) {
+                        // Conditioned on `rank`, NOT on anchorDate: the server sends a position
+                        // whenever the chart has a stored ordering, including during a
+                        // post-formula-change blackout when no badges exist but the chart is still
+                        // a chart. The position is the RAW chart rank, so a filtered list shows
+                        // gaps (…31, 32, 34…) — correct, and the only number that agrees with the
+                        // delta beside it.
+                        if (uiState.page.rank.isNotEmpty()) {
+                            val chartRank = uiState.page.rank[song.id]
+                            if (chartRank != null) {
+                                ChartRankCell(
+                                    rank = chartRank,
+                                    movement = uiState.page.movement[song.id],
+                                    metrics = rankMetrics,
+                                )
+                            } else {
+                                // Shouldn't happen (rank is all-or-nothing per chart); keeps the
+                                // titles aligned if it ever does.
+                                Spacer(Modifier.width(rankMetrics.total))
+                            }
+                        }
                         YouTubeListItem(
                             item = song,
                             isActive = mediaMetadata?.id == song.id,
@@ -325,6 +398,7 @@ fun ZemerCuratedPlaylistScreen(
                                 }
                             },
                             modifier = Modifier
+                                .weight(1f)
                                 .combinedClickable(
                                     onClick = {
                                         if (song.id == mediaMetadata?.id) {
@@ -344,9 +418,9 @@ fun ZemerCuratedPlaylistScreen(
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         showSongMenu(song)
                                     },
-                                )
-                                .animateItem(),
+                                ),
                         )
+                        }
                     }
                 }
 

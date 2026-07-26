@@ -119,8 +119,8 @@ full detail in `docs/zemer_playlists/README.md`. The rules that must not regress
 
 ### Tracking (anonymous usage telemetry)
 
-Five events (`open`/`search`/`play`/`click`/`action`) POSTed to `tracking.zemer.io`; full detail in
-`docs/tracking/README.md`. The rules that must not regress:
+Six events (`open`/`search`/`play`/`click`/`action`/`impression`) POSTed to `tracking.zemer.io`;
+full detail in `docs/tracking/README.md`. The rules that must not regress:
 
 - **Telemetry may never break the app**: every `Tracker` entry point is a fire-and-forget
   `scope.launch`; failures are silent; the on-disk queue caps at 500 dropping oldest; a 400 drops
@@ -137,6 +137,20 @@ Five events (`open`/`search`/`play`/`click`/`action`) POSTed to `tracking.zemer.
 - **`action` hooks live at chokepoints** (entity `toggleLike()`s, `DownloadUtil` download entry
   with `fromUser=false` for machine enqueues, `DatabaseDao.addSongToPlaylist`, share buttons) —
   don't add per-surface duplicates, and keep machine-initiated work out of the user-intent signal.
+- **`impression` counts what was SHOWN, and OVER-counting silently penalises a song** — the server's
+  exposure dampener docks a song for being widely shown, so the definition is deliberately strict:
+  inside the viewport AND settled there ~300ms, deduped per `(surface, videoId)`. Never count a
+  composed-but-offscreen row (Compose composes ahead of the viewport), never count a row a fling
+  passed through, and a row nested in a lazy parent must check the PARENT's viewport too — its own
+  says nothing about whether it is on screen. When in doubt, do not report.
+- **Impressions are the only event type that may be DROPPED rather than queued** — they outnumber
+  plays by an order of magnitude and share the one 500-event drop-oldest queue, so they are
+  discarded while the upload backoff window is open and past half the queue cap. Both drops are
+  song-independent, which is what makes them free; the per-POST row cap exists because the server's
+  truncation would NOT be.
+- **Surface slugs are the server's coverage-gate vocabulary** (`TrackingSurface`) — renaming one
+  reads as a surface disappearing and re-closes the gate. Treat them as append-only, and send the
+  tracking maintainer an updated declared list whenever a release instruments a new surface.
 - One `search` event per executed query (the per-query ViewModel guard) — never per keystroke or
   per chip switch. Everything is tracked (KidZone and the YouTube engine included), no opt-out —
   a product decision, 2026-07-05. Each event carries `provider` (`"zemer"`/`"youtube"`, a Zemer
