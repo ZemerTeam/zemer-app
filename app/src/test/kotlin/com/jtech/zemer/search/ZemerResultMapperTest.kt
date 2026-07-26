@@ -485,4 +485,96 @@ class ZemerResultMapperTest {
             ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG, hideExplicit = false).items.map { it.id },
         )
     }
+
+    // --- /home-rows mapping (telemetry-ranked home tab rows) ---
+
+    @Test
+    fun `home rows map to native items carrying the artist channel id`() {
+        // The channel id is the whole reason topAlbums/topVideos carry artistId: the home tab runs a
+        // one-per-artist dedup + a female/israeli check on it, which no-op when the id is null.
+        val resp = ZemerHomeRowsResponse(
+            topAlbums = listOf(
+                ZemerAlbum(id = "MPRE1", playlistId = "OLAK1", title = "Al", artist = "A", artistId = "UCa", year = 2026, thumbnail = "th"),
+            ),
+            topVideos = listOf(ZemerTrack(videoId = "v1", title = "Vid", artist = "B", artistId = "UCb")),
+            topArtists = listOf(ZemerArtist("UCc", "C", "art")),
+            topCommunity = listOf(ZemerPlaylist("c1", "Community", "Cur", "t")), // ignored — not wired yet
+        )
+
+        val rows = ZemerResultMapper.homeRows(resp, hideExplicit = false)
+
+        val album = rows.albums.single()
+        assertEquals("MPRE1", album.browseId)
+        assertEquals("OLAK1", album.playlistId) // kept, so the card is playable / opens via the server
+        assertEquals("UCa", album.artists?.single()?.id)
+
+        val video = rows.videos.single()
+        assertEquals("v1", video.id)
+        assertEquals("UCb", video.artists.single().id)
+        assertEquals("https://i.ytimg.com/vi/v1/hqdefault.jpg", video.thumbnail) // derived from videoId
+
+        val artist = rows.artists.single()
+        assertEquals("UCc", artist.id)
+        assertEquals("art", artist.thumbnail)
+    }
+
+    @Test
+    fun `home rows honor hideExplicit on albums and videos`() {
+        val resp = ZemerHomeRowsResponse(
+            topAlbums = listOf(
+                ZemerAlbum(id = "clean", title = "C", artist = "A", explicit = false),
+                ZemerAlbum(id = "dirty", title = "D", artist = "A", explicit = true),
+            ),
+            topVideos = listOf(
+                ZemerTrack(videoId = "cv", title = "C", artist = "A", explicit = false),
+                ZemerTrack(videoId = "dv", title = "D", artist = "A", explicit = true),
+            ),
+        )
+
+        val hidden = ZemerResultMapper.homeRows(resp, hideExplicit = true)
+        assertEquals(listOf("clean"), hidden.albums.map { it.id })
+        assertEquals(listOf("cv"), hidden.videos.map { it.id })
+
+        val shown = ZemerResultMapper.homeRows(resp, hideExplicit = false)
+        assertEquals(listOf("clean", "dirty"), shown.albums.map { it.id })
+        assertEquals(listOf("cv", "dv"), shown.videos.map { it.id })
+    }
+
+    @Test
+    fun `home rows drop blank and duplicate ids per row`() {
+        val resp = ZemerHomeRowsResponse(
+            topAlbums = listOf(
+                ZemerAlbum(id = "", title = "x", artist = "A"),
+                ZemerAlbum(id = "al", title = "y", artist = "A"),
+                ZemerAlbum(id = "al", title = "dup", artist = "A"),
+            ),
+            topVideos = listOf(ZemerTrack(videoId = "", title = "x", artist = "A"), ZemerTrack(videoId = "v", title = "y", artist = "A")),
+            topArtists = listOf(ZemerArtist("", "x"), ZemerArtist("UC", "y"), ZemerArtist("UC", "dup")),
+        )
+
+        val rows = ZemerResultMapper.homeRows(resp, hideExplicit = false)
+        assertEquals(listOf("al"), rows.albums.map { it.id })
+        assertEquals(listOf("v"), rows.videos.map { it.id })
+        assertEquals(listOf("UC"), rows.artists.map { it.id })
+    }
+
+    @Test
+    fun `home rows apply blocked-id overrides to albums and videos`() {
+        BlockedIdsCache.updateAll(mapOf("blockedAlbum" to "global", "blockedVideo" to "global"))
+        ContentFilterState.current = ContentFilterConfig(filtersEnabled = true)
+        val resp = ZemerHomeRowsResponse(
+            topAlbums = listOf(
+                ZemerAlbum(id = "okAlbum", title = "A", artist = "A"),
+                ZemerAlbum(id = "blockedAlbum", title = "B", artist = "A"),
+            ),
+            topVideos = listOf(
+                ZemerTrack(videoId = "okVideo", title = "A", artist = "A"),
+                ZemerTrack(videoId = "blockedVideo", title = "B", artist = "A"),
+            ),
+        )
+
+        val rows = ZemerResultMapper.homeRows(resp, hideExplicit = false)
+        assertEquals(listOf("okAlbum"), rows.albums.map { it.id })
+        assertEquals(listOf("okVideo"), rows.videos.map { it.id })
+    }
 }

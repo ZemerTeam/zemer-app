@@ -71,6 +71,8 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.LocalAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.search.SearchProvider
+import com.jtech.zemer.search.onlineAlbumRoute
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.ui.component.AlbumGridItem
@@ -82,7 +84,6 @@ import com.jtech.zemer.ui.component.ZemerCuratedPlaylistGridItem
 import com.jtech.zemer.ui.component.SongGridItem
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.YouTubeGridItem
-import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.shimmer.GridItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
@@ -138,6 +139,9 @@ fun HomeScreen(
     val featuredAlbums = homeUiState.featuredAlbums
     val featuredArtists = homeUiState.featuredArtists
     val featuredVideos = homeUiState.featuredVideos
+    // Featured albums are Zemer-sourced (telemetry-ranked) rather than the scrape fallback: open them via
+    // the Zemer album route so the album screen loads through the server (immune to InnerTube bot-gating).
+    val featuredAlbumsAreZemer = homeUiState.featuredAlbumsAreZemer
     val latestReleasesViewModel: LatestReleasesViewModel = hiltViewModel()
     val latestReleases by latestReleasesViewModel.releases.collectAsState()
     val zemerPlaylistsViewModel: ZemerCuratedPlaylistsViewModel = hiltViewModel()
@@ -159,7 +163,10 @@ fun HomeScreen(
                     addAll(featuredVideos)
                 }
                 addAll(featuredAlbums)
-                addAll(featuredArtists)
+                // Telemetry-ranked (Zemer) artist cards carry no InnerTube radio endpoint, so the lucky
+                // shuffle can't start radio from them — keep only artists that can actually play (the
+                // scrape-fallback ones) in the pool, so a lucky pick never dead-presses.
+                addAll(featuredArtists.filter { it.radioEndpoint != null })
             }
         }
 
@@ -354,7 +361,14 @@ fun HomeScreen(
                                 )
                             )
 
-                            is AlbumItem -> navController.navigate("album/${item.id}")
+                            // Only the featured-albums row passes an AlbumItem through ytGridItem, so this
+                            // branch is the featured album; route Zemer-sourced ones via the server album path.
+                            is AlbumItem ->
+                                if (featuredAlbumsAreZemer) {
+                                    navController.navigate(SearchProvider.ZEMER.onlineAlbumRoute(item))
+                                } else {
+                                    navController.navigate("album/${item.id}")
+                                }
                             is ArtistItem -> navController.navigate("artist/${item.id}")
                             is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
                         }

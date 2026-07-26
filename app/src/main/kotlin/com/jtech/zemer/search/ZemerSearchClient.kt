@@ -222,6 +222,27 @@ class ZemerSearchClient @Inject constructor() {
             }
         }
 
+    /**
+     * The telemetry-ranked home rows (`GET /home-rows`). The content flags are sent explicitly (same
+     * fail-closed contract as every Zemer request — the server is default-OPEN); `kidZone=0` is always
+     * sent because the home tab is never reachable from inside the KidZone tab. The server returns the
+     * ranked top-N per row, already whitelist-scoped + content-filtered for the flags sent.
+     */
+    suspend fun homeRows(
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+    ): ZemerHomeRowsResponse {
+        val response: HttpResponse = client.get("$BASE_URL/home-rows") {
+            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
+                parameter(name, value)
+            }
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer home-rows returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerHomeRowsResponse.serializer(), response.bodyAsText())
+    }
+
     companion object {
         const val BASE_URL = "https://search.zemer.io"
         private const val REQUEST_TIMEOUT_MS = 8_000L

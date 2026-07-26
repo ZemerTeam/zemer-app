@@ -121,6 +121,19 @@ class ZemerSearchRepository @Inject constructor(
         client.album(browseId, options.allowFemale, options.blockVideos).toAlbumPage(playlistId)
 
     /**
+     * The telemetry-ranked home rows (albums / videos / artists), already whitelist-scoped and
+     * content-filtered server-side for the flags sent, mapped to the app's native item types. Like the
+     * curated playlists this is deliberately NOT cached: a plain re-fetch per home load is the endpoint's
+     * freshness contract and guarantees a response fetched under one flag set is never rendered under
+     * another. Ranked order is preserved; the caller applies its one-per-artist rotation + fallback.
+     */
+    suspend fun homeRows(options: ZemerSearchOptions): ZemerResultMapper.HomeRows =
+        ZemerResultMapper.homeRows(
+            client.homeRows(options.allowFemale, options.blockVideos),
+            options.hideExplicit,
+        )
+
+    /**
      * The hand-curated "Zemer Playlists" section, in editorial order (rendered as received). Not
      * cached — the doc'd contract is a plain re-fetch on screen open (single-digit-ms server reads),
      * which also guarantees a response fetched under one flag set is never shown under another.

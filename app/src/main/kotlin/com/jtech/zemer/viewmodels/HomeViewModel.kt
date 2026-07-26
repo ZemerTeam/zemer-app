@@ -27,6 +27,9 @@ import com.jtech.zemer.utils.mirrorFirst
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
+import com.jtech.zemer.search.ZemerResultMapper
+import com.jtech.zemer.search.ZemerSearchRepository
+import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.getSuspend
@@ -59,11 +62,19 @@ import timber.log.Timber
 import javax.inject.Inject
 import kotlin.random.Random
 
+/**
+ * Minimum items a telemetry-ranked `/home-rows` row must have (AFTER the one-per-artist rotation and the
+ * content filter) to be shown as-is. Below this the app keeps its InnerTube scrape for that row, per-row —
+ * a near-empty home row is never shipped (contract: `handoff-docs/zemer-app-home-rows-request.md`).
+ */
+private const val MIN_HOME_ROW = 4
+
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     @ApplicationContext val context: Context,
     val database: MusicDatabase,
     val syncUtils: SyncUtils,
+    private val zemerSearchRepository: ZemerSearchRepository,
 ) : ViewModel() {
     private data class HomeArtistProfile(
         val id: String,
@@ -88,6 +99,10 @@ class HomeViewModel @Inject constructor(
         val featuredAlbums: List<AlbumItem> = emptyList(),
         val featuredArtists: List<ArtistItem> = emptyList(),
         val featuredVideos: List<SongItem> = emptyList(),
+        // True when [featuredAlbums] came from the telemetry `/home-rows` endpoint (Zemer-sourced) rather
+        // than the InnerTube scrape fallback — the row then opens albums through the Zemer album route so
+        // the album screen loads via the server (immune to on-device InnerTube bot-gating).
+        val featuredAlbumsAreZemer: Boolean = false,
         val homePage: HomePage? = null,
         val explorePage: ExplorePage? = null,
     )
@@ -602,6 +617,28 @@ class HomeViewModel @Inject constructor(
         return (primaryPick + pickFrom(fallbackPool, remaining)).take(targetCount)
     }
 
+    /**
+     * The telemetry-ranked home rows (Top Albums / Videos / Artists) from the Zemer `/home-rows`
+     * endpoint — real distinct-device listening, already whitelist-scoped + content-filtered server-side
+     * for the current content flags. Returns null on any failure, which makes every row fall back to the
+     * InnerTube scrape (the caller's per-row `< MIN_HOME_ROW` guard). Telemetry must never break Home.
+     */
+    private suspend fun loadHomeRows(): ZemerResultMapper.HomeRows? {
+        val start = System.currentTimeMillis()
+        return runCatching { zemerSearchRepository.homeRows(zemerSearchOptions(context)) }
+            .onSuccess {
+                Timber.d(
+                    "NET: /home-rows -> albums=%d videos=%d artists=%d in %dms",
+                    it.albums.size, it.videos.size, it.artists.size, System.currentTimeMillis() - start,
+                )
+            }
+            .getOrElse {
+                Timber.w(it, "HomeViewModel: /home-rows fetch failed — rows fall back to scrape")
+                reportException(it)
+                null
+            }
+    }
+
     private suspend fun loadFeaturedContent(
         hideExplicit: Boolean,
         artistProfiles: List<HomeArtistProfile>,
@@ -980,6 +1017,9 @@ class HomeViewModel @Inject constructor(
 
             // Now start NETWORK calls (after prep work is done)
             Timber.d("HomeViewModel: Starting NETWORK fetch at +${System.currentTimeMillis() - loadStartTime}ms")
+            // Telemetry-ranked featured rows, in parallel with the rest. Independent of the whitelist
+            // scrape: the corpus is whitelist-pure, so these are served whether or not `useWhitelist`.
+            val homeRowsDeferred = viewModelScope.async(Dispatchers.IO) { loadHomeRows() }
             val homeDeferred = viewModelScope.async(Dispatchers.IO) {
                 if (useWhitelist) {
                     loadWhitelistHome(
@@ -1013,6 +1053,7 @@ class HomeViewModel @Inject constructor(
 
             val home = homeDeferred.await()
             val explore = exploreDeferred.await()
+            val homeRows = homeRowsDeferred.await()
             Timber.d("HomeViewModel: NETWORK data ready at +${System.currentTimeMillis() - loadStartTime}ms")
 
             // Featured playlists loaded after (uses sharedUsedArtists which is mutable)
@@ -1038,6 +1079,22 @@ class HomeViewModel @Inject constructor(
             fun AlbumItem.isAllowed(): Boolean = !isBlockedArtist(this.artists?.mapNotNull { it.id } ?: emptyList())
             fun ArtistItem.isAllowed(): Boolean = !isBlockedArtist(listOfNotNull(this.id))
             fun PlaylistItem.isAllowed(): Boolean = !isBlockedArtist(listOfNotNull(this.author?.id))
+
+            // Content gate for the telemetry-ranked rows: female (when blocked) + Israeli only, NOT the
+            // famous/american quality proxy that `isBlockedArtist` applies. Real listening reach is a
+            // better signal than the proxy, and applying it here cut the ranked rows to near-empty
+            // (handoff REPLY 3). Blocked-ids already dropped in the mapper; this is defence-in-depth over
+            // the server's own female/blocked filtering, so it needs each card's real artist channel id.
+            fun isBlockedRanked(ids: List<String>): Boolean {
+                if (ids.any { IsraeliArtistRegistry.isIsraeli(it) }) return true
+                val profiles = ids.mapNotNull { profileById[it] }
+                if (!allowFemale && profiles.any { it.isFemale == true }) return true
+                return false
+            }
+
+            fun SongItem.isAllowedRanked(): Boolean = !isBlockedRanked(this.artists?.mapNotNull { it.id } ?: emptyList())
+            fun AlbumItem.isAllowedRanked(): Boolean = !isBlockedRanked(this.artists?.mapNotNull { it.id } ?: emptyList())
+            fun ArtistItem.isAllowedRanked(): Boolean = !isBlockedRanked(listOfNotNull(this.id))
 
             fun Song.isAllowed(): Boolean = !isBlockedArtist(this.artists.map { it.id })
             fun LocalItem.isAllowed(): Boolean = when (this) {
@@ -1140,15 +1197,6 @@ class HomeViewModel @Inject constructor(
             Timber.d("HomeViewModel: quickPicks flow - quick=${quick.size}, filtered=${filteredQuick.size}, rotated=${recentAwareQuick.size}")
             sharedUsedArtists.addAll(recentAwareQuick.flatMap { it.artistIds() })
 
-            val featuredTriple = loadFeaturedContent(
-                hideExplicit,
-                baseProfiles,
-                allowFemale,
-                selectionRandom,
-                sharedUsedArtists,
-                recentArtistIds.toSet(),
-            )
-
             // CRITICAL: Never show fewer items than already displayed to user
             val finalQuick = when {
                 recentAwareQuick.size >= quick.size -> recentAwareQuick
@@ -1178,12 +1226,39 @@ class HomeViewModel @Inject constructor(
                 maxPerArtist = 1,
                 target = 20,
             )
-            val finalFeaturedAlbums = featuredTriple.first.filter { it.isAllowed() }
-                .let { rotateByArtist(it, maxPerArtist = 1, target = 20) }
-            val finalFeaturedArtists = featuredTriple.second.filter { it.isAllowed() }
-                .let { rotateByArtist(it, maxPerArtist = 1, target = 20) }
-            val finalFeaturedVideos = featuredTriple.third.filter { it.isAllowed() }
-                .let { rotateByArtist(it, maxPerArtist = 1, target = 20) }
+            // Telemetry-ranked featured rows first (real listening reach, ranked-row content gate), then
+            // the one-per-artist rotation. Below MIN_HOME_ROW a row falls back to the InnerTube scrape —
+            // per-row, so a thin videos row never blanks albums. The scrape (loadFeaturedContent) is run
+            // ONCE and only when at least one row is thin, so an all-healthy home makes zero artist()
+            // calls; a de-whitelisted/blocked pool that empties a row still self-heals via the scrape.
+            val rankedAlbums = rotateByArtist(
+                homeRows?.albums.orEmpty().filter { it.isAllowedRanked() }, maxPerArtist = 1, target = 20,
+            )
+            val rankedArtists = rotateByArtist(
+                homeRows?.artists.orEmpty().filter { it.isAllowedRanked() }, maxPerArtist = 1, target = 20,
+            )
+            val rankedVideos = rotateByArtist(
+                homeRows?.videos.orEmpty().filter { it.isAllowedRanked() }, maxPerArtist = 1, target = 20,
+            )
+            val albumsNeedScrape = rankedAlbums.size < MIN_HOME_ROW
+            val artistsNeedScrape = rankedArtists.size < MIN_HOME_ROW
+            // Under blockVideos the server returns no videos and the row is hidden anyway — a deliberately
+            // empty videos row must NOT drag in the scrape (which would defeat the no-scrape-when-healthy
+            // win for every blockVideos user). Only a thin row while videos ARE allowed is a real gap.
+            val videosNeedScrape = !filters.blockVideos && rankedVideos.size < MIN_HOME_ROW
+            val featuredTriple = if (albumsNeedScrape || artistsNeedScrape || videosNeedScrape) {
+                Timber.d("HomeViewModel: /home-rows thin (a=%b ar=%b v=%b) — scraping fallback", albumsNeedScrape, artistsNeedScrape, videosNeedScrape)
+                loadFeaturedContent(hideExplicit, baseProfiles, allowFemale, selectionRandom, sharedUsedArtists, recentArtistIds.toSet())
+            } else {
+                Triple(emptyList<AlbumItem>(), emptyList<ArtistItem>(), emptyList<SongItem>())
+            }
+            val finalFeaturedAlbums = if (!albumsNeedScrape) rankedAlbums else
+                featuredTriple.first.filter { it.isAllowed() }.let { rotateByArtist(it, maxPerArtist = 1, target = 20) }
+            val finalFeaturedArtists = if (!artistsNeedScrape) rankedArtists else
+                featuredTriple.second.filter { it.isAllowed() }.let { rotateByArtist(it, maxPerArtist = 1, target = 20) }
+            val finalFeaturedVideos = if (!videosNeedScrape) rankedVideos else
+                featuredTriple.third.filter { it.isAllowed() }.let { rotateByArtist(it, maxPerArtist = 1, target = 20) }
+            val featuredAlbumsAreZemer = !albumsNeedScrape && finalFeaturedAlbums.isNotEmpty()
             val isNewUser = finalQuick.isEmpty() && keepListening.isEmpty()
 
             val usedArtistIds = mutableSetOf<String>()
@@ -1257,12 +1332,13 @@ class HomeViewModel @Inject constructor(
             }
 
             Timber.d(
-                "HomeViewModel: load -> featuredArtists=%d playlists=%d albums=%d videos=%d quick=%d",
-                featuredTriple.second.size,
+                "HomeViewModel: load -> featuredArtists=%d playlists=%d albums=%d videos=%d quick=%d zemerAlbums=%b",
+                finalFeaturedArtists.size,
                 featuredPlaylists.size,
-                featuredTriple.first.size,
-                featuredTriple.third.size,
-                finalQuick.size
+                finalFeaturedAlbums.size,
+                finalFeaturedVideos.size,
+                finalQuick.size,
+                featuredAlbumsAreZemer,
             )
 
             Timber.d("HomeViewModel: Updating final UI state at +${System.currentTimeMillis() - loadStartTime}ms")
@@ -1278,6 +1354,7 @@ class HomeViewModel @Inject constructor(
                     featuredAlbums = finalFeaturedAlbums,
                     featuredArtists = finalFeaturedArtists,
                     featuredVideos = finalFeaturedVideos,
+                    featuredAlbumsAreZemer = featuredAlbumsAreZemer,
                     homePage = filteredHome,
                     explorePage = filteredExplore,
                 )
