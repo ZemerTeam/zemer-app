@@ -117,7 +117,9 @@ private fun <T : YTItem> YtItemGrid(
     val scope = rememberCoroutineScope()
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
+        // Two across, not three: album/artist titles here run long (full Hebrew + English names), and a
+        // third-of-screen cell chops them mid-word. Two columns give the title + "artist · year" room.
+        columns = GridCells.Fixed(2),
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) {
         items(items = items, key = { it.id }) { item ->
