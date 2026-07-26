@@ -75,6 +75,10 @@ class HomeViewModel @Inject constructor(
         val isIsraeli: Boolean?,
         val isFemale: Boolean?,
         val isFamous: Boolean?,
+        // Read only by the ranked kids gate (isBlockedRanked): a kids-only artist stays out of the adult
+        // Home. Distinct from the whitelist's isKidZone (which drives the KidZone tab), and from isDJ/isGroup
+        // (removed with the weighted-selection teardown, which were their only readers).
+        val isKids: Boolean?,
     )
 
     data class HomeUiState(
@@ -358,6 +362,7 @@ class HomeViewModel @Inject constructor(
                         isIsraeli = IsraeliArtistRegistry.isIsraeli(id),
                         isFemale = doc.getBoolean("isFemale"),
                         isFamous = doc.getBoolean("isFamous"),
+                        isKids = doc.getBoolean("isKids"),
                     )
                 }
             },
@@ -372,6 +377,7 @@ class HomeViewModel @Inject constructor(
             isIsraeli = IsraeliArtistRegistry.isIsraeli(resolvedId),
             isFemale = isFemale,
             isFamous = isFamous,
+            isKids = isKids,
         )
     }
 
@@ -379,9 +385,10 @@ class HomeViewModel @Inject constructor(
         return try {
             json.split("||").mapNotNull { entry ->
                 val parts = entry.split("|")
-                // 6 fields as of the featured-content teardown; an older 9-field cache still parses (the
-                // trailing isKids/isDJ/isGroup columns are simply ignored), so no forced refetch on upgrade.
-                if (parts.size < 6) return@mapNotNull null
+                // 7 fields (id|name|isAmerican|isIsraeli|isFemale|isFamous|isKids). An original 9-field
+                // cache still parses — parts[6] is isKids in that layout too, and the trailing isDJ/isGroup
+                // are ignored — so upgrading from the released format needs no forced refetch.
+                if (parts.size < 7) return@mapNotNull null
                 HomeArtistProfile(
                     id = parts[0],
                     name = parts[1],
@@ -389,6 +396,7 @@ class HomeViewModel @Inject constructor(
                     isIsraeli = parts[3].toBooleanStrictOrNull(),
                     isFemale = parts[4].toBooleanStrictOrNull(),
                     isFamous = parts[5].toBooleanStrictOrNull(),
+                    isKids = parts[6].toBooleanStrictOrNull(),
                 )
             }
         } catch (e: Exception) {
@@ -400,7 +408,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun saveArtistProfilesToCache(profiles: List<HomeArtistProfile>) {
         try {
             val json = profiles.joinToString("||") { p ->
-                "${p.id}|${p.name}|${p.isAmerican}|${p.isIsraeli}|${p.isFemale}|${p.isFamous}"
+                "${p.id}|${p.name}|${p.isAmerican}|${p.isIsraeli}|${p.isFemale}|${p.isFamous}|${p.isKids}"
             }
             context.dataStore.edit { prefs ->
                 prefs[ArtistProfilesCacheKey] = json
@@ -583,7 +591,7 @@ class HomeViewModel @Inject constructor(
             fun ArtistItem.isAllowed(): Boolean = !isBlockedArtist(listOfNotNull(this.id))
             fun PlaylistItem.isAllowed(): Boolean = !isBlockedArtist(listOfNotNull(this.author?.id))
 
-            // Content gate for the telemetry-ranked rows: female (when blocked) + Israeli only, NOT the
+            // Content gate for the telemetry-ranked rows: female (when blocked) + Israeli + kids-only, NOT the
             // famous/american quality proxy that `isBlockedArtist` applies. Real listening reach is a
             // better signal than the proxy, and applying it here cut the ranked rows to near-empty
             // (handoff REPLY 3). Blocked-ids already dropped in the mapper; this is defence-in-depth over
@@ -592,6 +600,10 @@ class HomeViewModel @Inject constructor(
                 if (ids.any { IsraeliArtistRegistry.isIsraeli(it) }) return true
                 val profiles = ids.mapNotNull { profileById[it] }
                 if (!allowFemale && profiles.any { it.isFemale == true }) return true
+                // Kids-only artists belong in KidZone, not the adult Home — restore the pre-teardown
+                // exclusion (selectWeightedArtists' `isKids != true`). isKids is a per-artist flag, distinct
+                // from the whitelist's isKidZone that the server's kidZone filter keys on.
+                if (profiles.any { it.isKids == true }) return true
                 return false
             }
 

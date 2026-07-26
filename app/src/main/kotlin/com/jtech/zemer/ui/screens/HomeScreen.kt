@@ -162,7 +162,11 @@ fun HomeScreen(
                 if (!blockVideos) {
                     addAll(featuredVideos)
                 }
-                addAll(featuredAlbums)
+                // A featured (Zemer) album is lucky-playable only with a real OLAK playlist id: when
+                // /home-rows sends none, toAlbumItem falls playlistId back to the MPRE browseId, which
+                // YouTubeAlbumRadio's InnerTube lookup can't resolve — a lucky pick on it would dead-press.
+                // Keep only albums with a distinct (resolvable) playlist id, same guard as the artists below.
+                addAll(featuredAlbums.filter { it.playlistId != it.id })
                 // Telemetry-ranked (Zemer) artist cards carry no InnerTube radio endpoint, so the lucky
                 // shuffle can't start radio from them — keep only artists that can actually play (the
                 // scrape-fallback ones) in the pool, so a lucky pick never dead-presses.
