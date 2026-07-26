@@ -73,8 +73,8 @@ batch rather than poison-pilling the queue. Losing events is fine. Breaking play
   session without the user pressing play, and those phantoms must not count as listens.
   Downloaded/offline playback is tracked identically. NOT yet covered: the separate video-player
   screen's own player (`VideoPlayerScreen`) — known follow-up.
-- **`impression`** — `TrackImpressions`/`TrackImpressionsByKey` on the instrumented rows; see the
-  `impression` section below for the definition and the surface list (both are contracts).
+- **`impression`** — `TrackImpressionsByKey` on the instrumented rows; see the `impression` section
+  below for the definition and the surface list (both are contracts).
 - **`action`** — central chokepoints: the four entity `toggleLike()`s (`favorite`/`unfavorite` —
   every UI path converges there); `MediaStoreDownloadManager.downloadSong/downloadVideo`
   (`download`, fired AFTER the already-downloading/completed no-op check so a re-tap that enqueues
@@ -134,13 +134,18 @@ Wire: `{"type":"impression","t":…,"ids":[…11-char videoIds…],"surface":"ho
 counts once it is inside the viewport AND has stayed there ~300 ms:
 
 - **Viewport, not composition.** Compose composes ahead of the visible area, so "composed" is not
-  "seen". `TrackImpressions` reads `layoutInfo.visibleItemsInfo`.
+  "seen". `TrackImpressionsByKey` reads `layoutInfo.visibleItemsInfo`.
 - **A nested row must also be visible ITSELF.** A `LazyRow` inside a `LazyColumn` item reports its
   own viewport, which says nothing about whether the row is on screen — and the parent composes an
   item or so past its own viewport. Callers inside a lazy parent pass `parent` + `parentKey` so both
   viewports are ANDed. Forgetting this reports a screenful of songs the user never reached.
 - **No flung-past rows.** The dwell (`collectLatest` + `delay`, restarted by every scroll frame)
   reports only what the user settled on.
+- **Matched by list KEY, never by visible index.** There is deliberately no index-based reporter:
+  headers, chips and section titles share the index space with results, and an index-based variant
+  would additionally require the caller to pass a list identical to the one it renders — an
+  invariant nothing can enforce, whose violation reports the WRONG videoId under the right surface.
+  A key mismatch can only under-report, which the dampener treats as conservative.
 - **Deduped per `(surface, videoId)` for the process lifetime** (`Tracker.seenImpressions`). The
   server tolerates repeats — it aggregates distinct devices — but scroll jitter, recomposition and
   back-navigation would otherwise re-report the same row forever, which is what actually consumes
@@ -157,6 +162,13 @@ Client rules that must not regress:
   and once the queue passes half its cap. The loss is song-independent (it tracks server health, not
   what was on screen), so it shrinks exposure counts without skewing the exposed/instrumented share
   the dampener divides by.
+- **We cap impression ROWS per POST** (`capImpressionRows`). The drain is event-counted (up to 100
+  events) while the server's limit is row-counted, so an uncapped scroll-heavy queue could POST
+  thousands of rows and have the tail dropped. That loss would NOT be song-independent — it always
+  lands on whatever was queued last, i.e. whatever the user scrolled to most recently — so it would
+  bias exposure rather than thin it, contradicting the argument the drop policy rests on. A non-zero
+  `impressionsDropped` from a released build therefore means THIS cap failed, not merely that a big
+  batch was sent.
 - **We chunk at 50 ids ourselves** (`impressionChunks`). The server truncates an over-long event by
   keeping its HEAD, which would over-count the start of every long row and under-count its tail.
 - **`impressionsDropped` in the 200 body** means a POST carried more impression rows than the server
@@ -208,11 +220,16 @@ worse: it silently reopens the partial-coverage hole the gate exists to close.
 Not telemetry — the other direction — but it shares the same "absent means absent" discipline, so
 it lives next to it. `/zemer-playlists?id=…` sends `prevRank`, `delta` (positive = climbed), `new`,
 `reentry` per track and `anchorDate` on the header; `chartMovementOf` turns them into a
-`ChartMovement`, and `ChartRankCell` renders the position with a triangle above it for a climb,
-below it for a fall, `NEW`/`RE` under it, and nothing at all when the song held its place.
+`ChartMovement`, and `ChartRankCell` renders the position in its own left column with the movement
+beside it: a triangle and how far it moved, `NEW`/`RE` for a debut or return, and nothing at all
+when the song held its place.
 
-Direction is carried by position and colour, never magnitude — the standard chart convention, since
-a number on all 50 rows is noise. The delta is not lost: it is spoken in the accessible label.
+The marker is drawn only on rows that actually moved — an unchanged row stays empty, so a 50-row
+chart shows markers only where something happened. Climb/fall colours are explicit values rather
+than M3 roles (`ui/theme/ChartColors.kt`): under dynamic colour `tertiary` follows the wallpaper and
+can land on red, which would be actively wrong for a climb. Since both markers share one slot, the
+triangle's ORIENTATION is the only non-colour cue a red/green colour-blind reader has — which is why
+it is sized at `labelMedium` rather than the smallest role available.
 
 - **Absent fields must render NO badge** — not a dash, not a zero, and never a fallback to a
   device-local diff of a previous fetch. Movement is a property of the CHART: two users opening the
