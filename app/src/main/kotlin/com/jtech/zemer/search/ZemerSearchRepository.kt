@@ -130,7 +130,6 @@ class ZemerSearchRepository @Inject constructor(
     suspend fun homeRows(options: ZemerSearchOptions): ZemerResultMapper.HomeRows =
         ZemerResultMapper.homeRows(
             client.homeRows(options.allowFemale, options.blockVideos),
-            options.hideExplicit,
             formatSongCount,
         )
 

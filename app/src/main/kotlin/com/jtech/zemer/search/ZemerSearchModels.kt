@@ -117,9 +117,6 @@ data class ZemerAlbum(
     val artistId: String? = null,
     val year: Int? = null,
     val thumbnail: String? = null,
-    // Present on `/home-rows` album cards so the app can honour `hideExplicit` client-side (the server
-    // can't resolve that preference for us). Absent → false on search albums, unchanged.
-    val explicit: Boolean = false,
 )
 
 @Serializable

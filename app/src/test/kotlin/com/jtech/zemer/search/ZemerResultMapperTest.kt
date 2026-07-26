@@ -501,7 +501,7 @@ class ZemerResultMapperTest {
             topCommunity = listOf(ZemerPlaylist("c1", "Community", "Cur", "th", songCount = 12)),
         )
 
-        val rows = ZemerResultMapper.homeRows(resp, hideExplicit = false) { "$it songs" }
+        val rows = ZemerResultMapper.homeRows(resp) { "$it songs" }
 
         val album = rows.albums.single()
         assertEquals("MPRE1", album.browseId)
@@ -526,28 +526,6 @@ class ZemerResultMapperTest {
     }
 
     @Test
-    fun `home rows honor hideExplicit on albums and videos`() {
-        val resp = ZemerHomeRowsResponse(
-            topAlbums = listOf(
-                ZemerAlbum(id = "clean", title = "C", artist = "A", explicit = false),
-                ZemerAlbum(id = "dirty", title = "D", artist = "A", explicit = true),
-            ),
-            topVideos = listOf(
-                ZemerTrack(videoId = "cv", title = "C", artist = "A", explicit = false),
-                ZemerTrack(videoId = "dv", title = "D", artist = "A", explicit = true),
-            ),
-        )
-
-        val hidden = ZemerResultMapper.homeRows(resp, hideExplicit = true)
-        assertEquals(listOf("clean"), hidden.albums.map { it.id })
-        assertEquals(listOf("cv"), hidden.videos.map { it.id })
-
-        val shown = ZemerResultMapper.homeRows(resp, hideExplicit = false)
-        assertEquals(listOf("clean", "dirty"), shown.albums.map { it.id })
-        assertEquals(listOf("cv", "dv"), shown.videos.map { it.id })
-    }
-
-    @Test
     fun `home rows drop blank and duplicate ids per row`() {
         val resp = ZemerHomeRowsResponse(
             topAlbums = listOf(
@@ -559,7 +537,7 @@ class ZemerResultMapperTest {
             topArtists = listOf(ZemerArtist("", "x"), ZemerArtist("UC", "y"), ZemerArtist("UC", "dup")),
         )
 
-        val rows = ZemerResultMapper.homeRows(resp, hideExplicit = false)
+        val rows = ZemerResultMapper.homeRows(resp)
         assertEquals(listOf("al"), rows.albums.map { it.id })
         assertEquals(listOf("v"), rows.videos.map { it.id })
         assertEquals(listOf("UC"), rows.artists.map { it.id })
@@ -580,7 +558,7 @@ class ZemerResultMapperTest {
             ),
         )
 
-        val rows = ZemerResultMapper.homeRows(resp, hideExplicit = false)
+        val rows = ZemerResultMapper.homeRows(resp)
         assertEquals(listOf("okAlbum"), rows.albums.map { it.id })
         assertEquals(listOf("okVideo"), rows.videos.map { it.id })
     }

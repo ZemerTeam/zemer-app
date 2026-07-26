@@ -82,7 +82,6 @@ object ZemerResultMapper {
             artists = if (artist.isBlank()) null else listOf(Artist(name = artist, id = artistId)),
             year = year,
             thumbnail = thumbnail.orEmpty(),
-            explicit = explicit,
         )
 
     fun ZemerPlaylist.toPlaylistItem(formatSongCount: (Int) -> String?): PlaylistItem =
@@ -146,27 +145,24 @@ object ZemerResultMapper {
     /**
      * The telemetry-ranked home rows as the app's native item types, in the server's ranked order.
      * Each list is dropped of missing/duplicate ids and passed through [dropBlocked] (the surgical
-     * id-overrides), and `hideExplicit` is applied to albums + videos client-side (an artist is never
-     * explicit). The artist-membership whitelist is NOT re-run — these are whitelist-pure server-side,
-     * same convention as every other Zemer surface — but each card now carries its artist channel id
-     * ([ZemerAlbum.artistId]/[ZemerTrack.artistId]/[ZemerArtist.id]) so the caller can still run the
-     * home one-per-artist dedup and its female/israeli defence-in-depth. `topCommunity` maps to
-     * [PlaylistItem]s for the featured-playlists row (discovery-sourced, view-ranked, whitelist-pure +
-     * content-filtered server-side — same as the Community search chip); [formatSongCount] renders the
-     * localized "N songs" count and defaults to omitting it. See [HomeRows].
+     * id-overrides). No explicit filtering — Zemer's whitelist-pure corpus has none. The artist-membership
+     * whitelist is NOT re-run (whitelist-pure server-side), but each card carries its artist channel id
+     * ([ZemerAlbum.artistId]/[ZemerTrack.artistId]/[ZemerArtist.id]) so the caller can run the home
+     * one-per-artist dedup + female/israeli defence-in-depth. `topCommunity` maps to [PlaylistItem]s for
+     * the featured-playlists row (discovery-sourced, view-ranked, whitelist-pure + content-filtered
+     * server-side); [formatSongCount] renders the localized "N songs" count and defaults to omitting it.
+     * See [HomeRows].
      */
     fun homeRows(
         resp: ZemerHomeRowsResponse,
-        hideExplicit: Boolean,
         formatSongCount: (Int) -> String? = { null },
     ): HomeRows =
         HomeRows(
             albums = resp.topAlbums.filter { it.id.isNotBlank() }
                 .map { it.toAlbumItem() }
-                .filterExplicit(hideExplicit)
                 .distinctBy { it.id }
                 .dropBlocked(),
-            videos = songItems(resp.topVideos, hideExplicit),
+            videos = songItems(resp.topVideos, hideExplicit = false),
             artists = resp.topArtists.filter { it.id.isNotBlank() }
                 .map { it.toArtistItem() }
                 .distinctBy { it.id }
