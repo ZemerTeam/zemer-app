@@ -2,6 +2,7 @@ package com.jtech.zemer.ui.screens
 
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -44,6 +45,7 @@ import com.jtech.zemer.search.onlineAlbumRoute
 import com.jtech.zemer.search.onlinePlaylistRoute
 import com.jtech.zemer.ui.component.AlbumListItem
 import com.jtech.zemer.ui.component.ArtistListItem
+import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.YouTubeGridItem
@@ -63,7 +65,10 @@ import com.jtech.zemer.viewmodels.HomeSeeAllStore
  * (a grid for the online Featured rows, a list for the local Quick Picks / Keep Listening / Forgotten
  * Favorites). It renders straight from [HomeSeeAllStore] — the snapshot Home published on its last load
  * — so what you see here is exactly what the row was built from, uncapped, and can never disagree with
- * it. An empty snapshot (See-all somehow opened before Home loaded) is just an empty page.
+ * it. Home publishes each local row's snapshot as soon as the row is shown (and the featured rows once
+ * the network load completes), so the data is present before its "See all" arrow is reachable; an empty
+ * snapshot (e.g. process-death restore straight onto this screen, before Home has loaded) shows a neutral
+ * placeholder rather than a bare blank page.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,18 +79,36 @@ fun HomeSeeAllScreen(
 ) {
     val data by HomeSeeAllStore.data.collectAsState()
 
-    when (row) {
-        HomeSeeAllRow.FEATURED_ALBUMS ->
-            YtItemGrid(data.featuredAlbums, navController, zemerAlbums = data.featuredAlbumsAreZemer)
-        HomeSeeAllRow.FEATURED_ARTISTS ->
-            YtItemGrid(data.featuredArtists, navController)
-        HomeSeeAllRow.FEATURED_VIDEOS ->
-            YtItemGrid(data.featuredVideos, navController)
-        HomeSeeAllRow.FEATURED_PLAYLISTS ->
-            YtItemGrid(data.featuredPlaylists, navController, zemerPlaylists = data.featuredPlaylistsAreZemer)
-        HomeSeeAllRow.QUICK_PICKS -> SongList(data.quickPicks, navController)
-        HomeSeeAllRow.FORGOTTEN_FAVORITES -> SongList(data.forgottenFavorites, navController)
-        HomeSeeAllRow.KEEP_LISTENING -> LocalItemList(data.keepListening, navController)
+    val rowIsEmpty = when (row) {
+        HomeSeeAllRow.FEATURED_ALBUMS -> data.featuredAlbums.isEmpty()
+        HomeSeeAllRow.FEATURED_ARTISTS -> data.featuredArtists.isEmpty()
+        HomeSeeAllRow.FEATURED_VIDEOS -> data.featuredVideos.isEmpty()
+        HomeSeeAllRow.FEATURED_PLAYLISTS -> data.featuredPlaylists.isEmpty()
+        HomeSeeAllRow.QUICK_PICKS -> data.quickPicks.isEmpty()
+        HomeSeeAllRow.FORGOTTEN_FAVORITES -> data.forgottenFavorites.isEmpty()
+        HomeSeeAllRow.KEEP_LISTENING -> data.keepListening.isEmpty()
+    }
+
+    if (rowIsEmpty) {
+        EmptyPlaceholder(
+            icon = R.drawable.queue_music,
+            text = stringResource(R.string.home_see_all_empty),
+            modifier = Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current),
+        )
+    } else {
+        when (row) {
+            HomeSeeAllRow.FEATURED_ALBUMS ->
+                YtItemGrid(data.featuredAlbums, navController, zemerAlbums = data.featuredAlbumsAreZemer)
+            HomeSeeAllRow.FEATURED_ARTISTS ->
+                YtItemGrid(data.featuredArtists, navController)
+            HomeSeeAllRow.FEATURED_VIDEOS ->
+                YtItemGrid(data.featuredVideos, navController)
+            HomeSeeAllRow.FEATURED_PLAYLISTS ->
+                YtItemGrid(data.featuredPlaylists, navController, zemerPlaylists = data.featuredPlaylistsAreZemer)
+            HomeSeeAllRow.QUICK_PICKS -> SongList(data.quickPicks, navController)
+            HomeSeeAllRow.FORGOTTEN_FAVORITES -> SongList(data.forgottenFavorites, navController)
+            HomeSeeAllRow.KEEP_LISTENING -> LocalItemList(data.keepListening, navController)
+        }
     }
 
     TopAppBar(
@@ -112,7 +135,6 @@ private fun <T : YTItem> YtItemGrid(
     zemerPlaylists: Boolean = false,
 ) {
     val menuState = LocalMenuState.current
-    val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val haptic = LocalHapticFeedback.current
     val isPlaying by playerConnection.isPlaying.collectAsState()

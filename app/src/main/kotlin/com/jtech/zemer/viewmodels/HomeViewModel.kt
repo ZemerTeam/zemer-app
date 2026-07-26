@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
 import com.jtech.zemer.constants.ArtistProfilesCacheKey
 import com.jtech.zemer.constants.ArtistProfilesCacheTimestampKey
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.HomeRecentArtistsKey
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.OnboardingCompleteKey
@@ -76,9 +75,6 @@ class HomeViewModel @Inject constructor(
         val isIsraeli: Boolean?,
         val isFemale: Boolean?,
         val isFamous: Boolean?,
-        val isKids: Boolean?,
-        val isDJ: Boolean?,
-        val isGroup: Boolean?,
     )
 
     data class HomeUiState(
@@ -362,9 +358,6 @@ class HomeViewModel @Inject constructor(
                         isIsraeli = IsraeliArtistRegistry.isIsraeli(id),
                         isFemale = doc.getBoolean("isFemale"),
                         isFamous = doc.getBoolean("isFamous"),
-                        isKids = doc.getBoolean("isKids"),
-                        isDJ = doc.getBoolean("isDJ"),
-                        isGroup = doc.getBoolean("isGroup"),
                     )
                 }
             },
@@ -379,9 +372,6 @@ class HomeViewModel @Inject constructor(
             isIsraeli = IsraeliArtistRegistry.isIsraeli(resolvedId),
             isFemale = isFemale,
             isFamous = isFamous,
-            isKids = isKids,
-            isDJ = isDJ,
-            isGroup = isGroup,
         )
     }
 
@@ -389,7 +379,9 @@ class HomeViewModel @Inject constructor(
         return try {
             json.split("||").mapNotNull { entry ->
                 val parts = entry.split("|")
-                if (parts.size < 8) return@mapNotNull null
+                // 6 fields as of the featured-content teardown; an older 9-field cache still parses (the
+                // trailing isKids/isDJ/isGroup columns are simply ignored), so no forced refetch on upgrade.
+                if (parts.size < 6) return@mapNotNull null
                 HomeArtistProfile(
                     id = parts[0],
                     name = parts[1],
@@ -397,9 +389,6 @@ class HomeViewModel @Inject constructor(
                     isIsraeli = parts[3].toBooleanStrictOrNull(),
                     isFemale = parts[4].toBooleanStrictOrNull(),
                     isFamous = parts[5].toBooleanStrictOrNull(),
-                    isKids = parts[6].toBooleanStrictOrNull(),
-                    isDJ = parts[7].toBooleanStrictOrNull(),
-                    isGroup = parts.getOrNull(8)?.toBooleanStrictOrNull(),
                 )
             }
         } catch (e: Exception) {
@@ -411,7 +400,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun saveArtistProfilesToCache(profiles: List<HomeArtistProfile>) {
         try {
             val json = profiles.joinToString("||") { p ->
-                "${p.id}|${p.name}|${p.isAmerican}|${p.isIsraeli}|${p.isFemale}|${p.isFamous}|${p.isKids}|${p.isDJ}|${p.isGroup}"
+                "${p.id}|${p.name}|${p.isAmerican}|${p.isIsraeli}|${p.isFemale}|${p.isFamous}"
             }
             context.dataStore.edit { prefs ->
                 prefs[ArtistProfilesCacheKey] = json
@@ -423,59 +412,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun SongItem.isBlocked(
-        profileById: Map<String, HomeArtistProfile>,
-        allowFemale: Boolean
-    ): Boolean {
-        val ids = this.artists?.mapNotNull { it.id }.orEmpty()
-        val profiles = ids.mapNotNull { profileById[it] }
-        if (!allowFemale && profiles.any { it.isFemale == true }) return true
-        if (profiles.any { it.isAmerican != true }) return true
-        if (profiles.any { it.isIsraeli == true }) return true
-        if (profiles.any { it.isFamous != true }) return true
-        return false
-    }
-
-    private fun AlbumItem.isBlocked(
-        profileById: Map<String, HomeArtistProfile>,
-        allowFemale: Boolean
-    ): Boolean {
-        val ids = this.artists?.mapNotNull { it.id }.orEmpty()
-        val profiles = ids.mapNotNull { profileById[it] }
-        if (!allowFemale && profiles.any { it.isFemale == true }) return true
-        if (profiles.any { it.isAmerican != true }) return true
-        if (profiles.any { it.isIsraeli == true }) return true
-        if (profiles.any { it.isFamous != true }) return true
-        return false
-    }
-
-    private fun ArtistItem.isBlocked(
-        profileById: Map<String, HomeArtistProfile>,
-        allowFemale: Boolean
-    ): Boolean {
-        val profile = profileById[id]
-        if (!allowFemale && profile?.isFemale == true) return true
-        if (profile?.isAmerican != true) return true
-        if (profile?.isIsraeli == true) return true
-        if (profile?.isFamous != true) return true
-        return false
-    }
-
-    private fun PlaylistItem.isBlocked(
-        profileById: Map<String, HomeArtistProfile>,
-        allowFemale: Boolean
-    ): Boolean {
-        val authorId = author?.id
-        if (authorId != null) {
-            val profile = profileById[authorId]
-            if (!allowFemale && profile?.isFemale == true) return true
-            if (profile?.isAmerican != true) return true
-            if (profile?.isIsraeli == true) return true
-            if (profile?.isFamous != true) return true
-        }
-        return false
-    }
-
     /**
      * The telemetry-ranked home rows (Top Albums / Videos / Artists / Community) from the Zemer
      * `/home-rows` endpoint — real distinct-device listening / view counts, already whitelist-scoped +
@@ -484,18 +420,22 @@ class HomeViewModel @Inject constructor(
      */
     private suspend fun loadHomeRows(): ZemerResultMapper.HomeRows? {
         val start = System.currentTimeMillis()
-        return runCatching { zemerSearchRepository.homeRows(zemerSearchOptions(context)) }
-            .onSuccess {
+        return try {
+            zemerSearchRepository.homeRows(zemerSearchOptions(context)).also {
                 Timber.d(
                     "NET: /home-rows -> albums=%d videos=%d artists=%d community=%d in %dms",
                     it.albums.size, it.videos.size, it.artists.size, it.community.size, System.currentTimeMillis() - start,
                 )
             }
-            .getOrElse {
-                Timber.w(it, "HomeViewModel: /home-rows fetch failed — featured rows hide this load")
-                reportException(it)
-                null
-            }
+        } catch (e: java.util.concurrent.CancellationException) {
+            // Cooperative cancellation (VM cleared while the fetch is in flight) must propagate — not be
+            // caught and logged as a Crashlytics non-fatal. Matches the load()/refresh() catch boundaries.
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "HomeViewModel: /home-rows fetch failed — featured rows hide this load")
+            reportException(e)
+            null
+        }
     }
 
     /**
@@ -506,9 +446,16 @@ class HomeViewModel @Inject constructor(
      */
     private suspend fun seedQuickPicksFromZemer(existing: List<Song>): List<Song> {
         if (existing.isNotEmpty()) return existing
-        val candidateSongs = runCatching {
-            zemerSearchRepository.curatedPlaylist(QUICK_PICKS_SEED_PLAYLIST, zemerSearchOptions(context))?.songs
-        }.getOrNull().orEmpty().distinctBy { it.id }.take(40)
+        val candidateSongs = (
+            try {
+                zemerSearchRepository.curatedPlaylist(QUICK_PICKS_SEED_PLAYLIST, zemerSearchOptions(context))?.songs
+            } catch (e: java.util.concurrent.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.w(e, "HomeViewModel: Quick Picks seed fetch failed")
+                null
+            }
+            ).orEmpty().distinctBy { it.id }.take(40)
 
         if (candidateSongs.isEmpty()) return existing
 
@@ -551,7 +498,6 @@ class HomeViewModel @Inject constructor(
                 .orEmpty()
                 .split(",")
                 .filter { it.isNotBlank() }
-            val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
 
             // Start LOCAL data loading immediately (parallel with prep work)
             val parallelStartTime = System.currentTimeMillis()
@@ -579,14 +525,26 @@ class HomeViewModel @Inject constructor(
 
             // Show local data immediately while network loads
             if (quick.isNotEmpty() || forgotten.isNotEmpty() || keepListening.isNotEmpty()) {
+                val shownQuick = quick.shuffled(Random(System.nanoTime()))
                 uiState.update {
                     it.copy(
-                        quickPicks = quick.shuffled(Random(System.nanoTime())),
+                        quickPicks = shownQuick,
                         forgottenFavorites = forgotten,
                         keepListening = keepListening,
                         isNewUser = quick.isEmpty() && keepListening.isEmpty()
                     )
                 }
+                // Publish the local rows to the See-all store NOW — not only after the /home-rows await — so
+                // tapping a local row's "See all" during the network window shows these songs, not a blank
+                // page. Only the local fields are updated (copy of the current snapshot), so a pull-to-refresh
+                // keeps the previous load's still-visible featured rows until the final publish replaces them.
+                HomeSeeAllStore.publish(
+                    HomeSeeAllStore.data.value.copy(
+                        quickPicks = shownQuick,
+                        forgottenFavorites = forgotten,
+                        keepListening = keepListening,
+                    ),
+                )
                 Timber.d("HomeViewModel: Showing local data first - quick=${quick.size}, forgotten=${forgotten.size}, keep=${keepListening.size}")
             }
 
@@ -595,22 +553,7 @@ class HomeViewModel @Inject constructor(
             val artistProfiles = prepDeferred.await()
             Timber.d("HomeViewModel: Prep work done at +${System.currentTimeMillis() - loadStartTime}ms")
 
-            val allowedEntries = WhitelistCache.allowedEntries(database, filters)
-            val allowedIds = allowedEntries.map { it.artistId }.toSet()
-            val useWhitelist = filters.filtersEnabled && allowedEntries.isNotEmpty()
-            val effectiveFilters = if (useWhitelist) filters else filters.copy(filtersEnabled = false)
-            val eligibleProfiles = artistProfiles
-                .filter { it.isAmerican == true }
-                .filter { it.isIsraeli != true }
-                .filter { it.isFamous == true }
             val profileById = artistProfiles.associateBy { it.id }
-            val baseProfiles = if (useWhitelist) {
-                eligibleProfiles.filter { it.id in allowedIds }
-            } else {
-                eligibleProfiles
-            }
-            val sharedUsedArtists = recentArtistIds.toMutableSet()
-            val selectionRandom = Random(System.nanoTime())
 
             // Now start NETWORK calls (after prep work is done). The home tab is InnerTube-free for content:
             // every row is served from the Zemer `/home-rows` endpoint, local Room, or the releases feed.
@@ -618,6 +561,11 @@ class HomeViewModel @Inject constructor(
             // a new user's empty Quick Picks is seeded from Zemer (below), not the YouTube home feed.
             Timber.d("HomeViewModel: Starting NETWORK fetch at +${System.currentTimeMillis() - loadStartTime}ms")
             val homeRowsDeferred = viewModelScope.async(Dispatchers.IO) { loadHomeRows() }
+            // Cold start (empty local library): seed Quick Picks from the Zemer audience Top 50, not YouTube.
+            // It is independent of /home-rows, so run it CONCURRENTLY — cold-start first paint then waits on
+            // max(RTT), not the sum. A returning user's Quick Picks is non-empty, so the seed short-circuits
+            // to a no-op with no network call.
+            val quickSeededDeferred = viewModelScope.async(Dispatchers.IO) { seedQuickPicksFromZemer(quick) }
             val homeRows = homeRowsDeferred.await()
             Timber.d("HomeViewModel: NETWORK data ready at +${System.currentTimeMillis() - loadStartTime}ms")
 
@@ -713,8 +661,8 @@ class HomeViewModel @Inject constructor(
                 return result.take(target)
             }
 
-            // Cold start (empty local library): seed Quick Picks from the Zemer audience Top 50, not YouTube.
-            val quickSeeded = seedQuickPicksFromZemer(quick)
+            // Cold start (empty local library): the Zemer audience Top 50 seed, launched concurrently above.
+            val quickSeeded = quickSeededDeferred.await()
 
             val filteredQuick = quickSeeded.filter { song -> song.isAllowed() }
             val fallbackQuick = runCatching {
@@ -724,7 +672,6 @@ class HomeViewModel @Inject constructor(
             val quickPool = freshQuick.ifEmpty { filteredQuick }
             val recentAwareQuick = rotateByArtist(quickPool.ifEmpty { fallbackQuick }, 1, 20)
             Timber.d("HomeViewModel: quickPicks flow - quick=${quick.size}, filtered=${filteredQuick.size}, rotated=${recentAwareQuick.size}")
-            sharedUsedArtists.addAll(recentAwareQuick.flatMap { it.artistIds() })
 
             // CRITICAL: Never show fewer items than already displayed to user
             val finalQuick = when {
@@ -740,6 +687,9 @@ class HomeViewModel @Inject constructor(
                 }
             }
             Timber.d("HomeViewModel: finalQuick=${finalQuick.size} (original=${quick.size}, rotated=${recentAwareQuick.size})")
+            // The Quick Picks row is shown in a per-load shuffle; its "See all" must lead with that SAME
+            // order (the See-all contract), so shuffle ONCE here and use it for both the row and the snapshot.
+            val displayedQuick = finalQuick.shuffled(Random(System.nanoTime()))
             // Featured rows come ONLY from the Zemer /home-rows endpoint — the ranked-row content gate
             // (female/israeli/blocked-ids, not the famous/american proxy) then the one-per-artist rotation.
             // No InnerTube: an empty pool (only possible if search.zemer.io is unreachable) just hides the
@@ -792,7 +742,7 @@ class HomeViewModel @Inject constructor(
                     featuredPlaylists = displayedFirst(finalFeaturedPlaylists, communityPool) { it.id },
                     keepListening = displayedFirst(finalKeepListening, keepListeningAllowed) { it.id },
                     forgottenFavorites = displayedFirst(finalForgotten, forgottenAllowed) { it.id },
-                    quickPicks = displayedFirst(finalQuick, filteredQuick) { it.id },
+                    quickPicks = displayedFirst(displayedQuick, filteredQuick) { it.id },
                     featuredAlbumsAreZemer = featuredAlbumsAreZemer,
                     featuredPlaylistsAreZemer = featuredPlaylistsAreZemer,
                 ),
@@ -870,7 +820,7 @@ class HomeViewModel @Inject constructor(
                     isLoading = false,
                     isRefreshing = false,
                     isNewUser = isNewUser,
-                    quickPicks = finalQuick.shuffled(Random(System.nanoTime())),
+                    quickPicks = displayedQuick,
                     featuredPlaylists = finalFeaturedPlaylists,
                     keepListening = finalKeepListening,
                     forgottenFavorites = finalForgotten,
