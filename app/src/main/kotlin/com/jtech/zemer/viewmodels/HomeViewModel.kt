@@ -83,7 +83,6 @@ class HomeViewModel @Inject constructor(
         val isNewUser: Boolean = true,
         val quickPicks: List<Song> = emptyList(),
         val featuredPlaylists: List<PlaylistItem> = emptyList(),
-        val trendingSongs: List<SongItem> = emptyList(),
         val keepListening: List<LocalItem> = emptyList(),
         val forgottenFavorites: List<Song> = emptyList(),
         val featuredAlbums: List<AlbumItem> = emptyList(),
@@ -248,33 +247,6 @@ class HomeViewModel @Inject constructor(
             .shuffled()
             .distinctBy { it.id }
             .take(8)
-    }
-
-    private suspend fun loadTrendingSongs(filters: ContentFilterConfig, hideExplicit: Boolean): List<SongItem> {
-        val start = System.currentTimeMillis()
-        val allowedIds = WhitelistCache.allowedEntries(database, filters).map { it.artistId }.toSet()
-        // Fail closed: with no whitelisted artists there is nothing to show — never fall back to raw charts.
-        // Reached only when the whitelist is empty; the whitelist-present path below is unchanged.
-        if (allowedIds.isEmpty()) {
-            Timber.w("HomeViewModel: whitelist empty — trending fail-closed (no raw charts)")
-            return emptyList()
-        }
-        val charts = YouTube.getChartsPage().getOrNull()
-        Timber.d("NET: YouTube.getChartsPage() took ${System.currentTimeMillis() - start}ms")
-        if (charts == null) return emptyList()
-        val allSongs = charts.sections
-            .flatMap { it.items }
-            .filterIsInstance<SongItem>()
-            .filterExplicit(hideExplicit)
-        val whitelisted =
-            if (allowedIds.isEmpty()) allSongs
-            else allSongs.filter { item -> item.artists?.any { it.id in allowedIds } == true }
-
-        val chosen = when {
-            whitelisted.isNotEmpty() -> whitelisted
-            else -> allSongs
-        }
-        return chosen.distinctBy { it.id }.take(30)
     }
 
     private suspend fun loadKeepListening(): List<LocalItem> {
@@ -1008,7 +980,6 @@ class HomeViewModel @Inject constructor(
 
             // Now start NETWORK calls (after prep work is done)
             Timber.d("HomeViewModel: Starting NETWORK fetch at +${System.currentTimeMillis() - loadStartTime}ms")
-            val trendingDeferred = viewModelScope.async(Dispatchers.IO) { loadTrendingSongs(effectiveFilters, hideExplicit) }
             val homeDeferred = viewModelScope.async(Dispatchers.IO) {
                 if (useWhitelist) {
                     loadWhitelistHome(
@@ -1040,7 +1011,6 @@ class HomeViewModel @Inject constructor(
                 }
             }
 
-            val trendingSongs = trendingDeferred.await()
             val home = homeDeferred.await()
             val explore = exploreDeferred.await()
             Timber.d("HomeViewModel: NETWORK data ready at +${System.currentTimeMillis() - loadStartTime}ms")
@@ -1193,11 +1163,6 @@ class HomeViewModel @Inject constructor(
                 }
             }
             Timber.d("HomeViewModel: finalQuick=${finalQuick.size} (original=${quick.size}, rotated=${recentAwareQuick.size})")
-            val finalTrending = rotateByArtist(
-                trendingSongs.filter { song -> song.isAllowed() },
-                maxPerArtist = 1,
-                target = 30,
-            )
             val finalFeaturedPlaylists = rotateByArtist(
                 featuredPlaylists.filter { it.isAllowed() },
                 maxPerArtist = 1,
@@ -1272,7 +1237,6 @@ class HomeViewModel @Inject constructor(
             }
 
             collectSongArtists(finalQuick)
-            collectSongItems(finalTrending)
             collectPlaylistItems(finalFeaturedPlaylists)
             collectAlbumItems(finalFeaturedAlbums)
             collectArtistItems(finalFeaturedArtists)
@@ -1308,7 +1272,6 @@ class HomeViewModel @Inject constructor(
                     isRefreshing = false,
                     isNewUser = isNewUser,
                     quickPicks = finalQuick.shuffled(Random(System.nanoTime())),
-                    trendingSongs = finalTrending,
                     featuredPlaylists = finalFeaturedPlaylists,
                     keepListening = finalKeepListening,
                     forgottenFavorites = finalForgotten,

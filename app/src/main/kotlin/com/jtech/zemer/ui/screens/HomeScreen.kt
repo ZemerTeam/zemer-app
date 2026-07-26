@@ -133,7 +133,6 @@ fun HomeScreen(
 
     val quickPicks = homeUiState.quickPicks
     val featuredPlaylists = homeUiState.featuredPlaylists
-    val trendingSongs = homeUiState.trendingSongs
     val forgottenFavorites = homeUiState.forgottenFavorites
     val keepListening = homeUiState.keepListening
     val featuredAlbums = homeUiState.featuredAlbums
@@ -154,14 +153,13 @@ fun HomeScreen(
             (quickPicks + forgottenFavorites + keepListening).filter { it is Song || it is Album }
         }
     val allYtItems =
-        remember(featuredVideos, featuredAlbums, featuredArtists, trendingSongs, blockVideos) {
+        remember(featuredVideos, featuredAlbums, featuredArtists, blockVideos) {
             buildList {
                 if (!blockVideos) {
                     addAll(featuredVideos)
                 }
                 addAll(featuredAlbums)
                 addAll(featuredArtists)
-                addAll(trendingSongs)
             }
         }
 
@@ -174,7 +172,6 @@ fun HomeScreen(
     val uniqueFeaturedArtists = remember(featuredArtists) { featuredArtists.distinctBy { it.id } }
     val uniqueFeaturedAlbums = remember(featuredAlbums) { featuredAlbums.distinctBy { it.id } }
     val uniqueFeaturedVideos = remember(featuredVideos) { featuredVideos.distinctBy { it.id } }
-    val uniqueTrendingSongs = remember(trendingSongs) { trendingSongs.distinctBy { it.id } }
 
     val isLoading: Boolean = homeUiState.isLoading
     val isRefreshing = homeUiState.isRefreshing
@@ -446,7 +443,6 @@ fun HomeScreen(
             featuredArtists.isNotEmpty() ||
                 featuredAlbums.isNotEmpty() ||
                 (!blockVideos && featuredVideos.isNotEmpty()) ||
-                trendingSongs.isNotEmpty() ||
                 latestReleases.isNotEmpty() ||
                 zemerPlaylists.isNotEmpty()
         val shouldShowShimmer = isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent)
@@ -783,93 +779,6 @@ fun HomeScreen(
                                 )
                             }
                         }
-                }
-            }
-
-            trendingSongs.takeIf { it.isNotEmpty() }?.let { songs ->
-                item(key = "trending_title", contentType = "header") {
-                    NavigationTitle(
-                        title = stringResource(R.string.trending),
-                        modifier = Modifier.animateItem()
-                    )
-                }
-
-                item(key = "trending_list", contentType = "grid") {
-                    // Declared here, not hoisted to the screen: the row's scroll position keeps the
-                    // same lifetime it has always had (reset when the section leaves composition).
-                    val trendingGridState = rememberLazyGridState()
-                    TrackImpressionsByKey(
-                        surface = TrackingSurface.home("trending"),
-                        state = trendingGridState,
-                        parent = lazylistState,
-                        parentKey = "trending_list",
-                        idOfKey = rememberRowImpressionIds(uniqueTrendingSongs) { it.id },
-                    )
-                    LazyHorizontalGrid(
-                        state = trendingGridState,
-                        rows = GridCells.Fixed(2),
-                        contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(ListItemHeight * 2.5f)
-                            .animateItem()
-                    ) {
-                        items(
-                            items = uniqueTrendingSongs,
-                            key = { it.id },
-                            contentType = { "yt_song" }
-                        ) { song ->
-                            YouTubeListItem(
-                                item = song,
-                                isActive = mediaMetadata?.id == song.id,
-                                isPlaying = isPlaying,
-                                trailingContent = {
-                                    IconButton(
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            menuState.show {
-                                                YouTubeSongMenu(
-                                                    song = song,
-                                                    navController = navController,
-                                                    onDismiss = menuState::dismiss,
-                                                )
-                                            }
-                                        }
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.more_vert),
-                                            contentDescription = null,
-                                        )
-                                    }
-                                },
-                                modifier = Modifier
-                                    .width(horizontalLazyGridItemWidth)
-                                    .combinedClickable(
-                                        onClick = {
-                                            playerConnection.playQueue(
-                                                YouTubeQueue(
-                                                    song.endpoint ?: WatchEndpoint(videoId = song.id),
-                                                    song.toMediaMetadata(),
-                                                    database = database
-                                                )
-                                            )
-                                        },
-                                        onLongClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            menuState.show {
-                                                YouTubeSongMenu(
-                                                    song = song,
-                                                    navController = navController,
-                                                    onDismiss = menuState::dismiss,
-                                                )
-                                            }
-                                        }
-                                    )
-                            )
-                        }
-                    }
                 }
             }
 
