@@ -150,11 +150,16 @@ object ZemerResultMapper {
      * explicit). The artist-membership whitelist is NOT re-run — these are whitelist-pure server-side,
      * same convention as every other Zemer surface — but each card now carries its artist channel id
      * ([ZemerAlbum.artistId]/[ZemerTrack.artistId]/[ZemerArtist.id]) so the caller can still run the
-     * home one-per-artist dedup and its female/israeli defence-in-depth. `topCommunity` is intentionally
-     * dropped here: it maps to [PlaylistItem]s the caller renders in the featured-playlists row, but that
-     * row is not wired to `/home-rows` yet, so exposing it would be dead. See [HomeRows].
+     * home one-per-artist dedup and its female/israeli defence-in-depth. `topCommunity` maps to
+     * [PlaylistItem]s for the featured-playlists row (discovery-sourced, view-ranked, whitelist-pure +
+     * content-filtered server-side — same as the Community search chip); [formatSongCount] renders the
+     * localized "N songs" count and defaults to omitting it. See [HomeRows].
      */
-    fun homeRows(resp: ZemerHomeRowsResponse, hideExplicit: Boolean): HomeRows =
+    fun homeRows(
+        resp: ZemerHomeRowsResponse,
+        hideExplicit: Boolean,
+        formatSongCount: (Int) -> String? = { null },
+    ): HomeRows =
         HomeRows(
             albums = resp.topAlbums.filter { it.id.isNotBlank() }
                 .map { it.toAlbumItem() }
@@ -166,13 +171,15 @@ object ZemerResultMapper {
                 .map { it.toArtistItem() }
                 .distinctBy { it.id }
                 .dropBlocked(),
+            community = playlistItems(resp.topCommunity, formatSongCount),
         )
 
-    /** The three telemetry-ranked home rows in native item types (see [homeRows]). */
+    /** The four telemetry/discovery-ranked home rows in native item types (see [homeRows]). */
     data class HomeRows(
         val albums: List<AlbumItem>,
         val videos: List<SongItem>,
         val artists: List<ArtistItem>,
+        val community: List<PlaylistItem>,
     )
 
     /**

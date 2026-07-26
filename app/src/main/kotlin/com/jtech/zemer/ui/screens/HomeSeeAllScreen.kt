@@ -22,7 +22,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -43,6 +42,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
+import com.jtech.zemer.search.onlinePlaylistRoute
 import com.jtech.zemer.ui.component.AlbumListItem
 import com.jtech.zemer.ui.component.ArtistListItem
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -53,6 +53,7 @@ import com.jtech.zemer.ui.menu.ArtistMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeArtistMenu
+import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
@@ -78,9 +79,11 @@ fun HomeSeeAllScreen(
         HomeSeeAllRow.FEATURED_ALBUMS ->
             YtItemGrid(data.featuredAlbums, navController, zemerAlbums = data.featuredAlbumsAreZemer)
         HomeSeeAllRow.FEATURED_ARTISTS ->
-            YtItemGrid(data.featuredArtists, navController, zemerAlbums = false)
+            YtItemGrid(data.featuredArtists, navController)
         HomeSeeAllRow.FEATURED_VIDEOS ->
-            YtItemGrid(data.featuredVideos, navController, zemerAlbums = false)
+            YtItemGrid(data.featuredVideos, navController)
+        HomeSeeAllRow.FEATURED_PLAYLISTS ->
+            YtItemGrid(data.featuredPlaylists, navController, zemerPlaylists = data.featuredPlaylistsAreZemer)
         HomeSeeAllRow.QUICK_PICKS -> SongList(data.quickPicks, navController)
         HomeSeeAllRow.FORGOTTEN_FAVORITES -> SongList(data.forgottenFavorites, navController)
         HomeSeeAllRow.KEEP_LISTENING -> LocalItemList(data.keepListening, navController)
@@ -106,7 +109,8 @@ fun HomeSeeAllScreen(
 private fun <T : YTItem> YtItemGrid(
     items: List<T>,
     navController: NavController,
-    zemerAlbums: Boolean,
+    zemerAlbums: Boolean = false,
+    zemerPlaylists: Boolean = false,
 ) {
     val menuState = LocalMenuState.current
     val database = LocalDatabase.current
@@ -141,7 +145,10 @@ private fun <T : YTItem> YtItemGrid(
                                 if (zemerAlbums) navController.navigate(SearchProvider.ZEMER.onlineAlbumRoute(item))
                                 else navController.navigate("album/${item.id}")
                             is ArtistItem -> navController.navigate("artist/${item.id}")
-                            is PlaylistItem -> Unit // Featured rows never contain playlists.
+                            // Community playlists are Zemer-sourced: open via the server /playlist route.
+                            is PlaylistItem ->
+                                if (zemerPlaylists) navController.navigate(SearchProvider.ZEMER.onlinePlaylistRoute(item.id))
+                                else navController.navigate("online_playlist/${item.id}")
                         }
                     },
                     onLongClick = {
@@ -151,7 +158,7 @@ private fun <T : YTItem> YtItemGrid(
                                 is SongItem -> YouTubeSongMenu(song = item, navController = navController, onDismiss = menuState::dismiss)
                                 is AlbumItem -> YouTubeAlbumMenu(albumItem = item, navController = navController, onDismiss = menuState::dismiss)
                                 is ArtistItem -> YouTubeArtistMenu(artist = item, onDismiss = menuState::dismiss)
-                                is PlaylistItem -> Unit
+                                is PlaylistItem -> YouTubePlaylistMenu(playlist = item, coroutineScope = scope, onDismiss = menuState::dismiss)
                             }
                         }
                     },

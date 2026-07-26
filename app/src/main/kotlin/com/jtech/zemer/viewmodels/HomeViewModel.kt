@@ -102,6 +102,10 @@ class HomeViewModel @Inject constructor(
         // than the InnerTube scrape fallback — the row then opens albums through the Zemer album route so
         // the album screen loads via the server (immune to on-device InnerTube bot-gating).
         val featuredAlbumsAreZemer: Boolean = false,
+        // True when [featuredPlaylists] came from the `/home-rows` community pool (Zemer-sourced) rather
+        // than the InnerTube artist-playlist scrape fallback — the row then opens playlists via the Zemer
+        // `/playlist` route (whitelist-scoped, filter-matched to the card).
+        val featuredPlaylistsAreZemer: Boolean = false,
         val homePage: HomePage? = null,
         val explorePage: ExplorePage? = null,
     )
@@ -1055,16 +1059,6 @@ class HomeViewModel @Inject constructor(
             val homeRows = homeRowsDeferred.await()
             Timber.d("HomeViewModel: NETWORK data ready at +${System.currentTimeMillis() - loadStartTime}ms")
 
-            // Featured playlists loaded after (uses sharedUsedArtists which is mutable)
-            val featuredPlaylists = loadFeaturedPlaylists(
-                hideExplicit,
-                baseProfiles,
-                allowFemale,
-                selectionRandom,
-                sharedUsedArtists,
-                recentArtistIds.toSet(),
-            )
-
             fun isBlockedArtist(ids: List<String>): Boolean {
                 if (ids.any { IsraeliArtistRegistry.isIsraeli(it) }) return true
                 val profiles = ids.mapNotNull { profileById[it] }
@@ -1094,6 +1088,10 @@ class HomeViewModel @Inject constructor(
             fun SongItem.isAllowedRanked(): Boolean = !isBlockedRanked(this.artists?.mapNotNull { it.id } ?: emptyList())
             fun AlbumItem.isAllowedRanked(): Boolean = !isBlockedRanked(this.artists?.mapNotNull { it.id } ?: emptyList())
             fun ArtistItem.isAllowedRanked(): Boolean = !isBlockedRanked(listOfNotNull(this.id))
+            // Community playlists carry no curator channel id, so this is effectively a pass-through: the
+            // server already applies the female-owner hide + member survival + blocked-ids, and the mapper
+            // re-drops blocked ids. Defined for symmetry with the other ranked rows.
+            fun PlaylistItem.isAllowedRanked(): Boolean = !isBlockedRanked(listOfNotNull(this.author?.id))
 
             fun Song.isAllowed(): Boolean = !isBlockedArtist(this.artists.map { it.id })
             fun LocalItem.isAllowed(): Boolean = when (this) {
@@ -1210,11 +1208,20 @@ class HomeViewModel @Inject constructor(
                 }
             }
             Timber.d("HomeViewModel: finalQuick=${finalQuick.size} (original=${quick.size}, rotated=${recentAwareQuick.size})")
-            val finalFeaturedPlaylists = rotateByArtist(
-                featuredPlaylists.filter { it.isAllowed() },
-                maxPerArtist = 1,
-                target = 8,
-            )
+            // Featured Playlists from the telemetry endpoint's discovery-ranked community pool (view-ranked,
+            // whitelist-pure + content-filtered server-side). Below MIN_HOME_ROW it falls back to the
+            // InnerTube artist-playlist scrape — run ONLY then, so a healthy home makes zero playlist
+            // scrape calls and this is the last InnerTube row to retire.
+            val communityPool = homeRows?.community.orEmpty().filter { it.isAllowedRanked() }
+            val rankedCommunity = rotateByArtist(communityPool, maxPerArtist = 1, target = 8)
+            val playlistsNeedScrape = rankedCommunity.size < MIN_HOME_ROW
+            val scrapedPlaylists = if (playlistsNeedScrape) {
+                loadFeaturedPlaylists(hideExplicit, baseProfiles, allowFemale, selectionRandom, sharedUsedArtists, recentArtistIds.toSet())
+                    .filter { it.isAllowed() }
+            } else emptyList()
+            val finalFeaturedPlaylists = if (!playlistsNeedScrape) rankedCommunity
+            else rotateByArtist(scrapedPlaylists, maxPerArtist = 1, target = 8)
+            val featuredPlaylistsAreZemer = !playlistsNeedScrape && finalFeaturedPlaylists.isNotEmpty()
             val finalKeepListening = rotateByArtist(
                 keepListening.filter { it.isAllowed() },
                 maxPerArtist = 1,
@@ -1270,10 +1277,12 @@ class HomeViewModel @Inject constructor(
                     else featuredTriple.second.filter { it.isAllowed() },
                     featuredVideos = if (!videosNeedScrape) homeRows?.videos.orEmpty().filter { it.isAllowedRanked() }
                     else featuredTriple.third.filter { it.isAllowed() },
+                    featuredPlaylists = if (!playlistsNeedScrape) communityPool else scrapedPlaylists,
                     keepListening = keepListening.filter { it.isAllowed() },
                     forgottenFavorites = forgotten.filter { it.isAllowed() },
                     quickPicks = filteredQuick,
                     featuredAlbumsAreZemer = featuredAlbumsAreZemer,
+                    featuredPlaylistsAreZemer = featuredPlaylistsAreZemer,
                 ),
             )
             val isNewUser = finalQuick.isEmpty() && keepListening.isEmpty()
@@ -1351,7 +1360,7 @@ class HomeViewModel @Inject constructor(
             Timber.d(
                 "HomeViewModel: load -> featuredArtists=%d playlists=%d albums=%d videos=%d quick=%d zemerAlbums=%b",
                 finalFeaturedArtists.size,
-                featuredPlaylists.size,
+                finalFeaturedPlaylists.size,
                 finalFeaturedAlbums.size,
                 finalFeaturedVideos.size,
                 finalQuick.size,
@@ -1372,6 +1381,7 @@ class HomeViewModel @Inject constructor(
                     featuredArtists = finalFeaturedArtists,
                     featuredVideos = finalFeaturedVideos,
                     featuredAlbumsAreZemer = featuredAlbumsAreZemer,
+                    featuredPlaylistsAreZemer = featuredPlaylistsAreZemer,
                     homePage = filteredHome,
                     explorePage = filteredExplore,
                 )

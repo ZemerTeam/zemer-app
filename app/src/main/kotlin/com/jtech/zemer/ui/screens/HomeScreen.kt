@@ -69,6 +69,7 @@ import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
+import com.jtech.zemer.search.onlinePlaylistRoute
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
@@ -139,6 +140,8 @@ fun HomeScreen(
     // Featured albums are Zemer-sourced (telemetry-ranked) rather than the scrape fallback: open them via
     // the Zemer album route so the album screen loads through the server (immune to InnerTube bot-gating).
     val featuredAlbumsAreZemer = homeUiState.featuredAlbumsAreZemer
+    // Same for featured playlists: Zemer community playlists open via the server /playlist route.
+    val featuredPlaylistsAreZemer = homeUiState.featuredPlaylistsAreZemer
     val latestReleasesViewModel: LatestReleasesViewModel = hiltViewModel()
     val latestReleases by latestReleasesViewModel.releases.collectAsState()
     val zemerPlaylistsViewModel: ZemerCuratedPlaylistsViewModel = hiltViewModel()
@@ -367,7 +370,13 @@ fun HomeScreen(
                                     navController.navigate("album/${item.id}")
                                 }
                             is ArtistItem -> navController.navigate("artist/${item.id}")
-                            is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                            // Featured playlists: Zemer community playlists open via the server /playlist path.
+                            is PlaylistItem ->
+                                if (featuredPlaylistsAreZemer) {
+                                    navController.navigate(SearchProvider.ZEMER.onlinePlaylistRoute(item.id))
+                                } else {
+                                    navController.navigate("online_playlist/${item.id}")
+                                }
                         }
                     },
                     onLongClick = {
@@ -633,6 +642,7 @@ fun HomeScreen(
                     item(key = "featured_playlists_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.featured_playlists),
+                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_PLAYLISTS.slug}") },
                             modifier = Modifier.animateItem()
                         )
                     }

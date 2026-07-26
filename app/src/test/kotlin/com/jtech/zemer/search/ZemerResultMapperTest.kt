@@ -498,10 +498,10 @@ class ZemerResultMapperTest {
             ),
             topVideos = listOf(ZemerTrack(videoId = "v1", title = "Vid", artist = "B", artistId = "UCb")),
             topArtists = listOf(ZemerArtist("UCc", "C", "art")),
-            topCommunity = listOf(ZemerPlaylist("c1", "Community", "Cur", "t")), // ignored — not wired yet
+            topCommunity = listOf(ZemerPlaylist("c1", "Community", "Cur", "th", songCount = 12)),
         )
 
-        val rows = ZemerResultMapper.homeRows(resp, hideExplicit = false)
+        val rows = ZemerResultMapper.homeRows(resp, hideExplicit = false) { "$it songs" }
 
         val album = rows.albums.single()
         assertEquals("MPRE1", album.browseId)
@@ -516,6 +516,13 @@ class ZemerResultMapperTest {
         val artist = rows.artists.single()
         assertEquals("UCc", artist.id)
         assertEquals("art", artist.thumbnail)
+
+        // topCommunity maps to the featured-playlists row (discovery-sourced community playlists).
+        val community = rows.community.single()
+        assertEquals("c1", community.id)
+        assertEquals("Community", community.title)
+        assertEquals("Cur", community.author?.name)
+        assertEquals("12 songs", community.songCountText)
     }
 
     @Test

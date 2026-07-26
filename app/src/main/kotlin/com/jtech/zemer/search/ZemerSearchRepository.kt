@@ -131,6 +131,7 @@ class ZemerSearchRepository @Inject constructor(
         ZemerResultMapper.homeRows(
             client.homeRows(options.allowFemale, options.blockVideos),
             options.hideExplicit,
+            formatSongCount,
         )
 
     /**

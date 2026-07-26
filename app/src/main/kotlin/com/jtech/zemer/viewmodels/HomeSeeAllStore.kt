@@ -6,6 +6,7 @@ import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Song
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +21,7 @@ enum class HomeSeeAllRow(val slug: String, @StringRes val titleRes: Int) {
     FEATURED_ALBUMS("featured-albums", R.string.featured_albums),
     FEATURED_ARTISTS("featured-artists", R.string.featured_artists),
     FEATURED_VIDEOS("featured-videos", R.string.featured_videos),
+    FEATURED_PLAYLISTS("featured-playlists", R.string.featured_playlists),
     KEEP_LISTENING("keep-listening", R.string.keep_listening),
     FORGOTTEN_FAVORITES("forgotten-favorites", R.string.forgotten_favorites),
     QUICK_PICKS("quick-picks", R.string.quick_picks),
@@ -35,12 +37,15 @@ data class HomeSeeAllData(
     val featuredAlbums: List<AlbumItem> = emptyList(),
     val featuredArtists: List<ArtistItem> = emptyList(),
     val featuredVideos: List<SongItem> = emptyList(),
+    val featuredPlaylists: List<PlaylistItem> = emptyList(),
     val keepListening: List<LocalItem> = emptyList(),
     val forgottenFavorites: List<Song> = emptyList(),
     val quickPicks: List<Song> = emptyList(),
     // True when [featuredAlbums] is Zemer-sourced (telemetry) rather than the InnerTube scrape fallback,
     // so the See-all opens those albums through the server album route — same rule as the Home row.
     val featuredAlbumsAreZemer: Boolean = false,
+    // Same, for [featuredPlaylists]: Zemer community playlists open via the server /playlist route.
+    val featuredPlaylistsAreZemer: Boolean = false,
 )
 
 /**
