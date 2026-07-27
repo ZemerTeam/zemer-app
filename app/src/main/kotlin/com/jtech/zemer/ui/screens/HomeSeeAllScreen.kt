@@ -128,11 +128,14 @@ fun HomeSeeAllScreen(
 
 /** Online Featured rows (albums / artists / videos) as a grid, click + long-press mirroring Home. */
 @Composable
-private fun <T : YTItem> YtItemGrid(
+internal fun <T : YTItem> YtItemGrid(
     items: List<T>,
     navController: NavController,
     zemerAlbums: Boolean = false,
     zemerPlaylists: Boolean = false,
+    // Zemer playlists tag their plays community:<id> by default (the Home community row); the artist
+    // page's own playlists are artist-owned, so it passes false to keep them plain playlist:<id>.
+    communityPlaylists: Boolean = true,
 ) {
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -171,7 +174,7 @@ private fun <T : YTItem> YtItemGrid(
                             // Community playlists are Zemer-sourced: open via the server /playlist route and
                             // tag plays `community:<id>` (the discovery-sourced community row).
                             is PlaylistItem ->
-                                if (zemerPlaylists) navController.navigate(SearchProvider.ZEMER.onlinePlaylistRoute(item.id, community = true))
+                                if (zemerPlaylists) navController.navigate(SearchProvider.ZEMER.onlinePlaylistRoute(item.id, community = communityPlaylists))
                                 else navController.navigate("online_playlist/${item.id}")
                         }
                     },
