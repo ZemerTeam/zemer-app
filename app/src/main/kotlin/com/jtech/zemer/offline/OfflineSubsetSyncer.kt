@@ -135,6 +135,19 @@ class OfflineSubsetSyncer @Inject constructor(
         }
     }
 
+    /**
+     * App-start auto-update: sync only when offline search is enabled and the last successful sync is
+     * older than [AUTO_UPDATE_INTERVAL_MS] (or never). A cheap no-op otherwise; [sync] still applies the
+     * enabled + WiFi-only gates, so an enabled-but-metered device simply defers to the next start.
+     */
+    suspend fun maybeSync() {
+        val prefs = context.dataStore.data.first()
+        if (prefs[OfflineSubsetEnabledKey] != true) return
+        val last = prefs[OfflineSubsetLastSyncedAtKey] ?: 0L
+        if (System.currentTimeMillis() - last < AUTO_UPDATE_INTERVAL_MS) return
+        sync()
+    }
+
     /** Wipes the downloaded snapshot (called when the user turns offline search off). */
     suspend fun clear() = mutex.withLock {
         store.clear()
@@ -147,5 +160,9 @@ class OfflineSubsetSyncer @Inject constructor(
             ?: return true
         val caps = cm.activeNetwork?.let(cm::getNetworkCapabilities) ?: return true
         return !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+    }
+
+    companion object {
+        private const val AUTO_UPDATE_INTERVAL_MS = 24L * 60 * 60 * 1000 // daily
     }
 }

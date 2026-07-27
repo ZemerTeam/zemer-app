@@ -84,6 +84,9 @@ class App : Application(), SingletonImageLoader.Factory {
     @Inject
     lateinit var syncUtils: SyncUtils
 
+    @Inject
+    lateinit var offlineSubsetSyncer: com.jtech.zemer.offline.OfflineSubsetSyncer
+
     // Lazy so app start never pays for opening the DB before something else needs it.
     @Inject
     lateinit var databaseLazy: dagger.Lazy<MusicDatabase>
@@ -119,6 +122,14 @@ class App : Application(), SingletonImageLoader.Factory {
         registerActivityLifecycleCallbacks(TrackingLifecycle())
         PlayHistoryBackfill.maybeStart(this) { databaseLazy.get() }
         LibraryActionBackfill.maybeStart(this) { databaseLazy.get() }
+
+        // On-device offline-search snapshot: refresh it in the background if the user enabled offline
+        // search and it's due (daily), respecting the WiFi-only gate. Delayed + best-effort so it never
+        // competes with startup; a no-op when offline search is off. (docs: the outage-fallback subset.)
+        applicationScope.launch(Dispatchers.IO) {
+            delay(5000)
+            runCatching { offlineSubsetSyncer.maybeSync() }
+        }
 
         // Initialize cipher library for WEB_REMIX streaming
         ZemerCipher.initialize(
