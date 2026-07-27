@@ -82,9 +82,6 @@ class OfflineSubsetSyncer @Inject constructor(
         }
     }
 
-    /** True when a usable snapshot is on disk (a committed manifest with its shards). */
-    fun hasSnapshot(): Boolean = store.localManifest() != null
-
     /**
      * Brings the local snapshot up to the server manifest. [force] runs even when the opt-in is off
      * (used by the "download now" settings action, which enables + forces the first sync).

@@ -542,4 +542,16 @@
     <string name="enable_casting">Enable casting</string>
     <string name="enable_casting_description">Show a cast button to play to Chromecast and FCast devices on your network.</string>
     <string name="stop_casting">Stop casting</string>
+    <string name="offline_search">Offline search</string>
+    <string name="settings_desc_offline_search">Search and browse without a connection</string>
+    <string name="offline_search_enable">Enable offline search</string>
+    <string name="offline_search_enable_desc">Download the music catalog to search and browse when offline</string>
+    <string name="offline_search_wifi_only">Download over Wi-Fi only</string>
+    <string name="offline_search_wifi_only_desc">Only download or update the offline catalog on an unmetered network</string>
+    <string name="offline_search_download_now">Download now</string>
+    <string name="offline_search_updating">Updating…</string>
+    <string name="offline_search_size">%1$s downloaded</string>
+    <string name="offline_search_last_updated">Updated %1$s</string>
+    <string name="offline_search_never">Never</string>
+    <string name="offline_search_last_error">Last error: %1$s</string>
 </resources>
