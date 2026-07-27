@@ -121,6 +121,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.EmptyQueue
 import com.jtech.zemer.playback.queues.Queue
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.playback.queues.filterExplicit
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.utils.CoilBitmapLoader
@@ -1029,10 +1030,10 @@ class MusicService :
         )
 
         startRadioJob = scope.launch(SilentHandler) {
-            val radioQueue = YouTubeQueue(
-                endpoint = WatchEndpoint(videoId = currentMediaMetadata.id),
-                preloadItem = null,
-                database = database
+            val radioQueue = ZemerRadioQueue(
+                kind = "song",
+                seed = currentMediaMetadata.id,
+                context = this@MusicService,
             )
             val initialStatus = try {
                 radioQueue.getInitialStatus()
@@ -1041,8 +1042,9 @@ class MusicService :
                 onStartRadioFailed()
                 return@launch
             }
-            // Item 0 is the seed (currently-playing) song; only the rest gets appended.
-            val radioItems = initialStatus.items.drop(1)
+            // Exclude the seed (currently-playing) song by id so it isn't queued twice — the Zemer radio
+            // may or may not lead with the seed, unlike the YouTube watch playlist that always did.
+            val radioItems = initialStatus.items.filterNot { it.mediaId == currentMediaMetadata.id }
             if (radioItems.isEmpty()) {
                 // Fetch came back empty (e.g. everything whitelist-filtered) — leave the
                 // existing queue alone instead of having wiped it for nothing.
