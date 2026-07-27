@@ -64,7 +64,7 @@ import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
 import com.jtech.zemer.search.onlinePlaylistRoute
@@ -101,7 +101,6 @@ import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.YTItem
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -216,7 +215,7 @@ fun HomeScreen(
                                 playerConnection.playPause()
                             } else {
                                 playerConnection.playQueue(
-                                    YouTubeQueue.radio(it.toMediaMetadata(), database),
+                                    ZemerRadioQueue.song(it.toMediaMetadata(), playerConnection.service),
                                 )
                             }
                         },
@@ -300,11 +299,7 @@ fun HomeScreen(
                     onClick = {
                         when (item) {
                             is SongItem -> playerConnection.playQueue(
-                                YouTubeQueue(
-                                    item.endpoint ?: WatchEndpoint(
-                                        videoId = item.id
-                                    ), item.toMediaMetadata(), database
-                                )
+                                ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service)
                             )
 
                             // Only the featured-albums row passes an AlbumItem through ytGridItem, so this
@@ -487,8 +482,8 @@ fun HomeScreen(
                                                     playerConnection.playPause()
                                                 } else {
                                                     playerConnection.playQueue(
-                                                        YouTubeQueue.radio(
-                                                            song!!.toMediaMetadata(), database
+                                                        ZemerRadioQueue.song(
+                                                            song!!.toMediaMetadata(), playerConnection.service
                                                         )
                                                     )
                                                 }
@@ -535,7 +530,6 @@ fun HomeScreen(
                                     release = release,
                                     navController = navController,
                                     playerConnection = playerConnection,
-                                    database = database,
                                     mediaMetadata = mediaMetadata,
                                     isPlaying = isPlaying,
                                     asGrid = true,
@@ -730,8 +724,8 @@ fun HomeScreen(
                                                     playerConnection.playPause()
                                                 } else {
                                                     playerConnection.playQueue(
-                                                        YouTubeQueue.radio(
-                                                            song!!.toMediaMetadata(), database
+                                                        ZemerRadioQueue.song(
+                                                            song!!.toMediaMetadata(), playerConnection.service
                                                         )
                                                     )
                                                 }

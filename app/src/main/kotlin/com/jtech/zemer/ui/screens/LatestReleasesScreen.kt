@@ -24,7 +24,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
@@ -53,7 +52,6 @@ fun LatestReleasesScreen(
     viewModel: LatestReleasesViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
@@ -88,7 +86,6 @@ fun LatestReleasesScreen(
                     release = release,
                     navController = navController,
                     playerConnection = playerConnection,
-                    database = database,
                     mediaMetadata = mediaMetadata,
                     isPlaying = isPlaying,
                     asGrid = false,

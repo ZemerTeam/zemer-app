@@ -25,12 +25,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -40,7 +39,6 @@ import com.jtech.zemer.ui.screens.YtItemGrid
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.ArtistViewModel
 import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.WatchEndpoint
 
 /**
  * "See all" for one artist-page section. `/artist` returns each section's whole catalog, so this reads
@@ -112,7 +110,6 @@ private fun ArtistSongList(
     artistId: String,
 ) {
     val menuState = LocalMenuState.current
-    val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val haptic = LocalHapticFeedback.current
     val isPlaying by playerConnection.isPlaying.collectAsState()
@@ -137,11 +134,10 @@ private fun ArtistSongList(
                             playerConnection.playPause()
                         } else {
                             playerConnection.playQueue(
-                                YouTubeQueue(
-                                    WatchEndpoint(videoId = song.id),
+                                ZemerRadioQueue.song(
                                     song.toMediaMetadata(),
-                                    database,
-                                    playSource = PlaySource.artist(artistId),
+                                    playerConnection.service,
+                                    PlaySource.artist(artistId),
                                 ),
                             )
                         }

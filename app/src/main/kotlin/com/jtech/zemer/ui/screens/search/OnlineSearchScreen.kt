@@ -71,7 +71,7 @@ import com.jtech.zemer.search.onlinePlaylistRoute
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.SearchBarIconOffsetX
 import com.jtech.zemer.ui.component.YouTubeListItem
@@ -278,7 +278,7 @@ fun OnlineSearchScreen(
                                         playerConnection.playPause()
                                     } else {
                                         playerConnection.playQueue(
-                                            YouTubeQueue.radio(item.toMediaMetadata(), database)
+                                            ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service)
                                         )
                                         onDismiss()
                                     }
@@ -352,7 +352,7 @@ fun OnlineSearchScreen(
                                         playerConnection.playPause()
                                     } else {
                                         playerConnection.playQueue(
-                                            YouTubeQueue.radio(item.toMediaMetadata(), database)
+                                            ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service)
                                         )
                                         onDismiss()
                                     }

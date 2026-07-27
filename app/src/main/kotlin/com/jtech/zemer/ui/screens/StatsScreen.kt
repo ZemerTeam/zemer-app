@@ -30,7 +30,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
@@ -39,7 +38,7 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
-import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.ui.component.ChoiceChipsRow
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.IconButton
@@ -55,7 +54,6 @@ import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.viewmodels.StatsViewModel
-import com.metrolist.innertube.models.WatchEndpoint
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -66,7 +64,6 @@ fun StatsScreen(
     viewModel: StatsViewModel = hiltViewModel(),
 ) {
     val menuState = LocalMenuState.current
-    val database = LocalDatabase.current
     val haptic = LocalHapticFeedback.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isPlaying.collectAsState()
@@ -262,11 +259,7 @@ fun StatsScreen(
                                             playerConnection.playPause()
                                         } else {
                                             playerConnection.playQueue(
-                                                YouTubeQueue(
-                                                    endpoint = WatchEndpoint(song.id),
-                                                    preloadItem = mostPlayedSongs[index].toMediaMetadata(),
-                                                    database = database,
-                                                ),
+                                                ZemerRadioQueue.song(mostPlayedSongs[index].toMediaMetadata(), playerConnection.service),
                                             )
                                         }
                                     },

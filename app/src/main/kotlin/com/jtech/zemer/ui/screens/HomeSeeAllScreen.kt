@@ -39,7 +39,7 @@ import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
 import com.jtech.zemer.search.onlinePlaylistRoute
@@ -226,7 +226,7 @@ private fun SongList(songs: List<Song>, navController: NavController) {
                 modifier = Modifier.combinedClickable(
                     onClick = {
                         if (shown.id == mediaMetadata?.id) playerConnection.playPause()
-                        else playerConnection.playQueue(YouTubeQueue.radio(shown.toMediaMetadata(), database))
+                        else playerConnection.playQueue(ZemerRadioQueue.song(shown.toMediaMetadata(), playerConnection.service))
                     },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -242,7 +242,6 @@ private fun SongList(songs: List<Song>, navController: NavController) {
 @Composable
 private fun LocalItemList(items: List<LocalItem>, navController: NavController) {
     val menuState = LocalMenuState.current
-    val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
@@ -264,7 +263,7 @@ private fun LocalItemList(items: List<LocalItem>, navController: NavController) 
                     modifier = Modifier.combinedClickable(
                         onClick = {
                             if (item.id == mediaMetadata?.id) playerConnection.playPause()
-                            else playerConnection.playQueue(YouTubeQueue.radio(item.toMediaMetadata(), database))
+                            else playerConnection.playQueue(ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service))
                         },
                         onLongClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)

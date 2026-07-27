@@ -19,7 +19,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.R
-import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.ui.component.AlbumBadges
@@ -47,7 +46,6 @@ fun LatestReleaseCard(
     release: LatestRelease,
     navController: NavController,
     playerConnection: PlayerConnection,
-    database: MusicDatabase,
     mediaMetadata: MediaMetadata?,
     isPlaying: Boolean,
     asGrid: Boolean,
@@ -59,7 +57,7 @@ fun LatestReleaseCard(
     val dateLabel = remember(release.browseId) { release.relativeDateLabel() }
     val subtitle = joinByBullet(release.artistName, dateLabel)
     val clickable = Modifier.combinedClickable(
-        onClick = { release.openOrPlay(navController, playerConnection, database) },
+        onClick = { release.openOrPlay(navController, playerConnection) },
         onLongClick = {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             menuState.show {

@@ -95,6 +95,7 @@ import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
 import com.jtech.zemer.search.onlinePlaylistRoute
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.HideOnScrollFAB
@@ -125,7 +126,6 @@ import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.WatchEndpoint
 import com.valentinilk.shimmer.shimmer
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -699,11 +699,10 @@ fun ArtistScreen(
                                                         playerConnection.playPause()
                                                     } else {
                                                         playerConnection.playQueue(
-                                                            YouTubeQueue(
-                                                                WatchEndpoint(videoId = song.id),
+                                                            ZemerRadioQueue.song(
                                                                 song.toMediaMetadata(),
-                                                                database,
-                                                                playSource = PlaySource.artist(viewModel.artistId)
+                                                                playerConnection.service,
+                                                                PlaySource.artist(viewModel.artistId)
                                                             ),
                                                         )
                                                     }
@@ -761,11 +760,10 @@ fun ArtistScreen(
                                                             when (item) {
                                                                 is SongItem -> {
                                                                     playerConnection.playQueue(
-                                                                        YouTubeQueue(
-                                                                            WatchEndpoint(videoId = item.id),
+                                                                        ZemerRadioQueue.song(
                                                                             item.toMediaMetadata(),
-                                                                            database,
-                                                                            playSource = PlaySource.artist(viewModel.artistId)
+                                                                            playerConnection.service,
+                                                                            PlaySource.artist(viewModel.artistId)
                                                                         ),
                                                                     )
                                                                 }
