@@ -59,6 +59,8 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.AlreadyInPlaylistDialog
 import com.jtech.zemer.ui.component.ArtistChoice
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
@@ -355,7 +357,7 @@ fun SongMenu(
                             title = { Text(stringResource(R.string.start_radio)) },
                             onClick = {
                                 onDismiss()
-                                playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata(), database))
+                                playerConnection.playQueue(ZemerRadioQueue("song", song.id, context, PlaySource.RADIO))
                             },
                         )
                     )

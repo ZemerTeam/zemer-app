@@ -868,7 +868,6 @@ class HomeViewModel @Inject constructor(
             kind = "shuffle",
             seed = null,
             context = context,
-            repository = zemerSearchRepository,
         )
 
     fun refresh() {

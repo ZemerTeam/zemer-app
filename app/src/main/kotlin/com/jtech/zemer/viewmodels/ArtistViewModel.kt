@@ -102,7 +102,6 @@ class ArtistViewModel @Inject constructor(
             kind = "artist",
             seed = artistId,
             context = context,
-            repository = zemerRepository,
             playSource = PlaySource.artist(artistId),
         )
 }
