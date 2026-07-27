@@ -597,6 +597,7 @@ fun AlbumGridItem(
     badges = badges,
     thumbnailContent = {
         val database = LocalDatabase.current
+        val context = LocalContext.current
         val playerConnection = LocalPlayerConnection.current ?: return@GridItem
         val scope = rememberCoroutineScope()
 
@@ -615,7 +616,7 @@ fun AlbumGridItem(
                         database.albumWithSongs(album.id).firstOrNull()
                     }
                     albumWithSongs?.let {
-                        playerConnection.playQueue(LocalAlbumRadio(it, database = database))
+                        playerConnection.playQueue(LocalAlbumRadio(it, context = context))
                     }
                 }
             }
@@ -955,6 +956,7 @@ fun YouTubeGridItem(
     badges = badges,
     thumbnailContent = {
         val database = LocalDatabase.current
+        val context = LocalContext.current
         val playerConnection = LocalPlayerConnection.current ?: return@GridItem
         val scope = rememberCoroutineScope()
 
@@ -986,7 +988,7 @@ fun YouTubeGridItem(
                     }
                     albumWithSongs?.let {
                         withContext(Dispatchers.Main) {
-                            playerConnection.playQueue(LocalAlbumRadio(it, database = database))
+                            playerConnection.playQueue(LocalAlbumRadio(it, context = context))
                         }
                     }
                 }
