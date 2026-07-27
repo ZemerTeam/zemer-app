@@ -164,6 +164,13 @@ val DebugLoggingEnabledKey = booleanPreferencesKey("debugLoggingEnabled")
 // Online search engine: SearchProvider.name (ZEMER default, or YOUTUBE)
 val SearchProviderKey = stringPreferencesKey("searchProvider")
 
+// On-device outage-fallback subset: user opt-in to download the corpus snapshot for offline
+// search/browse (default off), whether to restrict downloads to unmetered networks (default on),
+// and the epoch-millis of the last successful sync (0 = never).
+val OfflineSubsetEnabledKey = booleanPreferencesKey("offlineSubsetEnabled")
+val OfflineSubsetWifiOnlyKey = booleanPreferencesKey("offlineSubsetWifiOnly")
+val OfflineSubsetLastSyncedAtKey = longPreferencesKey("offlineSubsetLastSyncedAt")
+
 val ContentFiltersAutoRestoredKey = booleanPreferencesKey("content_filters_auto_restored")
 val ContentFiltersRestoredEmailKey = stringPreferencesKey("content_filters_restored_email")
 val ContentFiltersLockedKey = booleanPreferencesKey("content_filters_locked")
