@@ -173,6 +173,32 @@ class ZemerSearchClient @Inject constructor() {
     }
 
     /**
+     * Fetch an artist's whole catalog, already whitelist-scoped + content-filtered by the server for the
+     * flags sent (same fail-closed, default-OPEN contract as [search]/[album]). `kidZone` is included so a
+     * KidZone-opened artist stays scoped. Returns null on `404` — the artist is filtered out entirely or
+     * absent from the corpus — so the caller can fall back to the InnerTube artist path for it. The server
+     * reads the corpus (no upstream fetch), but the open is user-initiated so it gets the larger ceiling.
+     */
+    suspend fun artist(
+        id: String,
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+    ): ZemerArtistResponse? {
+        val response: HttpResponse = client.get("$BASE_URL/artist") {
+            parameter("id", id)
+            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
+                parameter(name, value)
+            }
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer artist returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerArtistResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
      * The hand-curated "Zemer Playlists" list, ready to render: order, counts, covers and runtimes are
      * all server-computed for the flags sent (see [zemerCuratedPlaylistsParameters]). An empty list is
      * normal — nothing curated yet.

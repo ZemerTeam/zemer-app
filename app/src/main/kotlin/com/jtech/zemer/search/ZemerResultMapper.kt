@@ -10,6 +10,8 @@ import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
 import com.metrolist.innertube.models.filterExplicit
 import com.metrolist.innertube.pages.AlbumPage
+import com.metrolist.innertube.pages.ArtistPage
+import com.metrolist.innertube.pages.ArtistSection
 import com.metrolist.innertube.pages.SearchResult
 import com.metrolist.innertube.pages.SearchSummary
 import com.metrolist.innertube.pages.SearchSummaryPage
@@ -55,10 +57,14 @@ object ZemerResultMapper {
             // real channel id — required for the home one-per-artist dedup + female/israeli check.
             artists = listOf(Artist(name = artist, id = artistId)),
             title = title,
-            album = null,
+            // The album link, when the server sends it (/artist tracks) — enables the song menu's
+            // "View album". Absent elsewhere / for standalone singles + videos.
+            album = album?.takeIf { it.id.isNotBlank() }?.let { Album(name = it.name, id = it.id) },
             // Present on /album and /zemer-playlists tracks; the search categories send none.
             duration = durationSec,
-            thumbnail = thumbnailFor(videoId),
+            // Prefer the server's square album art; fall back to the (letterboxed) video frame until the
+            // track carries one — see the /artist per-track thumbnail request.
+            thumbnail = thumbnail?.takeIf { it.isNotBlank() } ?: thumbnailFor(videoId),
             explicit = explicit,
         )
 
@@ -215,7 +221,8 @@ object ZemerResultMapper {
     fun ZemerAlbumResponse.toAlbumPage(playlistId: String?): AlbumPage {
         val albumItem = AlbumItem(
             browseId = album.id,
-            playlistId = playlistId ?: album.id,
+            // Opener-threaded id first, then the server's own album playlistId, then the browseId fallback.
+            playlistId = playlistId ?: album.playlistId ?: album.id,
             title = album.title,
             artists = if (album.artist.isBlank()) null else listOf(Artist(name = album.artist, id = null)),
             year = album.year,
@@ -235,6 +242,36 @@ object ZemerResultMapper {
             .distinctBy { it.id }
             .dropBlocked()
         return AlbumPage(album = albumItem, songs = songs)
+    }
+
+    /**
+     * A Zemer `/artist` response as the [ArtistPage] the artist screen already consumes: the flat
+     * songs / videos / albums / singles / playlists arrays become the screen's sections, in that order.
+     * Tracks are whitelist-scoped server-side, so only hide-explicit + the surgical id-overrides
+     * ([dropBlocked]) run here. Section titles reuse the same English constants as the summary view. The
+     * header carries no play/shuffle/radio endpoint (the corpus has none): the screen plays Shuffle from
+     * these tracks locally, and the Radio button waits for Zemer Radio.
+     */
+    fun ZemerArtistResponse.toArtistPage(
+        hideExplicit: Boolean,
+        formatSongCount: (Int) -> String? = { null },
+    ): ArtistPage {
+        fun albumSection(list: List<ZemerAlbum>): List<AlbumItem> =
+            list.filter { it.id.isNotBlank() }.map { it.toAlbumItem() }.distinctBy { it.id }.dropBlocked()
+        // Section order mirrors the InnerTube artist page: Songs, Albums, Singles, Videos, Playlists.
+        val sections = buildList {
+            songItems(songs, hideExplicit).takeIf { it.isNotEmpty() }
+                ?.let { add(ArtistSection(TITLE_SONGS, it, null)) }
+            albumSection(albums).takeIf { it.isNotEmpty() }
+                ?.let { add(ArtistSection(TITLE_ALBUMS, it, null)) }
+            albumSection(singles).takeIf { it.isNotEmpty() }
+                ?.let { add(ArtistSection(TITLE_SINGLES, it, null)) }
+            songItems(videos, hideExplicit).takeIf { it.isNotEmpty() }
+                ?.let { add(ArtistSection(TITLE_VIDEOS, it, null)) }
+            playlistItems(playlists, formatSongCount).takeIf { it.isNotEmpty() }
+                ?.let { add(ArtistSection(TITLE_PLAYLISTS, it, null)) }
+        }
+        return ArtistPage(artist = artist.toArtistItem(), sections = sections, description = null)
     }
 
     /**
@@ -330,7 +367,9 @@ object ZemerResultMapper {
     // Verbatim match of the YouTube summary section titles/order (YouTube.searchSummary hardcodes
     // these English literals too), so the summary looks identical whichever engine is selected.
     private const val TITLE_ALBUMS = "Albums"
+    private const val TITLE_SINGLES = "Singles"
     private const val TITLE_SONGS = "Songs"
+    private const val TITLE_VIDEOS = "Videos"
     private const val TITLE_ARTISTS = "Artists"
     private const val TITLE_PLAYLISTS = "Playlists"
 }

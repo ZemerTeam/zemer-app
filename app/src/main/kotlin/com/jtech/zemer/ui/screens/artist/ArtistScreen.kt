@@ -91,6 +91,9 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.search.SearchProvider
+import com.jtech.zemer.search.onlineAlbumRoute
+import com.jtech.zemer.search.onlinePlaylistRoute
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.AlbumGridItem
@@ -99,6 +102,7 @@ import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.SongListItem
+import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.YouTubeGridItem
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.shimmer.ButtonPlaceholder
@@ -186,7 +190,7 @@ fun ArtistScreen(
             state = lazyListState,
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) {
-            if ((artistPage == null || isLoadingArtist) && !showLocal) {
+            if (isLoadingArtist && !showLocal) {
                 item(key = "shimmer") {
                     ShimmerHost (
                         modifier = Modifier
@@ -263,6 +267,16 @@ fun ArtistScreen(
                             }
                         }
                     }
+                }
+            } else if (artistPage == null && !showLocal) {
+                // Loaded but the corpus has nothing for this artist (404, a just-added artist before the
+                // next harvest, or a track-less whitelisted artist) — a neutral state, never a dead screen.
+                item(key = "artist_unavailable") {
+                    EmptyPlaceholder(
+                        icon = R.drawable.artist,
+                        text = stringResource(R.string.artist_not_available),
+                        modifier = Modifier.fillParentMaxSize(),
+                    )
                 }
             } else {
                 item(key = "header") {
@@ -399,41 +413,55 @@ fun ArtistScreen(
                                             }
                                         }
 
-                                        // Shuffle Button
-                                        if (!showLocal) {
-                                            artistPage?.artist?.shuffleEndpoint?.let { shuffleEndpoint ->
-                                                IconButton(
-                                                    onClick = {
-                                                        playerConnection.playQueue(YouTubeQueue(shuffleEndpoint, preloadItem = null, database, playSource = PlaySource.artist(viewModel.artistId)))
-                                                    },
-                                                    modifier = Modifier
-                                                        .size(48.dp)
-                                                        .background(
-                                                            MaterialTheme.colorScheme.primary,
-                                                            RoundedCornerShape(24.dp)
-                                                        )
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.shuffle),
-                                                        contentDescription = stringResource(R.string.shuffle),
-                                                        tint = MaterialTheme.colorScheme.onPrimary,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                }
-                                            }
-                                        } else if (librarySongs.isNotEmpty()) {
+                                        // Shuffle Button: an InnerTube artist page uses its shuffleEndpoint;
+                                        // otherwise shuffle a local ListQueue — of the library songs, or of a
+                                        // Zemer-sourced page's own (whitelist-pure) tracks, which carry no
+                                        // shuffleEndpoint. So Shuffle survives the corpus swap; Radio waits for
+                                        // Zemer Radio (its endpoint is absent, so the Radio button above hides).
+                                        val shuffleEndpoint = artistPage?.artist?.shuffleEndpoint?.takeIf { !showLocal }
+                                        val shuffleSongs = if (showLocal) {
+                                            librarySongs.map { it.toMediaItem() }
+                                        } else {
+                                            artistPage?.sections
+                                                ?.flatMap { it.items }
+                                                ?.filterIsInstance<SongItem>()
+                                                ?.map { it.toMediaItem() }
+                                                .orEmpty()
+                                        }
+                                        val shuffleTitle = if (showLocal) {
+                                            libraryArtist?.artist?.name ?: unknownArtistTitle
+                                        } else {
+                                            artistPage?.artist?.title ?: unknownArtistTitle
+                                        }
+                                        if (shuffleEndpoint != null) {
                                             IconButton(
                                                 onClick = {
-                                                    val shuffledSongs = librarySongs.shuffled()
-                                                    if (shuffledSongs.isNotEmpty()) {
-                                                        playerConnection.playQueue(
-                                                            ListQueue(
-                                                                title = libraryArtist?.artist?.name ?: unknownArtistTitle,
-                                                                items = shuffledSongs.map { it.toMediaItem() },
-                                                                playSource = PlaySource.artist(viewModel.artistId)
-                                                            )
+                                                    playerConnection.playQueue(YouTubeQueue(shuffleEndpoint, preloadItem = null, database, playSource = PlaySource.artist(viewModel.artistId)))
+                                                },
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .background(
+                                                        MaterialTheme.colorScheme.primary,
+                                                        RoundedCornerShape(24.dp)
+                                                    )
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.shuffle),
+                                                    contentDescription = stringResource(R.string.shuffle),
+                                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        } else if (shuffleSongs.isNotEmpty()) {
+                                            IconButton(
+                                                onClick = {
+                                                    playerConnection.playQueue(
+                                                        ListQueue(
+                                                            title = shuffleTitle,
+                                                            items = shuffleSongs.shuffled(),
+                                                            playSource = PlaySource.artist(viewModel.artistId)
                                                         )
-                                                    }
+                                                    )
                                                 },
                                                 modifier = Modifier
                                                     .size(48.dp)
@@ -599,8 +627,17 @@ fun ArtistScreen(
                             return@fastForEach
                         }
 
+                        // The top-songs shelf is a capped PREVIEW (its "more" arrow opens the full list) —
+                        // InnerTube returned only ~5, but /artist returns the whole catalog, so cap the inline
+                        // song list here to match instead of listing every song. Carousels + videos keep their
+                        // own limits; Play/Shuffle still use the full section, not this preview.
+                        val isSongList = distinctItems.firstOrNull() is SongItem && !isVideoSection
                         val visibleCount = visibleCounts.getOrPut(section.title) {
-                            if (isVideoSection) minOf(8, distinctItems.size) else distinctItems.size
+                            when {
+                                isVideoSection -> minOf(8, distinctItems.size)
+                                isSongList -> minOf(5, distinctItems.size)
+                                else -> distinctItems.size
+                            }
                         }
                         val displayItems = distinctItems.take(visibleCount)
 
@@ -638,7 +675,12 @@ fun ArtistScreen(
                             }
                         }
 
-                        if ((section.items.firstOrNull() as? SongItem)?.album != null) {
+                        // A non-video SongItem shelf (the "Songs"/top-songs list) renders as a vertical
+                        // LIST; videos/albums/singles/playlists render as the horizontal GRID. This keyed on
+                        // SongItem.album != null before — always set on the InnerTube path but absent on the
+                        // Zemer /artist songs — so key on item type + section instead. Same result for the
+                        // InnerTube path (its song shelf is non-video and album-tagged), fixes the Zemer path.
+                        if (section.items.firstOrNull() is SongItem && !isVideoSection) {
                             items(
                                 items = displayItems,
                                 key = { "youtube_song_${it.id}" },
@@ -746,9 +788,11 @@ fun ArtistScreen(
                                                                         ),
                                                                     )
                                                                 }
-                                                                is AlbumItem -> navController.navigate("album/${item.id}")
+                                                                // The artist page is corpus-sourced, so its albums/
+                                                                // playlists open via the server route (fast, bot-gate-proof).
+                                                                is AlbumItem -> navController.navigate(SearchProvider.ZEMER.onlineAlbumRoute(item))
                                                                 is ArtistItem -> navController.navigate("artist/${item.id}")
-                                                                is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                                                                is PlaylistItem -> navController.navigate(SearchProvider.ZEMER.onlinePlaylistRoute(item.id))
                                                             }
                                                         }
                                                     },

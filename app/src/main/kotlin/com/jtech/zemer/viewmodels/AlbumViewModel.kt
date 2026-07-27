@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.metrolist.innertube.YouTube
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
@@ -31,14 +30,16 @@ constructor(
         "albumId is required but was not provided in navigation arguments"
     }
 
-    // A Zemer-search album loads through the server's `/album` endpoint (already whitelist-scoped,
-    // fetched by a server immune to on-device InnerTube bot-gating) instead of `YouTube.album()`.
-    // Both paths yield the same AlbumPage, so everything downstream is shared. The search card's
-    // playlistId rides along because the server's album header doesn't return one.
-    private val isZemer = savedStateHandle.get<Boolean>("zemer") == true
+    // Albums load purely through the server's `/album` endpoint (whitelist-scoped, immune to on-device
+    // InnerTube bot-gating) — no InnerTube fallback (north-star: no app-runtime InnerTube; a non-corpus
+    // album is non-whitelisted and shouldn't open). The opener's playlistId rides along when it threaded
+    // one (a search/artist card); otherwise the server's own `album.playlistId` is used.
     private val zemerPlaylistId = savedStateHandle.get<String>("playlistId")
 
     val playlistId = MutableStateFlow("")
+    // True once the `/album` fetch 404s / fails (or returns no tracks) and there's nothing local to show —
+    // the screen renders a "not available" state instead of an endless loading shimmer.
+    val notFound = MutableStateFlow(false)
     val albumWithSongs =
         database
             .albumWithSongs(albumId)
@@ -47,15 +48,10 @@ constructor(
     init {
         viewModelScope.launch {
             val album = database.album(albumId).first()
-            val result =
-                if (isZemer) {
-                    runCatching { zemerRepository.album(albumId, zemerPlaylistId, zemerSearchOptions(context)) }
-                } else {
-                    YouTube.album(albumId)
-                }
-            result
+            runCatching { zemerRepository.album(albumId, zemerPlaylistId, zemerSearchOptions(context)) }
                 .onSuccess {
                     playlistId.value = it.album.playlistId
+                    notFound.value = it.songs.isEmpty()
                     database.transaction {
                         if (album == null) {
                             insert(it)
@@ -64,6 +60,8 @@ constructor(
                         }
                     }
                 }.onFailure {
+                    if (it is java.util.concurrent.CancellationException) throw it
+                    notFound.value = true
                     reportException(it)
                     if (it.message?.contains("NOT_FOUND") == true) {
                         database.query {

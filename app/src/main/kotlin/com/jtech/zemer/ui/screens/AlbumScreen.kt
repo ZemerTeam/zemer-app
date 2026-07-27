@@ -57,6 +57,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import com.jtech.zemer.ui.component.EmptyPlaceholder
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -119,6 +120,7 @@ fun AlbumScreen(
 
     val playlistId by viewModel.playlistId.collectAsState()
     val albumWithSongs by viewModel.albumWithSongs.collectAsState()
+    val albumNotFound by viewModel.notFound.collectAsState()
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
 
     val wrappedSongs = remember(albumWithSongs, hideExplicit) {
@@ -483,6 +485,16 @@ fun AlbumScreen(
                         )
                     }
                 }
+            }
+        } else if (albumNotFound) {
+            // The album isn't in the corpus (404 / no tracks) and nothing is stored locally — a neutral
+            // state rather than an endless loading shimmer.
+            item(key = "album_unavailable") {
+                EmptyPlaceholder(
+                    icon = R.drawable.album,
+                    text = stringResource(R.string.album_not_available),
+                    modifier = Modifier.fillParentMaxSize(),
+                )
             }
         } else {
             item(key = "loading_shimmer") {

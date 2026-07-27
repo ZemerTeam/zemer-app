@@ -4,6 +4,7 @@ import android.content.Context
 import com.jtech.zemer.R
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumItems
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
+import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
 import com.jtech.zemer.search.ZemerResultMapper.toSongItems
 import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.models.AlbumItem
@@ -12,6 +13,7 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SearchSuggestions
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.pages.AlbumPage
+import com.metrolist.innertube.pages.ArtistPage
 import com.metrolist.innertube.pages.SearchResult
 import com.metrolist.innertube.pages.SearchSummaryPage
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -132,6 +134,17 @@ class ZemerSearchRepository @Inject constructor(
             client.homeRows(options.allowFemale, options.blockVideos),
             formatSongCount,
         )
+
+    /**
+     * Open an artist through the server's `/artist` endpoint (whitelist-scoped + content-filtered),
+     * mapped to the [AlbumPage]-sibling [ArtistPage] the artist screen already consumes. Null = 404
+     * (the artist is filtered out entirely, or is absent from the corpus) — the caller falls back to the
+     * InnerTube artist path. Not cached: a single user-initiated open, same freshness contract as
+     * [album]/[playlist].
+     */
+    suspend fun artist(id: String, options: ZemerSearchOptions): ArtistPage? =
+        client.artist(id, options.allowFemale, options.blockVideos)
+            ?.toArtistPage(options.hideExplicit, formatSongCount)
 
     /**
      * The hand-curated "Zemer Playlists" section, in editorial order (rendered as received). Not
