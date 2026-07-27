@@ -542,12 +542,12 @@
     <string name="enable_casting">Enable casting</string>
     <string name="enable_casting_description">Show a cast button to play to Chromecast and FCast devices on your network.</string>
     <string name="stop_casting">Stop casting</string>
-    <string name="offline_search">Offline search</string>
-    <string name="settings_desc_offline_search">Search and browse without a connection</string>
-    <string name="offline_search_enable">Enable offline search</string>
-    <string name="offline_search_enable_desc">Download the music catalog to search and browse when offline</string>
+    <string name="offline_search">Search backup</string>
+    <string name="settings_desc_offline_search">Keep searching if the Zemer server is briefly down</string>
+    <string name="offline_search_enable">Enable search backup</string>
+    <string name="offline_search_enable_desc">Download the catalog so search and browse keep working during a short Zemer server outage</string>
     <string name="offline_search_wifi_only">Download over Wi-Fi only</string>
-    <string name="offline_search_wifi_only_desc">Only download or update the offline catalog on an unmetered network</string>
+    <string name="offline_search_wifi_only_desc">Only download or update the backup catalog on an unmetered network</string>
     <string name="offline_search_download_now">Download now</string>
     <string name="offline_search_updating">Updating…</string>
     <string name="offline_search_size">%1$s downloaded</string>
