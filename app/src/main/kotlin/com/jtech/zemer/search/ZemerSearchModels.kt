@@ -271,3 +271,15 @@ data class ZemerArtistResponse(
     val singles: List<ZemerAlbum> = emptyList(),
     val playlists: List<ZemerPlaylist> = emptyList(),
 )
+
+/**
+ * Wire model for `GET /radio` (search.zemer.io) — the corpus-native, whitelist-pure radio continuation.
+ * [tracks] are the next tracks to enqueue; [continuation] is an opaque token echoed back to
+ * `GET /radio?continuation=` for the next page (null = end, realistically never for an endless radio).
+ * Replaces `YouTube.next()` for SELECTION only — the audio stream stays InnerTube + cipher.
+ */
+@Serializable
+data class ZemerRadioResponse(
+    val tracks: List<ZemerTrack> = emptyList(),
+    val continuation: String? = null,
+)

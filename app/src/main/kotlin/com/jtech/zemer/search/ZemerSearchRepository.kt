@@ -5,6 +5,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumItems
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
 import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
+import com.jtech.zemer.search.ZemerResultMapper.toSongItem
 import com.jtech.zemer.search.ZemerResultMapper.toSongItems
 import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.models.AlbumItem
@@ -24,6 +25,9 @@ import javax.inject.Singleton
 
 /** A Zemer `/playlist` open, mapped to the UI types the online-playlist screen already renders. */
 data class ZemerPlaylistPage(val playlist: PlaylistItem, val songs: List<SongItem>)
+
+/** A Zemer `/radio` page: the next whitelist-pure tracks + the opaque continuation token (null = end). */
+data class ZemerRadioPage(val songs: List<SongItem>, val continuation: String?)
 
 /**
  * A curated `/zemer-playlists?id=…` open: the server header plus playable, already-filtered tracks.
@@ -145,6 +149,24 @@ class ZemerSearchRepository @Inject constructor(
     suspend fun artist(id: String, options: ZemerSearchOptions): ArtistPage? =
         client.artist(id, options.allowFemale, options.blockVideos)
             ?.toArtistPage(options.hideExplicit, formatSongCount)
+
+    /**
+     * Corpus-native radio (see [ZemerRadioResponse]): the first page seeded by [kind]/[seed] (`artist` /
+     * `album` / `song`, or `shuffle` with a null seed), mapped to playable [SongItem]s. Not cached — a
+     * live continuation; tracks are whitelist-pure + blocked-ids filtered server-side.
+     */
+    suspend fun radio(kind: String, seed: String?, options: ZemerSearchOptions): ZemerRadioPage =
+        client.radio(kind, seed, options.allowFemale, options.blockVideos).toRadioPage()
+
+    /** The next radio page for an opaque [continuation] token (the seed + flags ride inside the token). */
+    suspend fun radioContinuation(continuation: String): ZemerRadioPage =
+        client.radioContinuation(continuation).toRadioPage()
+
+    private fun ZemerRadioResponse.toRadioPage(): ZemerRadioPage =
+        ZemerRadioPage(
+            songs = tracks.filter { it.videoId.isNotBlank() }.map { it.toSongItem() }.distinctBy { it.id },
+            continuation = continuation,
+        )
 
     /**
      * The hand-curated "Zemer Playlists" section, in editorial order (rendered as received). Not

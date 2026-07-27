@@ -19,6 +19,8 @@ import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.playback.queues.Queue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.utils.ContentWhitelistDoc
 import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.ZemerContentClient
@@ -856,6 +858,18 @@ class HomeViewModel @Inject constructor(
             uiState.update { it.copy(isLoading = false) }
         }
     }
+
+    /**
+     * "Radio mode": a corpus-native, whitelist-pure shuffle station over the whole catalog (Zemer
+     * `/radio?kind=shuffle`), replacing the old InnerTube lucky-item radio. Endless via the queue's token.
+     */
+    fun shuffleRadioQueue(): Queue =
+        ZemerRadioQueue(
+            kind = "shuffle",
+            seed = null,
+            context = context,
+            repository = zemerSearchRepository,
+        )
 
     fun refresh() {
         if (uiState.value.isRefreshing) return

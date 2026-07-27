@@ -8,8 +8,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.metrolist.innertube.pages.ArtistPage
 import com.jtech.zemer.db.MusicDatabase
+import com.jtech.zemer.playback.queues.Queue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -92,4 +95,14 @@ class ArtistViewModel @Inject constructor(
             isLoading = false
         }
     }
+
+    /** A corpus-native artist-seeded radio queue for the Radio button (Zemer `/radio`, no InnerTube). */
+    fun radioQueue(): Queue =
+        ZemerRadioQueue(
+            kind = "artist",
+            seed = artistId,
+            context = context,
+            repository = zemerRepository,
+            playSource = PlaySource.artist(artistId),
+        )
 }

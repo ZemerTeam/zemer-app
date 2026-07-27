@@ -390,34 +390,32 @@ fun ArtistScreen(
                                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        // Radio Button
-                                        if (!showLocal) {
-                                            artistPage?.artist?.radioEndpoint?.let { radioEndpoint ->
-                                                OutlinedButton(
-                                                    onClick = {
-                                                        playerConnection.playQueue(YouTubeQueue(radioEndpoint, preloadItem = null, database, playSource = PlaySource.artist(viewModel.artistId)))
-                                                    },
-                                                    shape = RoundedCornerShape(50),
-                                                    modifier = Modifier.height(40.dp)
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.radio),
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Text(
-                                                        text = stringResource(R.string.radio)
-                                                    )
-                                                }
+                                        // Radio Button — corpus-native Zemer radio (`/radio?kind=artist`),
+                                        // whitelist-pure and InnerTube-free. Shown once the artist page loads.
+                                        if (!showLocal && artistPage != null) {
+                                            OutlinedButton(
+                                                onClick = {
+                                                    playerConnection.playQueue(viewModel.radioQueue())
+                                                },
+                                                shape = RoundedCornerShape(50),
+                                                modifier = Modifier.height(40.dp)
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.radio),
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = stringResource(R.string.radio)
+                                                )
                                             }
                                         }
 
                                         // Shuffle Button: an InnerTube artist page uses its shuffleEndpoint;
                                         // otherwise shuffle a local ListQueue — of the library songs, or of a
                                         // Zemer-sourced page's own (whitelist-pure) tracks, which carry no
-                                        // shuffleEndpoint. So Shuffle survives the corpus swap; Radio waits for
-                                        // Zemer Radio (its endpoint is absent, so the Radio button above hides).
+                                        // shuffleEndpoint. (Radio, above, is the endless Zemer /radio queue.)
                                         val shuffleEndpoint = artistPage?.artist?.shuffleEndpoint?.takeIf { !showLocal }
                                         val shuffleSongs = if (showLocal) {
                                             librarySongs.map { it.toMediaItem() }

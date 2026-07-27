@@ -64,8 +64,6 @@ import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.playback.queues.LocalAlbumRadio
-import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.onlineAlbumRoute
@@ -108,7 +106,6 @@ import com.metrolist.innertube.models.YTItem
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.min
-import kotlin.random.Random
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -152,27 +149,6 @@ fun HomeScreen(
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     homeUiState.isNewUser
 
-    val allLocalItems =
-        remember(quickPicks, forgottenFavorites, keepListening) {
-            (quickPicks + forgottenFavorites + keepListening).filter { it is Song || it is Album }
-        }
-    val allYtItems =
-        remember(featuredVideos, featuredAlbums, featuredArtists, blockVideos) {
-            buildList {
-                if (!blockVideos) {
-                    addAll(featuredVideos)
-                }
-                // A featured (Zemer) album is lucky-playable only with a real OLAK playlist id: when
-                // /home-rows sends none, toAlbumItem falls playlistId back to the MPRE browseId, which
-                // YouTubeAlbumRadio's InnerTube lookup can't resolve — a lucky pick on it would dead-press.
-                // Keep only albums with a distinct (resolvable) playlist id, same guard as the artists below.
-                addAll(featuredAlbums.filter { it.playlistId != it.id })
-                // Telemetry-ranked (Zemer) artist cards carry no InnerTube radio endpoint, so the lucky
-                // shuffle can't start radio from them — keep only artists that can actually play (the
-                // scrape-fallback ones) in the pool, so a lucky pick never dead-presses.
-                addAll(featuredArtists.filter { it.radioEndpoint != null })
-            }
-        }
 
     // Memoized distinct lists to avoid creating new lists on every recomposition
     val uniqueQuickPicks = remember(quickPicks) { quickPicks.distinctBy { it.id } }
@@ -216,43 +192,9 @@ fun HomeScreen(
     }
 
     fun performShuffle() {
-        if (allLocalItems.isEmpty() && allYtItems.isEmpty()) {
-            android.widget.Toast.makeText(context, R.string.radio_empty_message, android.widget.Toast.LENGTH_SHORT).show()
-            return
-        }
-        val local = when {
-            allLocalItems.isNotEmpty() && allYtItems.isNotEmpty() -> Random.nextFloat() < 0.5
-            allLocalItems.isNotEmpty() -> true
-            else -> false
-        }
-        if (local) {
-            when (val luckyItem = allLocalItems.random()) {
-                is Song -> playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata(), database))
-                is Album -> {
-                    scope.launch {
-                        val albumWithSongs = database.albumWithSongs(luckyItem.id).first()
-                        albumWithSongs?.let {
-                            playerConnection.playQueue(LocalAlbumRadio(it, database = database))
-                        }
-                    }
-                }
-
-                is Artist -> {}
-                is Playlist -> {}
-            }
-        } else {
-            when (val luckyItem = allYtItems.random()) {
-                is SongItem -> playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata(), database))
-                is AlbumItem -> playerConnection.playQueue(YouTubeAlbumRadio(luckyItem.playlistId, database))
-                is ArtistItem -> luckyItem.radioEndpoint?.let {
-                    playerConnection.playQueue(YouTubeQueue(it, preloadItem = null, database))
-                }
-
-                is PlaylistItem -> luckyItem.playEndpoint?.let {
-                    playerConnection.playQueue(YouTubeQueue(it, preloadItem = null, database))
-                }
-            }
-        }
+        // "Radio mode": a corpus-native, whitelist-pure station over the whole catalog
+        // (Zemer /radio?kind=shuffle), replacing the old InnerTube lucky-item radio.
+        playerConnection.playQueue(viewModel.shuffleRadioQueue())
     }
 
     LaunchedEffect(shuffleNow?.value) {

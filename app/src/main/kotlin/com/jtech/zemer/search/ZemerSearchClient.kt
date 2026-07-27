@@ -199,6 +199,46 @@ class ZemerSearchClient @Inject constructor() {
     }
 
     /**
+     * Corpus-native radio: the first page of a whitelist-pure continuation seeded by [kind] (`artist` /
+     * `album` / `song`, with [seed] the channelId/browseId/videoId) or `shuffle` (no seed) for Radio mode.
+     * Content flags are sent explicitly (kidZone included), same as the other endpoints.
+     */
+    suspend fun radio(
+        kind: String,
+        seed: String?,
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+    ): ZemerRadioResponse {
+        val response: HttpResponse = client.get("$BASE_URL/radio") {
+            parameter("kind", kind)
+            seed?.let { parameter("seed", it) }
+            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
+                parameter(name, value)
+            }
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer radio returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerRadioResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * The next radio page: the opaque [continuation] token from a prior [radio]/[radioContinuation] carries
+     * the seed + flags + position, so nothing else is sent. The queue is endless (token rarely null).
+     */
+    suspend fun radioContinuation(continuation: String): ZemerRadioResponse {
+        val response: HttpResponse = client.get("$BASE_URL/radio") {
+            parameter("continuation", continuation)
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer radio returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerRadioResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
      * The hand-curated "Zemer Playlists" list, ready to render: order, counts, covers and runtimes are
      * all server-computed for the flags sent (see [zemerCuratedPlaylistsParameters]). An empty list is
      * normal — nothing curated yet.
