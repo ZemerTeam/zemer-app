@@ -12,7 +12,12 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
   menu / detail rows (`Material3MenuItem.kt`), dialogs (`Dialog.kt`, `*Dialog.kt`), bottom sheets
   (`BottomSheet*.kt`), menus (`NewMenuComponents.kt`), list items (`Items.kt`),
   icon buttons (`IconButton.kt`), chips (`ChipsRow.kt`), placeholders (`EmptyPlaceholder.kt`,
-  `AppStateViews.kt`), and more.
+  `AppStateViews.kt`), one-time feature promos (`OfflineBackupPromo.kt` — a self-gating dismissible
+  banner backed by DataStore keys; copy its pattern for the next discovery banner), and more.
+- One shared component deliberately lives OUTSIDE `ui/component/`: the onboarding radio-choice card
+  (`ui/screens/onboarding/OnboardingChoiceCard.kt`) — onboarding steps (bottom-nav setup, search
+  backup) must use it, never a bespoke per-screen card (it carries the mandatory §11 focus
+  treatment a copy is exactly how a screen forgets).
 - Do not introduce a second component that duplicates one of these. (For example, settings rows use
   the `Preference.kt` widgets below — do not add a parallel "settings group" widget set; grouped/
   separated rows use the components in section 11 — do not hand-roll cards per row.)
@@ -20,7 +25,9 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
 ## 2. Settings screens
 
 Every settings screen is a `@Composable fun XxxSettings(navController: NavController,
-scrollBehavior: TopAppBarScrollBehavior)` annotated `@OptIn(ExperimentalMaterial3Api::class)`.
+scrollBehavior: TopAppBarScrollBehavior)` annotated `@OptIn(ExperimentalMaterial3Api::class)`;
+stateful screens add a third `viewModel: XxxViewModel = hiltViewModel()` parameter (the pattern of
+`OfflineSearchSettings`, `BackupAndRestore`, `ContentSettings`).
 
 Skeleton:
 

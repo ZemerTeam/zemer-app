@@ -26,8 +26,10 @@ unreachable, the featured rows just hide (local rows + Latest Releases still pop
 ## Direction — this is a template, not a one-off
 
 Progressively **replacing as much InnerTube as we can across the app** with Zemer-served, whitelist-pure
-data is a real, ongoing project goal. The home tab is the first surface fully migrated; other
-discovery surfaces (browse shelves, mood/genre, charts, related/recommendations) are candidates to move
+data is a real, ongoing project goal. The home tab migrated first; artist opens (`/artist`), album
+opens (`/album`), all radio (`/radio` — including this tab's Radio mode), and every single-song tap
+(seed-first song radio) have since followed, each deleting its InnerTube path. Remaining discovery
+surfaces (browse shelves, mood/genre, charts, related/recommendations) are candidates to move
 the same way — a Zemer endpoint (or a handoff request for one) rather than a YouTube feed. Streaming and
 playback are the exception: they need InnerTube + the cipher and stay (see `AGENTS.md` §The streaming
 pipeline). This doc is about content *discovery*, where YouTube's global feeds carry almost no kosher
@@ -70,8 +72,11 @@ GET https://search.zemer.io/home-rows?allowFemale=0&blockVideos=1&kidZone=0
   it cut the rows to near-empty (measured: albums 40→7, videos 19→2). See handoff REPLY 3.
 - **Server routing on tap.** Zemer-sourced albums/playlists open via `onlineAlbumRoute` /
   `onlinePlaylistRoute` (`?zemer=true`), gated on `featuredAlbumsAreZemer` / `featuredPlaylistsAreZemer`,
-  so the opened screen is whitelist-scoped and bot-gate-proof. Telemetry artist cards have no radio
-  endpoint → excluded from the lucky-shuffle pool (`radioEndpoint != null`).
+  so the opened screen is whitelist-scoped and bot-gate-proof.
+- **The shuffle button is "Radio mode"** — `HomeViewModel.shuffleRadioQueue()` →
+  `ZemerRadioQueue(kind = "shuffle", seed = null)`, a whole-catalog, whitelist-pure Zemer `/radio`
+  station. The old lucky-item InnerTube radio and its `radioEndpoint != null` pool are GONE — the tab's
+  last InnerTube content path went with them; don't reintroduce a per-item radio-endpoint filter.
 - **"See all" reads the published snapshot.** `HomeSeeAllStore` holds the FULL (un-rotated) filtered pool
   `HomeViewModel` publishes each load; the see-all pages render straight from it (no re-fetch, no
   re-filter), so they can never disagree with the row. Featured grids are 2-column.

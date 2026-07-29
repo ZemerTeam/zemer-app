@@ -8,6 +8,7 @@ import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.tracking.PlaySource
 import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.withContext
 
@@ -47,8 +48,22 @@ class ZemerRadioQueue(
     private var continuation: String? = null
     private var started = false
 
+    // The seed page completed exceptionally (playQueue surfaced the failure to the user). Lets
+    // [nextPage] retry it on a later transition — without it a preloaded tap whose fill fetch
+    // failed stayed a one-song queue forever (nextPage returned empty on the null continuation).
+    // Set only AFTER the initial fetch completes, so a retry can never run concurrently with it.
+    @Volatile
+    private var initialFailed = false
+
     override suspend fun getInitialStatus(): Queue.Status = withContext(IO) {
-        val page = repository.radio(kind, seed, zemerSearchOptions(context))
+        val page = try {
+            repository.radio(kind, seed, zemerSearchOptions(context))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            initialFailed = true
+            throw e
+        }
         continuation = page.continuation
         started = true
         // Seed-first: the tapped song (already preloading) heads the queue at index 0 and the fill
@@ -70,6 +85,15 @@ class ZemerRadioQueue(
     override fun hasNextPage(): Boolean = !started || continuation != null
 
     override suspend fun nextPage(): List<MediaItem> = withContext(IO) {
+        if (initialFailed) {
+            // Retry the failed seed page (see [initialFailed]) so the radio can still start once the
+            // network recovers; the seed is excluded — it is already playing at index 0.
+            val page = repository.radio(kind, seed, zemerSearchOptions(context))
+            initialFailed = false
+            started = true
+            continuation = page.continuation
+            return@withContext page.songs.filterNot { it.id == seedSong?.id }.map { it.toMediaItem() }
+        }
         val token = continuation ?: return@withContext emptyList()
         val page = repository.radioContinuation(token)
         continuation = page.continuation

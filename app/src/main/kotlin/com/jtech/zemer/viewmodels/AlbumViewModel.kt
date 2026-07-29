@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtech.zemer.db.MusicDatabase
+import com.jtech.zemer.search.ZemerSearchOptions
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.utils.reportException
@@ -16,6 +17,15 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/**
+ * Pure stale-row rule (unit-tested): a 404'd album's local copy is deleted only when the album is
+ * gone for EVERYONE — i.e. the user's flags were already wide open (that 404 is unconditional), or
+ * an open-flags re-probe also 404'd. [openFlags404] null = the probe itself failed (network) —
+ * keep the row; a flag-hidden album must never be destroyed by its own filter.
+ */
+internal fun staleAlbumGoneForEveryone(flagsRestrictive: Boolean, openFlags404: Boolean?): Boolean =
+    !flagsRestrictive || openFlags404 == true
 
 @HiltViewModel
 class AlbumViewModel
@@ -48,14 +58,28 @@ constructor(
     init {
         viewModelScope.launch {
             val album = database.album(albumId).first()
-            runCatching { zemerRepository.album(albumId, zemerPlaylistId, zemerSearchOptions(context)) }
+            val options = zemerSearchOptions(context)
+            runCatching { zemerRepository.album(albumId, zemerPlaylistId, options) }
                 .onSuccess { page ->
                     if (page == null) {
-                        // 404: the album is gone from the whitelist/corpus — surface not-found and
-                        // delete the stale local copy so it stops lingering in the library.
+                        // 404 — but the server also 404s an album that is merely FULLY BLOCKED under
+                        // this user's content flags. Deleting the local row for a flag-hide would
+                        // destroy library data the user gets back by flipping the filter, so the
+                        // stale-row cleanup runs only when the album 404s with the filters wide open
+                        // (an unfiltered request needs no probe). A failed probe keeps the row.
                         notFound.value = true
-                        database.query {
-                            album?.album?.let(::delete)
+                        val flagsRestrictive = !options.allowFemale || options.blockVideos
+                        val openFlags404 = if (!flagsRestrictive) true else runCatching {
+                            zemerRepository.album(
+                                albumId,
+                                zemerPlaylistId,
+                                ZemerSearchOptions(allowFemale = true, blockVideos = false, hideExplicit = false),
+                            ) == null
+                        }.getOrNull()
+                        if (staleAlbumGoneForEveryone(flagsRestrictive, openFlags404)) {
+                            database.query {
+                                album?.album?.let(::delete)
+                            }
                         }
                         return@onSuccess
                     }

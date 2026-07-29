@@ -36,6 +36,11 @@ covers, and all content filtering. The app's job is fetch → render → play:
   (in-memory server reads, single-digit ms), and no cache means a response fetched under one flag
   set can never be shown under another. Only the surgical id-overrides (`dropBlocked`) and
   `hideExplicit` run client-side, like every Zemer surface.
+  One deliberate exception: when `search.zemer.io` is UNREACHABLE, both curated calls fall back to
+  the on-device offline snapshot (`serverOrOffline` → `OfflineReadProvider`, see
+  `docs/offline/README.md`) — up to 14 days old, filtered client-side by the offline read layer's
+  shared `contentGatePasses` gate for the same flags. Flag-consistency still holds (the flags are
+  passed into the offline read); only the freshness contract is relaxed, and only during an outage.
 - **Covers are server-generated SVGs at a relative URL.** The list/detail `thumbnail` is
   `/zemer-playlists/cover?id=…` — resolved against the API host by `resolveZemerUrl()`
   (`ZemerSearchClient.kt`), decoded by Coil's `SvgDecoder` registered in `App.newImageLoader`

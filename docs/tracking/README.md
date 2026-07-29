@@ -95,13 +95,21 @@ Set when a queue is built, never per-surface guesswork:
   `ArtistItemsScreen` → `artist:UC…`), albums (`album:…` — intrinsic to
   `LocalAlbumRadio`/`YouTubeAlbumRadio`, covers `AlbumScreen`), online playlists
   (`OnlinePlaylistScreen` + `YouTubePlaylistMenu` → `playlist:PL…`), curated playlists
-  (`ZemerCuratedPlaylistScreen` → `zemer:<slug>`).
+  (`ZemerCuratedPlaylistScreen` → `zemer:<slug>`). The album radios now continue beyond the album on
+  Zemer `/radio?kind=album` (`LocalAlbumRadio`), not `YouTube.next()` — the source semantics are
+  unchanged (album tracks = context, continuation = `radio`).
 - `MusicService.playQueue` registers the chosen items in `Tracker.playSources`
   (`PlaySourceResolver`, tested); `Queue.initialItemsAreContext` distinguishes chosen tracks from
-  a radio queue's autoplay fill. Only the `RDAMVM` song-radio watch-playlist prefix (or a bare
-  videoId) is fill: other RD ids — YT Music editorial playlists (`RDCLAK5uy_…`), artist shuffle
-  (`RDAO…`) — are user-CHOSEN contexts. The async registration is guarded against a slow-loading
-  queue the user already replaced.
+  a radio queue's autoplay fill. **`ZemerRadioQueue` hardcodes the answer** (the majority path now —
+  every single-song tap is a seed-first `/radio?kind=song` queue): `initialItemsAreContext = false`,
+  so the FILL is `radio` while the preloaded seed (registered from `queue.preloadItem`) keeps the
+  queue's declared surface source. The menus' Start radio rows declare `PlaySource.RADIO` outright;
+  Home Radio mode (`kind=shuffle`) has no seed, so every item is fill → `radio`. The legacy
+  `YouTubeQueue` heuristic still applies where that queue survives: only the `RDAMVM` song-radio
+  watch-playlist prefix (or a bare videoId) is fill; other RD ids — YT Music editorial playlists
+  (`RDCLAK5uy_…`), artist shuffle (`RDAO…`) — are user-CHOSEN contexts. The async registration is
+  guarded against a slow-loading queue the user already replaced. **Dashboard note:** converting the
+  single-song taps to radio queues shifted the `radio` share of `play` events UP by design.
 - `Queue.continuationIsContext`: page 2+ of a CHOSEN playlist keeps the context source (spec:
   tracks continuing from an originally-chosen context keep it); only a radio queue's pages and the
   album radios' beyond-the-album continuation register `radio`. Seamless-radio registers only the

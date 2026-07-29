@@ -975,12 +975,15 @@ class MusicService :
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    // A failed fetch must not be a silent dead press: without a preload nothing ever
-                    // plays, so tell the user and hand auto-continuation back to the queue that was
-                    // playing (its player items are untouched — only the pointer was swapped).
+                    // A failed fetch must never be silent. Without a preload nothing plays: tell the
+                    // user and hand auto-continuation back to the queue that was playing (its player
+                    // items are untouched — only the pointer was swapped). With a preload the tapped
+                    // song IS playing but the radio fill failed: say so (a one-song queue reads as
+                    // broken) and KEEP this queue — its nextPage retries the seed page on a later
+                    // transition, so the radio can still start once the network recovers.
                     reportException(e)
-                    if (queue.preloadItem == null && currentQueue === queue) {
-                        currentQueue = previousQueue
+                    if (currentQueue === queue) {
+                        if (queue.preloadItem == null) currentQueue = previousQueue
                         onStartRadioFailed()
                     }
                     return@launch

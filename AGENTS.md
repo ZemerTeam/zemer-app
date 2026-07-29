@@ -65,7 +65,7 @@ There are two signed-in states and telling them apart is non-obvious. A **person
 - Already gated: `SyncUtils` account syncs + `likeSong`, the entity `toggleLike` remote side-effects (`Song/Artist/Album/PlaylistEntity`), and the add/remove/create/rename/delete-playlist + library/history-feedback writes in the menus. **Local DB writes always run**, so anonymous keeps likes/subscribes/playlists locally; personal logins are unaffected (each gate is a no-op when the predicate is true). The **Firebase artist-whitelist sync (`syncArtistWhitelist`) is account-independent and stays on for anon** — it powers content filtering.
 - **UI account display is gated too** (#137): the Settings → Account "Signed in as" card (name/email/handle/avatar) and the **"More content"** + **"Auto sync with account"** switches render only when `isPersonalAccountSignedIn` (`AccountSettings.kt`) — never the SAPISID-based `isLoggedIn`, which would show the *pooled* account's identity and account-personalization controls to every anonymous user. The Anonymous-login button is hidden once signed in, so there is a single Logout control, not a duplicate.
 - **Synced playlists reconcile non-destructively and stay 100% whitelisted** (`SyncUtils.syncSavedPlaylists`/`syncPlaylist`, #130): keep a song only if a whitelisted artist is resolvable from the playlist renderer **or the local DB row** (`filterWhitelistedWithLocalArtists`). Do **not** restore the old `clearPlaylist()` + strict `filterWhitelisted` rebuild — it wiped user-added songs whose YTM renderer carried sparse/topic-channel artist ids while they stayed in YouTube Music. A failed/empty/partial remote read must never delete a playlist or its songs.
-- Still personalized-to-the-pool for anon (NOT yet gated): `YouTube.home()` (the Home feed and Android-Auto browse) uses the pooled cookie, so anon's Home can surface the pooled account's mixes (e.g. a "My top 50" row). Note the *Library* "My top 50" is a different thing — a **local** most-played auto-playlist (`mostPlayedSongs`), not a leak.
+- Still personalized-to-the-pool for anon (NOT yet gated): Android-Auto browse still reads pooled-cookie InnerTube surfaces. (`YouTube.home()` no longer feeds the app's Home tab — the home tab is InnerTube-free for content, see §The home tab — so the old "anon Home shows the pooled account's mixes" leak is gone with it.) Note the *Library* "My top 50" is a **local** most-played auto-playlist (`mostPlayedSongs`), not a leak.
 
 ### Content filtering (whitelist, conditional id overrides, filtered covers)
 
@@ -78,9 +78,11 @@ are non-obvious and regression-prone; full detail in `docs/whitelist/README.md`:
   `female` hides only when `!allowFemaleSingers`, `global` (and any unknown reason) hides for everyone,
   all inert when filtering is off. The surgical complement to the artist whitelist: a *mixed* channel
   stays whitelisted while specific items from it are dropped by id. Applied centrally in
-  `filterWhitelisted` **and** in `search/ZemerResultMapper.dropBlocked()` — the artist-membership
-  whitelist is deliberately never run over raw Zemer search results (it would clip legitimate
-  Hebrew/community hits), but a specific-id drop is safe there. Synced inside `syncArtistWhitelist` (no
+  `filterWhitelisted`, in `search/ZemerResultMapper.dropBlocked()`, **and** in the offline read layer
+  (`offline/SubsetReadLayer.idDropped` + the shared `contentGatePasses` gate — see §Offline search
+  backup): a change to the filtering contract must now land in all THREE enforcement sites. The
+  artist-membership whitelist is deliberately never run over raw Zemer search results (it would clip
+  legitimate Hebrew/community hits), but a specific-id drop is safe there. Synced inside `syncArtistWhitelist` (no
   user interaction), persisted to DataStore, loaded at startup; a failed sync keeps the previous table
   (never unblocks). The `blockedContentIds` collection is managed by the separate **zemer-admin** app.
 - **Playlist covers come from the filtered tracks, never the raw curator image.** A community/online
@@ -127,13 +129,17 @@ from the Zemer `/home-rows` endpoint, local Room, or the flipphoneguy Latest-Rel
 signed-in user's name/avatar); do not add others. Full detail in `docs/home_rows/README.md`.
 
 **Project direction (a real, ongoing goal):** progressively **replace as much InnerTube as we can across
-the app** with Zemer-served, whitelist-pure data. The home tab is the first surface fully migrated — treat
-it as the template. When you touch any surface that reaches YouTube for *discovery* content (home/explore
-feeds, charts, recommendations, related, browse shelves, search-adjacent rows), prefer a Zemer endpoint —
-or a handoff request for one (`~/zemer-fix/handoff-docs/`) — over deepening the InnerTube dependency, and
-delete the InnerTube path once the Zemer source lands. **Streaming/playback itself still needs InnerTube +
-the cipher** (see §The streaming pipeline — that's the irreducible core) and is out of scope; this goal is
-about *content discovery*, where YouTube's global feeds carry almost no kosher content anyway.
+the app** with Zemer-served, whitelist-pure data. The home tab migrated first; since then **artist opens
+(`/artist`), album opens (`/album`), ALL radio (`/radio` — see §Zemer Radio), every single-song tap
+(seed-first song radio), and search-with-offline-fallback** have followed — each with its InnerTube path
+deleted, not kept as fallback. When you touch any surface that reaches YouTube for *discovery* content
+(explore feeds, charts, recommendations, related, browse shelves, search-adjacent rows), prefer a Zemer
+endpoint — or a handoff request for one (`~/zemer-fix/handoff-docs/`) — over deepening the InnerTube
+dependency, and delete the InnerTube path once the Zemer source lands. **Streaming/playback itself still
+needs InnerTube + the cipher** (see §The streaming pipeline — that's the irreducible core) and is out of
+scope; this goal is about *content discovery*, where YouTube's global feeds carry almost no kosher
+content anyway. (The YouTube search *engine* is greenlit for removal too — see the handoff doc
+`zemer-app-artist-album-innertube-swap.md`.)
 
 Rules that must not regress:
 
@@ -150,9 +156,10 @@ Rules that must not regress:
   `rotateByArtist` dedup and the female/israeli check work; without it both no-op.
 - **Zemer-sourced albums/playlists open via the server route** (`onlineAlbumRoute` / `onlinePlaylistRoute`,
   `?zemer=true`), gated on `featuredAlbumsAreZemer` / `featuredPlaylistsAreZemer`, so the opened screen
-  is whitelist-scoped and immune to on-device InnerTube bot-gating. Telemetry artist cards carry no radio
-  endpoint, so they are kept OUT of the lucky-shuffle pool (`radioEndpoint != null` filter) — a lucky
-  pick must never dead-press.
+  is whitelist-scoped and immune to on-device InnerTube bot-gating. The Home shuffle button is **"Radio
+  mode"**: `HomeViewModel.shuffleRadioQueue()` → `ZemerRadioQueue(kind = "shuffle", seed = null)`, a
+  whole-catalog, whitelist-pure Zemer station (the old lucky-item InnerTube radio and its
+  `radioEndpoint != null` pool are GONE — don't reintroduce a per-item radio-endpoint filter here).
 - **A brand-new user's empty Quick Picks seeds from Zemer**, not YouTube: `seedQuickPicksFromZemer`
   pulls the `auto-top-50` curated playlist. Returning users seed from local history; the seed is a no-op
   when Quick Picks is non-empty and never breaks Home on failure.
@@ -167,6 +174,82 @@ Rules that must not regress:
 - The `/home-rows` contract and every design decision are recorded in
   `~/zemer-fix/handoff-docs/zemer-app-home-rows-request.md` (the app↔server thread) and
   `home-rows-plan.md`. App↔server field changes travel there, never as edits to the zemer-search repo.
+
+### Zemer Radio (`/radio` — every radio surface; SELECTION only)
+
+All radio runs on the Zemer server's `/radio` endpoint (whitelist-pure, blocked-ids filtered
+server-side + the client `dropBlocked` pass) via **`playback/queues/ZemerRadioQueue`** — artist /
+album / song / playlist seeds and `kind=shuffle` (Home "Radio mode"). `YouTube.next()` is gone from
+every radio path. **The audio stream is still InnerTube + the cipher** — this replaced selection
+only. Rules that must not regress:
+
+- **The continuation token is opaque** (it encodes seed + flags + position): the queue keeps no
+  cursor state; `nextPage()` just echoes the last token back. Continuation pages are PURE fresh
+  tracks — never re-apply the old YouTube-style `drop(1)`; `MusicService`'s auto-load dedupes
+  against the ids already in the player (`continuationItemsToAppend`) instead.
+- **Single-song taps are seed-first** (`ZemerRadioQueue.song()`): the tapped song is the
+  `preloadItem` (plays instantly) AND heads the queue at index 0, with the `/radio?kind=song` fill
+  deduped around it. Every converted tap site (Home, History, Charts, Stats, artist page, search,
+  menus' Start radio, recognition history, latest releases) uses this factory — a bare
+  `ZemerRadioQueue("song", …)` without the seed is a station, not a tap.
+- **A failed fetch is never silent**: `playQueue()` surfaces it (toast + session error). With no
+  preload it also restores the previous queue (only the pointer was swapped); with a preload the
+  song keeps playing and the queue's `initialFailed` flag lets `nextPage()` retry the seed page on a
+  later transition — the flag is set only AFTER the initial fetch completes, so a retry can never
+  run concurrently with it and double-append the fill.
+- `LocalAlbumRadio` plays the local album then continues on `/radio?kind=album`; its
+  `firstTimeLoaded` flips only after a successful fetch (a transient failure must stay retryable).
+- Both queues hold only the **application context** — `MusicService.currentQueue` retains the queue
+  for the whole session, so a captured Activity is a leak.
+- Tracking: radio fill reports as `radio` (`initialItemsAreContext = false`,
+  `continuationIsContext = false`); the preloaded seed is the one user-chosen context item.
+
+### Corpus-native artist/album opens (no InnerTube fallback)
+
+Artist (`/artist`) and album (`/album`) screens load purely from the Zemer server
+(`ZemerSearchRepository.artist/album` → `ZemerResultMapper.toArtistPage/toAlbumPage`), with the
+offline snapshot as outage fallback — there is deliberately **no InnerTube fallback** (a non-corpus
+item is non-whitelisted and shouldn't open). A 404 renders the neutral "not available" state. Two
+non-obvious rules:
+
+- **The stale-row delete is flag-aware** (`AlbumViewModel`, `staleAlbumGoneForEveryone`): the server
+  404s an album that is merely FULLY BLOCKED under the user's content flags, so a 404 under
+  restrictive flags is re-probed with open flags before the local `AlbumEntity` row is deleted — a
+  flag-hidden album must never be destroyed by its own filter, and a failed probe keeps the row.
+- **An opener-threaded playlistId equal to the browseId never wins** (`toAlbumPage`): cards fall
+  their playlistId back to the browseId, and persisting that MPRE as `AlbumEntity.playlistId`
+  dead-presses album radio and mis-ids share links; the server's real OLAK id (or the browseId
+  fallback, whose only consumer is the disabled automix) is used instead.
+
+### Offline search backup (`offline/` — the outage fallback)
+
+A downloaded, incrementally-synced snapshot of the corpus serves `/search`, `/artist`, `/album`,
+`/home-rows` and `/zemer-playlists` when `search.zemer.io` is unreachable — a faithful Kotlin port of
+the zemer-search read layer returning the SAME wire models, so a fallback response is consumed
+identically to a live one. Full detail in `docs/offline/README.md`. The invariants:
+
+- **Server-first, always.** `serverOrOffline` falls back only on `isZemerServerUnreachable()` —
+  `IOException` **or** `UnresolvedAddressException` (Ktor CIO signals no-network/DNS that way; it is
+  NOT an IOException). A 404-null is returned as-is and never triggers the fallback; a non-network
+  exception is never masked. Only SERVER responses enter the search LRU (a cached offline result
+  would outlive the outage). `/playlist` and `/radio` are live-only (not in the snapshot).
+- **Kosher defenses:** a 14-day staleness cap (`subsetSnapshotIsFresh`), the live Firestore-synced
+  whitelist overlaid at corpus load (`SubsetCorpus.withLiveWhitelist` — de-whitelisted artists drop
+  the moment the app's whitelist sync lands, `isFemale` comes from the live flag), and ONE shared
+  content gate (`contentGatePasses`) + `idDropped` across every offline surface — never hand-inline
+  the female/KidZone/video predicate per site.
+- **Sync is staged and crash-safe:** shards are content-hash diffed, downloaded to `.staged` files,
+  verified, promoted only when ALL verified, and the manifest commits last; `loadCorpus` re-verifies
+  shard hashes at read time, and an unknown manifest `schema` generation is rejected wholesale
+  (cipher precedent). Enabled = **daily auto-update on ANY connection** (no metered gate — a product
+  decision), running on the syncer's OWN scope so leaving a screen never cancels a download.
+- **Parity is the correctness bar:** the port is verified against captured live responses (id-set +
+  order) and thumbnails deliberately match the server's `mqdefault` variant — do not "fix" them to
+  `thumbnailFor`'s `hqdefault`, that breaks the parity diff. See the offline unit tests + the
+  handoff doc `zemer-app-ondevice-fallback-subset.md`.
+- **Discovery:** an onboarding step (`OnboardingSearchBackupScreen`) for new users and a one-time
+  promo (`OfflineBackupPromoCard`) above Zemer search results for existing installs; declining the
+  onboarding offer also silences the promo.
 
 ### Tracking (anonymous usage telemetry)
 
@@ -184,7 +267,10 @@ full detail in `docs/tracking/README.md`. The rules that must not regress:
 - **`play` fires for EVERY listen, however short** (`MusicService.onPlaybackStatsReady`), one per
   listen when it ends; `source` comes from `Queue.playSource` + `Tracker.playSources`
   (context vs radio-fill vs other) — new queue types/surfaces must declare their source, and radio
-  continuation must keep registering as `radio`.
+  continuation must keep registering as `radio`. `ZemerRadioQueue` hardcodes the answer (fill =
+  `radio`, the preloaded seed = the queue's declared source; the menus' Start radio declares
+  `PlaySource.RADIO`); since every single-song tap now runs a seed-first radio queue, the `radio`
+  share of `play` events shifted UP by design — a dashboard reader should expect it.
 - **`action` hooks live at chokepoints** (entity `toggleLike()`s, `DownloadUtil` download entry
   with `fromUser=false` for machine enqueues, `DatabaseDao.addSongToPlaylist`, share buttons) —
   don't add per-surface duplicates, and keep machine-initiated work out of the user-intent signal.
@@ -359,7 +445,7 @@ Node ≥20 scripts (deps vendored in `tests/node_modules`, no install needed) th
 
 ### Modules & app layout
 
-- **`:app`** (`com.jtech.zemer`) — single-activity Jetpack Compose UI, Hilt DI (`App.kt` `@HiltAndroidApp`, modules under `di/`), Media3. `MainActivity` + `NavigationBuilder.kt` host the Compose nav graph; `MusicService` (a Media3 `MediaLibraryService`) owns ExoPlayer and is bridged to the UI by `PlayerConnection`, with `playback/queues/` implementations. State is Room (`db/MusicDatabase.kt`, `song.db`) + DataStore preferences (`utils/DataStore.kt` — holds the auth cookie / visitorData / dataSyncId and all settings). Content-filtering (whitelist, KidZone) lives in `sync/` + `utils/SyncUtils.kt`. Downloads via Media3 `ExoDownloadService` plus a MediaStore path. Crash/error telemetry is Firebase Crashlytics: `utils/CrashReportingTree.kt` (planted in `App.kt`) turns every Timber log (DEBUG+) into a breadcrumb and `reportException()` calls into non-fatal issues — so report errors via `reportException()`/`Timber`, never `printStackTrace`; release CI uploads R8 mappings and native symbols automatically.
+- **`:app`** (`com.jtech.zemer`) — single-activity Jetpack Compose UI, Hilt DI (`App.kt` `@HiltAndroidApp`, modules under `di/`), Media3. `MainActivity` + `NavigationBuilder.kt` host the Compose nav graph; `MusicService` (a Media3 `MediaLibraryService`) owns ExoPlayer and is bridged to the UI by `PlayerConnection`, with `playback/queues/` implementations. State is Room (`db/MusicDatabase.kt`, `song.db`) + DataStore preferences (`utils/DataStore.kt` — holds the auth cookie / visitorData / dataSyncId and all settings). Content-filtering (whitelist, KidZone) lives in `sync/` + `utils/SyncUtils.kt`. The offline search-backup snapshot (sync engine + read-layer port) lives in `offline/` (on-disk store under `filesDir/subset/` — see §Offline search backup). Downloads via Media3 `ExoDownloadService` plus a MediaStore path. Crash/error telemetry is Firebase Crashlytics: `utils/CrashReportingTree.kt` (planted in `App.kt`) turns every Timber log (DEBUG+) into a breadcrumb and `reportException()` calls into non-fatal issues — so report errors via `reportException()`/`Timber`, never `printStackTrace`; release CI uploads R8 mappings and native symbols automatically.
 - **`:innertube`** (`com.metrolist.innertube`) — the YouTube Music InnerTube API client (Ktor): request building, auth context, page parsers that turn YouTube renderer trees into typed models. Holds the `YouTubeClient` definitions and the NewPipe bridge for signatureTimestamp.
 - **`:lrclib`** / **`:simpmusic`** (`com.metrolist.*`) — lyrics provider clients (LrcLib.net and api-lyrics.simpmusic.org).
 - **`cipher`** — see "Cipher / player rotation" above.
