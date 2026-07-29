@@ -114,7 +114,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
-| `AGENTS.md` | 464 lines | `.md` |
+| `AGENTS.md` | 482 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 19 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
