@@ -119,6 +119,7 @@ fun LyricsScreen(
     val playbackState by playerConnection.playbackState.collectAsState()
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val isCasting by playerConnection.isCasting.collectAsState()
+    val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
     val repeatMode by playerConnection.repeatMode.collectAsState()
     val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
     playerConnection.service.playerVolume.collectAsState()
@@ -450,7 +451,7 @@ fun LyricsScreen(
                                 }
                                 // While casting, route through the cast-aware wrapper (seekToPreviousMediaItem — a raw
                                 // seekToPrevious would rewind the paused local player without reloading the receiver).
-                                IconButton(onClick = { if (isCasting) playerConnection.seekToPrevious() else playerConnection.player.seekToPrevious() }, modifier = Modifier.size(48.dp)) {
+                                IconButton(onClick = { if (!isStationBroadcast) { if (isCasting) playerConnection.seekToPrevious() else playerConnection.player.seekToPrevious() } }, modifier = Modifier.size(48.dp)) {
                                     Icon(
                                         painter = painterResource(R.drawable.skip_previous),
                                         contentDescription = null,
@@ -481,7 +482,7 @@ fun LyricsScreen(
                                     }
                                 }
     
-                                IconButton(onClick = { playerConnection.player.seekToNext() }, modifier = Modifier.size(48.dp)) {
+                                IconButton(onClick = { if (!isStationBroadcast) playerConnection.player.seekToNext() }, modifier = Modifier.size(48.dp)) {
                                     Icon(
                                         painter = painterResource(R.drawable.skip_next),
                                         contentDescription = null,
@@ -694,7 +695,7 @@ fun LyricsScreen(
                             }
                             // While casting, route through the cast-aware wrapper (seekToPreviousMediaItem — a raw
                             // seekToPrevious would rewind the paused local player without reloading the receiver).
-                            IconButton(onClick = { if (isCasting) playerConnection.seekToPrevious() else playerConnection.player.seekToPrevious() }, modifier = Modifier.size(48.dp)) {
+                            IconButton(onClick = { if (!isStationBroadcast) { if (isCasting) playerConnection.seekToPrevious() else playerConnection.player.seekToPrevious() } }, modifier = Modifier.size(48.dp)) {
                                 Icon(
                                     painter = painterResource(R.drawable.skip_previous),
                                     contentDescription = null,
@@ -725,7 +726,7 @@ fun LyricsScreen(
                                 }
                             }
     
-                            IconButton(onClick = { playerConnection.player.seekToNext() }, modifier = Modifier.size(48.dp)) {
+                            IconButton(onClick = { if (!isStationBroadcast) playerConnection.player.seekToNext() }, modifier = Modifier.size(48.dp)) {
                                 Icon(
                                     painter = painterResource(R.drawable.skip_next),
                                     contentDescription = null,

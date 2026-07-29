@@ -282,8 +282,10 @@ private fun NewMiniPlayer(
                             onHorizontalDrag = { _, dragAmount ->
                                 val adjustedDragAmount =
                                     if (layoutDirection == LayoutDirection.Rtl) -dragAmount else dragAmount
-                                val canSkipPrevious = playerConnection.player.previousMediaItemIndex != -1
-                                val canSkipNext = playerConnection.player.nextMediaItemIndex != -1
+                                // A broadcast has no transport: the swipe gesture acts on the raw
+                                // player and would bypass the session command mask.
+                                val canSkipPrevious = !isStationBroadcast && playerConnection.player.previousMediaItemIndex != -1
+                                val canSkipNext = !isStationBroadcast && playerConnection.player.nextMediaItemIndex != -1
                                 val allowLeft = adjustedDragAmount < 0 && canSkipNext
                                 val allowRight = adjustedDragAmount > 0 && canSkipPrevious
                                 if (allowLeft || allowRight) {
@@ -837,8 +839,10 @@ private fun LegacyMiniPlayer(
                             onHorizontalDrag = { _, dragAmount ->
                                 val adjustedDragAmount =
                                     if (layoutDirection == LayoutDirection.Rtl) -dragAmount else dragAmount
-                                val canSkipPrevious = playerConnection.player.previousMediaItemIndex != -1
-                                val canSkipNext = playerConnection.player.nextMediaItemIndex != -1
+                                // A broadcast has no transport: the swipe gesture acts on the raw
+                                // player and would bypass the session command mask.
+                                val canSkipPrevious = !isStationBroadcast && playerConnection.player.previousMediaItemIndex != -1
+                                val canSkipNext = !isStationBroadcast && playerConnection.player.nextMediaItemIndex != -1
                                 val allowLeft = adjustedDragAmount < 0 && canSkipNext
                                 val allowRight = adjustedDragAmount > 0 && canSkipPrevious
                                 if (allowLeft || allowRight) {

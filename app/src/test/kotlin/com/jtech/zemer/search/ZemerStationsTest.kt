@@ -9,8 +9,9 @@ import org.junit.Test
 /**
  * Zemer Stations wire layer: the handoff-doc sample payloads decode field-for-field with the shared
  * lenient reader, the card-shaping rules ([liveStations]) hold, and the §4 tune-in clock math is
- * pinned (skew, live-offset join, the dying-track and drift rules). The playback queue itself lands
- * in the follow-up PR — these contracts are what it builds on.
+ * pinned (skew, live-offset join, the dying-track rule, and the on-air window the bidirectional
+ * resync is built on). [StationQueue]/MusicService wiring has no JVM seam (Hilt EntryPoint +
+ * Media3) — these pure contracts are what it builds on.
  */
 class ZemerStationsTest {
 
@@ -113,10 +114,14 @@ class ZemerStationsTest {
     }
 
     @Test
-    fun `drift corrects only beyond 3s - and only compares against the live position`() {
-        // Live position is 100s in; 2.9s of drift is tolerated, 3.1s is not.
-        assertFalse(stationDriftExceedsLimit(playbackPositionMs = 97_100, entry = entry, skewMs = 0, localNowMs = 1_100_000))
-        assertTrue(stationDriftExceedsLimit(playbackPositionMs = 96_900, entry = entry, skewMs = 0, localNowMs = 1_100_000))
-        assertTrue("ahead drifts too", stationDriftExceedsLimit(playbackPositionMs = 103_100, entry = entry, skewMs = 0, localNowMs = 1_100_000))
+    fun `on-air offset is the live position only while the slot is broadcasting`() {
+        // Mid-slot: 100s in.
+        assertEquals(100_000L, stationOnAirOffsetMs(entry, skewMs = 0, localNowMs = 1_100_000))
+        // Before startMs (we are AHEAD - wait, don't play): null.
+        assertNull(stationOnAirOffsetMs(entry, skewMs = 0, localNowMs = 999_000))
+        // At/after endMs (the slot ended - we are BEHIND, move on): null.
+        assertNull(stationOnAirOffsetMs(entry, skewMs = 0, localNowMs = 1_224_000))
+        // Exactly at startMs joins at 0.
+        assertEquals(0L, stationOnAirOffsetMs(entry, skewMs = 0, localNowMs = 1_000_000))
     }
 }

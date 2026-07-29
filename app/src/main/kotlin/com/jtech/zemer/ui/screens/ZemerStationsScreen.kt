@@ -28,6 +28,9 @@ import com.jtech.zemer.playback.queues.StationQueue
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.ZemerStationCard
 import com.jtech.zemer.ui.utils.backToMain
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.jtech.zemer.viewmodels.STATION_ROW_REFRESH_MS
 import com.jtech.zemer.viewmodels.ZemerStationsViewModel
 import kotlinx.coroutines.delay
@@ -46,12 +49,16 @@ fun ZemerStationsScreen(
 ) {
     val playerConnection = LocalPlayerConnection.current
     val stations by viewModel.stations.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(Unit) {
-        viewModel.refresh()
-        // Same on-screen now-playing ticker as the home row (composition-scoped, no background work).
-        while (true) {
-            delay(STATION_ROW_REFRESH_MS)
+        // Same lifecycle-scoped now-playing ticker as the home row: suspended outside RESUMED, so
+        // nothing polls while the app is backgrounded.
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             viewModel.refresh()
+            while (true) {
+                delay(STATION_ROW_REFRESH_MS)
+                viewModel.refresh()
+            }
         }
     }
 

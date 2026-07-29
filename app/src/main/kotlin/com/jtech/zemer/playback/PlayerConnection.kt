@@ -177,6 +177,7 @@ class PlayerConnection(
     }
 
     fun seekTo(positionMs: Long) {
+        if (isStationBroadcast.value) return // a broadcast has no scrubbing (handoff par. 5)
         if (isCasting.value) {
             service.discoveryHandler.seek(CastPlayback.msToRemoteSeconds(positionMs))
         } else {
@@ -222,6 +223,7 @@ class PlayerConnection(
         else player.duration
 
     fun seekToNext() {
+        if (isStationBroadcast.value) return // a broadcast has no skip (handoff par. 5)
         if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)) {
             try {
                 player.seekToNext()
@@ -237,6 +239,7 @@ class PlayerConnection(
     }
 
     fun seekToPrevious() {
+        if (isStationBroadcast.value) return // a broadcast has no skip (handoff par. 5)
         if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) {
             try {
                 // While casting the local clock is frozen at the connect position, so seekToPrevious's

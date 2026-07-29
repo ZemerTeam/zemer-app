@@ -5,11 +5,15 @@ import androidx.media3.common.MediaItem
 import com.jtech.zemer.di.ZemerSearchRepositoryEntryPoint
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.search.ZemerResultMapper.toSongItem
 import com.jtech.zemer.search.ZemerStationEntry
 import com.jtech.zemer.search.stationJoinPositionMs
+import com.jtech.zemer.search.stationOnAirOffsetMs
 import com.jtech.zemer.search.stationShouldSkipDyingTrack
 import com.jtech.zemer.search.stationSkewMs
 import com.jtech.zemer.search.stationStartPositionMs
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.utils.ContentFilterState
 import dagger.hilt.android.EntryPointAccessors
@@ -42,7 +46,7 @@ class StationQueue(
     context: Context,
 ) : Queue {
     override val preloadItem: MediaMetadata? = null
-    override val playSource: String = "station:$stationId"
+    override val playSource: String = PlaySource.station(stationId)
     override val initialItemsAreContext: Boolean = true
     override val continuationIsContext: Boolean = true
 
@@ -107,17 +111,32 @@ class StationQueue(
     }
 
     /**
-     * Where the broadcast is right now inside the queued [mediaId], or null when it isn't a known
-     * slot. MusicService uses it for boundary drift correction and the pause→resume live rejoin.
+     * The live offset inside the queued [mediaId] IF its slot is on-air right now (null when it
+     * hasn't started, already ended, is unknown, or was marked unplayable). The bidirectional
+     * resync's primitive: MusicService seeks forward when behind, waits when ahead, re-tunes when
+     * nothing queued is on-air.
      */
-    fun livePositionMs(mediaId: String, localNowMs: Long): Long? {
+    fun onAirOffsetMs(mediaId: String, localNowMs: Long): Long? {
+        if (synchronized(scheduleLock) { mediaId in unplayable }) return null
         val entry = synchronized(scheduleLock) { schedule[mediaId] } ?: return null
-        return stationStartPositionMs(stationJoinPositionMs(entry, skewMs, localNowMs))
+        return stationOnAirOffsetMs(entry, skewMs, localNowMs)
     }
 
-    /** The slot's wall-clock end (server clock, comparable via [livePositionMs]'s math). */
-    fun entryDurationMs(mediaId: String): Long? =
-        synchronized(scheduleLock) { schedule[mediaId] }?.let { it.endMs - it.startMs }
+    /** Milliseconds until the queued [mediaId]'s slot starts (negative/zero = already started). */
+    fun msUntilSlotStarts(mediaId: String, localNowMs: Long): Long? {
+        val entry = synchronized(scheduleLock) { schedule[mediaId] } ?: return null
+        return -stationJoinPositionMs(entry, skewMs, localNowMs)
+    }
+
+    /**
+     * A slot that failed to stream on THIS device (CDN 403, region block). Excluded from on-air
+     * resolution so the resync can never seek back into it and re-fail in a loop.
+     */
+    fun markUnplayable(mediaId: String) {
+        synchronized(scheduleLock) { unplayable.add(mediaId) }
+    }
+
+    private val unplayable = HashSet<String>()
 
     private fun remember(entries: List<ZemerStationEntry>) {
         synchronized(scheduleLock) {
@@ -133,14 +152,10 @@ class StationQueue(
     private fun entryIsBlocked(entry: ZemerStationEntry): Boolean =
         BlockedIdsCache.isBlocked(entry.videoId, ContentFilterState.current)
 
+    // Through the shared mapper path (SongItem -> MediaMetadata) so coverless slots get the derived
+    // thumbnail fallback and the 544x544 artwork resize like every other Zemer queue.
     private fun ZemerStationEntry.toMediaItem(): MediaItem =
-        MediaMetadata(
-            id = videoId,
-            title = title,
-            artists = listOf(MediaMetadata.Artist(id = artistId, name = artist)),
-            duration = durationSec ?: -1,
-            thumbnailUrl = thumbnail,
-        ).toMediaItem()
+        toSongItem().toMediaMetadata().toMediaItem()
 
     private companion object {
         const val SCHEDULE_MEMORY = 24

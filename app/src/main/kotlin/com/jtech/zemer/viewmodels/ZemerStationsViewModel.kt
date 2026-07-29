@@ -19,8 +19,8 @@ import javax.inject.Inject
  * fetch failure can never affect the rest of Home — the row just hides (empty list, the `/home-rows`
  * fail-soft convention). [refresh] runs on load AND on a 60s ticker while the row is ON SCREEN
  * (an operator cadence upgrade over the handoff's once-per-load default — a stale now-playing line
- * reads as broken; the ticker is composition-scoped so nothing polls in the background, and
- * `/stations` is a single cheap read). No content flags exist for stations (pools are pre-filtered
+ * reads as broken; the ticker is LIFECYCLE-scoped via repeatOnLifecycle(RESUMED), so it suspends the
+ * moment the app is backgrounded, and `/stations` is a single cheap read). No content flags exist for stations (pools are pre-filtered
  * server-side), so there is no flag-change re-fetch.
  */
 @HiltViewModel

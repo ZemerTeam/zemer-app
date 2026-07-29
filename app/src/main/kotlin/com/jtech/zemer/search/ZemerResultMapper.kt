@@ -202,6 +202,22 @@ object ZemerResultMapper {
         songItems(tracks, hideExplicit)
 
     /**
+     * One station schedule slot as a playable [SongItem], so station items ride the SAME
+     * [SongItem.toMediaMetadata] path as every other Zemer queue: the derived-[thumbnailFor]
+     * fallback for coverless slots and the 544x544 artwork resize both come for free (a hand-built
+     * MediaMetadata lost them - blank player/notification art on coverless standalones).
+     */
+    fun ZemerStationEntry.toSongItem(): SongItem =
+        SongItem(
+            id = videoId,
+            title = title,
+            artists = listOf(Artist(name = artist, id = artistId)),
+            duration = durationSec,
+            thumbnail = thumbnail?.takeIf { it.isNotBlank() } ?: thumbnailFor(videoId),
+            explicit = false,
+        )
+
+    /**
      * A `/radio` page's tracks as playable [SongItem]s with the same defense-in-depth every other
      * Zemer surface gets — sparse-row drop, de-dup, and the surgical id-overrides ([dropBlocked]):
      * a Firestore-blocked id must not play even when the server's override sync lags the app's.

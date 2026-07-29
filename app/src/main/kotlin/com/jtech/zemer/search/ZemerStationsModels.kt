@@ -118,12 +118,15 @@ fun stationShouldSkipDyingTrack(entry: ZemerStationEntry, skewMs: Long, localNow
     entry.endMs - (localNowMs + skewMs) <= STATION_DYING_TRACK_MS
 
 /**
- * §4 drift rule: correct only when |playback position − live position| exceeds
- * [STATION_MAX_DRIFT_MS], and then only at the NEXT track boundary — an audible mid-track jump is
- * worse than a couple of seconds of drift.
+ * The live offset inside [entry] IF it is on-air right now, else null: negative join = the slot
+ * has not started (we are ahead of the broadcast — wait, don't play), beyond the slot length = it
+ * already ended (we are behind — move on). THE primitive the bidirectional resync is built on: the
+ * caller seeks forward when behind, waits when ahead, and re-tunes when nothing queued is on-air.
  */
-fun stationDriftExceedsLimit(playbackPositionMs: Long, entry: ZemerStationEntry, skewMs: Long, localNowMs: Long): Boolean =
-    kotlin.math.abs(playbackPositionMs - stationJoinPositionMs(entry, skewMs, localNowMs)) > STATION_MAX_DRIFT_MS
+fun stationOnAirOffsetMs(entry: ZemerStationEntry, skewMs: Long, localNowMs: Long): Long? {
+    val join = stationJoinPositionMs(entry, skewMs, localNowMs)
+    return join.takeIf { it >= 0 && it < entry.endMs - entry.startMs }
+}
 
 /** Don't join a track with less than this left (handoff §4: "the last ~5s"). */
 const val STATION_DYING_TRACK_MS = 5_000L

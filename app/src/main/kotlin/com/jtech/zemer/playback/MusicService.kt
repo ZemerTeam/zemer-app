@@ -121,6 +121,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.EmptyQueue
 import com.jtech.zemer.playback.queues.Queue
 import com.jtech.zemer.playback.queues.StationQueue
+import com.jtech.zemer.search.STATION_MAX_DRIFT_MS
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.playback.queues.continuationItemsToAppend
@@ -250,7 +251,11 @@ class MusicService :
             // the flag drives the in-app transport gating via PlayerConnection.
             val station = value is StationQueue
             isStationBroadcast.value = station
-            if (::sessionPlayer.isInitialized) sessionPlayer.maskTransportForStation = station
+            if (::sessionPlayer.isInitialized && sessionPlayer.maskTransportForStation != station) {
+                sessionPlayer.maskTransportForStation = station
+                // Push the changed command set to every connected controller - media3 caches them.
+                sessionPlayer.notifyStationMaskChanged()
+            }
         }
 
     /** True while a Zemer Station broadcast is the active queue (see [StationQueue]). */
@@ -968,9 +973,13 @@ class MusicService :
         playWhenReady: Boolean = true,
     ) {
         val previousQueue = currentQueue
+        stationWaitJob?.cancel()
         currentQueue = queue
         queueTitle = null
         player.shuffleModeEnabled = false
+        // A broadcast has exactly one order and no looping: a persisted REPEAT_ONE would otherwise
+        // trap the station on a single slot (the repeat transition reason skips the runway top-up).
+        if (queue is StationQueue) player.repeatMode = REPEAT_MODE_OFF
         // Tracking: the tapped/preloaded item is always user-chosen context for this queue.
         Tracker.playSources.onQueueStarted(queue.playSource, listOfNotNull(queue.preloadItem?.id))
         queue.preloadItem?.let { preloadItem ->
@@ -1160,6 +1169,7 @@ class MusicService :
     }
 
     fun playNext(items: List<MediaItem>) {
+        exitStationOnQueueMutation()
         // If queue is empty or player is idle, play immediately instead
         if (player.mediaItemCount == 0 || player.playbackState == STATE_IDLE) {
             player.setMediaItems(items)
@@ -1229,6 +1239,7 @@ class MusicService :
     }
 
     fun addToQueue(items: List<MediaItem>) {
+        exitStationOnQueueMutation()
         player.addMediaItems(items)
         player.prepare()
     }
@@ -1446,20 +1457,15 @@ class MusicService :
         // receiver is loaded exactly once per transition.
         castController.onMediaItemTransition(mediaItem, reason)
 
-        // Station boundary sync (handoff par. 4): a new broadcast track starts at 0; if the wall
-        // clock says the station is already further in (we joined late, buffered, or a slot was
-        // skipped), seek to the live position at THIS boundary - never mid-track.
-        (currentQueue as? StationQueue)?.let { station ->
-            mediaItem?.let { item ->
-                val live = station.livePositionMs(item.mediaId, System.currentTimeMillis())
-                if (live != null && live > STATION_BOUNDARY_SEEK_MS) {
-                    player.seekTo(live)
-                }
-            }
-        }
+        // Station boundary sync (handoff par. 4): the ONLY place broadcast drift is corrected -
+        // bidirectional (seek forward when behind, wait when ahead, re-tune when nothing queued is
+        // on-air), never mid-track.
+        (currentQueue as? StationQueue)?.let { resyncStationPlayback(it) }
 
-        // Auto load more songs
-        if (dataStore.get(AutoLoadMoreKey, true) &&
+        // Auto load more songs. A station's runway top-up is NOT optional: it ignores the user's
+        // Auto-load-more preference (a broadcast that silently ends after six slots is broken, not
+        // configured) and the repeat-reason guard (repeat is forced off for stations anyway).
+        if ((dataStore.get(AutoLoadMoreKey, true) || currentQueue is StationQueue) &&
             reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
             player.mediaItemCount - player.currentMediaItemIndex <= 5 &&
             currentQueue.hasNextPage() &&
@@ -1499,6 +1505,11 @@ class MusicService :
     override fun onPlaybackStateChanged(
         @Player.State playbackState: Int,
     ) {
+        // A broadcast never ends: reaching STATE_ENDED means the runway ran out (top-up lost a
+        // race) - re-tune to the live schedule instead of parking in silence.
+        if (playbackState == Player.STATE_ENDED) {
+            (currentQueue as? StationQueue)?.let { resyncStationPlayback(it) }
+        }
         // Save state when playback state changes
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
@@ -1606,10 +1617,14 @@ class MusicService :
         }
 
         // A broadcast never stops for one bad slot: an unstreamable scheduled track (CDN 403 past
-        // the wall, region block) is skipped and the boundary handler rejoins the wall clock —
-        // handoff-settled; the zero-play-time guard already keeps it out of the play stats.
-        if (currentQueue is StationQueue) {
+        // the wall, region block) is marked unplayable (so the resync can never seek back into it),
+        // skipped, and the resync rejoins the wall clock - waiting out the gap if the next slot
+        // hasn't started, so the listener is never left permanently ahead. Handoff-settled; the
+        // zero-play-time guard already keeps the failed slot out of the play stats.
+        (currentQueue as? StationQueue)?.let { station ->
+            player.currentMediaItem?.mediaId?.let(station::markUnplayable)
             skipOnError()
+            resyncStationPlayback(station)
             return
         }
 
@@ -1994,18 +2009,70 @@ class MusicService :
 
     /**
      * Broadcast pause = stop: on resume, rejoin the LIVE position (handoff par. 5) - a station that
-     * resumes where it paused is a playlist. If the wall clock has left the paused track entirely,
-     * skip forward; the boundary handler then seeks the landing track to its live offset.
+     * resumes where it paused is a playlist.
      */
     private fun resyncStationOnResume() {
-        val station = currentQueue as? StationQueue ?: return
-        val mediaId = player.currentMediaItem?.mediaId ?: return
-        val live = station.livePositionMs(mediaId, System.currentTimeMillis()) ?: return
-        val slotLength = station.entryDurationMs(mediaId)
-        if (slotLength != null && live >= slotLength) {
-            if (player.hasNextMediaItem()) player.seekToNextMediaItem()
-        } else if (kotlin.math.abs(player.currentPosition - live) > STATION_BOUNDARY_SEEK_MS) {
-            player.seekTo(live)
+        (currentQueue as? StationQueue)?.let { resyncStationPlayback(it) }
+    }
+
+    /**
+     * THE bidirectional broadcast resync (every station drift path funnels here - boundary
+     * transitions, pause-resume, error skips, STATE_ENDED):
+     *  - finds the queued slot that is ON-AIR by wall clock (never scanning backward past the
+     *    current index into already-played slots) and seeks to its live offset when off by more
+     *    than the drift tolerance;
+     *  - if the landing slot has NOT started yet (we ran ahead: an error/blocked skip started it
+     *    early), it WAITS - pauses and resumes exactly at the slot's startMs (the addendum's
+     *    sanctioned handling), so one bad slot can never leave the listener permanently ahead;
+     *  - if NOTHING queued is on-air (paused past the runway, stale schedule), it re-tunes from
+     *    scratch - the exact flow a card tap runs, which also recovers STATE_ENDED.
+     */
+    private fun resyncStationPlayback(station: StationQueue) {
+        val nowMs = System.currentTimeMillis()
+        val startIndex = player.currentMediaItemIndex.coerceAtLeast(0)
+        for (index in startIndex until player.mediaItemCount) {
+            val mediaId = player.getMediaItemAt(index).mediaId
+            val live = station.onAirOffsetMs(mediaId, nowMs) ?: continue
+            val positionInSlot = if (index == player.currentMediaItemIndex) player.currentPosition else Long.MIN_VALUE
+            if (index != player.currentMediaItemIndex || kotlin.math.abs(positionInSlot - live) > STATION_MAX_DRIFT_MS) {
+                player.seekTo(index, live)
+            }
+            return
+        }
+        // Nothing from here on is on-air. If the CURRENT slot merely hasn't started (we're ahead
+        // after an error/blocked skip), hold playback until its startMs instead of drifting ahead.
+        val currentId = player.currentMediaItem?.mediaId
+        val untilStart = currentId?.let { station.msUntilSlotStarts(it, nowMs) }
+        if (untilStart != null && untilStart > 0) {
+            if (untilStart > STATION_MAX_DRIFT_MS) {
+                player.pause()
+                player.seekTo(0)
+                stationWaitJob?.cancel()
+                stationWaitJob = scope.launch(SilentHandler) {
+                    delay(untilStart)
+                    if (currentQueue === station && player.currentMediaItem?.mediaId == currentId) {
+                        player.play()
+                    }
+                }
+            }
+            return
+        }
+        // Past the whole runway (long pause / stale schedule): re-tune exactly like a card tap.
+        playQueue(StationQueue(station.stationId, this))
+    }
+
+    private var stationWaitJob: Job? = null
+
+    /**
+     * A queue mutation (Play next / Add to queue) is incompatible with a broadcast - it turns the
+     * player content into an ordinary list, so broadcast mode must END here: without this,
+     * currentQueue latched as the station forever (LIVE bar stuck, skips disabled everywhere, and
+     * the saveQueueToDisk guard silently disabling queue persistence for the rest of the process).
+     */
+    private fun exitStationOnQueueMutation() {
+        if (currentQueue is StationQueue) {
+            stationWaitJob?.cancel()
+            currentQueue = EmptyQueue
         }
     }
 
@@ -2124,9 +2191,13 @@ class MusicService :
             // The local skip advances the queue, whose media-item transition reloads the receiver while
             // casting. PREV uses seekToPreviousMediaItem when casting: the local clock is meaningless
             // remotely, so seekToPrevious's "restart current track if >3s in" would misfire.
-            MusicWidget.ACTION_NEXT -> player.seekToNext()
+            // A broadcast has no transport: the widget's skip taps reach the raw player and would
+            // bypass the session command mask, so they are dropped while a station plays.
+            MusicWidget.ACTION_NEXT -> if (currentQueue !is StationQueue) player.seekToNext()
             MusicWidget.ACTION_PREV ->
-                if (discoveryHandler.isConnected) player.seekToPreviousMediaItem() else player.seekToPrevious()
+                if (currentQueue !is StationQueue) {
+                    if (discoveryHandler.isConnected) player.seekToPreviousMediaItem() else player.seekToPrevious()
+                }
         }
         return super.onStartCommand(intent, flags, startId)
     }
@@ -2162,9 +2233,6 @@ class MusicService :
     }
 
     companion object {
-        /** Boundary/resume corrections only beyond this offset (the handoff's ~3s drift tolerance). */
-        private const val STATION_BOUNDARY_SEEK_MS = 3_000L
-
         const val ROOT = "root"
         const val SONG = "song"
         const val ARTIST = "artist"
