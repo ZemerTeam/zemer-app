@@ -86,6 +86,19 @@ object RecognitionAudioCapture {
         Fingerprint(signature, sampleDurationMs)
     }
 
+    /**
+     * Records [RECORDING_DURATION_MS] of audio and returns it as a WAV byte array.
+     * Used by the ACRCloud humming recognition path which needs raw audio, not a fingerprint.
+     */
+    suspend fun captureWav(context: Context): ByteArray = withContext(Dispatchers.IO) {
+        check(hasRecordPermission(context)) { "Microphone permission not granted" }
+
+        val audioData = recordAudio()
+        Timber.tag(TAG).d("Audio recorded for WAV: %d bytes", audioData.size)
+
+        com.jtech.zemer.recognition.acrcloud.Acrcloud.pcmToWav(audioData)
+    }
+
     @SuppressLint("MissingPermission")
     private suspend fun recordAudio(): ByteArray = withContext(Dispatchers.IO) {
         val bufferSize = AudioRecord.getMinBufferSize(RECORDING_SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT)

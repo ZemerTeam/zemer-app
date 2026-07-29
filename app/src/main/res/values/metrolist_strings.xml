@@ -508,6 +508,9 @@
     <string name="recognize_music_play">Play</string>
     <string name="recognize_music_try_again">Try again</string>
     <string name="recognize_music_close">Close</string>
+    <string name="recognize_music_mode_shazam">Shazam</string>
+    <string name="recognize_music_mode_humming">Humming</string>
+    <string name="recognize_music_humming_listening_hint">Hum your song clearly for a few seconds</string>
 
     <!-- Search engine toggle (search bar) -->
     <string name="search_provider_zemer">Zemer</string>

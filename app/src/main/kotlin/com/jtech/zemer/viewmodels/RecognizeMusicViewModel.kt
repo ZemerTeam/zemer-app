@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.recognition.RecognitionAudioCapture
 import com.jtech.zemer.recognition.RecognitionResolver
+import com.jtech.zemer.recognition.acrcloud.Acrcloud
 import com.jtech.zemer.recognition.shazam.Shazam
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.models.SongItem
@@ -19,13 +20,22 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
+enum class RecognitionMode {
+    SHAZAM,
+    HUMMING,
+}
+
 /**
  * Drives the "Recognize music" screen.
  *
- * The flow is: record a fingerprint → ask Shazam what the song is → hand the recognized
- * `(title, artist)` to [RecognitionResolver], which searches YouTube Music and returns ONLY a
- * whitelist-confirmed [SongItem] (or nothing). The raw Shazam response is never surfaced, so a song
- * by a non-whitelisted artist can never be shown or played. The widget uses the same resolver.
+ * Supports two recognition modes:
+ * - [RecognitionMode.SHAZAM]: captures an audio fingerprint and sends it to the Shazam API.
+ * - [RecognitionMode.HUMMING]: records raw audio and sends it to ACRCloud for humming recognition.
+ *
+ * Both paths hand the recognized `(title, artist)` to [RecognitionResolver], which searches
+ * YouTube Music and returns ONLY a whitelist-confirmed [SongItem] (or nothing). The raw
+ * recognition response is never surfaced, so a song by a non-whitelisted artist can never be
+ * shown or played.
  */
 @HiltViewModel
 class RecognizeMusicViewModel @Inject constructor(
@@ -36,10 +46,19 @@ class RecognizeMusicViewModel @Inject constructor(
     private val _state = MutableStateFlow<RecognizeUiState>(RecognizeUiState.Idle)
     val state = _state.asStateFlow()
 
+    private val _mode = MutableStateFlow(RecognitionMode.SHAZAM)
+    val mode = _mode.asStateFlow()
+
     private var job: Job? = null
 
-    /** Starts (or restarts) a recognition attempt. */
+    /** Starts (or restarts) a recognition attempt in the current mode. */
     fun start() {
+        start(_mode.value)
+    }
+
+    /** Starts (or restarts) a recognition attempt in the given mode. */
+    fun start(mode: RecognitionMode) {
+        _mode.value = mode
         job?.cancel()
         job = viewModelScope.launch {
             try {
@@ -49,31 +68,10 @@ class RecognizeMusicViewModel @Inject constructor(
                 }
 
                 _state.value = RecognizeUiState.Listening
-                val fingerprint = RecognitionAudioCapture.capture(context)
 
-                _state.value = RecognizeUiState.Identifying
-                val recognition = when (
-                    val outcome = Shazam.recognize(fingerprint.signature, fingerprint.sampleDurationMs)
-                ) {
-                    is Shazam.Outcome.Found -> outcome.result
-                    Shazam.Outcome.NoMatch -> {
-                        _state.value = RecognizeUiState.NoMatch
-                        return@launch
-                    }
-                    is Shazam.Outcome.Failed -> {
-                        Timber.tag(TAG).w(outcome.error, "Shazam recognition failed")
-                        _state.value = RecognizeUiState.Error
-                        return@launch
-                    }
-                }
-
-                _state.value = RecognizeUiState.Searching
-                _state.value = when (
-                    val outcome = RecognitionResolver.resolveWhitelisted(database, recognition.title, recognition.artist)
-                ) {
-                    is RecognitionResolver.Outcome.Resolved -> RecognizeUiState.Result(outcome.song)
-                    RecognitionResolver.Outcome.NoMatch -> RecognizeUiState.NoMatch
-                    RecognitionResolver.Outcome.Error -> RecognizeUiState.Error
+                when (mode) {
+                    RecognitionMode.SHAZAM -> runShazamFlow()
+                    RecognitionMode.HUMMING -> runHummingFlow()
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -82,6 +80,61 @@ class RecognizeMusicViewModel @Inject constructor(
                 reportException(e)
                 _state.value = RecognizeUiState.Error
             }
+        }
+    }
+
+    private suspend fun runShazamFlow() {
+        val fingerprint = RecognitionAudioCapture.capture(context)
+
+        _state.value = RecognizeUiState.Identifying
+        val recognition = when (
+            val outcome = Shazam.recognize(fingerprint.signature, fingerprint.sampleDurationMs)
+        ) {
+            is Shazam.Outcome.Found -> outcome.result
+            Shazam.Outcome.NoMatch -> {
+                _state.value = RecognizeUiState.NoMatch
+                return
+            }
+            is Shazam.Outcome.Failed -> {
+                Timber.tag(TAG).w(outcome.error, "Shazam recognition failed")
+                _state.value = RecognizeUiState.Error
+                return
+            }
+        }
+
+        resolveAndPresent(recognition.title, recognition.artist)
+    }
+
+    private suspend fun runHummingFlow() {
+        val wavData = RecognitionAudioCapture.captureWav(context)
+
+        _state.value = RecognizeUiState.Identifying
+        val result = when (
+            val outcome = Acrcloud.recognize(wavData)
+        ) {
+            is Acrcloud.Outcome.Found -> outcome.result
+            Acrcloud.Outcome.NoMatch -> {
+                _state.value = RecognizeUiState.NoMatch
+                return
+            }
+            is Acrcloud.Outcome.Failed -> {
+                Timber.tag(TAG).w(outcome.error, "ACRCloud recognition failed")
+                _state.value = RecognizeUiState.Error
+                return
+            }
+        }
+
+        resolveAndPresent(result.title, result.artist)
+    }
+
+    private suspend fun resolveAndPresent(title: String, artist: String) {
+        _state.value = RecognizeUiState.Searching
+        _state.value = when (
+            val outcome = RecognitionResolver.resolveWhitelisted(database, title, artist)
+        ) {
+            is RecognitionResolver.Outcome.Resolved -> RecognizeUiState.Result(outcome.song)
+            RecognitionResolver.Outcome.NoMatch -> RecognizeUiState.NoMatch
+            RecognitionResolver.Outcome.Error -> RecognizeUiState.Error
         }
     }
 

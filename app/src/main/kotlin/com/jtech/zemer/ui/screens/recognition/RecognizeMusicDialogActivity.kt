@@ -14,7 +14,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -61,6 +60,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.recognition.RecognitionAudioCapture
 import com.jtech.zemer.ui.theme.ZemerTheme
 import com.jtech.zemer.ui.utils.resize
+import com.jtech.zemer.viewmodels.RecognitionMode
 import com.jtech.zemer.viewmodels.RecognizeMusicViewModel
 import com.jtech.zemer.viewmodels.RecognizeUiState
 import com.metrolist.innertube.models.SongItem
@@ -115,6 +115,7 @@ private fun RecognizeDialog(
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
+    val currentMode by viewModel.mode.collectAsState()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -122,6 +123,11 @@ private fun RecognizeDialog(
 
     val attempt: () -> Unit = {
         if (RecognitionAudioCapture.hasRecordPermission(context)) viewModel.start()
+        else permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+    }
+
+    val attemptWithMode: (RecognitionMode) -> Unit = { mode ->
+        if (RecognitionAudioCapture.hasRecordPermission(context)) viewModel.start(mode)
         else permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
     }
 
@@ -165,11 +171,64 @@ private fun RecognizeDialog(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
             ) {
                 ZemerBrandHeader(onHistory = onOpenHistory)
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(16.dp))
+                ModeSelector(
+                    selectedMode = currentMode,
+                    enabled = state is RecognizeUiState.Idle ||
+                        state is RecognizeUiState.NoMatch ||
+                        state is RecognizeUiState.Error,
+                    onSelect = attemptWithMode,
+                )
+                Spacer(Modifier.height(16.dp))
                 when (val current = state) {
                     is RecognizeUiState.Result -> DialogResult(current.song, onPlay = { onPlay(current.song) }, onRetry = attempt)
-                    else -> DialogStatus(current, onAction = attempt, onClose = onDismiss)
+                    else -> DialogStatus(current, onAction = attempt, currentMode, onClose = onDismiss)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModeSelector(
+    selectedMode: RecognitionMode,
+    enabled: Boolean,
+    onSelect: (RecognitionMode) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(colorResource(R.color.widget_text_secondary).copy(alpha = 0.15f)),
+    ) {
+        val modes = listOf(
+            RecognitionMode.SHAZAM to stringResource(R.string.recognize_music_mode_shazam),
+            RecognitionMode.HUMMING to stringResource(R.string.recognize_music_mode_humming),
+        )
+        modes.forEach { (mode, label) ->
+            val isSelected = mode == selectedMode
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .then(
+                        if (enabled) Modifier.clickable(onClick = { onSelect(mode) })
+                        else Modifier
+                    )
+                    .background(
+                        if (isSelected) colorResource(R.color.widget_accent)
+                        else Color.Transparent,
+                    )
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isSelected) colorResource(R.color.widget_text_primary)
+                    else colorResource(R.color.widget_text_secondary),
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                )
             }
         }
     }
@@ -212,6 +271,7 @@ private fun ZemerBrandHeader(onHistory: () -> Unit) {
 private fun DialogStatus(
     state: RecognizeUiState,
     onAction: () -> Unit,
+    mode: RecognitionMode,
     onClose: () -> Unit,
 ) {
     val listening = state is RecognizeUiState.Listening
@@ -231,7 +291,11 @@ private fun DialogStatus(
         else -> stringResource(R.string.recognize_music_tap_to_start)
     }
     val hint = when (state) {
-        is RecognizeUiState.Listening -> stringResource(R.string.recognize_music_listening_hint)
+        is RecognizeUiState.Listening -> if (mode == RecognitionMode.HUMMING) {
+            stringResource(R.string.recognize_music_humming_listening_hint)
+        } else {
+            stringResource(R.string.recognize_music_listening_hint)
+        }
         is RecognizeUiState.PermissionRequired -> stringResource(R.string.recognize_music_permission_rationale)
         is RecognizeUiState.NoMatch -> stringResource(R.string.recognize_music_no_match_hint)
         is RecognizeUiState.Error -> stringResource(R.string.recognize_music_error_hint)
