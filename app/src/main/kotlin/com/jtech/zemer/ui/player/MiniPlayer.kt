@@ -172,6 +172,7 @@ private fun NewMiniPlayer(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val playbackState by playerConnection.playbackState.collectAsState()
     val error by playerConnection.error.collectAsState()
+    val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
@@ -544,19 +545,28 @@ private fun NewMiniPlayer(
                         }
 
                         if (metadata.artists.any { it.name.isNotBlank() }) {
-                            AnimatedContent(
-                                targetState = metadata.artists.joinToString { it.name },
-                                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                                label = "",
-                            ) { artists ->
-                                Text(
-                                    text = artists,
-                                    color = subtitleColor,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp),
-                                )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // A broadcast identifies itself on the mini bar too (handoff par. 5).
+                                if (isStationBroadcast) {
+                                    StationLiveBadge(
+                                        accentColor = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(end = 6.dp),
+                                    )
+                                }
+                                AnimatedContent(
+                                    targetState = metadata.artists.joinToString { it.name },
+                                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                                    label = "",
+                                ) { artists ->
+                                    Text(
+                                        text = artists,
+                                        color = subtitleColor,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp),
+                                    )
+                                }
                             }
                         }
 
@@ -756,6 +766,7 @@ private fun LegacyMiniPlayer(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val playbackState by playerConnection.playbackState.collectAsState()
     val error by playerConnection.error.collectAsState()
+    val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
@@ -910,6 +921,7 @@ private fun LegacyMiniPlayer(
                         mediaMetadata = it,
                         error = error,
                         pureBlack = pureBlack,
+                        isStationBroadcast = isStationBroadcast,
                         modifier = Modifier.padding(horizontal = 6.dp),
                     )
                 }
@@ -982,6 +994,7 @@ private fun LegacyMiniMediaInfo(
     mediaMetadata: MediaMetadata,
     error: PlaybackException?,
     pureBlack: Boolean,
+    isStationBroadcast: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -1056,18 +1069,27 @@ private fun LegacyMiniMediaInfo(
             }
 
             if (mediaMetadata.artists.any { it.name.isNotBlank() }) {
-                AnimatedContent(
-                    targetState = mediaMetadata.artists.joinToString { it.name },
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "",
-                ) { artists ->
-                    Text(
-                        text = artists,
-                        color = MaterialTheme.colorScheme.secondary,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // A broadcast identifies itself on the mini bar too (handoff par. 5).
+                    if (isStationBroadcast) {
+                        StationLiveBadge(
+                            accentColor = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 6.dp),
+                        )
+                    }
+                    AnimatedContent(
+                        targetState = mediaMetadata.artists.joinToString { it.name },
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "",
+                    ) { artists ->
+                        Text(
+                            text = artists,
+                            color = MaterialTheme.colorScheme.secondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }

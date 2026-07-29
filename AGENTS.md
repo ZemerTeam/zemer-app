@@ -222,6 +222,19 @@ only. Rules that must not regress:
 - Tracking: radio fill reports as `radio` (`initialItemsAreContext = false`,
   `continuationIsContext = false`); the preloaded seed is the one user-chosen context item.
 
+**Zemer Stations** (`playback/queues/StationQueue`, the "Zemer Radio" home row) are the OTHER radio
+product: one shared, server-programmed wall-clock schedule per station — every listener hears the
+same track at the same moment (contract: `~/zemer-fix/handoff-docs/zemer-app-stations.md`). Rules
+that must not regress: join at the live offset (`stationJoinPositionMs` + the start-at-0 negative
+case), drift corrections at track BOUNDARIES only (never mid-track), **pause = stop, resume =
+rejoin live** (`resyncStationOnResume`), a broadcast is NEVER persisted (`saveQueueToDisk` guard),
+the session player masks all skip/seek commands while a station plays (`CastAwarePlayer.
+maskTransportForStation` — notification/Auto/Bluetooth get play/stop only) and the in-app UI swaps
+the seek slider for the read-only LIVE bar; no content flags are sent (pools are pre-filtered
+server-side; blocked-ids still run client-side as the third layer); an unstreamable slot skips and
+rejoins the wall clock, and the zero-play-time guard keeps it out of the play stats; every station
+play tags `station:<id>`.
+
 ### Corpus-native artist/album opens (no InnerTube fallback)
 
 Artist (`/artist`) and album (`/album`) screens load purely from the Zemer server

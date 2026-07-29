@@ -26,6 +26,16 @@ class CastAwarePlayer(
     scope: CoroutineScope,
 ) : ForwardingPlayer(player) {
     private val casting: Boolean get() = discoveryHandler.isConnected
+
+    /**
+     * Station broadcast transport mask (handoff par. 5: play/stop only). While a [StationQueue] is
+     * the active queue, every skip/seek command disappears from the SESSION's available commands, so
+     * the media notification, Android Auto and Bluetooth AVRCP all drop their skip/scrub affordances
+     * in one place. Set by MusicService's currentQueue setter; queried on every notification/state
+     * rebuild, so no explicit invalidation is needed.
+     */
+    @Volatile
+    var maskTransportForStation = false
     private val remotePositionMs: Long get() = CastPlayback.remoteSecondsToMs(discoveryHandler.remoteTime.value)
     private val remoteDurationMs: Long get() = CastPlayback.remoteSecondsToMs(discoveryHandler.remoteDuration.value)
     private val remotePlaying: Boolean get() = CastPlayback.isPlaying(discoveryHandler.remotePlaybackState.value)
@@ -79,6 +89,27 @@ class CastAwarePlayer(
     // While casting, present the receiver's play state so external surfaces show the correct play/pause
     // icon instead of the paused local player's. Kept mutually consistent (READY + playWhenReady) so
     // however the session derives isPlaying, it agrees.
+    override fun getAvailableCommands(): Player.Commands =
+        if (maskTransportForStation) {
+            super.getAvailableCommands().buildUpon()
+                .removeAll(
+                    Player.COMMAND_SEEK_TO_NEXT,
+                    Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+                    Player.COMMAND_SEEK_TO_PREVIOUS,
+                    Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
+                    Player.COMMAND_SEEK_BACK,
+                    Player.COMMAND_SEEK_FORWARD,
+                    Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
+                    Player.COMMAND_SEEK_TO_MEDIA_ITEM,
+                )
+                .build()
+        } else {
+            super.getAvailableCommands()
+        }
+
+    override fun isCommandAvailable(command: Int): Boolean =
+        if (maskTransportForStation) getAvailableCommands().contains(command) else super.isCommandAvailable(command)
+
     override fun getPlayWhenReady(): Boolean = if (casting) remotePlaying else super.getPlayWhenReady()
     override fun getPlaybackState(): Int = if (casting) Player.STATE_READY else super.getPlaybackState()
     override fun isPlaying(): Boolean = if (casting) remotePlaying else super.isPlaying()

@@ -67,6 +67,11 @@ data class ZemerStationEntry(
     /** Wall-clock broadcast window (server clock). */
     val startMs: Long = 0,
     val endMs: Long = 0,
+    /**
+     * Present on `now` only. MAY BE NEGATIVE (contract addendum): when the on-air entry was just
+     * taken down, the next servable entry is served as `now` and a negative offset means "this
+     * track starts in |offset| ms" — see [stationStartPositionMs].
+     */
     val offsetMs: Long? = null,
 )
 
@@ -90,10 +95,20 @@ fun stationSkewMs(serverTimeMs: Long, localTimeMs: Long): Long = serverTimeMs - 
 /**
  * Where the broadcast is RIGHT NOW inside [entry], computed at [localNowMs] with the measured
  * [skewMs]: `(local now + skew) − startMs`. Compute it at the moment playback actually starts, so
- * fetch/prepare latency is absorbed by the seek instead of accumulating as drift.
+ * fetch/prepare latency is absorbed by the seek instead of accumulating as drift. NEGATIVE when the
+ * entry has not started yet (the addendum's just-taken-down case) — feed it through
+ * [stationStartPositionMs] before seeking.
  */
 fun stationJoinPositionMs(entry: ZemerStationEntry, skewMs: Long, localNowMs: Long): Long =
     (localNowMs + skewMs) - entry.startMs
+
+/**
+ * The position to actually seek to: a negative join position means the entry starts in |value| ms
+ * (contract addendum) — of the two sanctioned handlings (wait it out vs start at 0 immediately) we
+ * take START AT 0: it is simpler, the gap is a rare sub-track-length sliver, and silence on tune-in
+ * reads as broken. The resulting few seconds of head-start decay at the next boundary correction.
+ */
+fun stationStartPositionMs(joinPositionMs: Long): Long = maxOf(0L, joinPositionMs)
 
 /**
  * §4 join rule: joining within the last [STATION_DYING_TRACK_MS] of a track is not worth it — skip

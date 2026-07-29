@@ -97,6 +97,9 @@ fun NavGraphBuilder.navigationBuilder(
     composable("zemer_playlists") {
         ZemerPlaylistsScreen(navController, scrollBehavior)
     }
+    composable("zemer_stations") {
+        ZemerStationsScreen(navController, scrollBehavior)
+    }
     composable(
         route = "home_see_all/{row}",
         arguments = listOf(navArgument("row") { type = NavType.StringType }),

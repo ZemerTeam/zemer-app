@@ -551,6 +551,10 @@
     <string name="offline_search_promo_body">Download a backup of the catalog once and search keeps working even when the Zemer server is unreachable</string>
     <string name="offline_search_promo_action">Set up</string>
     <string name="offline_search_promo_dismiss">Not now</string>
+    <!-- Zemer Stations (synchronized broadcast radio) -->
+    <string name="zemer_radio">Zemer Radio</string>
+    <string name="station_live_badge">LIVE</string>
+    <string name="station_now_playing">Now: %1$s — %2$s</string>
     <string name="onboarding_backup_title">Search backup</string>
     <string name="onboarding_backup_question">Should search keep working even when the Zemer server is unreachable?</string>
     <string name="onboarding_backup_enable">Download a backup</string>

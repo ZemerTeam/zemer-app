@@ -96,6 +96,16 @@ class ZemerStationsTest {
     }
 
     @Test
+    fun `a not-yet-started entry joins at 0 - the addendum's negative-offset case`() {
+        // Local+skew is 1.5s BEFORE startMs: join position is negative, seek clamps to 0.
+        val join = stationJoinPositionMs(entry, skewMs = 0, localNowMs = 998_500)
+        assertEquals(-1_500L, join)
+        assertEquals(0L, stationStartPositionMs(join))
+        // A normal mid-track join passes through unchanged.
+        assertEquals(100_000L, stationStartPositionMs(100_000L))
+    }
+
+    @Test
     fun `joining inside the last 5s skips the dying track`() {
         assertFalse(stationShouldSkipDyingTrack(entry, skewMs = 0, localNowMs = 1_218_999))
         assertTrue(stationShouldSkipDyingTrack(entry, skewMs = 0, localNowMs = 1_219_000))

@@ -120,6 +120,7 @@ import com.jtech.zemer.models.PersistQueue
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.EmptyQueue
 import com.jtech.zemer.playback.queues.Queue
+import com.jtech.zemer.playback.queues.StationQueue
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.playback.queues.continuationItemsToAppend
@@ -242,6 +243,18 @@ class MusicService :
     private var audioQuality = com.jtech.zemer.constants.AudioQuality.AUTO
 
     private var currentQueue: Queue = EmptyQueue
+        set(value) {
+            field = value
+            // Broadcast semantics ride on the queue TYPE: the session player mask strips the
+            // skip/seek commands for every controller surface (notification, Auto, Bluetooth), and
+            // the flag drives the in-app transport gating via PlayerConnection.
+            val station = value is StationQueue
+            isStationBroadcast.value = station
+            if (::sessionPlayer.isInitialized) sessionPlayer.maskTransportForStation = station
+        }
+
+    /** True while a Zemer Station broadcast is the active queue (see [StationQueue]). */
+    val isStationBroadcast = MutableStateFlow(false)
     var queueTitle: String? = null
 
     val currentMediaMetadata = MutableStateFlow<com.jtech.zemer.models.MediaMetadata?>(null)
@@ -269,6 +282,7 @@ class MusicService :
 
     lateinit var player: ExoPlayer
     private lateinit var mediaSession: MediaLibrarySession
+    private lateinit var sessionPlayer: CastAwarePlayer
 
     private var isAudioEffectSessionOpened = false
     private var loudnessEnhancer: LoudnessEnhancer? = null
@@ -426,9 +440,10 @@ class MusicService :
             toggleLibrary = ::toggleLibrary
             addToTargetPlaylist = ::addToTargetPlaylist
         }
+        sessionPlayer = CastAwarePlayer(player, discoveryHandler, scope)
         mediaSession =
             MediaLibrarySession
-                .Builder(this, CastAwarePlayer(player, discoveryHandler, scope), mediaLibrarySessionCallback)
+                .Builder(this, sessionPlayer, mediaLibrarySessionCallback)
                 .setSessionActivity(
                     PendingIntent.getActivity(
                         this,
@@ -1431,6 +1446,18 @@ class MusicService :
         // receiver is loaded exactly once per transition.
         castController.onMediaItemTransition(mediaItem, reason)
 
+        // Station boundary sync (handoff par. 4): a new broadcast track starts at 0; if the wall
+        // clock says the station is already further in (we joined late, buffered, or a slot was
+        // skipped), seek to the live position at THIS boundary - never mid-track.
+        (currentQueue as? StationQueue)?.let { station ->
+            mediaItem?.let { item ->
+                val live = station.livePositionMs(item.mediaId, System.currentTimeMillis())
+                if (live != null && live > STATION_BOUNDARY_SEEK_MS) {
+                    player.seekTo(live)
+                }
+            }
+        }
+
         // Auto load more songs
         if (dataStore.get(AutoLoadMoreKey, true) &&
             reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
@@ -1482,6 +1509,7 @@ class MusicService :
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
         if (playWhenReady) {
             setupLoudnessEnhancer()
+            resyncStationOnResume()
         }
         updateWidget()
     }
@@ -1574,6 +1602,14 @@ class MusicService :
         // Don't treat 403 as network error - it needs URL refresh, not network wait
         if (!isNetworkConnected.value || isConnectionError) {
             waitOnNetworkError()
+            return
+        }
+
+        // A broadcast never stops for one bad slot: an unstreamable scheduled track (CDN 403 past
+        // the wall, region block) is skipped and the boundary handler rejoins the wall clock —
+        // handoff-settled; the zero-play-time guard already keeps it out of the play stats.
+        if (currentQueue is StationQueue) {
+            skipOnError()
             return
         }
 
@@ -1956,8 +1992,30 @@ class MusicService :
         }
     }
 
+    /**
+     * Broadcast pause = stop: on resume, rejoin the LIVE position (handoff par. 5) - a station that
+     * resumes where it paused is a playlist. If the wall clock has left the paused track entirely,
+     * skip forward; the boundary handler then seeks the landing track to its live offset.
+     */
+    private fun resyncStationOnResume() {
+        val station = currentQueue as? StationQueue ?: return
+        val mediaId = player.currentMediaItem?.mediaId ?: return
+        val live = station.livePositionMs(mediaId, System.currentTimeMillis()) ?: return
+        val slotLength = station.entryDurationMs(mediaId)
+        if (slotLength != null && live >= slotLength) {
+            if (player.hasNextMediaItem()) player.seekToNextMediaItem()
+        } else if (kotlin.math.abs(player.currentPosition - live) > STATION_BOUNDARY_SEEK_MS) {
+            player.seekTo(live)
+        }
+    }
+
     private fun saveQueueToDisk() {
         if (player.mediaItemCount == 0) {
+            return
+        }
+        // A broadcast is never persisted: restoring a station paused at a stale position is the
+        // exact "playlist, not a station" failure the contract forbids (pause = stop; resume = live).
+        if (currentQueue is StationQueue) {
             return
         }
 
@@ -2104,6 +2162,9 @@ class MusicService :
     }
 
     companion object {
+        /** Boundary/resume corrections only beyond this offset (the handoff's ~3s drift tolerance). */
+        private const val STATION_BOUNDARY_SEEK_MS = 3_000L
+
         const val ROOT = "root"
         const val SONG = "song"
         const val ARTIST = "artist"

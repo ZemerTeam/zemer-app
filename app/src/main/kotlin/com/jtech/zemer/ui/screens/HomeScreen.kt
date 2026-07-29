@@ -95,7 +95,10 @@ import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.latestreleases.LatestReleaseCard
 import com.jtech.zemer.viewmodels.HomeViewModel
 import com.jtech.zemer.viewmodels.LatestReleasesViewModel
+import com.jtech.zemer.playback.queues.StationQueue
+import com.jtech.zemer.ui.component.ZemerStationCard
 import com.jtech.zemer.viewmodels.ZemerCuratedPlaylistsViewModel
+import com.jtech.zemer.viewmodels.ZemerStationsViewModel
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
@@ -141,9 +144,12 @@ fun HomeScreen(
     val latestReleases by latestReleasesViewModel.releases.collectAsState()
     val zemerPlaylistsViewModel: ZemerCuratedPlaylistsViewModel = hiltViewModel()
     val zemerPlaylists by zemerPlaylistsViewModel.playlists.collectAsState()
+    val zemerStationsViewModel: ZemerStationsViewModel = hiltViewModel()
+    val zemerStations by zemerStationsViewModel.stations.collectAsState()
     // The curated endpoint's freshness contract is a plain re-fetch on screen open (single-digit-ms
     // server reads) — this also picks up a card removed by curation while a detail open 404'd.
     LaunchedEffect(Unit) { zemerPlaylistsViewModel.refresh() }
+    LaunchedEffect(Unit) { zemerStationsViewModel.refresh() }
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     homeUiState.isNewUser
 
@@ -372,6 +378,7 @@ fun HomeScreen(
                     // The curated "Zemer Playlists" feed is separate from HomeViewModel; re-check it
                     // on every pull so newly curated playlists appear without an app restart.
                     zemerPlaylistsViewModel.refresh()
+                    zemerStationsViewModel.refresh()
                 }
             ),
         contentAlignment = Alignment.TopStart
@@ -572,6 +579,48 @@ fun HomeScreen(
                                         // '/'/'?' can never break route matching (a crash on tap).
                                         navController.navigate("zemer_playlist/${Uri.encode(playlist.id)}")
                                     }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // "Zemer Radio" - the synchronized broadcast stations (one shared wall-clock
+                // schedule per station; tap = tune in at the live position). Live cards only;
+                // empty/unreachable hides the row (the /home-rows fail-soft convention). The Home
+                // tab is never reachable from inside KidZone, satisfying the contract's
+                // hide-in-kidZone rule the same way the curated shelf does.
+                zemerStations.takeIf { it.isNotEmpty() }?.let { stations ->
+                    item(key = "zemer_stations_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.zemer_radio),
+                            onClick = { navController.navigate("zemer_stations") },
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+
+                    item(key = "zemer_stations_list", contentType = "grid") {
+                        LazyRow(
+                            contentPadding = WindowInsets.systemBars
+                                .only(WindowInsetsSides.Horizontal)
+                                .asPaddingValues(),
+                            modifier = Modifier.animateItem()
+                        ) {
+                            items(
+                                items = stations,
+                                key = { it.id },
+                                contentType = { "zemer_station" }
+                            ) { station ->
+                                ZemerStationCard(
+                                    station = station,
+                                    modifier = Modifier
+                                        .animateItem()
+                                        .clickable {
+                                            // Tune in at the live broadcast position.
+                                            playerConnection.playQueue(
+                                                StationQueue(station.id, playerConnection.service)
+                                            )
+                                        }
                                 )
                             }
                         }
