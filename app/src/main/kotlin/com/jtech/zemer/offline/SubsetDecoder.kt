@@ -44,7 +44,15 @@ object SubsetDecoder {
             var blocked = SubBlocked(emptySet(), emptySet())
 
             for (shard in manifest.shards) {
-                val text = gunzip(store.shardBytes(shard.name) ?: return null)
+                val bytes = store.shardBytes(shard.name) ?: return null
+                // Belt-and-suspenders over the staged sync: a shard whose bytes don't match the
+                // committed manifest (an interrupted legacy sync, disk corruption) must read as
+                // "no snapshot", never decode as a silently mixed-version corpus.
+                if (subsetShardHash(bytes) != shard.hash) {
+                    Timber.w("Subset shard %s hash mismatch on read — snapshot unusable", shard.name)
+                    return null
+                }
+                val text = gunzip(bytes)
                 when {
                     shard.name == "artists" -> artists += decodeArtists(text)
                     shard.name.startsWith("albumtracks-") -> albumTracks += decodeAlbumTracks(text)

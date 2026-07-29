@@ -45,6 +45,32 @@ class SubsetStore(private val root: File) {
         }
     }
 
+    /**
+     * Stages one downloaded shard WITHOUT touching the live copy. A sync stages every changed shard
+     * first and [promoteStagedShard]s them only once ALL downloads verified — overwriting live shards
+     * one at a time meant a failure partway left a silently mixed-version corpus under the committed
+     * (old) manifest.
+     */
+    fun stageShard(name: String, gzippedBytes: ByteArray) {
+        root.mkdirs()
+        File(root, "${shardFile(name).name}$STAGED_EXT").writeBytes(gzippedBytes)
+    }
+
+    /** Promotes a previously-[stageShard]d shard over the live copy (rename — fast, no re-verify). */
+    fun promoteStagedShard(name: String) {
+        val target = shardFile(name)
+        val staged = File(root, "${target.name}$STAGED_EXT")
+        if (!staged.renameTo(target)) {
+            target.delete()
+            check(staged.renameTo(target)) { "failed to promote staged shard $name" }
+        }
+    }
+
+    /** Deletes any leftover staged files (an interrupted previous sync). */
+    fun clearStaged() {
+        root.listFiles { f -> f.isFile && f.name.endsWith(STAGED_EXT) }?.forEach { it.delete() }
+    }
+
     fun deleteShard(name: String) {
         shardFile(name).delete()
     }
@@ -84,5 +110,6 @@ class SubsetStore(private val root: File) {
         private const val MANIFEST_FILE = "manifest.json"
         private const val SHARD_EXT = ".gz"
         private const val TMP_EXT = ".tmp"
+        private const val STAGED_EXT = ".staged"
     }
 }

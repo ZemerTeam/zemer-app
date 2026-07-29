@@ -19,6 +19,8 @@ import com.metrolist.innertube.pages.SearchResult
 import com.metrolist.innertube.pages.SearchSummaryPage
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
+import java.nio.channels.UnresolvedAddressException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
@@ -59,16 +61,30 @@ data class ZemerCuratedPlaylistPage(
 )
 
 /**
- * Server-first with offline fallback: run [server]; if it fails because the service is unreachable (an
- * [IOException] from [ZemerSearchClient]), serve [offline] from the on-device snapshot when one is
- * present, else rethrow so the ViewModel keeps its normal error/retry behavior. A non-network null (a
- * 404 the client returns as null) is returned as-is and never triggers the fallback. Top-level +
- * `internal` so the routing policy is unit-tested without an Android runtime or mocking.
+ * Whether [this] is the server being unreachable, as opposed to a code bug. Timeouts and non-2xx
+ * responses surface as [IOException] (the client wraps them), but Ktor CIO signals missing
+ * connectivity / dead DNS — the offline feature's flagship scenario — as
+ * [UnresolvedAddressException], which is an [IllegalArgumentException], NOT an [IOException]
+ * (same hazard `LyricsHelper` documents). Both must trigger the fallback.
+ */
+internal fun Throwable.isZemerServerUnreachable(): Boolean =
+    this is IOException || this is UnresolvedAddressException
+
+/**
+ * Server-first with offline fallback: run [server]; if it fails because the service is unreachable
+ * ([isZemerServerUnreachable]), serve [offline] from the on-device snapshot when one is present, else
+ * rethrow so the ViewModel keeps its normal error/retry behavior. A non-network null (a 404 the
+ * client returns as null) is returned as-is and never triggers the fallback; a non-network exception
+ * is never masked. Top-level + `internal` so the routing policy is unit-tested without an Android
+ * runtime or mocking.
  */
 internal suspend fun <T> serverOrOffline(server: suspend () -> T, offline: suspend () -> T?): T =
     try {
         server()
-    } catch (e: IOException) {
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        if (!e.isZemerServerUnreachable()) throw e
         offline() ?: throw e
     }
 
@@ -255,12 +271,17 @@ class ZemerSearchRepository @Inject constructor(
         val trimmed = query.trim()
         val key = "$k|${options.allowFemale}|${options.blockVideos}|$trimmed"
         cacheMutex.withLock { cache[key] }?.let { return it }
-        val response = serverOrOffline(
-            server = { client.search(trimmed, options.allowFemale, options.blockVideos, k) },
+        // Only a SERVER response is memoized. Caching an offline-fallback response would keep serving
+        // the reduced snapshot result for the rest of the process after the server recovers: the
+        // access-ordered LRU refreshes the entry on every hit so it never ages out, and invalidate()
+        // only runs from the error-state Retry path — which a "successfully" cached result never shows.
+        return serverOrOffline(
+            server = {
+                client.search(trimmed, options.allowFemale, options.blockVideos, k)
+                    .also { response -> cacheMutex.withLock { cache[key] = response } }
+            },
             offline = { offlineReads.search(trimmed, k, options.allowFemale, options.blockVideos) },
         )
-        cacheMutex.withLock { cache[key] = response }
-        return response
     }
 
     companion object {

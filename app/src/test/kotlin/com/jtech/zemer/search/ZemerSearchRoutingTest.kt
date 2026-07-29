@@ -1,11 +1,13 @@
 package com.jtech.zemer.search
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.io.IOException
+import java.nio.channels.UnresolvedAddressException
 
 /**
  * The offline-fallback routing policy ([serverOrOffline]): server-first, fall back to the on-device
@@ -48,5 +50,32 @@ class ZemerSearchRoutingTest {
         val r = serverOrOffline<String?>(server = { null }, offline = { offlineCalled = true; "x" })
         assertEquals(null, r)
         assertFalse(offlineCalled)
+    }
+
+    @Test
+    fun `falls back on UnresolvedAddressException - Ktor CIO's no-network signal`() = runBlocking {
+        // Airplane mode / dead DNS surfaces as UnresolvedAddressException (an IllegalArgumentException,
+        // NOT an IOException) — the feature's flagship scenario must trigger the fallback.
+        val r = serverOrOffline<String>(
+            server = { throw UnresolvedAddressException() },
+            offline = { "offline" },
+        )
+        assertEquals("offline", r)
+    }
+
+    @Test
+    fun `rethrows UnresolvedAddressException when there is no snapshot`() {
+        assertThrows(UnresolvedAddressException::class.java) {
+            runBlocking { serverOrOffline<String>(server = { throw UnresolvedAddressException() }, offline = { null }) }
+        }
+    }
+
+    @Test
+    fun `cancellation propagates - never swallowed into the fallback`() {
+        assertThrows(CancellationException::class.java) {
+            runBlocking {
+                serverOrOffline<String>(server = { throw CancellationException("cancelled") }, offline = { "offline" })
+            }
+        }
     }
 }

@@ -9,6 +9,7 @@ import com.jtech.zemer.constants.OfflineSubsetWifiOnlyKey
 import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import androidx.datastore.preferences.core.edit
 import java.io.IOException
 import javax.inject.Inject
@@ -48,6 +50,12 @@ data class SubsetSyncStatus(
     val sizeOnDisk: Long = 0L,
     val lastSyncedAt: Long = 0L,
     val lastError: String? = null,
+    /**
+     * The last attempt was skipped by the WiFi-only gate (not an error). Rendered by the settings
+     * screen — without it an explicit "Download now" on cellular was a silent no-op that left the
+     * user believing a backup exists.
+     */
+    val waitingForWifi: Boolean = false,
 )
 
 /**
@@ -71,7 +79,7 @@ class OfflineSubsetSyncer @Inject constructor(
     val status: StateFlow<SubsetSyncStatus> = _status.asStateFlow()
 
     /** Repopulates [status] from what is currently on disk / in prefs (call before showing settings). */
-    suspend fun refresh() {
+    suspend fun refresh() = withContext(Dispatchers.IO) {
         val lastSyncedAt = context.dataStore.data.first()[OfflineSubsetLastSyncedAtKey] ?: 0L
         _status.update {
             it.copy(
@@ -85,50 +93,71 @@ class OfflineSubsetSyncer @Inject constructor(
     /**
      * Brings the local snapshot up to the server manifest. [force] runs even when the opt-in is off
      * (used by the "download now" settings action, which enables + forces the first sync).
+     *
+     * Runs on [Dispatchers.IO]: multi-MB SHA-256 hashing and blocking file writes must never execute
+     * on the caller's (often Main) dispatcher. Downloads are STAGED and promoted only after every
+     * shard verified — overwriting live shards one at a time left a silently mixed-version corpus
+     * whenever a later download failed.
      */
     suspend fun sync(force: Boolean = false): SubsetSyncOutcome = mutex.withLock {
-        val prefs = context.dataStore.data.first()
-        val enabled = prefs[OfflineSubsetEnabledKey] ?: false
-        if (!enabled && !force) return@withLock SubsetSyncOutcome.DISABLED
-        val wifiOnly = prefs[OfflineSubsetWifiOnlyKey] ?: true
-        if (wifiOnly && isMeteredOrOffline()) return@withLock SubsetSyncOutcome.SKIPPED_METERED
+        withContext(Dispatchers.IO) {
+            val prefs = context.dataStore.data.first()
+            val enabled = prefs[OfflineSubsetEnabledKey] ?: false
+            if (!enabled && !force) return@withContext SubsetSyncOutcome.DISABLED
+            val wifiOnly = prefs[OfflineSubsetWifiOnlyKey] ?: true
+            if (wifiOnly && isMeteredOrOffline()) {
+                // Deferred, not an error — but it MUST be visible: the settings screen renders
+                // waitingForWifi so an explicit "Download now" on cellular isn't a silent dead press.
+                _status.update { it.copy(waitingForWifi = true) }
+                return@withContext SubsetSyncOutcome.SKIPPED_METERED
+            }
 
-        _status.update { it.copy(running = true, lastError = null) }
-        try {
-            val remote = client.fetchManifest()
-            val plan = subsetSyncPlan(store.localManifest(), remote)
-
-            for (shard in plan.toDownload) {
-                val bytes = client.downloadShard(shard.name)
-                val actual = subsetShardHash(bytes)
-                if (actual != shard.hash) {
-                    throw IOException("shard ${shard.name} hash mismatch (expected ${shard.hash}, got $actual)")
+            _status.update { it.copy(running = true, lastError = null, waitingForWifi = false) }
+            try {
+                val remote = client.fetchManifest()
+                if (remote.schema != SUPPORTED_SUBSET_SCHEMA) {
+                    // Unknown wire-format generation (cipher-schemaVersion precedent): shard rows are
+                    // positional, so decoding them would silently mis-map — keep the last-good snapshot.
+                    throw IOException("unsupported subset schema ${remote.schema} (supported: $SUPPORTED_SUBSET_SCHEMA)")
                 }
-                store.writeShard(shard.name, bytes)
-            }
-            plan.toDelete.forEach(store::deleteShard)
-            store.pruneOrphans(remote.shards.mapTo(HashSet()) { it.name })
-            store.commitManifest(remote)
+                val plan = subsetSyncPlan(store.localManifest(), remote)
 
-            val now = System.currentTimeMillis()
-            context.dataStore.edit { it[OfflineSubsetLastSyncedAtKey] = now }
-            _status.update {
-                it.copy(
-                    running = false,
-                    localVersion = remote.v,
-                    sizeOnDisk = store.sizeOnDisk(),
-                    lastSyncedAt = now,
-                    lastError = null,
-                )
+                store.clearStaged()
+                for (shard in plan.toDownload) {
+                    val bytes = client.downloadShard(shard.name)
+                    val actual = subsetShardHash(bytes)
+                    if (actual != shard.hash) {
+                        throw IOException("shard ${shard.name} hash mismatch (expected ${shard.hash}, got $actual)")
+                    }
+                    store.stageShard(shard.name, bytes)
+                }
+                // Every download verified — only now touch the live set.
+                plan.toDownload.forEach { store.promoteStagedShard(it.name) }
+                plan.toDelete.forEach(store::deleteShard)
+                store.pruneOrphans(remote.shards.mapTo(HashSet()) { it.name })
+                store.commitManifest(remote)
+
+                val now = System.currentTimeMillis()
+                context.dataStore.edit { it[OfflineSubsetLastSyncedAtKey] = now }
+                _status.update {
+                    it.copy(
+                        running = false,
+                        localVersion = remote.v,
+                        sizeOnDisk = store.sizeOnDisk(),
+                        lastSyncedAt = now,
+                        lastError = null,
+                    )
+                }
+                if (plan.isNoOp) SubsetSyncOutcome.UP_TO_DATE else SubsetSyncOutcome.UPDATED
+            } catch (e: CancellationException) {
+                _status.update { it.copy(running = false) }
+                throw e
+            } catch (e: Exception) {
+                Timber.w(e, "Offline subset sync failed")
+                runCatching { store.clearStaged() }
+                _status.update { it.copy(running = false, lastError = e.message ?: e.javaClass.simpleName) }
+                SubsetSyncOutcome.FAILED
             }
-            if (plan.isNoOp) SubsetSyncOutcome.UP_TO_DATE else SubsetSyncOutcome.UPDATED
-        } catch (e: CancellationException) {
-            _status.update { it.copy(running = false) }
-            throw e
-        } catch (e: Exception) {
-            Timber.w(e, "Offline subset sync failed")
-            _status.update { it.copy(running = false, lastError = e.message ?: e.javaClass.simpleName) }
-            SubsetSyncOutcome.FAILED
         }
     }
 
@@ -147,9 +176,11 @@ class OfflineSubsetSyncer @Inject constructor(
 
     /** Wipes the downloaded snapshot (called when the user turns offline search off). */
     suspend fun clear() = mutex.withLock {
-        store.clear()
-        context.dataStore.edit { it.remove(OfflineSubsetLastSyncedAtKey) }
-        _status.value = SubsetSyncStatus()
+        withContext(Dispatchers.IO) {
+            store.clear()
+            context.dataStore.edit { it.remove(OfflineSubsetLastSyncedAtKey) }
+            _status.value = SubsetSyncStatus()
+        }
     }
 
     private fun isMeteredOrOffline(): Boolean {

@@ -53,7 +53,8 @@ class SubsetSyncClient @Inject constructor() {
     }
 
     companion object {
-        const val BASE_URL = "https://search.zemer.io"
+        /** Same host as the search client — one definition, so the two can never drift. */
+        val BASE_URL = com.jtech.zemer.search.ZemerSearchClient.BASE_URL
         private const val CONNECT_TIMEOUT_MS = 10_000L
         private const val SHARD_TIMEOUT_MS = 60_000L
     }

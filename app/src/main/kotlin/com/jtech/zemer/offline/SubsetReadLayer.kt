@@ -10,6 +10,7 @@ import com.jtech.zemer.search.ZemerCuratedPlaylistsResponse
 import com.jtech.zemer.search.ZemerHomeRowsResponse
 import com.jtech.zemer.search.ZemerPlaylist
 import com.jtech.zemer.search.ZemerTrack
+import com.jtech.zemer.search.resolveZemerUrl
 import java.util.WeakHashMap
 
 /**
@@ -35,8 +36,9 @@ import java.util.WeakHashMap
  *  - Curated `auto-*` chart-movement badges (`prevRank` / `delta` / `new` / `reentry`) and `anchorDate`
  *    are LIVE-ONLY: the rank-history sidecar is not part of the on-device subset, so they are left
  *    null/absent offline. The 1-based [ZemerTrack.rank] (raw stored order) IS reproduced.
- *  - Curated covers are server-rendered SVGs; the relative `"/zemer-playlists/cover?id=<id>"` URL is
- *    emitted verbatim (resolved against the API host by the app), never rendered here.
+ *  - Curated covers are server-rendered SVGs; the `"/zemer-playlists/cover?id=<id>"` URL is emitted
+ *    pre-resolved against the API host (the client-side resolution the offline path bypasses), never
+ *    rendered here.
  */
 
 // ── shared helpers ───────────────────────────────────────────────────────────────────────────────
@@ -45,8 +47,11 @@ private fun ytThumb(vid: String?): String? =
     if (vid.isNullOrEmpty()) null else "https://i.ytimg.com/vi/$vid/mqdefault.jpg"
 
 // The generated-cover URL the server links from a curated card (api.mjs `zemerCoverUrl`). Curated ids
-// are slugs (alnum + hyphen), so `encodeURIComponent` is a no-op — interpolated verbatim.
-private fun zemerCoverUrl(id: String): String = "/zemer-playlists/cover?id=$id"
+// are slugs (alnum + hyphen), so `encodeURIComponent` is a no-op. Emitted ABSOLUTE (resolveZemerUrl):
+// the server path absolutizes relative covers inside ZemerSearchClient, which the offline path
+// bypasses — a relative URL reaches Coil unloadable, and the absolute form also matches the cache
+// keys of covers Coil already has on disk from online sessions.
+private fun zemerCoverUrl(id: String): String = resolveZemerUrl("/zemer-playlists/cover?id=$id")!!
 
 /**
  * `_female` for the read filters — the female-involved videoId set (primary OR credited female, over the
@@ -60,13 +65,7 @@ private val femaleVideoIdsCache = WeakHashMap<SubsetCorpus, Set<String>>()
 private fun femaleVideoIdsFor(corpus: SubsetCorpus, female: FemaleMatcher): Set<String> =
     synchronized(femaleVideoIdsCache) {
         femaleVideoIdsCache.getOrPut(corpus) {
-            val out = HashSet<String>()
-            for (t in corpus.tracks) {
-                val artist = corpus.artistsById[t.artistId]
-                if (isFemaleInvolved(t.title, artist?.name ?: "", artist?.isFemale ?: false, female)) out.add(t.videoId)
-            }
-            out.addAll(corpus.blocked.female)
-            out
+            HashSet(collectFemaleVideoIds(corpus, female)).apply { addAll(corpus.blocked.female) }
         }
     }
 

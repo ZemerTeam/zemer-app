@@ -1,13 +1,17 @@
 package com.jtech.zemer.offline
 
 import android.content.Context
+import com.jtech.zemer.constants.OfflineSubsetLastSyncedAtKey
 import com.jtech.zemer.search.ZemerAlbumResponse
 import com.jtech.zemer.search.ZemerCuratedPlaylistResponse
 import com.jtech.zemer.search.ZemerCuratedPlaylistsResponse
 import com.jtech.zemer.search.ZemerHomeRowsResponse
 import com.jtech.zemer.search.ZemerSearchResponse
+import com.jtech.zemer.utils.WhitelistCache
+import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.lang.ref.SoftReference
 import javax.inject.Inject
@@ -30,20 +34,40 @@ import javax.inject.Singleton
  */
 @Singleton
 class OfflineReadProvider @Inject constructor(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
 ) {
     private val store = SubsetStore(context)
 
-    private class Loaded(val version: Int, val corpus: SubsetCorpus, val female: FemaleMatcher)
+    private class Loaded(
+        val version: Int,
+        val whitelistFingerprint: Long,
+        val corpus: SubsetCorpus,
+        val female: FemaleMatcher,
+    )
 
     private val lock = Any()
     private var cache: SoftReference<Loaded>? = null
 
-    private fun snapshot(): Loaded? = synchronized(lock) {
-        val manifest = store.localManifest() ?: run { cache = null; return null }
-        cache?.get()?.let { if (it.version == manifest.v) return it }
-        val corpus = SubsetDecoder.loadCorpus(store) ?: run { cache = null; return null }
-        Loaded(manifest.v, corpus, buildFemaleMatcher(corpus.artists)).also { cache = SoftReference(it) }
+    /**
+     * The decoded snapshot, gated on freshness ([subsetSnapshotIsFresh] — an unsyncable device must
+     * not serve an ever-aging copy) and overlaid with the live Firestore-synced whitelist
+     * ([SubsetCorpus.withLiveWhitelist] — a de-whitelisted or since-female-flagged artist is dropped
+     * the moment the app's whitelist sync lands, not on the next snapshot download). The cache is
+     * keyed on both the manifest version and the whitelist fingerprint so either changing rebuilds.
+     */
+    private suspend fun snapshot(): Loaded? {
+        val lastSyncedAt = context.dataStore.data.first()[OfflineSubsetLastSyncedAtKey] ?: 0L
+        if (!subsetSnapshotIsFresh(lastSyncedAt, System.currentTimeMillis())) return null
+        val live = WhitelistCache.snapshot().associate { it.artistId to it.isFemale }
+        return synchronized(lock) {
+            val manifest = store.localManifest() ?: run { cache = null; return null }
+            val fingerprint = liveWhitelistFingerprint(live)
+            cache?.get()?.let { if (it.version == manifest.v && it.whitelistFingerprint == fingerprint) return it }
+            val corpus = SubsetDecoder.loadCorpus(store)?.withLiveWhitelist(live)
+                ?: run { cache = null; return null }
+            Loaded(manifest.v, fingerprint, corpus, buildFemaleMatcher(corpus.artists))
+                .also { cache = SoftReference(it) }
+        }
     }
 
     suspend fun search(query: String, k: Int, allowFemale: Boolean, blockVideos: Boolean): ZemerSearchResponse? =

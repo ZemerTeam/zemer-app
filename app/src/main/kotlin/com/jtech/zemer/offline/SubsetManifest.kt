@@ -13,6 +13,15 @@ import kotlinx.serialization.Serializable
  * shard absent from a newer manifest is **deleted** locally — so both content additions and removals
  * propagate without any server-side changelog. See [subsetSyncPlan].
  */
+/**
+ * The manifest/shard wire-format generation this build understands. Mirrors the cipher
+ * `schemaVersion` precedent: shard rows are positional, so a server-side column reorder would
+ * mis-decode silently — a breaking format change must bump the server's `schema` field, and a client
+ * seeing an unknown generation rejects the manifest wholesale and keeps its last-good snapshot.
+ * A manifest without the field (today's server) is generation 1.
+ */
+const val SUPPORTED_SUBSET_SCHEMA = 1
+
 @Serializable
 data class SubsetManifest(
     /** Manifest schema/version counter, bumped on every rebuild. Local == remote ⇒ in sync. */
@@ -20,6 +29,8 @@ data class SubsetManifest(
     /** ISO-8601 build timestamp (informational; the shard hashes are what drive the diff). */
     val builtAt: String,
     val shards: List<SubsetShard>,
+    /** Wire-format generation — see [SUPPORTED_SUBSET_SCHEMA]. Absent = 1. */
+    val schema: Int = SUPPORTED_SUBSET_SCHEMA,
 )
 
 @Serializable

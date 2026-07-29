@@ -554,4 +554,5 @@
     <string name="offline_search_last_updated">Updated %1$s</string>
     <string name="offline_search_never">Never</string>
     <string name="offline_search_last_error">Last error: %1$s</string>
+    <string name="offline_search_waiting_wifi">Waiting for Wi-Fi — connect to an unmetered network or turn off “Download over Wi-Fi only”</string>
 </resources>

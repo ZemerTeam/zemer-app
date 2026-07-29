@@ -65,9 +65,28 @@ internal class CatCommunityDoc(
     override val sortId get() = id
 }
 
-/** The seven built indexes for one corpus, plus the data the post-filter recompute needs. Build once. */
+/** One community member's filter-relevant snapshot, taken at build time (see [BuiltCategories]). */
+internal class CatCommunityMember(
+    val pos: Int,
+    val videoId: String,
+    /** No corpus track AND no discovery artist — kept fail-open by the recompute. */
+    val unknown: Boolean,
+    val female: Boolean,
+    val isKidZone: Boolean,
+    val isVideo: Boolean,
+)
+
+/**
+ * The seven built indexes for one corpus, plus the data the post-filter recompute needs. Build once.
+ *
+ * Deliberately holds NO [SubsetCorpus] reference: instances are cached in a `WeakHashMap` keyed by
+ * the corpus, and a value strongly referencing its own key can never be collected (WeakHashMap's
+ * documented trap) — each sync's corpus + indexes would be pinned forever. Everything the recompute
+ * needs is snapshotted into [communityMembers]/[blocked]/[femaleVideoIds] at build time instead.
+ */
 class BuiltCategories internal constructor(
-    private val corpus: SubsetCorpus,
+    private val blocked: SubBlocked,
+    private val communityMembers: Map<String, List<CatCommunityMember>>,
     private val artists: SubsetIndex<CatArtistDoc>,
     private val songs: SubsetIndex<CatTrackDoc>,
     private val videos: SubsetIndex<CatTrackDoc>,
@@ -79,7 +98,6 @@ class BuiltCategories internal constructor(
     // set (api.mjs setFemaleSet), used by the community post-filter kept-count recompute.
     private val femaleVideoIds: Set<String>,
 ) {
-    private val blocked = corpus.blocked
 
     fun search(q: String, k: Int, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean): ZemerCategories {
         // pick = search n*4 -> filter allowed & !blocked -> slice n -> map (categories.mjs `pick`).
@@ -173,23 +191,17 @@ class BuiltCategories internal constructor(
     private class KeptCount(val count: Int, val cover: String?)
 
     // The api.mjs `communityKeptCounts` recompute: post-filter surviving-member count + first-surviving
-    // member's cover. Mirrors the SQL `keep` predicate over the corpus membership.
+    // member's cover, over the build-time member snapshots (no corpus reference — see the class KDoc).
     private fun communityKept(id: String, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean): KeptCount {
-        val members = corpus.communityTracksByPlaylist[id].orEmpty()
         var count = 0
         var coverPos = Int.MAX_VALUE
         var coverVid: String? = null
-        for (m in members) {
-            val t = corpus.tracksById[m.videoId]
-            val a = t?.let { corpus.artistsById[it.artistId] }
-            val am = m.artistId?.let { corpus.artistsById[it] }
-            val keep = if (t == null && m.artistId == null) {
+        for (m in communityMembers[id].orEmpty()) {
+            val keep = if (m.unknown) {
                 true // unknown member -> kept (fail-open)
             } else {
-                val female = (a?.isFemale ?: am?.isFemale ?: false) || femaleVideoIds.contains(m.videoId)
-                val isKidZone = a?.isKidZone ?: am?.isKidZone ?: false
-                val isVideo = t?.isVideo ?: false
-                (allowFemale || !female) && (!kidZone || isKidZone) && (!blockVideos || !isVideo)
+                val female = m.female || femaleVideoIds.contains(m.videoId)
+                (allowFemale || !female) && (!kidZone || m.isKidZone) && (!blockVideos || !m.isVideo)
             }
             if (keep) {
                 count++
@@ -211,27 +223,23 @@ class BuiltCategories internal constructor(
          * [female] is the shared matcher (build once via [buildFemaleMatcher]).
          */
         fun build(corpus: SubsetCorpus, female: FemaleMatcher): BuiltCategories {
-            val femaleVideoIds = HashSet<String>()
-
-            // Enrich tracks: femaleInvolved = primary female OR a credited female (see SubsetFemale). Split
-            // songs / videos. Collect the female-involved videoId set.
+            // Enrich tracks: femaleInvolved = primary female OR a credited female — the shared
+            // [collectFemaleVideoIds] scan (SubsetFemale), the same one the read layer caches. Split
+            // songs / videos.
+            val involvedVideoIds = collectFemaleVideoIds(corpus, female)
             val trackDocs = ArrayList<CatTrackDoc>(corpus.tracks.size)
             for (t in corpus.tracks) {
                 val artist = corpus.artistsById[t.artistId]
-                val artistName = artist?.name ?: ""
-                val primaryFemale = artist?.isFemale ?: false
-                val fi = isFemaleInvolved(t.title, artistName, primaryFemale, female)
-                if (fi) femaleVideoIds.add(t.videoId)
                 trackDocs.add(
                     CatTrackDoc(
-                        videoId = t.videoId, title = t.title, artistName = artistName,
+                        videoId = t.videoId, title = t.title, artistName = artist?.name ?: "",
                         explicit = t.explicit, durationSec = t.durationSec, isVideo = t.isVideo,
-                        isKidZone = artist?.isKidZone ?: false, femaleInvolved = fi,
+                        isKidZone = artist?.isKidZone ?: false, femaleInvolved = t.videoId in involvedVideoIds,
                     ),
                 )
             }
             // `_female` = female-involved videoIds UNION the curated `female` blocked ids (api.mjs setFemaleSet).
-            femaleVideoIds.addAll(corpus.blocked.female)
+            val femaleVideoIds = HashSet(involvedVideoIds).apply { addAll(corpus.blocked.female) }
             val songDocs = trackDocs.filter { !it.isVideo }
             val videoDocs = trackDocs.filter { it.isVideo }
 
@@ -289,8 +297,27 @@ class BuiltCategories internal constructor(
                 )
             }
 
+            // Snapshot the per-community member facts the kept-count recompute needs, so the built
+            // value carries NO corpus reference (see the class KDoc — the WeakHashMap self-pin trap).
+            val communityMembers = corpus.community.associate { c ->
+                c.id to corpus.communityTracksByPlaylist[c.id].orEmpty().map { m ->
+                    val t = corpus.tracksById[m.videoId]
+                    val a = t?.let { corpus.artistsById[it.artistId] }
+                    val am = m.artistId?.let { corpus.artistsById[it] }
+                    CatCommunityMember(
+                        pos = m.pos,
+                        videoId = m.videoId,
+                        unknown = t == null && m.artistId == null,
+                        female = a?.isFemale ?: am?.isFemale ?: false,
+                        isKidZone = a?.isKidZone ?: am?.isKidZone ?: false,
+                        isVideo = t?.isVideo ?: false,
+                    )
+                }
+            }
+
             return BuiltCategories(
-                corpus = corpus,
+                blocked = corpus.blocked,
+                communityMembers = communityMembers,
                 artists = buildSubsetIndex(artistDocs),
                 songs = buildSubsetIndex(songDocs),
                 videos = buildSubsetIndex(videoDocs),

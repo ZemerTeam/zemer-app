@@ -47,8 +47,10 @@ fun OfflineSearchSettings(
     val context = LocalContext.current
     val status by viewModel.status.collectAsStateWithLifecycle()
 
-    val (enabled, onEnabledChange) = rememberPreference(OfflineSubsetEnabledKey, defaultValue = false)
-    val (wifiOnly, onWifiOnlyChange) = rememberPreference(OfflineSubsetWifiOnlyKey, defaultValue = true)
+    // Read-only here: the ViewModel is the single writer of both keys (writing from both places
+    // double-committed every toggle).
+    val (enabled, _) = rememberPreference(OfflineSubsetEnabledKey, defaultValue = false)
+    val (wifiOnly, _) = rememberPreference(OfflineSubsetWifiOnlyKey, defaultValue = true)
 
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
@@ -71,6 +73,10 @@ fun OfflineSearchSettings(
                 ).toString()
             }
             append(context.getString(R.string.offline_search_last_updated, lastUpdated))
+            if (status.waitingForWifi) {
+                append("\n")
+                append(context.getString(R.string.offline_search_waiting_wifi))
+            }
             status.lastError?.let {
                 append("\n")
                 append(context.getString(R.string.offline_search_last_error, it))
@@ -92,10 +98,7 @@ fun OfflineSearchSettings(
             description = stringResource(R.string.offline_search_enable_desc),
             icon = { Icon(painterResource(R.drawable.offline), null) },
             checked = enabled,
-            onCheckedChange = {
-                onEnabledChange(it)
-                viewModel.setEnabled(it)
-            },
+            onCheckedChange = viewModel::setEnabled,
             modifier = Modifier.focusRequester(firstFocus),
         )
 
@@ -105,10 +108,7 @@ fun OfflineSearchSettings(
                 description = stringResource(R.string.offline_search_wifi_only_desc),
                 icon = { Icon(painterResource(R.drawable.wifi_proxy), null) },
                 checked = wifiOnly,
-                onCheckedChange = {
-                    onWifiOnlyChange(it)
-                    viewModel.setWifiOnly(it)
-                },
+                onCheckedChange = viewModel::setWifiOnly,
             )
 
             PreferenceEntry(

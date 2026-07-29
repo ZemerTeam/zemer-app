@@ -116,6 +116,21 @@ fun isFemaleInvolved(title: String, artistName: String, primaryIsFemale: Boolean
 }
 
 /**
+ * All female-involved videoIds (primary female OR a credited female) over the whole corpus — the
+ * `collectFemaleVideoIds` half of api.mjs `setFemaleSet` (the curated `blocked.female` union is the
+ * caller's concern). THE single implementation: both the categories build and the read layer's
+ * `_female` cache derive from this scan.
+ */
+fun collectFemaleVideoIds(corpus: SubsetCorpus, matcher: FemaleMatcher): Set<String> {
+    val out = HashSet<String>()
+    for (t in corpus.tracks) {
+        val artist = corpus.artistsById[t.artistId]
+        if (isFemaleInvolved(t.title, artist?.name ?: "", artist?.isFemale ?: false, matcher)) out.add(t.videoId)
+    }
+    return out
+}
+
+/**
  * "Female-owned" community playlist detection (female-owned.mjs `makeFemaleOwned`), reduced for the
  * on-device subset. The server also owns a set of playlist ids belonging to female artists, but that
  * id set is NOT shipped in the on-device subset — so offline it is EMPTY and the predicate reduces to
