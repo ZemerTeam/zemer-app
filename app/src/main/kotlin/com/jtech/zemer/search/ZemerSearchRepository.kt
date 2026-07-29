@@ -210,6 +210,26 @@ class ZemerSearchRepository @Inject constructor(
     suspend fun radioContinuation(continuation: String): ZemerRadioPage =
         client.radioContinuation(continuation).toRadioPage()
 
+    /**
+     * The live Zemer Stations for the "Zemer Radio" home row ([liveStations]: live-only cards,
+     * absolute covers, fail-soft empty). Deliberately NOT wrapped in [serverOrOffline] — a
+     * synchronized broadcast cannot be served from a snapshot, so stations are live-only like
+     * `/playlist` and `/radio`. Not cached: the responses are clock-dependent, and the row's
+     * `nowPlaying` line refreshes once per home load by contract (handoff, settled 2026-07-29).
+     */
+    suspend fun stations(): List<ZemerStation> =
+        client.stations().liveStations(::resolveZemerUrl)
+
+    /**
+     * One station's tune-in payload — the on-air entry with its live offset + the schedule runway.
+     * Null = unknown id OR station offline (hide the card / show the station-offline player state and
+     * retry later; never a silent fallback). Live-only and uncached, like [stations].
+     */
+    suspend fun stationTuneIn(id: String, next: Int = 5): ZemerStationTuneInResponse? =
+        client.station(id, next)?.let { resp ->
+            resp.copy(station = resp.station.copy(thumbnail = resolveZemerUrl(resp.station.thumbnail)))
+        }
+
     // Routed through the mapper so radio gets the same dropBlocked id-overrides pass as every other
     // Zemer surface (the server filters too; this covers its ~10-min override-sync lag).
     private fun ZemerRadioResponse.toRadioPage(): ZemerRadioPage =
