@@ -100,7 +100,9 @@ fun LoginGateScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.music_note),
+                    // The app LOGO, not a generic song glyph: small_icon is the launcher artwork's
+                    // eighth-note silhouette, so every logo surface matches the app icon (#179).
+                    painter = painterResource(R.drawable.small_icon),
                     contentDescription = null,
                     modifier = Modifier.size(80.dp),
                     tint = MaterialTheme.colorScheme.primary
