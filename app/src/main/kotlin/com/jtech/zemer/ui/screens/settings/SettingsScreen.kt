@@ -144,6 +144,14 @@ fun SettingsScreen(
             route = "settings/storage"
         ),
         SettingItem(
+            id = "offline_search",
+            title = stringResource(R.string.offline_search),
+            description = stringResource(R.string.settings_desc_offline_search),
+            icon = R.drawable.offline,
+            section = stringResource(R.string.settings_section_storage),
+            route = "settings/offline_search"
+        ),
+        SettingItem(
             id = "backup",
             title = stringResource(R.string.backup_restore),
             description = stringResource(R.string.settings_desc_backup),

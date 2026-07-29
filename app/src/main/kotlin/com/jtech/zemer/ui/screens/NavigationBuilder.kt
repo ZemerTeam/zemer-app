@@ -38,6 +38,7 @@ import com.jtech.zemer.ui.screens.settings.ButtonSetupScreen
 import com.jtech.zemer.ui.screens.settings.ContentSettings
 import com.jtech.zemer.ui.screens.settings.GeneralSettings
 import com.jtech.zemer.ui.screens.settings.LogViewerScreen
+import com.jtech.zemer.ui.screens.settings.OfflineSearchSettings
 import com.jtech.zemer.ui.screens.settings.PlayerSettings
 import com.jtech.zemer.ui.screens.settings.PrivacySettings
 import com.jtech.zemer.ui.screens.settings.SettingsScreen
@@ -393,6 +394,9 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("settings/storage") {
         StorageSettings(navController, scrollBehavior)
+    }
+    composable("settings/offline_search") {
+        OfflineSearchSettings(navController, scrollBehavior)
     }
     composable("settings/privacy") {
         PrivacySettings(navController, scrollBehavior)

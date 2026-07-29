@@ -2,6 +2,7 @@ package com.jtech.zemer.search
 
 import android.content.Context
 import com.jtech.zemer.R
+import com.jtech.zemer.offline.OfflineReadProvider
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumItems
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
 import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
@@ -17,6 +18,9 @@ import com.metrolist.innertube.pages.ArtistPage
 import com.metrolist.innertube.pages.SearchResult
 import com.metrolist.innertube.pages.SearchSummaryPage
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.IOException
+import java.nio.channels.UnresolvedAddressException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
@@ -57,12 +61,42 @@ data class ZemerCuratedPlaylistPage(
 )
 
 /**
+ * Whether [this] is the server being unreachable, as opposed to a code bug. Timeouts and non-2xx
+ * responses surface as [IOException] (the client wraps them), but Ktor CIO signals missing
+ * connectivity / dead DNS — the offline feature's flagship scenario — as
+ * [UnresolvedAddressException], which is an [IllegalArgumentException], NOT an [IOException]
+ * (same hazard `LyricsHelper` documents). Both must trigger the fallback.
+ */
+internal fun Throwable.isZemerServerUnreachable(): Boolean =
+    this is IOException || this is UnresolvedAddressException
+
+/**
+ * Server-first with offline fallback: run [server]; if it fails because the service is unreachable
+ * ([isZemerServerUnreachable]), serve [offline] from the on-device snapshot when one is present, else
+ * rethrow so the ViewModel keeps its normal error/retry behavior. A non-network null (a 404 the
+ * client returns as null) is returned as-is and never triggers the fallback; a non-network exception
+ * is never masked. Top-level + `internal` so the routing policy is unit-tested without an Android
+ * runtime or mocking.
+ */
+internal suspend fun <T> serverOrOffline(server: suspend () -> T, offline: suspend () -> T?): T =
+    try {
+        server()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        if (!e.isZemerServerUnreachable()) throw e
+        offline() ?: throw e
+    }
+
+/**
  * Entry point for Zemer-engine search. It returns the same `YTItem`/page types the YouTube path does,
  * so the ViewModels can swap providers with a one-line branch and the UI is reused verbatim.
  *
- * Every query goes to [ZemerSearchClient] (search.zemer.io); there is no on-device fallback by design.
- * If the service is unreachable the call throws, the ViewModel shows the search-error state, and the
- * user can flip the toggle to YouTube Music search.
+ * Queries go to [ZemerSearchClient] (search.zemer.io) first; if the service is unreachable AND the user
+ * has downloaded an on-device snapshot, the reproducible endpoints fall back to [OfflineReadProvider]
+ * (search / album / home-rows / curated playlists) so browse + search keep working offline. With no
+ * snapshot the call throws as before, the ViewModel shows the search-error state, and the user can flip
+ * the toggle to YouTube Music search. `/playlist` and `/radio` are live-only (not in the snapshot).
  *
  * Responses are memoized in a small LRU keyed by (k, filters, query): the song/video/album/artist/
  * featured-playlist chips all request the same k, so after the first they hit the cache instead of
@@ -73,6 +107,7 @@ data class ZemerCuratedPlaylistPage(
 @Singleton
 class ZemerSearchRepository @Inject constructor(
     private val client: ZemerSearchClient,
+    private val offlineReads: OfflineReadProvider,
     @ApplicationContext private val context: Context,
 ) {
     // Localized "N songs" for a playlist's whitelisted track count (reuses the shared n_song plural).
@@ -125,7 +160,10 @@ class ZemerSearchRepository @Inject constructor(
      * single fetch.
      */
     suspend fun album(browseId: String, playlistId: String?, options: ZemerSearchOptions): AlbumPage? =
-        client.album(browseId, options.allowFemale, options.blockVideos)?.toAlbumPage(playlistId)
+        serverOrOffline(
+            server = { client.album(browseId, options.allowFemale, options.blockVideos) },
+            offline = { offlineReads.album(browseId, options.allowFemale, options.blockVideos) },
+        )?.toAlbumPage(playlistId)
 
     /**
      * The telemetry-ranked home rows (albums / videos / artists), already whitelist-scoped and
@@ -136,20 +174,26 @@ class ZemerSearchRepository @Inject constructor(
      */
     suspend fun homeRows(options: ZemerSearchOptions): ZemerResultMapper.HomeRows =
         ZemerResultMapper.homeRows(
-            client.homeRows(options.allowFemale, options.blockVideos),
+            serverOrOffline(
+                server = { client.homeRows(options.allowFemale, options.blockVideos) },
+                offline = { offlineReads.homeRows(options.allowFemale, options.blockVideos) },
+            ),
             formatSongCount,
         )
 
     /**
      * Open an artist through the server's `/artist` endpoint (whitelist-scoped + content-filtered),
      * mapped to the [AlbumPage]-sibling [ArtistPage] the artist screen already consumes. Null = 404
-     * (the artist is filtered out entirely, or is absent from the corpus) — the caller falls back to the
-     * InnerTube artist path. Not cached: a single user-initiated open, same freshness contract as
-     * [album]/[playlist].
+     * (the artist is filtered out entirely, or is absent from the corpus) — the screen shows its
+     * not-available state. Offline-covered: search/home-rows render tappable artist cards from the
+     * snapshot, so an artist open must not be the one dead surface in the outage mode. Not cached: a
+     * single user-initiated open, same freshness contract as [album]/[playlist].
      */
     suspend fun artist(id: String, options: ZemerSearchOptions): ArtistPage? =
-        client.artist(id, options.allowFemale, options.blockVideos)
-            ?.toArtistPage(options.hideExplicit, formatSongCount)
+        serverOrOffline(
+            server = { client.artist(id, options.allowFemale, options.blockVideos) },
+            offline = { offlineReads.artist(id, options.allowFemale, options.blockVideos) },
+        )?.toArtistPage(options.hideExplicit, formatSongCount)
 
     /**
      * Corpus-native radio (see [ZemerRadioResponse]): the first page seeded by [kind]/[seed] (`artist` /
@@ -178,7 +222,10 @@ class ZemerSearchRepository @Inject constructor(
      * Sparse/duplicate rows are dropped defensively (the id keys a Compose lazy list).
      */
     suspend fun curatedPlaylists(options: ZemerSearchOptions): List<ZemerCuratedPlaylist> =
-        client.curatedPlaylists(options.allowFemale, options.blockVideos)
+        serverOrOffline(
+            server = { client.curatedPlaylists(options.allowFemale, options.blockVideos) },
+            offline = { offlineReads.curatedPlaylists(options.allowFemale, options.blockVideos) },
+        )
             .playlists
             .filter { it.id.isNotBlank() }
             .distinctBy { it.id }
@@ -188,7 +235,10 @@ class ZemerSearchRepository @Inject constructor(
      * list. Null = 404 (gone, or nothing survives these flags) — the screen backs out gracefully.
      */
     suspend fun curatedPlaylist(id: String, options: ZemerSearchOptions): ZemerCuratedPlaylistPage? =
-        client.curatedPlaylist(id, options.allowFemale, options.blockVideos)?.let { response ->
+        serverOrOffline(
+            server = { client.curatedPlaylist(id, options.allowFemale, options.blockVideos) },
+            offline = { offlineReads.curatedPlaylist(id, options.allowFemale, options.blockVideos) },
+        )?.let { response ->
             ZemerCuratedPlaylistPage(
                 playlist = response.playlist,
                 songs = response.toSongItems(options.hideExplicit),
@@ -224,9 +274,17 @@ class ZemerSearchRepository @Inject constructor(
         val trimmed = query.trim()
         val key = "$k|${options.allowFemale}|${options.blockVideos}|$trimmed"
         cacheMutex.withLock { cache[key] }?.let { return it }
-        val response = client.search(trimmed, options.allowFemale, options.blockVideos, k)
-        cacheMutex.withLock { cache[key] = response }
-        return response
+        // Only a SERVER response is memoized. Caching an offline-fallback response would keep serving
+        // the reduced snapshot result for the rest of the process after the server recovers: the
+        // access-ordered LRU refreshes the entry on every hit so it never ages out, and invalidate()
+        // only runs from the error-state Retry path — which a "successfully" cached result never shows.
+        return serverOrOffline(
+            server = {
+                client.search(trimmed, options.allowFemale, options.blockVideos, k)
+                    .also { response -> cacheMutex.withLock { cache[key] = response } }
+            },
+            offline = { offlineReads.search(trimmed, k, options.allowFemale, options.blockVideos) },
+        )
     }
 
     companion object {
