@@ -89,6 +89,7 @@ import com.airbnb.lottie.compose.rememberLottieDynamicProperty
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.SyncAccountWarning
 import com.jtech.zemer.ui.component.DefaultDialog
+import com.jtech.zemer.ui.screens.onboarding.OnboardingChoiceCard
 import com.jtech.zemer.ui.screens.onboarding.OnboardingSearchBackupScreen
 import com.jtech.zemer.constants.DensityScale
 import com.jtech.zemer.utils.PermissionHelper
@@ -1865,111 +1866,22 @@ private fun BottomNavSetupScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Choice cards similar to permission cards
+            // Choice cards — the shared onboarding radio card (D-pad focus treatment included)
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Enable option
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(
-                            width = 1.5.dp,
-                            color = if (enableBottomNav)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.outline,
-                            shape = RoundedCornerShape(12.dp)
-                        ),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (enableBottomNav)
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-                        else
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { enableBottomNav = true }
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.onboarding_nav_enable),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = stringResource(R.string.onboarding_nav_enable_desc),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 2.dp)
-                            )
-                        }
-                        androidx.compose.material3.RadioButton(
-                            selected = enableBottomNav,
-                            onClick = { enableBottomNav = true },
-                            colors = androidx.compose.material3.RadioButtonDefaults.colors(
-                                selectedColor = MaterialTheme.colorScheme.primary
-                            )
-                        )
-                    }
-                }
-
-                // Disable option
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(
-                            width = 1.5.dp,
-                            color = if (!enableBottomNav)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.outline,
-                            shape = RoundedCornerShape(12.dp)
-                        ),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (!enableBottomNav)
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-                        else
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { enableBottomNav = false }
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.onboarding_nav_no_thanks),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = stringResource(R.string.onboarding_nav_later),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 2.dp)
-                            )
-                        }
-                        androidx.compose.material3.RadioButton(
-                            selected = !enableBottomNav,
-                            onClick = { enableBottomNav = false },
-                            colors = androidx.compose.material3.RadioButtonDefaults.colors(
-                                selectedColor = MaterialTheme.colorScheme.primary
-                            )
-                        )
-                    }
-                }
+                OnboardingChoiceCard(
+                    selected = enableBottomNav,
+                    title = stringResource(R.string.onboarding_nav_enable),
+                    description = stringResource(R.string.onboarding_nav_enable_desc),
+                    onSelect = { enableBottomNav = true },
+                )
+                OnboardingChoiceCard(
+                    selected = !enableBottomNav,
+                    title = stringResource(R.string.onboarding_nav_no_thanks),
+                    description = stringResource(R.string.onboarding_nav_later),
+                    onSelect = { enableBottomNav = false },
+                )
             }
 
             Spacer(Modifier.height(16.dp))

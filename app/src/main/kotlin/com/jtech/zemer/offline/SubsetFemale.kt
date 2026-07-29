@@ -35,9 +35,12 @@ class FemaleMatcher internal constructor(
     internal fun isEmpty(): Boolean = names.isEmpty() && skels.isEmpty()
 }
 
-// `norm` / `skel` / `hasHeb` — the three helpers at the top of credits.mjs.
+// `norm` / `skel` / `hasHeb` — the three helpers at the top of credits.mjs. The whitespace regex is
+// hoisted: skel() runs per credited name for every track in the full-corpus female scans, so a
+// per-call Regex() compile is hundreds of thousands of Pattern.compile calls of pure overhead.
+private val WHITESPACE = Regex("\\s+")
 private fun norm(s: String?): String = SubsetNormalize.plainTokens(s).joinToString(" ")
-private fun skel(s: String?): String = SubsetNormalize.skeletonKey(s).replace(Regex("\\s+"), "")
+private fun skel(s: String?): String = SubsetNormalize.skeletonKey(s).replace(WHITESPACE, "")
 private val HEB_LETTER = Regex("[֐-׿]") // /[֐-׿]/
 private fun hasHeb(s: String?): Boolean = HEB_LETTER.containsMatchIn(s ?: "")
 

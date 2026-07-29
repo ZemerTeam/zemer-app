@@ -1,18 +1,22 @@
 package com.jtech.zemer.utils
 
 import com.jtech.zemer.db.entities.ArtistWhitelistEntity
-import java.util.concurrent.ConcurrentHashMap
 
 object WhitelistCache {
-    private val memory = ConcurrentHashMap<String, ArtistWhitelistEntity>()
+    // A @Volatile immutable map swapped whole, NOT a mutable map mutated in place: the old
+    // clear-then-refill left a window where concurrent readers (notably the offline subset's
+    // live-whitelist overlay) saw an empty or partial whitelist mid-refresh — an empty read
+    // short-circuits the overlay and briefly serves de-whitelisted content.
+    @Volatile
+    private var memory: Map<String, ArtistWhitelistEntity> = emptyMap()
 
     fun updateAll(entries: List<ArtistWhitelistEntity>) {
-        memory.clear()
-        entries.forEach { memory[it.artistId] = it }
+        memory = entries.associateBy { it.artistId }
     }
 
     fun get(artistId: String): ArtistWhitelistEntity? = memory[artistId]
 
+    /** An immutable, point-in-time view — safe to iterate while a refresh swaps the map. */
     fun snapshot(): Collection<ArtistWhitelistEntity> = memory.values
 
     suspend fun allowedEntries(database: com.jtech.zemer.db.MusicDatabase, config: ContentFilterConfig): List<ArtistWhitelistEntity> {

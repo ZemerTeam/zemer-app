@@ -1,5 +1,6 @@
 package com.jtech.zemer.offline
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -71,7 +72,14 @@ object SubsetDecoder {
                 artists, tracks, albums, albumTracks, playlists,
                 community, communityTracks, homeRank, zemerPlaylists, zemerItems, blocked,
             )
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            // Throwable, not Exception: decoding materializes tens of MB (bytes + gunzipped text +
+            // JSON tree), so OutOfMemoryError is a REAL outcome on a low-RAM device — it must degrade
+            // to "no snapshot" (the caller rethrows the original network error), never crash the app
+            // on the path built to degrade gracefully. The half-built local lists are unreferenced
+            // after this frame, so the memory is immediately reclaimable.
             Timber.w(e, "Subset decode failed")
             null
         }

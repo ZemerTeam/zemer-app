@@ -184,13 +184,16 @@ class ZemerSearchRepository @Inject constructor(
     /**
      * Open an artist through the server's `/artist` endpoint (whitelist-scoped + content-filtered),
      * mapped to the [AlbumPage]-sibling [ArtistPage] the artist screen already consumes. Null = 404
-     * (the artist is filtered out entirely, or is absent from the corpus) — the caller falls back to the
-     * InnerTube artist path. Not cached: a single user-initiated open, same freshness contract as
-     * [album]/[playlist].
+     * (the artist is filtered out entirely, or is absent from the corpus) — the screen shows its
+     * not-available state. Offline-covered: search/home-rows render tappable artist cards from the
+     * snapshot, so an artist open must not be the one dead surface in the outage mode. Not cached: a
+     * single user-initiated open, same freshness contract as [album]/[playlist].
      */
     suspend fun artist(id: String, options: ZemerSearchOptions): ArtistPage? =
-        client.artist(id, options.allowFemale, options.blockVideos)
-            ?.toArtistPage(options.hideExplicit, formatSongCount)
+        serverOrOffline(
+            server = { client.artist(id, options.allowFemale, options.blockVideos) },
+            offline = { offlineReads.artist(id, options.allowFemale, options.blockVideos) },
+        )?.toArtistPage(options.hideExplicit, formatSongCount)
 
     /**
      * Corpus-native radio (see [ZemerRadioResponse]): the first page seeded by [kind]/[seed] (`artist` /

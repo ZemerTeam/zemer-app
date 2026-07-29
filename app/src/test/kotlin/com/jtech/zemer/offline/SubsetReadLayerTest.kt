@@ -78,6 +78,9 @@ class SubsetReadLayerTest {
         assertEquals("al1", r.album.id)
         assertEquals("Alef", r.album.artist)
         assertEquals(2020, r.album.year)
+        // The album's own OP playlist id must ride the header — falling back to the MPRE browseId is
+        // what AlbumViewModel would persist as AlbumEntity.playlistId (dead-press radio, wrong shares).
+        assertEquals("OLAK1", r.album.playlistId)
         assertEquals(listOf("v1", "v2"), r.tracks.map { it.videoId })
         assertEquals(listOf(1, 2), r.tracks.map { it.trackNumber })
     }
@@ -136,5 +139,36 @@ class SubsetReadLayerTest {
         val blocked = offlineCuratedPlaylists(corpus, female, allowFemale = false, blockVideos = false, kidZone = false)
         assertEquals("female-only's sole member is credited-female → hidden", listOf("auto-mix"), blocked.playlists.map { it.id })
         assertNull("and its detail is a 404", offlineCuratedPlaylist(corpus, female, "female-only", allowFemale = false, blockVideos = false, kidZone = false))
+    }
+
+    // --- /artist --------------------------------------------------------------------------------------
+
+    @Test
+    fun `artist page splits songs-videos, ranks songs by play count with nulls last, albums year desc`() {
+        val r = offlineArtist(corpus, female, "UCa", allowFemale = true, blockVideos = false, kidZone = false)!!
+        assertEquals("Alef", r.artist.name)
+        // Top songs: v5 (999) > v2 (300) > v1 (100) > v3 (null plays last); v4 is a video.
+        assertEquals(listOf("v5", "v2", "v1", "v3"), r.songs.map { it.videoId })
+        assertEquals(listOf("v4"), r.videos.map { it.videoId })
+        // Albums newest-first (year desc); singles split off.
+        assertEquals(listOf("al2", "al1"), r.albums.map { it.id })
+        assertEquals(listOf("OLAK2", "OLAK1"), r.albums.map { it.playlistId })
+        assertEquals(listOf("al3"), r.singles.map { it.id })
+    }
+
+    @Test
+    fun `artist gate and featuring rule - female artist 404s and credited-female tracks drop when blocked`() {
+        // The female artist's page is a 404 under the gate...
+        assertNull(offlineArtist(corpus, female, "UCf", allowFemale = false, blockVideos = false, kidZone = false))
+        // ...and a male artist's track FEATURING a female (v5) drops from his page.
+        val r = offlineArtist(corpus, female, "UCa", allowFemale = false, blockVideos = false, kidZone = false)!!
+        assertEquals(listOf("v2", "v1", "v3"), r.songs.map { it.videoId })
+    }
+
+    @Test
+    fun `artist videos empty under blockVideos and unknown artist is a 404`() {
+        val r = offlineArtist(corpus, female, "UCa", allowFemale = true, blockVideos = true, kidZone = false)!!
+        assertTrue(r.videos.isEmpty())
+        assertNull(offlineArtist(corpus, female, "UCnope", allowFemale = true, blockVideos = false, kidZone = false))
     }
 }

@@ -155,10 +155,10 @@ class BuiltCategories internal constructor(
         )
     }
 
-    // Content filters apply ONLY when explicitly requested (categories.mjs `allowed`). allowFemale=false
-    // drops female-involved; kidZone keeps only KidZone; blockVideos drops videos.
+    // Content filters apply ONLY when explicitly requested (categories.mjs `allowed`) — delegates to
+    // the shared [contentGatePasses] so the gate has ONE definition across the offline surfaces.
     private fun allowed(femaleInvolved: Boolean, isKidZone: Boolean, isVideo: Boolean, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean): Boolean =
-        (if (!allowFemale) !femaleInvolved else true) && (if (kidZone) isKidZone else true) && (if (blockVideos) !isVideo else true)
+        contentGatePasses(femaleInvolved, isKidZone, isVideo, allowFemale, blockVideos, kidZone)
 
     // Server-curated id overrides (categories.mjs `blockedDoc`): `global` dropped always, `female` when
     // female is blocked. Matched against a result's videoId / id / playlistId.
@@ -201,7 +201,7 @@ class BuiltCategories internal constructor(
                 true // unknown member -> kept (fail-open)
             } else {
                 val female = m.female || femaleVideoIds.contains(m.videoId)
-                (allowFemale || !female) && (!kidZone || m.isKidZone) && (!blockVideos || !m.isVideo)
+                contentGatePasses(female, m.isKidZone, m.isVideo, allowFemale, blockVideos, kidZone)
             }
             if (keep) {
                 count++
@@ -215,9 +215,6 @@ class BuiltCategories internal constructor(
     }
 
     companion object {
-        private fun ytThumb(vid: String?): String? =
-            if (vid.isNullOrEmpty()) null else "https://i.ytimg.com/vi/$vid/mqdefault.jpg"
-
         /**
          * buildCategories over a [corpus] (categories.mjs `buildCategories`). Produces the seven indexes;
          * [female] is the shared matcher (build once via [buildFemaleMatcher]).
@@ -358,7 +355,7 @@ fun offlineSearch(
     blockVideos: Boolean,
     kidZone: Boolean,
 ): ZemerSearchResponse {
-    val query = q.replaceFirst(Regex("^\\s+"), "") // keep a TRAILING space
+    val query = q.trimStart() // keep a TRAILING space (it signals a completed last word)
     val kClamped = k.coerceIn(1, 200)
     if (query.isBlank()) return ZemerSearchResponse(q = query, count = 0, categories = ZemerCategories())
     val cats = categoriesFor(corpus, female)

@@ -4,6 +4,7 @@ import com.jtech.zemer.search.ZemerAlbum
 import com.jtech.zemer.search.ZemerAlbumHeader
 import com.jtech.zemer.search.ZemerAlbumResponse
 import com.jtech.zemer.search.ZemerArtist
+import com.jtech.zemer.search.ZemerArtistResponse
 import com.jtech.zemer.search.ZemerCuratedPlaylist
 import com.jtech.zemer.search.ZemerCuratedPlaylistResponse
 import com.jtech.zemer.search.ZemerCuratedPlaylistsResponse
@@ -32,7 +33,8 @@ import java.util.WeakHashMap
  *    the extended shape in the never-merged commit 4dc527f5), so per-song album art, play counts and
  *    dates do not survive the model.
  *  - [ZemerAlbum] carries no `type` / `trackCount` / `totalDurationSec` / `releaseDate`, and
- *    [ZemerAlbumHeader] no `playlistId` / `type` / `trackCount` / `totalDurationSec` / `releaseDate`.
+ *    [ZemerAlbumHeader] no `type` / `trackCount` / `totalDurationSec` / `releaseDate` (it DOES carry
+ *    `playlistId`, which [offlineAlbum] forwards).
  *  - Curated `auto-*` chart-movement badges (`prevRank` / `delta` / `new` / `reentry`) and `anchorDate`
  *    are LIVE-ONLY: the rank-history sidecar is not part of the on-device subset, so they are left
  *    null/absent offline. The 1-based [ZemerTrack.rank] (raw stored order) IS reproduced.
@@ -43,8 +45,32 @@ import java.util.WeakHashMap
 
 // ── shared helpers ───────────────────────────────────────────────────────────────────────────────
 
-private fun ytThumb(vid: String?): String? =
+/**
+ * The derived video-frame thumbnail for server-parity fields — `mqdefault` because that is what the
+ * LIVE server emits for these very fields (store.mjs `ytThumb`, api.mjs community covers), so the
+ * online and offline paths produce the SAME URL (one Coil cache key, verified by the end-to-end
+ * parity diff). This is deliberately NOT [com.jtech.zemer.search.ZemerResultMapper.thumbnailFor]
+ * (`hqdefault`): that helper covers the client-side derivation for items the server sends NO
+ * thumbnail for — a different contract. THE single Kotlin copy; [BuiltCategories] uses it too.
+ */
+internal fun ytThumb(vid: String?): String? =
     if (vid.isNullOrEmpty()) null else "https://i.ytimg.com/vi/$vid/mqdefault.jpg"
+
+/**
+ * THE per-item content gate every offline surface funnels through — the api.mjs/store.mjs `keep`
+ * predicate: female-involved content hidden only when female is blocked, KidZone keeps only KidZone
+ * artists, blockVideos drops videos. ONE definition (SubsetCategories' `allowed` delegates here
+ * too): a hand-inlined copy per surface is how a new filter dimension gets missed on one site and
+ * silently leaks — invisible online, where the server filters separately.
+ */
+internal fun contentGatePasses(
+    femaleInvolved: Boolean,
+    isKidZone: Boolean,
+    isVideo: Boolean,
+    allowFemale: Boolean,
+    blockVideos: Boolean,
+    kidZone: Boolean,
+): Boolean = (allowFemale || !femaleInvolved) && (!kidZone || isKidZone) && (!blockVideos || !isVideo)
 
 // The generated-cover URL the server links from a curated card (api.mjs `zemerCoverUrl`). Curated ids
 // are slugs (alnum + hyphen), so `encodeURIComponent` is a no-op. Emitted ABSOLUTE (resolveZemerUrl):
@@ -121,14 +147,14 @@ fun offlineAlbum(
     val al = corpus.albumsById[id] ?: return null
     val albumArtist = corpus.artistsById[al.artistId]
     // Gate the whole album by its artist (same predicate as artistDetail).
-    if ((!allowFemale && (albumArtist?.isFemale == true)) || (kidZone && !(albumArtist?.isKidZone == true))) return null
+    if (!contentGatePasses(albumArtist?.isFemale == true, albumArtist?.isKidZone == true, isVideo = false, allowFemale, blockVideos, kidZone)) return null
 
     val femaleIds = femaleVideoIdsFor(corpus, female)
     val tracks = corpus.albumTracksByAlbum[id].orEmpty().mapNotNull { at ->
         val t = corpus.tracksById[at.videoId] ?: return@mapNotNull null
         val trackArtist = corpus.artistsById[t.artistId]
         val femInv = femaleIds.contains(t.videoId)
-        val pass = (allowFemale || !femInv) && (!kidZone || (trackArtist?.isKidZone == true)) && (!blockVideos || !t.isVideo)
+        val pass = contentGatePasses(femInv, trackArtist?.isKidZone == true, t.isVideo, allowFemale, blockVideos, kidZone)
         if (!pass || corpus.idDropped(t.videoId, allowFemale)) return@mapNotNull null
         ZemerTrack(
             videoId = t.videoId,
@@ -142,12 +168,81 @@ fun offlineAlbum(
     return ZemerAlbumResponse(
         album = ZemerAlbumHeader(
             id = al.id,
+            // The album's own OP playlist id: without it toAlbumPage's fallback chain lands on the
+            // MPRE browseId and AlbumViewModel persists that as AlbumEntity.playlistId (dead-press
+            // album radio, wrong share links) on every offline open from a bare album route.
+            playlistId = al.playlistId,
             title = al.title,
             artist = albumArtist?.name ?: "",
             year = al.year,
             thumbnail = al.thumbnail,
         ),
         tracks = tracks,
+    )
+}
+
+// ── /artist ──────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `GET /artist?id=` — store.mjs `artistDetail` + the api.mjs gate/per-list id-override filter. Null
+ * (404) when the artist is unknown, its id is blocked, or it fails the female/KidZone gate. Songs
+ * are the real "Top songs" order (play count desc, NULL play counts last; the stable sort keeps
+ * corpus order for ties — the stored order mirrors the server's harvestedAt tie-break);
+ * albums/singles are year desc with NULL years last, ties by id (the file's SQLite convention);
+ * videos empty under blockVideos. A track FEATURING a female (the `_female` set) is dropped when
+ * female is blocked — the same featuring rule as `/search`. Aggregates the wire models don't carry
+ * (playCount, releaseDate, trackCount, totalDurationSec) are necessarily absent, as on every other
+ * offline builder.
+ */
+fun offlineArtist(
+    corpus: SubsetCorpus,
+    female: FemaleMatcher,
+    id: String,
+    allowFemale: Boolean,
+    blockVideos: Boolean,
+    kidZone: Boolean,
+): ZemerArtistResponse? {
+    if (corpus.idDropped(id, allowFemale)) return null
+    val a = corpus.artistsById[id] ?: return null
+    // Content gate (defense-in-depth, same predicate /search uses): treat a gated artist as not-found.
+    if (!contentGatePasses(a.isFemale, a.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone)) return null
+
+    val femaleIds = femaleVideoIdsFor(corpus, female)
+    val tracks = corpus.tracks.asSequence()
+        .filter { it.artistId == id }
+        .filter { allowFemale || !femaleIds.contains(it.videoId) }
+        .filter { !corpus.idDropped(it.videoId, allowFemale) }
+        .sortedWith(compareBy<SubTrack> { it.playCount == null }.thenByDescending { it.playCount ?: 0L })
+        .toList()
+    fun song(t: SubTrack) = ZemerTrack(
+        videoId = t.videoId,
+        title = t.title,
+        artist = a.name,
+        explicit = t.explicit,
+        durationSec = t.durationSec,
+    )
+
+    val albums = corpus.albums
+        .filter { it.artistId == id && !corpus.idDropped(it.id, allowFemale) }
+        .sortedWith(compareBy<SubAlbum> { it.year == null }.thenByDescending { it.year ?: 0 }.thenBy { it.id })
+    fun album(x: SubAlbum) = ZemerAlbum(
+        id = x.id,
+        playlistId = x.playlistId,
+        title = x.title,
+        artist = a.name,
+        year = x.year,
+        thumbnail = x.thumbnail,
+    )
+
+    return ZemerArtistResponse(
+        artist = ZemerArtist(id = a.id, name = a.name, thumbnail = a.thumbnail),
+        songs = tracks.filter { !it.isVideo }.map(::song),
+        videos = if (blockVideos) emptyList() else tracks.filter { it.isVideo }.map(::song),
+        albums = albums.filter { it.type != "single" }.map(::album),
+        singles = albums.filter { it.type == "single" }.map(::album),
+        playlists = corpus.artistPlaylists
+            .filter { it.artistId == id && !corpus.idDropped(it.id, allowFemale) }
+            .map { ZemerPlaylist(id = it.id, title = it.title, artist = a.name, thumbnail = it.thumbnail, songCount = null) },
     )
 }
 
@@ -174,7 +269,7 @@ fun offlineHomeRows(
     val topAlbums = ranked("top-albums").mapNotNull { corpus.albumsById[it.refId] }
         .filter { al ->
             val artist = corpus.artistsById[al.artistId]
-            (allowFemale || !(artist?.isFemale == true)) && (!kidZone || (artist?.isKidZone == true)) &&
+            contentGatePasses(artist?.isFemale == true, artist?.isKidZone == true, isVideo = false, allowFemale, blockVideos, kidZone) &&
                 !corpus.idDropped(al.id, allowFemale) && !corpus.idDropped(al.artistId, allowFemale)
         }
         .map { ZemerAlbum(id = it.id, playlistId = it.playlistId, title = it.title, artist = corpus.artistsById[it.artistId]?.name ?: "", artistId = it.artistId, year = it.year, thumbnail = it.thumbnail) }
@@ -187,14 +282,15 @@ fun offlineHomeRows(
         .filter { t ->
             val artist = corpus.artistsById[t.artistId]
             val femInv = (artist?.isFemale == true) || femaleIds.contains(t.videoId)
-            (allowFemale || !femInv) && (!kidZone || (artist?.isKidZone == true)) &&
+            // isVideo = false: the whole row is already emptied under blockVideos above.
+            contentGatePasses(femInv, artist?.isKidZone == true, isVideo = false, allowFemale, blockVideos, kidZone) &&
                 !corpus.idDropped(t.videoId, allowFemale) && !corpus.idDropped(t.artistId, allowFemale)
         }
         .map { ZemerTrack(videoId = it.videoId, title = it.title, artist = corpus.artistsById[it.artistId]?.name ?: "", artistId = it.artistId, explicit = it.explicit, durationSec = it.durationSec) }
 
     // top-artists → ZemerArtist. Gate by the artist's own flags + id-override; no _female cross-credit.
     val topArtists = ranked("top-artists").mapNotNull { corpus.artistsById[it.refId] }
-        .filter { (allowFemale || !it.isFemale) && (!kidZone || it.isKidZone) && !corpus.idDropped(it.id, allowFemale) }
+        .filter { contentGatePasses(it.isFemale, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) && !corpus.idDropped(it.id, allowFemale) }
         .map { ZemerArtist(id = it.id, name = it.name, thumbnail = it.thumbnail) }
 
     return ZemerHomeRowsResponse(
@@ -282,7 +378,7 @@ private fun communityKept(
             val female = (a?.isFemale ?: am?.isFemale ?: false) || femaleIds.contains(m.videoId)
             val isKidZone = a?.isKidZone ?: am?.isKidZone ?: false
             val isVideo = t?.isVideo ?: false
-            (allowFemale || !female) && (!kidZone || isKidZone) && (!blockVideos || !isVideo)
+            contentGatePasses(female, isKidZone, isVideo, allowFemale, blockVideos, kidZone)
         }
         if (keep) {
             count++
@@ -416,7 +512,7 @@ private fun zemerPlaylistTracks(
         val artist = corpus.artistsById[t.artistId]
         if (corpus.idDropped(videoId, allowFemale)) continue
         val femInv = femaleIds.contains(videoId)
-        if ((!allowFemale && femInv) || (kidZone && !(artist?.isKidZone == true)) || (blockVideos && t.isVideo)) continue
+        if (!contentGatePasses(femInv, artist?.isKidZone == true, t.isVideo, allowFemale, blockVideos, kidZone)) continue
         out.add(
             ZemerTrack(
                 videoId = t.videoId,

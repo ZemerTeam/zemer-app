@@ -3,6 +3,7 @@ package com.jtech.zemer.offline
 import android.content.Context
 import com.jtech.zemer.constants.OfflineSubsetLastSyncedAtKey
 import com.jtech.zemer.search.ZemerAlbumResponse
+import com.jtech.zemer.search.ZemerArtistResponse
 import com.jtech.zemer.search.ZemerCuratedPlaylistResponse
 import com.jtech.zemer.search.ZemerCuratedPlaylistsResponse
 import com.jtech.zemer.search.ZemerHomeRowsResponse
@@ -78,6 +79,11 @@ class OfflineReadProvider @Inject constructor(
     suspend fun album(id: String, allowFemale: Boolean, blockVideos: Boolean): ZemerAlbumResponse? =
         withContext(Dispatchers.IO) {
             snapshot()?.let { offlineAlbum(it.corpus, it.female, id, allowFemale, blockVideos, kidZone = false) }
+        }
+
+    suspend fun artist(id: String, allowFemale: Boolean, blockVideos: Boolean): ZemerArtistResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlineArtist(it.corpus, it.female, id, allowFemale, blockVideos, kidZone = false) }
         }
 
     suspend fun homeRows(allowFemale: Boolean, blockVideos: Boolean): ZemerHomeRowsResponse? =
