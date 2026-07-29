@@ -91,9 +91,8 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
-import com.jtech.zemer.search.SearchProvider
-import com.jtech.zemer.search.onlineAlbumRoute
-import com.jtech.zemer.search.onlinePlaylistRoute
+import com.jtech.zemer.search.zemerAlbumRoute
+import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
@@ -769,9 +768,9 @@ fun ArtistScreen(
                                                                 }
                                                                 // The artist page is corpus-sourced, so its albums/
                                                                 // playlists open via the server route (fast, bot-gate-proof).
-                                                                is AlbumItem -> navController.navigate(SearchProvider.ZEMER.onlineAlbumRoute(item))
+                                                                is AlbumItem -> navController.navigate(zemerAlbumRoute(item))
                                                                 is ArtistItem -> navController.navigate("artist/${item.id}")
-                                                                is PlaylistItem -> navController.navigate(SearchProvider.ZEMER.onlinePlaylistRoute(item.id))
+                                                                is PlaylistItem -> navController.navigate(zemerPlaylistRoute(item.id))
                                                             }
                                                         }
                                                     },

@@ -27,7 +27,6 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -54,10 +53,8 @@ import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.constants.BlockVideosKey
-import com.jtech.zemer.search.SearchProvider
-import com.jtech.zemer.search.onlineAlbumRoute
-import com.jtech.zemer.search.onlinePlaylistRoute
-import com.jtech.zemer.utils.rememberEnumPreference
+import com.jtech.zemer.search.zemerAlbumRoute
+import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.ChipsRow
@@ -171,13 +168,13 @@ fun OnlineSearchResult(
                     }
                 }
 
-                is AlbumItem -> navController.navigate(SearchProvider.ZEMER.onlineAlbumRoute(item))
+                is AlbumItem -> navController.navigate(zemerAlbumRoute(item))
                 is ArtistItem -> navController.navigate("artist/${item.id}")
                 // A discovery-sourced community playlist tags its plays `community:<id>` (same source as the
                 // home Community row); featured/artist-owned stay `playlist:`. Community-ness covers the
                 // Community chip AND the Zemer summary preview, not just the chip — see [playlistIsCommunity].
                 is PlaylistItem -> navController.navigate(
-                    SearchProvider.ZEMER.onlinePlaylistRoute(
+                    zemerPlaylistRoute(
                         item.id,
                         community = playlistIsCommunity(searchFilter?.value),
                     )
@@ -306,17 +303,15 @@ fun OnlineSearchResult(
                     .fillMaxWidth()
             )
         }
-        run {
-            item(key = "offline_backup_promo") {
-                // One-time pre-failure discovery of the search backup (self-hides once
-                // enabled/dismissed) — existing installs never see the onboarding step.
-                OfflineBackupPromoCard(
-                    onSetUp = { navController.navigate("settings/offline_search") },
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .animateItem(),
-                )
-            }
+        item(key = "offline_backup_promo") {
+            // One-time pre-failure discovery of the search backup (self-hides once
+            // enabled/dismissed) — existing installs never see the onboarding step.
+            OfflineBackupPromoCard(
+                onSetUp = { navController.navigate("settings/offline_search") },
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .animateItem(),
+            )
         }
         if (searchFilter == null) {
             when {
@@ -443,16 +438,6 @@ fun OnlineSearchResult(
                         items = itemsPage?.items.orEmpty().distinctBy { it.id },
                         key = { _, it -> filteredItemKey(it.id) },
                     ) { index, it -> ytItemContent(it, index) }
-
-                    if (itemsPage?.continuation != null) {
-                        item(key = "loading") {
-                            ShimmerHost {
-                                repeat(3) {
-                                    ListItemPlaceHolder()
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }

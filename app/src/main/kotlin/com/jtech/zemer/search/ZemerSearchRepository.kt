@@ -90,7 +90,7 @@ internal suspend fun <T> serverOrOffline(server: suspend () -> T, offline: suspe
 
 /**
  * Entry point for Zemer search — the app's ONLY search engine (the YouTube engine was removed per the
- * handoff greenlight; see `zemer-app-artist-album-innertube-swap.md`). It returns the same
+ * handoff greenlight in `~/zemer-fix/handoff-docs/zemer-app-artist-album-innertube-swap.md`). It returns the same
  * `YTItem`/page types the old YouTube path did, so the search UI is reused verbatim.
  *
  * Queries go to [ZemerSearchClient] (search.zemer.io) first; if the service is unreachable AND the user

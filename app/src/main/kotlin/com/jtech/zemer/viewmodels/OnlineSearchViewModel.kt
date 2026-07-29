@@ -82,9 +82,9 @@ constructor(
         if (searchTracked) return
         searchTracked = true
         // `provider` stays in the wire contract (the dashboard splits on it); the app is single-engine
-        // now, so it is always "zemer". (The YouTube engine was removed per the handoff greenlight —
-        // see zemer-app-artist-album-innertube-swap.md.)
-        Tracker.search(query, results, TRACKED_PROVIDER)
+        // now, so it is always "zemer". (The YouTube engine was removed per the handoff greenlight in
+        // ~/zemer-fix/handoff-docs/zemer-app-artist-album-innertube-swap.md.)
+        Tracker.search(query, results, SEARCH_TRACKED_PROVIDER)
     }
 
     init {
@@ -156,15 +156,15 @@ constructor(
         val result =
             withContext(Dispatchers.IO) {
                 runCatching {
-                    val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                     val items = mutableListOf<com.metrolist.innertube.models.YTItem>()
 
                     // Local DB results first, so locally-saved artists/albums are surfaced even when
-                    // the server misses them.
+                    // the server misses them. No hide-explicit pass here: artists carry no explicit
+                    // flag (the old !isLocal predicate hid LOCAL-FILE artists, not explicit ones),
+                    // and the Zemer corpus carries no explicit content to begin with.
                     when (filter) {
                         SearchFilter.FILTER_ARTIST -> {
                             val localArtists = database.searchArtists(query).first()
-                                .filter { if (hideExplicit) !it.artist.isLocal else true }
                             items.addAll(
                                 localArtists.map { artist ->
                                     com.metrolist.innertube.models.ArtistItem(
@@ -178,6 +178,7 @@ constructor(
                             )
                         }
                         SearchFilter.FILTER_ALBUM -> {
+                            val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                             val localAlbums = database.searchAlbums(query).first()
                                 .filter { if (hideExplicit) !it.album.explicit else true }
                             items.addAll(
@@ -243,8 +244,12 @@ constructor(
 
     private companion object {
         const val SEARCH_TRACKED_KEY = "searchTracked"
-
-        /** The `search` event's `provider` wire value — single-engine now, always "zemer". */
-        const val TRACKED_PROVIDER = "zemer"
     }
 }
+
+/**
+ * The `search` event's `provider` wire value. The server contract accepts "zemer"/"youtube" and
+ * stores anything else as NULL — single-engine now, so it is always "zemer". Top-level + internal so
+ * the wire value is pinned by a unit test.
+ */
+internal const val SEARCH_TRACKED_PROVIDER = "zemer"

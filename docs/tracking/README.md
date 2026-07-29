@@ -11,7 +11,7 @@ that proves it.
 Five events — `open`, `search`, `play`, `click`, `action` — batched into a durable on-disk queue
 and POSTed fire-and-forget. Identity is ONE random UUID (`TrackingDeviceIdKey` in DataStore),
 nothing else: no account data, no device identifiers, no location; the server stores no IPs.
-Decisions made 2026-07-05: track everything including KidZone and the YouTube search engine, no
+Decisions made 2026-07-05: track everything including KidZone, no
 opt-out, one `search` event per executed query, offline plays queue and upload late.
 
 ## The invariant that rules everything
@@ -58,7 +58,8 @@ batch rather than poison-pilling the queue. Losing events is fine. Breaking play
 - **`search`** — `OnlineSearchViewModel`: ONE event per executed query (the VM is per submitted
   query; `searchTracked` guard, persisted in the SavedStateHandle so a back-stack entry restored
   after process death never re-fires), on the first successful load, both engines; `results` =
-  items shown; zero results sent faithfully; chip switches and engine toggles never re-fire.
+  items shown; zero results sent faithfully; chip switches never re-fire. `provider` is the pinned
+  constant `"zemer"` since the YouTube engine's removal (the wire contract still accepts both values).
   Carries `provider` (Zemer extension, `handoff-docs/zemer-tracking-search-provider-request.md`):
   `"zemer"` or `"youtube"` = the engine that served the query (`SearchProvider.name.lowercase()`),
   so the dashboard separates a real whitelist-expansion demand gap from a legacy YouTube-path zero.

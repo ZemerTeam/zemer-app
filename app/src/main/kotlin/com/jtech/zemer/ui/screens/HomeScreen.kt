@@ -65,9 +65,8 @@ import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
-import com.jtech.zemer.search.SearchProvider
-import com.jtech.zemer.search.onlineAlbumRoute
-import com.jtech.zemer.search.onlinePlaylistRoute
+import com.jtech.zemer.search.zemerAlbumRoute
+import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
@@ -306,7 +305,7 @@ fun HomeScreen(
                             // branch is the featured album; route Zemer-sourced ones via the server album path.
                             is AlbumItem ->
                                 if (featuredAlbumsAreZemer) {
-                                    navController.navigate(SearchProvider.ZEMER.onlineAlbumRoute(item))
+                                    navController.navigate(zemerAlbumRoute(item))
                                 } else {
                                     navController.navigate("album/${item.id}")
                                 }
@@ -315,7 +314,7 @@ fun HomeScreen(
                             // and tag plays `community:<id>` (they're the discovery-sourced community row).
                             is PlaylistItem ->
                                 if (featuredPlaylistsAreZemer) {
-                                    navController.navigate(SearchProvider.ZEMER.onlinePlaylistRoute(item.id, community = true))
+                                    navController.navigate(zemerPlaylistRoute(item.id, community = true))
                                 } else {
                                     navController.navigate("online_playlist/${item.id}")
                                 }

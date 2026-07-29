@@ -40,9 +40,8 @@ import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
-import com.jtech.zemer.search.SearchProvider
-import com.jtech.zemer.search.onlineAlbumRoute
-import com.jtech.zemer.search.onlinePlaylistRoute
+import com.jtech.zemer.search.zemerAlbumRoute
+import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.ui.component.AlbumListItem
 import com.jtech.zemer.ui.component.ArtistListItem
 import com.jtech.zemer.ui.component.EmptyPlaceholder
@@ -168,13 +167,13 @@ internal fun <T : YTItem> YtItemGrid(
                             )
                             // Featured albums are Zemer-sourced: open via the server route (bot-gate-proof).
                             is AlbumItem ->
-                                if (zemerAlbums) navController.navigate(SearchProvider.ZEMER.onlineAlbumRoute(item))
+                                if (zemerAlbums) navController.navigate(zemerAlbumRoute(item))
                                 else navController.navigate("album/${item.id}")
                             is ArtistItem -> navController.navigate("artist/${item.id}")
                             // Community playlists are Zemer-sourced: open via the server /playlist route and
                             // tag plays `community:<id>` (the discovery-sourced community row).
                             is PlaylistItem ->
-                                if (zemerPlaylists) navController.navigate(SearchProvider.ZEMER.onlinePlaylistRoute(item.id, community = communityPlaylists))
+                                if (zemerPlaylists) navController.navigate(zemerPlaylistRoute(item.id, community = communityPlaylists))
                                 else navController.navigate("online_playlist/${item.id}")
                         }
                     },

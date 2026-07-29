@@ -64,9 +64,8 @@ import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.SuggestionItemHeight
-import com.jtech.zemer.search.SearchProvider
-import com.jtech.zemer.search.onlineAlbumRoute
-import com.jtech.zemer.search.onlinePlaylistRoute
+import com.jtech.zemer.search.zemerAlbumRoute
+import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
@@ -115,8 +114,6 @@ fun OnlineSearchScreen(
     val viewState by viewModel.viewState.collectAsState()
     // The dropdown follows the active engine (see OnlineSearchSuggestionViewModel), so a Zemer playlist
     // shown here must open through the server path — route on the same provider preference.
-    // Single-engine: every suggestion row is Zemer-sourced, so items open via the server routes.
-    val searchProvider = SearchProvider.ZEMER
 
     val lazyListState = rememberLazyListState()
     val firstItemKey = remember(viewState) {
@@ -283,7 +280,7 @@ fun OnlineSearchScreen(
                                     }
                                 }
                                 is AlbumItem -> {
-                                    navController.navigate(searchProvider.onlineAlbumRoute(item))
+                                    navController.navigate(zemerAlbumRoute(item))
                                     onDismiss()
                                 }
                                 is ArtistItem -> {
@@ -291,7 +288,7 @@ fun OnlineSearchScreen(
                                     onDismiss()
                                 }
                                 is PlaylistItem -> {
-                                    navController.navigate(searchProvider.onlinePlaylistRoute(item.id))
+                                    navController.navigate(zemerPlaylistRoute(item.id))
                                     onDismiss()
                                 }
                             }
@@ -357,7 +354,7 @@ fun OnlineSearchScreen(
                                     }
                                 }
                                 is AlbumItem -> {
-                                    navController.navigate(searchProvider.onlineAlbumRoute(item))
+                                    navController.navigate(zemerAlbumRoute(item))
                                     onDismiss()
                                 }
                                 is ArtistItem -> {
@@ -365,7 +362,7 @@ fun OnlineSearchScreen(
                                     onDismiss()
                                 }
                                 is PlaylistItem -> {
-                                    navController.navigate(searchProvider.onlinePlaylistRoute(item.id))
+                                    navController.navigate(zemerPlaylistRoute(item.id))
                                     onDismiss()
                                 }
                             }

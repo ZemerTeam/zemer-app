@@ -65,8 +65,7 @@ import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.search.ChartMovement
-import com.jtech.zemer.search.SearchProvider
-import com.jtech.zemer.search.onlineAlbumRoute
+import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.ChartRankCell
 import com.jtech.zemer.ui.component.rememberChartRankMetrics
@@ -351,7 +350,7 @@ fun ZemerCuratedPlaylistScreen(
                                     .combinedClickable(
                                         onClick = {
                                             navController.navigate(
-                                                SearchProvider.ZEMER.onlineAlbumRoute(album)
+                                                zemerAlbumRoute(album)
                                             )
                                         },
                                         onLongClick = {
