@@ -208,11 +208,8 @@ import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.RecognizeMusicFab
 import com.jtech.zemer.ui.screens.recognition.RecognizeMusicDialogActivity
-import com.jtech.zemer.ui.component.SearchProviderToggle
 import com.jtech.zemer.ui.component.TopSearch
 import com.jtech.zemer.ui.component.castVolumeKeyModifier
-import com.jtech.zemer.constants.SearchProviderKey
-import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.ui.component.rememberBottomSheetState
 import com.jtech.zemer.ui.component.shimmer.ShimmerTheme
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
@@ -1625,15 +1622,6 @@ class MainActivity : ComponentActivity() {
                                         trailingIcon = {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 if (active) {
-                                                    val (searchProvider, onSearchProviderChange) =
-                                                        rememberEnumPreference(
-                                                            SearchProviderKey,
-                                                            SearchProvider.ZEMER,
-                                                        )
-                                                    SearchProviderToggle(
-                                                        provider = searchProvider,
-                                                        onProviderChange = onSearchProviderChange,
-                                                    )
                                                     if (query.text.isNotEmpty()) {
                                                         IconButton(
                                                             onClick = {

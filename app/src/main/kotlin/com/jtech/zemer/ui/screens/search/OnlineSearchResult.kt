@@ -27,7 +27,6 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -54,11 +53,8 @@ import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.constants.BlockVideosKey
-import com.jtech.zemer.constants.SearchProviderKey
-import com.jtech.zemer.search.SearchProvider
-import com.jtech.zemer.search.onlineAlbumRoute
-import com.jtech.zemer.search.onlinePlaylistRoute
-import com.jtech.zemer.utils.rememberEnumPreference
+import com.jtech.zemer.search.zemerAlbumRoute
+import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.ChipsRow
@@ -113,17 +109,6 @@ fun OnlineSearchResult(
 
     val searchFilter by viewModel.filter.collectAsState()
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
-    // On the default (Zemer) engine, the error / no-results states offer a one-tap switch to YouTube
-    // search — the documented recovery — since the engine toggle (only in the expanded search bar) is
-    // not reachable from this results screen. Flipping the preference reloads via the ViewModel.
-    val (searchProvider, onSearchProviderChange) = rememberEnumPreference(SearchProviderKey, SearchProvider.ZEMER)
-    val youtubeFallbackLabel = stringResource(R.string.search_try_youtube)
-    val onYoutubeFallback: (() -> Unit)? =
-        if (searchProvider == SearchProvider.ZEMER) {
-            { onSearchProviderChange(SearchProvider.YOUTUBE) }
-        } else {
-            null
-        }
     val searchSummary = viewModel.summaryPage
     val isSummaryLoading by viewModel.isSummaryLoading.collectAsState()
     val summaryError by viewModel.summaryError.collectAsState()
@@ -136,16 +121,6 @@ fun OnlineSearchResult(
     }
     val filterLoading = searchFilter?.value?.let { viewModel.filterLoading[it] } ?: false
     val filterError = searchFilter?.value?.let { viewModel.filterError[it] }
-
-    LaunchedEffect(lazyListState) {
-        snapshotFlow {
-            lazyListState.layoutInfo.visibleItemsInfo.any { it.key == "loading" }
-        }.collect { shouldLoadMore ->
-            if (shouldLoadMore && !filterLoading) {
-                viewModel.loadMore()
-            }
-        }
-    }
 
     // Impressions (what was SHOWN, for the ranking side's exposure dampener). Keyed rather than
     // indexed: chips, section titles and shimmer rows share the list's index space with results, so
@@ -177,7 +152,7 @@ fun OnlineSearchResult(
         // ONE activation path for tap and D-pad select: fires the telemetry click, then the
         // existing navigation/playback behavior (search-tapped songs play with source "search").
         val activate = {
-            Tracker.click(viewModel.query, item.id, clickKind(item, searchFilter?.value, searchProvider), rank)
+            Tracker.click(viewModel.query, item.id, clickKind(item, searchFilter?.value), rank)
             when (item) {
                 is SongItem -> {
                     val isVideoFilter = !blockVideos && searchFilter?.value == FILTER_VIDEO.value
@@ -193,15 +168,15 @@ fun OnlineSearchResult(
                     }
                 }
 
-                is AlbumItem -> navController.navigate(searchProvider.onlineAlbumRoute(item))
+                is AlbumItem -> navController.navigate(zemerAlbumRoute(item))
                 is ArtistItem -> navController.navigate("artist/${item.id}")
                 // A discovery-sourced community playlist tags its plays `community:<id>` (same source as the
                 // home Community row); featured/artist-owned stay `playlist:`. Community-ness covers the
                 // Community chip AND the Zemer summary preview, not just the chip — see [playlistIsCommunity].
                 is PlaylistItem -> navController.navigate(
-                    searchProvider.onlinePlaylistRoute(
+                    zemerPlaylistRoute(
                         item.id,
-                        community = playlistIsCommunity(searchFilter?.value, searchProvider),
+                        community = playlistIsCommunity(searchFilter?.value),
                     )
                 )
             }
@@ -328,17 +303,15 @@ fun OnlineSearchResult(
                     .fillMaxWidth()
             )
         }
-        if (searchProvider == SearchProvider.ZEMER) {
-            item(key = "offline_backup_promo") {
-                // One-time pre-failure discovery of the search backup (self-hides once
-                // enabled/dismissed) — existing installs never see the onboarding step.
-                OfflineBackupPromoCard(
-                    onSetUp = { navController.navigate("settings/offline_search") },
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .animateItem(),
-                )
-            }
+        item(key = "offline_backup_promo") {
+            // One-time pre-failure discovery of the search backup (self-hides once
+            // enabled/dismissed) — existing installs never see the onboarding step.
+            OfflineBackupPromoCard(
+                onSetUp = { navController.navigate("settings/offline_search") },
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .animateItem(),
+            )
         }
         if (searchFilter == null) {
             when {
@@ -350,8 +323,6 @@ fun OnlineSearchResult(
                             icon = R.drawable.search,
                             actionLabel = stringResource(R.string.search_retry),
                             onAction = viewModel::refresh,
-                            secondaryActionLabel = onYoutubeFallback?.let { youtubeFallbackLabel },
-                            onSecondaryAction = onYoutubeFallback,
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                                 .animateItem(),
@@ -377,8 +348,6 @@ fun OnlineSearchResult(
                             icon = R.drawable.search,
                             actionLabel = stringResource(R.string.search_retry),
                             onAction = viewModel::refresh,
-                            secondaryActionLabel = onYoutubeFallback?.let { youtubeFallbackLabel },
-                            onSecondaryAction = onYoutubeFallback,
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                                 .animateItem(),
@@ -432,8 +401,6 @@ fun OnlineSearchResult(
                             icon = R.drawable.search,
                             actionLabel = stringResource(R.string.search_retry),
                             onAction = viewModel::refresh,
-                            secondaryActionLabel = onYoutubeFallback?.let { youtubeFallbackLabel },
-                            onSecondaryAction = onYoutubeFallback,
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                                 .animateItem(),
@@ -459,8 +426,6 @@ fun OnlineSearchResult(
                             icon = R.drawable.search,
                             actionLabel = stringResource(R.string.search_retry),
                             onAction = viewModel::refresh,
-                            secondaryActionLabel = onYoutubeFallback?.let { youtubeFallbackLabel },
-                            onSecondaryAction = onYoutubeFallback,
                             modifier = Modifier
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                                 .animateItem(),
@@ -473,16 +438,6 @@ fun OnlineSearchResult(
                         items = itemsPage?.items.orEmpty().distinctBy { it.id },
                         key = { _, it -> filteredItemKey(it.id) },
                     ) { index, it -> ytItemContent(it, index) }
-
-                    if (itemsPage?.continuation != null) {
-                        item(key = "loading") {
-                            ShimmerHost {
-                                repeat(3) {
-                                    ListItemPlaceHolder()
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -503,23 +458,22 @@ private fun summaryItemKey(sectionTitle: String, id: String, index: Int) = "$sec
 
 private fun filteredItemKey(id: String) = "filtered_$id"
 
-private fun clickKind(item: YTItem, filterValue: String?, provider: SearchProvider): String = when (item) {
+private fun clickKind(item: YTItem, filterValue: String?): String = when (item) {
     is SongItem -> if (filterValue == FILTER_VIDEO.value) "video" else "song"
     is AlbumItem -> "album"
     is ArtistItem -> "artist"
-    is PlaylistItem -> if (playlistIsCommunity(filterValue, provider)) "community" else "playlist"
+    is PlaylistItem -> if (playlistIsCommunity(filterValue)) "community" else "playlist"
 }
 
 /**
  * Whether a tapped [PlaylistItem] is a discovery-sourced community playlist (tagged `community:<id>` and
- * counted "community" for telemetry) vs. an artist-owned/featured one. The Community chip is community; and
- * with no chip picked the Zemer engine's only playlist section IS the community preview
- * (ZemerResultMapper's TITLE_PLAYLISTS = categories.community), so a Zemer-summary playlist is community
- * too. The Featured chip and the YouTube engine are plain playlists (the `else`).
+ * counted "community" for telemetry) vs. an artist-owned/featured one. The Community chip is community;
+ * with no chip picked the summary's only playlist section IS the community preview (ZemerResultMapper's
+ * TITLE_PLAYLISTS = categories.community). The Featured chip is plain playlists (the `else`).
  */
-private fun playlistIsCommunity(filterValue: String?, provider: SearchProvider): Boolean = when {
+private fun playlistIsCommunity(filterValue: String?): Boolean = when {
     filterValue == FILTER_COMMUNITY_PLAYLIST.value -> true
-    filterValue == null -> provider == SearchProvider.ZEMER
+    filterValue == null -> true
     else -> false
 }
 

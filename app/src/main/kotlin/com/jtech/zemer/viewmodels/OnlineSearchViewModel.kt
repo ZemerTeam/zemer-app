@@ -9,27 +9,19 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.YouTube.SearchFilter
-import com.metrolist.innertube.models.filterExplicit
 import com.metrolist.innertube.pages.SearchSummaryPage
 import com.metrolist.innertube.pages.SearchSummary
 import com.jtech.zemer.constants.HideExplicitKey
-import com.jtech.zemer.constants.SearchProviderKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.ItemsPage
 import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.search.SearchProvider
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.tracking.Tracker
-import com.jtech.zemer.utils.ContentFilterState
-import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.enumPreferenceFlow
 import com.jtech.zemer.utils.getSuspend
-import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -37,7 +29,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -76,10 +67,6 @@ constructor(
     val filterLoading = mutableStateMapOf<String, Boolean>()
     val filterError = mutableStateMapOf<String, String?>()
 
-    /** The engine in effect for the current load; updated reactively from the preference. */
-    private var provider: SearchProvider = SearchProvider.ZEMER
-    private var lastProvider: SearchProvider? = null
-
     // Telemetry: ONE `search` event per executed query (this ViewModel is created per submitted
     // query) — the first successful load fires it; chip switches and engine toggles never re-fire.
     // A zero-result search is the most valuable event and is sent faithfully. Persisted in the
@@ -91,41 +78,26 @@ constructor(
             savedStateHandle[SEARCH_TRACKED_KEY] = value
         }
 
-    private fun trackSearchOnce(results: Int, servedBy: SearchProvider) {
+    private fun trackSearchOnce(results: Int) {
         if (searchTracked) return
         searchTracked = true
-        // Tag the event with the engine that actually served these results — the caller's per-load
-        // snapshot, NOT the shared `provider` field, which a concurrent engine toggle (or a refresh()
-        // launched outside the collectLatest) can mutate between fetch and emit. Enum names map exactly
-        // to the server's contract values ("zemer"/"youtube").
-        Tracker.search(query, results, servedBy.name.lowercase())
+        // `provider` stays in the wire contract (the dashboard splits on it); the app is single-engine
+        // now, so it is always "zemer". (The YouTube engine was removed per the handoff greenlight in
+        // ~/zemer-fix/handoff-docs/zemer-app-artist-album-innertube-swap.md.)
+        Tracker.search(query, results, SEARCH_TRACKED_PROVIDER)
     }
 
     init {
         viewModelScope.launch {
-            combine(
-                filter,
-                enumPreferenceFlow(context, SearchProviderKey, SearchProvider.ZEMER),
-            ) { selectedFilter, selectedProvider -> selectedFilter to selectedProvider }
-                // collectLatest so a provider/filter change cancels an in-flight (up to 8s) request
-                // instead of queueing behind it — otherwise the toggle appears frozen.
-                .collectLatest { (selectedFilter, selectedProvider) ->
-                    provider = selectedProvider
-                    // Toggling the engine invalidates cached results so the new one reloads in place.
-                    if (lastProvider != null && lastProvider != selectedProvider) {
-                        summaryPage = null
-                        viewStateMap.clear()
-                        filterLoading.clear()
-                        filterError.clear()
-                        summaryError.value = null
-                    }
-                    lastProvider = selectedProvider
-                    if (selectedFilter == null) {
-                        loadSummary(force = summaryPage == null)
-                    } else {
-                        loadFiltered(selectedFilter, force = viewStateMap[selectedFilter.value] == null)
-                    }
+            // collectLatest so a filter change cancels an in-flight (up to 8s) request instead of
+            // queueing behind it — otherwise the chip switch appears frozen.
+            filter.collectLatest { selectedFilter ->
+                if (selectedFilter == null) {
+                    loadSummary(force = summaryPage == null)
+                } else {
+                    loadFiltered(selectedFilter, force = viewStateMap[selectedFilter.value] == null)
                 }
+            }
         }
     }
 
@@ -142,32 +114,11 @@ constructor(
         isSummaryLoading.value = true
         summaryError.value = null
 
-        // Snapshot the engine for this load so the fetch and its telemetry can't disagree if `provider`
-        // is mutated mid-flight (concurrent toggle or refresh()).
-        val engine = provider
-
         val result =
             withContext(Dispatchers.IO) {
                 runCatching {
-                    if (engine == SearchProvider.ZEMER) {
-                        // Zemer results are already whitelist-scoped server-side; do not re-filter.
-                        zemerRepo.summary(query, zemerSearchOptions(context)).summaries
-                    } else {
-                        val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
-                        val ytResults = YouTube.searchSummary(query).getOrNull()
-                        val ytFilteredPage = ytResults?.filterExplicit(hideExplicit)
-
-                        ytFilteredPage?.summaries
-                            ?.mapNotNull { summary ->
-                                val filteredItems = summary.items.filterWhitelisted(database)
-                                if (filteredItems.isEmpty()) {
-                                    null
-                                } else {
-                                    summary.copy(items = filteredItems)
-                                }
-                            }
-                            .orEmpty()
-                    }
+                    // Zemer results are already whitelist-scoped server-side; do not re-filter.
+                    zemerRepo.summary(query, zemerSearchOptions(context)).summaries
                 }
             }
 
@@ -175,7 +126,7 @@ constructor(
             summaryPage = SearchSummaryPage(
                 summaries = summaries
             )
-            trackSearchOnce(results = summaries.sumOf { it.items.size }, servedBy = engine)
+            trackSearchOnce(results = summaries.sumOf { it.items.size })
 
             if (summaries.isEmpty()) {
                 summaryError.value = "No results found for \"$query\""
@@ -202,22 +153,18 @@ constructor(
         filterLoading[key] = true
         filterError[key] = null
 
-        // Snapshot the engine for this load so the fetch and its telemetry can't disagree if `provider`
-        // is mutated mid-flight (concurrent toggle or refresh()).
-        val engine = provider
-
         val result =
             withContext(Dispatchers.IO) {
                 runCatching {
-                    val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                     val items = mutableListOf<com.metrolist.innertube.models.YTItem>()
 
-                    // Local DB results first — for both engines, so locally-saved artists/albums are
-                    // surfaced regardless of which online engine is active.
+                    // Local DB results first, so locally-saved artists/albums are surfaced even when
+                    // the server misses them. No hide-explicit pass here: artists carry no explicit
+                    // flag (the old !isLocal predicate hid LOCAL-FILE artists, not explicit ones),
+                    // and the Zemer corpus carries no explicit content to begin with.
                     when (filter) {
                         SearchFilter.FILTER_ARTIST -> {
                             val localArtists = database.searchArtists(query).first()
-                                .filter { if (hideExplicit) !it.artist.isLocal else true }
                             items.addAll(
                                 localArtists.map { artist ->
                                     com.metrolist.innertube.models.ArtistItem(
@@ -231,6 +178,7 @@ constructor(
                             )
                         }
                         SearchFilter.FILTER_ALBUM -> {
+                            val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                             val localAlbums = database.searchAlbums(query).first()
                                 .filter { if (hideExplicit) !it.album.explicit else true }
                             items.addAll(
@@ -254,27 +202,15 @@ constructor(
                         else -> {} // Songs/videos/playlists: online only (local songs are local search)
                     }
 
-                    if (engine == SearchProvider.ZEMER) {
-                        // Already whitelist-scoped; Zemer has no pagination (continuation == null).
-                        items.addAll(zemerRepo.filtered(query, filter, zemerSearchOptions(context)).items)
-                        ItemsPage(items.distinctBy { it.id }, null)
-                    } else {
-                        val ytResult = YouTube.search(query, filter).getOrNull()
-                        if (ytResult != null) {
-                            items.addAll(
-                                ytResult.items
-                                    .filterExplicit(hideExplicit)
-                                    .filterWhitelisted(database)
-                            )
-                        }
-                        ItemsPage(items.distinctBy { it.id }, ytResult?.continuation)
-                    }
+                    // Already whitelist-scoped; Zemer has no pagination (continuation == null).
+                    items.addAll(zemerRepo.filtered(query, filter, zemerSearchOptions(context)).items)
+                    ItemsPage(items.distinctBy { it.id }, null)
                 }
             }
 
         result.onSuccess { itemsPage ->
             viewStateMap[key] = itemsPage
-            trackSearchOnce(results = itemsPage.items.size, servedBy = engine)
+            trackSearchOnce(results = itemsPage.items.size)
             if (itemsPage.items.isEmpty()) {
                 filterError[key] = "No results found for \"$query\""
             }
@@ -286,39 +222,8 @@ constructor(
         filterLoading[key] = false
     }
 
-    fun loadMore() {
-        val filter = filter.value?.value
-        viewModelScope.launch {
-            if (filter == null) return@launch
-            val viewState = viewStateMap[filter] ?: return@launch
-            val continuation = viewState.continuation
-            if (continuation != null) {
-                filterLoading[filter] = true
-                filterError[filter] = null
-                val searchResult =
-                    YouTube.searchContinuation(continuation).getOrNull() ?: run {
-                        filterLoading[filter] = false
-                        return@launch
-                    }
-                val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
-                viewStateMap[filter] = ItemsPage(
-                    (viewState.items + searchResult.items)
-                        .distinctBy { it.id }
-                        .filterExplicit(hideExplicit)
-                        .filterWhitelisted(database),
-                    searchResult.continuation
-                )
-                filterLoading[filter] = false
-            }
-        }
-    }
-
     fun refresh() {
         viewModelScope.launch {
-            // Read the engine preference fresh: a refresh fired right after toggling engines must use
-            // the new one, not the snapshot the reactive collector may not have written to `provider`
-            // yet (otherwise the retry briefly reloads the old engine's results under the new toggle).
-            provider = enumPreferenceFlow(context, SearchProviderKey, SearchProvider.ZEMER).first()
             val currentFilter = filter.value
             // Drop the Zemer response cache so retry actually re-queries the server instead of
             // re-serving the cached (possibly empty) result; clearing VM state alone is not enough.
@@ -337,26 +242,14 @@ constructor(
         }
     }
 
-    private suspend fun getAllowedMatches(query: String, limit: Int): List<com.metrolist.innertube.models.YTItem> {
-        val filters = ContentFilterState.state.value
-        return WhitelistCache.allowedEntries(database, filters)
-            .filter { it.artistName.contains(query, ignoreCase = true) }
-            .shuffled()
-            .take(limit)
-            .map { entry ->
-                com.metrolist.innertube.models.ArtistItem(
-                    id = entry.artistId,
-                    title = entry.artistName,
-                    thumbnail = null,
-                    channelId = null,
-                    playEndpoint = null,
-                    shuffleEndpoint = null,
-                    radioEndpoint = null
-                )
-            }
-    }
-
     private companion object {
         const val SEARCH_TRACKED_KEY = "searchTracked"
     }
 }
+
+/**
+ * The `search` event's `provider` wire value. The server contract accepts "zemer"/"youtube" and
+ * stores anything else as NULL — single-engine now, so it is always "zemer". Top-level + internal so
+ * the wire value is pinned by a unit test.
+ */
+internal const val SEARCH_TRACKED_PROVIDER = "zemer"

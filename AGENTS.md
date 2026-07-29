@@ -138,8 +138,8 @@ endpoint — or a handoff request for one (`~/zemer-fix/handoff-docs/`) — over
 dependency, and delete the InnerTube path once the Zemer source lands. **Streaming/playback itself still
 needs InnerTube + the cipher** (see §The streaming pipeline — that's the irreducible core) and is out of
 scope; this goal is about *content discovery*, where YouTube's global feeds carry almost no kosher
-content anyway. (The YouTube search *engine* is greenlit for removal too — see the handoff doc
-`zemer-app-artist-album-innertube-swap.md`.)
+content anyway. (The YouTube search *engine* is REMOVED — Zemer is the app's only search engine; the
+greenlight and evidence live in `~/zemer-fix/handoff-docs/zemer-app-artist-album-innertube-swap.md`.)
 
 Rules that must not regress:
 
@@ -289,13 +289,12 @@ full detail in `docs/tracking/README.md`. The rules that must not regress:
   reads as a surface disappearing and re-closes the gate. Treat them as append-only, and send the
   tracking maintainer an updated declared list whenever a release instruments a new surface.
 - One `search` event per executed query (the per-query ViewModel guard) — never per keystroke or
-  per chip switch. Everything is tracked (KidZone and the YouTube engine included), no opt-out —
-  a product decision, 2026-07-05. Each event carries `provider` (`"zemer"`/`"youtube"`, a Zemer
-  extension per `handoff-docs/zemer-tracking-search-provider-request.md`) so the dashboard tells a
-  real whitelist-expansion demand gap apart from a legacy YouTube-path zero. It is the engine
-  **snapshotted per load** (`val engine = provider` in `loadSummary`/`loadFiltered`), NOT the shared
-  `provider` field read at emit time — `refresh()` mutates `provider` on a coroutine `collectLatest`
-  can't cancel, so an emit-time read could tag a Zemer result `"youtube"` under a concurrent toggle.
+  per chip switch. Everything is tracked (KidZone included), no opt-out — a product decision,
+  2026-07-05. Each event carries `provider` (a Zemer extension per
+  `handoff-docs/zemer-tracking-search-provider-request.md`); the server contract accepts
+  `"zemer"`/`"youtube"` and stores anything else NULL, and since the YouTube engine's removal the
+  app is single-engine so the value is the pinned constant `SEARCH_TRACKED_PROVIDER = "zemer"`
+  (unit-tested) — keep sending the field, the dashboard splits on it.
 - The one-shot **history backfill** (`PlayHistoryBackfill`) uploads the local listen history as
   `play_backfill` events through `Tracker.uploadBackfill` — NEVER through the live queue (its 500
   cap must not be flooded) but sharing the single-in-flight + backoff discipline; row-ID cursor
