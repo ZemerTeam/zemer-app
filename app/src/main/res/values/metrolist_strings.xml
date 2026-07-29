@@ -511,11 +511,6 @@
     <string name="recognize_music_try_again">Try again</string>
     <string name="recognize_music_close">Close</string>
 
-    <!-- Search engine toggle (search bar) -->
-    <string name="search_provider_zemer">Zemer</string>
-    <string name="search_provider_youtube_short">YT</string>
-    <!-- Offered on the Zemer search error / no-results state to switch engines -->
-    <string name="search_try_youtube">Search with YouTube</string>
     <!-- FCast -->
     <string name="cast">Cast</string>
     <string name="cast_button_description">Cast to device</string>

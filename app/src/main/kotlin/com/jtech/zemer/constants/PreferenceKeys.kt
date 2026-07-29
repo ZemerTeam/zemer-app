@@ -161,9 +161,6 @@ val EnableContentFiltersKey = booleanPreferencesKey("enableContentFilters")
 val DeveloperModeEnabledKey = booleanPreferencesKey("developerModeEnabled")
 val DebugLoggingEnabledKey = booleanPreferencesKey("debugLoggingEnabled")
 
-// Online search engine: SearchProvider.name (ZEMER default, or YOUTUBE)
-val SearchProviderKey = stringPreferencesKey("searchProvider")
-
 // On-device outage-fallback subset: user opt-in to download the corpus snapshot for offline
 // search/browse (default off; enabled = auto-updates on ANY connection — a product decision, the
 // diffs are small), the epoch-millis of the last successful sync (0 = never), and whether the user

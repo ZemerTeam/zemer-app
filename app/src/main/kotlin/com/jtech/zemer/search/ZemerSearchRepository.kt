@@ -89,14 +89,17 @@ internal suspend fun <T> serverOrOffline(server: suspend () -> T, offline: suspe
     }
 
 /**
- * Entry point for Zemer-engine search. It returns the same `YTItem`/page types the YouTube path does,
- * so the ViewModels can swap providers with a one-line branch and the UI is reused verbatim.
+ * Entry point for Zemer search — the app's ONLY search engine (the YouTube engine was removed per the
+ * handoff greenlight; see `zemer-app-artist-album-innertube-swap.md`). It returns the same
+ * `YTItem`/page types the old YouTube path did, so the search UI is reused verbatim.
  *
  * Queries go to [ZemerSearchClient] (search.zemer.io) first; if the service is unreachable AND the user
  * has downloaded an on-device snapshot, the reproducible endpoints fall back to [OfflineReadProvider]
  * (search / album / home-rows / curated playlists) so browse + search keep working offline. With no
- * snapshot the call throws as before, the ViewModel shows the search-error state, and the user can flip
- * the toggle to YouTube Music search. `/playlist` and `/radio` are live-only (not in the snapshot).
+ * snapshot the call throws, and the ViewModel shows the search-error state with Retry. A rare
+ * not-yet-harvested miss (regular-channel-only songs, brand-new releases inside the harvest lag) shows
+ * the graceful empty state — the residual the server side is closing via the #108 regular-channel
+ * harvest. `/playlist` and `/radio` are live-only (not in the snapshot).
  *
  * Responses are memoized in a small LRU keyed by (k, filters, query): the song/video/album/artist/
  * featured-playlist chips all request the same k, so after the first they hit the cache instead of

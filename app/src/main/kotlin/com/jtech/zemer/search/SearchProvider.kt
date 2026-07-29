@@ -3,13 +3,14 @@ package com.jtech.zemer.search
 import com.metrolist.innertube.models.AlbumItem
 
 /**
- * Which engine backs the online search screen.
+ * Which backend an item came from — used ONLY to pick its open route (below). The YouTube search
+ * ENGINE is gone (single-engine app; removal greenlit in the handoff doc
+ * `zemer-app-artist-album-innertube-swap.md`): search is always [ZEMER], and [YOUTUBE] survives
+ * solely for the surfaces that still render InnerTube-sourced items (browse / charts / new releases),
+ * whose albums/playlists must keep the plain InnerTube open path.
  *
- * - [ZEMER] — the whitelist-scoped, Hebrew-aware engine at search.zemer.io (the default). Results are
- *   already content-filtered server-side, so the app does not re-run the local whitelist filter on them.
- * - [YOUTUBE] — the upstream YouTube Music search path, with the local whitelist filter applied on top.
- *
- * Persisted as its [name] under `searchProvider` (see `SearchProviderKey`).
+ * - [ZEMER] — whitelist-scoped items from search.zemer.io; open via the server routes (`?zemer=true`).
+ * - [YOUTUBE] — InnerTube-sourced items; open via the plain routes.
  */
 enum class SearchProvider {
     ZEMER,
