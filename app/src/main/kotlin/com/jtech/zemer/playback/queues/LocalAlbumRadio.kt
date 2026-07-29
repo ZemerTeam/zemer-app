@@ -21,11 +21,15 @@ import kotlinx.coroutines.withContext
 class LocalAlbumRadio(
     private val albumWithSongs: AlbumWithSongs,
     private val startIndex: Int = 0,
-    private val context: Context,
+    context: Context,
 ) : Queue {
     override val preloadItem: MediaMetadata? = null
 
     override val playSource: String = PlaySource.album(albumWithSongs.album.id)
+
+    // MusicService retains currentQueue for the whole playback session; callers hand in whatever
+    // Context they have (often the Activity), so only the application context may be held.
+    private val context = context.applicationContext
 
     // Resolved from the application context — LocalAlbumRadio is built in leaf composables with no VM.
     private val repository = EntryPointAccessors
@@ -47,8 +51,10 @@ class LocalAlbumRadio(
 
     override suspend fun nextPage(): List<MediaItem> = withContext(IO) {
         val page = if (!firstTimeLoaded) {
-            firstTimeLoaded = true
+            // Flip only after the fetch succeeds: a transient /radio failure must leave
+            // hasNextPage() true so a later transition retries instead of ending the radio forever.
             repository.radio("album", albumWithSongs.album.id, zemerSearchOptions(context))
+                .also { firstTimeLoaded = true }
         } else {
             val token = continuation ?: return@withContext emptyList()
             repository.radioContinuation(token)

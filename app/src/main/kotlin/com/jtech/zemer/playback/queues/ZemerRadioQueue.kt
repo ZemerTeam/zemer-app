@@ -26,12 +26,19 @@ import kotlinx.coroutines.withContext
 class ZemerRadioQueue(
     private val kind: String,
     private val seed: String?,
-    private val context: Context,
+    context: Context,
     override val playSource: String = PlaySource.OTHER,
+    // Single-song tap: the tapped song plays immediately (preload) and heads the queue, with the
+    // /radio?kind=song fill following it. Null for the endless artist/album/playlist/shuffle stations.
+    private val seedSong: MediaMetadata? = null,
 ) : Queue {
-    override val preloadItem: MediaMetadata? = null
+    override val preloadItem: MediaMetadata? = seedSong
     override val initialItemsAreContext: Boolean = false
     override val continuationIsContext: Boolean = false
+
+    // MusicService retains currentQueue for the whole playback session; callers hand in whatever
+    // Context they have (often the Activity), so only the application context may be held.
+    private val context = context.applicationContext
 
     private val repository = EntryPointAccessors
         .fromApplication(context.applicationContext, ZemerSearchRepositoryEntryPoint::class.java)
@@ -44,9 +51,18 @@ class ZemerRadioQueue(
         val page = repository.radio(kind, seed, zemerSearchOptions(context))
         continuation = page.continuation
         started = true
+        // Seed-first: the tapped song (already preloading) heads the queue at index 0 and the fill
+        // follows, deduped so the seed can't appear twice. MusicService splices the fill around the
+        // preloaded seed at [mediaItemIndex]. Stations (no seedSong) are pure fill.
+        val items = if (seedSong != null) {
+            listOf(seedSong.toMediaItem()) +
+                page.songs.filterNot { it.id == seedSong.id }.map { it.toMediaItem() }
+        } else {
+            page.songs.map { it.toMediaItem() }
+        }
         Queue.Status(
             title = null,
-            items = page.songs.map { it.toMediaItem() },
+            items = items,
             mediaItemIndex = 0,
         )
     }
@@ -58,5 +74,18 @@ class ZemerRadioQueue(
         val page = repository.radioContinuation(token)
         continuation = page.continuation
         page.songs.map { it.toMediaItem() }
+    }
+
+    companion object {
+        /**
+         * Seed-first song radio for a single-song tap: the tapped [song] plays immediately and the
+         * queue continues with `/radio?kind=song` seeded by it. Corpus-native replacement for
+         * `YouTubeQueue.radio(song)`; the tapped song is the chosen play, the fill reports as radio.
+         */
+        fun song(
+            song: MediaMetadata,
+            context: Context,
+            playSource: String = PlaySource.OTHER,
+        ) = ZemerRadioQueue("song", song.id, context, playSource, seedSong = song)
     }
 }

@@ -357,7 +357,9 @@ fun SongMenu(
                             title = { Text(stringResource(R.string.start_radio)) },
                             onClick = {
                                 onDismiss()
-                                playerConnection.playQueue(ZemerRadioQueue("song", song.id, context, PlaySource.RADIO))
+                                // Seed-first: the tapped song plays instantly (preload) and heads the
+                                // queue; the /radio fill follows — a failed fetch still plays the song.
+                                playerConnection.playQueue(ZemerRadioQueue.song(song.toMediaMetadata(), context, PlaySource.RADIO))
                             },
                         )
                     )

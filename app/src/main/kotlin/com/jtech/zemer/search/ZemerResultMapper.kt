@@ -202,6 +202,16 @@ object ZemerResultMapper {
         songItems(tracks, hideExplicit)
 
     /**
+     * A `/radio` page's tracks as playable [SongItem]s with the same defense-in-depth every other
+     * Zemer surface gets — sparse-row drop, de-dup, and the surgical id-overrides ([dropBlocked]):
+     * a Firestore-blocked id must not play even when the server's override sync lags the app's.
+     * Explicit filtering is centrally applied by MusicService over every queue page, so
+     * `hideExplicit` is not re-run here.
+     */
+    fun ZemerRadioResponse.toSongItems(): List<SongItem> =
+        songItems(tracks, hideExplicit = false)
+
+    /**
      * The curated albums as browsable [AlbumItem] rows (the detail screen's Albums chip), with the
      * same defense-in-depth every other Zemer collection gets: sparse-row drop, de-dup, and the
      * surgical id-overrides ([dropBlocked]) — a Firestore-blocked album must not render as a row
@@ -221,8 +231,10 @@ object ZemerResultMapper {
     fun ZemerAlbumResponse.toAlbumPage(playlistId: String?): AlbumPage {
         val albumItem = AlbumItem(
             browseId = album.id,
-            // Opener-threaded id first, then the server's own album playlistId, then the browseId fallback.
-            playlistId = playlistId ?: album.playlistId ?: album.id,
+            // Opener-threaded id first — but only when it's a real OP id: [toAlbumItem] falls cards'
+            // playlistId back to the browseId, and persisting that MPRE would dead-press album radio
+            // and mis-id share links. Then the server's own playlistId, then the browseId fallback.
+            playlistId = playlistId?.takeIf { it != album.id } ?: album.playlistId ?: album.id,
             title = album.title,
             artists = if (album.artist.isBlank()) null else listOf(Artist(name = album.artist, id = null)),
             year = album.year,

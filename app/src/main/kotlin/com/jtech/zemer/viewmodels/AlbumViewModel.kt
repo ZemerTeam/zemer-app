@@ -49,25 +49,31 @@ constructor(
         viewModelScope.launch {
             val album = database.album(albumId).first()
             runCatching { zemerRepository.album(albumId, zemerPlaylistId, zemerSearchOptions(context)) }
-                .onSuccess {
-                    playlistId.value = it.album.playlistId
-                    notFound.value = it.songs.isEmpty()
+                .onSuccess { page ->
+                    if (page == null) {
+                        // 404: the album is gone from the whitelist/corpus — surface not-found and
+                        // delete the stale local copy so it stops lingering in the library.
+                        notFound.value = true
+                        database.query {
+                            album?.album?.let(::delete)
+                        }
+                        return@onSuccess
+                    }
+                    playlistId.value = page.album.playlistId
+                    notFound.value = page.songs.isEmpty()
                     database.transaction {
                         if (album == null) {
-                            insert(it)
+                            insert(page)
                         } else {
-                            update(album.album, it, album.artists)
+                            update(album.album, page, album.artists)
                         }
                     }
                 }.onFailure {
                     if (it is java.util.concurrent.CancellationException) throw it
+                    // Transient failure (network / server): show not-found but keep the local copy —
+                    // only a definitive 404 above deletes it.
                     notFound.value = true
                     reportException(it)
-                    if (it.message?.contains("NOT_FOUND") == true) {
-                        database.query {
-                            album?.album?.let(::delete)
-                        }
-                    }
                 }
         }
     }

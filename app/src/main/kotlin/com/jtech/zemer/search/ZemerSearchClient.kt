@@ -152,13 +152,15 @@ class ZemerSearchClient @Inject constructor() {
      * blocked album is a 404). The flags are sent explicitly (same fail-closed contract as [search] —
      * the server is default-OPEN); `kidZone` is always off because the album screen is only reachable
      * from search, never from inside KidZone. The server fetches the album upstream on a cold cache,
-     * so this user-initiated one-shot open gets the larger request ceiling.
+     * so this user-initiated one-shot open gets the larger request ceiling. Returns null on `404` —
+     * the album is gone from the whitelist/corpus — a typed signal the caller uses to delete a stale
+     * local copy (an [IOException] message-match would silently rot).
      */
     suspend fun album(
         id: String,
         allowFemale: Boolean,
         blockVideos: Boolean,
-    ): ZemerAlbumResponse {
+    ): ZemerAlbumResponse? {
         val response: HttpResponse = client.get("$BASE_URL/album") {
             parameter("id", id)
             zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
@@ -166,6 +168,7 @@ class ZemerSearchClient @Inject constructor() {
             }
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
+        if (response.status == HttpStatusCode.NotFound) return null
         if (!response.status.isSuccess()) {
             throw IOException("Zemer album returned HTTP ${response.status.value}")
         }

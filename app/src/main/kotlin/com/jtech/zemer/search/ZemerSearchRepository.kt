@@ -5,7 +5,6 @@ import com.jtech.zemer.R
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumItems
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
 import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
-import com.jtech.zemer.search.ZemerResultMapper.toSongItem
 import com.jtech.zemer.search.ZemerResultMapper.toSongItems
 import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.models.AlbumItem
@@ -121,10 +120,12 @@ class ZemerSearchRepository @Inject constructor(
      * server (immune to on-device bot-gating/rate limits) and comes back already whitelist-scoped +
      * content-filtered, mapped to the same [AlbumPage] the YouTube path yields so the album screen
      * and DB persist flow are reused unchanged. [playlistId] is the search card's OP playlist id —
-     * the server's album header doesn't return one. Not cached — each open is a single fetch.
+     * the server's album header doesn't return one. Null = 404 (the album is gone from the
+     * whitelist/corpus) — the caller deletes its stale local copy. Not cached — each open is a
+     * single fetch.
      */
-    suspend fun album(browseId: String, playlistId: String?, options: ZemerSearchOptions): AlbumPage =
-        client.album(browseId, options.allowFemale, options.blockVideos).toAlbumPage(playlistId)
+    suspend fun album(browseId: String, playlistId: String?, options: ZemerSearchOptions): AlbumPage? =
+        client.album(browseId, options.allowFemale, options.blockVideos)?.toAlbumPage(playlistId)
 
     /**
      * The telemetry-ranked home rows (albums / videos / artists), already whitelist-scoped and
@@ -162,9 +163,11 @@ class ZemerSearchRepository @Inject constructor(
     suspend fun radioContinuation(continuation: String): ZemerRadioPage =
         client.radioContinuation(continuation).toRadioPage()
 
+    // Routed through the mapper so radio gets the same dropBlocked id-overrides pass as every other
+    // Zemer surface (the server filters too; this covers its ~10-min override-sync lag).
     private fun ZemerRadioResponse.toRadioPage(): ZemerRadioPage =
         ZemerRadioPage(
-            songs = tracks.filter { it.videoId.isNotBlank() }.map { it.toSongItem() }.distinctBy { it.id },
+            songs = toSongItems(),
             continuation = continuation,
         )
 

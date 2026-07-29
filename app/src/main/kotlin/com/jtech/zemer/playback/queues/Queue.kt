@@ -60,3 +60,12 @@ fun List<MediaItem>.filterExplicit(enabled: Boolean = true) =
     } else {
         this
     }
+
+/**
+ * The continuation-page items safe to append to the player. YouTube-style continuations lead with
+ * the already-queued current item; Zemer `/radio` pages are pure fresh tracks. Deduping against the
+ * ids already in the player handles both — the old blanket `drop(1)` silently discarded the first
+ * (top-ranked) track of every Zemer page.
+ */
+fun continuationItemsToAppend(queuedIds: Set<String>, page: List<MediaItem>): List<MediaItem> =
+    page.filterNot { it.mediaId in queuedIds }
