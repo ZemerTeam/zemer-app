@@ -554,7 +554,9 @@
     <!-- Zemer Stations (synchronized broadcast radio) -->
     <string name="zemer_radio">Zemer Radio</string>
     <string name="station_live_badge">LIVE</string>
-    <string name="station_now_playing">Now: %1$s — %2$s</string>
+    <!-- The station card's live now-playing line: title, then artist. No "Now:" prefix - the card
+         is ~15 characters wide and the cover already carries the LIVE branding. -->
+    <string name="station_now_playing">%1$s • %2$s</string>
     <string name="onboarding_backup_title">Search backup</string>
     <string name="onboarding_backup_question">Should search keep working even when the Zemer server is unreachable?</string>
     <string name="onboarding_backup_enable">Download a backup</string>

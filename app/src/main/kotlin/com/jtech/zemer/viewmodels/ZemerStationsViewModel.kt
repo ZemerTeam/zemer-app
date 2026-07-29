@@ -17,9 +17,11 @@ import javax.inject.Inject
 /**
  * The "Zemer Radio" home row's own ViewModel (the LatestReleases isolation pattern): a stations
  * fetch failure can never affect the rest of Home — the row just hides (empty list, the `/home-rows`
- * fail-soft convention). One fetch per home load ([refresh]) is the settled freshness contract for
- * the cards' nowPlaying line; no timers, no polling. No content flags exist for stations (pools are
- * pre-filtered server-side), so there is no flag-change re-fetch either.
+ * fail-soft convention). [refresh] runs on load AND on a 60s ticker while the row is ON SCREEN
+ * (an operator cadence upgrade over the handoff's once-per-load default — a stale now-playing line
+ * reads as broken; the ticker is composition-scoped so nothing polls in the background, and
+ * `/stations` is a single cheap read). No content flags exist for stations (pools are pre-filtered
+ * server-side), so there is no flag-change re-fetch.
  */
 @HiltViewModel
 class ZemerStationsViewModel @Inject constructor(
@@ -40,3 +42,6 @@ class ZemerStationsViewModel @Inject constructor(
         }
     }
 }
+
+/** On-screen refresh cadence for the station cards' now-playing line (see the class KDoc). */
+const val STATION_ROW_REFRESH_MS = 60_000L

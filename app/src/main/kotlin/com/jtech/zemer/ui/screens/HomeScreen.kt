@@ -98,6 +98,8 @@ import com.jtech.zemer.viewmodels.LatestReleasesViewModel
 import com.jtech.zemer.playback.queues.StationQueue
 import com.jtech.zemer.ui.component.ZemerStationCard
 import com.jtech.zemer.viewmodels.ZemerCuratedPlaylistsViewModel
+import kotlinx.coroutines.delay
+import com.jtech.zemer.viewmodels.STATION_ROW_REFRESH_MS
 import com.jtech.zemer.viewmodels.ZemerStationsViewModel
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -149,7 +151,15 @@ fun HomeScreen(
     // The curated endpoint's freshness contract is a plain re-fetch on screen open (single-digit-ms
     // server reads) — this also picks up a card removed by curation while a detail open 404'd.
     LaunchedEffect(Unit) { zemerPlaylistsViewModel.refresh() }
-    LaunchedEffect(Unit) { zemerStationsViewModel.refresh() }
+    LaunchedEffect(Unit) {
+        zemerStationsViewModel.refresh()
+        // Keep the cards' now-playing line live while Home is visible: the ticker dies with the
+        // composition, so nothing polls in the background (tracks run 3-4 min; 60s is current enough).
+        while (true) {
+            delay(STATION_ROW_REFRESH_MS)
+            zemerStationsViewModel.refresh()
+        }
+    }
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     homeUiState.isNewUser
 

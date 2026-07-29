@@ -28,7 +28,9 @@ import com.jtech.zemer.playback.queues.StationQueue
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.ZemerStationCard
 import com.jtech.zemer.ui.utils.backToMain
+import com.jtech.zemer.viewmodels.STATION_ROW_REFRESH_MS
 import com.jtech.zemer.viewmodels.ZemerStationsViewModel
+import kotlinx.coroutines.delay
 
 /**
  * The "See all" screen for the Home "Zemer Radio" section: every live station as a grid (the same
@@ -44,7 +46,14 @@ fun ZemerStationsScreen(
 ) {
     val playerConnection = LocalPlayerConnection.current
     val stations by viewModel.stations.collectAsState()
-    LaunchedEffect(Unit) { viewModel.refresh() }
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
+        // Same on-screen now-playing ticker as the home row (composition-scoped, no background work).
+        while (true) {
+            delay(STATION_ROW_REFRESH_MS)
+            viewModel.refresh()
+        }
+    }
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = GridThumbnailHeight + 24.dp),
