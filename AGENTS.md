@@ -141,6 +141,24 @@ scope; this goal is about *content discovery*, where YouTube's global feeds carr
 content anyway. (The YouTube search *engine* is REMOVED — Zemer is the app's only search engine; the
 greenlight and evidence live in `~/zemer-fix/handoff-docs/zemer-app-artist-album-innertube-swap.md`.)
 
+**Remaining InnerTube candidates (the punch list to complete the migration)** — everything still
+reaching YouTube for content, in rough priority order. Pick from here before inventing new scope:
+
+- **Whole-screen discovery surfaces:** `YouTubeBrowseScreen`, `ChartsScreen`, `MoodAndGenresScreen`,
+  `NewReleaseScreen` (`FEmusic_new_releases`), and the legacy `ArtistItemsScreen` (superseded by the
+  Zemer per-section see-all — delete, don't migrate). Each wants a Zemer endpoint (or a handoff
+  request) the way home-rows got one.
+- **Non-engine InnerTube *search* users** (survived the engine removal deliberately — each needs its
+  own design, not a blind swap): `RecognitionResolver` (fingerprint match → `YouTube.search` →
+  whitelist check; a corpus-side match would need server support), the Android Auto **voice search**
+  (`MediaLibrarySessionCallback`), and the **add-to-playlist online search** dialog
+  (`AddToPlaylistDialogOnline`).
+- **Android Auto browse** still reads pooled-cookie InnerTube surfaces (see §Accounts) — the last
+  place anon can meet pooled-account personalization.
+- **Account-tied InnerTube** (`SyncUtils` library/likes sync, `accountInfo()` for the account card)
+  is inherent to the personal-login feature, not discovery — out of this punch list unless the
+  feature itself changes.
+
 Rules that must not regress:
 
 - **Featured Albums / Videos / Artists / Playlists come solely from `ZemerSearchRepository.homeRows()`**
