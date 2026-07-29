@@ -581,54 +581,6 @@ class MusicService :
                 }
         }
 
-        if (dataStore.get(PersistentQueueKey, true)) {
-            runCatching {
-                filesDir.resolve(PERSISTENT_QUEUE_FILE).inputStream().use { fis ->
-                    ObjectInputStream(fis).use { oos ->
-                        oos.readObject() as PersistQueue
-                    }
-                }
-            }.onSuccess { queue ->
-                // Convert back to proper queue type
-                val restoredQueue = queue.toQueue()
-                playQueue(
-                    queue = restoredQueue,
-                    playWhenReady = false,
-                )
-            }
-            runCatching {
-                filesDir.resolve(PERSISTENT_AUTOMIX_FILE).inputStream().use { fis ->
-                    ObjectInputStream(fis).use { oos ->
-                        oos.readObject() as PersistQueue
-                    }
-                }
-            }.onSuccess { queue ->
-                automixItems.value = queue.items.map { it.toMediaItem() }
-            }
-
-            // Restore player state
-            runCatching {
-                filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).inputStream().use { fis ->
-                    ObjectInputStream(fis).use { oos ->
-                        oos.readObject() as PersistPlayerState
-                    }
-                }
-            }.onSuccess { playerState ->
-                // Restore player settings after queue is loaded
-                scope.launch {
-                    delay(1000) // Wait for queue to be loaded
-                    player.repeatMode = playerState.repeatMode
-                    player.shuffleModeEnabled = playerState.shuffleModeEnabled
-                    player.volume = playerState.volume
-
-                    // Restore position if it's still valid
-                    if (playerState.currentMediaItemIndex < player.mediaItemCount) {
-                        player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
-                    }
-                }
-            }
-        }
-
         // Save queue periodically to prevent queue loss from crash or force kill
         scope.launch {
             while (isActive) {
@@ -1956,6 +1908,74 @@ class MusicService :
         }
     }
 
+
+    // Set once the persisted-queue restore has RUN (not merely been offered): a skipped scanner
+    // connection must leave the restore available to the next real caller.
+    private var persistedQueueRestored = false
+
+    /**
+     * Restores the persisted queue / automix / player state the first time a USER-intent connection
+     * arrives (gate: [shouldRestorePersistedQueue]). This ran unconditionally from [onCreate] until
+     * the reboot follow-up on issue #109: after a reboot, SystemUI's media-resumption scanner binds
+     * the exported browse service with no user present, and the eager restore loaded the player and
+     * made media3 resurrect the media notification (+ launcher badge). Every real connection (the
+     * in-app binder, media controllers, explicit start commands from widget taps / media buttons)
+     * still restores through the exact same [playQueue] call as before. Main-thread only (player
+     * access) — every call site is a service entry point.
+     */
+    private fun maybeRestorePersistedQueue(callerPackage: String?) {
+        if (persistedQueueRestored || !shouldRestorePersistedQueue(callerPackage)) return
+        persistedQueueRestored = true
+        if (player.mediaItemCount > 0) return // a live queue must never be clobbered by the restore
+        if (dataStore.get(PersistentQueueKey, true)) {
+            runCatching {
+                filesDir.resolve(PERSISTENT_QUEUE_FILE).inputStream().use { fis ->
+                    ObjectInputStream(fis).use { oos ->
+                        oos.readObject() as PersistQueue
+                    }
+                }
+            }.onSuccess { queue ->
+                // Convert back to proper queue type
+                val restoredQueue = queue.toQueue()
+                playQueue(
+                    queue = restoredQueue,
+                    playWhenReady = false,
+                )
+            }
+            runCatching {
+                filesDir.resolve(PERSISTENT_AUTOMIX_FILE).inputStream().use { fis ->
+                    ObjectInputStream(fis).use { oos ->
+                        oos.readObject() as PersistQueue
+                    }
+                }
+            }.onSuccess { queue ->
+                automixItems.value = queue.items.map { it.toMediaItem() }
+            }
+
+            // Restore player state
+            runCatching {
+                filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).inputStream().use { fis ->
+                    ObjectInputStream(fis).use { oos ->
+                        oos.readObject() as PersistPlayerState
+                    }
+                }
+            }.onSuccess { playerState ->
+                // Restore player settings after queue is loaded
+                scope.launch {
+                    delay(1000) // Wait for queue to be loaded
+                    player.repeatMode = playerState.repeatMode
+                    player.shuffleModeEnabled = playerState.shuffleModeEnabled
+                    player.volume = playerState.volume
+
+                    // Restore position if it's still valid
+                    if (playerState.currentMediaItemIndex < player.mediaItemCount) {
+                        player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
+                    }
+                }
+            }
+        }
+    }
+
     private fun saveQueueToDisk() {
         if (player.mediaItemCount == 0) {
             return
@@ -2047,6 +2067,10 @@ class MusicService :
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Explicit start commands are user actions (widget taps, media buttons) — the boot scanner
+        // BINDS, it never startService()s — so a dead-service widget/button press still finds the
+        // restored queue, exactly as when the restore lived in onCreate().
+        maybeRestorePersistedQueue(packageName)
         when (intent?.action) {
             MusicWidget.ACTION_PLAY_PAUSE -> {
                 if (discoveryHandler.isConnected) {
@@ -2073,7 +2097,12 @@ class MusicService :
         return super.onStartCommand(intent, flags, startId)
     }
 
-    override fun onBind(intent: Intent?) = super.onBind(intent) ?: binder
+    // The custom-binder path is the app's own PlayerConnection (media3 controllers take the
+    // super.onBind branch and land in onGetSession) — always user intent, restore before returning
+    // the binder so the UI sees the queue exactly as when the restore lived in onCreate().
+    override fun onBind(intent: Intent?) = super.onBind(intent) ?: binder.also {
+        maybeRestorePersistedQueue(packageName)
+    }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         // Issue #109: when "stop music on task clear" is enabled, swiping the app away from recents
@@ -2096,7 +2125,13 @@ class MusicService :
         super.onTaskRemoved(rootIntent)
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession {
+        // Every media3 controller funnels through here with its identity — restore for all of them
+        // (Auto, Bluetooth/headset, third parties) except the post-boot SystemUI resumption scan,
+        // which must find an empty player so no media notification is resurrected (issue #109).
+        maybeRestorePersistedQueue(controllerInfo.packageName)
+        return mediaSession
+    }
 
     inner class MusicBinder : Binder() {
         val service: MusicService
