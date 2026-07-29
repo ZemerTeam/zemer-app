@@ -36,21 +36,20 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
-import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.RecognitionHistoryEntity
-import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.recognition.toMediaMetadata
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.resize
 import com.jtech.zemer.viewmodels.RecognitionHistoryViewModel
-import com.metrolist.innertube.models.WatchEndpoint
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,7 +58,6 @@ fun RecognitionHistoryScreen(
     viewModel: RecognitionHistoryViewModel = hiltViewModel(),
 ) {
     val items by viewModel.history.collectAsState()
-    val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current
     var showClearDialog by remember { mutableStateOf(false) }
 
@@ -105,9 +103,9 @@ fun RecognitionHistoryScreen(
                     RecognitionHistoryRow(
                         entry = entry,
                         onPlay = {
-                            playerConnection?.playQueue(
-                                YouTubeQueue(WatchEndpoint(videoId = entry.songId), database = database),
-                            )
+                            playerConnection?.let { pc ->
+                                pc.playQueue(ZemerRadioQueue.song(entry.toMediaMetadata(), pc.service))
+                            }
                         },
                         onDelete = { viewModel.delete(entry) },
                     )

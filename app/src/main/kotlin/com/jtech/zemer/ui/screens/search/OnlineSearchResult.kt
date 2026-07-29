@@ -43,13 +43,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackImpressionsByKey
@@ -83,7 +82,6 @@ import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.YTItem
 import com.jtech.zemer.ui.screens.videoRoute
 import kotlinx.coroutines.delay
@@ -96,7 +94,6 @@ fun OnlineSearchResult(
     viewModel: OnlineSearchViewModel = hiltViewModel(),
 ) {
     val menuState = LocalMenuState.current
-    val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val haptic = LocalHapticFeedback.current
     val isPlaying by playerConnection.isPlaying.collectAsState()
@@ -190,12 +187,7 @@ fun OnlineSearchResult(
                         playerConnection.playPause()
                     } else {
                         playerConnection.playQueue(
-                            YouTubeQueue(
-                                WatchEndpoint(videoId = item.id),
-                                item.toMediaMetadata(),
-                                database,
-                                playSource = PlaySource.SEARCH,
-                            )
+                            ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service, PlaySource.SEARCH)
                         )
                     }
                 }

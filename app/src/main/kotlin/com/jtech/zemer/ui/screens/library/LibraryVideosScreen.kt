@@ -27,21 +27,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
-import com.jtech.zemer.extensions.metadata
-import com.jtech.zemer.extensions.toMediaItem
-import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.viewmodels.LibraryVideosViewModel
-import com.metrolist.innertube.models.WatchEndpoint
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -53,7 +50,6 @@ fun LibraryVideosScreen(
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val database = LocalDatabase.current
     val isPlaying = playerConnection.isPlaying.collectAsState().value
     val mediaMetadata = playerConnection.mediaMetadata.collectAsState().value
 
@@ -143,11 +139,7 @@ fun LibraryVideosScreen(
             onClick = {
                 videos.firstOrNull()?.let { first ->
                     playerConnection.playQueue(
-                        YouTubeQueue(
-                            WatchEndpoint(videoId = first.id),
-                            first.toMediaItem().metadata,
-                            database
-                        )
+                        ZemerRadioQueue.song(first.toMediaMetadata(), playerConnection.service)
                     )
                 }
             }

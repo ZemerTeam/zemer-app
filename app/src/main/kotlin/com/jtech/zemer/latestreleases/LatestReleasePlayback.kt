@@ -1,12 +1,11 @@
 package com.jtech.zemer.latestreleases
 
 import androidx.navigation.NavController
-import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.playback.queues.ListQueue
-import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
 
 /**
@@ -57,11 +56,10 @@ fun LatestRelease.playableSingle(): MediaMetadata? =
 fun LatestRelease.openOrPlay(
     navController: NavController,
     playerConnection: PlayerConnection,
-    database: MusicDatabase,
 ) {
     val single = playableSingle()
     if (single != null) {
-        playerConnection.playQueue(YouTubeQueue.radio(single, database, PlaySource.NEW))
+        playerConnection.playQueue(ZemerRadioQueue.song(single, playerConnection.service, PlaySource.NEW))
     } else {
         navController.navigate("album/$browseId")
     }
