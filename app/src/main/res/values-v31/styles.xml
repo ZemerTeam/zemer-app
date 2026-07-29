@@ -1,0 +1,22 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Android 12+ variant of the launch theme: pins the system splash icon to the SAME
+         eighth-note silhouette as the launcher artwork on a black icon circle, instead of letting
+         the system derive an icon from the opaque foreground webp (which rendered the logo
+         slightly differently from the app icon - issue #179). Every other item must stay in sync
+         with the base Theme.Zemer in values/styles.xml (a qualifier style REPLACES the whole
+         definition, it does not merge). -->
+    <style name="Theme.Zemer" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowMinWidthMinor">100%</item>
+        <item name="android:windowMinWidthMajor">100%</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">#ffffff</item>
+        <item name="android:enforceNavigationBarContrast" tools:ignore="NewApi">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/small_icon</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#000000</item>
+    </style>
+</resources>
