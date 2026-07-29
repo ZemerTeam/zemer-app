@@ -42,7 +42,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.RecognitionHistoryEntity
-import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.recognition.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.IconButton
@@ -104,18 +104,7 @@ fun RecognitionHistoryScreen(
                         entry = entry,
                         onPlay = {
                             playerConnection?.let { pc ->
-                                pc.playQueue(
-                                    ZemerRadioQueue.song(
-                                        MediaMetadata(
-                                            id = entry.songId,
-                                            title = entry.title,
-                                            artists = listOf(MediaMetadata.Artist(id = null, name = entry.artist)),
-                                            duration = 0,
-                                            thumbnailUrl = entry.thumbnailUrl,
-                                        ),
-                                        pc.service,
-                                    ),
-                                )
+                                pc.playQueue(ZemerRadioQueue.song(entry.toMediaMetadata(), pc.service))
                             }
                         },
                         onDelete = { viewModel.delete(entry) },
