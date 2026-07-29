@@ -124,7 +124,7 @@ class App : Application(), SingletonImageLoader.Factory {
         LibraryActionBackfill.maybeStart(this) { databaseLazy.get() }
 
         // On-device offline-search snapshot: refresh it in the background if the user enabled offline
-        // search and it's due (daily), respecting the WiFi-only gate. Delayed + best-effort so it never
+        // search and it's due (daily, any connection). Delayed + best-effort so it never
         // competes with startup; a no-op when offline search is off. (docs: the outage-fallback subset.)
         applicationScope.launch(Dispatchers.IO) {
             delay(5000)

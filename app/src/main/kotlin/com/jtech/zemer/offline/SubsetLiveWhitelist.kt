@@ -4,9 +4,9 @@ import java.util.concurrent.TimeUnit
 
 /**
  * The snapshot may serve for at most this long after its last successful sync. The auto-update is
- * daily, so a healthy device is always far inside the window; the cap exists for the device that
- * CAN'T sync (e.g. cellular-only with the WiFi-only default) — without it the snapshot ages
- * unboundedly and keeps serving content the whitelist has since dropped.
+ * daily on any connection, so a healthy device is always far inside the window; the cap exists for
+ * the device with no internet at all for weeks — without it the snapshot ages unboundedly and keeps
+ * serving content the whitelist has since dropped.
  */
 val SUBSET_MAX_SNAPSHOT_AGE_MS: Long = TimeUnit.DAYS.toMillis(14)
 

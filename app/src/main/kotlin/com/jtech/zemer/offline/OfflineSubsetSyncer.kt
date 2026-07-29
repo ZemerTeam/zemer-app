@@ -1,15 +1,15 @@
 package com.jtech.zemer.offline
 
 import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import com.jtech.zemer.constants.OfflineSubsetEnabledKey
 import com.jtech.zemer.constants.OfflineSubsetLastSyncedAtKey
-import com.jtech.zemer.constants.OfflineSubsetWifiOnlyKey
 import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,9 +29,6 @@ enum class SubsetSyncOutcome {
     /** Offline search is off and the caller did not force — nothing done. */
     DISABLED,
 
-    /** WiFi-only is set and the active network is metered/absent — deferred, not an error. */
-    SKIPPED_METERED,
-
     /** Local snapshot already matches the server manifest. */
     UP_TO_DATE,
 
@@ -50,12 +47,6 @@ data class SubsetSyncStatus(
     val sizeOnDisk: Long = 0L,
     val lastSyncedAt: Long = 0L,
     val lastError: String? = null,
-    /**
-     * The last attempt was skipped by the WiFi-only gate (not an error). Rendered by the settings
-     * screen — without it an explicit "Download now" on cellular was a silent no-op that left the
-     * user believing a backup exists.
-     */
-    val waitingForWifi: Boolean = false,
 )
 
 /**
@@ -74,6 +65,9 @@ class OfflineSubsetSyncer @Inject constructor(
 ) {
     private val store = SubsetStore(context)
     private val mutex = Mutex()
+
+    // Singleton-owned scope for requestSync: outlives any screen/ViewModel that triggers a sync.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _status = MutableStateFlow(SubsetSyncStatus())
     val status: StateFlow<SubsetSyncStatus> = _status.asStateFlow()
@@ -104,15 +98,11 @@ class OfflineSubsetSyncer @Inject constructor(
             val prefs = context.dataStore.data.first()
             val enabled = prefs[OfflineSubsetEnabledKey] ?: false
             if (!enabled && !force) return@withContext SubsetSyncOutcome.DISABLED
-            val wifiOnly = prefs[OfflineSubsetWifiOnlyKey] ?: true
-            if (wifiOnly && isMeteredOrOffline()) {
-                // Deferred, not an error — but it MUST be visible: the settings screen renders
-                // waitingForWifi so an explicit "Download now" on cellular isn't a silent dead press.
-                _status.update { it.copy(waitingForWifi = true) }
-                return@withContext SubsetSyncOutcome.SKIPPED_METERED
-            }
+            // No metered gate: enabled means the snapshot stays fresh on ANY connection (product
+            // decision — the old WiFi-only default deferred cellular-only devices forever and let
+            // the snapshot age to the staleness cap; incremental diffs are small).
 
-            _status.update { it.copy(running = true, lastError = null, waitingForWifi = false) }
+            _status.update { it.copy(running = true, lastError = null) }
             try {
                 val remote = client.fetchManifest()
                 if (remote.schema != SUPPORTED_SUBSET_SCHEMA) {
@@ -163,8 +153,8 @@ class OfflineSubsetSyncer @Inject constructor(
 
     /**
      * App-start auto-update: sync only when offline search is enabled and the last successful sync is
-     * older than [AUTO_UPDATE_INTERVAL_MS] (or never). A cheap no-op otherwise; [sync] still applies the
-     * enabled + WiFi-only gates, so an enabled-but-metered device simply defers to the next start.
+     * older than [AUTO_UPDATE_INTERVAL_MS] (or never). A cheap no-op otherwise. Enabled = MANDATORY
+     * freshness: it runs on whatever connection exists (no metered gate — see [sync]).
      */
     suspend fun maybeSync() {
         val prefs = context.dataStore.data.first()
@@ -174,6 +164,17 @@ class OfflineSubsetSyncer @Inject constructor(
         sync()
     }
 
+    /**
+     * Fire-and-forget [sync] on the syncer's own scope — for UI callers (settings, onboarding): a
+     * sync launched in a ViewModel scope dies with the screen, cancelling a first download midway
+     * the moment the user navigates on.
+     */
+    fun requestSync(force: Boolean = false) {
+        scope.launch {
+            runCatching { sync(force) } // sync() reports its own failures via status/log
+        }
+    }
+
     /** Wipes the downloaded snapshot (called when the user turns offline search off). */
     suspend fun clear() = mutex.withLock {
         withContext(Dispatchers.IO) {
@@ -181,13 +182,6 @@ class OfflineSubsetSyncer @Inject constructor(
             context.dataStore.edit { it.remove(OfflineSubsetLastSyncedAtKey) }
             _status.value = SubsetSyncStatus()
         }
-    }
-
-    private fun isMeteredOrOffline(): Boolean {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return true
-        val caps = cm.activeNetwork?.let(cm::getNetworkCapabilities) ?: return true
-        return !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
     }
 
     companion object {

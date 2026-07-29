@@ -64,6 +64,7 @@ import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.NavigationTitle
+import com.jtech.zemer.ui.component.OfflineBackupPromoCard
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
@@ -326,6 +327,18 @@ fun OnlineSearchResult(
                     )
                     .fillMaxWidth()
             )
+        }
+        if (searchProvider == SearchProvider.ZEMER) {
+            item(key = "offline_backup_promo") {
+                // One-time pre-failure discovery of the search backup (self-hides once
+                // enabled/dismissed) — existing installs never see the onboarding step.
+                OfflineBackupPromoCard(
+                    onSetUp = { navController.navigate("settings/offline_search") },
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .animateItem(),
+                )
+            }
         }
         if (searchFilter == null) {
             when {

@@ -545,14 +545,21 @@
     <string name="offline_search">Search backup</string>
     <string name="settings_desc_offline_search">Keep searching if the Zemer server is briefly down</string>
     <string name="offline_search_enable">Enable search backup</string>
-    <string name="offline_search_enable_desc">Download the catalog so search and browse keep working during a short Zemer server outage</string>
-    <string name="offline_search_wifi_only">Download over Wi-Fi only</string>
-    <string name="offline_search_wifi_only_desc">Only download or update the backup catalog on an unmetered network</string>
+    <string name="offline_search_enable_desc">Download the catalog so search and browse keep working during a short Zemer server outage. Updates automatically every day.</string>
     <string name="offline_search_download_now">Download now</string>
     <string name="offline_search_updating">Updating…</string>
     <string name="offline_search_size">%1$s downloaded</string>
     <string name="offline_search_last_updated">Updated %1$s</string>
     <string name="offline_search_never">Never</string>
     <string name="offline_search_last_error">Last error: %1$s</string>
-    <string name="offline_search_waiting_wifi">Waiting for Wi-Fi — connect to an unmetered network or turn off “Download over Wi-Fi only”</string>
+    <string name="offline_search_promo_title">Keep search working offline</string>
+    <string name="offline_search_promo_body">Download a backup of the catalog once and search keeps working even when the Zemer server is unreachable</string>
+    <string name="offline_search_promo_action">Set up</string>
+    <string name="offline_search_promo_dismiss">Not now</string>
+    <string name="onboarding_backup_title">Search backup</string>
+    <string name="onboarding_backup_question">Should search keep working even when the Zemer server is unreachable?</string>
+    <string name="onboarding_backup_enable">Download a backup</string>
+    <string name="onboarding_backup_enable_desc">Downloads the catalog now and keeps it updated automatically every day</string>
+    <string name="onboarding_backup_skip">Not now</string>
+    <string name="onboarding_backup_skip_desc">You can enable it any time in Settings → Search backup</string>
 </resources>

@@ -89,6 +89,7 @@ import com.airbnb.lottie.compose.rememberLottieDynamicProperty
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.SyncAccountWarning
 import com.jtech.zemer.ui.component.DefaultDialog
+import com.jtech.zemer.ui.screens.onboarding.OnboardingSearchBackupScreen
 import com.jtech.zemer.constants.DensityScale
 import com.jtech.zemer.utils.PermissionHelper
 import com.jtech.zemer.extensions.isInternetConnected
@@ -114,7 +115,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
-private enum class OnboardingStep { Welcome, Density, ContentFilters, Permissions, BottomNavSetup, Loading }
+private enum class OnboardingStep { Welcome, Density, ContentFilters, Permissions, BottomNavSetup, SearchBackup, Loading }
 private enum class LegalKind { TOS, PRIVACY }
 
 @Composable
@@ -256,6 +257,11 @@ fun OnboardingFlow(
 
         OnboardingStep.BottomNavSetup -> BottomNavSetupScreen(
             onBack = { step = OnboardingStep.Permissions },
+            onComplete = { step = OnboardingStep.SearchBackup }
+        )
+
+        OnboardingStep.SearchBackup -> OnboardingSearchBackupScreen(
+            onBack = { step = OnboardingStep.BottomNavSetup },
             onComplete = { step = OnboardingStep.Loading }
         )
 

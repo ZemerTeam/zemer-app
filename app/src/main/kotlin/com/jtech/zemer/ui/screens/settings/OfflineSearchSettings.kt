@@ -28,7 +28,6 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.OfflineSubsetEnabledKey
-import com.jtech.zemer.constants.OfflineSubsetWifiOnlyKey
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
@@ -47,10 +46,9 @@ fun OfflineSearchSettings(
     val context = LocalContext.current
     val status by viewModel.status.collectAsStateWithLifecycle()
 
-    // Read-only here: the ViewModel is the single writer of both keys (writing from both places
-    // double-committed every toggle).
+    // Read-only here: the ViewModel is the single writer (writing from both places double-committed
+    // every toggle).
     val (enabled, _) = rememberPreference(OfflineSubsetEnabledKey, defaultValue = false)
-    val (wifiOnly, _) = rememberPreference(OfflineSubsetWifiOnlyKey, defaultValue = true)
 
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
@@ -73,10 +71,6 @@ fun OfflineSearchSettings(
                 ).toString()
             }
             append(context.getString(R.string.offline_search_last_updated, lastUpdated))
-            if (status.waitingForWifi) {
-                append("\n")
-                append(context.getString(R.string.offline_search_waiting_wifi))
-            }
             status.lastError?.let {
                 append("\n")
                 append(context.getString(R.string.offline_search_last_error, it))
@@ -103,14 +97,6 @@ fun OfflineSearchSettings(
         )
 
         if (enabled) {
-            SwitchPreference(
-                title = { Text(stringResource(R.string.offline_search_wifi_only)) },
-                description = stringResource(R.string.offline_search_wifi_only_desc),
-                icon = { Icon(painterResource(R.drawable.wifi_proxy), null) },
-                checked = wifiOnly,
-                onCheckedChange = viewModel::setWifiOnly,
-            )
-
             PreferenceEntry(
                 title = {
                     Text(
