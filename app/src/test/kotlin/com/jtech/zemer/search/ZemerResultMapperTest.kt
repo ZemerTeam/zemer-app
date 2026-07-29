@@ -562,4 +562,66 @@ class ZemerResultMapperTest {
         assertEquals(listOf("okAlbum"), rows.albums.map { it.id })
         assertEquals(listOf("okVideo"), rows.videos.map { it.id })
     }
+
+    // --- /album playlistId threading (persisted to AlbumEntity.playlistId) ---
+
+    @Test
+    fun `album opener playlistId equal to the browseId never shadows the server's real one`() {
+        // toAlbumItem falls a card's playlistId back to the browseId, so an artist/search open can
+        // thread the MPRE itself; persisting it would dead-press album radio and mis-id share links.
+        val resp = ZemerAlbumResponse(
+            album = ZemerAlbumHeader(id = "MPRE1", playlistId = "OLAK9", title = "T", artist = "A"),
+            tracks = listOf(ZemerTrack("a", "A", "X")),
+        )
+
+        // Opener echoing the browseId -> the server's OLAK id wins.
+        assertEquals("OLAK9", resp.toAlbumPage(playlistId = "MPRE1").album.playlistId)
+        // A real opener OP id still wins over the server's.
+        assertEquals("OLAK1", resp.toAlbumPage(playlistId = "OLAK1").album.playlistId)
+        // Opener echoing the browseId with no server id -> browseId fallback (disabled automix only).
+        val bare = resp.copy(album = resp.album.copy(playlistId = null))
+        assertEquals("MPRE1", bare.toAlbumPage(playlistId = "MPRE1").album.playlistId)
+    }
+
+    // --- /radio page mapping (ZemerRadioResponse.toSongItems) ---
+
+    @Test
+    fun `radio tracks get the blocked-id overrides plus sparse-row drop and dedup`() {
+        BlockedIdsCache.updateAll(mapOf("blockedTrack" to "global"))
+        ContentFilterState.current = ContentFilterConfig(filtersEnabled = true)
+        val resp = ZemerRadioResponse(
+            tracks = listOf(
+                ZemerTrack("ok", "OK", "A"),
+                ZemerTrack("blockedTrack", "Blocked", "A"),
+                ZemerTrack("", "No id", "A"),
+                ZemerTrack("ok", "Dup", "A"),
+            ),
+            continuation = "tok",
+        )
+
+        assertEquals(listOf("ok"), resp.toSongItems().map { it.id })
+    }
+
+    @Test
+    fun `radio female-reason overrides follow the live content-filter config`() {
+        BlockedIdsCache.updateAll(mapOf("femaleTrack" to "female"))
+        val resp = ZemerRadioResponse(
+            tracks = listOf(ZemerTrack("ok", "OK", "A"), ZemerTrack("femaleTrack", "F", "B")),
+        )
+
+        ContentFilterState.current = ContentFilterConfig(filtersEnabled = true, allowFemaleSingers = false)
+        assertEquals(listOf("ok"), resp.toSongItems().map { it.id })
+
+        ContentFilterState.current = ContentFilterConfig(filtersEnabled = true, allowFemaleSingers = true)
+        assertEquals(listOf("ok", "femaleTrack"), resp.toSongItems().map { it.id })
+    }
+
+    @Test
+    fun `radio mapping keeps explicit tracks - explicit filtering is central in MusicService`() {
+        val resp = ZemerRadioResponse(
+            tracks = listOf(ZemerTrack("a", "Clean", "A"), ZemerTrack("b", "Dirty", "A", explicit = true)),
+        )
+
+        assertEquals(listOf("a", "b"), resp.toSongItems().map { it.id })
+    }
 }

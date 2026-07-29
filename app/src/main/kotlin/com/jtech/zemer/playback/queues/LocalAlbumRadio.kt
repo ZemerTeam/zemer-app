@@ -1,69 +1,65 @@
 package com.jtech.zemer.playback.queues
 
+import android.content.Context
 import androidx.media3.common.MediaItem
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.WatchEndpoint
-import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.AlbumWithSongs
+import com.jtech.zemer.di.ZemerSearchRepositoryEntryPoint
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.tracking.PlaySource
-import com.jtech.zemer.utils.filterWhitelisted
+import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.withContext
 
+/**
+ * Plays a local album's tracks, then continues with corpus-native radio seeded by that album — Zemer
+ * `/radio?kind=album` (whitelist-pure, opaque-token paging) instead of `YouTube.next()`. The album's own
+ * tracks are the chosen context; the continuation beyond them reports as "radio". Selection only — the
+ * audio stream stays InnerTube + cipher.
+ */
 class LocalAlbumRadio(
     private val albumWithSongs: AlbumWithSongs,
     private val startIndex: Int = 0,
-    private val database: MusicDatabase,
+    context: Context,
 ) : Queue {
     override val preloadItem: MediaMetadata? = null
 
-    // The album's tracks are the chosen context; the radio continuation beyond them is "radio".
     override val playSource: String = PlaySource.album(albumWithSongs.album.id)
 
-    private lateinit var playlistId: String
-    private val endpoint: WatchEndpoint
-        get() = WatchEndpoint(
-            playlistId = playlistId,
-            params = "wAEB"
-        )
+    // MusicService retains currentQueue for the whole playback session; callers hand in whatever
+    // Context they have (often the Activity), so only the application context may be held.
+    private val context = context.applicationContext
+
+    // Resolved from the application context — LocalAlbumRadio is built in leaf composables with no VM.
+    private val repository = EntryPointAccessors
+        .fromApplication(context.applicationContext, ZemerSearchRepositoryEntryPoint::class.java)
+        .zemerSearchRepository()
 
     private var continuation: String? = null
-    private var firstTimeLoaded: Boolean = false
+    private var firstTimeLoaded = false
 
     override suspend fun getInitialStatus(): Queue.Status = withContext(IO) {
         Queue.Status(
             title = albumWithSongs.album.title,
             items = albumWithSongs.songs.map { it.toMediaItem() },
-            mediaItemIndex = startIndex
+            mediaItemIndex = startIndex,
         )
     }
 
     override fun hasNextPage(): Boolean = !firstTimeLoaded || continuation != null
 
     override suspend fun nextPage(): List<MediaItem> = withContext(IO) {
-        if (!firstTimeLoaded) {
-            playlistId = YouTube.album(albumWithSongs.album.id).getOrThrow().album.playlistId
-            val nextResult = YouTube.next(endpoint, continuation).getOrThrow()
-            continuation = nextResult.continuation
-            firstTimeLoaded = true
-
-            // Filter by whitelist before converting to MediaItems
-            val filteredItems = nextResult.items.subList(
-                albumWithSongs.songs.size,
-                nextResult.items.size
-            ).filterWhitelisted(database).filterIsInstance<SongItem>()
-
-            return@withContext filteredItems.map { it.toMediaItem() }
+        val page = if (!firstTimeLoaded) {
+            // Flip only after the fetch succeeds: a transient /radio failure must leave
+            // hasNextPage() true so a later transition retries instead of ending the radio forever.
+            repository.radio("album", albumWithSongs.album.id, zemerSearchOptions(context))
+                .also { firstTimeLoaded = true }
+        } else {
+            val token = continuation ?: return@withContext emptyList()
+            repository.radioContinuation(token)
         }
-        val nextResult = YouTube.next(endpoint, continuation).getOrThrow()
-        continuation = nextResult.continuation
-
-        // Filter by whitelist before converting to MediaItems
-        val filteredItems = nextResult.items.filterWhitelisted(database).filterIsInstance<SongItem>()
-
-        filteredItems.map { it.toMediaItem() }
+        continuation = page.continuation
+        page.songs.map { it.toMediaItem() }
     }
 }

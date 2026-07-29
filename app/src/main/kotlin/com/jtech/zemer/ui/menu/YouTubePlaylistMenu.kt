@@ -52,6 +52,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.AlreadyInPlaylistDialog
 import com.jtech.zemer.ui.component.DefaultDialog
@@ -333,25 +334,26 @@ fun YouTubePlaylistMenu(
                             )
                         )
                     }
-                    playlist.radioEndpoint?.let { radioEndpoint ->
-                        add(
-                            NewAction(
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.radio),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(28.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                },
-                                text = stringResource(R.string.start_radio),
-                                onClick = {
-                                    playerConnection.playQueue(YouTubeQueue(radioEndpoint, preloadItem = null, database, playSource = PlaySource.RADIO))
-                                    onDismiss()
-                                }
-                            )
+                    // Corpus-native Zemer radio (/radio?kind=playlist), always available (seeds from the
+                    // playlist's member tracks; no InnerTube radioEndpoint needed). This menu only ever
+                    // opens for real YouTube/community playlists, so playlist.id is always a valid seed.
+                    add(
+                        NewAction(
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.radio),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(28.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                            },
+                            text = stringResource(R.string.start_radio),
+                            onClick = {
+                                playerConnection.playQueue(ZemerRadioQueue("playlist", playlist.id, context, PlaySource.RADIO))
+                                onDismiss()
+                            }
                         )
-                    }
+                    )
                 },
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp)
             )

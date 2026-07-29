@@ -6,10 +6,13 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.filterExplicit
 import com.metrolist.innertube.pages.ArtistPage
 import com.jtech.zemer.db.MusicDatabase
+import com.jtech.zemer.playback.queues.Queue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
+import com.jtech.zemer.search.ZemerSearchRepository
+import com.jtech.zemer.search.zemerSearchOptions
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -22,8 +25,6 @@ import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.extensions.filterExplicit
 import com.jtech.zemer.extensions.filterExplicitAlbums
 import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.getSuspend
-import com.jtech.zemer.utils.filterWhitelisted
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -35,6 +36,7 @@ import kotlinx.coroutines.flow.map
 class ArtistViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val database: MusicDatabase,
+    private val zemerRepository: ZemerSearchRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     val artistId = requireNotNull(savedStateHandle.get<String>("artistId")) {
@@ -80,55 +82,26 @@ class ArtistViewModel @Inject constructor(
     fun fetchArtistsFromYTM() {
         viewModelScope.launch {
             isLoading = true
-            val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
-            YouTube.artist(artistId)
-                .onSuccess { page ->
-                    timber.log.Timber.d("ArtistViewModel: Fetched YouTube page with ${page.sections.size} sections")
-                    page.sections.forEach { section ->
-                        timber.log.Timber.d("ArtistViewModel: Section '${section.title}' has ${section.items.size} items")
-                    }
-
-                    val filteredSections = mutableListOf<com.metrolist.innertube.pages.ArtistSection>()
-                    page.sections
-                        .filterNot { section ->
-                            // Filter "Fans might also like" / similar artist sections
-                            val browseId = section.moreEndpoint?.browseId ?: ""
-                            val hasSimilarBrowseId = browseId.startsWith("MPLAUC") ||
-                                                    browseId.startsWith("MPLART") ||
-                                                    browseId.startsWith("MPLREL")
-
-                            // Check for title keywords
-                            val hasSimilarTitle = section.title.contains("fans", ignoreCase = true) ||
-                                                 section.title.contains("similar", ignoreCase = true) ||
-                                                 section.title.contains("also like", ignoreCase = true) ||
-                                                 section.title.contains("you might", ignoreCase = true) ||
-                                                 section.title.contains("from your library", ignoreCase = true)
-
-                            // Check if section contains only artist recommendations
-                            val isOnlyArtists = section.items.isNotEmpty() &&
-                                               section.items.all { it is com.metrolist.innertube.models.ArtistItem }
-
-                            // Filter if it matches browseId OR (has similar title AND is only artists)
-                            hasSimilarBrowseId || (hasSimilarTitle && isOnlyArtists)
-                        }
-                        .forEach { section ->
-                            val originalCount = section.items.size
-                            val explicitFiltered = section.items.filterExplicit(hideExplicit)
-                            val whitelistFiltered = explicitFiltered.filterWhitelisted(
-                                database,
-                                requireAllArtists = false,
-                                fallbackArtistId = artistId,
-                            )
-                            timber.log.Timber.d("ArtistViewModel: Section '${section.title}': ${originalCount} items -> ${whitelistFiltered.size} after filtering")
-                            filteredSections.add(section.copy(items = whitelistFiltered))
-                        }
-
-                    artistPage = page.copy(sections = filteredSections)
-                    isLoading = false
-                }.onFailure {
+            // Served purely from the Zemer `/artist` corpus (whitelist-pure, already content-filtered,
+            // InnerTube-free). A 404 / failure leaves artistPage null — the screen then shows the local
+            // library content (showLocal) or nothing. No InnerTube fallback by design: the north-star is
+            // zero app-runtime InnerTube, and a non-corpus artist is non-whitelisted (shouldn't render).
+            artistPage = runCatching { zemerRepository.artist(artistId, zemerSearchOptions(context)) }
+                .onFailure {
+                    if (it is java.util.concurrent.CancellationException) throw it
                     reportException(it)
-                    isLoading = false
                 }
+                .getOrNull()
+            isLoading = false
         }
     }
+
+    /** A corpus-native artist-seeded radio queue for the Radio button (Zemer `/radio`, no InnerTube). */
+    fun radioQueue(): Queue =
+        ZemerRadioQueue(
+            kind = "artist",
+            seed = artistId,
+            context = context,
+            playSource = PlaySource.artist(artistId),
+        )
 }

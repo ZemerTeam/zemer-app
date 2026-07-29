@@ -16,6 +16,7 @@ import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.ui.screens.artist.ArtistAlbumsScreen
 import com.jtech.zemer.ui.screens.artist.ArtistItemsScreen
 import com.jtech.zemer.ui.screens.artist.ArtistScreen
+import com.jtech.zemer.ui.screens.artist.ArtistSectionScreen
 import com.jtech.zemer.ui.screens.artist.ArtistSongsScreen
 import com.jtech.zemer.ui.screens.library.LibraryScreen
 import com.jtech.zemer.ui.screens.player.VideoPlayerScreen
@@ -103,6 +104,18 @@ fun NavGraphBuilder.navigationBuilder(
         val row = HomeSeeAllRow.fromSlug(it.arguments?.getString("row"))
         if (row == null) LaunchedEffect(Unit) { navController.navigateUp() }
         else HomeSeeAllScreen(navController, scrollBehavior, row)
+    }
+    composable(
+        route = "artist_section/{artistId}?title={title}",
+        arguments = listOf(
+            navArgument("artistId") { type = NavType.StringType },
+            navArgument("title") {
+                type = NavType.StringType
+                defaultValue = ""
+            },
+        ),
+    ) {
+        ArtistSectionScreen(navController, scrollBehavior, it.arguments?.getString("title").orEmpty())
     }
     composable("charts_screen") {
        ChartsScreen(navController)

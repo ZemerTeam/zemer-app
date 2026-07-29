@@ -121,6 +121,8 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.EmptyQueue
 import com.jtech.zemer.playback.queues.Queue
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.playback.queues.ZemerRadioQueue
+import com.jtech.zemer.playback.queues.continuationItemsToAppend
 import com.jtech.zemer.playback.queues.filterExplicit
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.utils.CoilBitmapLoader
@@ -138,6 +140,7 @@ import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.utils.parseCookieString
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -949,6 +952,7 @@ class MusicService :
         queue: Queue,
         playWhenReady: Boolean = true,
     ) {
+        val previousQueue = currentQueue
         currentQueue = queue
         queueTitle = null
         player.shuffleModeEnabled = false
@@ -964,8 +968,22 @@ class MusicService :
         }
         scope.launch(SilentHandler) {
             val initialStatus =
-                withContext(Dispatchers.IO) {
-                    queue.getInitialStatus().filterExplicit(dataStore.get(HideExplicitKey, false))
+                try {
+                    withContext(Dispatchers.IO) {
+                        queue.getInitialStatus().filterExplicit(dataStore.get(HideExplicitKey, false))
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // A failed fetch must not be a silent dead press: without a preload nothing ever
+                    // plays, so tell the user and hand auto-continuation back to the queue that was
+                    // playing (its player items are untouched — only the pointer was swapped).
+                    reportException(e)
+                    if (queue.preloadItem == null && currentQueue === queue) {
+                        currentQueue = previousQueue
+                        onStartRadioFailed()
+                    }
+                    return@launch
                 }
             // Tracking: initial items keep the queue's source when they are the chosen context
             // (album/playlist tracks); a radio queue's fill beyond the tapped song reports "radio".
@@ -1029,10 +1047,10 @@ class MusicService :
         )
 
         startRadioJob = scope.launch(SilentHandler) {
-            val radioQueue = YouTubeQueue(
-                endpoint = WatchEndpoint(videoId = currentMediaMetadata.id),
-                preloadItem = null,
-                database = database
+            val radioQueue = ZemerRadioQueue(
+                kind = "song",
+                seed = currentMediaMetadata.id,
+                context = this@MusicService,
             )
             val initialStatus = try {
                 radioQueue.getInitialStatus()
@@ -1041,8 +1059,9 @@ class MusicService :
                 onStartRadioFailed()
                 return@launch
             }
-            // Item 0 is the seed (currently-playing) song; only the rest gets appended.
-            val radioItems = initialStatus.items.drop(1)
+            // Exclude the seed (currently-playing) song by id so it isn't queued twice — the Zemer radio
+            // may or may not lead with the seed, unlike the YouTube watch playlist that always did.
+            val radioItems = initialStatus.items.filterNot { it.mediaId == currentMediaMetadata.id }
             if (radioItems.isEmpty()) {
                 // Fetch came back empty (e.g. everything whitelist-filtered) — leave the
                 // existing queue alone instead of having wiped it for nothing.
@@ -1417,8 +1436,14 @@ class MusicService :
             !(dataStore.get(DisableLoadMoreWhenRepeatAllKey, false) && player.repeatMode == REPEAT_MODE_ALL)
         ) {
             scope.launch(SilentHandler) {
-                val mediaItems =
+                val page =
                     currentQueue.nextPage().filterExplicit(dataStore.get(HideExplicitKey, false))
+                // Append only what isn't queued yet: YouTube-style pages lead with the already-queued
+                // current item, Zemer /radio pages are pure fresh tracks — the old blanket drop(1)
+                // silently discarded the first (top-ranked) track of every Zemer page.
+                val queuedIds = (0 until player.mediaItemCount)
+                    .mapTo(mutableSetOf()) { player.getMediaItemAt(it).mediaId }
+                val mediaItems = continuationItemsToAppend(queuedIds, page)
                 // Tracking: a chosen playlist's later pages are still the chosen context (spec:
                 // tracks continuing from an originally-chosen context KEEP its source); only a
                 // radio queue's pages are autoplay.
@@ -1430,7 +1455,7 @@ class MusicService :
                     }
                 }
                 if (player.playbackState != STATE_IDLE) {
-                    player.addMediaItems(mediaItems.drop(1))
+                    player.addMediaItems(mediaItems)
                 }
             }
         }

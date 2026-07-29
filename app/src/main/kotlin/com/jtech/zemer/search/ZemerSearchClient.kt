@@ -152,13 +152,15 @@ class ZemerSearchClient @Inject constructor() {
      * blocked album is a 404). The flags are sent explicitly (same fail-closed contract as [search] —
      * the server is default-OPEN); `kidZone` is always off because the album screen is only reachable
      * from search, never from inside KidZone. The server fetches the album upstream on a cold cache,
-     * so this user-initiated one-shot open gets the larger request ceiling.
+     * so this user-initiated one-shot open gets the larger request ceiling. Returns null on `404` —
+     * the album is gone from the whitelist/corpus — a typed signal the caller uses to delete a stale
+     * local copy (an [IOException] message-match would silently rot).
      */
     suspend fun album(
         id: String,
         allowFemale: Boolean,
         blockVideos: Boolean,
-    ): ZemerAlbumResponse {
+    ): ZemerAlbumResponse? {
         val response: HttpResponse = client.get("$BASE_URL/album") {
             parameter("id", id)
             zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
@@ -166,10 +168,77 @@ class ZemerSearchClient @Inject constructor() {
             }
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
+        if (response.status == HttpStatusCode.NotFound) return null
         if (!response.status.isSuccess()) {
             throw IOException("Zemer album returned HTTP ${response.status.value}")
         }
         return zemerResponseJson.decodeFromString(ZemerAlbumResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * Fetch an artist's whole catalog, already whitelist-scoped + content-filtered by the server for the
+     * flags sent (same fail-closed, default-OPEN contract as [search]/[album]). `kidZone` is included so a
+     * KidZone-opened artist stays scoped. Returns null on `404` — the artist is filtered out entirely or
+     * absent from the corpus — so the caller can fall back to the InnerTube artist path for it. The server
+     * reads the corpus (no upstream fetch), but the open is user-initiated so it gets the larger ceiling.
+     */
+    suspend fun artist(
+        id: String,
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+    ): ZemerArtistResponse? {
+        val response: HttpResponse = client.get("$BASE_URL/artist") {
+            parameter("id", id)
+            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
+                parameter(name, value)
+            }
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer artist returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerArtistResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * Corpus-native radio: the first page of a whitelist-pure continuation seeded by [kind] (`artist` /
+     * `album` / `song`, with [seed] the channelId/browseId/videoId) or `shuffle` (no seed) for Radio mode.
+     * Content flags are sent explicitly (kidZone included), same as the other endpoints.
+     */
+    suspend fun radio(
+        kind: String,
+        seed: String?,
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+    ): ZemerRadioResponse {
+        val response: HttpResponse = client.get("$BASE_URL/radio") {
+            parameter("kind", kind)
+            seed?.let { parameter("seed", it) }
+            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
+                parameter(name, value)
+            }
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer radio returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerRadioResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * The next radio page: the opaque [continuation] token from a prior [radio]/[radioContinuation] carries
+     * the seed + flags + position, so nothing else is sent. The queue is endless (token rarely null).
+     */
+    suspend fun radioContinuation(continuation: String): ZemerRadioResponse {
+        val response: HttpResponse = client.get("$BASE_URL/radio") {
+            parameter("continuation", continuation)
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer radio returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerRadioResponse.serializer(), response.bodyAsText())
     }
 
     /**

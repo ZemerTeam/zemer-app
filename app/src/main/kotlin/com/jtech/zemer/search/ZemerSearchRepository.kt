@@ -4,6 +4,7 @@ import android.content.Context
 import com.jtech.zemer.R
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumItems
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
+import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
 import com.jtech.zemer.search.ZemerResultMapper.toSongItems
 import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.models.AlbumItem
@@ -12,6 +13,7 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SearchSuggestions
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.pages.AlbumPage
+import com.metrolist.innertube.pages.ArtistPage
 import com.metrolist.innertube.pages.SearchResult
 import com.metrolist.innertube.pages.SearchSummaryPage
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,6 +24,9 @@ import javax.inject.Singleton
 
 /** A Zemer `/playlist` open, mapped to the UI types the online-playlist screen already renders. */
 data class ZemerPlaylistPage(val playlist: PlaylistItem, val songs: List<SongItem>)
+
+/** A Zemer `/radio` page: the next whitelist-pure tracks + the opaque continuation token (null = end). */
+data class ZemerRadioPage(val songs: List<SongItem>, val continuation: String?)
 
 /**
  * A curated `/zemer-playlists?id=…` open: the server header plus playable, already-filtered tracks.
@@ -115,10 +120,12 @@ class ZemerSearchRepository @Inject constructor(
      * server (immune to on-device bot-gating/rate limits) and comes back already whitelist-scoped +
      * content-filtered, mapped to the same [AlbumPage] the YouTube path yields so the album screen
      * and DB persist flow are reused unchanged. [playlistId] is the search card's OP playlist id —
-     * the server's album header doesn't return one. Not cached — each open is a single fetch.
+     * the server's album header doesn't return one. Null = 404 (the album is gone from the
+     * whitelist/corpus) — the caller deletes its stale local copy. Not cached — each open is a
+     * single fetch.
      */
-    suspend fun album(browseId: String, playlistId: String?, options: ZemerSearchOptions): AlbumPage =
-        client.album(browseId, options.allowFemale, options.blockVideos).toAlbumPage(playlistId)
+    suspend fun album(browseId: String, playlistId: String?, options: ZemerSearchOptions): AlbumPage? =
+        client.album(browseId, options.allowFemale, options.blockVideos)?.toAlbumPage(playlistId)
 
     /**
      * The telemetry-ranked home rows (albums / videos / artists), already whitelist-scoped and
@@ -131,6 +138,37 @@ class ZemerSearchRepository @Inject constructor(
         ZemerResultMapper.homeRows(
             client.homeRows(options.allowFemale, options.blockVideos),
             formatSongCount,
+        )
+
+    /**
+     * Open an artist through the server's `/artist` endpoint (whitelist-scoped + content-filtered),
+     * mapped to the [AlbumPage]-sibling [ArtistPage] the artist screen already consumes. Null = 404
+     * (the artist is filtered out entirely, or is absent from the corpus) — the caller falls back to the
+     * InnerTube artist path. Not cached: a single user-initiated open, same freshness contract as
+     * [album]/[playlist].
+     */
+    suspend fun artist(id: String, options: ZemerSearchOptions): ArtistPage? =
+        client.artist(id, options.allowFemale, options.blockVideos)
+            ?.toArtistPage(options.hideExplicit, formatSongCount)
+
+    /**
+     * Corpus-native radio (see [ZemerRadioResponse]): the first page seeded by [kind]/[seed] (`artist` /
+     * `album` / `song`, or `shuffle` with a null seed), mapped to playable [SongItem]s. Not cached — a
+     * live continuation; tracks are whitelist-pure + blocked-ids filtered server-side.
+     */
+    suspend fun radio(kind: String, seed: String?, options: ZemerSearchOptions): ZemerRadioPage =
+        client.radio(kind, seed, options.allowFemale, options.blockVideos).toRadioPage()
+
+    /** The next radio page for an opaque [continuation] token (the seed + flags ride inside the token). */
+    suspend fun radioContinuation(continuation: String): ZemerRadioPage =
+        client.radioContinuation(continuation).toRadioPage()
+
+    // Routed through the mapper so radio gets the same dropBlocked id-overrides pass as every other
+    // Zemer surface (the server filters too; this covers its ~10-min override-sync lag).
+    private fun ZemerRadioResponse.toRadioPage(): ZemerRadioPage =
+        ZemerRadioPage(
+            songs = toSongItems(),
+            continuation = continuation,
         )
 
     /**

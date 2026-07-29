@@ -40,6 +40,13 @@ data class ZemerArtist(
     val thumbnail: String? = null,
 )
 
+/** A track's album link ({id = album browseId, name}) — powers the song menu's "View album". */
+@Serializable
+data class ZemerTrackAlbum(
+    val id: String = "",
+    val name: String = "",
+)
+
 /** Both songs and videos share this shape (videos differ only by which category they arrive in). */
 @Serializable
 data class ZemerTrack(
@@ -50,6 +57,13 @@ data class ZemerTrack(
     // dedup + female/israeli defence-in-depth can run); absent (null) on the search categories, where
     // the artist arrives as a name only. Maps to `Artist.id` — null there keeps the prior behaviour.
     val artistId: String? = null,
+    // Square album-art URL, when the server sends one on the track (so a song list shows real album art
+    // instead of the letterboxed video frame). Absent on surfaces that don't provide it yet;
+    // [ZemerResultMapper.toSongItem] then falls back to the videoId-derived thumbnail.
+    val thumbnail: String? = null,
+    // The track's album {id (browseId), name}, when the server links it — powers the song menu's
+    // "View album". Null for standalone singles / videos (no album in the corpus).
+    val album: ZemerTrackAlbum? = null,
     val explicit: Boolean = false,
     // `/album` tracks only; absent (null) on the search categories.
     val durationSec: Int? = null,
@@ -231,8 +245,41 @@ data class ZemerCuratedPlaylistResponse(
 @Serializable
 data class ZemerAlbumHeader(
     val id: String = "",
+    // The album's own playlist id (OLAK…), when the server sends it — used for the album's radio/automix
+    // when the opener didn't thread one. Absent on older builds; [toAlbumPage] then falls back to the id.
+    val playlistId: String? = null,
     val title: String = "",
     val artist: String = "",
     val year: Int? = null,
     val thumbnail: String? = null,
+)
+
+/**
+ * Wire model for `GET /artist` (search.zemer.io) — an artist's whole catalog, already whitelist-scoped
+ * and content-filtered server-side for the flags sent. Returned as flat arrays; the app builds the
+ * `ArtistPage` sections from them (there is no pagination — the arrays are complete). A `404` means the
+ * artist is filtered out entirely or absent from the corpus; the caller then falls back to InnerTube.
+ * The `artist` header and `playlists` reuse [ZemerArtist]/[ZemerPlaylist]; `songs`/`videos` reuse
+ * [ZemerTrack]; `albums`/`singles` reuse [ZemerAlbum] (the server splits them on `type`).
+ */
+@Serializable
+data class ZemerArtistResponse(
+    val artist: ZemerArtist = ZemerArtist(),
+    val songs: List<ZemerTrack> = emptyList(),
+    val videos: List<ZemerTrack> = emptyList(),
+    val albums: List<ZemerAlbum> = emptyList(),
+    val singles: List<ZemerAlbum> = emptyList(),
+    val playlists: List<ZemerPlaylist> = emptyList(),
+)
+
+/**
+ * Wire model for `GET /radio` (search.zemer.io) — the corpus-native, whitelist-pure radio continuation.
+ * [tracks] are the next tracks to enqueue; [continuation] is an opaque token echoed back to
+ * `GET /radio?continuation=` for the next page (null = end, realistically never for an endless radio).
+ * Replaces `YouTube.next()` for SELECTION only — the audio stream stays InnerTube + cipher.
+ */
+@Serializable
+data class ZemerRadioResponse(
+    val tracks: List<ZemerTrack> = emptyList(),
+    val continuation: String? = null,
 )
