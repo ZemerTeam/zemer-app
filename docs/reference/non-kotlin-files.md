@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `332`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `329`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -63,7 +63,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/jniLibs/arm64-v8a/libcoverart.so` | 644248 bytes | binary `.so` |
 | `app/src/main/jniLibs/armeabi-v7a/libcoverart.so` | 406200 bytes | binary `.so` |
 | `app/src/main/res/drawable-night/widget_background.xml` | 6 lines | text `.xml`; XML root `shape` |
-| `app/src/main/res/drawable-v31/ic_launcher_background_v31.xml` | 7 lines | text `.xml`; XML root `shape` |
 | `app/src/main/res/drawable/account.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/add.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/add_circle.xml` | 9 lines | text `.xml`; XML root `vector` |
@@ -112,10 +111,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/home_outlined.xml` | 13 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/ic_android_auto.xml` | 22 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/ic_fullscreen.xml` | 9 lines | text `.xml`; XML root `vector` |
-| `app/src/main/res/drawable/ic_launcher_background.xml` | 74 lines | text `.xml`; XML root `vector` |
-| `app/src/main/res/drawable/ic_launcher_background_v31.xml` | 8 lines | text `.xml`; XML root `shape` |
-| `app/src/main/res/drawable/ic_launcher_foreground.xml` | 17 lines | text `.xml`; XML root `vector` |
-| `app/src/main/res/drawable/ic_launcher_foreground_v31.xml` | 17 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/ic_launcher_background.xml` | 13 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/ic_launcher_monochrome.xml` | 14 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/ic_pip.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/ic_speedometer.xml` | 9 lines | text `.xml`; XML root `vector` |
@@ -175,7 +171,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/skip_previous.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/sliders.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/slow_motion_video.xml` | 9 lines | text `.xml`; XML root `vector` |
-| `app/src/main/res/drawable/small_icon.xml` | 17 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/small_icon.xml` | 14 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/speed.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/stats.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/storage.xml` | 9 lines | text `.xml`; XML root `vector` |
@@ -217,6 +213,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values-iw/metrolist_strings.xml` | 36 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values-iw/strings.xml` | 294 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values-night/colors.xml` | 6 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values-v31/styles.xml` | 22 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |

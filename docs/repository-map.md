@@ -77,10 +77,10 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `970`
+- Files counted: `967`
 - By extension:
   - `.kt`: `583`
-  - `.xml`: `155`
+  - `.xml`: `152`
   - `.mjs`: `72`
   - `.md`: `63`
   - `.json`: `36`
@@ -419,7 +419,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 336 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LatestReleasesScreen.kt` | 119 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginCapture.kt` | 39 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateScreen.kt` | 253 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateScreen.kt` | 255 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 254 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/MoodAndGenresScreen.kt` | 171 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/NavigationBuilder.kt` | 428 lines | `.kt` |
@@ -581,7 +581,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/widget/MusicWidget.kt` | 391 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/widget/WidgetLayout.kt` | 14 lines | `.kt` |
 | `app/src/main/res/drawable-night/widget_background.xml` | 6 lines | `.xml` |
-| `app/src/main/res/drawable-v31/ic_launcher_background_v31.xml` | 7 lines | `.xml` |
 | `app/src/main/res/drawable/account.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/add.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/add_circle.xml` | 9 lines | `.xml` |
@@ -630,10 +629,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/drawable/home_outlined.xml` | 13 lines | `.xml` |
 | `app/src/main/res/drawable/ic_android_auto.xml` | 22 lines | `.xml` |
 | `app/src/main/res/drawable/ic_fullscreen.xml` | 9 lines | `.xml` |
-| `app/src/main/res/drawable/ic_launcher_background.xml` | 74 lines | `.xml` |
-| `app/src/main/res/drawable/ic_launcher_background_v31.xml` | 8 lines | `.xml` |
-| `app/src/main/res/drawable/ic_launcher_foreground.xml` | 17 lines | `.xml` |
-| `app/src/main/res/drawable/ic_launcher_foreground_v31.xml` | 17 lines | `.xml` |
+| `app/src/main/res/drawable/ic_launcher_background.xml` | 13 lines | `.xml` |
 | `app/src/main/res/drawable/ic_launcher_monochrome.xml` | 14 lines | `.xml` |
 | `app/src/main/res/drawable/ic_pip.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/ic_speedometer.xml` | 9 lines | `.xml` |
@@ -693,7 +689,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/drawable/skip_previous.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/sliders.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/slow_motion_video.xml` | 9 lines | `.xml` |
-| `app/src/main/res/drawable/small_icon.xml` | 17 lines | `.xml` |
+| `app/src/main/res/drawable/small_icon.xml` | 14 lines | `.xml` |
 | `app/src/main/res/drawable/speed.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/stats.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/storage.xml` | 9 lines | `.xml` |
@@ -735,6 +731,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/values-iw/metrolist_strings.xml` | 36 lines | `.xml` |
 | `app/src/main/res/values-iw/strings.xml` | 294 lines | `.xml` |
 | `app/src/main/res/values-night/colors.xml` | 6 lines | `.xml` |
+| `app/src/main/res/values-v31/styles.xml` | 22 lines | `.xml` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/main/res/values/colors.xml` | 9 lines | `.xml` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | `.xml` |
@@ -861,7 +858,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 606 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 338 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 335 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
 | `docs/remote_cipher_config/02-file-format.md` | 116 lines | `.md` |
@@ -871,7 +868,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1079 lines | `.md` |
+| `docs/repository-map.md` | 1076 lines | `.md` |
 | `docs/tracking/README.md` | 347 lines | `.md` |
 | `docs/ui/README.md` | 324 lines | `.md` |
 | `docs/ui/standards.md` | 297 lines | `.md` |
