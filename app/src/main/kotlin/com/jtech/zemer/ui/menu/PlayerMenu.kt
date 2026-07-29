@@ -88,6 +88,7 @@ fun PlayerMenu(
     val playerConnection = LocalPlayerConnection.current ?: return
     val playerVolume = playerConnection.service.playerVolume.collectAsState()
     val isCasting by playerConnection.isCasting.collectAsState()
+    val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
     val remoteVolume by playerConnection.service.discoveryHandler.remoteVolume.collectAsState()
     val activityResultLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
@@ -214,7 +215,9 @@ fun PlayerMenu(
     ) {
         item {
             NewActionGrid(
-                actions = listOf(
+                actions = listOfNotNull(
+                    // Hidden during a live station: the broadcast IS radio, and swapping it for a
+                    // personal /radio queue from here would be a confusing silent exit.
                     NewAction(
                         icon = {
                             Icon(
@@ -230,7 +233,7 @@ fun PlayerMenu(
                             playerConnection.startRadioSeamlessly()
                             onDismiss()
                         }
-                    ),
+                    ).takeUnless { isStationBroadcast },
                     NewAction(
                         icon = {
                             Icon(

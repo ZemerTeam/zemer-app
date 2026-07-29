@@ -907,18 +907,22 @@ class MusicService :
                             else -> throw IllegalStateException()
                         },
                     ).setSessionCommand(CommandToggleRepeatMode)
+                    // A broadcast has no repeat/shuffle/personal-radio: the buttons disable while a
+                    // station plays (updateNotification re-runs on every queue/track change).
+                    .setEnabled(currentQueue !is StationQueue)
                     .build(),
                 CommandButton
                     .Builder()
                     .setDisplayName(getString(if (player.shuffleModeEnabled) R.string.action_shuffle_off else R.string.action_shuffle_on))
                     .setIconResId(if (player.shuffleModeEnabled) R.drawable.shuffle_on else R.drawable.shuffle)
                     .setSessionCommand(CommandToggleShuffle)
+                    .setEnabled(currentQueue !is StationQueue)
                     .build(),
                 CommandButton.Builder()
                     .setDisplayName(getString(R.string.start_radio))
                     .setIconResId(R.drawable.radio)
                     .setSessionCommand(CommandToggleStartRadio)
-                    .setEnabled(currentSong.value != null)
+                    .setEnabled(currentSong.value != null && currentQueue !is StationQueue)
                     .build(),
                 CommandButton.Builder()
                     .setDisplayName(getString(R.string.android_auto_target_playlist))
@@ -1061,6 +1065,10 @@ class MusicService :
     }
 
     fun startRadioSeamlessly() {
+        // A live station IS radio: swapping the shared broadcast for a personal /radio queue from
+        // the same button would be a confusing silent exit - the affordance is hidden/disabled on
+        // every surface, and this chokepoint guard covers any stale controller.
+        if (currentQueue is StationQueue) return
         // Ignore re-taps while a radio fetch is in flight — two concurrent runs would both
         // append their radio items, duplicating the queue (#89).
         if (startRadioJob?.isActive == true) return
