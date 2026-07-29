@@ -71,8 +71,16 @@ resolver, **both** the popup and the widget record history through the same path
   entry whose artists are no longer whitelisted is dropped the moment the whitelist changes — the one
   place history is exposed, which is what makes replay leak-proof.
 - `ui/screens/recognition/RecognitionHistoryScreen.kt` — a `LazyColumn` of rows (thumbnail + title +
-  artist), each tappable to **play** (`YouTubeQueue(WatchEndpoint(videoId), database = database)`),
-  with a per-row **remove** and a top-bar **clear all** behind a `DefaultDialog` confirm. Rows carry
+  artist), each tappable to **play** (`ZemerRadioQueue.song(entry.toMediaMetadata(), pc.service)` —
+  seed-first song radio), with a per-row **remove** and a top-bar **clear all** behind a
+  `DefaultDialog` confirm.
+- `recognition/RecognitionHistoryPlayback.kt` — `RecognitionHistoryEntity.toMediaMetadata()`, the
+  entry → playable-seed conversion, carrying two easy-to-regress rules (JVM-tested in
+  `RecognitionHistoryPlaybackTest`): `duration = -1` (the unknown sentinel — `0` makes
+  `MusicService.recoverSong` treat it as a real length, skip the repair fetch, and show "0:00"
+  forever) and the name↔`artistIds` pairing (zip when counts match, a lone name takes the first id,
+  else null ids rather than mis-attributing a channel — `joinIds` drops null/blank ids so the two
+  lists can disagree). Rows carry
   the app's `focusBorder()` for D-pad, and the list uses `LocalPlayerAwareWindowInsets`.
 - Reached via the **history icon in the popup header** (deep link `…/recognition_history`) and the
   `recognition_history` nav route.

@@ -72,8 +72,8 @@ The app imports `com.metrolist.innertube.YouTube` from source files in these are
 | --- | --- |
 | App/session initialization | `App.kt`, `MainActivity.kt` |
 | Playback | `playback/MusicService.kt`, queue files, MediaStore/Exo download services |
-| View models | Home, search, album, artist, playlist, library, lyrics, player, and sync-related view models |
-| UI screens | Album, browse, charts, explore, home, mood/genres, new release, YouTube browse, artist screens, playlist screens, search screens |
+| View models | Search, playlist, library, lyrics, player, stats, and sync-related view models. (NOT Home, Artist or Album — those are corpus-native: `/home-rows`, `/artist`, `/album` with no InnerTube fallback.) |
+| UI screens | Browse, charts, explore, mood/genres, new release, YouTube browse, playlist screens, search screens (YouTube engine only). Artist/album screens open via the Zemer server routes. |
 | Utilities | `SyncUtils.kt`, `QueueBoardRadio.kt`, stream/cache helpers |
 
 ## Page parser inventory

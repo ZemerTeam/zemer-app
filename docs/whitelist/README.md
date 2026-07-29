@@ -85,7 +85,7 @@ mirrored by `content.zemer.io/whitelist`). The pipeline, end to end:
 
 | Cache | File | Behavior |
 | --- | --- | --- |
-| `WhitelistCache` | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | Process-wide `ConcurrentHashMap<String, ArtistWhitelistEntity>` with `updateAll`, `upsert`, `get`, `snapshot`, and `allowedEntries`. |
+| `WhitelistCache` | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | Process-wide `@Volatile Map<String, ArtistWhitelistEntity>` swapped WHOLE by `updateAll` (never mutated in place — the old clear-then-refill let a concurrent reader, notably the offline subset's live-whitelist overlay, see an empty/partial whitelist mid-refresh and briefly serve de-whitelisted content), with `get`, `snapshot` (immutable point-in-time view), and `allowedEntries`. `upsert` is gone. |
 | `WhitelistEntryCache` | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | Private `ConcurrentHashMap` used by filtering to memoize per-artist DAO lookups. |
 | Per-call `artistCache` | `filterWhitelisted` local mutable map | Deduplicates lookup work inside one list filtering call. |
 | `BlockedIdsCache` | `app/src/main/kotlin/com/jtech/zemer/utils/BlockedIdsCache.kt` | Process-wide atomic `@Volatile Map<String, String>` (id → reason) of id-level overrides, with `updateAll`, `isBlocked(id, config)`, and pure `serialize`/`parse`. See "Conditional id overrides". |
@@ -184,6 +184,7 @@ The whitelist appears in these synchronization paths:
 | `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | Launches `syncUtils.syncArtistWhitelist()` from multiple startup / state paths and includes `kid_zone` navigation handling. |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/LibraryViewModels.kt` | Calls `syncUtils.syncArtistWhitelist()` from library flows. |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeViewModel.kt` | Uses `WhitelistCache`, `ContentFilterState`, `IsraeliArtistRegistry`, and database whitelist methods in home feed filtering. |
+| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetLiveWhitelist.kt` | The offline snapshot's live-whitelist overlay: `SubsetCorpus.withLiveWhitelist(WhitelistCache.snapshot())` runs at corpus load, DROPPING de-whitelisted artists (with every referencing row) and overriding `isFemale` from the live flag — so an admin change reaches offline results on the next app whitelist sync, not the next snapshot download. Paired with a 14-day staleness cap (`subsetSnapshotIsFresh`) and the shared `contentGatePasses`/`idDropped` gates in `offline/SubsetReadLayer.kt` — the THIRD enforcement site of the filtering contract, alongside `filterWhitelisted` and `ZemerResultMapper.dropBlocked`. |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/WhitelistedArtistsViewModel.kt` | Drives the whitelisted artists screen. |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/KidZoneViewModel.kt` | Drives Kid Zone data. |
 
@@ -229,7 +230,7 @@ The whitelist appears in these synchronization paths:
 | `app/src/main/kotlin/com/jtech/zemer/utils/IsraeliArtistRegistry.kt` | 51 | object IsraeliArtistRegistry, var cachedIds, val mutex, fun isIsraeli, val snapshot, val ids |
 | `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 724 | class WhitelistSyncProgress, val current, val total, val currentArtistName, val isComplete, class SyncUtils, val databaseLazy, val database, val syncScope, val isSyncingLikedSongs |
 | `app/src/main/kotlin/com/jtech/zemer/utils/UrlValidator.kt` | 109 | object UrlValidator, fun validateAndParseUrl, val trimmedUrl, val urlWithScheme, val httpUrl, fun isValidUrl, fun isUrlFromTrustedHost, val httpUrl, fun getQueryParameter, val httpUrl |
-| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | 40 | object WhitelistCache, val memory, fun updateAll, fun upsert, fun get, fun snapshot, var entries, fun allowedEntries, fun isAllowed |
+| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | — | object WhitelistCache, var memory (@Volatile immutable map), fun updateAll (whole-map swap), fun get, fun snapshot, fun allowedEntries, fun isAllowed |
 | `app/src/main/kotlin/com/jtech/zemer/utils/BlockedIdsCache.kt` | 84 | object BlockedIdsCache, const REASON_FEMALE, const REASON_GLOBAL, fun updateAll, fun isBlocked, fun isEmpty, fun snapshot, fun serialize, fun parse |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 72 | object WhitelistFetcher, val firestore, var lastFetchTime, val doc, val updatedAt, val update, val value, val now, val whitelistEntities, val snapshot |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | 262 | class ArtistFilterDecision, val allowed, val isChasidish, object WhitelistEntryCache, val memory, fun get, fun put, var anyAllowed, var allAllowed, var isChasidish |

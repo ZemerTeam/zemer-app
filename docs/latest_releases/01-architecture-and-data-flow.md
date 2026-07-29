@@ -86,7 +86,7 @@ release flows through the app's existing machinery unchanged:
   (`utils/WhitelistFilter.kt:149`).
 - **Rendering:** `YouTubeGridItem` / `YouTubeListItem` — the same album cards/rows.
 - **Menu:** `YouTubeAlbumMenu` on long-press.
-- **Tap:** `openOrPlay` — a single (`trackCount == 1`) plays via `YouTubeQueue.radio`, anything
+- **Tap:** `openOrPlay` — a single (`trackCount == 1`) plays via `ZemerRadioQueue.song`, anything
   else navigates to `album/<id>`. Both reuse existing queue/navigation; the single's metadata is
   built from the feed (`playableSingle`).
 
