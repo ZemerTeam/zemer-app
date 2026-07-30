@@ -67,6 +67,7 @@ import com.jtech.zemer.ui.menu.ImportPlaylistDialog
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.playlist.PlaylistPlayShuffleButtons
 import com.jtech.zemer.ui.screens.playlist.filteredPlaylistCover
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.viewmodels.UserPlaylistViewModel
@@ -245,7 +246,7 @@ fun UserPlaylistScreen(
                             .fillMaxWidth()
                             .combinedClickable(
                                 onClick = {
-                                    if (song.id == mediaMetadata?.id) {
+                                    if (activeRowTapTogglesPlayPause(song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                         playerConnection.playPause()
                                     } else {
                                         playerConnection.playQueue(queueOf(songs, startIndex = index))
