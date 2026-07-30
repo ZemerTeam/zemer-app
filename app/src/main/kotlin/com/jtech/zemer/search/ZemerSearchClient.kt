@@ -57,7 +57,7 @@ class ZemerShareGoneException : Exception("Zemer share gone or owner token rejec
  * "server unreachable, defer silently", and a server that is answering with an error (contract
  * drift, rate limit) must be REPORTED, not deferred forever.
  */
-class ZemerShareHttpException(status: Int) : Exception("Zemer share update returned HTTP $status")
+class ZemerShareHttpException(val status: Int) : Exception("Zemer share update returned HTTP $status")
 
 internal val zemerResponseJson = Json {
     ignoreUnknownKeys = true

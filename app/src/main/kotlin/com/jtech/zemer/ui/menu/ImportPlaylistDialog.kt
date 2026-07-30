@@ -19,8 +19,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
 
 /**
  * The import must survive the dismissal that triggers it: [TextFieldDialog]'s OK button dismisses
@@ -51,15 +49,12 @@ fun ImportPlaylistDialog(
                 importScope.launch {
                     runCatching {
                         val newPlaylist = PlaylistEntity(name = finalName)
-                        // AWAIT the row insert before reading it back - query{} posts to Room's
-                        // executor, and racing it with the flow read intermittently returned null
-                        // and silently imported nothing.
-                        val playlist = suspendCancellableCoroutine { cont ->
-                            database.query {
-                                insert(newPlaylist)
-                                cont.resume(playlist(newPlaylist.id))
-                            }
-                        }.firstOrNull() ?: return@launch
+                        // AWAIT the row insert before reading it back - a fire-and-forget insert
+                        // racing the flow read intermittently returned null and silently imported
+                        // nothing. awaitTransaction also rethrows a failed insert into this
+                        // runCatching instead of hanging the coroutine forever.
+                        database.awaitTransaction { insert(newPlaylist) }
+                        val playlist = database.playlist(newPlaylist.id).firstOrNull() ?: return@launch
                         database.addSongToPlaylist(playlist, onGetSong())
                     }.onFailure { reportException(it) }
                 }

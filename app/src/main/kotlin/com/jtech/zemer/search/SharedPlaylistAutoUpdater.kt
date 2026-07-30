@@ -8,10 +8,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -52,16 +55,35 @@ class SharedPlaylistAutoUpdater @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var started = false
 
-    @OptIn(FlowPreview::class)
+    /**
+     * playlistId -> fingerprint whose PUT failed DEFINITIVELY (an HTTP-error verdict, not a
+     * network blip). Definitive failures are retried only when the fingerprint changes (a new
+     * edit) - without this, one permanently-400ing share re-PUTs and re-reports on every
+     * reconcile, i.e. after every playlist write anywhere in the DB, forever. Reported to
+     * Crashlytics ONCE per share per process ([reportedFailures]) - visibility needs one report,
+     * not one per DB write. In-memory by design: a fresh process retries once, which is the
+     * desired self-heal probe. Only the single collector coroutine touches either map.
+     */
+    private val failedFingerprints = mutableMapOf<String, String>()
+    private val reportedFailures = mutableSetOf<String>()
+
+    @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
     fun start() {
         if (started) return
         started = true
         scope.launch {
             while (true) {
                 try {
-                    combine(credentialStore.shares, database.get().playlistContentSnapshots()) { shares, playlists ->
-                        shares to playlists
-                    }
+                    // The DB flow is subscribed ONLY while at least one share exists: the
+                    // GROUP_CONCAT projection re-runs on every playlist/playlist_song_map write,
+                    // and the overwhelmingly common zero-share device must not pay that on every
+                    // library edit. flatMapLatest tears the DB subscription down the moment the
+                    // credential map empties.
+                    credentialStore.shares
+                        .flatMapLatest { shares ->
+                            if (shares.isEmpty()) flowOf(shares to emptyList())
+                            else database.get().playlistContentSnapshots().map { shares to it }
+                        }
                         .distinctUntilChanged()
                         .debounce(UPDATE_DEBOUNCE_MS)
                         .collect { (shares, playlists) -> reconcile(shares, playlists) }
@@ -102,17 +124,24 @@ class SharedPlaylistAutoUpdater @Inject constructor(
         if (ids.isEmpty()) return
         val fingerprint = sharedPlaylistFingerprint(content.name, ids)
         if (fingerprint == credentials.syncedHash) return
+        if (failedFingerprints[playlistId] == fingerprint) return
         runCatching {
             repository.updateUserPlaylist(credentials.shareId, credentials.ownerToken, content.name, ids, credentials.sharedBy)
         }.onSuccess {
+            failedFingerprints.remove(playlistId)
             credentialStore.updateSyncedHash(playlistId, fingerprint)
         }.onFailure { e ->
             when {
                 e is CancellationException -> throw e
                 e is ZemerShareGoneException -> credentialStore.remove(playlistId)
                 // A definitive HTTP error (contract drift, rate limit) must be VISIBLE - a server
-                // that answers with 400s would otherwise silently stop every live share forever.
-                e is ZemerShareHttpException -> reportException(e)
+                // that answers with 400s would otherwise silently stop every live share forever -
+                // but visible ONCE: the failed fingerprint is remembered and only a new edit (or
+                // a new process) retries.
+                e is ZemerShareHttpException -> {
+                    failedFingerprints[playlistId] = fingerprint
+                    if (reportedFailures.add(playlistId)) reportException(e)
+                }
                 e.isZemerServerUnreachable() -> Timber.d("share auto-update deferred: server unreachable")
                 else -> reportException(e)
             }

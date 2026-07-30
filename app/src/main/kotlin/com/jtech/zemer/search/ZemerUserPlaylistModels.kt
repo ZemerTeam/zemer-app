@@ -34,9 +34,10 @@ data class ZemerUserPlaylistCreateResponse(
     val dropped: Int = 0,
     /**
      * The share's owner secret (live-updating shares, 2026-07-30): returned ONCE at create, never
-     * served by any GET. Stored on the local [com.jtech.zemer.db.entities.PlaylistEntity] row; it
-     * is the sole capability for PUT (update-in-place, same URL) and DELETE (unshare). Empty on
-     * a PUT response (only create mints it).
+     * served by any GET. Stored in the [ShareCredentialStore] DataStore map (deliberately NOT a
+     * Room column - the feature is schema-free); it is the sole capability for PUT
+     * (update-in-place, same URL) and DELETE (unshare). Empty on a PUT response (only create
+     * mints it).
      */
     val ownerToken: String = "",
 )

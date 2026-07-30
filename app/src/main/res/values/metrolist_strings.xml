@@ -577,6 +577,7 @@
     <string name="unshare_playlist">Remove shared link</string>
     <string name="unshare_playlist_confirm">The shared link will stop working for everyone it was sent to.</string>
     <string name="unshare_done">Shared link removed</string>
+    <string name="unshare_failed">Couldn\'t remove the shared link</string>
     <string name="onboarding_backup_title">Search backup</string>
     <string name="onboarding_backup_question">Should search keep working even when the Zemer server is unreachable?</string>
     <string name="onboarding_backup_enable">Download a backup</string>

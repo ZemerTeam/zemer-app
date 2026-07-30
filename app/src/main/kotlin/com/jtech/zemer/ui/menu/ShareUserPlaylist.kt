@@ -23,7 +23,10 @@ import com.jtech.zemer.di.ZemerSearchRepositoryEntryPoint
 import com.jtech.zemer.search.ShareCredentials
 import com.jtech.zemer.search.ShareCredentialStore
 import com.jtech.zemer.search.ZemerRateLimitedException
+import com.jtech.zemer.search.ZemerSearchClient
 import com.jtech.zemer.search.ZemerSearchRepository
+import com.jtech.zemer.search.ZemerShareHttpException
+import com.jtech.zemer.search.isZemerServerUnreachable
 import com.jtech.zemer.search.ZemerShareGoneException
 import com.jtech.zemer.search.ZemerUserPlaylistCreateResponse
 import com.jtech.zemer.search.sharedPlaylistFingerprint
@@ -49,8 +52,8 @@ import kotlinx.coroutines.withContext
  */
 private val shareScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
-/** Fallback when a PUT response omits `url` - the server's fixed host + the stable share id. */
-private fun userPlaylistUrl(shareId: String) = "https://search.zemer.io/user_playlist/$shareId"
+/** Fallback when a PUT response omits `url` - the server host (single-sourced) + the stable id. */
+private fun userPlaylistUrl(shareId: String) = "${ZemerSearchClient.BASE_URL}/user_playlist/$shareId"
 
 private fun repositoryOf(context: Context): ZemerSearchRepository = EntryPointAccessors
     .fromApplication(context.applicationContext, ZemerSearchRepositoryEntryPoint::class.java)
@@ -63,7 +66,7 @@ private fun credentialStoreOf(context: Context): ShareCredentialStore = EntryPoi
 /**
  * The issue-#176 share flow, callable from any playlist surface. Shares are LIVE (contract
  * 2026-07-30): the first share POSTs a new server playlist and stores the returned share id +
- * owner token on the local [com.jtech.zemer.db.entities.PlaylistEntity]; every later share of the
+ * owner token in the [ShareCredentialStore] credential map; every later share of the
  * same playlist PUTs the current state to the SAME id/URL, so re-tapping Share never mints a
  * second link (and [com.jtech.zemer.search.SharedPlaylistAutoUpdater] keeps the link fresh
  * between shares). A 403/404 on update (token rejected / link taken down) clears the stored
@@ -100,8 +103,7 @@ suspend fun shareUserPlaylist(context: Context, playlistId: String, title: Strin
             // clear-vs-store interleaving is possible.
             e is ZemerShareGoneException -> staleCredentials = true
             else -> {
-                reportException(e)
-                Toast.makeText(appContext, R.string.share_playlist_failed, Toast.LENGTH_SHORT).show()
+                shareFailureToast(appContext, e)
                 return
             }
         }
@@ -127,10 +129,28 @@ suspend fun shareUserPlaylist(context: Context, playlistId: String, title: Strin
             // The old credentials are dead: drop them so the next Share does not retry a doomed
             // PUT first.
             if (staleCredentials) store.remove(playlistId)
-            reportException(e)
-            val message = if (e is ZemerRateLimitedException) R.string.share_playlist_rate_limited else R.string.share_playlist_failed
-            Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
+            shareFailureToast(appContext, e)
         }
+}
+
+/**
+ * One failure-classification chokepoint for the share flows: a rate limit gets its own copy
+ * (whether the typed 429 from create or an HTTP 429 verdict on PUT); a plain no-network failure
+ * gets the no-network toast and is NEVER reported (an airplane-mode Share is routine, and
+ * reporting it would bury the real contract errors the auto-updater deliberately surfaces); only
+ * genuinely unexpected failures reach Crashlytics.
+ */
+private fun shareFailureToast(appContext: Context, e: Throwable) {
+    val message = when {
+        e is ZemerRateLimitedException -> R.string.share_playlist_rate_limited
+        e is ZemerShareHttpException && e.status == 429 -> R.string.share_playlist_rate_limited
+        e.isZemerServerUnreachable() -> R.string.error_no_internet
+        else -> {
+            reportException(e)
+            R.string.share_playlist_failed
+        }
+    }
+    Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
 }
 
 private fun openShareSheet(context: Context, shareId: String, response: ZemerUserPlaylistCreateResponse) {
@@ -178,9 +198,12 @@ suspend fun unshareUserPlaylist(context: Context, playlistId: String) {
                     store.remove(playlistId)
                     Toast.makeText(appContext, R.string.unshare_done, Toast.LENGTH_SHORT).show()
                 }
+                // Routine no-network: correct copy, no Crashlytics noise (the auto-updater's
+                // orphan sweep backstops the delete-playlist path).
+                e.isZemerServerUnreachable() -> Toast.makeText(appContext, R.string.error_no_internet, Toast.LENGTH_SHORT).show()
                 else -> {
                     reportException(e)
-                    Toast.makeText(appContext, R.string.share_playlist_failed, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(appContext, R.string.unshare_failed, Toast.LENGTH_SHORT).show()
                 }
             }
         }

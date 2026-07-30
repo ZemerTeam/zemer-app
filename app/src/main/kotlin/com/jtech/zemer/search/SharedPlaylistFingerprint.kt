@@ -4,7 +4,8 @@ import java.security.MessageDigest
 
 /**
  * The fingerprint of a shared playlist's SERVED state (issue #176 live-updating shares): what the
- * auto-updater compares against `PlaylistEntity.shareSyncedHash` to decide whether a PUT is due.
+ * auto-updater compares against [ShareCredentials.syncedHash] (the DataStore credential map -
+ * deliberately not a DB column) to decide whether a PUT is due.
  * Applies the SAME clamps as [ZemerSearchRepository.shareUserPlaylist]/`updateUserPlaylist`, so an
  * over-limit playlist hashes to the state the server actually holds - otherwise the updater would
  * re-PUT forever. Order-sensitive by design (reordering IS an edit). The newline joiner cannot

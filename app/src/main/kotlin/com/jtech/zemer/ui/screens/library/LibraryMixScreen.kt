@@ -87,7 +87,7 @@ import com.jtech.zemer.ui.component.PlaylistListItem
 import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.ArtistMenu
-import com.jtech.zemer.ui.menu.PlaylistMenu
+import com.jtech.zemer.ui.component.GatedPlaylistMenu
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.rememberEnumPreference
@@ -462,7 +462,7 @@ fun LibraryMixScreen(
                                         MoreVertMenuButton(
                                             onClick = {
                                                 menuState.show {
-                                                    PlaylistMenu(
+                                                    GatedPlaylistMenu(
                                                         playlist = item,
                                                         coroutineScope = coroutineScope,
                                                         onDismiss = menuState::dismiss,
@@ -481,7 +481,7 @@ fun LibraryMixScreen(
                                             onLongClick = {
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 menuState.show {
-                                                    PlaylistMenu(
+                                                    GatedPlaylistMenu(
                                                         playlist = item,
                                                         coroutineScope = coroutineScope,
                                                         onDismiss = menuState::dismiss,
@@ -709,7 +709,7 @@ fun LibraryMixScreen(
                                             onLongClick = {
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 menuState.show {
-                                                    PlaylistMenu(
+                                                    GatedPlaylistMenu(
                                                         playlist = item,
                                                         coroutineScope = coroutineScope,
                                                         onDismiss = menuState::dismiss,
