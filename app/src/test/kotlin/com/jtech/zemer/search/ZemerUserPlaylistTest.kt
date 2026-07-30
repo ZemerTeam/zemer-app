@@ -7,6 +7,7 @@ import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertFalse
@@ -27,12 +28,21 @@ class ZemerUserPlaylistTest {
 
     @Test
     fun `create response decodes kept and dropped`() {
-        val json = """{ "id": "Rtwwz3ZEA5Bzik", "url": "https://search.zemer.io/user_playlist/Rtwwz3ZEA5Bzik", "kept": 37, "dropped": 2 }"""
+        val json = """{ "id": "Rtwwz3ZEA5Bzik", "url": "https://search.zemer.io/user_playlist/Rtwwz3ZEA5Bzik", "kept": 37, "dropped": 2, "ownerToken": "s3cret" }"""
         val resp = zemerResponseJson.decodeFromString(ZemerUserPlaylistCreateResponse.serializer(), json)
         assertEquals("Rtwwz3ZEA5Bzik", resp.id)
         assertEquals("https://search.zemer.io/user_playlist/Rtwwz3ZEA5Bzik", resp.url)
         assertEquals(37, resp.kept)
         assertEquals(2, resp.dropped)
+        assertEquals("s3cret", resp.ownerToken)
+    }
+
+    @Test
+    fun `a PUT response without ownerToken decodes with an empty token`() {
+        // Only create mints the token; an update response must not be mistaken for a fresh one.
+        val json = """{ "id": "abc", "url": "https://search.zemer.io/user_playlist/abc", "kept": 3, "dropped": 0 }"""
+        val resp = zemerResponseJson.decodeFromString(ZemerUserPlaylistCreateResponse.serializer(), json)
+        assertEquals("", resp.ownerToken)
     }
 
     @Test
@@ -122,5 +132,25 @@ class ZemerUserPlaylistTest {
         assertFalse(isValidUserPlaylistShareId("abc#frag"))
         assertFalse(isValidUserPlaylistShareId("abc def"))
         assertFalse(isValidUserPlaylistShareId("a".repeat(65)))
+    }
+
+    @Test
+    fun `fingerprint is deterministic and sensitive to order, membership and title`() {
+        val base = sharedPlaylistFingerprint("Simchas", listOf("a", "b", "c"))
+        assertEquals(base, sharedPlaylistFingerprint("Simchas", listOf("a", "b", "c")))
+        assertNotEquals(base, sharedPlaylistFingerprint("Simchas", listOf("b", "a", "c"))) // reorder IS an edit
+        assertNotEquals(base, sharedPlaylistFingerprint("Simchas", listOf("a", "b")))
+        assertNotEquals(base, sharedPlaylistFingerprint("Renamed", listOf("a", "b", "c")))
+    }
+
+    @Test
+    fun `fingerprint clamps like the share request so over-limit playlists settle`() {
+        // The 501st member is not sent to the server, so it must not affect the hash either -
+        // otherwise the auto-updater would see a permanent mismatch and re-PUT forever.
+        val ids = (1..500).map { "id$it" }
+        assertEquals(
+            sharedPlaylistFingerprint("T", ids),
+            sharedPlaylistFingerprint("T", ids + "id501"),
+        )
     }
 }

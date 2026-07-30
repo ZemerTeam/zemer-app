@@ -21,6 +21,7 @@ import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.db.entities.ActionSnapshotRow
+import com.jtech.zemer.db.entities.SharedPlaylistSnapshot
 import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.db.entities.AlbumArtistMap
 import com.jtech.zemer.db.entities.AlbumEntity
@@ -940,6 +941,29 @@ interface DatabaseDao {
     @Transaction
     @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE id = :playlistId")
     fun playlist(playlistId: String): Flow<Playlist?>
+
+    /** Issue #176 live shares: set/clear this playlist's share credentials + synced-state hash. */
+    @Query("UPDATE playlist SET shareId = :shareId, shareOwnerToken = :ownerToken, shareSyncedHash = :syncedHash WHERE id = :playlistId")
+    fun updatePlaylistShare(playlistId: String, shareId: String?, ownerToken: String?, syncedHash: String?)
+
+    @Query("UPDATE playlist SET shareSyncedHash = :syncedHash WHERE id = :playlistId")
+    fun updatePlaylistShareSyncedHash(playlistId: String, syncedHash: String?)
+
+    /**
+     * Every playlist with an active share, with its ordered member ids flattened to CSV (videoIds
+     * never contain commas). References BOTH `playlist` and `playlist_song_map`, so Room re-emits
+     * on renames AND on member add/remove/reorder - the auto-updater's one trigger.
+     */
+    @Query(
+        """
+        SELECT p.id AS playlistId, p.name, p.shareId, p.shareOwnerToken, p.shareSyncedHash,
+               (SELECT GROUP_CONCAT(songId) FROM
+                   (SELECT songId FROM playlist_song_map WHERE playlistId = p.id ORDER BY position)
+               ) AS songIdsCsv
+        FROM playlist p WHERE p.shareId IS NOT NULL AND p.shareOwnerToken IS NOT NULL
+        """
+    )
+    fun sharedPlaylistSnapshots(): Flow<List<SharedPlaylistSnapshot>>
 
     @Transaction
     @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE isEditable AND bookmarkedAt IS NOT NULL ORDER BY rowId")

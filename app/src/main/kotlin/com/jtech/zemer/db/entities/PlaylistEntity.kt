@@ -31,7 +31,14 @@ data class PlaylistEntity(
     val shuffleEndpointParams: String? = null,
     val radioEndpointParams: String? = null,
     @ColumnInfo(name = "isLocal", defaultValue = false.toString())
-    val isLocal: Boolean = false
+    val isLocal: Boolean = false,
+    // Issue #176 live-updating shares: the server share id + owner secret of this playlist's
+    // active shared link (null = never shared or unshared), and the fingerprint of the state last
+    // successfully PUT to the server (drives the auto-updater's "anything to push?" check;
+    // crash-safe because it is written only AFTER a successful server update).
+    val shareId: String? = null,
+    val shareOwnerToken: String? = null,
+    val shareSyncedHash: String? = null,
 ) {
     companion object {
         const val LIKED_PLAYLIST_ID = "LP_LIKED"

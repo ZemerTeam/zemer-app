@@ -89,6 +89,9 @@ class App : Application(), SingletonImageLoader.Factory {
     @Inject
     lateinit var offlineSubsetSyncer: com.jtech.zemer.offline.OfflineSubsetSyncer
 
+    @Inject
+    lateinit var sharedPlaylistAutoUpdater: com.jtech.zemer.search.SharedPlaylistAutoUpdater
+
     // Lazy so app start never pays for opening the DB before something else needs it.
     @Inject
     lateinit var databaseLazy: dagger.Lazy<MusicDatabase>
@@ -131,6 +134,13 @@ class App : Application(), SingletonImageLoader.Factory {
         applicationScope.launch(Dispatchers.IO) {
             delay(5000)
             runCatching { offlineSubsetSyncer.maybeSync() }
+        }
+
+        // Live-updating playlist shares: reconcile local edits to the server-held share in the
+        // background (delayed like the subset syncer so startup never pays for the DB open).
+        applicationScope.launch(Dispatchers.IO) {
+            delay(5000)
+            runCatching { sharedPlaylistAutoUpdater.start() }
         }
 
         // Initialize cipher library for WEB_REMIX streaming

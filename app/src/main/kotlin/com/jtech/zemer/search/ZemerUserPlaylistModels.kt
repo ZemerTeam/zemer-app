@@ -32,6 +32,22 @@ data class ZemerUserPlaylistCreateResponse(
     val kept: Int = 0,
     /** Members dropped at share time (non-corpus or globally blocked) — surfaced as a toast. */
     val dropped: Int = 0,
+    /**
+     * The share's owner secret (live-updating shares, 2026-07-30): returned ONCE at create, never
+     * served by any GET. Stored on the local [com.jtech.zemer.db.entities.PlaylistEntity] row; it
+     * is the sole capability for PUT (update-in-place, same URL) and DELETE (unshare). Empty on
+     * a PUT response (only create mints it).
+     */
+    val ownerToken: String = "",
+)
+
+/** `PUT /user-playlist/<id>` body: replace the share's state in place — same id, same URL. */
+@Serializable
+data class ZemerUserPlaylistUpdateRequest(
+    val ownerToken: String,
+    val title: String,
+    val videoIds: List<String>,
+    val sharedBy: String? = null,
 )
 
 @Serializable
@@ -50,6 +66,8 @@ data class ZemerUserPlaylistHeader(
      */
     val thumbnail: String? = null,
     val totalDurationSec: Int? = null,
+    /** Epoch ms of the last owner update; null when the share was never updated after create. */
+    val updatedAt: Long? = null,
 )
 
 @Serializable

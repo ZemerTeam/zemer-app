@@ -331,6 +331,24 @@ class ZemerSearchRepository @Inject constructor(
     }
 
     /**
+     * Replaces an existing share's state in place (same id, same URL) - the live-updating half of
+     * the share contract. Same clamps as create; throws [ZemerShareGoneException] on 403/404
+     * (caller clears the stored credentials).
+     */
+    suspend fun updateUserPlaylist(shareId: String, ownerToken: String, title: String, videoIds: List<String>, sharedBy: String?): ZemerUserPlaylistCreateResponse =
+        client.updateUserPlaylist(
+            shareId,
+            ownerToken,
+            title.take(USER_PLAYLIST_TITLE_MAX),
+            videoIds.take(USER_PLAYLIST_MAX_TRACKS),
+            sharedBy?.trim()?.take(USER_PLAYLIST_SHARED_BY_MAX)?.takeIf { it.isNotBlank() },
+        )
+
+    /** Withdraws a share - the link 404s everywhere. Throws [ZemerShareGoneException] if already gone. */
+    suspend fun deleteUserPlaylist(shareId: String, ownerToken: String) =
+        client.deleteUserPlaylist(shareId, ownerToken)
+
+    /**
      * Opens a shared user playlist as (header, playable songs). Null = 404 (unknown/mistyped id or
      * taken down). LIVE-ONLY: unguessable-link content is never in the offline snapshot, so this is
      * deliberately not wrapped in [serverOrOffline] (like `/playlist` and `/radio`).
@@ -505,9 +523,13 @@ class ZemerSearchRepository @Inject constructor(
         private const val K_COMMUNITY = 500
         private const val CACHE_SIZE = 12
 
-        /** Server caps for `POST /user-playlist` (handoff contract) — clamped client-side too. */
-        private const val USER_PLAYLIST_TITLE_MAX = 120
-        private const val USER_PLAYLIST_MAX_TRACKS = 500
-        private const val USER_PLAYLIST_SHARED_BY_MAX = 40
     }
 }
+
+/**
+ * Server caps for `POST`/`PUT /user-playlist` (handoff contract) — clamped client-side too.
+ * Top-level so [sharedPlaylistFingerprint] applies the identical clamps.
+ */
+internal const val USER_PLAYLIST_TITLE_MAX = 120
+internal const val USER_PLAYLIST_MAX_TRACKS = 500
+internal const val USER_PLAYLIST_SHARED_BY_MAX = 40

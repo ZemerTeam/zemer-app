@@ -113,6 +113,7 @@ fun PlaylistMenu(
     // the dialog appears the moment the songs arrive (in practice immediately).
     if (showShareDialog && songsLoaded) {
         ShareUserPlaylistDialog(
+            playlistId = playlist.id,
             playlistTitle = dbPlaylist?.playlist?.name ?: playlist.playlist.name,
             videoIds = songs.map { it.id },
             onDismiss = {

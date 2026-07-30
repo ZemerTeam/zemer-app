@@ -6,9 +6,12 @@ import timber.log.Timber
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -39,6 +42,14 @@ import javax.inject.Singleton
  */
 /** `429` from the share endpoint: per-device or server-wide daily cap — "try again later", never a retry loop. */
 class ZemerRateLimitedException : IOException("Zemer share rate limit reached")
+
+/**
+ * `403`/`404` from an owner-token PUT/DELETE: the share no longer exists or the token is rejected
+ * (a pre-token share, a taken-down link, cleared app data on the server side of the pair). NOT an
+ * IOException - it is a definitive server verdict, not a transport failure: the caller's move is
+ * to clear the stored credentials (and, for a share tap, mint a fresh link), never to retry.
+ */
+class ZemerShareGoneException : Exception("Zemer share gone or owner token rejected")
 
 internal val zemerResponseJson = Json {
     ignoreUnknownKeys = true
@@ -379,6 +390,52 @@ class ZemerSearchClient @Inject constructor() {
             throw IOException("Zemer user-playlist create returned HTTP ${response.status.value}")
         }
         return zemerResponseJson.decodeFromString(ZemerUserPlaylistCreateResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * Live-updating shares: `PUT /user-playlist/<id>` replaces the share's state in place - same
+     * id, same URL - with create-identical validation (`kept`/`dropped` back, screened `sharedBy`).
+     * Updates spend nothing from the rate-limit pool (server contract 2026-07-30). Throws
+     * [ZemerShareGoneException] on 403/404 so the caller clears credentials / re-mints.
+     */
+    suspend fun updateUserPlaylist(id: String, ownerToken: String, title: String, videoIds: List<String>, sharedBy: String?): ZemerUserPlaylistCreateResponse {
+        if (!isValidUserPlaylistShareId(id)) throw ZemerShareGoneException()
+        val response: HttpResponse = client.put("$BASE_URL/user-playlist/$id") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                zemerResponseJson.encodeToString(
+                    ZemerUserPlaylistUpdateRequest.serializer(),
+                    ZemerUserPlaylistUpdateRequest(ownerToken = ownerToken, title = title, videoIds = videoIds, sharedBy = sharedBy),
+                ),
+            )
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (response.status == HttpStatusCode.Forbidden || response.status == HttpStatusCode.NotFound) {
+            throw ZemerShareGoneException()
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer user-playlist update returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerUserPlaylistCreateResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * Withdraws a share (`DELETE /user-playlist/<id>`, token via `X-Owner-Token` - DELETE bodies
+     * are unreliable across HTTP stacks, per the server contract): the link 404s everywhere
+     * immediately. Throws [ZemerShareGoneException] on 403/404 (already gone - callers treat it
+     * as done and clear the stored credentials either way).
+     */
+    suspend fun deleteUserPlaylist(id: String, ownerToken: String) {
+        if (!isValidUserPlaylistShareId(id)) throw ZemerShareGoneException()
+        val response: HttpResponse = client.delete("$BASE_URL/user-playlist/$id") {
+            header("X-Owner-Token", ownerToken)
+        }
+        if (response.status == HttpStatusCode.Forbidden || response.status == HttpStatusCode.NotFound) {
+            throw ZemerShareGoneException()
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer user-playlist delete returned HTTP ${response.status.value}")
+        }
     }
 
     /**
