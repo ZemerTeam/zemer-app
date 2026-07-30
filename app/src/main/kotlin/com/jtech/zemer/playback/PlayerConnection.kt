@@ -97,6 +97,13 @@ class PlayerConnection(
     val error = MutableStateFlow<PlaybackException?>(null)
     val waitingForNetworkConnection = service.waitingForNetworkConnection
 
+    /**
+     * A Zemer Station broadcast is playing: play/stop only (handoff par. 5). Drives the in-app LIVE
+     * treatment and the skip/scrub gating; the notification/Auto/Bluetooth side is masked at the
+     * session player.
+     */
+    val isStationBroadcast = service.isStationBroadcast
+
     init {
         player.addListener(this)
 
@@ -170,6 +177,7 @@ class PlayerConnection(
     }
 
     fun seekTo(positionMs: Long) {
+        if (isStationBroadcast.value) return // a broadcast has no scrubbing (handoff par. 5)
         if (isCasting.value) {
             service.discoveryHandler.seek(CastPlayback.msToRemoteSeconds(positionMs))
         } else {
@@ -215,6 +223,7 @@ class PlayerConnection(
         else player.duration
 
     fun seekToNext() {
+        if (isStationBroadcast.value) return // a broadcast has no skip (handoff par. 5)
         if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)) {
             try {
                 player.seekToNext()
@@ -230,6 +239,7 @@ class PlayerConnection(
     }
 
     fun seekToPrevious() {
+        if (isStationBroadcast.value) return // a broadcast has no skip (handoff par. 5)
         if (!player.currentTimeline.isEmpty && player.isCommandAvailable(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)) {
             try {
                 // While casting the local clock is frozen at the connect position, so seekToPrevious's
@@ -304,6 +314,12 @@ class PlayerConnection(
     }
 
     private fun updateCanSkipPreviousAndNext() {
+        if (service.isStationBroadcast.value) {
+            // Broadcast transport is play/stop only - no skip in either direction.
+            canSkipPrevious.value = false
+            canSkipNext.value = false
+            return
+        }
         if (!player.currentTimeline.isEmpty) {
             val window =
                 player.currentTimeline.getWindow(player.currentMediaItemIndex, Timeline.Window())

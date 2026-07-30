@@ -206,6 +206,37 @@ class ZemerSearchClient @Inject constructor() {
      * `album` / `song`, with [seed] the channelId/browseId/videoId) or `shuffle` (no seed) for Radio mode.
      * Content flags are sent explicitly (kidZone included), same as the other endpoints.
      */
+    /**
+     * The Zemer Stations catalog (`GET /stations`) — the synchronized-broadcast home row's data. NO
+     * content flags are sent: the pools are pre-filtered server-side to the strictest common
+     * denominator (handoff §6), so there is nothing left to filter. Clock-dependent — never cached.
+     */
+    suspend fun stations(): ZemerStationsResponse {
+        val response: HttpResponse = client.get("$BASE_URL/stations")
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer stations returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerStationsResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * One station's tune-in payload (`GET /station?id=&next=`): the on-air track with its live offset
+     * plus the next [next] scheduled entries (1..10). Null on `404` (unknown id) AND on `503`
+     * (station offline: schedule exhausted server-side) — both mean "hide the card / stop with the
+     * station-offline state; retry later". No content flags (see [stations]); never cached.
+     */
+    suspend fun station(id: String, next: Int = 5): ZemerStationTuneInResponse? {
+        val response: HttpResponse = client.get("$BASE_URL/station") {
+            parameter("id", id)
+            parameter("next", next)
+        }
+        if (response.status == HttpStatusCode.NotFound || response.status == HttpStatusCode.ServiceUnavailable) return null
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer station returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerStationTuneInResponse.serializer(), response.bodyAsText())
+    }
+
     suspend fun radio(
         kind: String,
         seed: String?,

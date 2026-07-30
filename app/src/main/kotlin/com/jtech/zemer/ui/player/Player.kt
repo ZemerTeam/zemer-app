@@ -217,6 +217,7 @@ fun BottomSheetPlayer(
     val repeatMode by playerConnection.repeatMode.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
+    val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
 
     var position by rememberSaveable(playbackState) {
@@ -852,7 +853,13 @@ fun BottomSheetPlayer(
                     .fillMaxWidth()
                     .padding(horizontal = PlayerHorizontalPadding - 8.dp)
             ) {
-                when (sliderStyle) {
+                // A broadcast has no transport: the seek slider is replaced by the read-only LIVE
+                // bar (handoff par. 5 - no scrubbing); every non-station queue is untouched.
+                if (isStationBroadcast) StationLiveBar(
+                    position = position,
+                    duration = duration,
+                    accentColor = accentColor,
+                ) else when (sliderStyle) {
                     SliderStyle.DEFAULT -> {
                         Slider(
                             value = (sliderPosition ?: position).toFloat(),
@@ -1081,7 +1088,7 @@ fun BottomSheetPlayer(
                                 .align(Alignment.Center)
                                 .alpha(if (repeatMode == Player.REPEAT_MODE_OFF) 0.5f else 1f),
                             onClick = {
-                                playerConnection.player.toggleRepeatMode()
+                                if (!isStationBroadcast) playerConnection.player.toggleRepeatMode()
                             },
                         )
                     }

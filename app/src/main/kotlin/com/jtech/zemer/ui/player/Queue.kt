@@ -144,6 +144,7 @@ fun Queue(
 
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isPlaying.collectAsState()
+    val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
     val repeatMode by playerConnection.repeatMode.collectAsState()
 
     val currentWindowIndex by playerConnection.currentWindowIndex.collectAsState()
@@ -330,7 +331,7 @@ fun Queue(
                                 )
                             )
                             .clickable {
-                                playerConnection.player.toggleRepeatMode()
+                                if (!isStationBroadcast) playerConnection.player.toggleRepeatMode()
                             },
                         contentAlignment = Alignment.Center
                     ) {
@@ -778,6 +779,9 @@ fun Queue(
                                                 } else {
                                                     if (index == currentWindowIndex) {
                                                         playerConnection.playPause()
+                                                    } else if (isStationBroadcast) {
+                                                        // A broadcast has no transport: tapping an
+                                                        // upcoming slot must not jump the schedule.
                                                     } else {
                                                         playerConnection.player.seekToDefaultPosition(
                                                             window.firstPeriodIndex,
@@ -1082,7 +1086,7 @@ fun Queue(
                                 if (playerConnection.player.shuffleModeEnabled) playerConnection.player.currentMediaItemIndex else 0,
                             )
                         }.invokeOnCompletion {
-                            playerConnection.player.shuffleModeEnabled =
+                            if (!isStationBroadcast) playerConnection.player.shuffleModeEnabled =
                                 !playerConnection.player.shuffleModeEnabled
                         }
                 },
@@ -1102,7 +1106,7 @@ fun Queue(
 
             IconButton(
                 modifier = Modifier.align(Alignment.CenterEnd),
-                onClick = playerConnection.player::toggleRepeatMode,
+                onClick = { if (!isStationBroadcast) playerConnection.player.toggleRepeatMode() },
             ) {
                 Icon(
                     painter =

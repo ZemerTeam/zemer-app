@@ -222,6 +222,28 @@ only. Rules that must not regress:
 - Tracking: radio fill reports as `radio` (`initialItemsAreContext = false`,
   `continuationIsContext = false`); the preloaded seed is the one user-chosen context item.
 
+**Zemer Stations** (`playback/queues/StationQueue`, the "Zemer Radio" home row) are the OTHER radio
+product: one shared, server-programmed wall-clock schedule per station — every listener hears the
+same track at the same moment (contract: `~/zemer-fix/handoff-docs/zemer-app-stations.md`). Rules
+that must not regress: ALL drift funnels through the BIDIRECTIONAL `resyncStationPlayback` (seek
+forward when behind, WAIT — pause until startMs — when ahead, full re-tune when nothing queued is
+on-air; never a mid-track jump, never a backward seek into a played/unplayable slot), invoked from
+boundaries, pause-resume, error skips and STATE_ENDED; **pause = stop, resume = rejoin live**; a
+broadcast is NEVER persisted (`saveQueueToDisk` guard) and a queue MUTATION (Play next / Add to
+queue) EXITS broadcast mode (`exitStationOnQueueMutation` — without it station state latches and
+queue persistence dies for the process); the session player masks all skip/seek/repeat/shuffle
+commands AND no-ops them against stale controllers, notifying command changes on every mask flip
+(`CastAwarePlayer.maskTransportForStation`/`notifyStationMaskChanged`); every raw-player transport
+surface (mini-player swipes, queue-sheet taps, lyrics buttons, the widget's onStartCommand skips,
+repeat/shuffle toggles) is gated on `isStationBroadcast`, and `PlayerConnection.seekTo/Next/
+Previous` early-return during a broadcast; the station runway top-up ignores the Auto-load-more
+preference and repeat is forced OFF at station start; station items map through
+`ZemerResultMapper.toSongItem` (coverless slots get the derived artwork fallback); the row's
+now-playing ticker is LIFECYCLE-scoped (`repeatOnLifecycle(RESUMED)` — nothing polls while
+backgrounded); no content flags are sent (pools pre-filtered server-side; blocked-ids still run
+client-side as the third layer); a failed slot is marked unplayable and produces no play event
+(zero-play-time guard); every station play tags `PlaySource.station(id)`.
+
 ### Corpus-native artist/album opens (no InnerTube fallback)
 
 Artist (`/artist`) and album (`/album`) screens load purely from the Zemer server

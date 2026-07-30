@@ -13,6 +13,8 @@ object PlaySource {
     const val OTHER = "other"
 
     fun artist(id: String) = "artist:$id"
+    /** A Zemer Station broadcast (the whole listen is context under it); `id` is the station slug. */
+    fun station(id: String) = "station:$id"
     fun album(id: String) = "album:$id"
     fun playlist(id: String) = "playlist:$id"
     // A discovery-sourced community playlist (the home "Community playlists" row + the search Community

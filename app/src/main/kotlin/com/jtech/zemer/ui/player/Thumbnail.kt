@@ -97,7 +97,11 @@ fun Thumbnail(
     val error by playerConnection.error.collectAsState()
     val queueTitle by playerConnection.queueTitle.collectAsState()
 
-    val swipeThumbnail by rememberPreference(SwipeThumbnailKey, true)
+    val swipeThumbnailPref by rememberPreference(SwipeThumbnailKey, true)
+    val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
+    // A broadcast has no transport: the thumbnail swipe-to-change-song gesture acts on the raw
+    // player, so it is disabled wholesale while a station plays (no side pages, no scroll, no seek).
+    val swipeThumbnail = swipeThumbnailPref && !isStationBroadcast
     val hidePlayerThumbnail by rememberPreference(HidePlayerThumbnailKey, false)
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()

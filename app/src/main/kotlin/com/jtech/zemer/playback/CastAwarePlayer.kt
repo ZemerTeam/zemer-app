@@ -26,6 +26,16 @@ class CastAwarePlayer(
     scope: CoroutineScope,
 ) : ForwardingPlayer(player) {
     private val casting: Boolean get() = discoveryHandler.isConnected
+
+    /**
+     * Station broadcast transport mask (handoff par. 5: play/stop only). While a [StationQueue] is
+     * the active queue, every skip/seek command disappears from the SESSION's available commands, so
+     * the media notification, Android Auto and Bluetooth AVRCP all drop their skip/scrub affordances
+     * in one place. Set by MusicService's currentQueue setter; queried on every notification/state
+     * rebuild, so no explicit invalidation is needed.
+     */
+    @Volatile
+    var maskTransportForStation = false
     private val remotePositionMs: Long get() = CastPlayback.remoteSecondsToMs(discoveryHandler.remoteTime.value)
     private val remoteDurationMs: Long get() = CastPlayback.remoteSecondsToMs(discoveryHandler.remoteDuration.value)
     private val remotePlaying: Boolean get() = CastPlayback.isPlaying(discoveryHandler.remotePlaybackState.value)
@@ -79,6 +89,29 @@ class CastAwarePlayer(
     // While casting, present the receiver's play state so external surfaces show the correct play/pause
     // icon instead of the paused local player's. Kept mutually consistent (READY + playWhenReady) so
     // however the session derives isPlaying, it agrees.
+    override fun getAvailableCommands(): Player.Commands =
+        if (maskTransportForStation) {
+            super.getAvailableCommands().buildUpon()
+                .removeAll(
+                    Player.COMMAND_SEEK_TO_NEXT,
+                    Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+                    Player.COMMAND_SEEK_TO_PREVIOUS,
+                    Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
+                    Player.COMMAND_SEEK_BACK,
+                    Player.COMMAND_SEEK_FORWARD,
+                    Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
+                    Player.COMMAND_SEEK_TO_MEDIA_ITEM,
+                    Player.COMMAND_SET_REPEAT_MODE,
+                    Player.COMMAND_SET_SHUFFLE_MODE,
+                )
+                .build()
+        } else {
+            super.getAvailableCommands()
+        }
+
+    override fun isCommandAvailable(command: Int): Boolean =
+        if (maskTransportForStation) getAvailableCommands().contains(command) else super.isCommandAvailable(command)
+
     override fun getPlayWhenReady(): Boolean = if (casting) remotePlaying else super.getPlayWhenReady()
     override fun getPlaybackState(): Int = if (casting) Player.STATE_READY else super.getPlaybackState()
     override fun isPlaying(): Boolean = if (casting) remotePlaying else super.isPlaying()
@@ -92,13 +125,35 @@ class CastAwarePlayer(
     }
 
     override fun seekTo(positionMs: Long) {
+        if (maskTransportForStation) return // a broadcast has no transport (stale-controller guard)
         if (casting) discoveryHandler.seek(CastPlayback.msToRemoteSeconds(positionMs)) else super.seekTo(positionMs)
     }
 
     override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
+        if (maskTransportForStation) return // a broadcast has no transport (stale-controller guard)
         // While casting the receiver only holds the current item, so route the position to it (the
         // index is meaningless remotely). Local cross-item seeks are unaffected.
         if (casting) discoveryHandler.seek(CastPlayback.msToRemoteSeconds(positionMs)) else super.seekTo(mediaItemIndex, positionMs)
+    }
+
+    override fun seekToNext() { if (!maskTransportForStation) super.seekToNext() }
+    override fun seekToNextMediaItem() { if (!maskTransportForStation) super.seekToNextMediaItem() }
+    override fun seekToPrevious() { if (!maskTransportForStation) super.seekToPrevious() }
+    override fun seekToPreviousMediaItem() { if (!maskTransportForStation) super.seekToPreviousMediaItem() }
+    override fun seekToDefaultPosition() { if (!maskTransportForStation) super.seekToDefaultPosition() }
+    override fun seekToDefaultPosition(mediaItemIndex: Int) { if (!maskTransportForStation) super.seekToDefaultPosition(mediaItemIndex) }
+    override fun setRepeatMode(repeatMode: Int) { if (!maskTransportForStation) super.setRepeatMode(repeatMode) }
+    override fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) { if (!maskTransportForStation) super.setShuffleModeEnabled(shuffleModeEnabled) }
+
+    /**
+     * Media3 caches per-controller command sets and only refreshes them on an
+     * onAvailableCommandsChanged - a bare field flip would leave every connected controller
+     * (notification, Auto, Bluetooth) holding the pre-station commands. Called by MusicService's
+     * currentQueue setter whenever the mask changes.
+     */
+    fun notifyStationMaskChanged() {
+        val commands = availableCommands
+        listeners.toList().forEach { it.onAvailableCommandsChanged(commands) }
     }
 
     override fun seekBack() {
