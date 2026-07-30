@@ -2149,6 +2149,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            "user_playlist" -> {
+                // A shared user playlist link (issue #176; search.zemer.io/user_playlist/<id>):
+                // unguessable id, opened on its own screen with the receiver's filters. `?id=`
+                // also works, per the contract.
+                if (uri.host == "search.zemer.io") {
+                    val shareId = uri.pathSegments.getOrNull(1) ?: uri.getQueryParameter("id")
+                    shareId?.takeIf { it.isNotBlank() }?.let {
+                        navController.navigate("user_playlist/${android.net.Uri.encode(it)}")
+                    }
+                }
+            }
+
             else -> {
                 val videoId = when {
                     path == "watch" -> uri.getQueryParameter("v")

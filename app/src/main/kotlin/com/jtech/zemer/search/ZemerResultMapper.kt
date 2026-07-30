@@ -214,6 +214,28 @@ object ZemerResultMapper {
         songItems(tracks, hideExplicit)
 
     /**
+     * A shared user playlist's tracks as playable [SongItem]s, in shared order — the standard Zemer
+     * treatment: sparse-row drop, de-dup, hide-explicit, and the surgical id-overrides
+     * ([dropBlocked]; `female`-tagged snapshot members are receiver-conditional by contract, so the
+     * receiver's own table decides). Server art when present, derived video frame otherwise.
+     */
+    fun ZemerUserPlaylistResponse.toSongItems(hideExplicit: Boolean): List<SongItem> =
+        tracks.filter { it.videoId.isNotBlank() }
+            .map { track ->
+                SongItem(
+                    id = track.videoId,
+                    title = track.title,
+                    artists = listOf(Artist(name = track.artist, id = track.artistId)),
+                    duration = track.durationSec,
+                    thumbnail = track.thumbnail?.takeIf { it.isNotBlank() } ?: thumbnailFor(track.videoId),
+                    explicit = track.explicit,
+                )
+            }
+            .filterExplicit(hideExplicit)
+            .distinctBy { it.id }
+            .dropBlocked()
+
+    /**
      * One station schedule slot as a playable [SongItem], so station items ride the SAME
      * [SongItem.toMediaMetadata] path as every other Zemer queue: the derived-[thumbnailFor]
      * fallback for coverless slots and the 544x544 artwork resize both come for free (a hand-built

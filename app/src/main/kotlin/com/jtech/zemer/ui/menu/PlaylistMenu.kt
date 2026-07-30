@@ -180,8 +180,15 @@ fun PlaylistMenu(
                         },
                         text = stringResource(R.string.share),
                         onClick = {
+                            // Issue #176: share as an unguessable server snapshot link that opens
+                            // in-app for the recipient (the old music.zemer.io/playlist?list=
+                            // browseId link was broken for pure local playlists - null browseId).
                             dbPlaylist?.playlist?.let { Tracker.action(TrackingActionKind.SHARE, it.browseId ?: it.id) }
-                            context.shareText("https://music.zemer.io/playlist?list=${dbPlaylist?.playlist?.browseId}")
+                            val title = dbPlaylist?.playlist?.name ?: playlist.playlist.name
+                            val videoIds = songs.map { it.id }
+                            coroutineScope.launch {
+                                shareUserPlaylist(context, title, videoIds)
+                            }
                             onDismiss()
                         }
                     )

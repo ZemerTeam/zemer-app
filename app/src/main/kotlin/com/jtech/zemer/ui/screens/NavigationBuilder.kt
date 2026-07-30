@@ -158,6 +158,12 @@ fun NavGraphBuilder.navigationBuilder(
         else PodcastGenreScreen(navController, scrollBehavior)
     }
     composable(
+        route = "user_playlist/{shareId}",
+        arguments = listOf(navArgument("shareId") { type = NavType.StringType }),
+    ) {
+        UserPlaylistScreen(navController, scrollBehavior)
+    }
+    composable(
         route = "home_see_all/{row}",
         arguments = listOf(navArgument("row") { type = NavType.StringType }),
     ) {

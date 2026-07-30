@@ -8,6 +8,10 @@ import io.ktor.client.plugins.timeout
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
@@ -33,6 +37,9 @@ import javax.inject.Singleton
  * `"categories": null` / `"videos": null` would throw and fail the WHOLE response (the strict-
  * deserialization "No results" trap), instead of degrading gracefully.
  */
+/** `429` from the share endpoint: per-device or server-wide daily cap — "try again later", never a retry loop. */
+class ZemerRateLimitedException : IOException("Zemer share rate limit reached")
+
 internal val zemerResponseJson = Json {
     ignoreUnknownKeys = true
     isLenient = true
@@ -349,6 +356,51 @@ class ZemerSearchClient @Inject constructor() {
      * `album` / `song`, with [seed] the channelId/browseId/videoId) or `shuffle` (no seed) for Radio mode.
      * Content flags are sent explicitly (kidZone included), same as the other endpoints.
      */
+    /**
+     * Mints a share link for a user playlist (`POST /user-playlist`, issue #176). The server
+     * validates members against the corpus AND drops globally-blocked ids (both folded into
+     * `dropped`); all-invalid is a 400. 429 = rate-limited (per-device daily or server-wide cap) —
+     * surfaced as [ZemerRateLimitedException] so the UI says "try again later" and never
+     * retry-loops. [device] is the anonymous tracking uuid, used only for the rate limit.
+     */
+    suspend fun createUserPlaylist(title: String, videoIds: List<String>, device: String?): ZemerUserPlaylistCreateResponse {
+        val response: HttpResponse = client.post("$BASE_URL/user-playlist") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                zemerResponseJson.encodeToString(
+                    ZemerUserPlaylistCreateRequest.serializer(),
+                    ZemerUserPlaylistCreateRequest(title = title, videoIds = videoIds, device = device),
+                ),
+            )
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (response.status == HttpStatusCode.TooManyRequests) throw ZemerRateLimitedException()
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer user-playlist create returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerUserPlaylistCreateResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * Opens a shared user playlist (`GET /user_playlist/<id>`). Null on 404 (unknown/mistyped id, or
+     * a taken-down link). The receiver's content flags are sent explicitly (same fail-closed
+     * contract as everywhere); `kidZone=0` is truthful — the app has no kids MODE, only a tab a deep
+     * link never lands in. Members that left the corpus since sharing are dropped server-side.
+     */
+    suspend fun userPlaylist(id: String, allowFemale: Boolean, blockVideos: Boolean): ZemerUserPlaylistResponse? {
+        val response: HttpResponse = client.get("$BASE_URL/user_playlist/$id") {
+            parameter("format", "json")
+            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
+                parameter(name, value)
+            }
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer user-playlist returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerUserPlaylistResponse.serializer(), response.bodyAsText())
+    }
+
     /**
      * The Zemer Stations catalog (`GET /stations`) — the synchronized-broadcast home row's data. NO
      * content flags are sent: the pools are pre-filtered server-side to the strictest common

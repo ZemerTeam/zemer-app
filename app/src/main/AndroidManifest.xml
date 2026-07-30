@@ -154,6 +154,19 @@
                 <data android:pathPrefix="/playlist" />
             </intent-filter>
 
+            <!-- Shared user playlists (issue #176): PATH-scoped so the filter can never capture
+                 the API or station-cover URLs on the same host -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="search.zemer.io" />
+                <data android:pathPrefix="/user_playlist/" />
+            </intent-filter>
+
             <!-- Zemer video links filter -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
