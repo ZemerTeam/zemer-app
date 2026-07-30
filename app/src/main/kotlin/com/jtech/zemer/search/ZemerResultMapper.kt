@@ -214,26 +214,16 @@ object ZemerResultMapper {
         songItems(tracks, hideExplicit)
 
     /**
-     * A shared user playlist's tracks as playable [SongItem]s, in shared order — the standard Zemer
-     * treatment: sparse-row drop, de-dup, hide-explicit, and the surgical id-overrides
-     * ([dropBlocked]; `female`-tagged snapshot members are receiver-conditional by contract, so the
-     * receiver's own table decides). Server art when present, derived video frame otherwise.
+     * A shared user playlist's tracks as playable [SongItem]s, in shared order, via the SAME
+     * [songItems] pipeline as `/playlist`, `/zemer-playlists` and `/radio` (sparse-row drop,
+     * de-dup, hide-explicit, [dropBlocked]; `female`-tagged snapshot members are
+     * receiver-conditional by contract, so the receiver's own table decides). [blockVideos] is the
+     * CLIENT backstop for the server's query flag - the one surface whose content is sender-chosen
+     * gets a second gate from the per-track `isVideo` the server already sends, like female/
+     * blocked-ids everywhere else.
      */
-    fun ZemerUserPlaylistResponse.toSongItems(hideExplicit: Boolean): List<SongItem> =
-        tracks.filter { it.videoId.isNotBlank() }
-            .map { track ->
-                SongItem(
-                    id = track.videoId,
-                    title = track.title,
-                    artists = listOf(Artist(name = track.artist, id = track.artistId)),
-                    duration = track.durationSec,
-                    thumbnail = track.thumbnail?.takeIf { it.isNotBlank() } ?: thumbnailFor(track.videoId),
-                    explicit = track.explicit,
-                )
-            }
-            .filterExplicit(hideExplicit)
-            .distinctBy { it.id }
-            .dropBlocked()
+    fun ZemerUserPlaylistResponse.toSongItems(hideExplicit: Boolean, blockVideos: Boolean): List<SongItem> =
+        songItems(tracks.filterNot { blockVideos && it.isVideo }, hideExplicit)
 
     /**
      * One station schedule slot as a playable [SongItem], so station items ride the SAME

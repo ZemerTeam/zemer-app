@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
@@ -65,6 +66,7 @@ import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.menu.ImportPlaylistDialog
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.playlist.PlaylistPlayShuffleButtons
+import com.jtech.zemer.ui.screens.playlist.filteredPlaylistCover
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.viewmodels.UserPlaylistViewModel
@@ -93,6 +95,7 @@ fun UserPlaylistScreen(
     val page by viewModel.page.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val notFound by viewModel.notFound.collectAsState()
+    val loadFailed by viewModel.loadFailed.collectAsState()
     var showImportDialog by remember { mutableStateOf(false) }
 
     val playSource = PlaySource.shared(viewModel.shareId)
@@ -120,6 +123,24 @@ fun UserPlaylistScreen(
         when {
             isLoading -> item(key = "loading") {
                 ShimmerHost { repeat(8) { ListItemPlaceHolder() } }
+            }
+
+            loadFailed -> item(key = "load_failed") {
+                // A fetch failure on a possibly-valid link: retryable, never the permanent
+                // "not available" copy a real 404 gets.
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    AppStateView(
+                        title = stringResource(R.string.user_playlist_load_failed),
+                        icon = R.drawable.queue_music,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
+                    )
+                    OutlinedButton(onClick = viewModel::retry) {
+                        Text(stringResource(R.string.retry))
+                    }
+                }
             }
 
             notFound -> item(key = "not_found") {
@@ -151,7 +172,7 @@ fun UserPlaylistScreen(
                                 // The filteredPlaylistCover doctrine: the cover is the FIRST
                                 // content-filtered track's art — never sender-supplied imagery.
                                 model = ImageRequest.Builder(LocalContext.current)
-                                    .data(songs.first().thumbnail)
+                                    .data(filteredPlaylistCover(songs) { it.thumbnail })
                                     .build(),
                                 contentDescription = null,
                                 placeholder = painterResource(R.drawable.queue_music),

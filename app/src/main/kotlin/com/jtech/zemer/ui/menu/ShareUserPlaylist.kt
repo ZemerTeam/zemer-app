@@ -6,7 +6,6 @@ import android.widget.Toast
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -14,9 +13,15 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import com.jtech.zemer.constants.UserPlaylistSharedByKey
 import com.jtech.zemer.ui.component.TextFieldDialog
+import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.rememberPreference
+import androidx.datastore.preferences.core.edit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import com.jtech.zemer.R
+import com.jtech.zemer.tracking.Tracker
+import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.di.ZemerSearchRepositoryEntryPoint
 import com.jtech.zemer.search.ZemerRateLimitedException
 import com.jtech.zemer.utils.reportException
@@ -24,6 +29,14 @@ import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+/**
+ * The share must survive the dismissal that triggers it: [TextFieldDialog]'s OK button dismisses
+ * BEFORE running onDone, and the dialog's onDismiss also closes the whole menu, so a composition
+ * scope dies on the next frame and would cancel the in-flight POST (and the remembered-name
+ * write). Own scope, the OfflineSubsetSyncer precedent.
+ */
+private val shareScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
 /**
  * The issue-#176 share flow, callable from any playlist menu: POST the local playlist's snapshot
@@ -50,6 +63,10 @@ suspend fun shareUserPlaylist(context: Context, title: String, videoIds: List<St
                     Toast.LENGTH_SHORT,
                 ).show()
             }
+            // The SHARE action is tracked HERE, at the moment the share actually happened, with the
+            // minted share id (joinable to opened links) - not on dialog-open, where a cancel or a
+            // 429 would still count (chokepoint rule, docs/tracking/README.md).
+            Tracker.action(TrackingActionKind.SHARE, response.id)
             val intent = Intent().apply {
                 action = Intent.ACTION_SEND
                 type = "text/plain"
@@ -78,8 +95,7 @@ fun ShareUserPlaylistDialog(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    val (savedName, onSavedNameChange) = rememberPreference(UserPlaylistSharedByKey, defaultValue = "")
+    val (savedName) = rememberPreference(UserPlaylistSharedByKey, defaultValue = "")
 
     TextFieldDialog(
         icon = { Icon(painterResource(R.drawable.share), contentDescription = null) },
@@ -90,9 +106,12 @@ fun ShareUserPlaylistDialog(
         isInputValid = { true }, // empty = share anonymously
         onDismiss = onDismiss,
         onDone = { name ->
-            onSavedNameChange(name.trim())
-            coroutineScope.launch {
-                shareUserPlaylist(context, playlistTitle, videoIds, name.trim().takeIf { it.isNotBlank() })
+            val trimmed = name.trim()
+            shareScope.launch {
+                // The name write goes through the same surviving scope - rememberPreference's
+                // setter launches into the composition scope this tap is cancelling.
+                context.applicationContext.dataStore.edit { it[UserPlaylistSharedByKey] = trimmed }
+                shareUserPlaylist(context, playlistTitle, videoIds, trimmed.takeIf { it.isNotBlank() })
             }
         },
     )

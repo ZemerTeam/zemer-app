@@ -53,20 +53,13 @@ data class ZemerUserPlaylistHeader(
 )
 
 @Serializable
-data class ZemerUserPlaylistTrack(
-    val videoId: String = "",
-    val title: String = "",
-    val artist: String = "",
-    val artistId: String? = null,
-    val thumbnail: String? = null,
-    val durationSec: Int? = null,
-    val explicit: Boolean = false,
-    val isVideo: Boolean = false,
-)
-
-@Serializable
 data class ZemerUserPlaylistResponse(
     val playlist: ZemerUserPlaylistHeader = ZemerUserPlaylistHeader(),
-    val tracks: List<ZemerUserPlaylistTrack> = emptyList(),
+    /**
+     * The snapshot's tracks are wire-compatible with [ZemerTrack] (the lenient reader ignores this
+     * endpoint's extra keys), so the shared mapping pipeline ([ZemerResultMapper.songItems]) runs
+     * here too - a fourth hand-rolled copy would silently miss the next defense-in-depth change.
+     */
+    val tracks: List<ZemerTrack> = emptyList(),
     val source: String = "",
 )

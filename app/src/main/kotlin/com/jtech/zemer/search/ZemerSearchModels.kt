@@ -69,6 +69,9 @@ data class ZemerTrack(
     // "View album". Null for standalone singles / videos (no album in the corpus).
     val album: ZemerTrackAlbum? = null,
     val explicit: Boolean = false,
+    // `/user_playlist` tracks only (absent = false elsewhere): the client backstop for blockVideos
+    // on the one surface whose content is sender-chosen - see ZemerUserPlaylistResponse.toSongItems.
+    val isVideo: Boolean = false,
     // `/album` tracks only; absent (null) on the search categories.
     val durationSec: Int? = null,
     val trackNumber: Int? = null,

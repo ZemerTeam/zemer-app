@@ -339,7 +339,7 @@ class ZemerSearchRepository @Inject constructor(
         client.userPlaylist(id, options.allowFemale, options.blockVideos)?.let { response ->
             ZemerUserPlaylistPage(
                 header = response.playlist,
-                songs = response.toSongItems(options.hideExplicit),
+                songs = response.toSongItems(options.hideExplicit, options.blockVideos),
             )
         }
 

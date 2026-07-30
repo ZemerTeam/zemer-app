@@ -8,6 +8,8 @@ import com.jtech.zemer.utils.ContentFilterState
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 /**
@@ -67,13 +69,13 @@ class ZemerUserPlaylistTest {
         ContentFilterState.current = ContentFilterConfig(filtersEnabled = true)
         val resp = ZemerUserPlaylistResponse(
             tracks = listOf(
-                ZemerUserPlaylistTrack(videoId = "ok", title = "OK", artist = "A"),
-                ZemerUserPlaylistTrack(videoId = "blockedTrack", title = "B", artist = "A"),
-                ZemerUserPlaylistTrack(videoId = "", title = "sparse", artist = "A"),
-                ZemerUserPlaylistTrack(videoId = "ok", title = "dup", artist = "A"),
+                ZemerTrack(videoId = "ok", title = "OK", artist = "A"),
+                ZemerTrack(videoId = "blockedTrack", title = "B", artist = "A"),
+                ZemerTrack(videoId = "", title = "sparse", artist = "A"),
+                ZemerTrack(videoId = "ok", title = "dup", artist = "A"),
             ),
         )
-        val songs = resp.toSongItems(hideExplicit = false)
+        val songs = resp.toSongItems(hideExplicit = false, blockVideos = false)
         assertEquals(listOf("ok"), songs.map { it.id })
         assertEquals("https://i.ytimg.com/vi/ok/hqdefault.jpg", songs.single().thumbnail)
     }
@@ -82,15 +84,43 @@ class ZemerUserPlaylistTest {
     fun `hide-explicit drops explicit snapshot members`() {
         val resp = ZemerUserPlaylistResponse(
             tracks = listOf(
-                ZemerUserPlaylistTrack(videoId = "clean", title = "C", artist = "A", explicit = false),
-                ZemerUserPlaylistTrack(videoId = "dirty", title = "D", artist = "A", explicit = true),
+                ZemerTrack(videoId = "clean", title = "C", artist = "A", explicit = false),
+                ZemerTrack(videoId = "dirty", title = "D", artist = "A", explicit = true),
             ),
         )
-        assertEquals(listOf("clean"), resp.toSongItems(hideExplicit = true).map { it.id })
+        assertEquals(listOf("clean"), resp.toSongItems(hideExplicit = true, blockVideos = false).map { it.id })
     }
 
     @Test
     fun `the shared play-source wire value is pinned`() {
         assertEquals("shared:abc123", PlaySource.shared("abc123"))
+    }
+
+    @Test
+    fun `blockVideos backstop drops isVideo tracks client-side`() {
+        // The client second gate for the sender-chosen surface: even if the server regressed the
+        // query flag, isVideo tracks never render for a blockVideos receiver.
+        val resp = ZemerUserPlaylistResponse(
+            tracks = listOf(
+                ZemerTrack(videoId = "song1", title = "S", artist = "A"),
+                ZemerTrack(videoId = "vid1", title = "V", artist = "A", isVideo = true),
+            ),
+        )
+        assertEquals(listOf("song1"), resp.toSongItems(hideExplicit = false, blockVideos = true).map { it.id })
+        assertEquals(listOf("song1", "vid1"), resp.toSongItems(hideExplicit = false, blockVideos = false).map { it.id })
+    }
+
+    @Test
+    fun `share ids are constrained to the server slug alphabet`() {
+        // The id comes off an untrusted deep link DECODED - path/query/fragment metacharacters
+        // must never reach the interpolated request path.
+        assertTrue(isValidUserPlaylistShareId("Rtwwz3ZEA5Bzik"))
+        assertTrue(isValidUserPlaylistShareId("a_B-9"))
+        assertFalse(isValidUserPlaylistShareId(""))
+        assertFalse(isValidUserPlaylistShareId("abc/../etc"))
+        assertFalse(isValidUserPlaylistShareId("abc?x=1"))
+        assertFalse(isValidUserPlaylistShareId("abc#frag"))
+        assertFalse(isValidUserPlaylistShareId("abc def"))
+        assertFalse(isValidUserPlaylistShareId("a".repeat(65)))
     }
 }

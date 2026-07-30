@@ -35,8 +35,23 @@ class UserPlaylistViewModel @Inject constructor(
     val isLoading = MutableStateFlow(true)
     val notFound = MutableStateFlow(false)
 
+    /**
+     * A fetch FAILURE (network/server), distinct from [notFound]: only a real 404 may render the
+     * permanent-sounding "not available" copy - a transient error on a valid link must offer
+     * [retry] instead of reading as a dead link.
+     */
+    val loadFailed = MutableStateFlow(false)
+
     init {
+        load()
+    }
+
+    fun retry() = load()
+
+    private fun load() {
         viewModelScope.launch {
+            isLoading.value = true
+            loadFailed.value = false
             runCatching { repository.userPlaylist(shareId, zemerSearchOptions(context)) }
                 .onSuccess { fetched ->
                     page.value = fetched
@@ -44,7 +59,7 @@ class UserPlaylistViewModel @Inject constructor(
                 }
                 .onFailure {
                     if (it is CancellationException) throw it
-                    notFound.value = true
+                    loadFailed.value = true
                     reportException(it)
                 }
             isLoading.value = false

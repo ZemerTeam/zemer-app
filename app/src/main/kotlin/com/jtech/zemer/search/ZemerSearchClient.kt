@@ -388,6 +388,11 @@ class ZemerSearchClient @Inject constructor() {
      * link never lands in. Members that left the corpus since sharing are dropped server-side.
      */
     suspend fun userPlaylist(id: String, allowFemale: Boolean, blockVideos: Boolean): ZemerUserPlaylistResponse? {
+        // The id arrives from an untrusted deep link (and getPathSegments returns it DECODED): a
+        // '/', '?', '#' or space interpolated raw into the path would hit a different endpoint or
+        // truncate the fail-closed content-flag params. Constrain to the server's slug alphabet;
+        // anything else is a mistyped/crafted link = not found.
+        if (!isValidUserPlaylistShareId(id)) return null
         val response: HttpResponse = client.get("$BASE_URL/user_playlist/$id") {
             parameter("format", "json")
             zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
@@ -649,3 +654,11 @@ class ZemerSearchClient @Inject constructor() {
         private const val GENRE_FACET_LIMIT = 200
     }
 }
+
+/**
+ * The server's share-id slug alphabet (unguessable base62-ish ids, e.g. "Rtwwz3ZEA5Bzik"). Bounds
+ * what a deep link can inject into the request path - see [ZemerSearchClient.userPlaylist].
+ */
+private val USER_PLAYLIST_SHARE_ID = Regex("[A-Za-z0-9_-]{1,64}")
+
+internal fun isValidUserPlaylistShareId(id: String): Boolean = id.matches(USER_PLAYLIST_SHARE_ID)

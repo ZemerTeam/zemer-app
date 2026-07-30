@@ -165,6 +165,10 @@
                 <data android:scheme="https" />
                 <data android:host="search.zemer.io" />
                 <data android:pathPrefix="/user_playlist/" />
+                <!-- The contract's ?id= alternate form has path "/user_playlist" (no slash), which
+                     the pathPrefix above never matches; android:path is exact, so it cannot
+                     over-capture the API or station-cover URLs. -->
+                <data android:path="/user_playlist" />
             </intent-filter>
 
             <!-- Zemer video links filter -->
