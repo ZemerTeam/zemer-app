@@ -23,6 +23,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -228,7 +230,10 @@ import com.jtech.zemer.ui.theme.DefaultThemeColor
 import com.jtech.zemer.ui.theme.ZemerTheme
 import com.jtech.zemer.ui.theme.extractThemeColor
 import com.jtech.zemer.ui.theme.rememberPureBlack
+import com.jtech.zemer.ui.utils.HOME_EASTER_EGG_TAPS
 import com.jtech.zemer.ui.utils.appBarScrollBehavior
+import com.jtech.zemer.ui.utils.easterEggTapCount
+import com.jtech.zemer.ui.utils.playHomeEasterEgg
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.resetHeightOffset
 import com.jtech.zemer.utils.ButtonInputCapture
@@ -1418,9 +1423,35 @@ class MainActivity : ComponentActivity() {
                                     Row {
                                         TopAppBar(
                                             title = {
+                                                // 5 quick taps on the Home title play the easter-egg
+                                                // song (the counter + playback live in
+                                                // ui/utils/HomeTitleEasterEgg.kt). Ripple-free so the
+                                                // title looks inert; other tabs' titles stay plain.
+                                                var eggTaps by remember { mutableStateOf(0) }
+                                                var eggLastTapAt by remember { mutableStateOf(0L) }
                                                 Text(
                                                     text = currentTitleRes?.let { stringResource(it) } ?: "",
                                                     style = MaterialTheme.typography.titleLarge,
+                                                    modifier = if (currentTitleRes == R.string.home) {
+                                                        Modifier.clickable(
+                                                            interactionSource = remember { MutableInteractionSource() },
+                                                            indication = null,
+                                                        ) {
+                                                            val now = System.currentTimeMillis()
+                                                            eggTaps = easterEggTapCount(eggTaps, eggLastTapAt, now)
+                                                            eggLastTapAt = now
+                                                            if (eggTaps >= HOME_EASTER_EGG_TAPS) {
+                                                                eggTaps = 0
+                                                                playerConnection?.let { pc ->
+                                                                    coroutineScope.launch(Dispatchers.IO) {
+                                                                        playHomeEasterEgg(pc, database)
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    } else {
+                                                        Modifier
+                                                    },
                                                 )
                                             },
                                             navigationIcon = {
