@@ -7,6 +7,7 @@ import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
@@ -35,16 +36,29 @@ class ZemerUserPlaylistTest {
     @Test
     fun `open response decodes the handoff payload shape`() {
         val json = """
-            { "playlist": { "id": "abc", "title": "Simchas", "createdAt": 1785400000000, "trackCount": 2 },
+            { "playlist": { "id": "abc", "title": "Simchas", "sharedBy": "Avi G.", "createdAt": 1785400000000,
+                            "trackCount": 2, "thumbnail": "https://art/cover.jpg", "totalDurationSec": 8144 },
               "tracks": [ { "videoId": "v1", "title": "T1", "artist": "A1", "artistId": "UCx",
                             "thumbnail": "https://art", "durationSec": 224, "explicit": false, "isVideo": false } ],
               "source": "zemer-user" }
         """.trimIndent()
         val resp = zemerResponseJson.decodeFromString(ZemerUserPlaylistResponse.serializer(), json)
         assertEquals("Simchas", resp.playlist.title)
+        assertEquals("Avi G.", resp.playlist.sharedBy)
         assertEquals(2, resp.playlist.trackCount)
+        assertEquals(8144, resp.playlist.totalDurationSec)
         assertEquals("zemer-user", resp.source)
         assertEquals("v1", resp.tracks.single().videoId)
+    }
+
+    @Test
+    fun `open response without sharer fields decodes with nulls`() {
+        // Pre-addition payloads (and screened names) omit sharedBy/thumbnail/totalDurationSec.
+        val json = """{ "playlist": { "id": "abc", "title": "Simchas", "createdAt": 1, "trackCount": 0 },
+              "tracks": [], "source": "zemer-user" }"""
+        val resp = zemerResponseJson.decodeFromString(ZemerUserPlaylistResponse.serializer(), json)
+        assertNull(resp.playlist.sharedBy)
+        assertNull(resp.playlist.totalDurationSec)
     }
 
     @Test

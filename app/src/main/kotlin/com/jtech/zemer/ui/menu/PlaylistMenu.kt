@@ -69,6 +69,7 @@ fun PlaylistMenu(
     val dbPlaylist by database.playlist(playlist.id).collectAsState(initial = playlist)
     var songs by remember { mutableStateOf(emptyList<Song>()) }
     var showReportDialog by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
     val mediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
     val downloadScope = rememberCoroutineScope()
 
@@ -103,6 +104,17 @@ fun PlaylistMenu(
 
     HorizontalDivider()
     Spacer(modifier = Modifier.height(12.dp))
+
+    if (showShareDialog) {
+        ShareUserPlaylistDialog(
+            playlistTitle = dbPlaylist?.playlist?.name ?: playlist.playlist.name,
+            videoIds = songs.map { it.id },
+            onDismiss = {
+                showShareDialog = false
+                onDismiss()
+            },
+        )
+    }
 
     if (showReportDialog) {
         ReportContentDialog(
@@ -183,13 +195,9 @@ fun PlaylistMenu(
                             // Issue #176: share as an unguessable server snapshot link that opens
                             // in-app for the recipient (the old music.zemer.io/playlist?list=
                             // browseId link was broken for pure local playlists - null browseId).
+                            // The dialog asks for the optional, device-remembered sharer name.
                             dbPlaylist?.playlist?.let { Tracker.action(TrackingActionKind.SHARE, it.browseId ?: it.id) }
-                            val title = dbPlaylist?.playlist?.name ?: playlist.playlist.name
-                            val videoIds = songs.map { it.id }
-                            coroutineScope.launch {
-                                shareUserPlaylist(context, title, videoIds)
-                            }
-                            onDismiss()
+                            showShareDialog = true
                         }
                     )
                 ),

@@ -570,6 +570,9 @@
     <string name="user_playlist_empty_filtered">No songs from this playlist are available with your content settings</string>
     <string name="user_playlist_save_copy">Save a copy</string>
     <string name="user_playlist_shared_label">Shared playlist</string>
+    <string name="user_playlist_shared_by">Shared by %1$s</string>
+    <string name="share_playlist_as_title">Share playlist</string>
+    <string name="share_playlist_name_hint">Your name (optional)</string>
     <string name="onboarding_backup_title">Search backup</string>
     <string name="onboarding_backup_question">Should search keep working even when the Zemer server is unreachable?</string>
     <string name="onboarding_backup_enable">Download a backup</string>

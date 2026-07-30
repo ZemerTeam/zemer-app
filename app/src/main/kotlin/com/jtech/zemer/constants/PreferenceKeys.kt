@@ -213,6 +213,10 @@ val OfflineSubsetEnabledKey = booleanPreferencesKey("offlineSubsetEnabled")
 val OfflineSubsetLastSyncedAtKey = longPreferencesKey("offlineSubsetLastSyncedAt")
 val OfflineSubsetPromoDismissedKey = booleanPreferencesKey("offlineSubsetPromoDismissed")
 
+// The sharer display name for user-playlist links (issue #176) - optional, remembered so it's
+// one-time typing; screened server-side.
+val UserPlaylistSharedByKey = stringPreferencesKey("userPlaylistSharedBy")
+
 val ContentFiltersAutoRestoredKey = booleanPreferencesKey("content_filters_auto_restored")
 val ContentFiltersRestoredEmailKey = stringPreferencesKey("content_filters_restored_email")
 val ContentFiltersLockedKey = booleanPreferencesKey("content_filters_locked")

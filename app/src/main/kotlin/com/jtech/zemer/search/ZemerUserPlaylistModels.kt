@@ -17,6 +17,11 @@ data class ZemerUserPlaylistCreateRequest(
     val videoIds: List<String>,
     /** The anonymous tracking uuid — used ONLY for the server's share rate limit, never served. */
     val device: String? = null,
+    /**
+     * Optional sharer display name (≤40 chars; screened server-side with the community-titles term
+     * list — a screened name silently drops to null). Prompted once and device-remembered.
+     */
+    val sharedBy: String? = null,
 )
 
 @Serializable
@@ -33,8 +38,18 @@ data class ZemerUserPlaylistCreateResponse(
 data class ZemerUserPlaylistHeader(
     val id: String = "",
     val title: String = "",
+    /** The sharer's screened display name; null when not provided or screened. */
+    val sharedBy: String? = null,
     val createdAt: Long = 0,
     val trackCount: Int = 0,
+    /**
+     * Server track-derived cover. NOT rendered by the app: unless/until the server confirms it is
+     * per-request filter-aware, the receiver screen derives its cover from the FIRST
+     * client-filtered track (the filteredPlaylistCover doctrine) — server art could leak imagery
+     * for tracks this receiver's filters hide.
+     */
+    val thumbnail: String? = null,
+    val totalDurationSec: Int? = null,
 )
 
 @Serializable

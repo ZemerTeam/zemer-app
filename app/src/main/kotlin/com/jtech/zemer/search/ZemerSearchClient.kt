@@ -363,13 +363,13 @@ class ZemerSearchClient @Inject constructor() {
      * surfaced as [ZemerRateLimitedException] so the UI says "try again later" and never
      * retry-loops. [device] is the anonymous tracking uuid, used only for the rate limit.
      */
-    suspend fun createUserPlaylist(title: String, videoIds: List<String>, device: String?): ZemerUserPlaylistCreateResponse {
+    suspend fun createUserPlaylist(title: String, videoIds: List<String>, device: String?, sharedBy: String?): ZemerUserPlaylistCreateResponse {
         val response: HttpResponse = client.post("$BASE_URL/user-playlist") {
             contentType(ContentType.Application.Json)
             setBody(
                 zemerResponseJson.encodeToString(
                     ZemerUserPlaylistCreateRequest.serializer(),
-                    ZemerUserPlaylistCreateRequest(title = title, videoIds = videoIds, device = device),
+                    ZemerUserPlaylistCreateRequest(title = title, videoIds = videoIds, device = device, sharedBy = sharedBy),
                 ),
             )
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }

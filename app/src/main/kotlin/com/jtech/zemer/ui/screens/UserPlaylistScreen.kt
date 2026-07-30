@@ -59,6 +59,7 @@ import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.YouTubeListItem
+import com.jtech.zemer.ui.component.zemerCuratedPlaylistRuntimeLabel
 import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.menu.ImportPlaylistDialog
@@ -173,8 +174,13 @@ fun UserPlaylistScreen(
 
                                 Text(
                                     text = joinByBullet(
-                                        stringResource(R.string.user_playlist_shared_label),
+                                        // "shared by <name>" when the sender gave one, else the
+                                        // generic label; then count + runtime like every playlist.
+                                        page!!.header.sharedBy
+                                            ?.let { stringResource(R.string.user_playlist_shared_by, it) }
+                                            ?: stringResource(R.string.user_playlist_shared_label),
                                         pluralStringResource(R.plurals.n_song, songs.size, songs.size),
+                                        zemerCuratedPlaylistRuntimeLabel(page!!.header.totalDurationSec),
                                     ),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Normal,

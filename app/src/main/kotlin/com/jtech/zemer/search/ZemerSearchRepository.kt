@@ -320,9 +320,14 @@ class ZemerSearchRepository @Inject constructor(
      * tracking uuid (rate-limit only). Throws [ZemerRateLimitedException] on the daily cap. The
      * server is the single truth for `kept`/`dropped` (corpus validation + global blocked-ids).
      */
-    suspend fun shareUserPlaylist(title: String, videoIds: List<String>): ZemerUserPlaylistCreateResponse {
+    suspend fun shareUserPlaylist(title: String, videoIds: List<String>, sharedBy: String?): ZemerUserPlaylistCreateResponse {
         val device = context.dataStore.data.first()[TrackingDeviceIdKey]
-        return client.createUserPlaylist(title.take(USER_PLAYLIST_TITLE_MAX), videoIds.take(USER_PLAYLIST_MAX_TRACKS), device)
+        return client.createUserPlaylist(
+            title.take(USER_PLAYLIST_TITLE_MAX),
+            videoIds.take(USER_PLAYLIST_MAX_TRACKS),
+            device,
+            sharedBy?.trim()?.take(USER_PLAYLIST_SHARED_BY_MAX)?.takeIf { it.isNotBlank() },
+        )
     }
 
     /**
@@ -503,5 +508,6 @@ class ZemerSearchRepository @Inject constructor(
         /** Server caps for `POST /user-playlist` (handoff contract) — clamped client-side too. */
         private const val USER_PLAYLIST_TITLE_MAX = 120
         private const val USER_PLAYLIST_MAX_TRACKS = 500
+        private const val USER_PLAYLIST_SHARED_BY_MAX = 40
     }
 }
