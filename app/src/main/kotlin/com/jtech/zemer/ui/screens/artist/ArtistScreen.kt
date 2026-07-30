@@ -116,6 +116,7 @@ import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.videoRoute
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.fadingEdge
 import com.jtech.zemer.ui.utils.resize
@@ -532,7 +533,7 @@ fun ArtistScreen(
                                     .fillMaxWidth()
                                     .combinedClickable(
                                         onClick = {
-                                            if (song.id == mediaMetadata?.id) {
+                                            if (activeRowTapTogglesPlayPause(song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                 playerConnection.playPause()
                                             } else {
                                                 playerConnection.playQueue(
@@ -694,7 +695,7 @@ fun ArtistScreen(
                                                     val artistDisplay = song.artists.joinToString(" • ") { it.name }
                                                     navController.navigate(videoRoute(song.id, song.title, artistDisplay))
                                                 } else if (!isVideoSection) {
-                                                    if (song.id == mediaMetadata?.id) {
+                                                    if (activeRowTapTogglesPlayPause(song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                         playerConnection.playPause()
                                                     } else {
                                                         playerConnection.playQueue(

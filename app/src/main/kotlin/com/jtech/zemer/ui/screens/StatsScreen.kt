@@ -50,6 +50,7 @@ import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.ArtistMenu
 import com.jtech.zemer.ui.menu.SongMenu
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.utils.makeTimeString
@@ -255,7 +256,7 @@ fun StatsScreen(
                                 .fillMaxWidth()
                                 .combinedClickable(
                                     onClick = {
-                                        if (song.id == mediaMetadata?.id) {
+                                        if (activeRowTapTogglesPlayPause(song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                             playerConnection.playPause()
                                         } else {
                                             playerConnection.playQueue(

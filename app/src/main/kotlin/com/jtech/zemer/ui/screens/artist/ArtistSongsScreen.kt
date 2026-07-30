@@ -51,6 +51,7 @@ import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.menu.SongMenu
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
@@ -153,7 +154,7 @@ fun ArtistSongsScreen(
                         .fillMaxWidth()
                         .combinedClickable(
                             onClick = {
-                                if (song.id == mediaMetadata?.id) {
+                                if (activeRowTapTogglesPlayPause(song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                     playerConnection.playPause()
                                 } else {
                                     playerConnection.playQueue(

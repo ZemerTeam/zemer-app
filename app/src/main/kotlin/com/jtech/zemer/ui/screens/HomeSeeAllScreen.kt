@@ -55,6 +55,7 @@ import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeSeeAllStore
@@ -224,7 +225,7 @@ private fun SongList(songs: List<Song>, navController: NavController) {
                 },
                 modifier = Modifier.combinedClickable(
                     onClick = {
-                        if (shown.id == mediaMetadata?.id) playerConnection.playPause()
+                        if (activeRowTapTogglesPlayPause(shown.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) playerConnection.playPause()
                         else playerConnection.playQueue(ZemerRadioQueue.song(shown.toMediaMetadata(), playerConnection.service))
                     },
                     onLongClick = {
@@ -261,7 +262,7 @@ private fun LocalItemList(items: List<LocalItem>, navController: NavController) 
                     },
                     modifier = Modifier.combinedClickable(
                         onClick = {
-                            if (item.id == mediaMetadata?.id) playerConnection.playPause()
+                            if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) playerConnection.playPause()
                             else playerConnection.playQueue(ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service))
                         },
                         onLongClick = {

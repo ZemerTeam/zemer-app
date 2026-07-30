@@ -90,6 +90,7 @@ import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.videoRoute
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.latestreleases.LatestReleaseCard
@@ -233,7 +234,7 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .combinedClickable(
                         onClick = {
-                            if (it.id == mediaMetadata?.id) {
+                            if (activeRowTapTogglesPlayPause(it.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                 playerConnection.playPause()
                             } else {
                                 playerConnection.playQueue(
@@ -501,7 +502,7 @@ fun HomeScreen(
                                         .width(horizontalLazyGridItemWidth)
                                         .combinedClickable(
                                             onClick = {
-                                                if (song!!.id == mediaMetadata?.id) {
+                                                if (activeRowTapTogglesPlayPause(song!!.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                     playerConnection.playPause()
                                                 } else {
                                                     playerConnection.playQueue(
@@ -785,7 +786,7 @@ fun HomeScreen(
                                         .width(horizontalLazyGridItemWidth)
                                         .combinedClickable(
                                             onClick = {
-                                                if (song!!.id == mediaMetadata?.id) {
+                                                if (activeRowTapTogglesPlayPause(song!!.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                     playerConnection.playPause()
                                                 } else {
                                                     playerConnection.playQueue(

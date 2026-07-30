@@ -138,6 +138,7 @@ import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.screens.settings.DarkMode
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.filterWhitelisted
@@ -607,7 +608,7 @@ fun LocalPlaylistScreen(
                                     .fillMaxWidth()
                                     .combinedClickable(
                                         onClick = {
-                                            if (song.song.id == mediaMetadata?.id) {
+                                            if (activeRowTapTogglesPlayPause(song.song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                 playerConnection.playPause()
                                             } else {
                                                 playerConnection.playQueue(
@@ -735,7 +736,7 @@ fun LocalPlaylistScreen(
                                     .combinedClickable(
                                         onClick = {
                                             if (!selection) {
-                                                if (songWrapper.item.song.id == mediaMetadata?.id) {
+                                                if (activeRowTapTogglesPlayPause(songWrapper.item.song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                     playerConnection.playPause()
                                                 } else {
                                                     playerConnection.playQueue(

@@ -56,6 +56,7 @@ import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.videoRoute
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.ArtistItemsViewModel
 import com.metrolist.innertube.models.AlbumItem
@@ -184,7 +185,7 @@ fun ArtistItemsScreen(
                             } else if (!isVideoSection) {
                                 when (item) {
                                     is SongItem -> {
-                                        if (item.id == mediaMetadata?.id) {
+                                        if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                             playerConnection.playPause()
                                         } else {
                                             // Mark as video if from video section

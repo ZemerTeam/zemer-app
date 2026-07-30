@@ -78,6 +78,7 @@ import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.zemerCuratedPlaylistRuntimeLabel
 import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.viewmodels.ZemerCuratedPlaylistViewModel
@@ -415,7 +416,7 @@ fun ZemerCuratedPlaylistScreen(
                                 .weight(1f)
                                 .combinedClickable(
                                     onClick = {
-                                        if (song.id == mediaMetadata?.id) {
+                                        if (activeRowTapTogglesPlayPause(song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                             playerConnection.playPause()
                                         } else {
                                             playerConnection.playQueue(

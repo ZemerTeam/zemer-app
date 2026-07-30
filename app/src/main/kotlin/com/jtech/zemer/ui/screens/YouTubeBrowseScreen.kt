@@ -62,6 +62,7 @@ import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.YouTubeBrowseViewModel
@@ -175,7 +176,7 @@ fun YouTubeBrowseScreen(
                                             modifier =
                                             Modifier
                                                 .clickable {
-                                                    if (song.id == mediaMetadata?.id) {
+                                                    if (activeRowTapTogglesPlayPause(song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                         playerConnection.playPause()
                                                     } else {
                                                         playerConnection.playQueue(
