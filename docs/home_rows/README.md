@@ -17,7 +17,11 @@ serves **what the Zemer audience actually plays**, and touches InnerTube for **z
 2. **Quick Picks / Keep Listening / Forgotten Favorites** come from local Room. A brand-new user's empty
    Quick Picks seeds from the Zemer `auto-top-50` curated playlist, not YouTube.
 3. **Latest Releases** comes from the flipphoneguy feed; **Zemer Playlists** from `/zemer-playlists`.
-4. The **mainstream Trending row is removed** (it filtered to empty and never displayed).
+4. **Zemer Radio** (under Zemer Playlists) comes from `GET /stations` — the synchronized broadcast
+   stations, with a live now-playing line per card (lifecycle-scoped 60s on-screen ticker) and a
+   See-all grid (`zemer_stations`). Fail-soft like every Zemer row; full detail in
+   `docs/stations/README.md`.
+5. The **mainstream Trending row is removed** (it filtered to empty and never displayed).
 
 The **only** remaining `YouTube.*` call in `HomeViewModel` is `accountInfo()` — a signed-in user's own
 name/avatar for the account card. There is **no InnerTube scrape fallback**: if `/home-rows` is

@@ -15,6 +15,7 @@ This documentation is code-derived. It records facts visible in tracked reposito
 | [`build-release.md`](build-release.md) | Root Gradle/settings facts, GitHub Actions release workflow, native/submodule facts, and auxiliary JVM module facts. |
 | [`whitelist/README.md`](whitelist/README.md) | Artist whitelist storage, Firebase fetch path, filtering rules, sync integration points, UI entry points, and database queries. |
 | [`offline/README.md`](offline/README.md) | The offline search backup: snapshot sync engine, decoders, the read-layer port of the search server, server-first routing, kosher defenses, and its surfaces. |
+| [`stations/README.md`](stations/README.md) | Zemer Stations (synchronized broadcast radio): the tune-in sync design, the StationQueue broadcast semantics, transport lockdown, the home row, and telemetry. |
 | [`fcast/README.md`](fcast/README.md) | FCast casting: architecture and the cast seams, the on-demand native lib, discovery/connection, playback/transport routing, end-of-track auto-advance, the cast UI, and testing/troubleshooting. |
 | [`innertube/README.md`](innertube/README.md) | `:innertube` module architecture, request wrapper APIs, parser pages, models, dependencies, and consumers in the app module. |
 | [`ui/README.md`](ui/README.md) | Compose UI structure, navigation routes, screen files, reusable components, player UI, settings UI, and theme utilities. |

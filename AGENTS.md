@@ -181,6 +181,12 @@ Rules that must not regress:
 - **A brand-new user's empty Quick Picks seeds from Zemer**, not YouTube: `seedQuickPicksFromZemer`
   pulls the `auto-top-50` curated playlist. Returning users seed from local history; the seed is a no-op
   when Quick Picks is non-empty and never breaks Home on failure.
+- The **"Zemer Radio" row** (under Zemer Playlists) is the synchronized-broadcast stations shelf —
+  see §Zemer Stations below and `docs/stations/README.md`; its now-playing cards tick every 60s
+  while ON SCREEN only (`repeatOnLifecycle(RESUMED)`).
+- **Easter egg:** five quick taps on the Home top-bar title (1.5s idle resets) play a fixed song via
+  the deep-link path, whitelist-filtered (`ui/utils/HomeTitleEasterEgg.kt`, tap rule unit-tested).
+  Deliberate and owner-requested — do not "clean it up".
 - **Every content row has a "See all" arrow** → `home_see_all/{row}` (`HomeSeeAllRow`). The pages read a
   process-wide `HomeSeeAllStore` snapshot that `HomeViewModel` publishes each load (the FULL, un-rotated
   filtered pool), so See-all can never disagree with the row it opened from — no re-fetch, no re-filter.
@@ -234,8 +240,10 @@ queue) EXITS broadcast mode (`exitStationOnQueueMutation` — without it station
 queue persistence dies for the process); the session player masks all skip/seek/repeat/shuffle
 commands AND no-ops them against stale controllers, notifying command changes on every mask flip
 (`CastAwarePlayer.maskTransportForStation`/`notifyStationMaskChanged`); every raw-player transport
-surface (mini-player swipes, queue-sheet taps, lyrics buttons, the widget's onStartCommand skips,
-repeat/shuffle toggles) is gated on `isStationBroadcast`, and `PlayerConnection.seekTo/Next/
+surface (mini-player swipes, the full player's thumbnail swipe, queue-sheet taps, lyrics buttons,
+the widget's onStartCommand skips, repeat/shuffle toggles, and the Start-radio affordances — player
+menu row hidden, notification button disabled, `startRadioSeamlessly` chokepoint guard) is gated on
+`isStationBroadcast`, and `PlayerConnection.seekTo/Next/
 Previous` early-return during a broadcast; the station runway top-up ignores the Auto-load-more
 preference and repeat is forced OFF at station start; station items map through
 `ZemerResultMapper.toSongItem` (coverless slots get the derived artwork fallback); the row's

@@ -69,6 +69,7 @@
 | --- | --- | --- |
 | Root screens | `AccountScreen`, `AlbumScreen`, `BrowseScreen`, `ChartsScreen`, `HistoryScreen`, `HomeScreen`, `KidZoneScreen`, `LoginGateScreen`, `LoginScreen`, `MoodAndGenresScreen`, `NewReleaseScreen`, `OnboardingScreen`, `SplashScreen`, `StatsScreen`, `WhitelistedArtistsScreen`, `YouTubeBrowseScreen` | Top-level and feature screens wired from navigation or startup/auth flows. |
 | Onboarding screens | `OnboardingSearchBackupScreen`, `OnboardingChoiceCard` (`screens/onboarding/`) | The search-backup onboarding step and the shared radio-choice card every onboarding step uses. |
+| Stations screens | `ZemerStationsScreen` | The "Zemer Radio" See-all grid of live broadcast stations. |
 | Artist screens | `ArtistScreen`, `ArtistSongsScreen`, `ArtistAlbumsScreen`, `ArtistItemsScreen`, `ArtistSectionScreen` | Artist detail, song, album, extra item, and Zemer per-section see-all views. |
 | Library screens | `LibraryScreen`, `LibrarySongsScreen`, `LibraryAlbumsScreen`, `LibraryArtistsScreen`, `LibraryPlaylistsScreen`, `LibraryMixScreen`, `LibraryVideosScreen` | Local/library tabs and media groupings. |
 | Playlist screens | `AutoPlaylistScreen`, `CachePlaylistScreen`, `DownloadedContentScreen`, `DownloadedVideosScreen`, `LocalPlaylistScreen`, `OnlinePlaylistScreen`, `TopPlaylistScreen` | Playlist, cache, downloaded, online, and ranked media views. |
@@ -84,7 +85,8 @@
 > trusting a "component X doesn't exist" conclusion. Recent additions: `OfflineBackupPromo.kt`
 > (OfflineBackupPromoCard), `FocusBorder.kt` (Modifier.focusBorder), `Material3MenuItem.kt`,
 > `DownloadStatusUi.kt`, `MenuDialogs.kt`, `ZemerCuratedPlaylistCard.kt`,
-> `ChartRankCell.kt`, and `screens/onboarding/OnboardingChoiceCard.kt`.
+> `ChartRankCell.kt`, `ZemerStationCard.kt`, `screens/onboarding/OnboardingChoiceCard.kt`, and the
+> station player treatment in `ui/player/StationLiveBar.kt` (StationLiveBar + StationLiveBadge).
 
 | File | Lines | Composable declarations found |
 | --- | ---: | --- |
