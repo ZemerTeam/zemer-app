@@ -68,6 +68,7 @@ import com.jtech.zemer.ui.component.shimmer.GridItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.ChartsViewModel
@@ -268,7 +269,7 @@ fun ChartsScreen(
                                                 .width(horizontalLazyGridItemWidth)
                                                 .combinedClickable(
                                                     onClick = {
-                                                        if (song.id == mediaMetadata?.id) {
+                                                        if (activeRowTapTogglesPlayPause(song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                             playerConnection.playPause()
                                                         } else {
                                                             playerConnection.playQueue(

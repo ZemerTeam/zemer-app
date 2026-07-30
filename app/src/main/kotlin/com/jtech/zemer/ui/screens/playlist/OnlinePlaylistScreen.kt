@@ -101,6 +101,7 @@ import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.menu.SelectionMediaMetadataMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberPreference
@@ -453,7 +454,7 @@ fun OnlinePlaylistScreen(
                                     enabled = !hideExplicit || !song.item.second.explicit,
                                     onClick = {
                                         if (!selection) {
-                                            if (song.item.second.id == mediaMetadata?.id) {
+                                            if (activeRowTapTogglesPlayPause(song.item.second.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                 playerConnection.playPause()
                                             } else {
                                                 playerConnection.playQueue(

@@ -95,6 +95,7 @@ import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
 import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberPreference
@@ -459,7 +460,7 @@ fun AlbumScreen(
                                 .combinedClickable(
                                     onClick = {
                                         if (!selection) {
-                                            if (songWrapper.item.id == mediaMetadata?.id) {
+                                            if (activeRowTapTogglesPlayPause(songWrapper.item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                 playerConnection.playPause()
                                             } else {
                                                 playerConnection.service.getAutomix(playlistId)

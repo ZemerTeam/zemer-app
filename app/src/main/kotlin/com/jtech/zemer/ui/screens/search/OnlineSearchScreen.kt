@@ -69,6 +69,7 @@ import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.SearchBarIconOffsetX
 import com.jtech.zemer.ui.component.YouTubeListItem
@@ -270,7 +271,7 @@ fun OnlineSearchScreen(
                         onClick = {
                             when (item) {
                                 is SongItem -> {
-                                    if (item.id == mediaMetadata?.id) {
+                                    if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                         playerConnection.playPause()
                                     } else {
                                         playerConnection.playQueue(
@@ -344,7 +345,7 @@ fun OnlineSearchScreen(
                         if (event.key == Key.Enter || event.key == Key.DirectionCenter) {
                             when (item) {
                                 is SongItem -> {
-                                    if (item.id == mediaMetadata?.id) {
+                                    if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                         playerConnection.playPause()
                                     } else {
                                         playerConnection.playQueue(

@@ -56,6 +56,7 @@ import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -159,7 +160,7 @@ fun OnlineSearchResult(
                     if (isVideoFilter) {
                         val artistDisplay = item.artists.joinToString(" • ") { it.name }
                         navController.navigate(videoRoute(item.id, item.title, artistDisplay))
-                    } else if (item.id == mediaMetadata?.id) {
+                    } else if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                         playerConnection.playPause()
                     } else {
                         playerConnection.playQueue(
