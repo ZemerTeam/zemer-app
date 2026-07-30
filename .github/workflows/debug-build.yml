@@ -47,7 +47,7 @@ jobs:
         if: steps.cache-native.outputs.cache-hit != 'true'
         run: |
           gh release download v1.0.1 --repo ZemerTeam/zemer-bento4 --pattern 'bento4-libs.zip'
-          unzip bento4-libs.zip -d app/src/main
+          unzip -o bento4-libs.zip -d app/src/main
         env:
           GH_TOKEN: ${{ github.token }}
 
