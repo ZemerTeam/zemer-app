@@ -10,8 +10,12 @@ package com.jtech.zemer.ui.utils
  * through starts the song as a fresh play from 0, which also exits broadcast mode through the
  * same machinery as any queue swap. Off-station behavior is unchanged.
  *
- * Every active-row tap site routes its condition through this ONE predicate; never inline the
- * `&& !isStationBroadcast` per screen (drift between surfaces is how conventions rot).
+ * Every active-row tap site in `ui/screens/` routes its condition through this ONE predicate;
+ * never inline the `&& !isStationBroadcast` per screen (drift between surfaces is how conventions
+ * rot). The queue sheet (`ui/player/Queue.kt`) is deliberately NOT converted: its fall-through is
+ * a seek to the tapped window - a broadcast-forbidden mid-schedule jump - not a fresh play, its
+ * taps are already station-gated at the site, and pause is the one legitimate broadcast transport
+ * there.
  */
 fun activeRowTapTogglesPlayPause(isActiveSong: Boolean, isStationBroadcast: Boolean): Boolean =
     isActiveSong && !isStationBroadcast
