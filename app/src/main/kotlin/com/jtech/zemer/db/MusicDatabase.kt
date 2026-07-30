@@ -97,7 +97,7 @@ class MusicDatabase(
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 34,
+    version = 33,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -125,9 +125,7 @@ class MusicDatabase(
         AutoMigration(from = 24, to = 25),
         AutoMigration(from = 25, to = 26),
         // Additive: adds the recognition_history table only (no changes to existing tables).
-        AutoMigration(from = 32, to = 33),
-        // Additive: three nullable share columns on playlist (issue #176 live-updating shares).
-        AutoMigration(from = 33, to = 34)
+        AutoMigration(from = 32, to = 33)
     ],
 )
 @TypeConverters(Converters::class)

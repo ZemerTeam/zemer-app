@@ -217,6 +217,13 @@ val OfflineSubsetPromoDismissedKey = booleanPreferencesKey("offlineSubsetPromoDi
 // one-time typing; screened server-side.
 val UserPlaylistSharedByKey = stringPreferencesKey("userPlaylistSharedBy")
 
+/**
+ * JSON map of playlistId -> share credentials (issue #176 live-updating shares). Held in
+ * DataStore DELIBERATELY - not Room - so the whole share feature needs no schema migration; see
+ * [com.jtech.zemer.search.ShareCredentialStore].
+ */
+val UserPlaylistSharesKey = stringPreferencesKey("userPlaylistShares")
+
 val ContentFiltersAutoRestoredKey = booleanPreferencesKey("content_filters_auto_restored")
 val ContentFiltersRestoredEmailKey = stringPreferencesKey("content_filters_restored_email")
 val ContentFiltersLockedKey = booleanPreferencesKey("content_filters_locked")

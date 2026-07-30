@@ -6,8 +6,10 @@ import android.widget.Toast
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -16,9 +18,10 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.UserPlaylistSharedByKey
-import com.jtech.zemer.db.MusicDatabase
-import com.jtech.zemer.di.MusicDatabaseEntryPoint
+import com.jtech.zemer.di.ShareCredentialStoreEntryPoint
 import com.jtech.zemer.di.ZemerSearchRepositoryEntryPoint
+import com.jtech.zemer.search.ShareCredentials
+import com.jtech.zemer.search.ShareCredentialStore
 import com.jtech.zemer.search.ZemerRateLimitedException
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.ZemerShareGoneException
@@ -53,9 +56,9 @@ private fun repositoryOf(context: Context): ZemerSearchRepository = EntryPointAc
     .fromApplication(context.applicationContext, ZemerSearchRepositoryEntryPoint::class.java)
     .zemerSearchRepository()
 
-private fun databaseOf(context: Context): MusicDatabase = EntryPointAccessors
-    .fromApplication(context.applicationContext, MusicDatabaseEntryPoint::class.java)
-    .musicDatabase()
+private fun credentialStoreOf(context: Context): ShareCredentialStore = EntryPointAccessors
+    .fromApplication(context.applicationContext, ShareCredentialStoreEntryPoint::class.java)
+    .shareCredentialStore()
 
 /**
  * The issue-#176 share flow, callable from any playlist surface. Shares are LIVE (contract
@@ -75,33 +78,27 @@ suspend fun shareUserPlaylist(context: Context, playlistId: String, title: Strin
         return
     }
     val repository = repositoryOf(context)
-    val database = databaseOf(context)
-    val entity = withContext(Dispatchers.IO) { database.playlist(playlistId).first() }?.playlist
+    val store = credentialStoreOf(context)
+    val existing = store.get(playlistId)
 
-    val existingShareId = entity?.shareId
-    val ownerToken = entity?.shareOwnerToken
-    var mintFresh = existingShareId == null || ownerToken == null
-    if (existingShareId != null && ownerToken != null) {
+    var staleCredentials = false
+    if (existing != null) {
         val updated = runCatching {
-            withContext(Dispatchers.IO) { repository.updateUserPlaylist(existingShareId, ownerToken, title, videoIds, sharedBy) }
+            withContext(Dispatchers.IO) { repository.updateUserPlaylist(existing.shareId, existing.ownerToken, title, videoIds, sharedBy) }
         }
         updated.getOrNull()?.let { response ->
-            // ONE write covering the whole share state (hash + the name this share now carries).
-            database.query {
-                updatePlaylistShare(playlistId, existingShareId, ownerToken, sharedPlaylistFingerprint(title, videoIds), sharedBy)
-            }
-            openShareSheet(context, existingShareId, response.copy(url = response.url.ifBlank { userPlaylistUrl(existingShareId) }))
+            store.set(playlistId, existing.copy(syncedHash = sharedPlaylistFingerprint(title, videoIds), sharedBy = sharedBy))
+            openShareSheet(context, existing.shareId, response.copy(url = response.url.ifBlank { userPlaylistUrl(existing.shareId) }))
             return
         }
         val e = updated.exceptionOrNull()!!
         when {
             e is CancellationException -> throw e
-            // The share is gone server-side (pre-token row, takedown, rejected token). Do NOT
-            // queue a clear here - the create below ends in exactly one authoritative
-            // updatePlaylistShare per outcome; a separate clear racing that write on the query
-            // executor could land last and null a freshly minted token (the split-mutation trap
-            // the download doctrine forbids).
-            e is ZemerShareGoneException -> mintFresh = true
+            // The share is gone server-side (pre-token row, takedown, rejected token): fall
+            // through to mint a fresh link. DataStore edits are serialized, so the store.set
+            // below replaces (or the failure branch removes) the entry atomically - no
+            // clear-vs-store interleaving is possible.
+            e is ZemerShareGoneException -> staleCredentials = true
             else -> {
                 reportException(e)
                 Toast.makeText(appContext, R.string.share_playlist_failed, Toast.LENGTH_SHORT).show()
@@ -112,24 +109,24 @@ suspend fun shareUserPlaylist(context: Context, playlistId: String, title: Strin
 
     runCatching { withContext(Dispatchers.IO) { repository.shareUserPlaylist(title, videoIds, sharedBy) } }
         .onSuccess { response ->
-            database.query {
-                updatePlaylistShare(
-                    playlistId = playlistId,
-                    shareId = response.id.takeIf { it.isNotBlank() },
-                    ownerToken = response.ownerToken.takeIf { it.isNotBlank() },
-                    syncedHash = sharedPlaylistFingerprint(title, videoIds),
-                    sharedBy = sharedBy,
+            if (response.id.isNotBlank() && response.ownerToken.isNotBlank()) {
+                store.set(
+                    playlistId,
+                    ShareCredentials(
+                        shareId = response.id,
+                        ownerToken = response.ownerToken,
+                        syncedHash = sharedPlaylistFingerprint(title, videoIds),
+                        sharedBy = sharedBy,
+                    ),
                 )
             }
             openShareSheet(context, response.id, response)
         }
         .onFailure { e ->
             if (e is CancellationException) throw e
-            // The old credentials are dead: clear them (the single write for this outcome) so the
-            // next Share does not retry a doomed PUT first.
-            if (mintFresh && existingShareId != null) {
-                database.query { updatePlaylistShare(playlistId, null, null, null, null) }
-            }
+            // The old credentials are dead: drop them so the next Share does not retry a doomed
+            // PUT first.
+            if (staleCredentials) store.remove(playlistId)
             reportException(e)
             val message = if (e is ZemerRateLimitedException) R.string.share_playlist_rate_limited else R.string.share_playlist_failed
             Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
@@ -164,34 +161,13 @@ private fun openShareSheet(context: Context, shareId: String, response: ZemerUse
  */
 suspend fun unshareUserPlaylist(context: Context, playlistId: String) {
     val appContext = context.applicationContext
-    val database = databaseOf(context)
-    val entity = withContext(Dispatchers.IO) { database.playlist(playlistId).first() }?.playlist ?: return
-    val shareId = entity.shareId ?: return
-    val ownerToken = entity.shareOwnerToken ?: return
-    withdrawShare(appContext, shareId, ownerToken, onDone = {
-        database.query { updatePlaylistShare(playlistId, null, null, null, null) }
-    })
-}
-
-/** Runs [unshareUserPlaylist] on the surviving share scope (for tap handlers). */
-fun unshareUserPlaylistAsync(context: Context, playlistId: String) {
-    shareScope.launch { unshareUserPlaylist(context, playlistId) }
-}
-
-/**
- * Fire-and-forget share withdrawal with credentials captured BEFORE the local row disappears -
- * the delete-playlist path (the row deletion and this DELETE race, so nothing here may read or
- * write the playlist row).
- */
-fun withdrawShareAsync(context: Context, shareId: String, ownerToken: String) {
-    val appContext = context.applicationContext
-    shareScope.launch { withdrawShare(appContext, shareId, ownerToken, onDone = {}) }
-}
-
-private suspend fun withdrawShare(appContext: Context, shareId: String, ownerToken: String, onDone: () -> Unit) {
-    runCatching { withContext(Dispatchers.IO) { repositoryOf(appContext).deleteUserPlaylist(shareId, ownerToken) } }
+    val store = credentialStoreOf(context)
+    val credentials = store.get(playlistId) ?: return
+    runCatching {
+        withContext(Dispatchers.IO) { repositoryOf(appContext).deleteUserPlaylist(credentials.shareId, credentials.ownerToken) }
+    }
         .onSuccess {
-            onDone()
+            store.remove(playlistId)
             Toast.makeText(appContext, R.string.unshare_done, Toast.LENGTH_SHORT).show()
         }
         .onFailure { e ->
@@ -199,7 +175,7 @@ private suspend fun withdrawShare(appContext: Context, shareId: String, ownerTok
                 e is CancellationException -> throw e
                 // Already gone server-side = the goal state; clear and confirm.
                 e is ZemerShareGoneException -> {
-                    onDone()
+                    store.remove(playlistId)
                     Toast.makeText(appContext, R.string.unshare_done, Toast.LENGTH_SHORT).show()
                 }
                 else -> {
@@ -208,6 +184,24 @@ private suspend fun withdrawShare(appContext: Context, shareId: String, ownerTok
                 }
             }
         }
+}
+
+/** Runs [unshareUserPlaylist] on the surviving share scope (for tap handlers). */
+fun unshareUserPlaylistAsync(context: Context, playlistId: String) {
+    shareScope.launch { unshareUserPlaylist(context, playlistId) }
+}
+
+/**
+ * Whether [playlistId] has an active share, reactively (drives the Unshare affordance). Reads the
+ * credential map - never a DB column; the share feature is deliberately schema-free.
+ */
+@Composable
+fun rememberHasActiveShare(playlistId: String): State<Boolean> {
+    val context = LocalContext.current
+    val store = remember { credentialStoreOf(context) }
+    return produceState(initialValue = false, playlistId) {
+        store.shares.collect { value = it.containsKey(playlistId) }
+    }
 }
 
 /**

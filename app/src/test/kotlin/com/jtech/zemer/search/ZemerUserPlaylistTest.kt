@@ -153,4 +153,19 @@ class ZemerUserPlaylistTest {
             sharedPlaylistFingerprint("T", ids + "id501"),
         )
     }
+
+    @Test
+    fun `share credential map round-trips and tolerates corruption`() {
+        val map = mapOf(
+            "LPAAAA" to ShareCredentials(shareId = "Rtwwz3", ownerToken = "tok", syncedHash = "abc", sharedBy = "Avi"),
+            "LPBBBB" to ShareCredentials(shareId = "Qq11", ownerToken = "tok2"), // anonymous, never pushed
+        )
+        assertEquals(map, decodeShareCredentials(encodeShareCredentials(map)))
+        // Corrupt/absent blobs decode to empty - a background path must never crash on them.
+        assertEquals(emptyMap<String, ShareCredentials>(), decodeShareCredentials(null))
+        assertEquals(emptyMap<String, ShareCredentials>(), decodeShareCredentials("not json"))
+        // Unknown keys from a future field are ignored, not fatal.
+        val forward = """{"LPCCCC":{"shareId":"x","ownerToken":"y","futureField":1}}"""
+        assertEquals("x", decodeShareCredentials(forward)["LPCCCC"]?.shareId)
+    }
 }

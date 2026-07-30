@@ -134,8 +134,8 @@ import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.ShareUserPlaylistDialog
+import com.jtech.zemer.ui.menu.rememberHasActiveShare
 import com.jtech.zemer.ui.menu.unshareUserPlaylistAsync
-import com.jtech.zemer.ui.menu.withdrawShareAsync
 import com.jtech.zemer.ui.menu.CustomThumbnailMenu
 import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.menu.SelectionSongMenu
@@ -368,14 +368,9 @@ fun LocalPlaylistScreen(
                         showDeletePlaylistDialog = false
                         // Deleting the playlist also withdraws its shared link - a live link to a
                         // playlist the owner destroyed (and could never manage again) is a trap.
-                        // Credentials are captured BEFORE the row deletion races the DELETE.
-                        playlist?.playlist?.let { entity ->
-                            val shareId = entity.shareId
-                            val ownerToken = entity.shareOwnerToken
-                            if (shareId != null && ownerToken != null) {
-                                withdrawShareAsync(context, shareId, ownerToken)
-                            }
-                        }
+                        // Credentials live in DataStore, independent of the row, so the deletion
+                        // cannot race them (and the auto-updater's orphan sweep backstops this).
+                        playlist?.let { unshareUserPlaylistAsync(context, it.id) }
                         database.query {
                             playlist?.let { delete(it.playlist) }
                         }
@@ -928,6 +923,7 @@ fun LocalPlaylistHeader(
     val editable: Boolean = playlist.playlist.isEditable
     var showShareDialog by remember { mutableStateOf(false) }
     var showUnshareDialog by remember { mutableStateOf(false) }
+    val hasActiveShare by rememberHasActiveShare(playlist.id)
 
     if (showUnshareDialog) {
         DefaultDialog(
@@ -1432,7 +1428,7 @@ fun LocalPlaylistHeader(
 
                     // Unshare, shown only while a share is active: withdraws the link (404s
                     // everywhere) after an explicit confirm - it kills the link for everyone.
-                    if (playlist.playlist.shareId != null) {
+                    if (hasActiveShare) {
                         IconButton(
                             onClick = { showUnshareDialog = true },
                             modifier = Modifier.size(40.dp)
