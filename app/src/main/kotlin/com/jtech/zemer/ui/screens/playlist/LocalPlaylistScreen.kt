@@ -959,7 +959,10 @@ fun LocalPlaylistHeader(
         ShareUserPlaylistDialog(
             playlistId = playlist.id,
             playlistTitle = playlist.playlist.name,
-            videoIds = songs.map { it.song.id },
+            // POSITION order, not the current display sort: the auto-updater fingerprints
+            // ORDER BY position, so sharing a name-sorted view would trigger a contradictory
+            // re-PUT ~10s later that silently reorders the recipient's link.
+            videoIds = songs.sortedBy { it.map.position }.map { it.song.id },
             onDismiss = { showShareDialog = false },
         )
     }

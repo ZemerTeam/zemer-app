@@ -1,19 +1,16 @@
 package com.jtech.zemer.search
 
-import android.content.Context
-import com.jtech.zemer.constants.UserPlaylistSharedByKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.SharedPlaylistSnapshot
-import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.reportException
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -38,7 +35,6 @@ import javax.inject.Singleton
  */
 @Singleton
 class SharedPlaylistAutoUpdater @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val repository: ZemerSearchRepository,
     private val database: dagger.Lazy<MusicDatabase>,
 ) {
@@ -51,9 +47,23 @@ class SharedPlaylistAutoUpdater @Inject constructor(
         if (started) return
         started = true
         scope.launch {
-            database.get().sharedPlaylistSnapshots()
-                .debounce(UPDATE_DEBOUNCE_MS)
-                .collect { snapshots -> snapshots.forEach { push(it) } }
+            // The collector itself must be crash-proof: a DataStore/SQLite error surfacing
+            // through the flow would otherwise escape into a scope with no handler and kill the
+            // process from a background reconciler. Report, back off, re-subscribe.
+            while (true) {
+                try {
+                    database.get().sharedPlaylistSnapshots()
+                        .distinctUntilChanged()
+                        .debounce(UPDATE_DEBOUNCE_MS)
+                        .collect { snapshots -> snapshots.forEach { push(it) } }
+                    break
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    reportException(e)
+                    delay(COLLECTOR_RETRY_MS)
+                }
+            }
         }
     }
 
@@ -62,17 +72,22 @@ class SharedPlaylistAutoUpdater @Inject constructor(
         if (ids.isEmpty()) return
         val fingerprint = sharedPlaylistFingerprint(snapshot.name, ids)
         if (fingerprint == snapshot.shareSyncedHash) return
-        val sharedBy = context.dataStore.data.first()[UserPlaylistSharedByKey]?.takeIf { it.isNotBlank() }
         runCatching {
-            repository.updateUserPlaylist(snapshot.shareId, snapshot.shareOwnerToken, snapshot.name, ids, sharedBy)
+            // The name is the PER-SHARE stored one (null = anonymous), never the device-wide
+            // preference: a share created anonymous must stay anonymous whatever name the user
+            // later types for a different playlist.
+            repository.updateUserPlaylist(snapshot.shareId, snapshot.shareOwnerToken, snapshot.name, ids, snapshot.shareSharedBy)
         }.onSuccess {
             database.get().query { updatePlaylistShareSyncedHash(snapshot.playlistId, fingerprint) }
         }.onFailure { e ->
             when {
                 e is CancellationException -> throw e
                 e is ZemerShareGoneException -> database.get().query {
-                    updatePlaylistShare(snapshot.playlistId, null, null, null)
+                    updatePlaylistShare(snapshot.playlistId, null, null, null, null)
                 }
+                // A definitive HTTP error (contract drift, rate limit) must be VISIBLE - a server
+                // that answers with 400s would otherwise silently stop every live share forever.
+                e is ZemerShareHttpException -> reportException(e)
                 e.isZemerServerUnreachable() -> Timber.d("share auto-update deferred: server unreachable")
                 else -> reportException(e)
             }
@@ -82,5 +97,8 @@ class SharedPlaylistAutoUpdater @Inject constructor(
     companion object {
         /** Collapses an edit burst (multi-select removes, drag reorders) into one PUT. */
         private const val UPDATE_DEBOUNCE_MS = 10_000L
+
+        /** Backoff before re-subscribing after a flow-level failure (corrupt prefs, DB error). */
+        private const val COLLECTOR_RETRY_MS = 60_000L
     }
 }

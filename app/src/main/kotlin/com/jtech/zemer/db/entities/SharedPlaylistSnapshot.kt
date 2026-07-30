@@ -11,6 +11,8 @@ data class SharedPlaylistSnapshot(
     val shareId: String,
     val shareOwnerToken: String,
     val shareSyncedHash: String?,
+    /** The name THIS share was created with (null = anonymous) - what updates must keep sending. */
+    val shareSharedBy: String?,
     val songIdsCsv: String?,
 ) {
     val songIds: List<String>

@@ -943,8 +943,8 @@ interface DatabaseDao {
     fun playlist(playlistId: String): Flow<Playlist?>
 
     /** Issue #176 live shares: set/clear this playlist's share credentials + synced-state hash. */
-    @Query("UPDATE playlist SET shareId = :shareId, shareOwnerToken = :ownerToken, shareSyncedHash = :syncedHash WHERE id = :playlistId")
-    fun updatePlaylistShare(playlistId: String, shareId: String?, ownerToken: String?, syncedHash: String?)
+    @Query("UPDATE playlist SET shareId = :shareId, shareOwnerToken = :ownerToken, shareSyncedHash = :syncedHash, shareSharedBy = :sharedBy WHERE id = :playlistId")
+    fun updatePlaylistShare(playlistId: String, shareId: String?, ownerToken: String?, syncedHash: String?, sharedBy: String?)
 
     @Query("UPDATE playlist SET shareSyncedHash = :syncedHash WHERE id = :playlistId")
     fun updatePlaylistShareSyncedHash(playlistId: String, syncedHash: String?)
@@ -956,7 +956,7 @@ interface DatabaseDao {
      */
     @Query(
         """
-        SELECT p.id AS playlistId, p.name, p.shareId, p.shareOwnerToken, p.shareSyncedHash,
+        SELECT p.id AS playlistId, p.name, p.shareId, p.shareOwnerToken, p.shareSyncedHash, p.shareSharedBy,
                (SELECT GROUP_CONCAT(songId) FROM
                    (SELECT songId FROM playlist_song_map WHERE playlistId = p.id ORDER BY position)
                ) AS songIdsCsv

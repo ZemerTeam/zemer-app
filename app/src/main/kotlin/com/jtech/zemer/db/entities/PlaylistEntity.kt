@@ -39,6 +39,10 @@ data class PlaylistEntity(
     val shareId: String? = null,
     val shareOwnerToken: String? = null,
     val shareSyncedHash: String? = null,
+    // The sharer name THIS share was created/last re-shared with (null = anonymous). The
+    // auto-updater sends this, never the device-wide name preference - a share created anonymous
+    // must never be retroactively de-anonymized by a name typed for a different playlist.
+    val shareSharedBy: String? = null,
 ) {
     companion object {
         const val LIKED_PLAYLIST_ID = "LP_LIKED"

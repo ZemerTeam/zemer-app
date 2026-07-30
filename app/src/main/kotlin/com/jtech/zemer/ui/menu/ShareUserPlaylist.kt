@@ -6,6 +6,8 @@ import android.widget.Toast
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -26,7 +28,6 @@ import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CancellationException
@@ -79,21 +80,28 @@ suspend fun shareUserPlaylist(context: Context, playlistId: String, title: Strin
 
     val existingShareId = entity?.shareId
     val ownerToken = entity?.shareOwnerToken
+    var mintFresh = existingShareId == null || ownerToken == null
     if (existingShareId != null && ownerToken != null) {
         val updated = runCatching {
             withContext(Dispatchers.IO) { repository.updateUserPlaylist(existingShareId, ownerToken, title, videoIds, sharedBy) }
         }
         updated.getOrNull()?.let { response ->
-            database.query { updatePlaylistShareSyncedHash(playlistId, sharedPlaylistFingerprint(title, videoIds)) }
+            // ONE write covering the whole share state (hash + the name this share now carries).
+            database.query {
+                updatePlaylistShare(playlistId, existingShareId, ownerToken, sharedPlaylistFingerprint(title, videoIds), sharedBy)
+            }
             openShareSheet(context, existingShareId, response.copy(url = response.url.ifBlank { userPlaylistUrl(existingShareId) }))
             return
         }
         val e = updated.exceptionOrNull()!!
         when {
             e is CancellationException -> throw e
-            // The share is gone server-side (pre-token row, takedown, rejected token): clear the
-            // dead credentials and fall through to mint a fresh link.
-            e is ZemerShareGoneException -> database.query { updatePlaylistShare(playlistId, null, null, null) }
+            // The share is gone server-side (pre-token row, takedown, rejected token). Do NOT
+            // queue a clear here - the create below ends in exactly one authoritative
+            // updatePlaylistShare per outcome; a separate clear racing that write on the query
+            // executor could land last and null a freshly minted token (the split-mutation trap
+            // the download doctrine forbids).
+            e is ZemerShareGoneException -> mintFresh = true
             else -> {
                 reportException(e)
                 Toast.makeText(appContext, R.string.share_playlist_failed, Toast.LENGTH_SHORT).show()
@@ -110,12 +118,18 @@ suspend fun shareUserPlaylist(context: Context, playlistId: String, title: Strin
                     shareId = response.id.takeIf { it.isNotBlank() },
                     ownerToken = response.ownerToken.takeIf { it.isNotBlank() },
                     syncedHash = sharedPlaylistFingerprint(title, videoIds),
+                    sharedBy = sharedBy,
                 )
             }
             openShareSheet(context, response.id, response)
         }
         .onFailure { e ->
             if (e is CancellationException) throw e
+            // The old credentials are dead: clear them (the single write for this outcome) so the
+            // next Share does not retry a doomed PUT first.
+            if (mintFresh && existingShareId != null) {
+                database.query { updatePlaylistShare(playlistId, null, null, null, null) }
+            }
             reportException(e)
             val message = if (e is ZemerRateLimitedException) R.string.share_playlist_rate_limited else R.string.share_playlist_failed
             Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
@@ -155,7 +169,7 @@ suspend fun unshareUserPlaylist(context: Context, playlistId: String) {
     val shareId = entity.shareId ?: return
     val ownerToken = entity.shareOwnerToken ?: return
     withdrawShare(appContext, shareId, ownerToken, onDone = {
-        database.query { updatePlaylistShare(playlistId, null, null, null) }
+        database.query { updatePlaylistShare(playlistId, null, null, null, null) }
     })
 }
 
@@ -210,24 +224,35 @@ fun ShareUserPlaylistDialog(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val (savedName) = rememberPreference(UserPlaylistSharedByKey, defaultValue = "")
+    // The saved name is READ TO COMPLETION before the dialog renders: TextFieldDialog latches its
+    // initial value in an unkeyed remember, so a collectAsState default ('' on frame 1) would
+    // permanently show an empty field however fast the real value arrives.
+    val savedName by produceState<String?>(initialValue = null) {
+        value = context.applicationContext.dataStore.data.first()[UserPlaylistSharedByKey].orEmpty()
+    }
 
-    TextFieldDialog(
-        icon = { Icon(painterResource(R.drawable.share), contentDescription = null) },
-        title = { Text(stringResource(R.string.share_playlist_as_title)) },
-        initialTextFieldValue = TextFieldValue(savedName, selection = TextRange(savedName.length)),
-        placeholder = { Text(stringResource(R.string.share_playlist_name_hint)) },
-        autoFocus = savedName.isEmpty(),
-        isInputValid = { true }, // empty = share anonymously
-        onDismiss = onDismiss,
-        onDone = { name ->
-            val trimmed = name.trim()
-            shareScope.launch {
-                // The name write goes through the same surviving scope - rememberPreference's
-                // setter launches into the composition scope this tap is cancelling.
-                context.applicationContext.dataStore.edit { it[UserPlaylistSharedByKey] = trimmed }
-                shareUserPlaylist(context, playlistId, playlistTitle, videoIds, trimmed.takeIf { it.isNotBlank() })
-            }
-        },
-    )
+    savedName?.let { name ->
+        TextFieldDialog(
+            icon = { Icon(painterResource(R.drawable.share), contentDescription = null) },
+            title = { Text(stringResource(R.string.share_playlist_as_title)) },
+            initialTextFieldValue = TextFieldValue(name, selection = TextRange(name.length)),
+            placeholder = { Text(stringResource(R.string.share_playlist_name_hint)) },
+            autoFocus = name.isEmpty(),
+            isInputValid = { true }, // empty = share anonymously
+            onDismiss = onDismiss,
+            onDone = { input ->
+                val trimmed = input.trim()
+                shareScope.launch {
+                    // Remember only a real name: OK on an empty field means "share this one
+                    // anonymously", not "forget my name" - wiping would kill the advertised
+                    // one-time-typing behavior. (The write rides the surviving scope;
+                    // rememberPreference's setter would die with the dismissing composition.)
+                    if (trimmed.isNotBlank()) {
+                        context.applicationContext.dataStore.edit { it[UserPlaylistSharedByKey] = trimmed }
+                    }
+                    shareUserPlaylist(context, playlistId, playlistTitle, videoIds, trimmed.takeIf { it.isNotBlank() })
+                }
+            },
+        )
+    }
 }

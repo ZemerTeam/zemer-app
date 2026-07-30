@@ -72,6 +72,8 @@ import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.viewmodels.UserPlaylistViewModel
 import com.metrolist.innertube.models.SongItem
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 /**
  * A shared user playlist opened from its link (issue #176), in the app's standard playlist-detail
@@ -266,7 +268,17 @@ fun UserPlaylistScreen(
             playlistTitle = page?.header?.title.orEmpty(),
             onGetSong = {
                 val songs = page?.songs.orEmpty()
-                database.transaction { songs.forEach { insert(it.toMediaMetadata()) } }
+                // AWAIT the song inserts before handing the ids back: the transaction posts to
+                // Room's executor, and addSongToPlaylist's map rows carry an FK on song.id - a
+                // map insert winning the write lock first would throw SQLiteConstraintException
+                // (IGNORE does not cover FK violations) for the up-to-500 not-yet-local songs of
+                // the normal recipient case.
+                suspendCancellableCoroutine { cont ->
+                    database.transaction {
+                        songs.forEach { insert(it.toMediaMetadata()) }
+                        cont.resume(Unit)
+                    }
+                }
                 songs.map { it.id }
             },
             onDismiss = { showImportDialog = false },

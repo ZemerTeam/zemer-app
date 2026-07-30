@@ -23,6 +23,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.di.zemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.sync.PodcastSyncLogic
+import com.jtech.zemer.ui.menu.withdrawShareAsync
 import com.jtech.zemer.utils.filterWhitelisted
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
@@ -1058,6 +1059,15 @@ class SyncUtils @Inject constructor(
             }
             savedPlaylists.forEach {
                 if (it.playlist.browseId != null) {
+                    // Deleting the row destroys shareId/shareOwnerToken - the SOLE capability for
+                    // managing an active shared link - so withdraw the share first (credentials
+                    // captured here; the DELETE races the row deletion harmlessly). Otherwise
+                    // logout would orphan a live public link forever.
+                    val shareId = it.playlist.shareId
+                    val ownerToken = it.playlist.shareOwnerToken
+                    if (shareId != null && ownerToken != null) {
+                        withdrawShareAsync(context, shareId, ownerToken)
+                    }
                     try { database.transaction { delete(it.playlist) } } catch (e: Exception) { }
                 }
             }

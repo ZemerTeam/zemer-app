@@ -51,6 +51,14 @@ class ZemerRateLimitedException : IOException("Zemer share rate limit reached")
  */
 class ZemerShareGoneException : Exception("Zemer share gone or owner token rejected")
 
+/**
+ * A definitive HTTP failure from an owner-token PUT (400/429/5xx - anything but success and the
+ * 403/404 gone cases). Deliberately NOT an IOException: the auto-updater classifies IOException as
+ * "server unreachable, defer silently", and a server that is answering with an error (contract
+ * drift, rate limit) must be REPORTED, not deferred forever.
+ */
+class ZemerShareHttpException(status: Int) : Exception("Zemer share update returned HTTP $status")
+
 internal val zemerResponseJson = Json {
     ignoreUnknownKeys = true
     isLenient = true
@@ -414,7 +422,7 @@ class ZemerSearchClient @Inject constructor() {
             throw ZemerShareGoneException()
         }
         if (!response.status.isSuccess()) {
-            throw IOException("Zemer user-playlist update returned HTTP ${response.status.value}")
+            throw ZemerShareHttpException(response.status.value)
         }
         return zemerResponseJson.decodeFromString(ZemerUserPlaylistCreateResponse.serializer(), response.bodyAsText())
     }
