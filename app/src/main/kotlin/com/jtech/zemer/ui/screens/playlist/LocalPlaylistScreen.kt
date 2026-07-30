@@ -133,6 +133,7 @@ import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
+import com.jtech.zemer.ui.menu.ShareUserPlaylistDialog
 import com.jtech.zemer.ui.menu.CustomThumbnailMenu
 import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.menu.SelectionSongMenu
@@ -913,6 +914,15 @@ fun LocalPlaylistHeader(
 
     val liked = playlist.playlist.bookmarkedAt != null
     val editable: Boolean = playlist.playlist.isEditable
+    var showShareDialog by remember { mutableStateOf(false) }
+
+    if (showShareDialog) {
+        ShareUserPlaylistDialog(
+            playlistTitle = playlist.playlist.name,
+            videoIds = songs.map { it.song.id },
+            onDismiss = { showShareDialog = false },
+        )
+    }
 
     val overrideThumbnail = remember {mutableStateOf<String?>(null)}
     var isCustomThumbnail: Boolean = playlist.thumbnails.firstOrNull()?.let {
@@ -1358,6 +1368,20 @@ fun LocalPlaylistHeader(
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.queue_music),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    // Issue #176: share as an unguessable server snapshot link, same flow as the
+                    // long-press menu's Share row. The songs list here is the screen's already-
+                    // loaded state, so there is no async race to guard.
+                    IconButton(
+                        onClick = { showShareDialog = true },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.share),
                             contentDescription = null,
                             modifier = Modifier.size(24.dp)
                         )
