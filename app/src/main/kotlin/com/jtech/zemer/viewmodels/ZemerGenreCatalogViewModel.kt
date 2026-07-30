@@ -1,11 +1,12 @@
 package com.jtech.zemer.viewmodels
 
 import android.content.Context
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jtech.zemer.search.ZemerCuratedPlaylistPage
+import com.jtech.zemer.search.GenreKind
+import com.jtech.zemer.search.ZemerGenreSummary
 import com.jtech.zemer.search.ZemerSearchRepository
+import com.jtech.zemer.search.genresByKind
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.reportException
@@ -19,24 +20,21 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Backs one curated "Zemer Playlists" detail screen. The id is a stable server slug (never a YouTube
- * playlist id), fetched through the same `/zemer-playlists` endpoint as the Home section with the same
- * content-filter flags, so the opened tracklist always matches the card that was tapped.
+ * Backs the genre catalog screen: `/genres` grouped by kind (Styles, then Occasions), each bucket in
+ * the server's most-populated-first order. Non-music genres never reach the screen ([genresByKind]
+ * drops them — handoff rule: spoken-word slugs exist to be excluded, not featured). Same fetch
+ * discipline as the curated playlists: a fresh fetch per screen open, a re-fetch on content-flag
+ * change, and a response fetched under stale flags is dropped ([zemerOptionsStillCurrent]).
  */
 @HiltViewModel
-class ZemerCuratedPlaylistViewModel @Inject constructor(
+class ZemerGenreCatalogViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: ZemerSearchRepository,
-    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-    private val playlistId = savedStateHandle.get<String>("playlistId")!!
 
     sealed interface UiState {
         data object Loading : UiState
-        data class Loaded(val page: ZemerCuratedPlaylistPage) : UiState
-
-        /** 404: curation changed between the list and this open — back out and let Home refresh. */
-        data object NotFound : UiState
+        data class Loaded(val groups: Map<GenreKind, List<ZemerGenreSummary>>) : UiState
         data object Error : UiState
     }
 
@@ -45,9 +43,6 @@ class ZemerCuratedPlaylistViewModel @Inject constructor(
 
     init {
         load()
-        // The server flags sent at fetch time are the ONLY filter on this surface — without this, a
-        // detail kept alive on the back stack (or open during a remote preference sync) keeps
-        // showing tracks fetched under the old flags.
         reloadOnContentFlagChange { load() }
     }
 
@@ -55,17 +50,19 @@ class ZemerCuratedPlaylistViewModel @Inject constructor(
         _state.value = UiState.Loading
         viewModelScope.launch(Dispatchers.IO) {
             val options = zemerSearchOptions(context)
-            runCatching { repository.curatedPlaylist(playlistId, options) }
-                .onSuccess { page ->
-                    // Same guard as the list VM: never publish a response fetched under flags that
-                    // are no longer current (a slow fetch racing a flag change re-loads anyway).
+            runCatching { repository.genres(options) }
+                .onSuccess { genres ->
                     if (zemerOptionsStillCurrent(options, ContentFilterState.current)) {
-                        _state.value = if (page == null) UiState.NotFound else UiState.Loaded(page)
+                        _state.value = UiState.Loaded(genresByKind(genres))
                     }
                 }
                 .onFailure {
                     reportException(it)
-                    _state.value = UiState.Error
+                    // Same still-current guard as the success path: a stale-flag failure is already
+                    // superseded by the collector's reload and must not clobber the fresher state.
+                    if (zemerOptionsStillCurrent(options, ContentFilterState.current)) {
+                        _state.value = UiState.Error
+                    }
                 }
         }
     }

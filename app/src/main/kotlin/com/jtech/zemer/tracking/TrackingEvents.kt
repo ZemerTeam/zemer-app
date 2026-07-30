@@ -142,6 +142,8 @@ object TrackingSurface {
     fun album(id: String) = "album:$id"
     fun playlist(id: String) = "playlist:$id"
     fun zemer(id: String) = "zemer:$id"
+    /** A genre detail page's tracklist; `id` is the server genre slug. */
+    fun genre(id: String) = "genre:$id"
 }
 
 /** At most this many ids per impression event; the server truncates an event beyond it. */

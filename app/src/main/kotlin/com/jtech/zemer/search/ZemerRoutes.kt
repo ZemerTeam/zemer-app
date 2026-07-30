@@ -26,3 +26,13 @@ fun zemerPlaylistRoute(playlistId: String, community: Boolean = false): String =
  */
 fun zemerAlbumRoute(album: AlbumItem): String =
     "album/${album.browseId}?zemer=true&playlistId=${album.playlistId}"
+
+/** The genre catalog screen (the home chips row's see-all). */
+fun zemerGenresRoute(): String = "genres"
+
+/**
+ * One genre's detail screen. [id] is the server genre slug — the vocabulary is `[\w-]` only
+ * (e.g. "shavuos-simchas-torah"), URL- and nav-safe as-is, so no encoding is applied (keeps the
+ * builder pure for the JVM tests, like the other helpers here).
+ */
+fun zemerGenreRoute(id: String): String = "genre/$id"

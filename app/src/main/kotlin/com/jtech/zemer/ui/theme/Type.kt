@@ -2,17 +2,26 @@ package com.jtech.zemer.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.jtech.zemer.R
 
-// TODO: Define or import actual M3 Expressive font families if needed.
-// For now, using default FontFamily as a placeholder.
+// Display font, GENRE SURFACES ONLY (owner scope, 2026-07-30: "only titles and play on genre
+// pages and the genre list cards" - NOT app-wide): Heebo heavy cuts, full Hebrew coverage so mixed
+// Hebrew/English titles never fall back to system Roboto mid-line. The app-wide type scale below
+// stays on the platform default by the same directive.
 
-// Define M3 Expressive Typography based on Material Design guidelines
-// https://m3.material.io/styles/typography/type-scale-tokens
-// Note: M3 Expressive might introduce subtle changes or new roles.
-// Referencing standard M3 roles for now, adjust if Expressive spec differs significantly.
+/** Genre headers/labels. Heavy cuts only - a Normal-weight request still renders the bold cut. */
+val HeaderFontFamily = FontFamily(
+    Font(R.font.heebo_bold, FontWeight.Normal),
+    Font(R.font.heebo_bold, FontWeight.Medium),
+    Font(R.font.heebo_extrabold, FontWeight.Bold),
+)
+
+// M3 type scale (https://m3.material.io/styles/typography/type-scale-tokens), platform default
+// families throughout (see the scope note above).
 val AppTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = FontFamily.Default,
@@ -120,4 +129,3 @@ val AppTypography = Typography(
         letterSpacing = 0.5.sp
     )
 )
-

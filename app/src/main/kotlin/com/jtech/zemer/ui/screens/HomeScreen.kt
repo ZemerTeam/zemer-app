@@ -56,6 +56,7 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.ShowHomeGenresKey
 import com.jtech.zemer.constants.GridThumbnailHeight
 import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.db.entities.Album
@@ -66,6 +67,7 @@ import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.search.zemerAlbumRoute
+import com.jtech.zemer.search.zemerGenresRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.tracking.TrackImpressionsByKey
@@ -104,6 +106,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.jtech.zemer.viewmodels.STATION_ROW_REFRESH_MS
+import com.jtech.zemer.viewmodels.ZemerGenresViewModel
 import com.jtech.zemer.viewmodels.ZemerStationsViewModel
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -152,9 +155,16 @@ fun HomeScreen(
     val zemerPlaylists by zemerPlaylistsViewModel.playlists.collectAsState()
     val zemerStationsViewModel: ZemerStationsViewModel = hiltViewModel()
     val zemerStations by zemerStationsViewModel.stations.collectAsState()
+    val zemerGenresViewModel: ZemerGenresViewModel = hiltViewModel()
+    val homeGenres by zemerGenresViewModel.genres.collectAsState()
+    // Settings → Appearance owns this toggle (there is deliberately no in-row hide affordance).
+    val (showHomeGenres, _) = rememberPreference(ShowHomeGenresKey, defaultValue = true)
     // The curated endpoint's freshness contract is a plain re-fetch on screen open (single-digit-ms
     // server reads) — this also picks up a card removed by curation while a detail open 404'd.
-    LaunchedEffect(Unit) { zemerPlaylistsViewModel.refresh() }
+    LaunchedEffect(Unit) {
+        zemerPlaylistsViewModel.refresh()
+        zemerGenresViewModel.refresh()
+    }
     val stationsLifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(Unit) {
         // Keep the cards' now-playing line live while Home is actually VISIBLE: repeatOnLifecycle
@@ -191,6 +201,23 @@ fun HomeScreen(
 
     val scope = rememberCoroutineScope()
     val lazylistState = rememberLazyListState()
+
+    // Keep the viewport on the TRUE top when the genres strip streams in: Quick Picks (local DB)
+    // renders first, the network-fetched genres insert ABOVE it, and LazyColumn anchors scroll to
+    // the first visible ITEM — so on a fresh launch the new first section landed off-screen and the
+    // user had to swipe up to find it. When the strip appears while the list is still effectively
+    // at rest at the top (small index, zero offset, no active scroll), snap back to index 0. A user
+    // who has genuinely scrolled away is never yanked.
+    val genresSectionVisible = showHomeGenres && homeGenres.isNotEmpty()
+    LaunchedEffect(genresSectionVisible) {
+        if (genresSectionVisible &&
+            !lazylistState.isScrollInProgress &&
+            lazylistState.firstVisibleItemIndex <= 2 &&
+            lazylistState.firstVisibleItemScrollOffset == 0
+        ) {
+            lazylistState.scrollToItem(0)
+        }
+    }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val scrollToTop =
         backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
@@ -397,6 +424,7 @@ fun HomeScreen(
                     // on every pull so newly curated playlists appear without an app restart.
                     zemerPlaylistsViewModel.refresh()
                     zemerStationsViewModel.refresh()
+                    zemerGenresViewModel.refresh()
                 }
             ),
         contentAlignment = Alignment.TopStart
@@ -437,6 +465,28 @@ fun HomeScreen(
             state = lazylistState,
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
         ) {
+                // Genre chips carousel — the first thing on Home, above Quick Picks (owner
+                // placement). Hidden by the Appearance toggle or when the catalog is
+                // empty/unreachable (fail-soft, like every optional home row).
+                if (showHomeGenres) {
+                    homeGenres.takeIf { it.isNotEmpty() }?.let { genres ->
+                        item(key = "genre_chips_title", contentType = "header") {
+                            NavigationTitle(
+                                title = stringResource(R.string.genres),
+                                onClick = { navController.navigate(zemerGenresRoute()) },
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
+                        item(key = "genre_chips_list", contentType = "grid") {
+                            HomeGenresRow(
+                                genres = genres,
+                                navController = navController,
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
+                    }
+                }
+
                 quickPicks.takeIf { it.isNotEmpty() }?.let { quickPicks ->
                     item(key = "quick_picks_title", contentType = "header") {
                         NavigationTitle(

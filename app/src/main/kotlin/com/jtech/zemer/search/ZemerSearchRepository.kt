@@ -6,6 +6,7 @@ import com.jtech.zemer.offline.OfflineReadProvider
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumItems
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
 import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
+import com.jtech.zemer.search.ZemerResultMapper.toGenrePage
 import com.jtech.zemer.search.ZemerResultMapper.toSongItems
 import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.models.AlbumItem
@@ -281,6 +282,43 @@ class ZemerSearchRepository @Inject constructor(
             )
         }
 
+    /**
+     * The genre catalog for the home chips row + the catalog screen, in the server's
+     * most-populated-first order, with counts computed against the flags sent. LIVE-ONLY: the genre
+     * taxonomy is not in the offline snapshot, so this is deliberately not wrapped in
+     * [serverOrOffline] (like `/playlist`, `/radio` and `/stations`). Memoized for a short TTL,
+     * KEYED ON THE FLAG PAIR (so a response fetched under one flag set is never rendered under
+     * another): the catalog is fetched by two independent surfaces (the Home strip's ViewModel and
+     * the catalog screen's) and Home re-fires its refresh on every return to the tab, so a common
+     * Home → see-all → chip → back loop otherwise issues ~4 identical requests within seconds for
+     * data that changes on curation timescales. Sparse/duplicate/non-music cleanup is the caller's
+     * ([musicGenres]) — the raw kinds are needed to group the catalog.
+     */
+    suspend fun genres(options: ZemerSearchOptions): List<ZemerGenreSummary> {
+        val key = "${options.allowFemale}|${options.blockVideos}"
+        val now = System.currentTimeMillis()
+        genresCache?.let { (cachedKey, at, value) ->
+            if (cachedKey == key && now - at < GENRES_CACHE_TTL_MS) return value
+        }
+        return client.genres(options.allowFemale, options.blockVideos)
+            .genres
+            .filter { it.id.isNotBlank() }
+            .distinctBy { it.id }
+            .also { genresCache = Triple(key, now, it) }
+    }
+
+    // One-entry TTL memo for [genres]; a benign write race just refreshes the same data.
+    @Volatile
+    private var genresCache: Triple<String, Long, List<ZemerGenreSummary>>? = null
+
+    /**
+     * One genre's page, filtered server-side for the flags sent; [offset] pages the songs/videos
+     * tracklist. Null = 404 (unknown slug, or nothing survives these flags) — the screen backs out
+     * gracefully, mirroring [curatedPlaylist]. Live-only and uncached, like [genres].
+     */
+    suspend fun genre(id: String, options: ZemerSearchOptions, offset: Int = 0): ZemerResultMapper.ZemerGenrePage? =
+        client.genre(id, options.allowFemale, options.blockVideos, offset)?.toGenrePage(options.hideExplicit)
+
     private val cacheMutex = Mutex()
     private val cache = object : LinkedHashMap<String, ZemerSearchResponse>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ZemerSearchResponse>) = size > CACHE_SIZE
@@ -311,6 +349,9 @@ class ZemerSearchRepository @Inject constructor(
     }
 
     companion object {
+        // Long enough to absorb a navigation burst, short enough that a curation change appears
+        // within a minute (the catalog itself updates on far slower timescales).
+        private const val GENRES_CACHE_TTL_MS = 60_000L
         private const val K_SUMMARY = 8
         private const val K_FILTER = 100
         private const val K_SUGGEST = 8

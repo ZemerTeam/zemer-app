@@ -1,0 +1,12 @@
+<!-- Hand-authored chanukiah (8 candles + taller shamash with flame), drawn to match the Material
+     Symbols outlined weight; 960 viewport like the downloaded genre_* set. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960"
+    android:tint="?attr/colorControlNormal">
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M102,240L158,240L158,480L102,480ZM192,240L248,240L248,480L192,480ZM282,240L338,240L338,480L282,480ZM372,240L428,240L428,480L372,480ZM532,240L588,240L588,480L532,480ZM622,240L678,240L678,480L622,480ZM712,240L768,240L768,480L712,480ZM802,240L858,240L858,480L802,480ZM452,180L508,180L508,480L452,480ZM80,480L880,480L880,536L508,536L508,760L452,760L452,536L80,536ZM300,760L660,760L660,816L300,816ZM452,120Q452,92 466,72Q480,52 480,52Q480,52 494,72Q508,92 508,120Q508,142 494,153L480,164L466,153Q452,142 452,120Z"/>
+</vector>

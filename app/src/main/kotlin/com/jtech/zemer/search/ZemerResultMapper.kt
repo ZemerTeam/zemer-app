@@ -303,6 +303,87 @@ object ZemerResultMapper {
     }
 
     /**
+     * One genre's page in native item types (see [toGenrePage]). [header] carries the true
+     * post-filter totals (the artist/album/single lists are the server's capped top-k, not the
+     * totals); [nextOffset] pages the songs/videos tracklist — the categorized lists belong to
+     * page 0 only. Zemer-owned rather than [ArtistPage] because that type has no paging field.
+     */
+    data class ZemerGenrePage(
+        val header: ZemerGenreHeader,
+        val artists: List<ArtistItem>,
+        val albums: List<AlbumItem>,
+        val singles: List<AlbumItem>,
+        val songs: List<SongItem>,
+        val videos: List<SongItem>,
+        val nextOffset: Int?,
+    )
+
+    /**
+     * The genre header mosaic's covers: the genre's top release art (albums first — the strongest
+     * covers — then singles, then song art to fill), blanks dropped, de-duped, downsized to the
+     * mosaic variant ([mosaicVariant] — sized for the ~230dp-tall header band, not full art),
+     * capped — and ALL-OR-NOTHING: fewer than [max] unique covers renders NO mosaic (owner rule: a
+     * sparse strip of giant covers breaks the flow; the weave header carries those genres instead).
+     * A LAZY sequence so map/distinct/take stop after the fifth unique cover instead of processing
+     * a 100-track page. Lives here (not the screen) so the ViewModel can preload the same URLs the
+     * moment the page lands — the images download in parallel with the first frame.
+     */
+    fun ZemerGenrePage.headerCovers(max: Int = 5): List<String> =
+        (albums.asSequence().map { it.thumbnail } +
+            singles.asSequence().map { it.thumbnail } +
+            songs.asSequence().map { it.thumbnail })
+            .filter { it.isNotBlank() }
+            .map(::mosaicVariant)
+            .distinct()
+            .take(max)
+            .toList()
+            .takeIf { it.size >= max }
+            .orEmpty()
+
+    /**
+     * The header-mosaic rendition of a cover, sized for the tall header band (the header was
+     * expanded "a lot bigger", so the previous mqdefault/320px hints upscaled and read blurry):
+     * ytimg frames go to `hqdefault` (480x360), googleusercontent art to a 480px square. Distinctness
+     * runs AFTER this mapping, so two renditions of one image can never slip in as "different"
+     * covers. Isolated to the mosaic — NOT the shared [thumbnailFor] player-surface variant.
+     */
+    internal fun mosaicVariant(url: String): String = when {
+        url.contains("i.ytimg.com") ->
+            url.replace(Regex("/(mq|sd|maxres|hq720|0)default"), "/hqdefault")
+        url.contains("googleusercontent.com") -> {
+            // Strip an existing FIFE size suffix (`=w544-h544-…`, `=s120-c`, …) before appending —
+            // the old code only handled `=w`, so `=s`-sized URLs got a SECOND `=` param and 4xx'd.
+            val marker = url.lastIndexOf('=')
+            val base = if (marker > 0 && FIFE_SIZE.matches(url.substring(marker + 1))) url.substring(0, marker) else url
+            "$base=w480-h480-l90-rj"
+        }
+        else -> url
+    }
+
+    /** A googleusercontent FIFE size suffix (the part after the last `=`), e.g. `s120-c`, `w544-h544-l90-rj`. */
+    private val FIFE_SIZE = Regex("[sw]\\d+.*")
+
+    /**
+     * A `/genres?id=` response in the same native item types the artist page maps to, with the same
+     * defense-in-depth every Zemer surface gets — sparse-row drop, de-dup, hide-explicit on the
+     * track lists, and the surgical id-overrides ([dropBlocked]). The artist-membership whitelist is
+     * NOT re-run (the corpus is whitelist-pure server-side).
+     */
+    fun ZemerGenrePageResponse.toGenrePage(hideExplicit: Boolean): ZemerGenrePage {
+        fun albumSection(list: List<ZemerAlbum>): List<AlbumItem> =
+            list.filter { it.id.isNotBlank() }.map { it.toAlbumItem() }.distinctBy { it.id }.dropBlocked()
+        return ZemerGenrePage(
+            header = genre,
+            artists = artists.filter { it.id.isNotBlank() }.map { it.toArtistItem() }.distinctBy { it.id }.dropBlocked(),
+            albums = albumSection(albums),
+            singles = albumSection(singles),
+            songs = songItems(songs, hideExplicit),
+            videos = songItems(videos, hideExplicit),
+            nextOffset = nextOffset,
+        )
+    }
+
+    /**
      * The grouped summary view (`filter == null`), matching the YouTube summary's shape exactly
      * (`YouTube.searchSummary`): items grouped by type into the same sections, in the same order, with
      * the same hardcoded English titles, so toggling engines never changes the summary's headers or

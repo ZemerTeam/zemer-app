@@ -111,5 +111,19 @@ class ZemerRadioQueue(
             context: Context,
             playSource: String = PlaySource.OTHER,
         ) = ZemerRadioQueue("song", song.id, context, playSource, seedSong = song)
+
+        /**
+         * Endless genre radio (`/radio?kind=genre&seed=<slug>`) — what a genre page's Play button
+         * starts (the browse tracklist is never played directly, per the genres handoff). No seed
+         * song: the server opens on one of the genre's popular songs, varying per session — so
+         * there are NO user-chosen context items and every play correctly reports as `radio`
+         * (like Home's shuffle Radio mode). [PlaySource.genre] is deliberately not declared here —
+         * with zero context items it would never be reported and only mislead readers; it belongs
+         * to the tracklist row taps, which seed a song and carry it.
+         */
+        fun genre(
+            slug: String,
+            context: Context,
+        ) = ZemerRadioQueue("genre", slug, context)
     }
 }

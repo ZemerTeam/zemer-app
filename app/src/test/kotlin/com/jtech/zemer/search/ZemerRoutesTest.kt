@@ -37,6 +37,13 @@ class ZemerRoutesTest {
     }
 
     @Test
+    fun `genre routes are the raw slugs (vocabulary is url-safe by contract)`() {
+        assertEquals("genres", zemerGenresRoute())
+        assertEquals("genre/nigunim", zemerGenreRoute("nigunim"))
+        assertEquals("genre/shavuos-simchas-torah", zemerGenreRoute("shavuos-simchas-torah"))
+    }
+
+    @Test
     fun `the search telemetry provider wire value is pinned`() {
         assertEquals("zemer", com.jtech.zemer.viewmodels.SEARCH_TRACKED_PROVIDER)
     }
