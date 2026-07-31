@@ -64,6 +64,8 @@ import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
+import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.rememberPreference
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
@@ -140,7 +142,7 @@ fun PlayerMenu(
             artists = artists.map { ArtistChoice(it.id!!, it.name) },
             onDismiss = { showSelectArtistDialog = false },
             onArtistClick = { artistId ->
-                navController.navigate("artist/$artistId")
+                navController.navigateToArtist(artistId)
                 showSelectArtistDialog = false
                 playerBottomSheetState.collapseSoft()
                 onDismiss()
@@ -290,7 +292,7 @@ fun PlayerMenu(
                                 val valid = mediaMetadata.artists.filter { !it.id.isNullOrBlank() }
                                 when {
                                     valid.size == 1 -> {
-                                        navController.navigate("artist/${valid[0].id}")
+                                        navController.navigateToArtist(valid[0].id)
                                         playerBottomSheetState.collapseSoft()
                                         onDismiss()
                                     }
@@ -305,7 +307,7 @@ fun PlayerMenu(
                                 icon = { Icon(painterResource(R.drawable.album), null, Modifier.size(24.dp)) },
                                 title = { Text(stringResource(R.string.view_album)) },
                                 onClick = {
-                                    navController.navigate("album/${album.id}")
+                                    navController.navigateToAlbum(album.id)
                                     playerBottomSheetState.collapseSoft()
                                     onDismiss()
                                 },

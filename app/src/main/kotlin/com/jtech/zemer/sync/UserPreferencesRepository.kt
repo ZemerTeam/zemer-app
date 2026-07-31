@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.firebase.firestore.FirebaseFirestore
 import com.jtech.zemer.auth.UserAuthManager
+import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.sync.models.DevicePreferencesEntity
 import com.jtech.zemer.sync.models.DeviceContentFilters
 import com.jtech.zemer.sync.models.DeviceMetadata
@@ -213,7 +214,7 @@ class UserPreferencesRepository @Inject constructor(
             val errorClassification = classifyFirebaseError(e)
             Log.e("ZemerSync", "Auto-restore fetch failed: $errorClassification")
             Log.e("ZemerSync", "Original error: ${e.message}")
-            e.printStackTrace()
+            reportException(e)
             Result.failure(e)
         }
     }
@@ -301,7 +302,7 @@ class UserPreferencesRepository @Inject constructor(
             val errorClassification = classifyFirebaseError(e)
             Log.e("ZemerSync", "Upload failed: $errorClassification")
             Log.e("ZemerSync", "Original error: ${e.message}")
-            e.printStackTrace()
+            reportException(e)
             Result.failure(e)
         }
     }

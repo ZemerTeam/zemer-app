@@ -69,6 +69,8 @@ import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.SelectArtistDialog
 import com.jtech.zemer.ui.utils.ShowMediaInfo
 import com.jtech.zemer.ui.utils.resize
+import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.utils.rememberPreference
@@ -153,7 +155,7 @@ fun YouTubeSongMenu(
             artists = artists.map { ArtistChoice(id = it.id!!, name = it.name) },
             onDismiss = { showSelectArtistDialog = false },
             onArtistClick = { artistId ->
-                navController.navigate("artist/$artistId")
+                navController.navigateToArtist(artistId)
                 onDismiss()
             },
         )
@@ -440,7 +442,7 @@ fun YouTubeSongMenu(
                                     val valid = artists.filter { !it.id.isNullOrBlank() }
                                     when {
                                         valid.size == 1 -> {
-                                            navController.navigate("artist/${valid[0].id}")
+                                            navController.navigateToArtist(valid[0].id)
                                             onDismiss()
                                         }
                                         valid.size > 1 -> showSelectArtistDialog = true
@@ -455,7 +457,7 @@ fun YouTubeSongMenu(
                                 icon = { Icon(painterResource(R.drawable.album), null, Modifier.size(24.dp)) },
                                 title = { Text(stringResource(R.string.view_album)) },
                                 onClick = {
-                                    navController.navigate("album/${album.id}")
+                                    navController.navigateToAlbum(album.id)
                                     onDismiss()
                                 },
                             )

@@ -88,6 +88,8 @@ import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.ArtistMenu
 import com.jtech.zemer.ui.menu.PlaylistMenu
+import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.LibraryAutoPlaylistViewModel
@@ -512,7 +514,7 @@ fun LibraryMixScreen(
                                         .fillMaxWidth()
                                         .combinedClickable(
                                             onClick = {
-                                                navController.navigate("artist/${item.id}")
+                                                navController.navigateToArtist(item.id)
                                             },
                                             onLongClick = {
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -552,7 +554,7 @@ fun LibraryMixScreen(
                                         .fillMaxWidth()
                                         .combinedClickable(
                                             onClick = {
-                                                navController.navigate("album/${item.id}")
+                                                navController.navigateToAlbum(item.id)
                                             },
                                             onLongClick = {
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -728,7 +730,7 @@ fun LibraryMixScreen(
                                         .fillMaxWidth()
                                         .combinedClickable(
                                             onClick = {
-                                                navController.navigate("artist/${item.id}")
+                                                navController.navigateToArtist(item.id)
                                             },
                                             onLongClick = {
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -757,7 +759,7 @@ fun LibraryMixScreen(
                                         .fillMaxWidth()
                                         .combinedClickable(
                                             onClick = {
-                                                navController.navigate("album/${item.id}")
+                                                navController.navigateToAlbum(item.id)
                                             },
                                             onLongClick = {
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)

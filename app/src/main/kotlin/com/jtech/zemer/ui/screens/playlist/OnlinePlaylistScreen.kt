@@ -106,6 +106,7 @@ import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.backToMain
+import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.OnlinePlaylistViewModel
 import com.metrolist.innertube.models.SongItem
@@ -277,7 +278,7 @@ fun OnlinePlaylistScreen(
                                                         if (artist.id != null) {
                                                             val link =
                                                                 LinkAnnotation.Clickable(artist.id!!) {
-                                                                    navController.navigate("artist/${artist.id!!}")
+                                                                    navController.navigateToArtist(artist.id)
                                                                 }
                                                             withLink(link) {
                                                                 append(artist.name)

@@ -72,6 +72,8 @@ import com.jtech.zemer.ui.component.SelectArtistDialog
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.utils.ShowMediaInfo
+import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.PermissionHelper
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.CachePlaylistViewModel
@@ -252,7 +254,7 @@ fun SongMenu(
             artists = song.artists.distinctBy { it.id }.map { ArtistChoice(it.id, it.name, it.thumbnailUrl) },
             onDismiss = { showSelectArtistDialog = false },
             onArtistClick = { artistId ->
-                navController.navigate("artist/$artistId")
+                navController.navigateToArtist(artistId)
                 onDismiss()
             },
         )
@@ -497,7 +499,7 @@ fun SongMenu(
                                 val valid = song.artists.filter { !it.id.isNullOrBlank() }
                                 when {
                                     valid.size == 1 -> {
-                                        navController.navigate("artist/${valid[0].id}")
+                                        navController.navigateToArtist(valid[0].id)
                                         onDismiss()
                                     }
                                     valid.size > 1 -> showSelectArtistDialog = true
@@ -511,7 +513,7 @@ fun SongMenu(
                             title = { Text(stringResource(R.string.view_album)) },
                             onClick = {
                                 onDismiss()
-                                navController.navigate("album/${song.song.albumId}")
+                                navController.navigateToAlbum(song.song.albumId)
                             },
                         )
                     )

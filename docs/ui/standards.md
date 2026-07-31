@@ -35,6 +35,12 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
   `scrolledContainerColor` is not AMOLED-aware). `BackTopAppBar` bakes both in. The only exceptions are
   the full-bleed login/onboarding bars, the video player's fixed-black bar, and ArtistScreen's
   over-header transparent state. Do not hand-roll a title `Text` or omit `colors` on a new screen bar.
+- **Never hand-build an id-bearing nav route.** `navController.navigate("artist/$id")` /
+  `navigate("album/$id")` crashes when the id is blank (an empty id builds `"artist/"`, which matches
+  no destination and throws — this was a real bug). Use the null-safe `navigateToArtist(id)` /
+  `navigateToAlbum(id)` in `ui/utils/AppNavigation.kt` — a blank id is a no-op, and the pure
+  `artistRoute`/`albumRoute` builders are unit-tested. Enforced by `R16-navroute` (baseline 0). Zemer
+  routes with query params keep their builders (`zemerAlbumRoute`, `zemerPlaylistRoute`, `ZemerRoutes.kt`).
 - Enforcement (ratcheting): `scripts/ui-audit.sh` rules `R14-backbtn` and `R15-morevert` fail CI on
   any *new* raw `R.drawable.arrow_back` / `R.drawable.more_vert` in a screen — build the back button
   and the overflow menu from the shared components instead. The existing hand-rolls are baselined in

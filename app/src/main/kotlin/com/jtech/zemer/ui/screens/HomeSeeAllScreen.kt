@@ -56,6 +56,8 @@ import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
+import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeSeeAllStore
 
@@ -161,8 +163,8 @@ internal fun <T : YTItem> YtItemGrid(
                             // Featured albums are Zemer-sourced: open via the server route (bot-gate-proof).
                             is AlbumItem ->
                                 if (zemerAlbums) navController.navigate(zemerAlbumRoute(item))
-                                else navController.navigate("album/${item.id}")
-                            is ArtistItem -> navController.navigate("artist/${item.id}")
+                                else navController.navigateToAlbum(item.id)
+                            is ArtistItem -> navController.navigateToArtist(item.id)
                             // Community playlists are Zemer-sourced: open via the server /playlist route and
                             // tag plays `community:<id>` (the discovery-sourced community row).
                             is PlaylistItem ->
@@ -266,7 +268,7 @@ private fun LocalItemList(items: List<LocalItem>, navController: NavController) 
                     isActive = item.id == mediaMetadata?.album?.id,
                     isPlaying = isPlaying,
                     modifier = Modifier.combinedClickable(
-                        onClick = { navController.navigate("album/${item.id}") },
+                        onClick = { navController.navigateToAlbum(item.id) },
                         onLongClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             menuState.show { AlbumMenu(originalAlbum = item, navController = navController, onDismiss = menuState::dismiss) }
@@ -276,7 +278,7 @@ private fun LocalItemList(items: List<LocalItem>, navController: NavController) 
                 is Artist -> ArtistListItem(
                     artist = item,
                     modifier = Modifier.combinedClickable(
-                        onClick = { navController.navigate("artist/${item.id}") },
+                        onClick = { navController.navigateToArtist(item.id) },
                         onLongClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             menuState.show { ArtistMenu(originalArtist = item, coroutineScope = scope, onDismiss = menuState::dismiss) }

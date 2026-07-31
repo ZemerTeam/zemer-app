@@ -30,6 +30,8 @@ import com.jtech.zemer.ui.menu.PlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.utils.ARTIST_AVATAR_PX
 import com.jtech.zemer.ui.utils.resize
+import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.WatchEndpoint
 import kotlinx.coroutines.CoroutineScope
@@ -76,7 +78,7 @@ fun LibraryArtistListItem(
         .fillMaxWidth()
 
         .clickable {
-            navController.navigate("artist/${artist.id}")
+            navController.navigateToArtist(artist.id)
         }
 )
 
@@ -125,7 +127,7 @@ fun WhitelistedArtistListItem(
         .fillMaxWidth()
 
         .clickable {
-            navController.navigate("artist/${artist.id}")
+            navController.navigateToArtist(artist.id)
         }
 )
 
@@ -145,7 +147,7 @@ fun LibraryArtistGridItem(
 
         .combinedClickable(
             onClick = {
-                navController.navigate("artist/${artist.id}")
+                navController.navigateToArtist(artist.id)
             },
             onLongClick = {
                 menuState.show {
@@ -193,7 +195,7 @@ fun WhitelistedArtistGridItem(
 
         .combinedClickable(
             onClick = {
-                navController.navigate("artist/${artist.id}")
+                navController.navigateToArtist(artist.id)
             },
             onLongClick = {
                 menuState.show {
@@ -235,7 +237,7 @@ fun LibraryAlbumListItem(
     modifier = modifier
         .fillMaxWidth()
         .clickable {
-            navController.navigate("album/${album.id}")
+            navController.navigateToAlbum(album.id)
         }
 )
 
@@ -259,7 +261,7 @@ fun LibraryAlbumGridItem(
         .fillMaxWidth()
         .combinedClickable(
             onClick = {
-                navController.navigate("album/${album.id}")
+                navController.navigateToAlbum(album.id)
             },
             onLongClick = {
                 menuState.show {

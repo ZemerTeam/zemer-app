@@ -50,6 +50,8 @@ import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.ArtistMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
+import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.viewmodels.StatsViewModel
@@ -308,7 +310,7 @@ fun StatsScreen(
                             Modifier
                                 .combinedClickable(
                                     onClick = {
-                                        navController.navigate("artist/${artist.id}")
+                                        navController.navigateToArtist(artist.id)
                                     },
                                     onLongClick = {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -360,7 +362,7 @@ fun StatsScreen(
                                     .fillMaxWidth()
                                     .combinedClickable(
                                         onClick = {
-                                            navController.navigate("album/${album.id}")
+                                            navController.navigateToAlbum(album.id)
                                         },
                                         onLongClick = {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)

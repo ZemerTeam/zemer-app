@@ -135,6 +135,8 @@ import com.jtech.zemer.ui.menu.PlayerMenu
 import com.jtech.zemer.ui.screens.settings.DarkMode
 import com.jtech.zemer.ui.theme.PlayerSliderColors
 import com.jtech.zemer.ui.utils.ShowMediaInfo
+import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
@@ -571,7 +573,7 @@ fun BottomSheetPlayer(
                                         interactionSource = remember { MutableInteractionSource() },
                                         onClick = {
                                             if (mediaMetadata.album != null) {
-                                                navController.navigate("album/${mediaMetadata.album.id}")
+                                                navController.navigateToAlbum(mediaMetadata.album.id)
                                                 state.collapseSoft()
                                             }
                                         },
@@ -653,7 +655,7 @@ fun BottomSheetPlayer(
                                                     ?.let { ann ->
                                                         val artistId = ann.item
                                                         if (artistId.isNotBlank()) {
-                                                            navController.navigate("artist/$artistId")
+                                                            navController.navigateToArtist(artistId)
                                                             state.collapseSoft()
                                                         }
                                                     }

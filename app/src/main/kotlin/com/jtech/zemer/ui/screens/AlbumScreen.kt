@@ -96,6 +96,7 @@ import com.jtech.zemer.ui.screens.playlist.PlaylistPlayShuffleButtons
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.backToMain
+import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.AlbumViewModel
 import kotlinx.coroutines.launch
@@ -249,7 +250,7 @@ fun AlbumScreen(
                                     ) {
                                         albumWithSongs.artists.fastForEachIndexed { index, artist ->
                                             val link = LinkAnnotation.Clickable(artist.id) {
-                                                navController.navigate("artist/${artist.id}")
+                                                navController.navigateToArtist(artist.id)
                                             }
                                             withLink(link) {
                                                 append(artist.name)
