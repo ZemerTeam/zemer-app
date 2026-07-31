@@ -1,12 +1,12 @@
 package com.jtech.zemer.playback
 
-import android.widget.Toast
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
 import androidx.media3.common.Player.REPEAT_MODE_ONE
 import com.jtech.zemer.R
 import com.jtech.zemer.extensions.metadata
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -247,7 +247,7 @@ class CastController(
      */
     private fun endIdleSession() {
         Timber.tag("CastController").i("Auto-ending idle/stalled cast session (nothing playing)")
-        Toast.makeText(service, service.getString(R.string.cast_session_ended_idle), Toast.LENGTH_LONG).show()
+        service.toast(service.getString(R.string.cast_session_ended_idle), long = true)
         handler.disconnect()
     }
 
@@ -352,7 +352,7 @@ class CastController(
                     reportException(
                         IllegalStateException("FCast: cast error recovery gave up after repeated receiver errors: $message"),
                     )
-                    Toast.makeText(service, service.getString(R.string.cast_playback_failed), Toast.LENGTH_LONG).show()
+                    service.toast(service.getString(R.string.cast_playback_failed), long = true)
                     // End the dead session rather than leaving it connected but silent — the receiver will
                     // never play, so keeping the relay/service alive for it is pointless.
                     handler.disconnect()

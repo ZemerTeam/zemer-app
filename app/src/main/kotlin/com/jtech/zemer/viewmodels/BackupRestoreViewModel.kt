@@ -3,7 +3,6 @@ package com.jtech.zemer.viewmodels
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtech.zemer.MainActivity
@@ -17,6 +16,7 @@ import com.jtech.zemer.extensions.div
 import com.jtech.zemer.extensions.tryOrNull
 import com.jtech.zemer.extensions.zipInputStream
 import com.jtech.zemer.extensions.zipOutputStream
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.playback.MusicService
 import com.jtech.zemer.playback.MusicService.Companion.PERSISTENT_QUEUE_FILE
 import com.jtech.zemer.utils.reportException
@@ -57,10 +57,10 @@ class BackupRestoreViewModel @Inject constructor(
 
             withContext(Dispatchers.Main) {
                 result.onSuccess {
-                    Toast.makeText(context, R.string.backup_create_success, Toast.LENGTH_SHORT).show()
+                    context.toast(R.string.backup_create_success)
                 }.onFailure {
                     reportException(it)
-                    Toast.makeText(context, R.string.backup_create_failed, Toast.LENGTH_SHORT).show()
+                    context.toast(R.string.backup_create_failed)
                 }
             }
         }
@@ -105,7 +105,7 @@ class BackupRestoreViewModel @Inject constructor(
                     exitProcess(0)
                 }.onFailure {
                     reportException(it)
-                    Toast.makeText(context, R.string.restore_failed, Toast.LENGTH_SHORT).show()
+                    context.toast(R.string.restore_failed)
                 }
             }
         }
@@ -140,11 +140,7 @@ class BackupRestoreViewModel @Inject constructor(
         }
 
         if (songs.isEmpty()) {
-            Toast.makeText(
-                context,
-                "No songs found. Invalid file, or perhaps no song matches were found.",
-                Toast.LENGTH_SHORT
-            ).show()
+            context.toast("No songs found. Invalid file, or perhaps no song matches were found.")
         }
         return songs
     }
@@ -182,11 +178,7 @@ class BackupRestoreViewModel @Inject constructor(
         }
 
         if (songs.isEmpty()) {
-            Toast.makeText(
-                context,
-                "No songs found. Invalid file, or perhaps no song matches were found.",
-                Toast.LENGTH_SHORT
-            ).show()
+            context.toast("No songs found. Invalid file, or perhaps no song matches were found.")
         }
         return songs
     }

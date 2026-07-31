@@ -1,6 +1,5 @@
 package com.jtech.zemer.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +43,7 @@ import com.jtech.zemer.constants.DataSyncIdKey
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.extensions.toast
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.utils.parseCookieString
 import io.ktor.client.HttpClient
@@ -207,20 +207,12 @@ fun LoginGateScreen(
                                         popUpTo("login_gate") { inclusive = true }
                                     }
                                 } else {
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(R.string.login_failed_invalid_token),
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    context.toast(context.getString(R.string.login_failed_invalid_token))
                                 }
                                 httpClient.close()
                             } catch (e: Exception) {
                                 val reason = e.message ?: context.getString(R.string.error_unknown)
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.login_failed_with_reason, reason),
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                context.toast(context.getString(R.string.login_failed_with_reason, reason))
                             } finally {
                                 isAnonymousLoading = false
                             }

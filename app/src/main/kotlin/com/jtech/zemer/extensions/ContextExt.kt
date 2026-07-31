@@ -17,6 +17,18 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /**
+ * Show a short (or [long]) toast — the one wrapper over `Toast.makeText(this, …, …).show()`. Two
+ * overloads mirror the framework: a string-resource id and a [CharSequence].
+ */
+fun Context.toast(@StringRes resId: Int, long: Boolean = false) {
+    Toast.makeText(this, resId, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
+}
+
+fun Context.toast(text: CharSequence, long: Boolean = false) {
+    Toast.makeText(this, text, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
+}
+
+/**
  * Share a plain-text payload (a deep link / share URL) through the system chooser. This is the one
  * place the app builds an `ACTION_SEND` `text/plain` intent — call sites pass only the text, and any
  * `Tracker.action(SHARE, …)` / `onDismiss()` stays at the call site. File/stream shares (log export,
@@ -43,7 +55,7 @@ fun Context.copyToClipboard(
 ) {
     val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
-    Toast.makeText(this, confirmationRes, Toast.LENGTH_SHORT).show()
+    toast(confirmationRes)
 }
 
 /**

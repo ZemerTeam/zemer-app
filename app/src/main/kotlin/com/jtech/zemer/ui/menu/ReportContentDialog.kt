@@ -1,6 +1,5 @@
 package com.jtech.zemer.ui.menu
 
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,6 +29,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.viewmodels.ReportContentViewModel
+import com.jtech.zemer.extensions.toast
 import kotlinx.coroutines.launch
 
 /**
@@ -99,7 +99,7 @@ fun ReportContentDialog(
             Button(
                 onClick = {
                     if (selectedReason.isBlank()) {
-                        Toast.makeText(context, context.getString(R.string.report_choose_reason), Toast.LENGTH_SHORT).show()
+                        context.toast(context.getString(R.string.report_choose_reason))
                         return@Button
                     }
                     scope.launch {
@@ -107,10 +107,10 @@ fun ReportContentDialog(
                         val success = viewModel.submit(subject, selectedReason, comment)
                         isSubmitting = false
                         if (success) {
-                            Toast.makeText(context, context.getString(R.string.report_success), Toast.LENGTH_SHORT).show()
+                            context.toast(context.getString(R.string.report_success))
                             onDismiss()
                         } else {
-                            Toast.makeText(context, context.getString(R.string.report_failure), Toast.LENGTH_SHORT).show()
+                            context.toast(context.getString(R.string.report_failure))
                         }
                     }
                 },

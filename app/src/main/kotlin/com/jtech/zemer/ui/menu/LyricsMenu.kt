@@ -2,7 +2,6 @@ package com.jtech.zemer.ui.menu
 
 import android.app.SearchManager
 import android.content.Intent
-import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -58,6 +57,7 @@ import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.viewmodels.LyricsMenuViewModel
+import com.jtech.zemer.extensions.toast
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -181,7 +181,7 @@ fun LyricsMenu(
                         
                         // Show warning only if network is definitely unavailable
                         if (!isNetworkAvailable) {
-                            Toast.makeText(context, context.getString(R.string.error_no_internet), Toast.LENGTH_SHORT).show()
+                            context.toast(context.getString(R.string.error_no_internet))
                         }
                     },
                 ) {

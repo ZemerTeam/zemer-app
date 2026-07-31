@@ -2,7 +2,6 @@ package com.jtech.zemer.ui.menu
 
 import android.content.Intent
 import android.media.audiofx.AudioEffect
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
@@ -52,6 +51,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.copyToClipboard
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
@@ -232,7 +232,7 @@ fun PlayerMenu(
                         },
                         text = stringResource(R.string.start_radio),
                         onClick = {
-                            Toast.makeText(context, context.getString(R.string.starting_radio), Toast.LENGTH_SHORT).show()
+                            context.toast(context.getString(R.string.starting_radio))
                             playerConnection.startRadioSeamlessly()
                             onDismiss()
                         }

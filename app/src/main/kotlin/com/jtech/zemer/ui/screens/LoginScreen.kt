@@ -7,7 +7,6 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -38,6 +37,7 @@ import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.reportException
+import com.jtech.zemer.extensions.toast
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.launch
 
@@ -82,7 +82,7 @@ fun LoginScreen(
                             android.util.Log.d("LoginScreen", "Blocked URL: $url")
                             // Show "Blocked" message
                             coroutineScope.launch {
-                                Toast.makeText(context, context.getString(R.string.blocked), Toast.LENGTH_SHORT).show()
+                                context.toast(context.getString(R.string.blocked))
                             }
                             return true // Block the URL
                         }
@@ -130,7 +130,7 @@ fun LoginScreen(
                                         android.util.Log.e("LoginScreen", "Login capture incomplete after $attempt attempts (cookie=${innerTubeCookie.isNotEmpty()}, dataSyncId=${dataSyncId.isNotEmpty()})")
                                         reportException(IllegalStateException("Login capture incomplete: cookie=${innerTubeCookie.isNotEmpty()}, dataSyncId=${dataSyncId.isNotEmpty()}"))
                                         // Friendly, non-technical message; allow a later page-finish to retry.
-                                        Toast.makeText(context, context.getString(R.string.sign_in_not_finished), Toast.LENGTH_LONG).show()
+                                        context.toast(context.getString(R.string.sign_in_not_finished), long = true)
                                         hasCompletedLogin = false
                                         return@launch
                                     }

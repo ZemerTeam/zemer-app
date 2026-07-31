@@ -1,7 +1,6 @@
 package com.jtech.zemer.ui.player
 
 import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,6 +52,7 @@ import kotlinx.coroutines.launch
 import org.fcast.sender_sdk.DeviceInfo
 import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.extensions.copyToClipboard
+import com.jtech.zemer.extensions.toast
 
 private const val FCAST_DOWNLOADS_URL = "https://fcast.org/#downloads"
 
@@ -122,13 +122,9 @@ fun CastPicker(
                     // No playable stream resolved (transient cipher/poToken/network failure). Don't connect
                     // to a device that would just sit silent — tell the user instead of failing invisibly.
                     CastConnectResult.NoStream ->
-                        Toast.makeText(context, R.string.cast_stream_failed, Toast.LENGTH_SHORT).show()
+                        context.toast(R.string.cast_stream_failed)
                     is CastConnectResult.Failed ->
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.cast_connect_failed, result.deviceName),
-                            Toast.LENGTH_SHORT,
-                        ).show()
+                        context.toast(context.getString(R.string.cast_connect_failed, result.deviceName))
                 }
             } finally {
                 connectingDevice = null
@@ -411,7 +407,7 @@ private fun CastDownloadSuccessEffect(libState: CastLibState) {
             is CastLibState.Downloading -> wasDownloading = true
             CastLibState.Ready -> if (wasDownloading) {
                 wasDownloading = false
-                Toast.makeText(context, R.string.cast_download_success, Toast.LENGTH_SHORT).show()
+                context.toast(R.string.cast_download_success)
             }
             else -> {}
         }

@@ -6,7 +6,6 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.tween
@@ -113,6 +112,7 @@ import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.ComposeToImage
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.extensions.toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -249,11 +249,7 @@ fun Lyrics(
     // Show toast when max selection is reached
     LaunchedEffect(showMaxSelectionToast) {
         if (showMaxSelectionToast) {
-            Toast.makeText(
-                context,
-                context.getString(R.string.max_selection_limit, maxSelectionLimit),
-                Toast.LENGTH_SHORT
-            ).show()
+            context.toast(context.getString(R.string.max_selection_limit, maxSelectionLimit))
             showMaxSelectionToast = false
         }
     }
@@ -943,7 +939,7 @@ fun Lyrics(
                                     context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_lyrics)))
                                 } catch (e: Exception) {
                                     reportException(e, "Lyrics image share")
-                                    Toast.makeText(context, context.getString(R.string.lyrics_image_failed, e.message), Toast.LENGTH_SHORT).show()
+                                    context.toast(context.getString(R.string.lyrics_image_failed, e.message))
                                 } finally {
                                     showProgressDialog = false
                                 }

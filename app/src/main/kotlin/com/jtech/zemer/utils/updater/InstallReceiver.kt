@@ -5,8 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.os.Build
-import android.widget.Toast
 import com.jtech.zemer.R
+import com.jtech.zemer.extensions.toast
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -45,7 +45,7 @@ class InstallReceiver : BroadcastReceiver() {
                 // process; we can't reliably relaunch from here (the Shizuku remote process
                 // is reaped with us), so we just confirm and let the user reopen.
                 _events.tryEmit(InstallResult.Success)
-                Toast.makeText(context, R.string.install_success, Toast.LENGTH_SHORT).show()
+                context.toast(R.string.install_success)
             }
 
             PackageInstaller.STATUS_FAILURE,
@@ -59,11 +59,7 @@ class InstallReceiver : BroadcastReceiver() {
                 val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
                     ?: context.getString(R.string.install_failed_generic)
                 _events.tryEmit(InstallResult.Error(message))
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.install_failed, message),
-                    Toast.LENGTH_LONG,
-                ).show()
+                context.toast(context.getString(R.string.install_failed, message), long = true)
             }
         }
     }

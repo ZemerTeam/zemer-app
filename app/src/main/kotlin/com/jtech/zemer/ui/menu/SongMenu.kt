@@ -2,7 +2,6 @@
 
 package com.jtech.zemer.ui.menu
 
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
@@ -55,6 +54,7 @@ import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.shareText
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
@@ -128,11 +128,7 @@ fun SongMenu(
             onDismiss()
         } else {
             // Permissions denied - show error message
-            android.widget.Toast.makeText(
-                context,
-                context.getString(R.string.storage_permission_required),
-                android.widget.Toast.LENGTH_LONG
-            ).show()
+            context.toast(context.getString(R.string.storage_permission_required), long = true)
         }
     }
 
