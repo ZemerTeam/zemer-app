@@ -41,7 +41,7 @@ object UrlValidator {
                 urlWithScheme.toHttpUrl()
             } catch (e: Exception) {
                 // If OkHttp fails to parse, return null
-                e.printStackTrace()
+                reportException(e)
                 return null
             }
 
@@ -54,7 +54,7 @@ object UrlValidator {
                 null
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            reportException(e)
             null
         }
     }

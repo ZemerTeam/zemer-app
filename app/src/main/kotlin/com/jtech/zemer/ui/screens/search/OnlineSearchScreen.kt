@@ -72,6 +72,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.ui.screens.Screens
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
+import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SearchBarIconOffsetX
@@ -299,7 +300,7 @@ fun OnlineSearchScreen(
                                     onDismiss()
                                 }
                                 is ArtistItem -> {
-                                    navController.navigate("artist/${item.id}")
+                                    navController.navigateToArtist(item.id)
                                     onDismiss()
                                 }
                                 is PlaylistItem -> {
@@ -373,7 +374,7 @@ fun OnlineSearchScreen(
                                     onDismiss()
                                 }
                                 is ArtistItem -> {
-                                    navController.navigate("artist/${item.id}")
+                                    navController.navigateToArtist(item.id)
                                     onDismiss()
                                 }
                                 is PlaylistItem -> {

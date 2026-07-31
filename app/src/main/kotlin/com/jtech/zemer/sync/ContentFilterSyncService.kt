@@ -3,6 +3,7 @@ package com.jtech.zemer.sync
 import com.jtech.zemer.auth.AuthState
 import com.jtech.zemer.auth.UserAuthManager
 import com.jtech.zemer.utils.ContentFilterConfig
+import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.ContentFilterState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -86,7 +87,7 @@ class ContentFilterSyncService @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Log.d("ZemerSync", "Auto-restore exception: ${e.message}")
-                    e.printStackTrace()
+                    reportException(e)
                 }
             } else {
                 Log.d("ZemerSync", "User already signed in locally - no auto-restore")

@@ -36,6 +36,8 @@ import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.utils.backToMain
+import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.viewmodels.AccountViewModel
 import com.jtech.zemer.viewmodels.AccountContentType
 
@@ -120,7 +122,7 @@ fun AccountScreen(
                         modifier = Modifier
                             .combinedClickable(
                                 onClick = {
-                                    navController.navigate("album/${item.id}")
+                                    navController.navigateToAlbum(item.id)
                                 },
                                 onLongClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -156,7 +158,7 @@ fun AccountScreen(
                         modifier = Modifier
                             .combinedClickable(
                                 onClick = {
-                                    navController.navigate("artist/${item.id}")
+                                    navController.navigateToArtist(item.id)
                                 },
                                 onLongClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)

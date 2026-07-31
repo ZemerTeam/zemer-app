@@ -42,6 +42,7 @@ import com.jtech.zemer.ui.component.shimmer.GridItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.viewmodels.NewReleaseViewModel
 import com.metrolist.innertube.models.WatchEndpoint
 
@@ -209,7 +210,7 @@ fun NewReleaseScreen(
                                         .padding(horizontal = 8.dp)
                                         .combinedClickable(
                                             onClick = {
-                                                navController.navigate("album/${album.id}")
+                                                navController.navigateToAlbum(album.id)
                                             },
                                             onLongClick = {
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)

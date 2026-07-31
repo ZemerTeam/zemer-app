@@ -56,6 +56,7 @@ import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.SelectArtistDialog
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.YouTubeListItem
+import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
@@ -153,7 +154,7 @@ fun YouTubeAlbumMenu(
                 .map { ArtistChoice(id = it.id, name = it.name, thumbnailUrl = it.thumbnailUrl) },
             onDismiss = { showSelectArtistDialog = false },
             onArtistClick = { artistId ->
-                navController.navigate("artist/$artistId")
+                navController.navigateToArtist(artistId)
                 onDismiss()
             },
         )
@@ -350,7 +351,7 @@ fun YouTubeAlbumMenu(
                                 title = { Text(stringResource(R.string.view_artist)) },
                                 onClick = {
                                     if (artists.size == 1) {
-                                        navController.navigate("artist/${artists[0].id}")
+                                        navController.navigateToArtist(artists[0].id)
                                         onDismiss()
                                     } else {
                                         showSelectArtistDialog = true

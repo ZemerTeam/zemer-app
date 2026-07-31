@@ -54,6 +54,8 @@ import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
+import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.viewmodels.ArtistItemsViewModel
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -188,8 +190,8 @@ fun ArtistItemsScreen(
                                         }
                                     }
 
-                                    is AlbumItem -> navController.navigate("album/${item.id}")
-                                    is ArtistItem -> navController.navigate("artist/${item.id}")
+                                    is AlbumItem -> navController.navigateToAlbum(item.id)
+                                    is ArtistItem -> navController.navigateToArtist(item.id)
                                     is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
                                 }
                             }
@@ -246,8 +248,8 @@ fun ArtistItemsScreen(
                                             )
                                         }
 
-                                        is AlbumItem -> navController.navigate("album/${item.id}")
-                                        is ArtistItem -> navController.navigate("artist/${item.id}")
+                                        is AlbumItem -> navController.navigateToAlbum(item.id)
+                                        is ArtistItem -> navController.navigateToArtist(item.id)
                                         is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
                                     }
                                 }

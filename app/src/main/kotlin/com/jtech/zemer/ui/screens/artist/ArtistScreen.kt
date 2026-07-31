@@ -124,6 +124,8 @@ import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.fadingEdge
 import com.jtech.zemer.ui.utils.resize
+import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.ArtistViewModel
 import com.metrolist.innertube.models.AlbumItem
@@ -594,7 +596,7 @@ fun ArtistScreen(
                                         modifier = Modifier
                                             .combinedClickable(
                                                 onClick = {
-                                                    navController.navigate("album/${album.id}")
+                                                    navController.navigateToAlbum(album.id)
                                                 },
                                                 onLongClick = {
                                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -764,7 +766,7 @@ fun ArtistScreen(
                                                                 // The artist page is corpus-sourced, so its albums/
                                                                 // playlists open via the server route (fast, bot-gate-proof).
                                                                 is AlbumItem -> navController.navigate(zemerAlbumRoute(item))
-                                                                is ArtistItem -> navController.navigate("artist/${item.id}")
+                                                                is ArtistItem -> navController.navigateToArtist(item.id)
                                                                 is PlaylistItem -> navController.navigate(zemerPlaylistRoute(item.id))
                                                             }
                                                         }

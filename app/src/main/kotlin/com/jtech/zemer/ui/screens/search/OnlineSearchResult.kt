@@ -54,6 +54,7 @@ import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
+import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -167,7 +168,7 @@ fun OnlineSearchResult(
                 }
 
                 is AlbumItem -> navController.navigate(zemerAlbumRoute(item))
-                is ArtistItem -> navController.navigate("artist/${item.id}")
+                is ArtistItem -> navController.navigateToArtist(item.id)
                 // A discovery-sourced community playlist tags its plays `community:<id>` (same source as the
                 // home Community row); featured/artist-owned stay `playlist:`. Community-ness covers the
                 // Community chip AND the Zemer summary preview, not just the chip — see [playlistIsCommunity].

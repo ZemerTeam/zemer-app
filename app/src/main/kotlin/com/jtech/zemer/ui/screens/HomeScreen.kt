@@ -94,6 +94,8 @@ import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
+import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.latestreleases.LatestReleaseCard
 import com.jtech.zemer.viewmodels.HomeViewModel
@@ -295,7 +297,7 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .combinedClickable(
                         onClick = {
-                            navController.navigate("album/${it.id}")
+                            navController.navigateToAlbum(it.id)
                         },
                         onLongClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -316,7 +318,7 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .combinedClickable(
                         onClick = {
-                            navController.navigate("artist/${it.id}")
+                            navController.navigateToArtist(it.id)
                         },
                         onLongClick = {
                             haptic.performHapticFeedback(
@@ -358,9 +360,9 @@ fun HomeScreen(
                                 if (featuredAlbumsAreZemer) {
                                     navController.navigate(zemerAlbumRoute(item))
                                 } else {
-                                    navController.navigate("album/${item.id}")
+                                    navController.navigateToAlbum(item.id)
                                 }
-                            is ArtistItem -> navController.navigate("artist/${item.id}")
+                            is ArtistItem -> navController.navigateToArtist(item.id)
                             // Featured playlists: Zemer community playlists open via the server /playlist path
                             // and tag plays `community:<id>` (they're the discovery-sourced community row).
                             is PlaylistItem ->

@@ -59,6 +59,7 @@ import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.SongListItem
+import com.jtech.zemer.ui.utils.navigateToArtist
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -152,7 +153,7 @@ fun AlbumMenu(
             artists = album.artists.distinctBy { it.id }.map { ArtistChoice(it.id, it.name, it.thumbnailUrl) },
             onDismiss = { showSelectArtistDialog = false },
             onArtistClick = { artistId ->
-                navController.navigate("artist/$artistId")
+                navController.navigateToArtist(artistId)
                 onDismiss()
             },
         )
@@ -337,7 +338,7 @@ fun AlbumMenu(
                                 val valid = album.artists.filter { !it.id.isNullOrBlank() }
                                 when {
                                     valid.size == 1 -> {
-                                        navController.navigate("artist/${valid[0].id}")
+                                        navController.navigateToArtist(valid[0].id)
                                         onDismiss()
                                     }
                                     valid.size > 1 -> showSelectArtistDialog = true
