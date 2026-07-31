@@ -735,6 +735,8 @@ fun VideoPlayerScreen(
                                             )
                                             Text(
                                                 text = artistName ?: stringResource(R.string.unknown_artist),
+                                                // Fixed light color on purpose: this label sits on the video
+                                                // overlay beside the Color.White title, not on a themed surface.
                                                 color = Color.LightGray,
                                                 style = MaterialTheme.typography.labelMedium,
                                                 maxLines = 1,

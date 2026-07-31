@@ -97,9 +97,11 @@ import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.AlbumGridItem
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.EmptyPlaceholder
@@ -512,7 +514,7 @@ fun ArtistScreen(
                                 isActive = song.id == mediaMetadata?.id,
                                 isPlaying = isPlaying,
                                 trailingContent = {
-                                    IconButton(
+                                    MoreVertMenuButton(
                                         onClick = {
                                             menuState.show {
                                                 SongMenu(
@@ -522,12 +524,7 @@ fun ArtistScreen(
                                                 )
                                             }
                                         },
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.more_vert),
-                                            contentDescription = null,
-                                        )
-                                    }
+                                    )
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -671,7 +668,7 @@ fun ArtistScreen(
                                     isActive = mediaMetadata?.id == song.id,
                                     isPlaying = isPlaying,
                                     trailingContent = {
-                                        IconButton(
+                                        MoreVertMenuButton(
                                             onClick = {
                                                 menuState.show {
                                                     YouTubeSongMenu(
@@ -681,12 +678,7 @@ fun ArtistScreen(
                                                     )
                                                 }
                                             },
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.more_vert),
-                                                contentDescription = null,
-                                            )
-                                        }
+                                        )
                                     },
                                     modifier = Modifier
                                         .combinedClickable(
@@ -850,18 +842,12 @@ fun ArtistScreen(
             }
         },
         navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(
-                    painterResource(R.drawable.arrow_back),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .focusRequester(backFocus)
-                        .focusProperties { down = firstFocus }
-                )
-            }
+            BackNavigationIcon(
+                navController = navController,
+                modifier = Modifier
+                    .focusRequester(backFocus)
+                    .focusProperties { down = firstFocus },
+            )
         },
         actions = {
             IconButton(

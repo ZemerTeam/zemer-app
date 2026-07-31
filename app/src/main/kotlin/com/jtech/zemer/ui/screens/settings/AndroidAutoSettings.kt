@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
@@ -39,6 +38,7 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.constants.AndroidAutoSectionsOrderKey
 import com.jtech.zemer.constants.AndroidAutoTargetPlaylistKey
@@ -259,11 +259,7 @@ fun AndroidAutoSettings(
 
     TopAppBar(
         title = { Text(stringResource(R.string.android_auto)) },
-        navigationIcon = {
-            IconButton(onClick = navController::navigateUp) {
-                Icon(painterResource(R.drawable.arrow_back), contentDescription = null)
-            }
-        },
+        navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
     )
 }

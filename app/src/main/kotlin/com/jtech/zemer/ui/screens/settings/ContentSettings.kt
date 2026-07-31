@@ -73,8 +73,8 @@ import com.jtech.zemer.constants.SYSTEM_DEFAULT
 import com.jtech.zemer.constants.TopSize
 import com.jtech.zemer.sync.SyncState
 import com.jtech.zemer.sync.SyncStatus
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.EditTextPreference
-import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
@@ -464,17 +464,7 @@ fun ContentSettings(
 
     TopAppBar(
         title = { Text(stringResource(R.string.content)) },
-        navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(
-                    painterResource(R.drawable.arrow_back),
-                    contentDescription = null,
-                )
-            }
-        }
+        navigationIcon = { BackNavigationIcon(navController) }
     )
 }
 

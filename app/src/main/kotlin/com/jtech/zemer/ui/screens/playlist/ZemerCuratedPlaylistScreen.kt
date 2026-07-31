@@ -20,8 +20,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -67,13 +65,14 @@ import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.search.ChartMovement
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.ui.component.AutoResizeText
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.ChartRankCell
 import com.jtech.zemer.ui.component.rememberChartRankMetrics
 import com.jtech.zemer.ui.component.chartAnchorLabel
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.FontSizeRange
-import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.zemerCuratedPlaylistRuntimeLabel
 import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
@@ -405,12 +404,7 @@ fun ZemerCuratedPlaylistScreen(
                             isActive = mediaMetadata?.id == song.id,
                             isPlaying = isPlaying,
                             trailingContent = {
-                                IconButton(onClick = { showSongMenu(song) }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.more_vert),
-                                        contentDescription = null,
-                                    )
-                                }
+                                MoreVertMenuButton(onClick = { showSongMenu(song) })
                             },
                             modifier = Modifier
                                 .weight(1f)
@@ -469,15 +463,7 @@ fun ZemerCuratedPlaylistScreen(
                 }
             },
             navigationIcon = {
-                IconButton(
-                    onClick = navController::navigateUp,
-                    onLongClick = navController::backToMain,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.arrow_back),
-                        contentDescription = null
-                    )
-                }
+                BackNavigationIcon(navController)
             },
             scrollBehavior = scrollBehavior,
         )

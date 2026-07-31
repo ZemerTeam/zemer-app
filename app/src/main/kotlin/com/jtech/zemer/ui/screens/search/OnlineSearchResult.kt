@@ -17,8 +17,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,7 +35,6 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -60,6 +57,7 @@ import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.OfflineBackupPromoCard
 import com.jtech.zemer.ui.component.YouTubeListItem
@@ -225,14 +223,9 @@ fun OnlineSearchResult(
             },
             isPlaying = isPlaying,
             trailingContent = {
-                IconButton(
+                MoreVertMenuButton(
                     onClick = longClick,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.more_vert),
-                        contentDescription = null,
-                    )
-                }
+                )
             },
             modifier =
             Modifier

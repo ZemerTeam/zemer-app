@@ -39,8 +39,8 @@ import com.jtech.zemer.constants.PersistentQueueKey
 import com.jtech.zemer.constants.SeekExtraSeconds
 import com.jtech.zemer.constants.SkipSilenceKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.EnumListPreference
-import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SliderPreference
 import com.jtech.zemer.ui.component.SwitchPreference
@@ -265,18 +265,12 @@ fun PlayerSettings(
     TopAppBar(
         title = { Text(stringResource(R.string.player_and_audio)) },
         navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain
-            ) {
-                Icon(
-                    painterResource(R.drawable.arrow_back),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .focusRequester(backFocus)
-                        .focusProperties { down = firstFocus }
-                )
-            }
+            BackNavigationIcon(
+                navController,
+                modifier = Modifier
+                    .focusRequester(backFocus)
+                    .focusProperties { down = firstFocus }
+            )
         }
     )
 }

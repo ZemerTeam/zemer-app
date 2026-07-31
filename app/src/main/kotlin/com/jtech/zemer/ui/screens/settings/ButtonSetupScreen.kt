@@ -49,7 +49,7 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.models.DpadDirection
-import com.jtech.zemer.ui.component.IconButton
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.AccessibilityUtils
@@ -166,17 +166,7 @@ fun ButtonSetupScreen(
 
     TopAppBar(
         title = { Text(stringResource(R.string.dpad_setup_title)) },
-        navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain
-            ) {
-                Icon(
-                    painterResource(R.drawable.arrow_back),
-                    contentDescription = null
-                )
-            }
-        },
+        navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior
     )
 }

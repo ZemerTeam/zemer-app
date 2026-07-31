@@ -96,10 +96,10 @@ import com.jtech.zemer.constants.RecognizeMusicFabKey
 import com.jtech.zemer.constants.BottomNavigationItemsKey
 import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.EnumListPreference
 import com.jtech.zemer.ui.player.isBlurSupported
-import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PlayerSliderTrack
 import com.jtech.zemer.ui.component.PreferenceEntry
@@ -1034,17 +1034,7 @@ fun AppearanceSettings(
 
     TopAppBar(
         title = { Text(stringResource(R.string.appearance)) },
-        navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(
-                    painterResource(R.drawable.arrow_back),
-                    contentDescription = null,
-                )
-            }
-        }
+        navigationIcon = { BackNavigationIcon(navController) }
     )
 }
 

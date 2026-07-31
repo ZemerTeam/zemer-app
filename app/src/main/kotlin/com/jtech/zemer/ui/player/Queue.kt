@@ -105,6 +105,7 @@ import com.jtech.zemer.ui.component.BottomSheetState
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MediaMetadataListItem
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.menu.PlayerMenu
 import com.jtech.zemer.ui.menu.SelectionMediaMetadataMenu
 import com.jtech.zemer.ui.utils.ShowMediaInfo
@@ -725,7 +726,7 @@ fun Queue(
                                     isActive = index == currentWindowIndex,
                                     isPlaying = isPlaying,
                                     trailingContent = {
-                                        IconButton(
+                                        MoreVertMenuButton(
                                             onClick = {
                                                 menuState.show {
                                                     PlayerMenu(
@@ -744,12 +745,7 @@ fun Queue(
                                                     )
                                                 }
                                             },
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.more_vert),
-                                                contentDescription = null,
-                                            )
-                                        }
+                                        )
                                         if (!locked) {
                                             IconButton(
                                                 onClick = { },
@@ -1021,7 +1017,7 @@ fun Queue(
                         )
                     }
 
-                    IconButton(
+                    MoreVertMenuButton(
                         onClick = {
                             menuState.show {
                                 SelectionMediaMetadataMenu(
@@ -1035,13 +1031,7 @@ fun Queue(
                                 )
                             }
                         },
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.more_vert),
-                            contentDescription = null,
-                            tint = LocalContentColor.current,
-                        )
-                    }
+                    )
                 }
             }
             if (pureBlack) {

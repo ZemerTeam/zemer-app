@@ -73,6 +73,7 @@ import com.jtech.zemer.ui.component.DraggableScrollbar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.component.SelectionActions
@@ -285,7 +286,7 @@ fun CachePlaylistScreen(
                         isSelected = songWrapper.isSelected && selection,
                         showInLibraryIcon = true,
                         trailingContent = {
-                            IconButton(onClick = {
+                            MoreVertMenuButton(onClick = {
                                 menuState.show {
                                     SongMenu(
                                         originalSong = songWrapper.item,
@@ -294,12 +295,7 @@ fun CachePlaylistScreen(
                                         isFromCache = true,
                                     )
                                 }
-                            }) {
-                                Icon(
-                                    painter = painterResource(R.drawable.more_vert),
-                                    contentDescription = null
-                                )
-                            }
+                            })
                         },
                         modifier = Modifier
                             .fillMaxWidth()

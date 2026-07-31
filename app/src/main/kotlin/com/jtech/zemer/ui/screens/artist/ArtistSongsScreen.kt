@@ -15,8 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -28,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -46,8 +43,8 @@ import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.HideOnScrollFAB
-import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.menu.SongMenu
@@ -131,7 +128,7 @@ fun ArtistSongsScreen(
                     isActive = song.id == mediaMetadata?.id,
                     isPlaying = isPlaying,
                     trailingContent = {
-                        IconButton(
+                        MoreVertMenuButton(
                             onClick = {
                                 menuState.show {
                                     SongMenu(
@@ -141,12 +138,7 @@ fun ArtistSongsScreen(
                                     )
                                 }
                             },
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.more_vert),
-                                contentDescription = null,
-                            )
-                        }
+                        )
                     },
                     modifier =
                     Modifier

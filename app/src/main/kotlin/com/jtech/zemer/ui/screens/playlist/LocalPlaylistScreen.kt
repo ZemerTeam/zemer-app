@@ -126,6 +126,7 @@ import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.OverlayEditButton
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
@@ -569,7 +570,7 @@ fun LocalPlaylistScreen(
                                 isPlaying = isPlaying,
                                 showInLibraryIcon = true,
                                 trailingContent = {
-                                    IconButton(
+                                    MoreVertMenuButton(
                                         onClick = {
                                             menuState.show {
                                                 SongMenu(
@@ -581,12 +582,7 @@ fun LocalPlaylistScreen(
                                                 )
                                             }
                                         },
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.more_vert),
-                                            contentDescription = null,
-                                        )
-                                    }
+                                    )
 
                                     if (sortType == PlaylistSongSortType.CUSTOM && !locked && !selection && !isSearching && editable) {
                                         IconButton(
@@ -697,7 +693,7 @@ fun LocalPlaylistScreen(
                                 showInLibraryIcon = true,
 
                                 trailingContent = {
-                                    IconButton(
+                                    MoreVertMenuButton(
                                         onClick = {
                                             menuState.show {
                                                 SongMenu(
@@ -708,12 +704,7 @@ fun LocalPlaylistScreen(
                                                 )
                                             }
                                         },
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.more_vert),
-                                            contentDescription = null,
-                                        )
-                                    }
+                                    )
                                     if (sortType == PlaylistSongSortType.CUSTOM && !locked && !selection && !isSearching && editable) {
                                         IconButton(
                                             onClick = { },

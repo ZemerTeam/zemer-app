@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,7 +35,6 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -50,7 +48,7 @@ import com.jtech.zemer.constants.MaxImageCacheSizeKey
 import com.jtech.zemer.constants.MaxSongCacheSizeKey
 import com.jtech.zemer.extensions.tryOrNull
 import com.jtech.zemer.ui.component.ActionPromptDialog
-import com.jtech.zemer.ui.component.IconButton
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
@@ -403,18 +401,12 @@ fun StorageSettings(
     TopAppBar(
         title = { Text(stringResource(R.string.storage)) },
         navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(
-                    painterResource(R.drawable.arrow_back),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .focusRequester(backFocus)
-                        .focusProperties { down = firstFocus }
-                )
-            }
+            BackNavigationIcon(
+                navController,
+                modifier = Modifier
+                    .focusRequester(backFocus)
+                    .focusProperties { down = firstFocus }
+            )
         }
     )
 }

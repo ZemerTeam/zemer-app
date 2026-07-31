@@ -86,6 +86,7 @@ import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
@@ -406,7 +407,7 @@ fun AutoPlaylistScreen(
                         isPlaying = isPlaying,
                         showInLibraryIcon = true,
                         trailingContent = {
-                            IconButton(
+                            MoreVertMenuButton(
                                 onClick = {
                                     menuState.show {
                                         SongMenu(
@@ -416,12 +417,7 @@ fun AutoPlaylistScreen(
                                         )
                                     }
                                 },
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.more_vert),
-                                    contentDescription = null,
-                                )
-                            }
+                            )
                         },
                         isSelected = songWrapper.isSelected && selection,
                         modifier =

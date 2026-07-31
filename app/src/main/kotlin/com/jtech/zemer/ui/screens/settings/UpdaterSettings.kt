@@ -45,7 +45,7 @@ import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.constants.CheckForUpdatesKey
 import com.jtech.zemer.constants.InstallerTypeKey
 import com.jtech.zemer.constants.NightlyUpdatesKey
-import com.jtech.zemer.ui.component.IconButton
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.UpdateDownloadDialog
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
@@ -396,18 +396,12 @@ fun UpdaterScreen(
     TopAppBar(
         title = { Text(stringResource(R.string.updater)) },
         navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.arrow_back),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .focusRequester(backFocus)
-                        .focusProperties { down = firstFocus }
-                )
-            }
+            BackNavigationIcon(
+                navController,
+                modifier = Modifier
+                    .focusRequester(backFocus)
+                    .focusProperties { down = firstFocus }
+            )
         }
     )
 }

@@ -14,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,6 +34,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.screens.videoRoute
@@ -93,7 +93,7 @@ fun LibraryVideosScreen(
                     isPlaying = isPlaying && mediaMetadata?.id == video.id,
                     isActive = mediaMetadata?.id == video.id,
                     trailingContent = {
-                        IconButton(
+                        MoreVertMenuButton(
                             onClick = {
                                 menuState.show {
                                     SongMenu(
@@ -103,12 +103,7 @@ fun LibraryVideosScreen(
                                     )
                                 }
                             },
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.more_vert),
-                                contentDescription = null,
-                            )
-                        }
+                        )
                     },
                     modifier =
                     Modifier

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,7 +60,7 @@ fun LibraryArtistListItem(
 ) = ArtistListItem(
     artist = artist,
     trailingContent = {
-        androidx.compose.material3.IconButton(
+        MoreVertMenuButton(
             onClick = {
                 menuState.show {
                     ArtistMenu(
@@ -71,12 +70,7 @@ fun LibraryArtistListItem(
                     )
                 }
             }
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.more_vert),
-                contentDescription = null
-            )
-        }
+        )
     },
     modifier = modifier
         .fillMaxWidth()
@@ -115,7 +109,7 @@ fun WhitelistedArtistListItem(
         )
     },
     trailingContent = {
-        androidx.compose.material3.IconButton(
+        MoreVertMenuButton(
             onClick = {
                 menuState.show {
                     ArtistMenu(
@@ -125,12 +119,7 @@ fun WhitelistedArtistListItem(
                     )
                 }
             }
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.more_vert),
-                contentDescription = null
-            )
-        }
+        )
     },
     modifier = modifier
         .fillMaxWidth()
@@ -231,7 +220,7 @@ fun LibraryAlbumListItem(
     isActive = isActive,
     isPlaying = isPlaying,
     trailingContent = {
-        androidx.compose.material3.IconButton(
+        MoreVertMenuButton(
             onClick = {
                 menuState.show {
                     AlbumMenu(
@@ -241,12 +230,7 @@ fun LibraryAlbumListItem(
                     )
                 }
             }
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.more_vert),
-                contentDescription = null
-            )
-        }
+        )
     },
     modifier = modifier
         .fillMaxWidth()
@@ -299,7 +283,7 @@ fun LibraryPlaylistListItem(
 ) = PlaylistListItem(
     playlist = playlist,
     trailingContent = {
-        androidx.compose.material3.IconButton(
+        MoreVertMenuButton(
             onClick = {
                 menuState.show {
                     if (playlist.playlist.isEditable || playlist.songCount != 0) {
@@ -338,12 +322,7 @@ fun LibraryPlaylistListItem(
                     }
                 }
             }
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.more_vert),
-                contentDescription = null
-            )
-        }
+        )
     },
     modifier = modifier
         .fillMaxWidth()

@@ -21,6 +21,20 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
 - Do not introduce a second component that duplicates one of these. (For example, settings rows use
   the `Preference.kt` widgets below — do not add a parallel "settings group" widget set; grouped/
   separated rows use the components in section 11 — do not hand-roll cards per row.)
+- **Componentize on every touch.** Whenever you edit a screen, check whether a shared component
+  already covers what you are writing; if it does, use it. The moment you would write a *second*
+  near-copy of a widget that already exists elsewhere, extract it into `ui/component/` (or reuse the
+  existing one) and repoint every site in the same pass — never leave two hand-rolled copies to
+  drift. In particular: the top-bar back button is `BackNavigationIcon` / `BackTopAppBar`, the row
+  3-dot overflow is `MoreVertMenuButton`, and a plain `TopAppBar` action icon is
+  `TopAppBarActionButton` — all in `IconButton.kt`.
+- Enforcement (ratcheting): `scripts/ui-audit.sh` rules `R14-backbtn` and `R15-morevert` fail CI on
+  any *new* raw `R.drawable.arrow_back` / `R.drawable.more_vert` in a screen — build the back button
+  and the overflow menu from the shared components instead. The existing hand-rolls are baselined in
+  `scripts/ui-audit-baseline.tsv` (a large backlog — burn it down when you touch a screen; a
+  state-branching nav icon that legitimately flips to `close` in selection mode stays baselined).
+  The remaining reuse rules here (the other shared components, the `Material3SettingsGroup` settings
+  cards, the `.focusable()` D-pad treatment) are not greppable and stay a code-review gate.
 
 ## 2. Settings screens
 
