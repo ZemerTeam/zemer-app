@@ -927,7 +927,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/ui/README.md` | 326 lines | `.md` |
 | `docs/ui/standards.md` | 297 lines | `.md` |
 | `docs/whitelist/README.md` | 253 lines | `.md` |
-| `docs/zemer_playlists/README.md` | 104 lines | `.md` |
+| `docs/zemer_playlists/README.md` | 110 lines | `.md` |
 | `gradle.properties` | 40 lines | `.properties` |
 | `gradle/libs.versions.toml` | 160 lines | `.toml` |
 | `gradle/wrapper/gradle-wrapper.jar` | 45457 bytes | `.jar` |
