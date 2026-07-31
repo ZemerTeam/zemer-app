@@ -121,6 +121,63 @@ full detail in `docs/zemer_playlists/README.md`. The rules that must not regress
 - App↔server field changes travel as request docs in `~/zemer-fix/handoff-docs/`, never as direct
   edits to the zemer-search repo.
 
+### Genres (the song-level genre layer: Home chips, catalog, detail, radio)
+
+Song-level genre browsing served by the search server's `/genres` family; full detail in
+`docs/genres/README.md`, server contract in `~/zemer-fix/handoff-docs/zemer-app-genres.md`. Genre is
+a property of the SONG (via its release), independent of the artist flags — never conflate the two.
+The rules that must not regress:
+
+- **Key off the SLUG (`"nigunim"`), render the `title`** — `id` is the stable contract, `title` is a
+  display string the server changes freely. Routes carry the raw slug (`[\w-]`, URL-safe, no
+  encoding; `search/ZemerRoutes.kt` — `zemerGenresRoute`/`zemerGenreRoute`/`zemerGenreSectionRoute`,
+  unit-tested).
+- **`kind` grouping is fail-closed.** `musicGenres()` drops `non-music` AND any unknown/new kind
+  (`GenreKind.fromSlug` returns null → dropped), so spoken-word never renders beside songs.
+  `HIDDEN_GENRE_SLUGS` (lullaby/carlebach/workout/kids) are hidden from browse app-side (owner
+  decision, songs still reachable elsewhere); `acapella` is pinned LAST (`pinLast()`). All in
+  `search/ZemerGenresModels.kt`, JVM-tested in `ZemerGenresTest`.
+- **All three content flags on every call** (default-OPEN server; `zemerGenresParameters` /
+  `zemerGenreFacetParameters`, unit-tested). All genre endpoints are **live-only** (no offline
+  snapshot, like `/playlist`/`/radio`/`/stations`). The catalog has a 60 s flag-keyed TTL memo in
+  `ZemerSearchRepository.genres()` (collapses the Home→see-all→back nav burst); detail/facet are
+  uncached.
+- **The detail Play button is genre RADIO** (`ZemerRadioQueue.genre(slug)` → `/radio?kind=genre`),
+  NEVER the browse tracklist. It seeds no song, so its plays report `radio`; per-genre
+  `PlaySource.genre`/`TrackingSurface.genre` rides only the tracklist row taps (seed-first song
+  radio). **No Artists shelf** on a genre page — an artist card opens a full, mostly-unrelated
+  catalog (deliberately omitted).
+- **Tracklist paging + cross-list dedup** (`viewmodels/ZemerGenreViewModel`): near-edge prefetch
+  (`shouldPrefetchNearEnd`, off-composition `snapshotFlow`), and a track the corpus returns in BOTH
+  the song and video arrays is de-duped across the two lists (page 0 AND `loadMore`) with disjoint
+  `song_`/`video_` `LazyColumn` keys.
+- **See-all uses the facet endpoint, not a `k` cap** (`viewmodels/ZemerGenreSectionViewModel`,
+  `GenreSectionScreen.kt`, route `genre_section/{genreId}?section=`): pages
+  `/genres?id=&facet=albums|singles` (limit 200) until `nextOffset` is null, so the FULL list is
+  browsable. Reuses the shared `YtItemGrid` + `BackTopAppBar`; the see-all arrow shows on any
+  non-empty shelf (always, like the artist page).
+- **Visuals are monochrome + one gold accent** (`docs/genres/README.md` §visual): per-genre motif
+  drawables (`ui/component/GenreIcons.kt` → `res/drawable/genre_*.xml`, incl. hand-drawn
+  menorah/alef/sukkah; NOT `material-icons-extended`); the drifting weave (`GenreWeaveLayer`) is a
+  GPU-composited `graphicsLayer` translation of a once-drawn tile (NOT a per-frame redraw — that
+  caused catalog jank; the fix is load-bearing); the detail header album-art mosaic
+  (`ZemerResultMapper.headerCovers`) is the ONE color source, de-duped, min 3 unique covers
+  (songs reuse album art), neutral `ColorPainter` fallback (never a transparent gap), sized by the
+  mosaic-only `mosaicVariant` (isolated from the shared `thumbnailFor`). `HeaderFontFamily` (Heebo)
+  is used ONLY on genre titles/Play/card titles, never app-wide.
+- Home strip (`ui/screens/HomeGenresRow.kt`, own fail-soft `ZemerGenresViewModel`, isolated like
+  Stations) sits under Quick Picks, hidden/restored via a Settings → Appearance switch
+  (`ShowHomeGenresKey`). App↔server field changes travel as handoff docs, never as zemer-search edits.
+
+### Shared UI components (componentized — import, don't re-roll)
+
+A componentization pass extracted the app's repeated composables into `ui/component/`; reuse them
+instead of hand-rolling: `BackNavigationIcon` / `BackTopAppBar` (top-bar back button), `MoreVertMenuButton`
+(row 3-dot menu), `PlaylistPlayShuffleButtons` + `PlaylistHeaderShimmer` (playlist headers/skeletons),
+`shimmer/BoxPlaceholder` (the base shimmer slab under `ButtonPlaceholder`/`GridItemPlaceholder`),
+`ArtistBrowseComponents` (KidZone/whitelist browse header). New screens use these; a hand-rolled
+duplicate is a review miss.
+
 ### The home tab (telemetry-ranked rows; zero-InnerTube for content)
 
 `HomeViewModel` + `HomeScreen`. The home tab is **InnerTube-free for content** — every row is served
@@ -144,10 +201,12 @@ greenlight and evidence live in `~/zemer-fix/handoff-docs/zemer-app-artist-album
 **Remaining InnerTube candidates (the punch list to complete the migration)** — everything still
 reaching YouTube for content, in rough priority order. Pick from here before inventing new scope:
 
-- **Whole-screen discovery surfaces:** `YouTubeBrowseScreen`, `ChartsScreen`, `MoodAndGenresScreen`,
-  `NewReleaseScreen` (`FEmusic_new_releases`), and the legacy `ArtistItemsScreen` (superseded by the
-  Zemer per-section see-all — delete, don't migrate). Each wants a Zemer endpoint (or a handoff
-  request) the way home-rows got one.
+- **Whole-screen discovery surfaces:** `ChartsScreen` and `NewReleaseScreen`
+  (`FEmusic_new_releases`) remain; each wants a Zemer endpoint (or a handoff request) the way
+  home-rows got one. (`MoodAndGenresScreen`, `YouTubeBrowseScreen`, `BrowseScreen` and their
+  `YouTube.moodAndGenres`/`explore`/`ExplorePage` InnerTube paths were DELETED with the Genres
+  feature — the Zemer catalog is the replacement moods/genres surface. The legacy `ArtistItemsScreen`
+  is superseded by the Zemer per-section see-all — delete, don't migrate.)
 - **Non-engine InnerTube *search* users** (survived the engine removal deliberately — each needs its
   own design, not a blind swap): `RecognitionResolver` (fingerprint match → `YouTube.search` →
   whitelist check; a corpus-side match would need server support), the Android Auto **voice search**
