@@ -41,10 +41,13 @@ import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.di.ZemerSearchRepositoryEntryPoint
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
-import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
+import com.jtech.zemer.playback.queues.LocalAlbumRadio
+import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.ui.component.AlreadyInPlaylistDialog
+import dagger.hilt.android.EntryPointAccessors
 import com.jtech.zemer.ui.component.ArtistChoice
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
@@ -76,19 +79,23 @@ fun YouTubeAlbumMenu(
     val playerConnection = LocalPlayerConnection.current ?: return
     val album by database.albumWithSongs(albumItem.id).collectAsState(initial = null)
     val coroutineScope = rememberCoroutineScope()
+    // Corpus-native: resolve the album (browseId + playlistId) from the Zemer server, mirroring
+    // AlbumViewModel. No InnerTube YouTube.album() - a non-corpus album is non-whitelisted and its
+    // tracks would bypass the filter; a failed corpus load just leaves the actions empty rather than
+    // silently no-op-ing on a bot-gated InnerTube call.
+    val zemerRepository = remember(context) {
+        EntryPointAccessors
+            .fromApplication(context.applicationContext, ZemerSearchRepositoryEntryPoint::class.java)
+            .zemerSearchRepository()
+    }
 
     LaunchedEffect(Unit) {
-        database.album(albumItem.id).collect { album ->
-            if (album == null) {
-                YouTube
-                    .album(albumItem.id)
-                    .onSuccess { albumPage ->
-                        database.transaction {
-                            insert(albumPage)
-                        }
-                    }.onFailure {
-                        reportException(it)
-                    }
+        database.album(albumItem.id).collect { dbAlbum ->
+            if (dbAlbum == null) {
+                val options = zemerSearchOptions(context)
+                runCatching { zemerRepository.album(albumItem.id, albumItem.playlistId, options) }
+                    .onSuccess { page -> page?.let { database.transaction { insert(it) } } }
+                    .onFailure { reportException(it) }
             }
         }
     }
@@ -211,10 +218,11 @@ fun YouTubeAlbumMenu(
                         text = stringResource(R.string.play),
                         onClick = {
                             onDismiss()
-                            album?.songs?.let { songs ->
-                                if (songs.isNotEmpty()) {
-                                    playerConnection.playQueue(YouTubeAlbumRadio(albumItem.playlistId, database))
-                                }
+                            // Corpus-native: play the album's whitelisted tracks, then continue on the
+                            // Zemer /radio?kind=album fill (LocalAlbumRadio) - not the retired
+                            // YouTube.next()-based YouTubeAlbumRadio.
+                            album?.takeIf { it.songs.isNotEmpty() }?.let { aws ->
+                                playerConnection.playQueue(LocalAlbumRadio(aws, context = context))
                             }
                         }
                     ),
@@ -230,10 +238,10 @@ fun YouTubeAlbumMenu(
                         text = stringResource(R.string.shuffle),
                         onClick = {
                             onDismiss()
-                            album?.songs?.let { songs ->
-                                if (songs.isNotEmpty()) {
-                                    playerConnection.playQueue(YouTubeAlbumRadio(albumItem.playlistId, database))
-                                }
+                            album?.takeIf { it.songs.isNotEmpty() }?.let { aws ->
+                                playerConnection.playQueue(
+                                    LocalAlbumRadio(aws.copy(songs = aws.songs.shuffled()), context = context),
+                                )
                             }
                         }
                     ),
@@ -320,8 +328,9 @@ fun YouTubeAlbumMenu(
                             coroutineScope.launch(Dispatchers.IO) {
                                 var toDownload = database.albumWithSongs(albumItem.id).first()?.songs.orEmpty()
                                 if (toDownload.isEmpty()) {
-                                    YouTube.album(albumItem.id)
-                                        .onSuccess { page -> database.transaction { insert(page) } }
+                                    val options = zemerSearchOptions(context)
+                                    runCatching { zemerRepository.album(albumItem.id, albumItem.playlistId, options) }
+                                        .onSuccess { page -> page?.let { database.transaction { insert(it) } } }
                                         .onFailure { reportException(it) }
                                     toDownload = database.albumWithSongs(albumItem.id).first()?.songs.orEmpty()
                                 }
