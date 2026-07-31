@@ -68,6 +68,9 @@ fun ZemerCuratedPlaylistGridItem(
             pluralStringResource(R.plurals.n_song, playlist.trackCount, playlist.trackCount),
             if (showRuntime) zemerCuratedPlaylistRuntimeLabel(playlist.totalDurationSec) else null,
         ),
+        // The generated cover SVG already renders the playlist name, so the text title below would
+        // be a duplicate — show only the count/runtime sub-label.
+        showTitle = false,
         thumbnailRatio = 1f,
         fillMaxWidth = fillMaxWidth,
         modifier = modifier,
