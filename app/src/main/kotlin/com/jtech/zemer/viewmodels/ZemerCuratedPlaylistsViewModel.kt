@@ -16,9 +16,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -56,15 +53,7 @@ class ZemerCuratedPlaylistsViewModel @Inject constructor(
     private val refreshMutex = Mutex()
 
     init {
-        viewModelScope.launch(Dispatchers.IO) {
-            ContentFilterState.state
-                .map { it.allowFemaleSingers to it.blockVideos }
-                .distinctUntilChanged()
-                // The StateFlow replays the current value immediately; the screen-open refresh()
-                // already covers the first fetch, so only actual flag CHANGES re-fetch here.
-                .drop(1)
-                .collect { refreshNow() }
-        }
+        reloadOnContentFlagChange { refreshNow() }
     }
 
     fun refresh() {

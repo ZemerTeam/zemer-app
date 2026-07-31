@@ -37,6 +37,19 @@ class ZemerRoutesTest {
     }
 
     @Test
+    fun `genre routes are the raw slugs (vocabulary is url-safe by contract)`() {
+        assertEquals("genres", zemerGenresRoute())
+        assertEquals("genre/nigunim", zemerGenreRoute("nigunim"))
+        assertEquals("genre/shavuos-simchas-torah", zemerGenreRoute("shavuos-simchas-torah"))
+    }
+
+    @Test
+    fun `genre section see-all routes carry the slug and section`() {
+        assertEquals("genre_section/nigunim?section=albums", zemerGenreSectionRoute("nigunim", GENRE_SECTION_ALBUMS))
+        assertEquals("genre_section/purim?section=singles", zemerGenreSectionRoute("purim", GENRE_SECTION_SINGLES))
+    }
+
+    @Test
     fun `the search telemetry provider wire value is pinned`() {
         assertEquals("zemer", com.jtech.zemer.viewmodels.SEARCH_TRACKED_PROVIDER)
     }

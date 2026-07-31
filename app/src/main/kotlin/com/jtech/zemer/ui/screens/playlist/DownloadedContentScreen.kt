@@ -20,7 +20,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -38,8 +37,7 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.utils.rememberPreference
-import com.jtech.zemer.ui.component.IconButton
-import com.jtech.zemer.ui.utils.backToMain
+import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.viewmodels.DownloadedContentViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -158,24 +156,14 @@ fun DownloadedContentScreen(
             }
         }
 
-        TopAppBar(
+        BackTopAppBar(
             title = {
                 Text(
                     text = stringResource(R.string.offline),
                     style = MaterialTheme.typography.titleLarge,
                 )
             },
-            navigationIcon = {
-                IconButton(
-                    onClick = { navController.navigateUp() },
-                    onLongClick = { navController.backToMain() },
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.arrow_back),
-                        contentDescription = null,
-                    )
-                }
-            },
+            navController = navController,
             scrollBehavior = scrollBehavior,
         )
     }

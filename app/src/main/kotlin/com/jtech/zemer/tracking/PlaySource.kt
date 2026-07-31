@@ -22,6 +22,8 @@ object PlaySource {
     // community home row by real per-playlist engagement. `id` is the bare YouTube playlist id (`PL…`).
     fun community(id: String) = "community:$id"
     fun zemer(id: String) = "zemer:$id"
+    /** Genre radio started from a genre page ("Play genre"); `id` is the server genre slug. */
+    fun genre(id: String) = "genre:$id"
 }
 
 /**

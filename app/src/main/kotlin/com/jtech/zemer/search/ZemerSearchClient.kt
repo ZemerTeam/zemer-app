@@ -83,6 +83,42 @@ internal fun zemerCuratedPlaylistsParameters(
 }
 
 /**
+ * The exact query parameters a `/genres` request carries, in order ([id] = null for the catalog).
+ * Extracted so the fail-closed flag contract ([zemerContentFlagParameters]) is unit-testable without
+ * a live request. `limit`/`k` are deliberately not sent — the server defaults are the contract;
+ * [offset] rides along only when paging past the first tracklist page.
+ */
+internal fun zemerGenresParameters(
+    id: String?,
+    allowFemale: Boolean,
+    blockVideos: Boolean,
+    offset: Int = 0,
+): List<Pair<String, String>> = buildList {
+    if (id != null) add("id" to id)
+    addAll(zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true))
+    if (offset > 0) add("offset" to offset.toString())
+}
+
+/**
+ * The query parameters a facet see-all request carries (`/genres?id=&facet=…`), in order. Same
+ * fail-closed flag contract; [limit]+[offset] page the one facet's full list.
+ */
+internal fun zemerGenreFacetParameters(
+    id: String,
+    facet: String,
+    allowFemale: Boolean,
+    blockVideos: Boolean,
+    offset: Int,
+    limit: Int,
+): List<Pair<String, String>> = buildList {
+    add("id" to id)
+    add("facet" to facet)
+    addAll(zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true))
+    if (offset > 0) add("offset" to offset.toString())
+    add("limit" to limit.toString())
+}
+
+/**
  * Resolves a server-relative asset path against [ZemerSearchClient.BASE_URL]. The curated-playlists
  * endpoint returns its generated covers as relative paths ("/zemer-playlists/cover?id=…") so the
  * asset stays host-agnostic server-side; absolute URLs (track art on i.ytimg.com) pass through.
@@ -323,6 +359,79 @@ class ZemerSearchClient @Inject constructor() {
         }
 
     /**
+     * The genre catalog (`GET /genres`) — the genres that currently have songs, most-populated first,
+     * with counts computed against the flags sent (same fail-closed, default-OPEN contract as every
+     * Zemer request; `kidZone=0` because no genre surface is reachable from inside the KidZone tab).
+     * An empty list is a normal state — the genre surfaces just don't render.
+     */
+    suspend fun genres(
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+    ): ZemerGenresResponse {
+        val response: HttpResponse = client.get("$BASE_URL/genres") {
+            zemerGenresParameters(id = null, allowFemale, blockVideos).forEach { (name, value) ->
+                parameter(name, value)
+            }
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer genres returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerGenresResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * One genre's page (`GET /genres?id=`), already filtered server-side for the flags sent; [offset]
+     * pages the songs/videos tracklist (server `nextOffset` echo). Returns null on `404` — unknown
+     * slug, or every member song is filtered out for this viewer — which the caller handles by
+     * backing out, mirroring the curated-playlist detail. A user-initiated open of a large page, so
+     * it gets the larger request ceiling.
+     */
+    suspend fun genre(
+        id: String,
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+        offset: Int = 0,
+    ): ZemerGenrePageResponse? {
+        val response: HttpResponse = client.get("$BASE_URL/genres") {
+            zemerGenresParameters(id, allowFemale, blockVideos, offset).forEach { (name, value) ->
+                parameter(name, value)
+            }
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer genre returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerGenrePageResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * One page of a genre's FULL facet list (`/genres?id=&facet=`) — the see-all screens page this
+     * (albums/singles) beyond the summary's top-k. Returns null on 404 (unknown/empty genre); a bad
+     * facet is a 400 (surfaced as an IOException, never reached with the app's fixed facet slugs).
+     */
+    suspend fun genreFacet(
+        id: String,
+        facet: String,
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+        offset: Int = 0,
+        limit: Int = GENRE_FACET_LIMIT,
+    ): ZemerGenreFacetResponse? {
+        val response: HttpResponse = client.get("$BASE_URL/genres") {
+            zemerGenreFacetParameters(id, facet, allowFemale, blockVideos, offset, limit).forEach { (name, value) ->
+                parameter(name, value)
+            }
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer genre facet returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerGenreFacetResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
      * The telemetry-ranked home rows (`GET /home-rows`). The content flags are sent explicitly (same
      * fail-closed contract as every Zemer request — the server is default-OPEN); `kidZone=0` is always
      * sent because the home tab is never reachable from inside the KidZone tab. The server returns the
@@ -350,5 +459,8 @@ class ZemerSearchClient @Inject constructor() {
         // Requests above this k (the Community chip's K_COMMUNITY) get the larger ceiling below.
         private const val LARGE_REQUEST_K = 100
         private const val LARGE_REQUEST_TIMEOUT_MS = 20_000L
+        // The facet see-all page size (server max is 200) — one round-trip covers the largest
+        // album/single facet, and a genre with more pages via the returned nextOffset.
+        private const val GENRE_FACET_LIMIT = 200
     }
 }

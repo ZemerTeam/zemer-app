@@ -174,6 +174,9 @@ val ContentFiltersRestoredEmailKey = stringPreferencesKey("content_filters_resto
 val ContentFiltersLockedKey = booleanPreferencesKey("content_filters_locked")
 val HomeRecentArtistsKey = stringPreferencesKey("home_recent_artists")
 
+// The Home genre-chips row (under Quick picks). Hide/restore lives in Settings → Appearance only.
+val ShowHomeGenresKey = booleanPreferencesKey("show_home_genres")
+
 val ShowLikedPlaylistKey = booleanPreferencesKey("show_liked_playlist")
 val ShowDownloadedPlaylistKey = booleanPreferencesKey("show_downloaded_playlist")
 val ShowTopPlaylistKey = booleanPreferencesKey("show_top_playlist")

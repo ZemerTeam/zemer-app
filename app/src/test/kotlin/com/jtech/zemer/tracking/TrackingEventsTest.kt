@@ -133,6 +133,23 @@ class TrackingEventsTest {
     }
 
     @Test
+    fun `every genre slug in the handoff vocabulary yields valid surface and play-source slugs`() {
+        // The 35 slugs from zemer-app-genres.md §7 — all must fit the server's slug alphabet.
+        val slugs = listOf(
+            "nigunim", "acapella", "chazzanus", "carlebach", "instrumental", "dance", "electronic",
+            "workout", "calm", "lullaby", "kids", "wedding", "march", "yiddish", "english", "israeli",
+            "mizrachi", "yemenite",
+            "purim", "pesach", "chanukah", "yamim-noraim", "succos", "shavuos-simchas-torah",
+            "lag-baomer", "tu-bishvat", "three-weeks", "rosh-chodesh", "shabbos", "melave-malka",
+            "shiur", "parsha", "story", "comedy", "podcast",
+        )
+        slugs.forEach { slug ->
+            assertEquals("surface for $slug", true, isTrackingSurface(TrackingSurface.genre(slug)))
+            assertEquals("source for $slug", true, isTrackingSurface(PlaySource.genre(slug)))
+        }
+    }
+
+    @Test
     fun `upload counters are parsed when present and never throw on anything else`() {
         assertEquals(
             TrackingUploadCounters(accepted = 412, impressionsDropped = 50),

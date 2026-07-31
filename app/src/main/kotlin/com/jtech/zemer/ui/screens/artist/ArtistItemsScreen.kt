@@ -15,10 +15,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,7 +26,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -44,12 +40,13 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.tracking.PlaySource
-import com.jtech.zemer.ui.component.IconButton
+import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.YouTubeGridItem
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.shimmer.GridItemPlaceHolder
-import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
+import com.jtech.zemer.ui.component.shimmer.LoadingListPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeArtistMenu
@@ -57,7 +54,6 @@ import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
-import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.ArtistItemsViewModel
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -107,13 +103,7 @@ fun ArtistItemsScreen(
     }
 
     if (itemsPage == null) {
-        ShimmerHost(
-            modifier = Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current),
-        ) {
-            repeat(8) {
-                ListItemPlaceHolder()
-            }
-        }
+        LoadingListPlaceholder(8, Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current))
     }
 
     if (itemsPage?.items?.firstOrNull() is SongItem) {
@@ -135,7 +125,7 @@ fun ArtistItemsScreen(
                     },
                     isPlaying = isPlaying,
                     trailingContent = {
-                        IconButton(
+                        MoreVertMenuButton(
                             onClick = {
                                 menuState.show {
                                     when (item) {
@@ -169,12 +159,7 @@ fun ArtistItemsScreen(
                                     }
                                 }
                             },
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.more_vert),
-                                contentDescription = null,
-                            )
-                        }
+                        )
                     },
                     modifier =
                     Modifier
@@ -214,11 +199,7 @@ fun ArtistItemsScreen(
 
             if (itemsPage?.continuation != null) {
                 item(key = "loading") {
-                    ShimmerHost {
-                        repeat(3) {
-                            ListItemPlaceHolder()
-                        }
-                    }
+                    LoadingListPlaceholder(3)
                 }
             }
         }
@@ -316,18 +297,10 @@ fun ArtistItemsScreen(
         }
     }
 
-    TopAppBar(
+    // NOTE: this local `title: String` param and BackTopAppBar's `title` composable parameter
+    // share a name; the lambda below resolves `title` to this outer local variable.
+    BackTopAppBar(
         title = { Text(title) },
-        navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(
-                    painterResource(R.drawable.arrow_back),
-                    contentDescription = null,
-                )
-            }
-        },
+        navController = navController,
     )
 }

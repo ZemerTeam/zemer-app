@@ -82,9 +82,6 @@ fun NavGraphBuilder.navigationBuilder(
     composable("stats") {
         StatsScreen(navController)
     }
-    composable("mood_and_genres") {
-        MoodAndGenresScreen(navController, scrollBehavior)
-    }
     composable("account") {
         AccountScreen(navController, scrollBehavior)
     }
@@ -99,6 +96,36 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("zemer_stations") {
         ZemerStationsScreen(navController, scrollBehavior)
+    }
+    composable("genres") {
+        GenresScreen(navController, scrollBehavior)
+    }
+    composable(
+        // {genreId} is a server genre slug ("nigunim"), never a YouTube id — its own screen, like
+        // zemer_playlist. A blank slug is a broken deep link — pop back; an unknown one 404s and the
+        // screen backs itself out.
+        route = "genre/{genreId}",
+        arguments = listOf(navArgument("genreId") { type = NavType.StringType }),
+    ) {
+        val genreId = it.arguments?.getString("genreId")
+        if (genreId.isNullOrBlank()) LaunchedEffect(Unit) { navController.navigateUp() }
+        else GenreScreen(navController, scrollBehavior)
+    }
+    composable(
+        // One genre's full Albums or Singles grid (see-all). {genreId} is the slug; {section} is
+        // albums/singles. A blank slug is a broken deep link — pop back.
+        route = "genre_section/{genreId}?section={section}",
+        arguments = listOf(
+            navArgument("genreId") { type = NavType.StringType },
+            navArgument("section") {
+                type = NavType.StringType
+                defaultValue = ""
+            },
+        ),
+    ) {
+        val genreId = it.arguments?.getString("genreId")
+        if (genreId.isNullOrBlank()) LaunchedEffect(Unit) { navController.navigateUp() }
+        else GenreSectionScreen(navController, scrollBehavior)
     }
     composable(
         route = "home_see_all/{row}",
@@ -123,20 +150,6 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("charts_screen") {
        ChartsScreen(navController)
-    }
-    composable(
-        route = "browse/{browseId}",
-        arguments = listOf(
-            navArgument("browseId") {
-                type = NavType.StringType
-            }
-        )
-    ) {
-        BrowseScreen(
-            navController,
-            scrollBehavior,
-            it.arguments?.getString("browseId")
-        )
     }
     composable(
         route = "search/{query}?filter={filter}",
@@ -354,22 +367,6 @@ fun NavGraphBuilder.navigationBuilder(
         ),
     ) {
         TopPlaylistScreen(navController, scrollBehavior)
-    }
-    composable(
-        route = "youtube_browse/{browseId}?params={params}",
-        arguments =
-        listOf(
-            navArgument("browseId") {
-                type = NavType.StringType
-                nullable = true
-            },
-            navArgument("params") {
-                type = NavType.StringType
-                nullable = true
-            },
-        ),
-    ) {
-        YouTubeBrowseScreen(navController)
     }
     composable("settings") {
         SettingsScreen(navController, scrollBehavior, latestVersionName)

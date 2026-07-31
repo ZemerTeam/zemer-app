@@ -1,0 +1,12 @@
+<!-- A bold alef, extracted from the bundled Heebo Bold glyph outline (U+05D0) - the
+     Yiddish genre's motif: the script itself, paralleling the English genre's "ABC". -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960"
+    android:tint="?attr/colorControlNormal">
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M626.7 840.0 125.0 120.0H327.1L828.8 840.0ZM153.9 840.0V599.4Q153.9 489.9 192.1 427.4Q230.3 364.8 316.3 334.1L380.6 425.0Q328.9 456.8 328.9 522.4V840.0ZM835.4 120.0 597.2 572.9 479.3 429.8 632.1 120.0Z"/>
+</vector>

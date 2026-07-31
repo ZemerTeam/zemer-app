@@ -31,8 +31,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -48,7 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -60,8 +57,9 @@ import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
-import com.jtech.zemer.ui.component.IconButton
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.shimmer.GridItemPlaceHolder
@@ -70,7 +68,6 @@ import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
-import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.ChartsViewModel
 import com.metrolist.innertube.models.SongItem
 
@@ -102,17 +99,7 @@ fun ChartsScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.charts)) },
-                navigationIcon = {
-                    IconButton(
-                        onClick = { navController.navigateUp() },
-                        onLongClick = { navController.backToMain() }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.arrow_back),
-                            contentDescription = null,
-                        )
-                    }
-                },
+                navigationIcon = { BackNavigationIcon(navController) },
             )
         }
     ) { paddingValues ->
@@ -248,7 +235,7 @@ fun ChartsScreen(
                                             isPlaying = isPlaying,
                                             isSwipeable = false,
                                             trailingContent = {
-                                                IconButton(
+                                                MoreVertMenuButton(
                                                     onClick = {
                                                         menuState.show {
                                                             YouTubeSongMenu(
@@ -258,12 +245,7 @@ fun ChartsScreen(
                                                             )
                                                         }
                                                     },
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.more_vert),
-                                                        contentDescription = null,
-                                                    )
-                                                }
+                                                )
                                             },
                                             modifier = Modifier
                                                 .width(horizontalLazyGridItemWidth)

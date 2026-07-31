@@ -96,8 +96,7 @@ import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.YouTubeListItem
-import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
-import com.jtech.zemer.ui.component.shimmer.ShimmerHost
+import com.jtech.zemer.ui.component.shimmer.LoadingListPlaceholder
 import com.jtech.zemer.ui.menu.SelectionMediaMetadataMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
@@ -485,11 +484,7 @@ fun OnlinePlaylistScreen(
 
                     if (viewModel.continuation != null && songs.isNotEmpty() && isLoadingMore) {
                         item(key = "loading_more") {
-                            ShimmerHost {
-                                repeat(2) {
-                                    ListItemPlaceHolder()
-                                }
-                            }
+                            LoadingListPlaceholder(2)
                         }
                     }
 

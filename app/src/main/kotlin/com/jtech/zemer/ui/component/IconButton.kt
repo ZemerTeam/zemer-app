@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
@@ -36,6 +37,9 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import com.jtech.zemer.R
+import com.jtech.zemer.ui.utils.backToMain
 
 @Composable
 fun ResizableIconButton(
@@ -114,5 +118,64 @@ fun IconButton(
     ) {
         val contentColor = colors.contentColor
         CompositionLocalProvider(LocalContentColor provides contentColor, content = content)
+    }
+}
+
+/**
+ * The shared back-arrow [TopAppBar] navigation icon: tap navigates up, long-press jumps straight
+ * back to Home ([backToMain]). Used at every screen-level `TopAppBar`'s `navigationIcon` slot;
+ * screens with a different navigation-icon pattern (e.g. an icon that branches by UI state) should
+ * not be forced into this shared component.
+ */
+@Composable
+fun BackNavigationIcon(
+    navController: NavController,
+    modifier: Modifier = Modifier,
+) {
+    IconButton(
+        onClick = navController::navigateUp,
+        onLongClick = navController::backToMain,
+        modifier = modifier,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.arrow_back),
+            contentDescription = null,
+        )
+    }
+}
+
+/**
+ * The shared trailing 3-dot overflow-menu [IconButton]. Most call sites are a plain
+ * [androidx.compose.material3.IconButton] with tap-only `onClick`; passing [onLongClick] switches
+ * to the app's [IconButton] (combined-clickable) instead, preserving each site's exact widget
+ * (touch target / ripple / focus-border chrome) rather than forcing one shape onto every caller.
+ */
+@Composable
+fun MoreVertMenuButton(
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
+    if (onLongClick != null) {
+        IconButton(
+            onClick = onClick,
+            onLongClick = onLongClick,
+            modifier = modifier,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.more_vert),
+                contentDescription = null,
+            )
+        }
+    } else {
+        androidx.compose.material3.IconButton(
+            onClick = onClick,
+            modifier = modifier,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.more_vert),
+                contentDescription = null,
+            )
+        }
     }
 }
