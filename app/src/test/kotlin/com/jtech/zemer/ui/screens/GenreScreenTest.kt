@@ -83,21 +83,33 @@ class GenreHeaderCoversTest {
     }
 
     @Test
-    fun `fewer than a full strip renders NO mosaic - all or nothing`() {
-        // 4 unique covers < the 5-column strip: a sparse run of giant covers breaks the flow.
+    fun `three or four unique covers still render (they tile to fill the width)`() {
+        // 4 unique covers: enough to tile evenly — the common case (songs reuse album art, so
+        // genres often have only a handful of unique covers). Shown, not hidden.
         val covers = page(
             albums = listOf(album("a1", "A1"), album("a2", "A2")),
             singles = listOf(album("s1", "S1")),
             songs = listOf(song("v1", "V1")),
         ).headerCovers()
 
-        assertTrue(covers.isEmpty())
+        assertEquals(listOf("A1", "A2", "S1", "V1"), covers)
+    }
+
+    @Test
+    fun `fewer than the minimum renders NO mosaic - a lone or paired cover breaks the flow`() {
+        val covers = page(
+            albums = listOf(album("a1", "A1"), album("a2", "A2")),
+            singles = emptyList(),
+            songs = emptyList(),
+        ).headerCovers()
+
+        assertTrue(covers.isEmpty()) // only 2 unique < min 3
     }
 
     @Test
     fun `two renditions of one image can never count as different covers`() {
         // Same videoId art via hqdefault and mqdefault URLs: mosaicVariant normalizes BOTH to
-        // hqdefault BEFORE distinct, so they collapse to one cover (short strip renders nothing).
+        // hqdefault BEFORE distinct, so they collapse to one cover — the strip has 4 unique, not 5.
         val hq = "https://i.ytimg.com/vi/abc/hqdefault.jpg"
         val mq = "https://i.ytimg.com/vi/abc/mqdefault.jpg"
         val covers = page(
@@ -106,7 +118,8 @@ class GenreHeaderCoversTest {
             songs = (1..3).map { song("v$it", "V$it") },
         ).headerCovers()
 
-        assertTrue(covers.isEmpty())
+        // hqdefault appears exactly once (the two renditions collapsed), plus V1..V3 = 4 covers.
+        assertEquals(listOf("https://i.ytimg.com/vi/abc/hqdefault.jpg", "V1", "V2", "V3"), covers)
     }
 
     @Test

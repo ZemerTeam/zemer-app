@@ -322,13 +322,14 @@ object ZemerResultMapper {
      * The genre header mosaic's covers: the genre's top release art (albums first — the strongest
      * covers — then singles, then song art to fill), blanks dropped, de-duped, downsized to the
      * mosaic variant ([mosaicVariant] — sized for the ~230dp-tall header band, not full art),
-     * capped — and ALL-OR-NOTHING: fewer than [max] unique covers renders NO mosaic (owner rule: a
-     * sparse strip of giant covers breaks the flow; the weave header carries those genres instead).
-     * A LAZY sequence so map/distinct/take stop after the fifth unique cover instead of processing
-     * a 100-track page. Lives here (not the screen) so the ViewModel can preload the same URLs the
-     * moment the page lands — the images download in parallel with the first frame.
+     * de-duped, and capped at [max]. Needs at least [min] UNIQUE covers to render (they tile evenly
+     * to fill the width, so 3-4 covers look like a proper strip; below that a lone/stretched cover
+     * "breaks the flow" — the owner rule — so the weave header carries those genres instead).
+     * Songs reuse their album's art, so many genres have only a handful of unique covers. A LAZY
+     * sequence so map/distinct/take short-circuit instead of processing a 100-track page. Lives here
+     * (not the screen) so the ViewModel can preload the same URLs the moment the page lands.
      */
-    fun ZemerGenrePage.headerCovers(max: Int = 5): List<String> =
+    fun ZemerGenrePage.headerCovers(min: Int = 3, max: Int = 5): List<String> =
         (albums.asSequence().map { it.thumbnail } +
             singles.asSequence().map { it.thumbnail } +
             songs.asSequence().map { it.thumbnail })
@@ -337,7 +338,7 @@ object ZemerResultMapper {
             .distinct()
             .take(max)
             .toList()
-            .takeIf { it.size >= max }
+            .takeIf { it.size >= min }
             .orEmpty()
 
     /**
