@@ -567,4 +567,5 @@
     <string name="show_genres_row">Show genres on home</string>
     <string name="show_genres_row_desc">A row of genre shortcuts under Quick picks</string>
     <string name="singles">Singles</string>
+    <string name="browse_artists">Browse all artists</string>
 </resources>

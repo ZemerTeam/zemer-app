@@ -185,6 +185,7 @@ import com.jtech.zemer.constants.PauseSearchHistoryKey
 import com.jtech.zemer.constants.PureBlackKey
 import com.jtech.zemer.constants.SYSTEM_DEFAULT
 import com.jtech.zemer.constants.SlimNavBarKey
+import com.jtech.zemer.constants.BottomNavArtistsRemovedKey
 import com.jtech.zemer.constants.BottomNavigationBarEnabledKey
 import com.jtech.zemer.constants.BottomNavigationItemsKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
@@ -243,7 +244,9 @@ import com.jtech.zemer.utils.Updater
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.get
+import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.hasNotificationPermission
+import com.jtech.zemer.utils.removeBottomNavItem
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.updater.InstallResult
@@ -741,7 +744,22 @@ class MainActivity : ComponentActivity() {
                             sharedPreferences.getString("bottomNavigationItems", null)
                         }
                         val (bottomNavEnabled) = rememberPreference(BottomNavigationBarEnabledKey, defaultValue = prefBottomNavEnabled)
-                        val (bottomNavItemsString) = rememberPreference(BottomNavigationItemsKey, defaultValue = prefBottomNavItems ?: "home,artists,search,library")
+                        val (bottomNavItemsString) = rememberPreference(BottomNavigationItemsKey, defaultValue = prefBottomNavItems ?: "home,search,library")
+
+                        // One-time migration: the "artists" tab was dropped from the default bottom-nav
+                        // set (it now lives inside Search). Users who explicitly customized their bar
+                        // still carry a saved "artists" entry, so strip it once. The flag makes this
+                        // run a single time, so re-adding "artists" from Settings afterward sticks.
+                        LaunchedEffect(Unit) {
+                            if (context.dataStore.getSuspend(BottomNavArtistsRemovedKey, false)) return@LaunchedEffect
+                            val saved = context.dataStore.getSuspend(BottomNavigationItemsKey)
+                                ?: sharedPreferences.getString("bottomNavigationItems", null)
+                            if (saved != null && saved.split(",").any { it.trim() == "artists" }) {
+                                val stripped = removeBottomNavItem(saved, "artists", "home,search,library")
+                                context.dataStore.edit { it[BottomNavigationItemsKey] = stripped }
+                            }
+                            context.dataStore.edit { it[BottomNavArtistsRemovedKey] = true }
+                        }
 
                         // Create bottom navigation items dynamically from preferences
                         val bottomNavigationItems = remember(bottomNavItemsString) {

@@ -21,6 +21,10 @@ val DefaultOpenTabKey = stringPreferencesKey("defaultOpenTab")
 val BottomNavigationBarEnabledKey = booleanPreferencesKey("bottomNavigationBarEnabled")
 val SlimNavBarKey = booleanPreferencesKey("slimNavBar")
 val BottomNavigationItemsKey = stringPreferencesKey("bottomNavigationItems")
+// One-time flag: the "artists" tab was removed from the default bottom-nav set (surfaced inside Search
+// instead). Existing users who explicitly customized their bar keep a saved "artists" entry, so a single
+// startup migration strips it once. Re-adding it from Settings afterward sticks (the flag never re-runs).
+val BottomNavArtistsRemovedKey = booleanPreferencesKey("bottom_nav_artists_removed")
 val RecognizeMusicFabKey = booleanPreferencesKey("recognizeMusicFab")
 val GridItemsSizeKey = stringPreferencesKey("gridItemSize")
 val SliderStyleKey = stringPreferencesKey("sliderStyle")

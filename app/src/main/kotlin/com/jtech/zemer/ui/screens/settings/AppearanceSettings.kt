@@ -239,7 +239,7 @@ fun AppearanceSettings(
     }
     val (bottomNavigationItems, onBottomNavigationItemsChange) = rememberPreference(
         BottomNavigationItemsKey,
-        defaultValue = prefBottomNavItems ?: "home,artists,search,library"
+        defaultValue = prefBottomNavItems ?: "home,search,library"
     )
 
     var showBottomNavCustomizationDialog by rememberSaveable { mutableStateOf(false) }
@@ -752,7 +752,7 @@ fun AppearanceSettings(
                 onBottomNavEnabledChange(enabled)
                 // Reset to default when toggling
                 if (!enabled) {
-                    onBottomNavigationItemsChange("home,artists,search,library")
+                    onBottomNavigationItemsChange("home,search,library")
                 }
             }
         )
