@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` — a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline — they are not duplicated here.
 
-## `app` Kotlin files (510)
+## `app` Kotlin files (509)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -69,7 +69,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/extensions/ListExt.kt` | 54 | `com.jtech.zemer.extensions` | no | 2 | 5 |  |
 | `app/src/main/kotlin/com/jtech/zemer/extensions/MediaItemExt.kt` | 70 | `com.jtech.zemer.extensions` | no | 8 | 4 | androidx.core, androidx.media3 |
 | `app/src/main/kotlin/com/jtech/zemer/extensions/PlayerExt.kt` | 121 | `com.jtech.zemer.extensions` | no | 10 | 19 | androidx.media3, java.util |
-| `app/src/main/kotlin/com/jtech/zemer/extensions/QueueExt.kt` | 112 | `com.jtech.zemer.extensions` | no | 9 | 3 |  |
+| `app/src/main/kotlin/com/jtech/zemer/extensions/QueueExt.kt` | 100 | `com.jtech.zemer.extensions` | no | 8 | 3 |  |
 | `app/src/main/kotlin/com/jtech/zemer/extensions/StringExt.kt` | 23 | `com.jtech.zemer.extensions` | no | 3 | 4 | androidx.sqlite, java.net |
 | `app/src/main/kotlin/com/jtech/zemer/extensions/UtilExt.kt` | 8 | `com.jtech.zemer.extensions` | no | 0 | 0 |  |
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleaseCard.kt` | 131 | `com.jtech.zemer.latestreleases` | yes | 29 | 12 | androidx.compose, androidx.navigation, kotlinx.coroutines |
@@ -91,7 +91,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/models/ItemsPage.kt` | 8 | `com.jtech.zemer.models` | no | 1 | 3 |  |
 | `app/src/main/kotlin/com/jtech/zemer/models/MediaMetadata.kt` | 108 | `com.jtech.zemer.models` | no | 7 | 24 | androidx.compose, java.io, java.time |
 | `app/src/main/kotlin/com/jtech/zemer/models/PersistPlayerState.kt` | 14 | `com.jtech.zemer.models` | no | 1 | 9 | java.io |
-| `app/src/main/kotlin/com/jtech/zemer/models/PersistQueue.kt` | 54 | `com.jtech.zemer.models` | no | 1 | 31 | java.io |
+| `app/src/main/kotlin/com/jtech/zemer/models/PersistQueue.kt` | 59 | `com.jtech.zemer.models` | no | 1 | 31 | java.io |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineReadProvider.kt` | 103 | `com.jtech.zemer.offline` | no | 17 | 22 | android.content, dagger.hilt, java.lang, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineSubsetSyncer.kt` | 190 | `com.jtech.zemer.offline` | no | 23 | 31 | android.content, androidx.datastore, dagger.hilt, java.io, javax.inject, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetCategories.kt` | 366 | `com.jtech.zemer.offline` | no | 7 | 133 | java.util |
@@ -142,7 +142,6 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/LocalAlbumRadio.kt` | 65 | `com.jtech.zemer.playback.queues` | no | 11 | 14 | android.content, androidx.media3, dagger.hilt, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/Queue.kt` | 71 | `com.jtech.zemer.playback.queues` | no | 4 | 16 | androidx.media3 |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/StationQueue.kt` | 163 | `com.jtech.zemer.playback.queues` | no | 20 | 32 | android.content, androidx.media3, dagger.hilt, java.io, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/playback/queues/YouTubeAlbumRadio.kt` | 64 | `com.jtech.zemer.playback.queues` | no | 11 | 16 | androidx.media3, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/YouTubeQueue.kt` | 75 | `com.jtech.zemer.playback.queues` | no | 11 | 16 | androidx.media3, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/ZemerRadioQueue.kt` | 129 | `com.jtech.zemer.playback.queues` | no | 11 | 23 | android.content, androidx.media3, dagger.hilt, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/recognition/AudioResampler.kt` | 118 | `com.jtech.zemer.recognition` | no | 6 | 24 | java.nio, kotlinx.coroutines, timber.log |
@@ -249,7 +248,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ReportContentDialog.kt` | 130 | `com.jtech.zemer.ui.menu` | yes | 31 | 8 | android.widget, androidx.compose, androidx.hilt, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/SelectionSongsMenu.kt` | 588 | `com.jtech.zemer.ui.menu` | yes | 52 | 40 | android.annotation, androidx.compose, androidx.media3, java.time, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/SongMenu.kt` | 561 | `com.jtech.zemer.ui.menu` | yes | 78 | 40 | android.content, android.widget, androidx.activity, androidx.compose, androidx.hilt, androidx.navigation, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeAlbumMenu.kt` | 368 | `com.jtech.zemer.ui.menu` | yes | 64 | 21 | android.annotation, android.content, androidx.compose, androidx.navigation, dagger.hilt, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeAlbumMenu.kt` | 367 | `com.jtech.zemer.ui.menu` | yes | 64 | 21 | android.annotation, android.content, androidx.compose, androidx.navigation, dagger.hilt, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeArtistMenu.kt` | 209 | `com.jtech.zemer.ui.menu` | yes | 41 | 8 | android.content, androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubePlaylistMenu.kt` | 495 | `com.jtech.zemer.ui.menu` | yes | 78 | 24 | android.annotation, android.content, androidx.compose, coil3.compose, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeSongMenu.kt` | 480 | `com.jtech.zemer.ui.menu` | yes | 81 | 29 | android.annotation, android.content, androidx.compose, androidx.navigation, coil3.compose, java.time, kotlinx.coroutines |
