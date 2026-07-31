@@ -173,10 +173,19 @@ The rules that must not regress:
 
 A componentization pass extracted the app's repeated composables into `ui/component/`; reuse them
 instead of hand-rolling: `BackNavigationIcon` / `BackTopAppBar` (top-bar back button), `MoreVertMenuButton`
-(row 3-dot menu), `PlaylistPlayShuffleButtons` + `PlaylistHeaderShimmer` (playlist headers/skeletons),
+(row 3-dot menu), `TopAppBarActionButton` (plain `TopAppBar` action icon — history/search/now-playing/
+refresh), `PlaylistPlayShuffleButtons` + `PlaylistHeaderShimmer` (playlist headers/skeletons),
 `shimmer/BoxPlaceholder` (the base shimmer slab under `ButtonPlaceholder`/`GridItemPlaceholder`),
 `ArtistBrowseComponents` (KidZone/whitelist browse header). New screens use these; a hand-rolled
 duplicate is a review miss.
+
+**Componentize on every touch (non-negotiable).** Whenever you touch anything in the app, first check
+whether a shared component already covers it — if one exists, use it. If you find yourself writing (or
+editing) a second near-copy of a widget that already appears elsewhere, STOP and extract it into
+`ui/component/` (or reuse the existing one), then point every site at it in the same pass — never leave
+two hand-rolled copies to drift. Extracting the shared piece is part of the change, not a follow-up: the
+staff-engineer review bar rejects copy-pasted near-duplicates. When you add a new shared component, list
+it in the paragraph above so the next contributor finds it.
 
 ### The home tab (telemetry-ranked rows; zero-InnerTube for content)
 

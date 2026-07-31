@@ -60,7 +60,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
@@ -109,6 +108,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.height
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -207,6 +207,7 @@ import com.jtech.zemer.ui.component.AccountSettingsDialog
 import com.jtech.zemer.ui.component.BottomSheetMenu
 import com.jtech.zemer.ui.component.BottomSheetPage
 import com.jtech.zemer.ui.component.IconButton
+import com.jtech.zemer.ui.component.TopAppBarActionButton
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.RecognizeMusicFab
@@ -1449,7 +1450,7 @@ class MainActivity : ComponentActivity() {
                                                 var eggLastTapAt by remember { mutableStateOf(0L) }
                                                 Text(
                                                     text = currentTitleRes?.let { stringResource(it) } ?: "",
-                                                    style = MaterialTheme.typography.titleLarge,
+                                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                                                     modifier = if (currentTitleRes == R.string.home) {
                                                         Modifier.clickable(
                                                             interactionSource = remember { MutableInteractionSource() },
@@ -1491,6 +1492,11 @@ class MainActivity : ComponentActivity() {
                                                         }
                                                     },
                                                 ) {
+                                                    // The drawer hamburger is deliberately smaller and
+                                                    // dimmer than a normal action icon so it recedes next
+                                                    // to the bold screen title; the back arrow (other
+                                                    // states) keeps full size/weight for tap clarity.
+                                                    val showingMenu = !active && isMainScreen
                                                     Icon(
                                                         painterResource(
                                                             if (active || !isMainScreen) {
@@ -1501,6 +1507,13 @@ class MainActivity : ComponentActivity() {
                                                         ),
                                                         contentDescription = null,
                                                     modifier = Modifier
+                                                        .then(
+                                                            if (showingMenu) {
+                                                                Modifier.size(20.dp).alpha(0.6f)
+                                                            } else {
+                                                                Modifier
+                                                            }
+                                                        )
                                                         .focusRequester(burgerFocusRequester)
                                                         .focusProperties {
                                                             next = topPlayFocusRequester
@@ -1514,92 +1527,55 @@ class MainActivity : ComponentActivity() {
                                                 val currentRoute = navBackStackEntry?.destination?.route
                                                 if (currentRoute == Screens.Home.route) {
                                                     if (showHistoryButton) {
-                                                        IconButton(
+                                                        TopAppBarActionButton(
+                                                            icon = R.drawable.history,
+                                                            contentDescription = stringResource(R.string.history),
                                                             onClick = { navController.navigate("history") },
-                                                            colors = IconButtonDefaults.iconButtonColors(
-                                                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                                                            ),
-                                                            modifier = Modifier.clip(CircleShape)
-                                                        ) {
-                                                            Icon(
-                                                                painter = painterResource(R.drawable.history),
-                                                                contentDescription = stringResource(R.string.history)
-                                                            )
-                                                        }
-                                                    }
-                                                    IconButton(
-                                                        onClick = {
-                                                            onActiveChange(true)
-                                                        },
-                                                        colors = IconButtonDefaults.iconButtonColors(
-                                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                                                        ),
-                                                        modifier = Modifier.clip(CircleShape)
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.search),
-                                                            contentDescription = stringResource(R.string.search)
                                                         )
                                                     }
+                                                    TopAppBarActionButton(
+                                                        icon = R.drawable.search,
+                                                        contentDescription = stringResource(R.string.search),
+                                                        onClick = { onActiveChange(true) },
+                                                    )
                                                 }
 
                                                 if (currentRoute == Screens.Artists.route && navBackStackEntry != null) {
                                                     val whitelistedArtistsViewModel: WhitelistedArtistsViewModel =
                                                         hiltViewModel(navBackStackEntry!!)
-                                                    IconButton(
+                                                    TopAppBarActionButton(
+                                                        icon = R.drawable.sync,
+                                                        contentDescription = stringResource(R.string.refresh_artists),
                                                         onClick = { whitelistedArtistsViewModel.sync() },
-                                                        colors = IconButtonDefaults.iconButtonColors(
-                                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                                                        ),
-                                                        modifier = Modifier.clip(CircleShape)
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.sync),
-                                                            contentDescription = stringResource(R.string.refresh_artists)
-                                                        )
-                                                    }
+                                                    )
                                                 }
 
                                                 if (currentRoute == Screens.KidZone.route && navBackStackEntry != null) {
                                                     val kidZoneViewModel: KidZoneViewModel =
                                                         hiltViewModel(navBackStackEntry!!)
-                                                    IconButton(
+                                                    TopAppBarActionButton(
+                                                        icon = R.drawable.sync,
+                                                        contentDescription = stringResource(R.string.refresh_artists),
                                                         onClick = { kidZoneViewModel.sync() },
-                                                        colors = IconButtonDefaults.iconButtonColors(
-                                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                                                        ),
-                                                        modifier = Modifier.clip(CircleShape)
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.sync),
-                                                            contentDescription = stringResource(R.string.refresh_artists)
-                                                        )
-                                                    }
+                                                    )
                                                 }
 
-                                                IconButton(
+                                                TopAppBarActionButton(
+                                                    icon = R.drawable.play,
+                                                    contentDescription = stringResource(R.string.now_playing),
                                                     onClick = {
                                                         coroutineScope.launch {
                                                             playerBottomSheetState.expandSoft()
                                                         }
-                                                },
-                                                    colors = IconButtonDefaults.iconButtonColors(
-                                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                                                    ),
+                                                    },
                                                     modifier = Modifier
-                                                        .clip(CircleShape)
                                                         .focusRequester(topPlayFocusRequester)
                                                         .focusProperties {
                                                             next = miniPlayFocusRequester
                                                             previous = burgerFocusRequester
                                                             down = contentFocusRequester
                                                         }
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.play),
-                                                        contentDescription = stringResource(R.string.now_playing)
-                                                    )
-                                                }
+                                                )
                                             },
                                             scrollBehavior = searchBarScrollBehavior,
                                             colors = TopAppBarDefaults.topAppBarColors(
