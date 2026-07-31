@@ -75,6 +75,7 @@ import com.jtech.zemer.search.zemerGenreSectionRoute
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.FontSizeRange
@@ -86,6 +87,7 @@ import com.jtech.zemer.ui.component.genreIcon
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.YouTubeGridItem
 import com.jtech.zemer.ui.component.YouTubeListItem
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.BoxPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
@@ -452,11 +454,12 @@ fun GenreScreen(
     TopAppBar(
         title = {
             if (showTopBarTitle) {
-                Text((state as? UiState.Loaded)?.page?.header?.title.orEmpty())
+                AppBarTitle((state as? UiState.Loaded)?.page?.header?.title.orEmpty())
             }
         },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
+        colors = zemerTopAppBarColors(),
     )
 }
 

@@ -206,6 +206,7 @@ import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.ui.component.AccountSettingsDialog
 import com.jtech.zemer.ui.component.BottomSheetMenu
 import com.jtech.zemer.ui.component.BottomSheetPage
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.TopAppBarActionButton
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
@@ -1448,9 +1449,8 @@ class MainActivity : ComponentActivity() {
                                                 // title looks inert; other tabs' titles stay plain.
                                                 var eggTaps by remember { mutableStateOf(0) }
                                                 var eggLastTapAt by remember { mutableStateOf(0L) }
-                                                Text(
+                                                AppBarTitle(
                                                     text = currentTitleRes?.let { stringResource(it) } ?: "",
-                                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                                                     modifier = if (currentTitleRes == R.string.home) {
                                                         Modifier.clickable(
                                                             interactionSource = remember { MutableInteractionSource() },

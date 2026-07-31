@@ -11,9 +11,18 @@
 # correct for a plain song list, wrong for a grouped menu); the ratchet allowlists the legit dialog /
 # data-list ListItems that legitimately remain in menu files, so only NEW ones fail.
 #
-# NOT mechanically checked here (enforced by code review, see standards.md): the reuse rules
-# (section 1), the settings grouped-list component (Material3SettingsGroup), and the .focusable()
-# D-pad requirement on any new row component — reuse/structure judgments, not greppable patterns.
+# Componentization / reuse (standards.md section 1) is PARTLY checked: the two highest-frequency
+# shared widgets are ratcheted here — the top-bar back button (R14, BackNavigationIcon / BackTopAppBar)
+# and the row 3-dot overflow menu (R15, MoreVertMenuButton). A screen that re-rolls either from a raw
+# drawable fails once the baseline is set. Both are broad drawable matches, so the genuinely-different
+# sites (a state-branching nav icon that flips to `close` in selection mode; a non-nav glyph) are
+# baselined and only NEW hand-rolls fail — record a legit new one with --update.
+#
+# NOT mechanically checked here (enforced by code review, see standards.md): the rest of the reuse
+# rules (section 1) — TopAppBarActionButton, PlaylistPlayShuffleButtons, the shimmer placeholders,
+# ArtistBrowseComponents — plus the settings grouped-list component (Material3SettingsGroup) and the
+# .focusable() D-pad requirement on any new row component — reuse/structure judgments, not greppable
+# without heavy false positives.
 #
 #   bash scripts/ui-audit.sh            # check; exit 1 if a file gained violations
 #   bash scripts/ui-audit.sh --update   # rewrite the baseline to the current state
@@ -33,6 +42,13 @@
 #   R12-blur       raw `Modifier.blur(` under ui/ -> player blur must go through the effective
 #                  background (PlayerBackgroundStyle.effective(), no-op below API 31; see
 #                  ui/player/PlayerBackground.kt and standards.md section 8). Ratcheted.
+#   R14-backbtn    raw `R.drawable.arrow_back` in a screen -> use the shared BackNavigationIcon /
+#                  BackTopAppBar (component/IconButton.kt, component/BackTopAppBar.kt) instead of
+#                  re-rolling the top-bar back button. Ratcheted (state-branching nav icons that
+#                  legitimately can't use the shared component are baselined).
+#   R15-morevert   raw `R.drawable.more_vert` in a screen -> use the shared MoreVertMenuButton
+#                  (component/IconButton.kt) instead of a hand-rolled 3-dot overflow button.
+#                  Ratcheted.
 #
 # Genuine fixed-value exceptions (AMOLED pure-black, the lyric-image *export*, color-picker
 # swatches) are allowed: they live in the baseline. Keep them minimal; --update records them.
@@ -68,6 +84,17 @@ violations() {
   # per-surface `Icon.Download(` re-implements the unified badge. Baselined at zero.
   grep -rnE "downloadUtil\.downloads|\.getDownload\(|Icon\.Download\(" "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR13-download/'
+  # R14: hand-rolled top-bar back button. The shared BackNavigationIcon / BackTopAppBar own the
+  # arrow_back nav icon; a raw R.drawable.arrow_back in a screen re-rolls it. Exclude the two files
+  # that DEFINE / wrap the shared component. Ratcheted (state-branching close/back icons baselined).
+  grep -rnE "R\.drawable\.arrow_back" "$UI" --include=*.kt 2>/dev/null \
+    | grep -v "/theme/" | grep -v "component/IconButton.kt" | grep -v "component/BackTopAppBar.kt" \
+    | sed -E 's/:.*//' | sed 's/$/\tR14-backbtn/'
+  # R15: hand-rolled 3-dot overflow menu. Use MoreVertMenuButton (component/IconButton.kt) rather
+  # than a raw R.drawable.more_vert IconButton. Exclude the defining file. Ratcheted.
+  grep -rnE "R\.drawable\.more_vert" "$UI" --include=*.kt 2>/dev/null \
+    | grep -v "/theme/" | grep -v "component/IconButton.kt" \
+    | sed -E 's/:.*//' | sed 's/$/\tR15-morevert/'
 }
 
 # Aggregate to "<path>\t<rule>\t<count>", sorted.
@@ -102,14 +129,16 @@ improved="$(awk -F'\t' '
 ' <(printf "%s\n" "$cur") "$BASELINE")"
 
 if [ -n "$new" ]; then
-  echo "UI audit FAILED — new Rule 5/7/8/11/12/13 violations (docs/ui/standards.md sections 5, 7-8, 11, 13):"
+  echo "UI audit FAILED — new Rule 5/7/8/11/12/13/14/15 violations (docs/ui/standards.md sections 1, 5, 7-8, 11, 13):"
   echo "$new"
   echo
   echo "Route font sizes through MaterialTheme.typography (Type.kt), colors through"
   echo "MaterialTheme.colorScheme, dialogs through the Dialog.kt helpers (DefaultDialog etc.),"
   echo "user-facing text through stringResource() with metrolist_strings.xml, grouped action"
-  echo "menus through Material3MenuGroup / Material3MenuItemData (not raw ListItem rows), and"
-  echo "player blur through PlayerBackgroundStyle.effective() (ui/player/PlayerBackground.kt)."
+  echo "menus through Material3MenuGroup / Material3MenuItemData (not raw ListItem rows),"
+  echo "player blur through PlayerBackgroundStyle.effective() (ui/player/PlayerBackground.kt),"
+  echo "the top-bar back button through BackNavigationIcon / BackTopAppBar, and the row 3-dot"
+  echo "overflow through MoreVertMenuButton (both in ui/component/)."
   echo "If a fixed value or a genuine dialog/data-list ListItem is required, keep it minimal and"
   echo "record it with:"
   echo "  bash scripts/ui-audit.sh --update"
@@ -117,7 +146,7 @@ if [ -n "$new" ]; then
 fi
 
 total="$(violations | grep -c .)"
-echo "UI audit passed — no new Rule 5/7/8/11/12/13 violations (baseline: $total known, only allowed to shrink)."
+echo "UI audit passed — no new Rule 5/7/8/11/12/13/14/15 violations (baseline: $total known, only allowed to shrink)."
 if [ -n "$improved" ]; then
   echo "Burned down since the baseline — tighten it with \`bash scripts/ui-audit.sh --update\`:"
   echo "$improved"

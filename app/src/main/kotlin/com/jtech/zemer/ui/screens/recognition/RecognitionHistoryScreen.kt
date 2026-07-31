@@ -44,9 +44,12 @@ import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.RecognitionHistoryEntity
 import com.jtech.zemer.recognition.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
+import com.jtech.zemer.ui.component.AppBarTitle
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.focusBorder
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.resize
 import com.jtech.zemer.viewmodels.RecognitionHistoryViewModel
@@ -64,15 +67,8 @@ fun RecognitionHistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.recognition_history)) },
-                navigationIcon = {
-                    IconButton(
-                        onClick = navController::navigateUp,
-                        onLongClick = navController::backToMain,
-                    ) {
-                        Icon(painterResource(R.drawable.arrow_back), contentDescription = null)
-                    }
-                },
+                title = { AppBarTitle(stringResource(R.string.recognition_history)) },
+                navigationIcon = { BackNavigationIcon(navController) },
                 actions = {
                     if (items.isNotEmpty()) {
                         IconButton(onClick = { showClearDialog = true }, onLongClick = {}) {
@@ -83,6 +79,7 @@ fun RecognitionHistoryScreen(
                         }
                     }
                 },
+                colors = zemerTopAppBarColors(),
             )
         },
     ) {

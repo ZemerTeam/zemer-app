@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
@@ -29,9 +28,11 @@ import com.jtech.zemer.latestreleases.LatestReleaseCard
 import com.jtech.zemer.latestreleases.LatestReleaseFilter
 import com.jtech.zemer.latestreleases.applyFilter
 import com.jtech.zemer.latestreleases.shufflePlay
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.HideOnScrollFAB
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.viewmodels.LatestReleasesViewModel
 
 /**
@@ -99,8 +100,9 @@ fun LatestReleasesScreen(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.latest_releases)) },
+        title = { AppBarTitle(stringResource(R.string.latest_releases)) },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
+        colors = zemerTopAppBarColors(),
     )
 }

@@ -54,6 +54,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
@@ -84,7 +85,9 @@ import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SongListItem
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
@@ -333,7 +336,7 @@ fun AlbumScreen(
                                         .focusable()
                                         .onFocusChanged { headerMenuButtonFocused.value = it.isFocused }
                                 ) {
-                                    IconButton(
+                                    MoreVertMenuButton(
                                         onClick = {
                                             menuState.show {
                                                 AlbumMenu(
@@ -346,12 +349,7 @@ fun AlbumScreen(
                                                 )
                                             }
                                         }
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.more_vert),
-                                            contentDescription = null,
-                                        )
-                                    }
+                                    )
                                 }
                             }
                         }
@@ -404,7 +402,7 @@ fun AlbumScreen(
                             showInLibraryIcon = true,
 
                             trailingContent = {
-                                IconButton(
+                                MoreVertMenuButton(
                                     onClick = {
                                         menuState.show {
                                             SongMenu(
@@ -414,12 +412,7 @@ fun AlbumScreen(
                                             )
                                         }
                                     },
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.more_vert),
-                                        contentDescription = null,
-                                    )
-                                }
+                                )
                             },
                             isSelected = songWrapper.isSelected && selection,
                             modifier =
@@ -476,16 +469,12 @@ fun AlbumScreen(
         title = {
             if (selection) {
                 val count = wrappedSongs.count { it.isSelected }
-                Text(
-                    text = pluralStringResource(R.plurals.n_song, count, count),
-                    style = MaterialTheme.typography.titleLarge
+                AppBarTitle(
+                    text = pluralStringResource(R.plurals.n_song, count, count)
                 )
             } else {
-                Text(
-                    text = albumWithSongs?.album?.title.orEmpty(),
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                AppBarTitle(
+                    text = albumWithSongs?.album?.title.orEmpty()
                 )
             }
         },
@@ -554,7 +543,7 @@ fun AlbumScreen(
                         .focusable()
                         .onFocusChanged { isMoreButtonFocused.value = it.isFocused }
                 ) {
-                    IconButton(
+                    MoreVertMenuButton(
                         onClick = {
                             menuState.show {
                                 SelectionSongMenu(
@@ -565,14 +554,10 @@ fun AlbumScreen(
                                 )
                             }
                         },
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.more_vert),
-                            contentDescription = null
-                        )
-                    }
+                    )
                 }
             }
-        }
+        },
+        colors = zemerTopAppBarColors(),
     )
 }

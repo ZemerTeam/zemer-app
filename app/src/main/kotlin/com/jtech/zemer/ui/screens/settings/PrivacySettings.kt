@@ -32,11 +32,13 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.DisableScreenshotKey
 import com.jtech.zemer.constants.PauseListenHistoryKey
 import com.jtech.zemer.constants.PauseSearchHistoryKey
+import com.jtech.zemer.ui.component.AppBarTitle
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.DefaultDialog
-import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SwitchPreference
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberPreference
 
@@ -189,20 +191,15 @@ fun PrivacySettings(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.privacy)) },
+        title = { AppBarTitle(stringResource(R.string.privacy)) },
         navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(
-                    painterResource(R.drawable.arrow_back),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .focusRequester(backFocus)
-                        .focusProperties { down = firstFocus }
-                )
-            }
-        }
+            BackNavigationIcon(
+                navController,
+                modifier = Modifier
+                    .focusRequester(backFocus)
+                    .focusProperties { down = firstFocus }
+            )
+        },
+        colors = zemerTopAppBarColors(),
     )
 }

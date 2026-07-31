@@ -59,6 +59,7 @@ import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.IconButton
@@ -67,6 +68,7 @@ import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.YouTubeListItem
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.SelectionMediaMetadataMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
@@ -390,9 +392,8 @@ fun HistoryScreen(
         title = {
             if (selection) {
                 val count = allWrappedItems.count { it.isSelected }
-                Text(
-                    text = pluralStringResource(R.plurals.n_song, count, count),
-                    style = MaterialTheme.typography.titleLarge
+                AppBarTitle(
+                    text = pluralStringResource(R.plurals.n_song, count, count)
                 )
             } else if (isSearching) {
                 TextField(
@@ -419,7 +420,7 @@ fun HistoryScreen(
                         .focusRequester(focusRequester)
                 )
             } else {
-                Text(stringResource(R.string.history))
+                AppBarTitle(text = stringResource(R.string.history))
             }
         },
         navigationIcon = {
@@ -497,6 +498,7 @@ fun HistoryScreen(
                     )
                 }
             }
-        }
+        },
+        colors = zemerTopAppBarColors(),
     )
 }

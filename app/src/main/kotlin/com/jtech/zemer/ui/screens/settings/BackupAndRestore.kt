@@ -32,10 +32,12 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.Song
-import com.jtech.zemer.ui.component.IconButton
+import com.jtech.zemer.ui.component.AppBarTitle
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.menu.AddToPlaylistDialogOnline
 import com.jtech.zemer.ui.menu.LoadingScreen
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.BackupRestoreViewModel
 import kotlinx.coroutines.delay
@@ -147,21 +149,16 @@ fun BackupAndRestore(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.backup_restore)) },
+        title = { AppBarTitle(stringResource(R.string.backup_restore)) },
         navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(
-                    painterResource(R.drawable.arrow_back),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .focusRequester(backFocus)
-                        .focusProperties { down = firstFocus }
-                )
-            }
-        }
+            BackNavigationIcon(
+                navController,
+                modifier = Modifier
+                    .focusRequester(backFocus)
+                    .focusProperties { down = firstFocus }
+            )
+        },
+        colors = zemerTopAppBarColors(),
     )
     AddToPlaylistDialogOnline(
         isVisible = showChoosePlaylistDialogOnline,

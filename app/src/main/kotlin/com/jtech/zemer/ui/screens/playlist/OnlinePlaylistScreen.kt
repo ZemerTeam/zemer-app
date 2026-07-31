@@ -90,12 +90,15 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.DraggableScrollbar
 import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.YouTubeListItem
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.LoadingListPlaceholder
 import com.jtech.zemer.ui.menu.SelectionMediaMetadataMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
@@ -345,7 +348,7 @@ fun OnlinePlaylistScreen(
                                                 }
                                             }
 
-                                            IconButton(
+                                            MoreVertMenuButton(
                                                 onClick = {
                                                     menuState.show {
                                                         YouTubePlaylistMenu(
@@ -358,12 +361,7 @@ fun OnlinePlaylistScreen(
                                                         )
                                                     }
                                                 },
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.more_vert),
-                                                    contentDescription = null,
-                                                )
-                                            }
+                                            )
                                         }
                                     }
                                 }
@@ -430,7 +428,7 @@ fun OnlinePlaylistScreen(
                             isPlaying = isPlaying,
                             isSelected = song.isSelected && selection,
                             trailingContent = {
-                                IconButton(
+                                MoreVertMenuButton(
                                     onClick = {
                                         menuState.show {
                                             YouTubeSongMenu(
@@ -440,12 +438,7 @@ fun OnlinePlaylistScreen(
                                             )
                                         }
                                     },
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.more_vert),
-                                        contentDescription = null,
-                                    )
-                                }
+                                )
                             },
                             modifier =
                             Modifier
@@ -547,9 +540,8 @@ fun OnlinePlaylistScreen(
             title = {
                 if (selection) {
                     val count = wrappedSongs.count { it.isSelected }
-                    Text(
-                        text = pluralStringResource(R.plurals.n_song, count, count),
-                        style = MaterialTheme.typography.titleLarge
+                    AppBarTitle(
+                        text = pluralStringResource(R.plurals.n_song, count, count)
                     )
                 } else if (isSearching) {
                     TextField(
@@ -576,7 +568,7 @@ fun OnlinePlaylistScreen(
                             .focusRequester(focusRequester)
                     )
                 } else if (showTopBarTitle) {
-                    Text(playlist?.title.orEmpty())
+                    AppBarTitle(text = playlist?.title.orEmpty())
                 }
             },
             navigationIcon = {
@@ -624,7 +616,7 @@ fun OnlinePlaylistScreen(
                             contentDescription = null
                         )
                     }
-                    IconButton(
+                    MoreVertMenuButton(
                         onClick = {
                             menuState.show {
                                 SelectionMediaMetadataMenu(
@@ -636,12 +628,7 @@ fun OnlinePlaylistScreen(
                                 )
                             }
                         },
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.more_vert),
-                            contentDescription = null
-                        )
-                    }
+                    )
                 } else {
                     if (!isSearching) {
                         IconButton(
@@ -654,7 +641,8 @@ fun OnlinePlaylistScreen(
                         }
                     }
                 }
-            }
+            },
+            colors = zemerTopAppBarColors(),
         )
 
         SnackbarHost(

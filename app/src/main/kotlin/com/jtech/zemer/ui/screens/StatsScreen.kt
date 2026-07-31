@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -37,6 +36,7 @@ import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.ChoiceChipsRow
 import com.jtech.zemer.ui.component.HideOnScrollFAB
@@ -45,6 +45,7 @@ import com.jtech.zemer.ui.component.LocalArtistsGrid
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.LocalSongsGrid
 import com.jtech.zemer.ui.component.NavigationTitle
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.ArtistMenu
 import com.jtech.zemer.ui.menu.SongMenu
@@ -398,8 +399,9 @@ fun StatsScreen(
         }
 
         TopAppBar(
-            title = { Text(stringResource(R.string.stats)) },
+            title = { AppBarTitle(stringResource(R.string.stats)) },
             navigationIcon = { BackNavigationIcon(navController) },
+            colors = zemerTopAppBarColors(),
         )
     }
 }

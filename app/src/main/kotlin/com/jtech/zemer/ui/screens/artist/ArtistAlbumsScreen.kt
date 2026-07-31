@@ -43,6 +43,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.CONTENT_TYPE_ALBUM
 import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
 import com.jtech.zemer.constants.GridThumbnailHeight
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.LibraryAlbumGridItem
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -128,7 +129,7 @@ fun ArtistAlbumsScreen(
         }
 
         BackTopAppBar(
-            title = { Text(artist?.artist?.name.orEmpty()) },
+            title = { AppBarTitle(artist?.artist?.name.orEmpty()) },
             navController = navController,
             scrollBehavior = scrollBehavior,
         )

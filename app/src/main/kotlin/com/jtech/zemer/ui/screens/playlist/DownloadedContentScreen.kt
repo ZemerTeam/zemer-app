@@ -37,6 +37,7 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.viewmodels.DownloadedContentViewModel
 
@@ -158,10 +159,7 @@ fun DownloadedContentScreen(
 
         BackTopAppBar(
             title = {
-                Text(
-                    text = stringResource(R.string.offline),
-                    style = MaterialTheme.typography.titleLarge,
-                )
+                AppBarTitle(text = stringResource(R.string.offline))
             },
             navController = navController,
             scrollBehavior = scrollBehavior,

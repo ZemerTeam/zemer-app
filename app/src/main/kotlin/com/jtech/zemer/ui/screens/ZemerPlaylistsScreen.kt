@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
@@ -22,8 +21,10 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.GridThumbnailHeight
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.ZemerCuratedPlaylistGridItem
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.viewmodels.ZemerCuratedPlaylistsViewModel
 
 /**
@@ -63,8 +64,9 @@ fun ZemerPlaylistsScreen(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.zemer_playlists)) },
+        title = { AppBarTitle(stringResource(R.string.zemer_playlists)) },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
+        colors = zemerTopAppBarColors(),
     )
 }

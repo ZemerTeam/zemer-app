@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -34,8 +32,11 @@ import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.component.AppBarTitle
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.Material3SettingsGroup
 import com.jtech.zemer.ui.component.Material3SettingsItem
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 
 data class SettingItem(
     val id: String,
@@ -211,16 +212,10 @@ fun SettingsScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         TopAppBar(
-            title = { Text(stringResource(R.string.settings)) },
-            navigationIcon = {
-                IconButton(onClick = { navController.navigateUp() }) {
-                    Icon(
-                        painter = painterResource(R.drawable.arrow_back),
-                        contentDescription = null
-                    )
-                }
-            },
-            scrollBehavior = scrollBehavior
+            title = { AppBarTitle(stringResource(R.string.settings)) },
+            navigationIcon = { BackNavigationIcon(navController) },
+            scrollBehavior = scrollBehavior,
+            colors = zemerTopAppBarColors(),
         )
         // Content with scroll
         val paddingValues = LocalPlayerAwareWindowInsets.current.asPaddingValues()

@@ -119,6 +119,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.ActionPromptDialog
 import com.jtech.zemer.ui.component.AggregateDownloadButton
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.DraggableScrollbar
@@ -126,10 +127,12 @@ import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.OverlayEditButton
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.component.TextFieldDialog
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.CustomThumbnailMenu
 import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.menu.SelectionSongMenu
@@ -569,7 +572,7 @@ fun LocalPlaylistScreen(
                                 isPlaying = isPlaying,
                                 showInLibraryIcon = true,
                                 trailingContent = {
-                                    IconButton(
+                                    MoreVertMenuButton(
                                         onClick = {
                                             menuState.show {
                                                 SongMenu(
@@ -581,12 +584,7 @@ fun LocalPlaylistScreen(
                                                 )
                                             }
                                         },
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.more_vert),
-                                            contentDescription = null,
-                                        )
-                                    }
+                                    )
 
                                     if (sortType == PlaylistSongSortType.CUSTOM && !locked && !selection && !isSearching && editable) {
                                         IconButton(
@@ -697,7 +695,7 @@ fun LocalPlaylistScreen(
                                 showInLibraryIcon = true,
 
                                 trailingContent = {
-                                    IconButton(
+                                    MoreVertMenuButton(
                                         onClick = {
                                             menuState.show {
                                                 SongMenu(
@@ -708,12 +706,7 @@ fun LocalPlaylistScreen(
                                                 )
                                             }
                                         },
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.more_vert),
-                                            contentDescription = null,
-                                        )
-                                    }
+                                    )
                                     if (sortType == PlaylistSongSortType.CUSTOM && !locked && !selection && !isSearching && editable) {
                                         IconButton(
                                             onClick = { },
@@ -793,9 +786,8 @@ fun LocalPlaylistScreen(
             title = {
                 if (selection) {
                     val count = wrappedSongs.count { it.isSelected }
-                    Text(
-                        text = pluralStringResource(R.plurals.n_song, count, count),
-                        style = MaterialTheme.typography.titleLarge
+                    AppBarTitle(
+                        text = pluralStringResource(R.plurals.n_song, count, count)
                     )
                 } else if (isSearching) {
                     TextField(
@@ -822,7 +814,7 @@ fun LocalPlaylistScreen(
                             .focusRequester(focusRequester)
                     )
                 } else if (showTopBarTitle) {
-                    Text(playlist?.playlist?.name.orEmpty())
+                    AppBarTitle(text = playlist?.playlist?.name.orEmpty())
                 }
             },
             navigationIcon = {
@@ -881,7 +873,8 @@ fun LocalPlaylistScreen(
                         )
                     }
                 }
-            }
+            },
+            colors = zemerTopAppBarColors(),
         )
 
         SnackbarHost(

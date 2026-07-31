@@ -45,9 +45,7 @@ fun <T> RowScope.SelectionTopActions(
             contentDescription = null,
         )
     }
-    IconButton(onClick = onMore) {
-        Icon(painterResource(R.drawable.more_vert), contentDescription = null)
-    }
+    MoreVertMenuButton(onClick = onMore)
 }
 
 /**
@@ -71,7 +69,5 @@ fun <T> RowScope.SelectionActions(
             contentDescription = null,
         )
     }
-    IconButton(onClick = onMore) {
-        Icon(painterResource(R.drawable.more_vert), contentDescription = null)
-    }
+    MoreVertMenuButton(onClick = onMore)
 }

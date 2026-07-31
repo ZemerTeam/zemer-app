@@ -69,13 +69,16 @@ import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.DraggableScrollbar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.component.SelectionActions
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
@@ -285,7 +288,7 @@ fun CachePlaylistScreen(
                         isSelected = songWrapper.isSelected && selection,
                         showInLibraryIcon = true,
                         trailingContent = {
-                            IconButton(onClick = {
+                            MoreVertMenuButton(onClick = {
                                 menuState.show {
                                     SongMenu(
                                         originalSong = songWrapper.item,
@@ -294,12 +297,7 @@ fun CachePlaylistScreen(
                                         isFromCache = true,
                                     )
                                 }
-                            }) {
-                                Icon(
-                                    painter = painterResource(R.drawable.more_vert),
-                                    contentDescription = null
-                                )
-                            }
+                            })
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -353,9 +351,8 @@ fun CachePlaylistScreen(
                 when {
                     selection -> {
                         val count = wrappedSongs.count { it.isSelected }
-                        Text(
-                            text = pluralStringResource(R.plurals.n_song, count, count),
-                            style = MaterialTheme.typography.titleLarge
+                        AppBarTitle(
+                            text = pluralStringResource(R.plurals.n_song, count, count)
                         )
                     }
                     isSearching -> {
@@ -384,10 +381,7 @@ fun CachePlaylistScreen(
                         )
                     }
                     else -> {
-                        Text(
-                            stringResource(R.string.cached_playlist),
-                            style = MaterialTheme.typography.titleLarge
-                        )
+                        AppBarTitle(text = stringResource(R.string.cached_playlist))
                     }
                 }
             },
@@ -441,7 +435,8 @@ fun CachePlaylistScreen(
                         )
                     }
                 }
-            }
+            },
+            colors = zemerTopAppBarColors(),
         )
     }
 }

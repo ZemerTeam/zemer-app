@@ -34,9 +34,11 @@ import com.jtech.zemer.R
 import com.jtech.zemer.search.GenreKind
 import com.jtech.zemer.search.ZemerGenreSummary
 import com.jtech.zemer.search.zemerGenreRoute
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.GenreCard
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.BoxPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
@@ -116,9 +118,10 @@ fun GenresScreen(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.genres)) },
+        title = { AppBarTitle(stringResource(R.string.genres)) },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
+        colors = zemerTopAppBarColors(),
     )
 }
 

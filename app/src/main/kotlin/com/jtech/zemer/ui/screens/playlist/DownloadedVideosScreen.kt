@@ -72,15 +72,18 @@ import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.DraggableScrollbar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.screens.videoRoute
@@ -301,7 +304,7 @@ fun DownloadedVideosScreen(
                         isPlaying = isPlaying,
                         showInLibraryIcon = true,
                         trailingContent = {
-                            IconButton(
+                            MoreVertMenuButton(
                                 onClick = {
                                     menuState.show {
                                         SongMenu(
@@ -311,12 +314,7 @@ fun DownloadedVideosScreen(
                                         )
                                     }
                                 },
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.more_vert),
-                                    contentDescription = null,
-                                )
-                            }
+                            )
                         },
                         isSelected = videoWrapper.isSelected && selection,
                         modifier = Modifier
@@ -361,9 +359,8 @@ fun DownloadedVideosScreen(
                 when {
                     selection -> {
                         val count = wrappedVideos.count { it.isSelected }
-                        Text(
-                            text = pluralStringResource(R.plurals.n_video, count, count),
-                            style = MaterialTheme.typography.titleLarge
+                        AppBarTitle(
+                            text = pluralStringResource(R.plurals.n_video, count, count)
                         )
                     }
                     isSearching -> {
@@ -392,10 +389,7 @@ fun DownloadedVideosScreen(
                         )
                     }
                     else -> {
-                        Text(
-                            text = stringResource(R.string.downloaded_videos),
-                            style = MaterialTheme.typography.titleLarge
-                        )
+                        AppBarTitle(text = stringResource(R.string.downloaded_videos))
                     }
                 }
             },
@@ -455,7 +449,8 @@ fun DownloadedVideosScreen(
                         )
                     }
                 }
-            }
+            },
+            colors = zemerTopAppBarColors(),
         )
     }
 }

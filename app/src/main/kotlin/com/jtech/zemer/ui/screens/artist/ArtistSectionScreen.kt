@@ -9,9 +9,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -20,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -30,9 +26,11 @@ import com.jtech.zemer.R
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.YtItemGrid
@@ -88,7 +86,7 @@ fun ArtistSectionScreen(
     }
 
     BackTopAppBar(
-        title = { Text(sectionTitle) },
+        title = { AppBarTitle(sectionTitle) },
         navController = navController,
         scrollBehavior = scrollBehavior,
     )
@@ -114,11 +112,9 @@ private fun ArtistSongList(
                 isActive = mediaMetadata?.id == song.id,
                 isPlaying = isPlaying,
                 trailingContent = {
-                    IconButton(onClick = {
+                    MoreVertMenuButton(onClick = {
                         menuState.show { YouTubeSongMenu(song = song, navController = navController, onDismiss = menuState::dismiss) }
-                    }) {
-                        Icon(painterResource(R.drawable.more_vert), contentDescription = null)
-                    }
+                    })
                 },
                 modifier = Modifier.combinedClickable(
                     onClick = {

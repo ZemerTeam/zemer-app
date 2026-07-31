@@ -81,6 +81,7 @@ import com.jtech.zemer.ui.component.AlbumListItem
 import com.jtech.zemer.ui.component.ArtistGridItem
 import com.jtech.zemer.ui.component.ArtistListItem
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.PlaylistGridItem
 import com.jtech.zemer.ui.component.PlaylistListItem
 import com.jtech.zemer.ui.component.SortHeader
@@ -456,7 +457,7 @@ fun LibraryMixScreen(
                                 PlaylistListItem(
                                     playlist = item,
                                     trailingContent = {
-                                        IconButton(
+                                        MoreVertMenuButton(
                                             onClick = {
                                                 menuState.show {
                                                     PlaylistMenu(
@@ -466,12 +467,7 @@ fun LibraryMixScreen(
                                                     )
                                                 }
                                             },
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.more_vert),
-                                                contentDescription = null,
-                                            )
-                                        }
+                                        )
                                     },
                                     modifier =
                                     Modifier
@@ -499,7 +495,7 @@ fun LibraryMixScreen(
                                 ArtistListItem(
                                     artist = item,
                                     trailingContent = {
-                                        IconButton(
+                                        MoreVertMenuButton(
                                             onClick = {
                                                 menuState.show {
                                                     ArtistMenu(
@@ -509,12 +505,7 @@ fun LibraryMixScreen(
                                                     )
                                                 }
                                             },
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.more_vert),
-                                                contentDescription = null,
-                                            )
-                                        }
+                                        )
                                     },
                                     modifier =
                                     Modifier
@@ -544,7 +535,7 @@ fun LibraryMixScreen(
                                     isActive = item.id == mediaMetadata?.album?.id,
                                     isPlaying = isPlaying,
                                     trailingContent = {
-                                        IconButton(
+                                        MoreVertMenuButton(
                                             onClick = {
                                                 menuState.show {
                                                     AlbumMenu(
@@ -554,12 +545,7 @@ fun LibraryMixScreen(
                                                     )
                                                 }
                                             },
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.more_vert),
-                                                contentDescription = null,
-                                            )
-                                        }
+                                        )
                                     },
                                     modifier =
                                     Modifier
