@@ -1,6 +1,7 @@
 package com.jtech.zemer.extensions
 
 import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import com.jtech.zemer.constants.InnerTubeCookieKey
@@ -9,6 +10,20 @@ import com.jtech.zemer.utils.dataStore
 import com.metrolist.innertube.utils.parseCookieString
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+
+/**
+ * Share a plain-text payload (a deep link / share URL) through the system chooser. This is the one
+ * place the app builds an `ACTION_SEND` `text/plain` intent — call sites pass only the text, and any
+ * `Tracker.action(SHARE, …)` / `onDismiss()` stays at the call site. File/stream shares (log export,
+ * lyric image) are a different intent shape and deliberately keep their own builder.
+ */
+fun Context.shareText(text: String) {
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    startActivity(Intent.createChooser(intent, null))
+}
 
 /**
  * Flow-based alternative for UI code.

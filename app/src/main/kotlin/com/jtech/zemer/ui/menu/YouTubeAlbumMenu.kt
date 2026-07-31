@@ -1,7 +1,6 @@
 package com.jtech.zemer.ui.menu
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -41,6 +40,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.di.zemerSearchRepository
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
@@ -253,12 +253,7 @@ fun YouTubeAlbumMenu(
                         onClick = {
                             onDismiss()
                             Tracker.action(TrackingActionKind.SHARE, albumItem.browseId)
-                            val intent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, albumItem.shareLink)
-                            }
-                            context.startActivity(Intent.createChooser(intent, null))
+                            context.shareText(albumItem.shareLink)
                         }
                     )
                 ),

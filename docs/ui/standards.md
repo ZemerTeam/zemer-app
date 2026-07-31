@@ -54,6 +54,10 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
   sync accessors (`dataStore[Key]`) are the documented exception and must run off the main thread.
   Enforced by `R18-runblocking` (UI-scoped, baseline 0). Deliberate blocking sites (ExoPlayer's
   synchronous `createDataSourceFactory`, download threads) live outside `ui/`.
+- **Share a URL through the one helper.** `context.shareText(url)` (`extensions/ContextExt.kt`) over a
+  hand-rolled `Intent(ACTION_SEND)` + `createChooser`. Keep `Tracker.action(SHARE, …)` and `onDismiss()`
+  at the call site. Enforced by `R19-share` (baseline 0); the lyric-image `EXTRA_STREAM` share in
+  `component/Lyrics.kt` is a different intent shape and is excluded.
 - Enforcement (ratcheting): `scripts/ui-audit.sh` rules `R14-backbtn` and `R15-morevert` fail CI on
   any *new* raw `R.drawable.arrow_back` / `R.drawable.more_vert` in a screen — build the back button
   and the overflow menu from the shared components instead. The existing hand-rolls are baselined in

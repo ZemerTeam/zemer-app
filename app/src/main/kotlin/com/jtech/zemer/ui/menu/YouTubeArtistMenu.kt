@@ -1,6 +1,5 @@
 package com.jtech.zemer.ui.menu
 
-import android.content.Intent
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -41,6 +40,7 @@ import com.jtech.zemer.ui.component.YouTubeListItem
 import com.metrolist.innertube.models.ArtistItem
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackingActionKind
+import com.jtech.zemer.extensions.shareText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -138,12 +138,7 @@ fun YouTubeArtistMenu(
                             text = stringResource(R.string.share),
                             onClick = {
                                 Tracker.action(TrackingActionKind.SHARE, artist.id)
-                                val intent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, artist.shareLink)
-                                }
-                                context.startActivity(Intent.createChooser(intent, null))
+                                context.shareText(artist.shareLink)
                                 onDismiss()
                             }
                         )

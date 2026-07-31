@@ -5,7 +5,6 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import android.content.res.Configuration
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
@@ -122,6 +121,7 @@ import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.extensions.toggleRepeatMode
+import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.BottomSheet
@@ -717,15 +717,7 @@ fun BottomSheetPlayer(
                                 .onFocusChanged { shareFocused.value = it.isFocused }
                                 .clickable {
                                     Tracker.action(TrackingActionKind.SHARE, mediaMetadata.id)
-                                    val intent = Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        type = "text/plain"
-                                        putExtra(
-                                            Intent.EXTRA_TEXT,
-                                            "https://music.zemer.io/watch?v=${mediaMetadata.id}"
-                                        )
-                                    }
-                                    context.startActivity(Intent.createChooser(intent, null))
+                                    context.shareText("https://music.zemer.io/watch?v=${mediaMetadata.id}")
                                 }
                         ) {
                             Image(
@@ -786,16 +778,7 @@ fun BottomSheetPlayer(
                             .onFocusChanged { oldShareFocused.value = it.isFocused }
                             .clickable {
                                 Tracker.action(TrackingActionKind.SHARE, mediaMetadata.id)
-                                val intent =
-                                    Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        type = "text/plain"
-                                        putExtra(
-                                            Intent.EXTRA_TEXT,
-                                            "https://music.zemer.io/watch?v=${mediaMetadata.id}"
-                                        )
-                                    }
-                                context.startActivity(Intent.createChooser(intent, null))
+                                context.shareText("https://music.zemer.io/watch?v=${mediaMetadata.id}")
                             },
                     ) {
                         Image(

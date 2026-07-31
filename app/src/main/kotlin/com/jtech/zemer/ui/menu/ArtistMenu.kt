@@ -1,6 +1,5 @@
 package com.jtech.zemer.ui.menu
 
-import android.content.Intent
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,6 +41,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.ArtistSongSortType
 import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
@@ -214,15 +214,7 @@ fun ArtistMenu(
                                 onClick = {
                                     onDismiss()
                                     Tracker.action(TrackingActionKind.SHARE, artist.id)
-                                    val intent = Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        type = "text/plain"
-                                        putExtra(
-                                            Intent.EXTRA_TEXT,
-                                            "https://music.zemer.io/channel/${artist.id}"
-                                        )
-                                    }
-                                    context.startActivity(Intent.createChooser(intent, null))
+                                    context.shareText("https://music.zemer.io/channel/${artist.id}")
                                 }
                             )
                         )

@@ -1,7 +1,6 @@
 package com.jtech.zemer.ui.menu
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -51,6 +50,7 @@ import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.DownloadMenuLogic
@@ -279,17 +279,12 @@ fun YouTubeSongMenu(
                         text = stringResource(R.string.share),
                         onClick = {
                             Tracker.action(TrackingActionKind.SHARE, song.id)
-                            val intent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                type = "text/plain"
-                                val shareUrl = if (isVideo) {
-                                    VideoLinkBuilder.videoLink(song.id)
-                                } else {
-                                    song.shareLink
-                                }
-                                putExtra(Intent.EXTRA_TEXT, shareUrl)
+                            val shareUrl = if (isVideo) {
+                                VideoLinkBuilder.videoLink(song.id)
+                            } else {
+                                song.shareLink
                             }
-                            context.startActivity(Intent.createChooser(intent, null))
+                            context.shareText(shareUrl)
                             onDismiss()
                         }
                     ),

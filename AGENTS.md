@@ -207,6 +207,10 @@ rule covers repeated *logic*. The current shared helpers — reach for these bef
 - **The Zemer repository from a leaf composable/queue:** `context.zemerSearchRepository()`
   (`di/ZemerSearchRepositoryEntryPoint.kt`) over a hand-written `EntryPointAccessors.fromApplication(...)`.
   Ratcheted by `R17-entrypoint` (UI-scoped, baseline 0).
+- **Sharing a URL/deep link:** `context.shareText(url)` (`extensions/ContextExt.kt`) over a hand-rolled
+  `Intent(ACTION_SEND)` + `createChooser`. `Tracker.action(SHARE, …)` and `onDismiss()` stay at the call
+  site. File/stream shares (log export, lyric image) keep their own builder. Ratcheted by `R19-share`
+  (baseline 0; `component/Lyrics.kt`'s lyric-image `EXTRA_STREAM` share is excluded, not a text share).
 
 **Never `runBlocking` on a UI path.** A composable/UI file that blocks the main thread ANRs. Collect the
 value with a suspend function + `LaunchedEffect`/`rememberCoroutineScope`, or a `Flow` (`collectAsState`);

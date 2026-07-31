@@ -2,7 +2,6 @@
 
 package com.jtech.zemer.ui.menu
 
-import android.content.Intent
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -39,6 +38,7 @@ import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.PlaylistSong
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.extensions.shareText
 import kotlinx.coroutines.launch
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
@@ -181,12 +181,7 @@ fun PlaylistMenu(
                         text = stringResource(R.string.share),
                         onClick = {
                             dbPlaylist?.playlist?.let { Tracker.action(TrackingActionKind.SHARE, it.browseId ?: it.id) }
-                            val intent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "https://music.zemer.io/playlist?list=${dbPlaylist?.playlist?.browseId}")
-                            }
-                            context.startActivity(Intent.createChooser(intent, null))
+                            context.shareText("https://music.zemer.io/playlist?list=${dbPlaylist?.playlist?.browseId}")
                             onDismiss()
                         }
                     )
