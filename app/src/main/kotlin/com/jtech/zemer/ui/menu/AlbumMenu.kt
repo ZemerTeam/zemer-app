@@ -45,6 +45,7 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
@@ -120,10 +121,14 @@ fun AlbumMenu(
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
         onGetSong = { playlist ->
-            coroutineScope.launch(Dispatchers.IO) {
-                playlist.playlist.browseId?.let { playlistId ->
-                    album.album.playlistId?.let { addPlaylistId ->
-                        YouTube.addPlaylistToPlaylist(playlistId, addPlaylistId)
+            // Remote playlist-to-playlist copy is a personal-account write; never issue it under the
+            // shared anonymous (pooled) account. The local add still happens via the dialog.
+            if (isPersonalAccountSignedIn) {
+                coroutineScope.launch(Dispatchers.IO) {
+                    playlist.playlist.browseId?.let { playlistId ->
+                        album.album.playlistId?.let { addPlaylistId ->
+                            YouTube.addPlaylistToPlaylist(playlistId, addPlaylistId)
+                        }
                     }
                 }
             }
