@@ -17,7 +17,7 @@ internal fun genreIcon(slug: String): Int = when (slug) {
     // Styles
     "nigunim" -> R.drawable.genre_music_note
     "acapella" -> R.drawable.genre_mic
-    "chazzanus" -> R.drawable.genre_record_voice_over
+    "chazzanus" -> R.drawable.genre_chazzan
     "instrumental" -> R.drawable.genre_piano
     "dance" -> R.drawable.genre_celebration
     "electronic" -> R.drawable.genre_graphic_eq
