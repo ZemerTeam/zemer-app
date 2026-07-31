@@ -21,13 +21,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -252,45 +249,20 @@ fun DownloadedVideosScreen(
                                     }
                                 }
 
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Button(
-                                        onClick = {
-                                            videos!!.firstOrNull()?.let { first ->
-                                                val artistDisplay = first.artists.joinToString(" • ") { it.name }
-                                                navController.navigate(videoRoute(first.id, first.song.title, artistDisplay))
-                                            }
-                                        },
-                                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                                        modifier = Modifier.weight(1f),
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.play),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(ButtonDefaults.IconSize),
-                                        )
-                                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                                        Text(stringResource(R.string.play))
-                                    }
-
-                                    OutlinedButton(
-                                        onClick = {
-                                            videos!!.shuffled().firstOrNull()?.let { first ->
-                                                val artistDisplay = first.artists.joinToString(" • ") { it.name }
-                                                navController.navigate(videoRoute(first.id, first.song.title, artistDisplay))
-                                            }
-                                        },
-                                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                                        modifier = Modifier.weight(1f),
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.shuffle),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(ButtonDefaults.IconSize),
-                                        )
-                                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                                        Text(stringResource(R.string.shuffle))
-                                    }
-                                }
+                                PlaylistPlayShuffleButtons(
+                                    onPlay = {
+                                        videos!!.firstOrNull()?.let { first ->
+                                            val artistDisplay = first.artists.joinToString(" • ") { it.name }
+                                            navController.navigate(videoRoute(first.id, first.song.title, artistDisplay))
+                                        }
+                                    },
+                                    onShuffle = {
+                                        videos!!.shuffled().firstOrNull()?.let { first ->
+                                            val artistDisplay = first.artists.joinToString(" • ") { it.name }
+                                            navController.navigate(videoRoute(first.id, first.song.title, artistDisplay))
+                                        }
+                                    },
+                                )
                             }
                         }
                     }

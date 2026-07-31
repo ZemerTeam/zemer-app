@@ -29,7 +29,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -74,10 +73,11 @@ import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.ui.component.AutoResizeText
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.FontSizeRange
-import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.GenreWeaveLayer
 import com.jtech.zemer.ui.component.genreIcon
 import com.jtech.zemer.ui.component.NavigationTitle
@@ -91,7 +91,6 @@ import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.theme.HeaderFontFamily
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
-import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.ZemerGenreViewModel
 import com.jtech.zemer.viewmodels.ZemerGenreViewModel.UiState
 import com.metrolist.innertube.models.AlbumItem
@@ -448,17 +447,7 @@ fun GenreScreen(
                 Text((state as? UiState.Loaded)?.page?.header?.title.orEmpty())
             }
         },
-        navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.arrow_back),
-                    contentDescription = null,
-                )
-            }
-        },
+        navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
     )
 }
@@ -481,12 +470,7 @@ private fun GenreTrackRow(
         isActive = isActive,
         isPlaying = isPlaying,
         trailingContent = {
-            IconButton(onClick = { showSongMenu(song, isVideo) }) {
-                Icon(
-                    painter = painterResource(R.drawable.more_vert),
-                    contentDescription = null,
-                )
-            }
+            MoreVertMenuButton(onClick = { showSongMenu(song, isVideo) })
         },
         modifier = Modifier
             .combinedClickable(

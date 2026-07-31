@@ -12,7 +12,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -31,13 +30,13 @@ import com.jtech.zemer.R
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
+import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.YtItemGrid
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
-import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.ArtistViewModel
 import com.metrolist.innertube.models.SongItem
 
@@ -88,17 +87,9 @@ fun ArtistSectionScreen(
         }
     }
 
-    TopAppBar(
+    BackTopAppBar(
         title = { Text(sectionTitle) },
-        navigationIcon = {
-            // The app's IconButton (long-press = back to Home), matching the other See-all screens.
-            com.jtech.zemer.ui.component.IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(painterResource(R.drawable.arrow_back), contentDescription = null)
-            }
-        },
+        navController = navController,
         scrollBehavior = scrollBehavior,
     )
 }

@@ -21,13 +21,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -230,50 +227,25 @@ fun CachePlaylistScreen(
                                 }
                             }
 
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Button(
-                                    onClick = {
-                                        playerConnection.playQueue(
-                                            ListQueue(
-                                                title = cacheSongsTitle,
-                                                items = filteredSongs.map { it.item.toMediaItem() },
-                                            )
+                            PlaylistPlayShuffleButtons(
+                                onPlay = {
+                                    playerConnection.playQueue(
+                                        ListQueue(
+                                            title = cacheSongsTitle,
+                                            items = filteredSongs.map { it.item.toMediaItem() },
                                         )
-                                    },
-                                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.play),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(ButtonDefaults.IconSize),
                                     )
-                                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                                    Text(stringResource(R.string.play))
-                                }
-
-                                OutlinedButton(
-                                    onClick = {
-                                        playerConnection.playQueue(
-                                            ListQueue(
-                                                title = cacheSongsTitle,
-                                                items = filteredSongs.shuffled()
-                                                    .map { it.item.toMediaItem() },
-                                            )
+                                },
+                                onShuffle = {
+                                    playerConnection.playQueue(
+                                        ListQueue(
+                                            title = cacheSongsTitle,
+                                            items = filteredSongs.shuffled()
+                                                .map { it.item.toMediaItem() },
                                         )
-                                    },
-                                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.shuffle),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(ButtonDefaults.IconSize),
                                     )
-                                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                                    Text(stringResource(R.string.shuffle))
-                                }
-                            }
+                                },
+                            )
                         }
                     }
                 }

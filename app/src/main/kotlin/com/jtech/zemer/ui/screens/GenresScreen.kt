@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -25,7 +24,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -36,13 +34,12 @@ import com.jtech.zemer.R
 import com.jtech.zemer.search.GenreKind
 import com.jtech.zemer.search.ZemerGenreSummary
 import com.jtech.zemer.search.zemerGenreRoute
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.GenreCard
-import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.shimmer.BoxPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
-import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.ZemerGenreCatalogViewModel
 import com.jtech.zemer.viewmodels.ZemerGenreCatalogViewModel.UiState
 
@@ -120,17 +117,7 @@ fun GenresScreen(
 
     TopAppBar(
         title = { Text(stringResource(R.string.genres)) },
-        navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(
-                    painterResource(R.drawable.arrow_back),
-                    contentDescription = null,
-                )
-            }
-        },
+        navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
     )
 }

@@ -21,15 +21,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -88,13 +85,11 @@ import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.SongListItem
-import com.jtech.zemer.ui.component.shimmer.ButtonPlaceholder
-import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
-import com.jtech.zemer.ui.component.shimmer.ShimmerHost
-import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
 import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
+import com.jtech.zemer.ui.screens.playlist.PlaylistHeaderShimmer
+import com.jtech.zemer.ui.screens.playlist.PlaylistPlayShuffleButtons
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.backToMain
@@ -364,47 +359,20 @@ fun AlbumScreen(
 
                     Spacer(Modifier.height(12.dp))
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Button(
-                            onClick = {
-                                playerConnection.service.getAutomix(playlistId)
-                                playerConnection.playQueue(
-                                    LocalAlbumRadio(albumWithSongs, context = context),
-                                )
-                            },
-                            contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.play),
-                                contentDescription = null,
-                                modifier = Modifier.size(ButtonDefaults.IconSize),
+                    PlaylistPlayShuffleButtons(
+                        onPlay = {
+                            playerConnection.service.getAutomix(playlistId)
+                            playerConnection.playQueue(
+                                LocalAlbumRadio(albumWithSongs, context = context),
                             )
-                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                            Text(
-                                text = stringResource(R.string.play),
+                        },
+                        onShuffle = {
+                            playerConnection.service.getAutomix(playlistId)
+                            playerConnection.playQueue(
+                                LocalAlbumRadio(albumWithSongs.copy(songs = albumWithSongs.songs.shuffled()), context = context),
                             )
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                playerConnection.service.getAutomix(playlistId)
-                                playerConnection.playQueue(
-                                    LocalAlbumRadio(albumWithSongs.copy(songs = albumWithSongs.songs.shuffled()), context = context),
-                                )
-                            },
-                            contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.shuffle),
-                                contentDescription = null,
-                                modifier = Modifier.size(ButtonDefaults.IconSize),
-                            )
-                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                            Text(stringResource(R.string.shuffle))
-                        }
-                    }
+                        },
+                    )
                 }
             }
 
@@ -499,45 +467,7 @@ fun AlbumScreen(
             }
         } else {
             item(key = "loading_shimmer") {
-                ShimmerHost(
-                    modifier = Modifier.animateItem()
-                ) {
-                    Column(Modifier.padding(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Spacer(
-                                modifier =
-                                Modifier
-                                    .size(AlbumThumbnailSize)
-                                    .clip(RoundedCornerShape(ThumbnailCornerRadius))
-                                    .background(MaterialTheme.colorScheme.onSurface),
-                            )
-
-                            Spacer(Modifier.width(16.dp))
-
-                            Column(
-                                verticalArrangement = Arrangement.Center,
-                            ) {
-                                TextPlaceholder()
-                                TextPlaceholder()
-                                TextPlaceholder()
-                            }
-                        }
-
-                        Spacer(Modifier.padding(8.dp))
-
-                        Row {
-                            ButtonPlaceholder(Modifier.weight(1f))
-
-                            Spacer(Modifier.width(12.dp))
-
-                            ButtonPlaceholder(Modifier.weight(1f))
-                        }
-                    }
-
-                    repeat(6) {
-                        ListItemPlaceHolder()
-                    }
-                }
+                PlaylistHeaderShimmer(modifier = Modifier.animateItem())
             }
         }
     }

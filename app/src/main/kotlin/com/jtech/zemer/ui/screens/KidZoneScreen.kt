@@ -2,12 +2,8 @@ package com.jtech.zemer.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -16,13 +12,6 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -31,22 +20,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -56,6 +34,8 @@ import com.jtech.zemer.constants.ArtistViewTypeKey
 import com.jtech.zemer.constants.CONTENT_TYPE_ARTIST
 import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
 import com.jtech.zemer.constants.LibraryViewType
+import com.jtech.zemer.ui.component.ArtistCountHeader
+import com.jtech.zemer.ui.component.ArtistSearchField
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.screens.LoadingScreen
@@ -112,105 +92,24 @@ fun KidZoneScreen(
     }
 
     val searchContent = @Composable {
-        val downTarget = if (artists.isNotEmpty()) firstArtistFocus else firstFocus
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { viewModel.searchQuery.value = it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .focusRequester(searchFocus)
-                .focusProperties {
-                    down = downTarget
-                }
-                .onPreviewKeyEvent { event ->
-                    if (event.key == Key.DirectionDown && event.type == KeyEventType.KeyDown) {
-                        downTarget.requestFocus()
-                        false
-                    } else {
-                        false
-                    }
-                },
-            placeholder = { Text(stringResource(R.string.search_artists)) },
-            leadingIcon = {
-                Icon(
-                    painter = painterResource(R.drawable.search),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { viewModel.searchQuery.value = "" }) {
-                        Icon(
-                            painter = painterResource(R.drawable.close),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            },
-            singleLine = true,
-            shape = RoundedCornerShape(18.dp),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledContainerColor = MaterialTheme.colorScheme.surface,
-                cursorColor = MaterialTheme.colorScheme.primary,
-                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        ArtistSearchField(
+            query = searchQuery,
+            onQueryChange = { viewModel.searchQuery.value = it },
+            searchFocus = searchFocus,
+            downTarget = if (artists.isNotEmpty()) firstArtistFocus else firstFocus,
         )
     }
 
     val headerContent = @Composable {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.kid_zone),
-                style = MaterialTheme.typography.titleLarge,
-            )
-
-            Spacer(Modifier.weight(1f))
-
-            Text(
-                text = pluralStringResource(
-                    R.plurals.n_artist,
-                    artists.size,
-                    artists.size
-                ),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.secondary,
-            )
-
-            IconButton(
-                onClick = {
-                    viewType = viewType.toggle()
-                },
-                modifier = Modifier
-                    .padding(start = 6.dp)
-                    .focusRequester(firstFocus)
-                    .focusProperties {
-                        up = searchFocus
-                        down = if (artists.isNotEmpty()) firstArtistFocus else FocusRequester.Default
-                    },
-            ) {
-                Icon(
-                    painter =
-                    painterResource(
-                        when (viewType) {
-                            LibraryViewType.LIST -> R.drawable.list
-                            LibraryViewType.GRID -> R.drawable.grid_view
-                        },
-                    ),
-                    contentDescription = null,
-                )
-            }
-        }
+        ArtistCountHeader(
+            titleRes = R.string.kid_zone,
+            artistCount = artists.size,
+            viewType = viewType,
+            onToggleViewType = { viewType = viewType.toggle() },
+            firstFocus = firstFocus,
+            searchFocus = searchFocus,
+            downTarget = if (artists.isNotEmpty()) firstArtistFocus else FocusRequester.Default,
+        )
     }
 
     Box(

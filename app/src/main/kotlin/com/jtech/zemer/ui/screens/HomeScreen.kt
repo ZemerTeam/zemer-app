@@ -26,7 +26,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
@@ -76,6 +75,7 @@ import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.ArtistGridItem
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.ZemerCuratedPlaylistGridItem
 import com.jtech.zemer.ui.component.SongGridItem
@@ -531,7 +531,7 @@ fun HomeScreen(
                                     isPlaying = isPlaying,
                                     isSwipeable = false,
                                     trailingContent = {
-                                        IconButton(
+                                        MoreVertMenuButton(
                                             onClick = {
                                                 menuState.show {
                                                     SongMenu(
@@ -541,12 +541,7 @@ fun HomeScreen(
                                                     )
                                                 }
                                             }
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.more_vert),
-                                                contentDescription = null
-                                            )
-                                        }
+                                        )
                                     },
                                     modifier = Modifier
                                         .width(horizontalLazyGridItemWidth)
@@ -814,7 +809,7 @@ fun HomeScreen(
                                     isPlaying = isPlaying,
                                     isSwipeable = false,
                                     trailingContent = {
-                                        IconButton(
+                                        MoreVertMenuButton(
                                             onClick = {
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 menuState.show {
@@ -825,12 +820,7 @@ fun HomeScreen(
                                                     )
                                                 }
                                             }
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.more_vert),
-                                                contentDescription = null
-                                            )
-                                        }
+                                        )
                                     },
                                     modifier = Modifier
                                         .width(horizontalLazyGridItemWidth)

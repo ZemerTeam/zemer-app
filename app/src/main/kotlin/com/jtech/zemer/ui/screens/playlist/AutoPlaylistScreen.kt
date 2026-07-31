@@ -21,13 +21,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -352,50 +349,25 @@ fun AutoPlaylistScreen(
                                     }
                                 }
 
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Button(
-                                        onClick = {
-                                            playerConnection.playQueue(
-                                                ListQueue(
-                                                    title = autoPlaylistTitle,
-                                                    items = songs!!.map { it.toMediaItem() },
-                                                ),
-                                            )
-                                        },
-                                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                                        modifier = Modifier.weight(1f),
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.play),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(ButtonDefaults.IconSize),
+                                PlaylistPlayShuffleButtons(
+                                    onPlay = {
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = autoPlaylistTitle,
+                                                items = songs!!.map { it.toMediaItem() },
+                                            ),
                                         )
-                                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                                        Text(stringResource(R.string.play))
-                                    }
-
-                                    OutlinedButton(
-                                        onClick = {
-                                            playerConnection.playQueue(
-                                                ListQueue(
-                                                    title = playlist,
-                                                    items = songs!!.shuffled()
-                                                        .map { it.toMediaItem() },
-                                                ),
-                                            )
-                                        },
-                                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                                        modifier = Modifier.weight(1f),
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.shuffle),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(ButtonDefaults.IconSize),
+                                    },
+                                    onShuffle = {
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = playlist,
+                                                items = songs!!.shuffled()
+                                                    .map { it.toMediaItem() },
+                                            ),
                                         )
-                                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                                        Text(stringResource(R.string.shuffle))
-                                    }
-                                }
+                                    },
+                                )
                             }
                         }
                     }

@@ -63,8 +63,7 @@ import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.OfflineBackupPromoCard
 import com.jtech.zemer.ui.component.YouTubeListItem
-import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
-import com.jtech.zemer.ui.component.shimmer.ShimmerHost
+import com.jtech.zemer.ui.component.shimmer.LoadingListPlaceholder
 import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
@@ -333,11 +332,7 @@ fun OnlineSearchResult(
 
                 searchSummary == null && isSummaryLoading -> {
                     item {
-                        ShimmerHost {
-                            repeat(8) {
-                                ListItemPlaceHolder()
-                            }
-                        }
+                        LoadingListPlaceholder(8)
                     }
                 }
 
@@ -411,11 +406,7 @@ fun OnlineSearchResult(
 
                 itemsPage == null && filterLoading -> {
                     item {
-                        ShimmerHost {
-                            repeat(8) {
-                                ListItemPlaceHolder()
-                            }
-                        }
+                        LoadingListPlaceholder(8)
                     }
                 }
 

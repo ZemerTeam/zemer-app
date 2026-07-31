@@ -63,6 +63,7 @@ import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.YouTubeListItem
@@ -233,7 +234,7 @@ fun HistoryScreen(
                             isActive = song.id == mediaMetadata?.id,
                             isPlaying = isPlaying,
                             trailingContent = {
-                                IconButton(
+                                MoreVertMenuButton(
                                     onClick = {
                                         menuState.show {
                                             YouTubeSongMenu(
@@ -246,12 +247,7 @@ fun HistoryScreen(
                                             )
                                         }
                                     }
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.more_vert),
-                                        contentDescription = null
-                                    )
-                                }
+                                )
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -308,7 +304,7 @@ fun HistoryScreen(
                             isSelected = wrappedItem.isSelected && selection,
 
                             trailingContent = {
-                                IconButton(
+                                MoreVertMenuButton(
                                     onClick = {
                                         if (!selection) {
                                             menuState.show {
@@ -321,12 +317,7 @@ fun HistoryScreen(
                                             }
                                         }
                                     }
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.more_vert),
-                                        contentDescription = null
-                                    )
-                                }
+                                )
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -482,7 +473,7 @@ fun HistoryScreen(
                         contentDescription = null
                     )
                 }
-                IconButton(
+                MoreVertMenuButton(
                     onClick = {
                         menuState.show {
                             SelectionMediaMetadataMenu(
@@ -495,12 +486,7 @@ fun HistoryScreen(
                             )
                         }
                     }
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.more_vert),
-                        contentDescription = null
-                    )
-                }
+                )
             } else if (!isSearching) {
                 IconButton(
                     onClick = { isSearching = true }

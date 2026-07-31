@@ -43,6 +43,18 @@ fun ShimmerHost(
     )
 }
 
+@Composable
+fun LoadingListPlaceholder(
+    count: Int,
+    modifier: Modifier = Modifier,
+) {
+    ShimmerHost(modifier) {
+        repeat(count) {
+            ListItemPlaceHolder()
+        }
+    }
+}
+
 val ShimmerTheme =
     defaultShimmerTheme.copy(
         animationSpec =
