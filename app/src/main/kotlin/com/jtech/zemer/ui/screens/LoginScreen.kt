@@ -34,6 +34,7 @@ import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.reportException
@@ -210,7 +211,8 @@ fun LoginScreen(
 
     TopAppBar(
         title = { AppBarTitle(stringResource(R.string.login)) },
-        navigationIcon = { BackNavigationIcon(navController) }
+        navigationIcon = { BackNavigationIcon(navController) },
+        colors = zemerTopAppBarColors(),
     )
 
     BackHandler(enabled = webView?.canGoBack() == true) {

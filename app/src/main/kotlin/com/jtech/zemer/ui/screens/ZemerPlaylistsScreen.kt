@@ -24,6 +24,7 @@ import com.jtech.zemer.constants.GridThumbnailHeight
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.ZemerCuratedPlaylistGridItem
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.viewmodels.ZemerCuratedPlaylistsViewModel
 
 /**
@@ -66,5 +67,6 @@ fun ZemerPlaylistsScreen(
         title = { AppBarTitle(stringResource(R.string.zemer_playlists)) },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
+        colors = zemerTopAppBarColors(),
     )
 }

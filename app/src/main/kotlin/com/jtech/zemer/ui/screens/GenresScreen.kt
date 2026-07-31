@@ -38,6 +38,7 @@ import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.GenreCard
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.BoxPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
@@ -120,6 +121,7 @@ fun GenresScreen(
         title = { AppBarTitle(stringResource(R.string.genres)) },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
+        colors = zemerTopAppBarColors(),
     )
 }
 

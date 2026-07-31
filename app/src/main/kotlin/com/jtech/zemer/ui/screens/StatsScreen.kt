@@ -45,6 +45,7 @@ import com.jtech.zemer.ui.component.LocalArtistsGrid
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.LocalSongsGrid
 import com.jtech.zemer.ui.component.NavigationTitle
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.ArtistMenu
 import com.jtech.zemer.ui.menu.SongMenu
@@ -400,6 +401,7 @@ fun StatsScreen(
         TopAppBar(
             title = { AppBarTitle(stringResource(R.string.stats)) },
             navigationIcon = { BackNavigationIcon(navController) },
+            colors = zemerTopAppBarColors(),
         )
     }
 }

@@ -98,6 +98,7 @@ import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.YouTubeListItem
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.LoadingListPlaceholder
 import com.jtech.zemer.ui.menu.SelectionMediaMetadataMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
@@ -640,7 +641,8 @@ fun OnlinePlaylistScreen(
                         }
                     }
                 }
-            }
+            },
+            colors = zemerTopAppBarColors(),
         )
 
         SnackbarHost(

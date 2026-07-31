@@ -25,6 +25,7 @@ import com.jtech.zemer.playback.queues.StationQueue
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.ZemerStationCard
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -84,5 +85,6 @@ fun ZemerStationsScreen(
         title = { AppBarTitle(stringResource(R.string.zemer_radio)) },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
+        colors = zemerTopAppBarColors(),
     )
 }

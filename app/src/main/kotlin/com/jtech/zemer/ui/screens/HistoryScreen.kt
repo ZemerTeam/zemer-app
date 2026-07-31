@@ -68,6 +68,7 @@ import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.YouTubeListItem
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.SelectionMediaMetadataMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
@@ -497,6 +498,7 @@ fun HistoryScreen(
                     )
                 }
             }
-        }
+        },
+        colors = zemerTopAppBarColors(),
     )
 }

@@ -29,6 +29,7 @@ import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.YouTubeGridItem
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.GridItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
@@ -184,5 +185,6 @@ fun AccountScreen(
     TopAppBar(
         title = { AppBarTitle(stringResource(R.string.account)) },
         navigationIcon = { BackNavigationIcon(navController) },
+        colors = zemerTopAppBarColors(),
     )
 }

@@ -14,6 +14,7 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import androidx.compose.ui.res.stringResource
 
@@ -33,6 +34,7 @@ fun IntegrationScreen(
 
     TopAppBar(
         title = { AppBarTitle(stringResource(R.string.integrations)) },
-        navigationIcon = { BackNavigationIcon(navController) }
+        navigationIcon = { BackNavigationIcon(navController) },
+        colors = zemerTopAppBarColors(),
     )
 }

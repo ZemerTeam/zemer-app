@@ -62,6 +62,7 @@ import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.YouTubeListItem
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.GridItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
@@ -100,6 +101,7 @@ fun ChartsScreen(
             TopAppBar(
                 title = { AppBarTitle(stringResource(R.string.charts)) },
                 navigationIcon = { BackNavigationIcon(navController) },
+                colors = zemerTopAppBarColors(),
             )
         }
     ) { paddingValues ->

@@ -76,6 +76,7 @@ import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.zemerCuratedPlaylistRuntimeLabel
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
@@ -467,6 +468,7 @@ fun ZemerCuratedPlaylistScreen(
                 BackNavigationIcon(navController)
             },
             scrollBehavior = scrollBehavior,
+            colors = zemerTopAppBarColors(),
         )
     }
 }

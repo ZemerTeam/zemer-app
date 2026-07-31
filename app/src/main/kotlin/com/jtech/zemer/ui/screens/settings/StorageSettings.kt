@@ -53,6 +53,7 @@ import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.formatFileSize
 import com.jtech.zemer.db.entities.Song
@@ -408,7 +409,8 @@ fun StorageSettings(
                     .focusRequester(backFocus)
                     .focusProperties { down = firstFocus }
             )
-        }
+        },
+        colors = zemerTopAppBarColors(),
     )
 }
 

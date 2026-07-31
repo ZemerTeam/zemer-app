@@ -32,6 +32,7 @@ import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.HideOnScrollFAB
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.viewmodels.LatestReleasesViewModel
 
 /**
@@ -102,5 +103,6 @@ fun LatestReleasesScreen(
         title = { AppBarTitle(stringResource(R.string.latest_releases)) },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
+        colors = zemerTopAppBarColors(),
     )
 }

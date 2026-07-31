@@ -59,6 +59,7 @@ import com.jtech.zemer.ui.theme.logPriorityColor
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SwitchPreference
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.LogBufferTree
 import com.jtech.zemer.utils.LogExport
@@ -249,7 +250,8 @@ fun LogViewerScreen(
                     .focusRequester(backFocus)
                     .focusProperties { down = firstFocus }
             )
-        }
+        },
+        colors = zemerTopAppBarColors(),
     )
 }
 

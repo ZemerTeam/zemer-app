@@ -48,6 +48,7 @@ import com.jtech.zemer.constants.NightlyUpdatesKey
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.UpdateDownloadDialog
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.SwitchPreference
@@ -403,6 +404,7 @@ fun UpdaterScreen(
                     .focusRequester(backFocus)
                     .focusProperties { down = firstFocus }
             )
-        }
+        },
+        colors = zemerTopAppBarColors(),
     )
 }

@@ -46,6 +46,7 @@ import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SliderPreference
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.player.CastDownloadDialog
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
@@ -272,6 +273,7 @@ fun PlayerSettings(
                     .focusRequester(backFocus)
                     .focusProperties { down = firstFocus }
             )
-        }
+        },
+        colors = zemerTopAppBarColors(),
     )
 }

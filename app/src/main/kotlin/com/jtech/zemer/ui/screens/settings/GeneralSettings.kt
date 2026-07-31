@@ -29,6 +29,7 @@ import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,6 +75,7 @@ fun GeneralSettings(
 
     TopAppBar(
         title = { AppBarTitle(stringResource(R.string.links)) },
-        navigationIcon = { BackNavigationIcon(navController) }
+        navigationIcon = { BackNavigationIcon(navController) },
+        colors = zemerTopAppBarColors(),
     )
 }

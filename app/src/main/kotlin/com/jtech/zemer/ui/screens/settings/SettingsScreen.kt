@@ -36,6 +36,7 @@ import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.Material3SettingsGroup
 import com.jtech.zemer.ui.component.Material3SettingsItem
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 
 data class SettingItem(
     val id: String,
@@ -213,7 +214,8 @@ fun SettingsScreen(
         TopAppBar(
             title = { AppBarTitle(stringResource(R.string.settings)) },
             navigationIcon = { BackNavigationIcon(navController) },
-            scrollBehavior = scrollBehavior
+            scrollBehavior = scrollBehavior,
+            colors = zemerTopAppBarColors(),
         )
         // Content with scroll
         val paddingValues = LocalPlayerAwareWindowInsets.current.asPaddingValues()

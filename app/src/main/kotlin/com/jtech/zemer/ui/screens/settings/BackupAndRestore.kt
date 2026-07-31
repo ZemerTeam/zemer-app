@@ -37,6 +37,7 @@ import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.menu.AddToPlaylistDialogOnline
 import com.jtech.zemer.ui.menu.LoadingScreen
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.viewmodels.BackupRestoreViewModel
 import kotlinx.coroutines.delay
@@ -156,7 +157,8 @@ fun BackupAndRestore(
                     .focusRequester(backFocus)
                     .focusProperties { down = firstFocus }
             )
-        }
+        },
+        colors = zemerTopAppBarColors(),
     )
     AddToPlaylistDialogOnline(
         isVisible = showChoosePlaylistDialogOnline,

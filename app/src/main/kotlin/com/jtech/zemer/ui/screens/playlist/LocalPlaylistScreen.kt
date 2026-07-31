@@ -132,6 +132,7 @@ import com.jtech.zemer.ui.component.OverlayEditButton
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.component.TextFieldDialog
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.CustomThumbnailMenu
 import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.menu.SelectionSongMenu
@@ -872,7 +873,8 @@ fun LocalPlaylistScreen(
                         )
                     }
                 }
-            }
+            },
+            colors = zemerTopAppBarColors(),
         )
 
         SnackbarHost(

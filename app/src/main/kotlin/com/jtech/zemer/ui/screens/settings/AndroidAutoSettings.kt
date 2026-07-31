@@ -47,6 +47,7 @@ import com.jtech.zemer.constants.MediaSessionConstants
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.focusBorder
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.flow.map
 import sh.calvin.reorderable.ReorderableItem
@@ -262,5 +263,6 @@ fun AndroidAutoSettings(
         title = { AppBarTitle(stringResource(R.string.android_auto)) },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
+        colors = zemerTopAppBarColors(),
     )
 }

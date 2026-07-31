@@ -37,6 +37,7 @@ import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.YouTubeGridItem
 import com.jtech.zemer.ui.component.YouTubeListItem
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.GridItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
@@ -233,5 +234,6 @@ fun NewReleaseScreen(
     TopAppBar(
         title = { AppBarTitle(stringResource(R.string.new_release_title)) },
         navigationIcon = { BackNavigationIcon(navController) },
+        colors = zemerTopAppBarColors(),
     )
 }

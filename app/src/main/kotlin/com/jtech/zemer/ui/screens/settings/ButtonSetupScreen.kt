@@ -52,6 +52,7 @@ import com.jtech.zemer.models.DpadDirection
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.AccessibilityUtils
 import com.jtech.zemer.utils.rememberAccessibilityEnabledState
@@ -168,7 +169,8 @@ fun ButtonSetupScreen(
     TopAppBar(
         title = { AppBarTitle(stringResource(R.string.dpad_setup_title)) },
         navigationIcon = { BackNavigationIcon(navController) },
-        scrollBehavior = scrollBehavior
+        scrollBehavior = scrollBehavior,
+        colors = zemerTopAppBarColors(),
     )
 }
 

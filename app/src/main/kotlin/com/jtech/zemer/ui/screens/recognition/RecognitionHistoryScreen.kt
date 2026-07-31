@@ -49,6 +49,7 @@ import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.focusBorder
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.resize
 import com.jtech.zemer.viewmodels.RecognitionHistoryViewModel
@@ -78,6 +79,7 @@ fun RecognitionHistoryScreen(
                         }
                     }
                 },
+                colors = zemerTopAppBarColors(),
             )
         },
     ) {

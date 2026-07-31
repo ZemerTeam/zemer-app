@@ -87,6 +87,7 @@ import com.jtech.zemer.ui.component.genreIcon
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.YouTubeGridItem
 import com.jtech.zemer.ui.component.YouTubeListItem
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.BoxPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
@@ -458,6 +459,7 @@ fun GenreScreen(
         },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
+        colors = zemerTopAppBarColors(),
     )
 }
 
