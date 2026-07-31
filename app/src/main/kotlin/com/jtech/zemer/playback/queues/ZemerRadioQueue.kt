@@ -2,12 +2,11 @@ package com.jtech.zemer.playback.queues
 
 import android.content.Context
 import androidx.media3.common.MediaItem
-import com.jtech.zemer.di.ZemerSearchRepositoryEntryPoint
+import com.jtech.zemer.di.zemerSearchRepository
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.tracking.PlaySource
-import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.withContext
@@ -41,9 +40,7 @@ class ZemerRadioQueue(
     // Context they have (often the Activity), so only the application context may be held.
     private val context = context.applicationContext
 
-    private val repository = EntryPointAccessors
-        .fromApplication(context.applicationContext, ZemerSearchRepositoryEntryPoint::class.java)
-        .zemerSearchRepository()
+    private val repository = context.zemerSearchRepository()
 
     private var continuation: String? = null
     private var started = false

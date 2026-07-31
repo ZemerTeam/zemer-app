@@ -43,6 +43,12 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
   `navigateToAlbum(id)` in `ui/utils/AppNavigation.kt` — a blank id is a no-op, and the pure
   `artistRoute`/`albumRoute` builders are unit-tested. Enforced by `R16-navroute` (baseline 0). Zemer
   routes with query params keep their builders (`zemerAlbumRoute`, `zemerPlaylistRoute`, `ZemerRoutes.kt`).
+- **Resolve the Zemer repository through the one extension.** A leaf composable with no ViewModel that
+  needs `ZemerSearchRepository` calls `context.zemerSearchRepository()` (the extension in
+  `di/ZemerSearchRepositoryEntryPoint.kt`), never a hand-written
+  `EntryPointAccessors.fromApplication(..., ZemerSearchRepositoryEntryPoint::class.java).zemerSearchRepository()`.
+  Enforced by `R17-entrypoint` (UI-scoped, baseline 0). The `playback/queues/*` classes that hold the
+  boilerplate live outside `ui/` and use the same extension.
 - Enforcement (ratcheting): `scripts/ui-audit.sh` rules `R14-backbtn` and `R15-morevert` fail CI on
   any *new* raw `R.drawable.arrow_back` / `R.drawable.more_vert` in a screen — build the back button
   and the overflow menu from the shared components instead. The existing hand-rolls are baselined in

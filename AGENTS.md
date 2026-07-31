@@ -193,6 +193,24 @@ two hand-rolled copies to drift. Extracting the shared piece is part of the chan
 staff-engineer review bar rejects copy-pasted near-duplicates. When you add a new shared component, list
 it in the paragraph above so the next contributor finds it.
 
+**Shared non-visual helpers (de-dup logic too, not just composables).** The same "reuse, don't re-roll"
+rule covers repeated *logic*. The current shared helpers — reach for these before hand-writing the pattern:
+- **Id-bearing navigation:** `navigateToArtist(id)` / `navigateToAlbum(id)` (`ui/utils/AppNavigation.kt`)
+  over `navController.navigate("artist/$id")`. A blank id builds `"artist/"`, matches no destination and
+  **crashes** — the helper makes a blank id a no-op; the pure `artistRoute`/`albumRoute` builders are
+  unit-tested (`AppNavigationTest`). Query-param routes keep their own builders (`ZemerRoutes.kt`).
+  Ratcheted by `R16-navroute` (baseline 0).
+- **The row 3-dot menu body:** `ytItemMenu(item, navController, coroutineScope, onDismiss, isVideo)`
+  (`ui/menu/YouTubeItemMenu.kt`) returns the `@Composable ColumnScope.() -> Unit` for `menuState.show`,
+  dispatching `SongItem`/`AlbumItem`/`ArtistItem`/`PlaylistItem` to the right `YouTube*Menu` — never
+  re-write that `when` per screen.
+- **The Zemer repository from a leaf composable/queue:** `context.zemerSearchRepository()`
+  (`di/ZemerSearchRepositoryEntryPoint.kt`) over a hand-written `EntryPointAccessors.fromApplication(...)`.
+  Ratcheted by `R17-entrypoint` (UI-scoped, baseline 0).
+
+Enforcement lives in `scripts/ui-audit.sh` (see the rule list at the top of that file) + `docs/ui/standards.md`;
+when you add a new shared helper with a greppable anti-pattern, add a ratchet rule there in the same pass.
+
 ### The home tab (telemetry-ranked rows; zero-InnerTube for content)
 
 `HomeViewModel` + `HomeScreen`. The home tab is **InnerTube-free for content** — every row is served

@@ -2,7 +2,7 @@ package com.jtech.zemer.playback.queues
 
 import android.content.Context
 import androidx.media3.common.MediaItem
-import com.jtech.zemer.di.ZemerSearchRepositoryEntryPoint
+import com.jtech.zemer.di.zemerSearchRepository
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.toMediaMetadata
@@ -16,7 +16,6 @@ import com.jtech.zemer.search.stationStartPositionMs
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.utils.ContentFilterState
-import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -53,9 +52,7 @@ class StationQueue(
     // MusicService retains currentQueue for the whole session — hold only the application context.
     private val context = context.applicationContext
 
-    private val repository = EntryPointAccessors
-        .fromApplication(context.applicationContext, ZemerSearchRepositoryEntryPoint::class.java)
-        .zemerSearchRepository()
+    private val repository = context.zemerSearchRepository()
 
     /** mediaId → its scheduled slot, so boundary handlers can recompute the live position. */
     private val schedule = LinkedHashMap<String, ZemerStationEntry>()

@@ -52,6 +52,9 @@
 #   R16-navroute   hand-built single-segment id route `navigate("artist/$id")` / `navigate("album/$id")`
 #                  -> use the null-safe navigateToArtist/navigateToAlbum helpers
 #                  (ui/utils/AppNavigation.kt); a blank id would otherwise crash on "artist/". Baseline 0.
+#   R17-entrypoint raw `EntryPointAccessors.fromApplication(..., ZemerSearchRepositoryEntryPoint::class.java)`
+#                  in a composable -> use the Context.zemerSearchRepository() extension
+#                  (di/ZemerSearchRepositoryEntryPoint.kt). UI-scoped. Baseline 0.
 #
 # Genuine fixed-value exceptions (AMOLED pure-black, the lyric-image *export*, color-picker
 # swatches) are allowed: they live in the baseline. Keep them minimal; --update records them.
@@ -105,6 +108,12 @@ violations() {
   # legit `artist/{id}/songs` and zemerAlbumRoute() sites are not flagged. Baselined at zero.
   grep -rnE 'navigate\("(artist|album)/\$[^"/]*"\)' "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | grep -v "utils/AppNavigation.kt" | sed -E 's/:.*//' | sed 's/$/\tR16-navroute/'
+  # R17: hand-rolled EntryPoint resolution of the Zemer repository in a composable. A leaf composable
+  # with no ViewModel resolves the repo via Context.zemerSearchRepository() (di/ZemerSearchRepositoryEntryPoint.kt),
+  # NOT a raw EntryPointAccessors.fromApplication(..., ZemerSearchRepositoryEntryPoint::class.java) call.
+  # UI-scoped (the playback/queues classes that legitimately hold the boilerplate live outside ui/).
+  grep -rnE "ZemerSearchRepositoryEntryPoint::class" "$UI" --include=*.kt 2>/dev/null \
+    | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR17-entrypoint/'
 }
 
 # Aggregate to "<path>\t<rule>\t<count>", sorted.
@@ -139,7 +148,7 @@ improved="$(awk -F'\t' '
 ' <(printf "%s\n" "$cur") "$BASELINE")"
 
 if [ -n "$new" ]; then
-  echo "UI audit FAILED — new Rule 5/7/8/11/12/13/14/15/16 violations (docs/ui/standards.md sections 1, 5, 7-8, 11, 13):"
+  echo "UI audit FAILED — new Rule 5/7/8/11/12/13/14/15/16/17 violations (docs/ui/standards.md sections 1, 5, 7-8, 11, 13):"
   echo "$new"
   echo
   echo "Route font sizes through MaterialTheme.typography (Type.kt), colors through"
@@ -156,7 +165,7 @@ if [ -n "$new" ]; then
 fi
 
 total="$(violations | grep -c .)"
-echo "UI audit passed — no new Rule 5/7/8/11/12/13/14/15/16 violations (baseline: $total known, only allowed to shrink)."
+echo "UI audit passed — no new Rule 5/7/8/11/12/13/14/15/16/17 violations (baseline: $total known, only allowed to shrink)."
 if [ -n "$improved" ]; then
   echo "Burned down since the baseline — tighten it with \`bash scripts/ui-audit.sh --update\`:"
   echo "$improved"

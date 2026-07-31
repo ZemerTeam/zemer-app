@@ -41,13 +41,12 @@ import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
-import com.jtech.zemer.di.ZemerSearchRepositoryEntryPoint
+import com.jtech.zemer.di.zemerSearchRepository
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
 import com.jtech.zemer.playback.queues.LocalAlbumRadio
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.ui.component.AlreadyInPlaylistDialog
-import dagger.hilt.android.EntryPointAccessors
 import com.jtech.zemer.ui.component.ArtistChoice
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
@@ -84,11 +83,7 @@ fun YouTubeAlbumMenu(
     // AlbumViewModel. No InnerTube YouTube.album() - a non-corpus album is non-whitelisted and its
     // tracks would bypass the filter; a failed corpus load just leaves the actions empty rather than
     // silently no-op-ing on a bot-gated InnerTube call.
-    val zemerRepository = remember(context) {
-        EntryPointAccessors
-            .fromApplication(context.applicationContext, ZemerSearchRepositoryEntryPoint::class.java)
-            .zemerSearchRepository()
-    }
+    val zemerRepository = remember(context) { context.zemerSearchRepository() }
 
     LaunchedEffect(Unit) {
         database.album(albumItem.id).collect { dbAlbum ->
