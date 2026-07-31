@@ -924,20 +924,27 @@ fun YouTubeGridItem(
     fillMaxWidth: Boolean = false,
     subtitleOverride: String? = null,
     centeredPlayButton: Boolean = false,
+    // Suppress the text title when the thumbnail already carries it (the curated Zemer-playlist
+    // covers bake the title into the SVG, so the label below would just repeat it).
+    showTitle: Boolean = true,
+    // Suppress the sub-label entirely (the compact Home curated card is just the cover).
+    showSubtitle: Boolean = true,
 ) = GridItem(
     title = {
-        Text(
-            text = item.title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = if (item is ArtistItem) TextAlign.Center else TextAlign.Start,
-            modifier = Modifier.basicMarquee().fillMaxWidth()
-        )
+        if (showTitle) {
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = if (item is ArtistItem) TextAlign.Center else TextAlign.Start,
+                modifier = Modifier.basicMarquee().fillMaxWidth()
+            )
+        }
     },
     subtitle = {
-        val subtitle = subtitleOverride ?: when (item) {
+        val subtitle = if (!showSubtitle) null else subtitleOverride ?: when (item) {
             is SongItem -> joinByBullet(item.artists.joinToString { it.name }, makeTimeString(item.duration?.times(1000L)))
             is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
             is ArtistItem -> null
