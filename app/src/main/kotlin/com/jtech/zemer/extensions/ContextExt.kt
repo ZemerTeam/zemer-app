@@ -1,34 +1,49 @@
 package com.jtech.zemer.extensions
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.widget.Toast
+import androidx.annotation.StringRes
+import com.jtech.zemer.R
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.get
 import com.metrolist.innertube.utils.parseCookieString
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
 
 /**
- * WARNING: This function uses runBlocking() which blocks the calling thread.
- * ONLY use this during application initialization (App.kt) or in background contexts.
- * DO NOT use on the main/UI thread as this will cause ANR.
- *
- * Prefer the Flow-based alternative for UI code:
- * - Use `Context.isSyncEnabledFlow()` for Composables and reactive code
+ * Share a plain-text payload (a deep link / share URL) through the system chooser. This is the one
+ * place the app builds an `ACTION_SEND` `text/plain` intent — call sites pass only the text, and any
+ * `Tracker.action(SHARE, …)` / `onDismiss()` stays at the call site. File/stream shares (log export,
+ * lyric image) are a different intent shape and deliberately keep their own builder.
  */
-fun Context.isSyncEnabled(): Boolean {
-    return try {
-        runBlocking {
-            dataStore.get(YtmSyncKey, true) && isUserLoggedIn()
-        }
-    } catch (e: Exception) {
-        timber.log.Timber.e(e, "Failed to check sync enabled status, defaulting to false")
-        false
+fun Context.shareText(text: String) {
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
     }
+    startActivity(Intent.createChooser(intent, null))
+}
+
+/**
+ * Copy [text] to the clipboard under [label] and confirm with a short toast — the one place the app
+ * touches `ClipboardManager`. [text] is a `CharSequence` so an `AnnotatedString` copies verbatim.
+ * [confirmationRes] is the toast string: the generic "copied" by default; link copies pass
+ * `R.string.link_copied`.
+ */
+fun Context.copyToClipboard(
+    label: CharSequence,
+    text: CharSequence,
+    @StringRes confirmationRes: Int = R.string.copied,
+) {
+    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
+    Toast.makeText(this, confirmationRes, Toast.LENGTH_SHORT).show()
 }
 
 /**
@@ -45,26 +60,6 @@ fun Context.isSyncEnabledFlow(): Flow<Boolean> {
             timber.log.Timber.e(e, "Failed to read sync preference")
             false
         }
-    }
-}
-
-/**
- * WARNING: This function uses runBlocking() which blocks the calling thread.
- * ONLY use this during application initialization (App.kt) or in background contexts.
- * DO NOT use on the main/UI thread as this will cause ANR.
- *
- * Prefer the Flow-based alternative for UI code:
- * - Use `Context.isUserLoggedInFlow()` for Composables and reactive code
- */
-fun Context.isUserLoggedIn(): Boolean {
-    return try {
-        runBlocking {
-            val cookie = dataStore[InnerTubeCookieKey] ?: ""
-            "SAPISID" in parseCookieString(cookie) && isInternetConnected()
-        }
-    } catch (e: Exception) {
-        timber.log.Timber.e(e, "Failed to check login status, defaulting to false")
-        false
     }
 }
 

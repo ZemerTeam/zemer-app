@@ -51,6 +51,7 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
+import com.jtech.zemer.extensions.copyToClipboard
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
@@ -259,10 +260,11 @@ fun PlayerMenu(
                         },
                         text = stringResource(R.string.copy_link),
                         onClick = {
-                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            val clip = android.content.ClipData.newPlainText(context.getString(R.string.clip_label_song_link), "https://music.zemer.io/watch?v=${mediaMetadata.id}")
-                            clipboard.setPrimaryClip(clip)
-                            Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
+                            context.copyToClipboard(
+                                context.getString(R.string.clip_label_song_link),
+                                "https://music.zemer.io/watch?v=${mediaMetadata.id}",
+                                R.string.link_copied,
+                            )
                             onDismiss()
                         }
                     )

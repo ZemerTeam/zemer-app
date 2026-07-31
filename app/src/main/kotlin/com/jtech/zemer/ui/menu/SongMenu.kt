@@ -2,7 +2,6 @@
 
 package com.jtech.zemer.ui.menu
 
-import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -55,6 +54,7 @@ import com.jtech.zemer.db.entities.PlaylistSong
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
@@ -336,12 +336,7 @@ fun SongMenu(
                         onClick = {
                             onDismiss()
                             Tracker.action(TrackingActionKind.SHARE, song.id)
-                            val intent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "https://music.zemer.io/watch?v=${song.id}")
-                            }
-                            context.startActivity(Intent.createChooser(intent, null))
+                            context.shareText("https://music.zemer.io/watch?v=${song.id}")
                         }
                     )
                 ),

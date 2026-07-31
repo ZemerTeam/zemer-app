@@ -2,10 +2,6 @@
 
 package com.jtech.zemer.ui.screens.artist
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -89,6 +85,7 @@ import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
+import com.jtech.zemer.extensions.copyToClipboard
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.search.zemerAlbumRoute
@@ -834,10 +831,11 @@ fun ArtistScreen(
             IconButton(
                 onClick = {
                     viewModel.artistPage?.artist?.shareLink?.let { link ->
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText(context.getString(R.string.clip_label_artist_link), link)
-                        clipboard.setPrimaryClip(clip)
-                        Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
+                        context.copyToClipboard(
+                            context.getString(R.string.clip_label_artist_link),
+                            link,
+                            R.string.link_copied,
+                        )
                     }
                 },
             ) {

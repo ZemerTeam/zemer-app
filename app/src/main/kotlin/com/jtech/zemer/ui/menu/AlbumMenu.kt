@@ -3,7 +3,6 @@
 package com.jtech.zemer.ui.menu
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.PaddingValues
@@ -47,6 +46,7 @@ import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
 import com.jtech.zemer.playback.queues.ListQueue
@@ -267,12 +267,7 @@ fun AlbumMenu(
                         onClick = {
                             onDismiss()
                             Tracker.action(TrackingActionKind.SHARE, album.id)
-                            val intent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "https://music.zemer.io/playlist?list=${album.album.playlistId}")
-                            }
-                            context.startActivity(Intent.createChooser(intent, null))
+                            context.shareText("https://music.zemer.io/playlist?list=${album.album.playlistId}")
                         }
                     )
                 ),

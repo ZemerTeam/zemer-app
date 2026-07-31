@@ -59,7 +59,7 @@ YouTube rotates `player_ias` frequently. Player configs live in **one JSON file*
 
 ### Accounts: personal vs anonymous (pooled) — `SAPISID` ≠ logged in
 
-There are two signed-in states and telling them apart is non-obvious. A **personal** Google login sets a **`dataSyncId`**. The **"anonymous"** login signs into a **shared, pooled** account: its cookie **does** carry `SAPISID`, but the flow deliberately clears `dataSyncId` (`App.kt` / `LoginGateScreen` — `onBehalfOfUser`/dataSyncId breaks the pooled player request). So `parseCookieString(cookie).containsKey("SAPISID")` / `Context.isUserLoggedIn()` are **true for anonymous** and must **never** gate remote *account* reads or writes — doing so leaks the pooled account's library/likes/subscriptions across every anonymous user.
+There are two signed-in states and telling them apart is non-obvious. A **personal** Google login sets a **`dataSyncId`**. The **"anonymous"** login signs into a **shared, pooled** account: its cookie **does** carry `SAPISID`, but the flow deliberately clears `dataSyncId` (`App.kt` / `LoginGateScreen` — `onBehalfOfUser`/dataSyncId breaks the pooled player request). So `parseCookieString(cookie).containsKey("SAPISID")` / the cookie-based `Context.isUserLoggedInFlow()` are **true for anonymous** and must **never** gate remote *account* reads or writes — doing so leaks the pooled account's library/likes/subscriptions across every anonymous user. (The old blocking `Context.isUserLoggedIn()`/`isSyncEnabled()` helpers — `runBlocking` around a DataStore read plus, in the login case, a blocking DNS socket — were dead and were deleted; use the reactive `*Flow` variants.)
 
 - The correct discriminator is **`com.jtech.zemer.extensions.AccountState`**: `isPersonalAccountSignedIn` (= non-empty `YouTube.dataSyncId`, usable from context-free entity code) and the reactive `Context.isPersonalAccountFlow()`. Gate remote account sync/writes on these — never on `SAPISID`.
 - Already gated: `SyncUtils` account syncs + `likeSong`, the entity `toggleLike` remote side-effects (`Song/Artist/Album/PlaylistEntity`), and the add/remove/create/rename/delete-playlist + library/history-feedback writes in the menus. **Local DB writes always run**, so anonymous keeps likes/subscribes/playlists locally; personal logins are unaffected (each gate is a no-op when the predicate is true). The **Firebase artist-whitelist sync (`syncArtistWhitelist`) is account-independent and stays on for anon** — it powers content filtering.
@@ -192,6 +192,39 @@ editing) a second near-copy of a widget that already appears elsewhere, STOP and
 two hand-rolled copies to drift. Extracting the shared piece is part of the change, not a follow-up: the
 staff-engineer review bar rejects copy-pasted near-duplicates. When you add a new shared component, list
 it in the paragraph above so the next contributor finds it.
+
+**Shared non-visual helpers (de-dup logic too, not just composables).** The same "reuse, don't re-roll"
+rule covers repeated *logic*. The current shared helpers — reach for these before hand-writing the pattern:
+- **Id-bearing navigation:** `navigateToArtist(id)` / `navigateToAlbum(id)` (`ui/utils/AppNavigation.kt`)
+  over `navController.navigate("artist/$id")`. A blank id builds `"artist/"`, matches no destination and
+  **crashes** — the helper makes a blank id a no-op; the pure `artistRoute`/`albumRoute` builders are
+  unit-tested (`AppNavigationTest`). Query-param routes keep their own builders (`ZemerRoutes.kt`).
+  Ratcheted by `R16-navroute` (baseline 0).
+- **The row 3-dot menu body:** `ytItemMenu(item, navController, coroutineScope, onDismiss, isVideo)`
+  (`ui/menu/YouTubeItemMenu.kt`) returns the `@Composable ColumnScope.() -> Unit` for `menuState.show`,
+  dispatching `SongItem`/`AlbumItem`/`ArtistItem`/`PlaylistItem` to the right `YouTube*Menu` — never
+  re-write that `when` per screen.
+- **The Zemer repository from a leaf composable/queue:** `context.zemerSearchRepository()`
+  (`di/ZemerSearchRepositoryEntryPoint.kt`) over a hand-written `EntryPointAccessors.fromApplication(...)`.
+  Ratcheted by `R17-entrypoint` (UI-scoped, baseline 0).
+- **Sharing a URL/deep link:** `context.shareText(url)` (`extensions/ContextExt.kt`) over a hand-rolled
+  `Intent(ACTION_SEND)` + `createChooser`. `Tracker.action(SHARE, …)` and `onDismiss()` stay at the call
+  site. File/stream shares (log export, lyric image) keep their own builder. Ratcheted by `R19-share`
+  (baseline 0; `component/Lyrics.kt`'s lyric-image `EXTRA_STREAM` share is excluded, not a text share).
+- **Copying to the clipboard:** `context.copyToClipboard(label, text, confirmationRes = R.string.copied)`
+  (`extensions/ContextExt.kt`) over a hand-rolled `ClipboardManager.setPrimaryClip(...)` — it also shows
+  the confirmation toast (`link_copied` for link copies). `text` is a `CharSequence` so an
+  `AnnotatedString` copies verbatim. Ratcheted by `R20-clipboard` (baseline 0).
+
+**Never `runBlocking` on a UI path.** A composable/UI file that blocks the main thread ANRs. Collect the
+value with a suspend function + `LaunchedEffect`/`rememberCoroutineScope`, or a `Flow` (`collectAsState`);
+the DataStore sync accessors (`dataStore[Key]`, `dataStore.get(Key, default)`) are the documented
+exception and must run OFF the main thread. Ratcheted by `R18-runblocking` (UI-scoped, baseline 0). The
+legitimate blocking sites live outside `ui/` and are deliberate — ExoPlayer's `createDataSourceFactory`
+(a Media3 contract that must return synchronously), the download thread, the DataStore primitives.
+
+Enforcement lives in `scripts/ui-audit.sh` (see the rule list at the top of that file) + `docs/ui/standards.md`;
+when you add a new shared helper with a greppable anti-pattern, add a ratchet rule there in the same pass.
 
 ### The home tab (telemetry-ranked rows; zero-InnerTube for content)
 

@@ -1,9 +1,6 @@
 package com.jtech.zemer.ui.player
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +51,8 @@ import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.focusBorder
 import kotlinx.coroutines.launch
 import org.fcast.sender_sdk.DeviceInfo
+import com.jtech.zemer.extensions.shareText
+import com.jtech.zemer.extensions.copyToClipboard
 
 private const val FCAST_DOWNLOADS_URL = "https://fcast.org/#downloads"
 
@@ -65,21 +64,11 @@ private fun castFailureMessageRes(reason: CastLibState.Failed.Reason): Int = whe
 }
 
 private fun shareFcast(context: Context) {
-    context.startActivity(
-        Intent.createChooser(
-            Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, FCAST_DOWNLOADS_URL)
-            },
-            null,
-        ),
-    )
+    context.shareText(FCAST_DOWNLOADS_URL)
 }
 
 private fun copyFcast(context: Context) {
-    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    clipboard.setPrimaryClip(ClipData.newPlainText("FCast", FCAST_DOWNLOADS_URL))
-    Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
+    context.copyToClipboard("FCast", FCAST_DOWNLOADS_URL, R.string.link_copied)
 }
 
 /**

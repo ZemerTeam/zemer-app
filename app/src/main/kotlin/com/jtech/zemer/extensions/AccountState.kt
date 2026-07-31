@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.map
  * Whether a **personal** Google account is signed in.
  *
  * The "anonymous" login signs into a shared, pooled account whose cookie DOES carry `SAPISID`, so
- * the cookie-based [isUserLoggedIn]/[isUserLoggedInFlow] return `true` for anonymous sessions and
+ * the cookie-based [isUserLoggedInFlow] returns `true` for anonymous sessions and
  * must NOT be used to authorize remote *account* reads or writes — doing so leaks the pooled
  * account's library/likes/subscriptions across every anonymous user. Only a personal login sets a
  * `dataSyncId` (the anonymous flow explicitly clears it; see `App.kt` / `LoginGateScreen`), so that

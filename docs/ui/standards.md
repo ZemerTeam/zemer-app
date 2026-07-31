@@ -43,6 +43,25 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
   `navigateToAlbum(id)` in `ui/utils/AppNavigation.kt` — a blank id is a no-op, and the pure
   `artistRoute`/`albumRoute` builders are unit-tested. Enforced by `R16-navroute` (baseline 0). Zemer
   routes with query params keep their builders (`zemerAlbumRoute`, `zemerPlaylistRoute`, `ZemerRoutes.kt`).
+- **Resolve the Zemer repository through the one extension.** A leaf composable with no ViewModel that
+  needs `ZemerSearchRepository` calls `context.zemerSearchRepository()` (the extension in
+  `di/ZemerSearchRepositoryEntryPoint.kt`), never a hand-written
+  `EntryPointAccessors.fromApplication(..., ZemerSearchRepositoryEntryPoint::class.java).zemerSearchRepository()`.
+  Enforced by `R17-entrypoint` (UI-scoped, baseline 0). The `playback/queues/*` classes that hold the
+  boilerplate live outside `ui/` and use the same extension.
+- **Never `runBlocking` on a UI path.** Blocking the main thread from a composable ANRs. Use a suspend
+  function + `LaunchedEffect`/`rememberCoroutineScope`, or a `Flow` (`collectAsState`). The DataStore
+  sync accessors (`dataStore[Key]`) are the documented exception and must run off the main thread.
+  Enforced by `R18-runblocking` (UI-scoped, baseline 0). Deliberate blocking sites (ExoPlayer's
+  synchronous `createDataSourceFactory`, download threads) live outside `ui/`.
+- **Share a URL through the one helper.** `context.shareText(url)` (`extensions/ContextExt.kt`) over a
+  hand-rolled `Intent(ACTION_SEND)` + `createChooser`. Keep `Tracker.action(SHARE, …)` and `onDismiss()`
+  at the call site. Enforced by `R19-share` (baseline 0); the lyric-image `EXTRA_STREAM` share in
+  `component/Lyrics.kt` is a different intent shape and is excluded.
+- **Copy through the one helper.** `context.copyToClipboard(label, text, confirmationRes)`
+  (`extensions/ContextExt.kt`) over a hand-rolled `ClipboardManager.setPrimaryClip(...)`; it also shows
+  the confirmation toast (default "copied"; link copies pass `R.string.link_copied`). Enforced by
+  `R20-clipboard` (baseline 0).
 - Enforcement (ratcheting): `scripts/ui-audit.sh` rules `R14-backbtn` and `R15-morevert` fail CI on
   any *new* raw `R.drawable.arrow_back` / `R.drawable.more_vert` in a screen — build the back button
   and the overflow menu from the shared components instead. The existing hand-rolls are baselined in
