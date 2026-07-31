@@ -7,7 +7,6 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import android.webkit.CookieManager
-import android.widget.Toast
 import androidx.datastore.preferences.core.edit
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -30,6 +29,7 @@ import com.jtech.zemer.constants.*
 import com.jtech.zemer.di.ApplicationScope
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.extensions.toInetSocketAddress
+import com.jtech.zemer.extensions.toast
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.CrashReportingTree
@@ -330,7 +330,7 @@ class App : Application(), SingletonImageLoader.Factory {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@App, getString(R.string.proxy_url_parse_failed), Toast.LENGTH_SHORT).show()
+                    this@App.toast(getString(R.string.proxy_url_parse_failed))
                 }
                 reportException(e)
             }

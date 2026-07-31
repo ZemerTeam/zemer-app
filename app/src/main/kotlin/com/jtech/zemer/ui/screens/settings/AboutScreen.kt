@@ -56,7 +56,7 @@ import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberPreference
-import android.widget.Toast
+import com.jtech.zemer.extensions.toast
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -145,11 +145,7 @@ fun AboutScreen(
                                 devTapCount = 0
                                 val newValue = !developerMode
                                 onDeveloperModeChange(newValue)
-                                Toast.makeText(
-                                    context,
-                                    if (newValue) R.string.developer_mode_enabled else R.string.developer_mode_disabled,
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                context.toast(if (newValue) R.string.developer_mode_enabled else R.string.developer_mode_disabled)
                             }
                         },
                         label = { Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME)) },

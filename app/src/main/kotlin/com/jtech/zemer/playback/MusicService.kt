@@ -17,7 +17,6 @@ import android.media.audiofx.AudioEffect
 import android.media.audiofx.LoudnessEnhancer
 import android.net.ConnectivityManager
 import android.os.Binder
-import android.widget.Toast
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import androidx.datastore.preferences.core.edit
@@ -114,6 +113,7 @@ import com.jtech.zemer.extensions.setOffloadEnabled
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.toPersistQueue
 import com.jtech.zemer.extensions.toQueue
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.lyrics.LyricsHelper
 import com.jtech.zemer.models.PersistPlayerState
 import com.jtech.zemer.models.PersistQueue
@@ -1133,7 +1133,7 @@ class MusicService :
         mediaSession.sendError(
             SessionError(SessionError.ERROR_IO, getString(R.string.radio_start_failed)),
         )
-        Toast.makeText(this, getString(R.string.radio_start_failed), Toast.LENGTH_SHORT).show()
+        this.toast(getString(R.string.radio_start_failed))
     }
 
     fun getAutomixAlbum(albumId: String) {
@@ -1293,11 +1293,7 @@ class MusicService :
             )
 
             if (targetPlaylistId == MediaSessionConstants.TARGET_PLAYLIST_AUTO) {
-                Toast.makeText(
-                    this@MusicService,
-                    getString(R.string.android_auto_target_playlist_not_set),
-                    Toast.LENGTH_SHORT,
-                ).show()
+                this@MusicService.toast(getString(R.string.android_auto_target_playlist_not_set))
                 return@launch
             }
 

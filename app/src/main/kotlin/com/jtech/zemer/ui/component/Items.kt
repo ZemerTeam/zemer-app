@@ -3,7 +3,6 @@
 package com.jtech.zemer.ui.component
 
 import android.annotation.SuppressLint
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animate
@@ -93,6 +92,7 @@ import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.queues.LocalAlbumRadio
 import com.jtech.zemer.ui.utils.resize
@@ -1463,13 +1463,13 @@ fun SwipeToSongBox(
                     when {
                         offset.floatValue >= threshold -> {
                             player?.playNext(listOf(mediaItem))
-                            Toast.makeText(ctx, R.string.play_next, Toast.LENGTH_SHORT).show()
+                            ctx.toast(R.string.play_next)
                             reset(offset, scope)
                         }
 
                         offset.floatValue <= -threshold -> {
                             player?.addToQueue(listOf(mediaItem))
-                            Toast.makeText(ctx, R.string.add_to_queue, Toast.LENGTH_SHORT).show()
+                            ctx.toast(R.string.add_to_queue)
                             reset(offset, scope)
                         }
 

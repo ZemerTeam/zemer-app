@@ -1,7 +1,6 @@
 package com.jtech.zemer.ui.screens.settings
 
 import android.os.Build
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -37,6 +36,7 @@ import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.Material3SettingsGroup
 import com.jtech.zemer.ui.component.Material3SettingsItem
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
+import com.jtech.zemer.extensions.toast
 
 data class SettingItem(
     val id: String,
@@ -253,7 +253,7 @@ fun SettingsScreen(
                                     navController.navigate(setting.route)
                                 } else if (setting.id == "logout") {
                                     FirebaseAuth.getInstance().signOut()
-                                    Toast.makeText(context, R.string.logged_out, Toast.LENGTH_SHORT).show()
+                                    context.toast(R.string.logged_out)
                                 }
                             }
                         )

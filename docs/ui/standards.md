@@ -62,6 +62,9 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
   (`extensions/ContextExt.kt`) over a hand-rolled `ClipboardManager.setPrimaryClip(...)`; it also shows
   the confirmation toast (default "copied"; link copies pass `R.string.link_copied`). Enforced by
   `R20-clipboard` (baseline 0).
+- **Toast through the one helper.** `context.toast(resId | text, long = false)`
+  (`extensions/ContextExt.kt`) over a hand-rolled `Toast.makeText(...).show()`. Enforced by `R21-toast`
+  (baseline 0).
 - Enforcement (ratcheting): `scripts/ui-audit.sh` rules `R14-backbtn` and `R15-morevert` fail CI on
   any *new* raw `R.drawable.arrow_back` / `R.drawable.more_vert` in a screen — build the back button
   and the overflow menu from the shared components instead. The existing hand-rolls are baselined in

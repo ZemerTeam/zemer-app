@@ -215,6 +215,10 @@ rule covers repeated *logic*. The current shared helpers — reach for these bef
   (`extensions/ContextExt.kt`) over a hand-rolled `ClipboardManager.setPrimaryClip(...)` — it also shows
   the confirmation toast (`link_copied` for link copies). `text` is a `CharSequence` so an
   `AnnotatedString` copies verbatim. Ratcheted by `R20-clipboard` (baseline 0).
+- **Showing a toast:** `context.toast(resId | text, long = false)` (`extensions/ContextExt.kt`) over a
+  hand-rolled `Toast.makeText(...).show()` — two overloads mirror the framework (string-resource id /
+  `CharSequence`); `long = true` is `LENGTH_LONG`. Ratcheted by `R21-toast` (UI-scoped, baseline 0). Works
+  from any `Context` (Activity, Service, Application, `this@MusicService`).
 
 **Never `runBlocking` on a UI path.** A composable/UI file that blocks the main thread ANRs. Collect the
 value with a suspend function + `LaunchedEffect`/`rememberCoroutineScope`, or a `Flow` (`collectAsState`);

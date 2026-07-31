@@ -1,6 +1,5 @@
 package com.jtech.zemer.ui.component
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,6 +27,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.extensions.isPersonalAccountFlow
 import com.jtech.zemer.extensions.isSyncEnabledFlow
+import com.jtech.zemer.extensions.toast
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
@@ -107,17 +107,9 @@ fun CreatePlaylistDialog(
                             checked = syncedPlaylist,
                             onCheckedChange = {
                                 if (!isSignedIn && !syncedPlaylist) {
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(R.string.not_logged_in_youtube),
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    context.toast(context.getString(R.string.not_logged_in_youtube))
                                 } else if (!isSyncEnabled) {
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(R.string.sync_disabled),
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    context.toast(context.getString(R.string.sync_disabled))
                                 } else {
                                     syncedPlaylist = !syncedPlaylist
                                 }

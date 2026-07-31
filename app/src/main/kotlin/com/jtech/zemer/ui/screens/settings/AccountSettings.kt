@@ -36,7 +36,6 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.client.request.get
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,6 +68,7 @@ import com.jtech.zemer.utils.Updater
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.AccountSettingsViewModel
 import com.jtech.zemer.viewmodels.HomeViewModel
+import com.jtech.zemer.extensions.toast
 import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.innertube.YouTube
 import androidx.compose.foundation.layout.fillMaxSize
@@ -245,30 +245,18 @@ fun AccountSettings(
                                 fetchedAccountChannelHandle?.let { onAccountChannelHandleChange(it) }
                                 tokenTestResult = "success"
                                 android.util.Log.i("TokenTest", "✓ Anonymous token valid!")
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.login_success_restart),
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                context.toast(context.getString(R.string.login_success_restart), long = true)
                             } else {
                                 tokenTestResult = "invalid"
                                 android.util.Log.w("TokenTest", "✗ Invalid token format")
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.login_failed_invalid_token),
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                context.toast(context.getString(R.string.login_failed_invalid_token))
                             }
                             httpClient.close()
                         } catch (e: Exception) {
                             tokenTestResult = "error"
                             android.util.Log.w("TokenTest", "✗ Login failed: ${e.message}")
                             val reason = e.message ?: context.getString(R.string.error_unknown)
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.login_failed_with_reason, reason),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            context.toast(context.getString(R.string.login_failed_with_reason, reason))
                         } finally {
                             isTestingToken = false
                         }
@@ -404,7 +392,7 @@ fun AccountSettings(
                             scope.launch {
                                 accountSettingsViewModel.clearAllLibraryData()
                                 App.forgetAccount(context)
-                                Toast.makeText(context, context.getString(R.string.logged_out), Toast.LENGTH_SHORT).show()
+                                context.toast(context.getString(R.string.logged_out))
                                 showLogoutDialog = false
                                 onClose()
                             }
@@ -417,7 +405,7 @@ fun AccountSettings(
                         onClick = {
                             scope.launch {
                                 App.forgetAccount(context)
-                                Toast.makeText(context, context.getString(R.string.logged_out), Toast.LENGTH_SHORT).show()
+                                context.toast(context.getString(R.string.logged_out))
                                 showLogoutDialog = false
                                 onClose()
                             }

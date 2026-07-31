@@ -10,7 +10,6 @@ import android.os.Build
 import android.os.Environment
 import android.util.Rational
 import android.view.WindowManager
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -102,6 +101,7 @@ import com.jtech.zemer.utils.VideoLinkBuilder
 import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.extensions.copyToClipboard
+import com.jtech.zemer.extensions.toast
 import io.sanghun.compose.video.RepeatMode
 import io.sanghun.compose.video.VideoPlayer
 import io.sanghun.compose.video.controller.VideoPlayerControllerConfig
@@ -452,10 +452,10 @@ fun VideoPlayerScreen(
                 true
             }
             if (!entered) {
-                Toast.makeText(context, context.getString(R.string.pip_unable), Toast.LENGTH_SHORT).show()
+                context.toast(context.getString(R.string.pip_unable))
             }
         } catch (e: IllegalStateException) {
-            Toast.makeText(context, context.getString(R.string.pip_unavailable, e.localizedMessage), Toast.LENGTH_SHORT).show()
+            context.toast(context.getString(R.string.pip_unavailable, e.localizedMessage))
         }
     }
 

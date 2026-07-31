@@ -49,7 +49,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import android.widget.Toast
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -76,6 +75,7 @@ import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.extensions.reversed
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.AlbumListItem
 import com.jtech.zemer.ui.component.ArtistGridItem
@@ -283,17 +283,17 @@ fun LibraryMixScreen(
                         coroutineScope.launch {
                             isSyncing = true
                             // Show start toast
-                            Toast.makeText(context, context.getString(R.string.syncing), Toast.LENGTH_SHORT).show()
+                            context.toast(context.getString(R.string.syncing))
 
                             try {
                                 withContext(Dispatchers.IO) {
                                     viewModel.syncAllLibrary()
                                 }
                                 // Show success toast
-                                Toast.makeText(context, context.getString(R.string.sync_completed), Toast.LENGTH_SHORT).show()
+                                context.toast(context.getString(R.string.sync_completed))
                             } catch (e: Exception) {
                                 // Show error toast
-                                Toast.makeText(context, context.getString(R.string.sync_failed, e.message), Toast.LENGTH_LONG).show()
+                                context.toast(context.getString(R.string.sync_failed, e.message), long = true)
                             } finally {
                                 isSyncing = false
                             }
