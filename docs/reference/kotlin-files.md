@@ -212,7 +212,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/LyricsImageCard.kt` | 287 | `com.jtech.zemer.ui.component` | yes | 28 | 34 | android.annotation, androidx.compose, coil3.compose, coil3.request |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3MenuItem.kt` | 139 | `com.jtech.zemer.ui.component` | yes | 31 | 13 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3SettingsGroup.kt` | 215 | `com.jtech.zemer.ui.component` | yes | 37 | 13 | androidx.compose |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/MenuDialogs.kt` | 124 | `com.jtech.zemer.ui.component` | yes | 27 | 6 | androidx.compose, coil3.compose |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/MenuDialogs.kt` | 129 | `com.jtech.zemer.ui.component` | yes | 27 | 6 | androidx.compose, coil3.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/NavigationTitle.kt` | 77 | `com.jtech.zemer.ui.component` | yes | 22 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/NewMenuComponents.kt` | 154 | `com.jtech.zemer.ui.component` | yes | 32 | 14 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/OfflineBackupPromo.kt` | 91 | `com.jtech.zemer.ui.component` | yes | 22 | 5 | androidx.compose |
@@ -235,7 +235,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/shimmer/TextPlaceholder.kt` | 33 | `com.jtech.zemer.ui.component.shimmer` | yes | 15 | 1 | androidx.compose, kotlin.random |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialog.kt` | 195 | `com.jtech.zemer.ui.menu` | yes | 36 | 10 | androidx.compose, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialogOnline.kt` | 207 | `com.jtech.zemer.ui.menu` | yes | 42 | 15 | androidx.compose, java.net, java.nio, kotlinx.coroutines, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/AlbumMenu.kt` | 368 | `com.jtech.zemer.ui.menu` | yes | 61 | 21 | android.annotation, android.content, androidx.compose, androidx.navigation, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/AlbumMenu.kt` | 377 | `com.jtech.zemer.ui.menu` | yes | 62 | 22 | android.annotation, android.content, androidx.compose, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ArtistMenu.kt` | 269 | `com.jtech.zemer.ui.menu` | yes | 54 | 10 | android.content, androidx.compose, coil3.compose, coil3.request, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/CustomThumbnailMenu.kt` | 63 | `com.jtech.zemer.ui.menu` | yes | 17 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/DownloadMenuItems.kt` | 71 | `com.jtech.zemer.ui.menu` | no | 12 | 2 | androidx.compose |
@@ -243,15 +243,15 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/LibraryMenuItems.kt` | 34 | `com.jtech.zemer.ui.menu` | no | 9 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/LoadingScreen.kt` | 23 | `com.jtech.zemer.ui.menu` | yes | 6 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/LyricsMenu.kt` | 372 | `com.jtech.zemer.ui.menu` | yes | 58 | 16 | android.app, android.content, android.widget, androidx.compose, androidx.hilt |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlayerMenu.kt` | 496 | `com.jtech.zemer.ui.menu` | yes | 72 | 33 | android.content, android.media, android.widget, androidx.activity, androidx.annotation, androidx.compose, androidx.media3, androidx.navigation, kotlin.math, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlayerMenu.kt` | 500 | `com.jtech.zemer.ui.menu` | yes | 72 | 34 | android.content, android.media, android.widget, androidx.activity, androidx.annotation, androidx.compose, androidx.media3, androidx.navigation, kotlin.math, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlaylistMenu.kt` | 237 | `com.jtech.zemer.ui.menu` | yes | 50 | 13 | android.content, androidx.compose, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ReportContentDialog.kt` | 130 | `com.jtech.zemer.ui.menu` | yes | 31 | 8 | android.widget, androidx.compose, androidx.hilt, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/SelectionSongsMenu.kt` | 588 | `com.jtech.zemer.ui.menu` | yes | 52 | 40 | android.annotation, androidx.compose, androidx.media3, java.time, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/SongMenu.kt` | 557 | `com.jtech.zemer.ui.menu` | yes | 78 | 39 | android.content, android.widget, androidx.activity, androidx.compose, androidx.hilt, androidx.navigation, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeAlbumMenu.kt` | 351 | `com.jtech.zemer.ui.menu` | yes | 60 | 18 | android.annotation, android.content, androidx.compose, androidx.navigation, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/SongMenu.kt` | 561 | `com.jtech.zemer.ui.menu` | yes | 78 | 40 | android.content, android.widget, androidx.activity, androidx.compose, androidx.hilt, androidx.navigation, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeAlbumMenu.kt` | 359 | `com.jtech.zemer.ui.menu` | yes | 61 | 18 | android.annotation, android.content, androidx.compose, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeArtistMenu.kt` | 209 | `com.jtech.zemer.ui.menu` | yes | 41 | 8 | android.content, androidx.compose |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubePlaylistMenu.kt` | 483 | `com.jtech.zemer.ui.menu` | yes | 75 | 23 | android.annotation, android.content, androidx.compose, coil3.compose, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeSongMenu.kt` | 476 | `com.jtech.zemer.ui.menu` | yes | 81 | 28 | android.annotation, android.content, androidx.compose, androidx.navigation, coil3.compose, java.time, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubePlaylistMenu.kt` | 495 | `com.jtech.zemer.ui.menu` | yes | 78 | 24 | android.annotation, android.content, androidx.compose, coil3.compose, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeSongMenu.kt` | 480 | `com.jtech.zemer.ui.menu` | yes | 81 | 29 | android.annotation, android.content, androidx.compose, androidx.navigation, coil3.compose, java.time, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/CastBottomSheet.kt` | 483 | `com.jtech.zemer.ui.player` | yes | 54 | 36 | android.content, android.widget, androidx.compose, kotlinx.coroutines, org.fcast |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/CastButton.kt` | 93 | `com.jtech.zemer.ui.player` | yes | 26 | 12 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/LyricsScreen.kt` | 755 | `com.jtech.zemer.ui.player` | yes | 90 | 30 | android.app, android.content, android.view, androidx.activity, androidx.compose, androidx.media3, androidx.navigation, coil3.compose, dagger.hilt, kotlinx.coroutines, me.saket |
