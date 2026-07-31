@@ -27,7 +27,9 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
   existing one) and repoint every site in the same pass — never leave two hand-rolled copies to
   drift. In particular: the top-bar back button is `BackNavigationIcon` / `BackTopAppBar`, the row
   3-dot overflow is `MoreVertMenuButton`, and a plain `TopAppBar` action icon is
-  `TopAppBarActionButton` — all in `IconButton.kt`.
+  `TopAppBarActionButton` — all in `IconButton.kt`. A discovery row that opens a menu for a mixed
+  list of InnerTube `YTItem`s uses `ytItemMenu(item, …, isVideo)` (`ui/menu/YouTubeItemMenu.kt`) —
+  the one `when (item) -> YouTube*Menu` dispatcher — instead of copy-pasting the four-branch block.
 - **Top bars are uniform via two shared sources** (`ui/component/`): the title goes through
   `AppBarTitle(text)` (bold `titleLarge`, single-line+ellipsis, matching Home) and the colors through
   `colors = zemerTopAppBarColors()` (black under AMOLED / `surfaceContainer` otherwise, with

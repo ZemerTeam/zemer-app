@@ -55,6 +55,7 @@ import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.menu.ytItemMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
@@ -174,16 +175,17 @@ internal fun <T : YTItem> YtItemGrid(
                     },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        menuState.show {
-                            when (item) {
+                        menuState.show(
+                            ytItemMenu(
+                                item = item,
+                                navController = navController,
+                                coroutineScope = scope,
+                                onDismiss = menuState::dismiss,
                                 // Videos row: isVideo = true so the menu offers "Download video" (video),
                                 // not the audio "Download".
-                                is SongItem -> YouTubeSongMenu(song = item, navController = navController, onDismiss = menuState::dismiss, isVideo = true)
-                                is AlbumItem -> YouTubeAlbumMenu(albumItem = item, navController = navController, onDismiss = menuState::dismiss)
-                                is ArtistItem -> YouTubeArtistMenu(artist = item, onDismiss = menuState::dismiss)
-                                is PlaylistItem -> YouTubePlaylistMenu(playlist = item, coroutineScope = scope, onDismiss = menuState::dismiss)
-                            }
-                        }
+                                isVideo = true,
+                            )
+                        )
                     },
                 ),
             )

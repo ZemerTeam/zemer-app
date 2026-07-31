@@ -81,6 +81,7 @@ import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.menu.ytItemMenu
 import com.jtech.zemer.viewmodels.OnlineSearchSuggestionViewModel
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -243,41 +244,17 @@ fun OnlineSearchScreen(
                 trailingContent = {
                     MoreVertMenuButton(
                         onClick = {
-                            menuState.show {
-                                when (item) {
-                                    is SongItem -> YouTubeSongMenu(
-                                        song = item,
-                                        navController = navController,
-                                        onDismiss = {
-                                            menuState.dismiss()
-                                            onDismiss()
-                                        }
-                                    )
-                                    is AlbumItem -> YouTubeAlbumMenu(
-                                        albumItem = item,
-                                        navController = navController,
-                                        onDismiss = {
-                                            menuState.dismiss()
-                                            onDismiss()
-                                        }
-                                    )
-                                    is ArtistItem -> YouTubeArtistMenu(
-                                        artist = item,
-                                        onDismiss = {
-                                            menuState.dismiss()
-                                            onDismiss()
-                                        }
-                                    )
-                                    is PlaylistItem -> YouTubePlaylistMenu(
-                                        playlist = item,
-                                        coroutineScope = scope,
-                                        onDismiss = {
-                                            menuState.dismiss()
-                                            onDismiss()
-                                        }
-                                    )
-                                }
-                            }
+                            menuState.show(
+                                ytItemMenu(
+                                    item = item,
+                                    navController = navController,
+                                    coroutineScope = scope,
+                                    onDismiss = {
+                                        menuState.dismiss()
+                                        onDismiss()
+                                    },
+                                )
+                            )
                         }
                     )
                 },
@@ -311,41 +288,17 @@ fun OnlineSearchScreen(
                         },
                         onLongClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            menuState.show {
-                                when (item) {
-                                    is SongItem -> YouTubeSongMenu(
-                                        song = item,
-                                        navController = navController,
-                                        onDismiss = {
-                                            menuState.dismiss()
-                                            onDismiss()
-                                        }
-                                    )
-                                    is AlbumItem -> YouTubeAlbumMenu(
-                                        albumItem = item,
-                                        navController = navController,
-                                        onDismiss = {
-                                            menuState.dismiss()
-                                            onDismiss()
-                                        }
-                                    )
-                                    is ArtistItem -> YouTubeArtistMenu(
-                                        artist = item,
-                                        onDismiss = {
-                                            menuState.dismiss()
-                                            onDismiss()
-                                        }
-                                    )
-                                    is PlaylistItem -> YouTubePlaylistMenu(
-                                        playlist = item,
-                                        coroutineScope = coroutineScope,
-                                        onDismiss = {
-                                            menuState.dismiss()
-                                            onDismiss()
-                                        }
-                                    )
-                                }
-                            }
+                            menuState.show(
+                                ytItemMenu(
+                                    item = item,
+                                    navController = navController,
+                                    coroutineScope = coroutineScope,
+                                    onDismiss = {
+                                        menuState.dismiss()
+                                        onDismiss()
+                                    },
+                                )
+                            )
                         }
                     )
                     .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface)
