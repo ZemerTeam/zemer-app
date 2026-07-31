@@ -634,9 +634,9 @@ fun HomeScreen(
                             ) { playlist ->
                                 ZemerCuratedPlaylistGridItem(
                                     playlist = playlist,
-                                    // The compact 128dp row card: runtime overflows its two subtitle
-                                    // lines, so it shows the song count alone (full label on See all).
-                                    showRuntime = false,
+                                    // Home row: just the cover card, no sub-label at all (the count
+                                    // + runtime stay on the wider See all grid).
+                                    showSubtitle = false,
                                     modifier = Modifier.clickable {
                                         // The slug is server-controlled: encode so an unexpected
                                         // '/'/'?' can never break route matching (a crash on tap).

@@ -52,6 +52,9 @@ fun ZemerCuratedPlaylistGridItem(
     modifier: Modifier = Modifier,
     fillMaxWidth: Boolean = false,
     showRuntime: Boolean = true,
+    // The compact Home row is just the cover (no sub-label at all); the wider See-all grid keeps
+    // the count/runtime.
+    showSubtitle: Boolean = true,
 ) {
     YouTubeGridItem(
         item = PlaylistItem(
@@ -69,8 +72,9 @@ fun ZemerCuratedPlaylistGridItem(
             if (showRuntime) zemerCuratedPlaylistRuntimeLabel(playlist.totalDurationSec) else null,
         ),
         // The generated cover SVG already renders the playlist name, so the text title below would
-        // be a duplicate — show only the count/runtime sub-label.
+        // be a duplicate — show only the count/runtime sub-label (and nothing at all on Home).
         showTitle = false,
+        showSubtitle = showSubtitle,
         thumbnailRatio = 1f,
         fillMaxWidth = fillMaxWidth,
         modifier = modifier,
