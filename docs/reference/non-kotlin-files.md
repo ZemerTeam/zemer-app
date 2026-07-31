@@ -104,6 +104,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/genre_alef.xml` | 12 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_campaign.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_celebration.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_chazzan.xml` | 109 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_dark_mode.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_diamond.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_dinner_dining.xml` | 10 lines | text `.xml`; XML root `vector` |
@@ -119,7 +120,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/genre_nightlife.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_park.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_piano.xml` | 10 lines | text `.xml`; XML root `vector` |
-| `app/src/main/res/drawable/genre_record_voice_over.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_self_improvement.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_star.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_sukkah.xml` | 12 lines | text `.xml`; XML root `vector` |
