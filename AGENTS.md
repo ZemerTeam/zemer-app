@@ -174,7 +174,13 @@ The rules that must not regress:
 A componentization pass extracted the app's repeated composables into `ui/component/`; reuse them
 instead of hand-rolling: `BackNavigationIcon` / `BackTopAppBar` (top-bar back button), `MoreVertMenuButton`
 (row 3-dot menu), `TopAppBarActionButton` (plain `TopAppBar` action icon — history/search/now-playing/
-refresh), `PlaylistPlayShuffleButtons` + `PlaylistHeaderShimmer` (playlist headers/skeletons),
+refresh), `AppBarTitle` (the shared bold screen title — `titleLarge`+Bold, single-line+ellipsis; put
+EVERY screen-level `TopAppBar`/`BackTopAppBar` title through it so weights don't drift), `zemerTopAppBarColors()`
+(the one top-bar container color — pure black under AMOLED / `surfaceContainer` otherwise, container ==
+scrolled so bars never grey-out on scroll; baked into `BackTopAppBar`, and every hand-rolled screen
+`TopAppBar` passes `colors = zemerTopAppBarColors()` — except the full-bleed login/onboarding bars, the
+video player's fixed-black bar, and ArtistScreen's over-header transparent state),
+`PlaylistPlayShuffleButtons` + `PlaylistHeaderShimmer` (playlist headers/skeletons),
 `shimmer/BoxPlaceholder` (the base shimmer slab under `ButtonPlaceholder`/`GridItemPlaceholder`),
 `ArtistBrowseComponents` (KidZone/whitelist browse header). New screens use these; a hand-rolled
 duplicate is a review miss.

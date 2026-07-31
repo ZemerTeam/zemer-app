@@ -28,6 +28,13 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
   drift. In particular: the top-bar back button is `BackNavigationIcon` / `BackTopAppBar`, the row
   3-dot overflow is `MoreVertMenuButton`, and a plain `TopAppBar` action icon is
   `TopAppBarActionButton` — all in `IconButton.kt`.
+- **Top bars are uniform via two shared sources** (`ui/component/`): the title goes through
+  `AppBarTitle(text)` (bold `titleLarge`, single-line+ellipsis, matching Home) and the colors through
+  `colors = zemerTopAppBarColors()` (black under AMOLED / `surfaceContainer` otherwise, with
+  `scrolledContainerColor == containerColor` so a bar never greys-out on scroll — the default
+  `scrolledContainerColor` is not AMOLED-aware). `BackTopAppBar` bakes both in. The only exceptions are
+  the full-bleed login/onboarding bars, the video player's fixed-black bar, and ArtistScreen's
+  over-header transparent state. Do not hand-roll a title `Text` or omit `colors` on a new screen bar.
 - Enforcement (ratcheting): `scripts/ui-audit.sh` rules `R14-backbtn` and `R15-morevert` fail CI on
   any *new* raw `R.drawable.arrow_back` / `R.drawable.more_vert` in a screen — build the back button
   and the overflow menu from the shared components instead. The existing hand-rolls are baselined in
