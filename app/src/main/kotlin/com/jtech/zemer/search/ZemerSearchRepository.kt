@@ -316,8 +316,13 @@ class ZemerSearchRepository @Inject constructor(
      * tracklist. Null = 404 (unknown slug, or nothing survives these flags) — the screen backs out
      * gracefully, mirroring [curatedPlaylist]. Live-only and uncached, like [genres].
      */
-    suspend fun genre(id: String, options: ZemerSearchOptions, offset: Int = 0): ZemerResultMapper.ZemerGenrePage? =
-        client.genre(id, options.allowFemale, options.blockVideos, offset)?.toGenrePage(options.hideExplicit)
+    suspend fun genre(
+        id: String,
+        options: ZemerSearchOptions,
+        offset: Int = 0,
+        k: Int? = null,
+    ): ZemerResultMapper.ZemerGenrePage? =
+        client.genre(id, options.allowFemale, options.blockVideos, offset, k)?.toGenrePage(options.hideExplicit)
 
     private val cacheMutex = Mutex()
     private val cache = object : LinkedHashMap<String, ZemerSearchResponse>(16, 0.75f, true) {

@@ -85,18 +85,22 @@ internal fun zemerCuratedPlaylistsParameters(
 /**
  * The exact query parameters a `/genres` request carries, in order ([id] = null for the catalog).
  * Extracted so the fail-closed flag contract ([zemerContentFlagParameters]) is unit-testable without
- * a live request. `k`/`limit` are deliberately not sent — the server defaults (20 / 100) are the
- * contract; [offset] rides along only when paging past the first tracklist page.
+ * a live request. `limit` is deliberately not sent — the server default (100) is the contract;
+ * [offset] rides along only when paging past the first tracklist page. [k] (the artist/album/single
+ * shelf cap, server default 20, max 60) is sent only for the see-all screens that want the fuller
+ * top-k list.
  */
 internal fun zemerGenresParameters(
     id: String?,
     allowFemale: Boolean,
     blockVideos: Boolean,
     offset: Int = 0,
+    k: Int? = null,
 ): List<Pair<String, String>> = buildList {
     if (id != null) add("id" to id)
     addAll(zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true))
     if (offset > 0) add("offset" to offset.toString())
+    if (k != null) add("k" to k.toString())
 }
 
 /**
@@ -365,16 +369,18 @@ class ZemerSearchClient @Inject constructor() {
      * pages the songs/videos tracklist (server `nextOffset` echo). Returns null on `404` — unknown
      * slug, or every member song is filtered out for this viewer — which the caller handles by
      * backing out, mirroring the curated-playlist detail. A user-initiated open of a large page, so
-     * it gets the larger request ceiling.
+     * it gets the larger request ceiling. [k] (server default 20, max 60) requests a fuller
+     * artist/album/single shelf for the see-all screens.
      */
     suspend fun genre(
         id: String,
         allowFemale: Boolean,
         blockVideos: Boolean,
         offset: Int = 0,
+        k: Int? = null,
     ): ZemerGenrePageResponse? {
         val response: HttpResponse = client.get("$BASE_URL/genres") {
-            zemerGenresParameters(id, allowFemale, blockVideos, offset).forEach { (name, value) ->
+            zemerGenresParameters(id, allowFemale, blockVideos, offset, k).forEach { (name, value) ->
                 parameter(name, value)
             }
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }

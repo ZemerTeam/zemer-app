@@ -112,6 +112,22 @@ fun NavGraphBuilder.navigationBuilder(
         else GenreScreen(navController, scrollBehavior)
     }
     composable(
+        // One genre's full Albums or Singles grid (see-all). {genreId} is the slug; {section} is
+        // albums/singles. A blank slug is a broken deep link — pop back.
+        route = "genre_section/{genreId}?section={section}",
+        arguments = listOf(
+            navArgument("genreId") { type = NavType.StringType },
+            navArgument("section") {
+                type = NavType.StringType
+                defaultValue = ""
+            },
+        ),
+    ) {
+        val genreId = it.arguments?.getString("genreId")
+        if (genreId.isNullOrBlank()) LaunchedEffect(Unit) { navController.navigateUp() }
+        else GenreSectionScreen(navController, scrollBehavior)
+    }
+    composable(
         route = "home_see_all/{row}",
         arguments = listOf(navArgument("row") { type = NavType.StringType }),
     ) {

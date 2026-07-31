@@ -34,7 +34,7 @@ internal fun genreIcon(slug: String): Int = when (slug) {
     "pesach" -> R.drawable.genre_wine_bar
     "chanukah" -> R.drawable.genre_menorah
     "yamim-noraim" -> R.drawable.genre_campaign
-    "succos" -> R.drawable.genre_cottage
+    "succos" -> R.drawable.genre_sukkah
     "shavuos-simchas-torah" -> R.drawable.genre_menu_book
     "lag-baomer" -> R.drawable.genre_local_fire_department
     "tu-bishvat" -> R.drawable.genre_park

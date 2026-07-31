@@ -1,0 +1,12 @@
+<!-- Hand-authored sukkah: two open-front wall posts + floor, a roof beam, and schach (branch)
+     bars laid across the top. 960 viewport like the downloaded genre_* set. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960"
+    android:tint="?attr/colorControlNormal">
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M250,430 H300 V770 H250 Z M660,430 H710 V770 H660 Z M250,730 H710 V770 H250 Z M210,390 H750 V440 H210 Z M255,300 H285 V395 H255 Z M335,300 H365 V395 H335 Z M415,300 H445 V395 H415 Z M495,300 H525 V395 H495 Z M575,300 H605 V395 H575 Z M655,300 H685 V395 H655 Z"/>
+</vector>

@@ -49,6 +49,16 @@ class ZemerGenresTest {
         assertEquals("100", paged.toMap()["offset"])
     }
 
+    @Test
+    fun `k is sent only when the see-all screens request a fuller shelf`() {
+        val default = zemerGenresParameters(id = "purim", allowFemale = true, blockVideos = false)
+        assertNull(default.toMap()["k"])
+
+        val seeAll = zemerGenresParameters(id = "purim", allowFemale = true, blockVideos = false, k = 60)
+        assertEquals(listOf("id", "allowFemale", "blockVideos", "kidZone", "k"), seeAll.map { it.first })
+        assertEquals("60", seeAll.toMap()["k"])
+    }
+
     // ---- wire decoding ----
 
     @Test

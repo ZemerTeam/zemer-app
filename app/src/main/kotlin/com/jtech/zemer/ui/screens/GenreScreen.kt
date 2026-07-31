@@ -67,8 +67,11 @@ import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import androidx.compose.foundation.lazy.LazyListScope
+import com.jtech.zemer.search.GENRE_SECTION_ALBUMS
+import com.jtech.zemer.search.GENRE_SECTION_SINGLES
 import com.jtech.zemer.search.ZemerResultMapper.headerCovers
 import com.jtech.zemer.search.zemerAlbumRoute
+import com.jtech.zemer.search.zemerGenreSectionRoute
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
@@ -356,6 +359,10 @@ fun GenreScreen(
                     isPlaying = isPlaying,
                     navController = navController,
                     menuState = menuState,
+                    // Always offered (like the artist page): the see-all opens the full top-60 grid;
+                    // the server's shelf count isn't reliably larger than the shown 20, so gating on
+                    // it hid the arrow even when there was more to browse.
+                    onSeeAll = { navController.navigate(zemerGenreSectionRoute(viewModel.genreId, GENRE_SECTION_ALBUMS)) },
                 )
                 genreAlbumShelf(
                     key = "singles",
@@ -365,6 +372,7 @@ fun GenreScreen(
                     isPlaying = isPlaying,
                     navController = navController,
                     menuState = menuState,
+                    onSeeAll = { navController.navigate(zemerGenreSectionRoute(viewModel.genreId, GENRE_SECTION_SINGLES)) },
                 )
 
                 if (uiState.songs.isNotEmpty()) {
@@ -507,10 +515,11 @@ private fun LazyListScope.genreAlbumShelf(
     isPlaying: Boolean,
     navController: NavController,
     menuState: MenuState,
+    onSeeAll: (() -> Unit)? = null,
 ) {
     if (albums.isEmpty()) return
     item(key = "${key}_title") {
-        NavigationTitle(title = title(), modifier = Modifier.animateItem())
+        NavigationTitle(title = title(), onClick = onSeeAll, modifier = Modifier.animateItem())
     }
     item(key = "${key}_row") {
         val haptic = LocalHapticFeedback.current
