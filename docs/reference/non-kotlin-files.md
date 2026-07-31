@@ -277,7 +277,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `scripts/dead-resources-baseline.txt` | 9 lines | text `.txt` |
 | `scripts/telegram-chats.sh` | 38 lines | text `.sh` |
 | `scripts/ui-audit-baseline.tsv` | 24 lines | text `.tsv` |
-| `scripts/ui-audit.sh` | 154 lines | text `.sh` |
+| `scripts/ui-audit.sh` | 164 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 56 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
 | `simpmusic/build.gradle.kts` | 15 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
