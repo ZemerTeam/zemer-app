@@ -332,11 +332,15 @@ fun AlbumMenu(
                             icon = { Icon(painterResource(R.drawable.artist), null, Modifier.size(24.dp)) },
                             title = { Text(stringResource(R.string.view_artist)) },
                             onClick = {
-                                if (album.artists.size == 1) {
-                                    navController.navigate("artist/${album.artists[0].id}")
-                                    onDismiss()
-                                } else {
-                                    showSelectArtistDialog = true
+                                // Only artists with a real id are navigable (a null/blank id would
+                                // navigate to a dead "artist/" route).
+                                val valid = album.artists.filter { !it.id.isNullOrBlank() }
+                                when {
+                                    valid.size == 1 -> {
+                                        navController.navigate("artist/${valid[0].id}")
+                                        onDismiss()
+                                    }
+                                    valid.size > 1 -> showSelectArtistDialog = true
                                 }
                             },
                         )

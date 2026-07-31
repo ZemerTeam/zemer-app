@@ -51,7 +51,12 @@ fun SelectArtistDialog(
     onArtistClick: (artistId: String) -> Unit,
 ) {
     ListDialog(onDismiss = onDismiss) {
-        items(artists, key = { it.id }) { artist ->
+        // Drop blank ids and de-dupe: a LazyColumn hard-crashes on a duplicate or blank-collision key,
+        // and a blank id would navigate to a dead "artist/" route. (An item's artists can share/omit ids.)
+        items(
+            artists.filter { it.id.isNotBlank() }.distinctBy { it.id },
+            key = { it.id },
+        ) { artist ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier

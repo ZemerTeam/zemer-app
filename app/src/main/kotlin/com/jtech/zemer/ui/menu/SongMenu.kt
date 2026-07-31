@@ -492,16 +492,20 @@ fun SongMenu(
                             icon = { Icon(painterResource(R.drawable.artist), null, Modifier.size(24.dp)) },
                             title = { Text(stringResource(R.string.view_artist)) },
                             onClick = {
-                                if (song.artists.size == 1) {
-                                    navController.navigate("artist/${song.artists[0].id}")
-                                    onDismiss()
-                                } else {
-                                    showSelectArtistDialog = true
+                                // Only artists with a real id are navigable (a null/blank id would
+                                // navigate to a dead "artist/" route and crash / dead-end).
+                                val valid = song.artists.filter { !it.id.isNullOrBlank() }
+                                when {
+                                    valid.size == 1 -> {
+                                        navController.navigate("artist/${valid[0].id}")
+                                        onDismiss()
+                                    }
+                                    valid.size > 1 -> showSelectArtistDialog = true
                                 }
                             },
                         )
                     )
-                    if (song.song.albumId != null) add(
+                    if (!song.song.albumId.isNullOrBlank()) add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.album), null, Modifier.size(24.dp)) },
                             title = { Text(stringResource(R.string.view_album)) },

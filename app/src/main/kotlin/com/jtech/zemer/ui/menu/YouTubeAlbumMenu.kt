@@ -332,7 +332,10 @@ fun YouTubeAlbumMenu(
                         onRetry = { songs.forEach { downloadUtil.retryMediaStoreDownload(it.id) } },
                         onRemove = { coroutineScope.launch { songs.forEach { downloadUtil.removeDownload(it.id) } } },
                     )?.let { add(it) }
-                    albumItem.artists?.let { artists ->
+                    // Only artists with a real id are navigable — a Zemer search album's artist has a
+                    // null id (channel ids aren't sent there), which would navigate to a dead
+                    // "artist/null". Filter first so "View artist" is hidden when nothing can open.
+                    albumItem.artists?.filter { !it.id.isNullOrBlank() }?.takeIf { it.isNotEmpty() }?.let { artists ->
                         add(
                             Material3MenuItemData(
                                 icon = { Icon(painterResource(R.drawable.artist), null, Modifier.size(24.dp)) },
