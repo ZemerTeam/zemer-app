@@ -77,12 +77,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1017`
+- Files counted: `1018`
 - By extension:
   - `.kt`: `604`
   - `.xml`: `178`
   - `.mjs`: `72`
-  - `.md`: `64`
+  - `.md`: `65`
   - `.json`: `36`
   - `.webp`: `15`
   - `[none]`: `7`
@@ -885,6 +885,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/fcast/07-testing-and-troubleshooting.md` | 176 lines | `.md` |
 | `docs/fcast/README.md` | 79 lines | `.md` |
 | `docs/generate.py` | 487 lines | `.py` |
+| `docs/genres/README.md` | 117 lines | `.md` |
 | `docs/home_rows/README.md` | 100 lines | `.md` |
 | `docs/innertube/README.md` | 182 lines | `.md` |
 | `docs/latest_releases/01-architecture-and-data-flow.md` | 94 lines | `.md` |
@@ -920,7 +921,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1127 lines | `.md` |
+| `docs/repository-map.md` | 1128 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/tracking/README.md` | 347 lines | `.md` |
 | `docs/ui/README.md` | 326 lines | `.md` |
