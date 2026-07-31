@@ -119,6 +119,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.ActionPromptDialog
 import com.jtech.zemer.ui.component.AggregateDownloadButton
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.DraggableScrollbar
@@ -784,9 +785,8 @@ fun LocalPlaylistScreen(
             title = {
                 if (selection) {
                     val count = wrappedSongs.count { it.isSelected }
-                    Text(
-                        text = pluralStringResource(R.plurals.n_song, count, count),
-                        style = MaterialTheme.typography.titleLarge
+                    AppBarTitle(
+                        text = pluralStringResource(R.plurals.n_song, count, count)
                     )
                 } else if (isSearching) {
                     TextField(
@@ -813,7 +813,7 @@ fun LocalPlaylistScreen(
                             .focusRequester(focusRequester)
                     )
                 } else if (showTopBarTitle) {
-                    Text(playlist?.playlist?.name.orEmpty())
+                    AppBarTitle(text = playlist?.playlist?.name.orEmpty())
                 }
             },
             navigationIcon = {

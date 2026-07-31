@@ -32,6 +32,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.DisableScreenshotKey
 import com.jtech.zemer.constants.PauseListenHistoryKey
 import com.jtech.zemer.constants.PauseSearchHistoryKey
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.PreferenceEntry
@@ -189,7 +190,7 @@ fun PrivacySettings(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.privacy)) },
+        title = { AppBarTitle(stringResource(R.string.privacy)) },
         navigationIcon = {
             BackNavigationIcon(
                 navController,

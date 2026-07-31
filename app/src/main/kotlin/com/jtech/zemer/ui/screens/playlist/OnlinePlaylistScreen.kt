@@ -90,6 +90,7 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.DraggableScrollbar
 import com.jtech.zemer.ui.component.FontSizeRange
@@ -538,9 +539,8 @@ fun OnlinePlaylistScreen(
             title = {
                 if (selection) {
                     val count = wrappedSongs.count { it.isSelected }
-                    Text(
-                        text = pluralStringResource(R.plurals.n_song, count, count),
-                        style = MaterialTheme.typography.titleLarge
+                    AppBarTitle(
+                        text = pluralStringResource(R.plurals.n_song, count, count)
                     )
                 } else if (isSearching) {
                     TextField(
@@ -567,7 +567,7 @@ fun OnlinePlaylistScreen(
                             .focusRequester(focusRequester)
                     )
                 } else if (showTopBarTitle) {
-                    Text(playlist?.title.orEmpty())
+                    AppBarTitle(text = playlist?.title.orEmpty())
                 }
             },
             navigationIcon = {

@@ -64,6 +64,7 @@ import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.search.ChartMovement
 import com.jtech.zemer.search.zemerAlbumRoute
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.ChartRankCell
@@ -459,7 +460,7 @@ fun ZemerCuratedPlaylistScreen(
         TopAppBar(
             title = {
                 if (showTopBarTitle) {
-                    Text((state as? UiState.Loaded)?.page?.playlist?.title.orEmpty())
+                    AppBarTitle(text = (state as? UiState.Loaded)?.page?.playlist?.title.orEmpty())
                 }
             },
             navigationIcon = {

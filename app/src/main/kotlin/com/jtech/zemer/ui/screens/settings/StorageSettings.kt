@@ -48,6 +48,7 @@ import com.jtech.zemer.constants.MaxImageCacheSizeKey
 import com.jtech.zemer.constants.MaxSongCacheSizeKey
 import com.jtech.zemer.extensions.tryOrNull
 import com.jtech.zemer.ui.component.ActionPromptDialog
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
@@ -399,7 +400,7 @@ fun StorageSettings(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.storage)) },
+        title = { AppBarTitle(stringResource(R.string.storage)) },
         navigationIcon = {
             BackNavigationIcon(
                 navController,

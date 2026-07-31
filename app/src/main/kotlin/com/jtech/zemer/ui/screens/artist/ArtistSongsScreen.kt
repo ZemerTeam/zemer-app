@@ -41,6 +41,7 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -175,7 +176,7 @@ fun ArtistSongsScreen(
         }
 
         BackTopAppBar(
-            title = { Text(artist?.artist?.name.orEmpty()) },
+            title = { AppBarTitle(artist?.artist?.name.orEmpty()) },
             navController = navController,
         )
 

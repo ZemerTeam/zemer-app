@@ -41,6 +41,7 @@ import com.jtech.zemer.constants.StreamSourceVisionOSKey
 import com.jtech.zemer.constants.StreamSourceTVHTML5Key
 import com.jtech.zemer.constants.StreamSourceWebCreatorKey
 import com.jtech.zemer.constants.StreamSourceWebRemixKey
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SwitchPreference
@@ -198,7 +199,7 @@ fun StreamSourceSettings(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.stream_sources)) },
+        title = { AppBarTitle(stringResource(R.string.stream_sources)) },
         navigationIcon = {
             BackNavigationIcon(
                 navController,

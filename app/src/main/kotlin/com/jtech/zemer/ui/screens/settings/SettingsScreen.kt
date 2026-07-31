@@ -32,6 +32,7 @@ import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.Material3SettingsGroup
 import com.jtech.zemer.ui.component.Material3SettingsItem
@@ -210,7 +211,7 @@ fun SettingsScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         TopAppBar(
-            title = { Text(stringResource(R.string.settings)) },
+            title = { AppBarTitle(stringResource(R.string.settings)) },
             navigationIcon = { BackNavigationIcon(navController) },
             scrollBehavior = scrollBehavior
         )

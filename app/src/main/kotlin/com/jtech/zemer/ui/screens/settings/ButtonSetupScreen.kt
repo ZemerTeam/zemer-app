@@ -49,6 +49,7 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.models.DpadDirection
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.utils.backToMain
@@ -165,7 +166,7 @@ fun ButtonSetupScreen(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.dpad_setup_title)) },
+        title = { AppBarTitle(stringResource(R.string.dpad_setup_title)) },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior
     )

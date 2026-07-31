@@ -39,6 +39,7 @@ import com.jtech.zemer.constants.PersistentQueueKey
 import com.jtech.zemer.constants.SeekExtraSeconds
 import com.jtech.zemer.constants.SkipSilenceKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.EnumListPreference
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
@@ -263,7 +264,7 @@ fun PlayerSettings(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.player_and_audio)) },
+        title = { AppBarTitle(stringResource(R.string.player_and_audio)) },
         navigationIcon = {
             BackNavigationIcon(
                 navController,

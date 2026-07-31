@@ -45,6 +45,7 @@ import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.constants.CheckForUpdatesKey
 import com.jtech.zemer.constants.InstallerTypeKey
 import com.jtech.zemer.constants.NightlyUpdatesKey
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.UpdateDownloadDialog
 import com.jtech.zemer.ui.component.ListPreference
@@ -394,7 +395,7 @@ fun UpdaterScreen(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.updater)) },
+        title = { AppBarTitle(stringResource(R.string.updater)) },
         navigationIcon = {
             BackNavigationIcon(
                 navController,

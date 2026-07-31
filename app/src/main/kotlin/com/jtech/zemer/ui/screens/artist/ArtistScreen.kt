@@ -97,6 +97,7 @@ import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.AlbumGridItem
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.IconButton
@@ -834,10 +835,8 @@ fun ArtistScreen(
     TopAppBar(
         title = {
             if (!transparentAppBar) {
-                Text(
+                AppBarTitle(
                     text = artistPage?.artist?.title.orEmpty().ifEmpty { stringResource(R.string.artists) },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
                 )
             }
         },

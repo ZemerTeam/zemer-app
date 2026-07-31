@@ -32,6 +32,7 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.menu.AddToPlaylistDialogOnline
@@ -147,7 +148,7 @@ fun BackupAndRestore(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.backup_restore)) },
+        title = { AppBarTitle(stringResource(R.string.backup_restore)) },
         navigationIcon = {
             BackNavigationIcon(
                 navController,

@@ -51,6 +51,7 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.DebugLoggingEnabledKey
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.focusBorder
@@ -240,7 +241,7 @@ fun LogViewerScreen(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.log_viewer)) },
+        title = { AppBarTitle(stringResource(R.string.log_viewer)) },
         navigationIcon = {
             BackNavigationIcon(
                 navController,

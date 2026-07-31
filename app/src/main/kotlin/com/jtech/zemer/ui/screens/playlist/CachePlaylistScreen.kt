@@ -69,6 +69,7 @@ import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.DraggableScrollbar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.IconButton
@@ -349,9 +350,8 @@ fun CachePlaylistScreen(
                 when {
                     selection -> {
                         val count = wrappedSongs.count { it.isSelected }
-                        Text(
-                            text = pluralStringResource(R.plurals.n_song, count, count),
-                            style = MaterialTheme.typography.titleLarge
+                        AppBarTitle(
+                            text = pluralStringResource(R.plurals.n_song, count, count)
                         )
                     }
                     isSearching -> {
@@ -380,10 +380,7 @@ fun CachePlaylistScreen(
                         )
                     }
                     else -> {
-                        Text(
-                            stringResource(R.string.cached_playlist),
-                            style = MaterialTheme.typography.titleLarge
-                        )
+                        AppBarTitle(text = stringResource(R.string.cached_playlist))
                     }
                 }
             },

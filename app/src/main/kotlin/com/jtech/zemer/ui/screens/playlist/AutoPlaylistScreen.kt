@@ -79,6 +79,7 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.AggregateDownloadButton
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.DraggableScrollbar
@@ -472,9 +473,8 @@ fun AutoPlaylistScreen(
                 when {
                     selection -> {
                         val count = wrappedSongs.count { it.isSelected }
-                        Text(
-                            text = pluralStringResource(R.plurals.n_song, count, count),
-                            style = MaterialTheme.typography.titleLarge
+                        AppBarTitle(
+                            text = pluralStringResource(R.plurals.n_song, count, count)
                         )
                     }
                     isSearching -> {
@@ -503,10 +503,7 @@ fun AutoPlaylistScreen(
                         )
                     }
                     else -> {
-                        Text(
-                            text = playlist,
-                            style = MaterialTheme.typography.titleLarge
-                        )
+                        AppBarTitle(text = playlist)
                     }
                 }
             },

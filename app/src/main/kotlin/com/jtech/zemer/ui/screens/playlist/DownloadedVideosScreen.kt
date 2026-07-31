@@ -72,6 +72,7 @@ import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.DraggableScrollbar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
@@ -357,9 +358,8 @@ fun DownloadedVideosScreen(
                 when {
                     selection -> {
                         val count = wrappedVideos.count { it.isSelected }
-                        Text(
-                            text = pluralStringResource(R.plurals.n_video, count, count),
-                            style = MaterialTheme.typography.titleLarge
+                        AppBarTitle(
+                            text = pluralStringResource(R.plurals.n_video, count, count)
                         )
                     }
                     isSearching -> {
@@ -388,10 +388,7 @@ fun DownloadedVideosScreen(
                         )
                     }
                     else -> {
-                        Text(
-                            text = stringResource(R.string.downloaded_videos),
-                            style = MaterialTheme.typography.titleLarge
-                        )
+                        AppBarTitle(text = stringResource(R.string.downloaded_videos))
                     }
                 }
             },

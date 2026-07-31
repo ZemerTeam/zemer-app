@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
@@ -72,7 +73,7 @@ fun GeneralSettings(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.links)) },
+        title = { AppBarTitle(stringResource(R.string.links)) },
         navigationIcon = { BackNavigationIcon(navController) }
     )
 }

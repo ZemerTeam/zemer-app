@@ -75,6 +75,7 @@ import com.jtech.zemer.search.zemerGenreSectionRoute
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.FontSizeRange
@@ -452,7 +453,7 @@ fun GenreScreen(
     TopAppBar(
         title = {
             if (showTopBarTitle) {
-                Text((state as? UiState.Loaded)?.page?.header?.title.orEmpty())
+                AppBarTitle((state as? UiState.Loaded)?.page?.header?.title.orEmpty())
             }
         },
         navigationIcon = { BackNavigationIcon(navController) },

@@ -38,6 +38,7 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.constants.AndroidAutoSectionsOrderKey
@@ -258,7 +259,7 @@ fun AndroidAutoSettings(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.android_auto)) },
+        title = { AppBarTitle(stringResource(R.string.android_auto)) },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
     )

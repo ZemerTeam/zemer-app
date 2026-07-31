@@ -28,6 +28,7 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.OfflineSubsetEnabledKey
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
@@ -116,7 +117,7 @@ fun OfflineSearchSettings(
     }
 
     TopAppBar(
-        title = { Text(stringResource(R.string.offline_search)) },
+        title = { AppBarTitle(stringResource(R.string.offline_search)) },
         navigationIcon = {
             BackNavigationIcon(
                 navController,

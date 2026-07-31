@@ -54,6 +54,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
@@ -467,16 +468,12 @@ fun AlbumScreen(
         title = {
             if (selection) {
                 val count = wrappedSongs.count { it.isSelected }
-                Text(
-                    text = pluralStringResource(R.plurals.n_song, count, count),
-                    style = MaterialTheme.typography.titleLarge
+                AppBarTitle(
+                    text = pluralStringResource(R.plurals.n_song, count, count)
                 )
             } else {
-                Text(
-                    text = albumWithSongs?.album?.title.orEmpty(),
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                AppBarTitle(
+                    text = albumWithSongs?.album?.title.orEmpty()
                 )
             }
         },
