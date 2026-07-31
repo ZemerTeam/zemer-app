@@ -1906,7 +1906,7 @@ private fun BottomNavSetupScreen(
                             putBoolean("bottomNavigationBarEnabled", enableBottomNav)
                             // Set default items if enabling
                             if (enableBottomNav) {
-                                putString("bottomNavigationItems", "home,artists,search,library")
+                                putString("bottomNavigationItems", "home,search,library")
                             }
                         }
                         onComplete()

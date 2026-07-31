@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton as Material3IconButton
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
@@ -140,6 +141,27 @@ fun BackNavigationIcon(
         Icon(
             painter = painterResource(R.drawable.arrow_back),
             contentDescription = null,
+        )
+    }
+}
+
+/**
+ * A plain top-app-bar action icon: a transparent (container-less) [androidx.compose.material3.IconButton]
+ * holding one drawable. This is the shared look for every screen-level `TopAppBar` action here (Home's
+ * history/search/now-playing, the Artists/KidZone refresh) so they can't drift into per-site chrome
+ * (the old filled `surfaceContainerHigh` circles). Pass [modifier] through for D-pad focus wiring.
+ */
+@Composable
+fun TopAppBarActionButton(
+    @DrawableRes icon: Int,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Material3IconButton(onClick = onClick, modifier = modifier) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = contentDescription,
         )
     }
 }

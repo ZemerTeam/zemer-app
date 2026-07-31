@@ -54,6 +54,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,6 +70,7 @@ import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
+import com.jtech.zemer.ui.screens.Screens
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.SearchBarIconOffsetX
@@ -150,6 +152,22 @@ fun OnlineSearchScreen(
             .fillMaxSize()
             .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.background)
     ) {
+        // Before the user types, offer a shortcut into the whitelisted-artists browse (the Artists tab
+        // was removed from the bottom bar and lives here now). Hidden once a query exists so it never
+        // sits among live suggestions/results.
+        if (query.isBlank()) {
+            item(key = "browse_artists") {
+                BrowseArtistsItem(
+                    onClick = {
+                        navController.navigate(Screens.Artists.route)
+                        onDismiss()
+                    },
+                    pureBlack = pureBlack,
+                    modifier = Modifier.animateItem(),
+                )
+            }
+        }
+
         items(viewState.history, key = { "history_${it.query}" }) { history ->
             SuggestionItem(
                 query = history.query,
@@ -375,6 +393,77 @@ fun OnlineSearchScreen(
                     .animateItem()
             )
         }
+    }
+}
+
+/**
+ * A "Browse all artists" shortcut styled to match [SuggestionItem] (same height, focus border, D-pad
+ * focusability). Shown at the top of the pre-typing search list; opens the whitelisted-artists screen.
+ */
+@Composable
+fun BrowseArtistsItem(
+    onClick: () -> Unit,
+    pureBlack: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    var focusState by remember { mutableStateOf<FocusState?>(null) }
+    val isFocused = focusState?.isFocused ?: false
+
+    val backgroundColor by animateColorAsState(
+        targetValue = when {
+            isFocused -> MaterialTheme.colorScheme.primary
+            else -> if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface
+        },
+        label = "browse_artists_focus_bg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+        label = "browse_artists_focus_border"
+    )
+    val iconAlpha by animateFloatAsState(
+        targetValue = if (isFocused) 1f else 0.5f,
+        label = "browse_artists_icon_alpha"
+    )
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(SuggestionItemHeight)
+            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+            .padding(end = SearchBarIconOffsetX)
+            .background(backgroundColor)
+            .border(width = 2.dp, color = borderColor)
+            .clickable(onClick = onClick)
+            .onFocusChanged { focusState = it }
+            .onKeyEvent { event ->
+                if (event.key == Key.Enter || event.key == Key.DirectionCenter) {
+                    onClick()
+                    true
+                } else {
+                    false
+                }
+            }
+            .focusable(),
+    ) {
+        Icon(
+            painterResource(R.drawable.artist),
+            contentDescription = null,
+            modifier = Modifier.padding(horizontal = 16.dp).alpha(iconAlpha)
+        )
+
+        Text(
+            text = stringResource(R.string.browse_artists),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+
+        Icon(
+            painter = painterResource(R.drawable.arrow_forward),
+            contentDescription = null,
+            modifier = Modifier.padding(horizontal = 16.dp).alpha(iconAlpha)
+        )
     }
 }
 
