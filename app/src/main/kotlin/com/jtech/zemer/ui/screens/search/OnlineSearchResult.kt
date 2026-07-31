@@ -67,6 +67,7 @@ import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.menu.ytItemMenu
 import com.jtech.zemer.viewmodels.OnlineSearchViewModel
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_ALBUM
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_ARTIST
@@ -182,37 +183,15 @@ fun OnlineSearchResult(
         }
         val longClick = {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            menuState.show {
-                when (item) {
-                    is SongItem ->
-                        YouTubeSongMenu(
-                            song = item,
-                            navController = navController,
-                            onDismiss = menuState::dismiss,
-                            isVideo = !blockVideos && searchFilter?.value == FILTER_VIDEO.value,
-                        )
-
-                    is AlbumItem ->
-                        YouTubeAlbumMenu(
-                            albumItem = item,
-                            navController = navController,
-                            onDismiss = menuState::dismiss,
-                        )
-
-                    is ArtistItem ->
-                        YouTubeArtistMenu(
-                            artist = item,
-                            onDismiss = menuState::dismiss,
-                        )
-
-                    is PlaylistItem ->
-                        YouTubePlaylistMenu(
-                            playlist = item,
-                            coroutineScope = coroutineScope,
-                            onDismiss = menuState::dismiss,
-                        )
-                }
-            }
+            menuState.show(
+                ytItemMenu(
+                    item = item,
+                    navController = navController,
+                    coroutineScope = coroutineScope,
+                    onDismiss = menuState::dismiss,
+                    isVideo = !blockVideos && searchFilter?.value == FILTER_VIDEO.value,
+                )
+            )
         }
         YouTubeListItem(
             item = item,
