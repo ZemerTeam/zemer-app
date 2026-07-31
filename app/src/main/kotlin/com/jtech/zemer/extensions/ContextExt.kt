@@ -6,30 +6,9 @@ import android.net.NetworkCapabilities
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.get
 import com.metrolist.innertube.utils.parseCookieString
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
-
-/**
- * WARNING: This function uses runBlocking() which blocks the calling thread.
- * ONLY use this during application initialization (App.kt) or in background contexts.
- * DO NOT use on the main/UI thread as this will cause ANR.
- *
- * Prefer the Flow-based alternative for UI code:
- * - Use `Context.isSyncEnabledFlow()` for Composables and reactive code
- */
-fun Context.isSyncEnabled(): Boolean {
-    return try {
-        runBlocking {
-            dataStore.get(YtmSyncKey, true) && isUserLoggedIn()
-        }
-    } catch (e: Exception) {
-        timber.log.Timber.e(e, "Failed to check sync enabled status, defaulting to false")
-        false
-    }
-}
 
 /**
  * Flow-based alternative for UI code.
@@ -45,26 +24,6 @@ fun Context.isSyncEnabledFlow(): Flow<Boolean> {
             timber.log.Timber.e(e, "Failed to read sync preference")
             false
         }
-    }
-}
-
-/**
- * WARNING: This function uses runBlocking() which blocks the calling thread.
- * ONLY use this during application initialization (App.kt) or in background contexts.
- * DO NOT use on the main/UI thread as this will cause ANR.
- *
- * Prefer the Flow-based alternative for UI code:
- * - Use `Context.isUserLoggedInFlow()` for Composables and reactive code
- */
-fun Context.isUserLoggedIn(): Boolean {
-    return try {
-        runBlocking {
-            val cookie = dataStore[InnerTubeCookieKey] ?: ""
-            "SAPISID" in parseCookieString(cookie) && isInternetConnected()
-        }
-    } catch (e: Exception) {
-        timber.log.Timber.e(e, "Failed to check login status, defaulting to false")
-        false
     }
 }
 

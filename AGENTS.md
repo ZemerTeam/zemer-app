@@ -59,7 +59,7 @@ YouTube rotates `player_ias` frequently. Player configs live in **one JSON file*
 
 ### Accounts: personal vs anonymous (pooled) — `SAPISID` ≠ logged in
 
-There are two signed-in states and telling them apart is non-obvious. A **personal** Google login sets a **`dataSyncId`**. The **"anonymous"** login signs into a **shared, pooled** account: its cookie **does** carry `SAPISID`, but the flow deliberately clears `dataSyncId` (`App.kt` / `LoginGateScreen` — `onBehalfOfUser`/dataSyncId breaks the pooled player request). So `parseCookieString(cookie).containsKey("SAPISID")` / `Context.isUserLoggedIn()` are **true for anonymous** and must **never** gate remote *account* reads or writes — doing so leaks the pooled account's library/likes/subscriptions across every anonymous user.
+There are two signed-in states and telling them apart is non-obvious. A **personal** Google login sets a **`dataSyncId`**. The **"anonymous"** login signs into a **shared, pooled** account: its cookie **does** carry `SAPISID`, but the flow deliberately clears `dataSyncId` (`App.kt` / `LoginGateScreen` — `onBehalfOfUser`/dataSyncId breaks the pooled player request). So `parseCookieString(cookie).containsKey("SAPISID")` / the cookie-based `Context.isUserLoggedInFlow()` are **true for anonymous** and must **never** gate remote *account* reads or writes — doing so leaks the pooled account's library/likes/subscriptions across every anonymous user. (The old blocking `Context.isUserLoggedIn()`/`isSyncEnabled()` helpers — `runBlocking` around a DataStore read plus, in the login case, a blocking DNS socket — were dead and were deleted; use the reactive `*Flow` variants.)
 
 - The correct discriminator is **`com.jtech.zemer.extensions.AccountState`**: `isPersonalAccountSignedIn` (= non-empty `YouTube.dataSyncId`, usable from context-free entity code) and the reactive `Context.isPersonalAccountFlow()`. Gate remote account sync/writes on these — never on `SAPISID`.
 - Already gated: `SyncUtils` account syncs + `likeSong`, the entity `toggleLike` remote side-effects (`Song/Artist/Album/PlaylistEntity`), and the add/remove/create/rename/delete-playlist + library/history-feedback writes in the menus. **Local DB writes always run**, so anonymous keeps likes/subscribes/playlists locally; personal logins are unaffected (each gate is a no-op when the predicate is true). The **Firebase artist-whitelist sync (`syncArtistWhitelist`) is account-independent and stays on for anon** — it powers content filtering.
@@ -207,6 +207,13 @@ rule covers repeated *logic*. The current shared helpers — reach for these bef
 - **The Zemer repository from a leaf composable/queue:** `context.zemerSearchRepository()`
   (`di/ZemerSearchRepositoryEntryPoint.kt`) over a hand-written `EntryPointAccessors.fromApplication(...)`.
   Ratcheted by `R17-entrypoint` (UI-scoped, baseline 0).
+
+**Never `runBlocking` on a UI path.** A composable/UI file that blocks the main thread ANRs. Collect the
+value with a suspend function + `LaunchedEffect`/`rememberCoroutineScope`, or a `Flow` (`collectAsState`);
+the DataStore sync accessors (`dataStore[Key]`, `dataStore.get(Key, default)`) are the documented
+exception and must run OFF the main thread. Ratcheted by `R18-runblocking` (UI-scoped, baseline 0). The
+legitimate blocking sites live outside `ui/` and are deliberate — ExoPlayer's `createDataSourceFactory`
+(a Media3 contract that must return synchronously), the download thread, the DataStore primitives.
 
 Enforcement lives in `scripts/ui-audit.sh` (see the rule list at the top of that file) + `docs/ui/standards.md`;
 when you add a new shared helper with a greppable anti-pattern, add a ratchet rule there in the same pass.

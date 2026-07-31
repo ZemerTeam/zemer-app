@@ -55,6 +55,9 @@
 #   R17-entrypoint raw `EntryPointAccessors.fromApplication(..., ZemerSearchRepositoryEntryPoint::class.java)`
 #                  in a composable -> use the Context.zemerSearchRepository() extension
 #                  (di/ZemerSearchRepositoryEntryPoint.kt). UI-scoped. Baseline 0.
+#   R18-runblocking `runBlocking(` / `runBlocking {` in a UI file -> blocks the main thread (ANR). Use a
+#                  suspend fn + LaunchedEffect/rememberCoroutineScope or a Flow (collectAsState).
+#                  UI-scoped. Baseline 0.
 #
 # Genuine fixed-value exceptions (AMOLED pure-black, the lyric-image *export*, color-picker
 # swatches) are allowed: they live in the baseline. Keep them minimal; --update records them.
@@ -114,6 +117,11 @@ violations() {
   # UI-scoped (the playback/queues classes that legitimately hold the boilerplate live outside ui/).
   grep -rnE "ZemerSearchRepositoryEntryPoint::class" "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR17-entrypoint/'
+  # R18: runBlocking in a composable/UI file blocks the main thread -> ANR. Collect a value with a
+  # suspend function + LaunchedEffect/rememberCoroutineScope, or a Flow (collectAsState), or read the
+  # documented DataStore sync accessors OFF the main thread. Baseline 0 (no runBlocking under ui/).
+  grep -rnE "(^|[^A-Za-z])runBlocking(\(|[[:space:]]*\{)" "$UI" --include=*.kt 2>/dev/null \
+    | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR18-runblocking/'
 }
 
 # Aggregate to "<path>\t<rule>\t<count>", sorted.
@@ -148,7 +156,7 @@ improved="$(awk -F'\t' '
 ' <(printf "%s\n" "$cur") "$BASELINE")"
 
 if [ -n "$new" ]; then
-  echo "UI audit FAILED — new Rule 5/7/8/11/12/13/14/15/16/17 violations (docs/ui/standards.md sections 1, 5, 7-8, 11, 13):"
+  echo "UI audit FAILED — new Rule 5/7/8/11/12/13/14/15/16/17/18 violations (docs/ui/standards.md sections 1, 5, 7-8, 11, 13):"
   echo "$new"
   echo
   echo "Route font sizes through MaterialTheme.typography (Type.kt), colors through"
@@ -165,7 +173,7 @@ if [ -n "$new" ]; then
 fi
 
 total="$(violations | grep -c .)"
-echo "UI audit passed — no new Rule 5/7/8/11/12/13/14/15/16/17 violations (baseline: $total known, only allowed to shrink)."
+echo "UI audit passed — no new Rule 5/7/8/11/12/13/14/15/16/17/18 violations (baseline: $total known, only allowed to shrink)."
 if [ -n "$improved" ]; then
   echo "Burned down since the baseline — tighten it with \`bash scripts/ui-audit.sh --update\`:"
   echo "$improved"

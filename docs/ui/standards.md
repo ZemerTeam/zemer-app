@@ -49,6 +49,11 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
   `EntryPointAccessors.fromApplication(..., ZemerSearchRepositoryEntryPoint::class.java).zemerSearchRepository()`.
   Enforced by `R17-entrypoint` (UI-scoped, baseline 0). The `playback/queues/*` classes that hold the
   boilerplate live outside `ui/` and use the same extension.
+- **Never `runBlocking` on a UI path.** Blocking the main thread from a composable ANRs. Use a suspend
+  function + `LaunchedEffect`/`rememberCoroutineScope`, or a `Flow` (`collectAsState`). The DataStore
+  sync accessors (`dataStore[Key]`) are the documented exception and must run off the main thread.
+  Enforced by `R18-runblocking` (UI-scoped, baseline 0). Deliberate blocking sites (ExoPlayer's
+  synchronous `createDataSourceFactory`, download threads) live outside `ui/`.
 - Enforcement (ratcheting): `scripts/ui-audit.sh` rules `R14-backbtn` and `R15-morevert` fail CI on
   any *new* raw `R.drawable.arrow_back` / `R.drawable.more_vert` in a screen — build the back button
   and the overflow menu from the shared components instead. The existing hand-rolls are baselined in
