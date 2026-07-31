@@ -99,6 +99,7 @@ import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -866,9 +867,13 @@ fun ArtistScreen(
             }
         },
         colors = if (transparentAppBar) {
+            // Over the artist header the bar is transparent so the artwork shows through.
             TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
         } else {
-            TopAppBarDefaults.topAppBarColors()
+            // Once scrolled past the header, use the shared bar color so it matches every other
+            // screen and does not grey-out on scroll (the default scrolledContainerColor isn't
+            // AMOLED-aware).
+            zemerTopAppBarColors()
         }
     )
 }
