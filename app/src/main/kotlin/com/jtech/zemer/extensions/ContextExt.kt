@@ -1,9 +1,14 @@
 package com.jtech.zemer.extensions
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.widget.Toast
+import androidx.annotation.StringRes
+import com.jtech.zemer.R
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.utils.dataStore
@@ -23,6 +28,22 @@ fun Context.shareText(text: String) {
         putExtra(Intent.EXTRA_TEXT, text)
     }
     startActivity(Intent.createChooser(intent, null))
+}
+
+/**
+ * Copy [text] to the clipboard under [label] and confirm with a short toast — the one place the app
+ * touches `ClipboardManager`. [text] is a `CharSequence` so an `AnnotatedString` copies verbatim.
+ * [confirmationRes] is the toast string: the generic "copied" by default; link copies pass
+ * `R.string.link_copied`.
+ */
+fun Context.copyToClipboard(
+    label: CharSequence,
+    text: CharSequence,
+    @StringRes confirmationRes: Int = R.string.copied,
+) {
+    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
+    Toast.makeText(this, confirmationRes, Toast.LENGTH_SHORT).show()
 }
 
 /**

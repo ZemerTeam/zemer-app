@@ -58,6 +58,10 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
   hand-rolled `Intent(ACTION_SEND)` + `createChooser`. Keep `Tracker.action(SHARE, …)` and `onDismiss()`
   at the call site. Enforced by `R19-share` (baseline 0); the lyric-image `EXTRA_STREAM` share in
   `component/Lyrics.kt` is a different intent shape and is excluded.
+- **Copy through the one helper.** `context.copyToClipboard(label, text, confirmationRes)`
+  (`extensions/ContextExt.kt`) over a hand-rolled `ClipboardManager.setPrimaryClip(...)`; it also shows
+  the confirmation toast (default "copied"; link copies pass `R.string.link_copied`). Enforced by
+  `R20-clipboard` (baseline 0).
 - Enforcement (ratcheting): `scripts/ui-audit.sh` rules `R14-backbtn` and `R15-morevert` fail CI on
   any *new* raw `R.drawable.arrow_back` / `R.drawable.more_vert` in a screen — build the back button
   and the overflow menu from the shared components instead. The existing hand-rolls are baselined in

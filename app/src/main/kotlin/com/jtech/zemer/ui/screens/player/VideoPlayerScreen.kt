@@ -2,8 +2,6 @@ package com.jtech.zemer.ui.screens.player
 
 import android.app.Activity
 import android.app.PictureInPictureParams
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
@@ -103,6 +101,7 @@ import com.jtech.zemer.utils.UrlValidator
 import com.jtech.zemer.utils.VideoLinkBuilder
 import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.extensions.copyToClipboard
 import io.sanghun.compose.video.RepeatMode
 import io.sanghun.compose.video.VideoPlayer
 import io.sanghun.compose.video.controller.VideoPlayerControllerConfig
@@ -164,7 +163,6 @@ fun VideoPlayerScreen(
     }
 
     val activity = context as? Activity
-    val clipboard = remember { context.getSystemService(ClipboardManager::class.java) }
     val connectivityManager = remember { context.getSystemService(ConnectivityManager::class.java) }
     val database = LocalDatabase.current
     val downloadUtil = LocalDownloadUtil.current
@@ -686,9 +684,11 @@ fun VideoPlayerScreen(
                                         IconButton(
                                             onClick = {
                                                 markInteraction()
-                                                val clip = ClipData.newPlainText(context.getString(R.string.clip_label_video_link), VideoLinkBuilder.videoLink(videoId))
-                                                clipboard?.setPrimaryClip(clip)
-                                                Toast.makeText(context, R.string.link_copied, Toast.LENGTH_SHORT).show()
+                                                context.copyToClipboard(
+                                                    context.getString(R.string.clip_label_video_link),
+                                                    VideoLinkBuilder.videoLink(videoId),
+                                                    R.string.link_copied,
+                                                )
                                             },
                                             modifier = Modifier
                                                 .size(36.dp)

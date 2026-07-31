@@ -1,10 +1,6 @@
 package com.jtech.zemer.ui.utils
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.text.format.Formatter
-import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.draw.clip
@@ -48,6 +44,7 @@ import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
+import com.jtech.zemer.extensions.copyToClipboard
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.MediaInfo
 import com.zemer.cipher.CipherDeobfuscator
@@ -74,11 +71,7 @@ fun ShowMediaInfo(videoId: String) {
     LaunchedEffect(videoId) { database.song(videoId).collect { song = it } }
     LaunchedEffect(videoId) { database.format(videoId).collect { currentFormat = it } }
 
-    fun copy(label: String, value: String) {
-        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cm.setPrimaryClip(ClipData.newPlainText(label, value))
-        Toast.makeText(context, R.string.copied, Toast.LENGTH_SHORT).show()
-    }
+    fun copy(label: String, value: String) = context.copyToClipboard(label, value)
 
     Column(
         modifier = Modifier

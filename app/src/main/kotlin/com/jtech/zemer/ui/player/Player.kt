@@ -2,11 +2,7 @@ package com.jtech.zemer.ui.player
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.content.res.Configuration
-import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
@@ -122,6 +118,7 @@ import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.extensions.shareText
+import com.jtech.zemer.extensions.copyToClipboard
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.BottomSheet
@@ -162,7 +159,6 @@ fun BottomSheetPlayer(
     miniPlayerFocusTargets: MiniPlayerFocusTargets? = null,
 ) {
     val context = LocalContext.current
-    val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val menuState = LocalMenuState.current
     val bottomSheetPageState = LocalBottomSheetPageState.current
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -578,11 +574,7 @@ fun BottomSheetPlayer(
                                             }
                                         },
                                         onLongClick = {
-                                            val clip = ClipData.newPlainText(context.getString(R.string.clip_label_title), title)
-                                            clipboardManager.setPrimaryClip(clip)
-                                            Toast
-                                                .makeText(context, context.getString(R.string.copied), Toast.LENGTH_SHORT)
-                                                .show()
+                                            context.copyToClipboard(context.getString(R.string.clip_label_title), title)
                                         }
                                     )
                                 ,
@@ -662,16 +654,7 @@ fun BottomSheetPlayer(
                                             }
                                         },
                                         onLongClick = {
-                                            val clip =
-                                                ClipData.newPlainText(context.getString(R.string.clip_label_artist), annotatedString)
-                                            clipboardManager.setPrimaryClip(clip)
-                                            Toast
-                                                .makeText(
-                                                    context,
-                                                    context.getString(R.string.copied),
-                                                    Toast.LENGTH_SHORT
-                                                )
-                                                .show()
+                                            context.copyToClipboard(context.getString(R.string.clip_label_artist), annotatedString)
                                         }
                                     )
                             )
