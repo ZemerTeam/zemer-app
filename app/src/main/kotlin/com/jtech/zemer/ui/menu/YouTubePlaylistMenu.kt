@@ -44,8 +44,11 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.constants.ThumbnailCornerRadius
+import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.db.entities.PlaylistSongMap
+import com.jtech.zemer.extensions.isPersonalAccountSignedIn
+import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.toMediaMetadata
@@ -104,18 +107,24 @@ fun YouTubePlaylistMenu(
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
         onGetSong = { targetPlaylist ->
+            // Add THIS playlist's songs (filtered) to the chosen target — the fallback used
+            // targetPlaylist.id (the destination) by mistake; the source is `playlist`.
             val allSongs = songs
                 .ifEmpty {
-                    YouTube.playlist(targetPlaylist.id).completed().getOrNull()?.songs.orEmpty()
+                    fetchWhitelistedPlaylistSongs(playlist.id, database)
                 }.map {
                     it.toMediaMetadata()
                 }
             database.transaction {
                 allSongs.forEach(::insert)
             }
-            coroutineScope.launch(Dispatchers.IO) {
-                targetPlaylist.playlist.browseId?.let { playlistId ->
-                    YouTube.addPlaylistToPlaylist(playlistId, targetPlaylist.id)
+            // Remote playlist-to-playlist copy is a personal-account write; never issue it under the
+            // shared anonymous (pooled) account.
+            if (isPersonalAccountSignedIn) {
+                coroutineScope.launch(Dispatchers.IO) {
+                    targetPlaylist.playlist.browseId?.let { targetBrowseId ->
+                        YouTube.addPlaylistToPlaylist(targetBrowseId, playlist.id)
+                    }
                 }
             }
             allSongs.map { it.id }
@@ -146,8 +155,7 @@ fun YouTubePlaylistMenu(
                                 insert(playlistEntity)
                                 coroutineScope.launch(Dispatchers.IO) {
                                     songs.ifEmpty {
-                                        YouTube.playlist(playlist.id).completed()
-                                            .getOrNull()?.songs.orEmpty()
+                                        fetchWhitelistedPlaylistSongs(playlist.id, database)
                                     }.map { it.toMediaMetadata() }
                                         .onEach(::insert)
                                         .mapIndexed { index, song ->
@@ -186,7 +194,7 @@ fun YouTubePlaylistMenu(
     // songs) — fetch them so the Download row appears and downloads the whole playlist.
     val resolvedSongs by produceState(initialValue = songs, songs, playlist.id) {
         value = if (songs.isNotEmpty()) songs
-        else YouTube.playlist(playlist.id).getOrNull()?.songs.orEmpty()
+        else fetchWhitelistedPlaylistSongs(playlist.id, database)
     }
     val dbSongs by produceState(
         initialValue = emptyList<com.jtech.zemer.db.entities.Song>(),
@@ -240,7 +248,7 @@ fun YouTubePlaylistMenu(
         onGetSong = {
             val allSongs = songs
                 .ifEmpty {
-                    YouTube.playlist(playlist.id).completed().getOrNull()?.songs.orEmpty()
+                    fetchWhitelistedPlaylistSongs(playlist.id, database)
                 }.map {
                     it.toMediaMetadata()
                 }
@@ -372,12 +380,7 @@ fun YouTubePlaylistMenu(
                                     songs
                                         .ifEmpty {
                                             withContext(Dispatchers.IO) {
-                                                YouTube
-                                                    .playlist(playlist.id)
-                                                    .completed()
-                                                    .getOrNull()
-                                                    ?.songs
-                                                    .orEmpty()
+                                                fetchWhitelistedPlaylistSongs(playlist.id, database)
                                             }
                                         }.let { songs ->
                                             playerConnection.playNext(songs.map { it.copy(thumbnail = it.thumbnail.resize(544,544)).toMediaItem() })
@@ -396,12 +399,7 @@ fun YouTubePlaylistMenu(
                                     songs
                                         .ifEmpty {
                                             withContext(Dispatchers.IO) {
-                                                YouTube
-                                                    .playlist(playlist.id)
-                                                    .completed()
-                                                    .getOrNull()
-                                                    ?.songs
-                                                    .orEmpty()
+                                                fetchWhitelistedPlaylistSongs(playlist.id, database)
                                             }
                                         }.let { songs ->
                                             playerConnection.addToQueue(songs.map { it.toMediaItem() })
@@ -481,3 +479,17 @@ fun YouTubePlaylistMenu(
         }
     }
 }
+
+/**
+ * Fetches a playlist's full tracklist from InnerTube and runs it through the artist whitelist, so a
+ * menu action on an already-whitelisted playlist can NEVER pull unfiltered tracks into a local
+ * playlist, the queue, or a download. The passed-in `songs` come from surfaces that already filter,
+ * so only this empty-fallback fetch is raw and needs the gate — a whitelisted context stays
+ * whitelisted no matter which button is pressed.
+ */
+private suspend fun fetchWhitelistedPlaylistSongs(
+    playlistId: String,
+    database: MusicDatabase,
+): List<SongItem> =
+    YouTube.playlist(playlistId).completed().getOrNull()?.songs.orEmpty()
+        .filterWhitelisted(database).filterIsInstance<SongItem>()

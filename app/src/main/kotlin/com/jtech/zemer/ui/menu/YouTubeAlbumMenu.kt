@@ -39,6 +39,7 @@ import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
@@ -111,10 +112,14 @@ fun YouTubeAlbumMenu(
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
         onGetSong = { playlist ->
-            coroutineScope.launch(Dispatchers.IO) {
-                playlist.playlist.browseId?.let { playlistId ->
-                    album?.album?.playlistId?.let { addPlaylistId ->
-                        YouTube.addPlaylistToPlaylist(playlistId, addPlaylistId)
+            // Remote playlist-to-playlist copy is a personal-account write; never issue it under the
+            // shared anonymous (pooled) account. The local add still happens via the dialog.
+            if (isPersonalAccountSignedIn) {
+                coroutineScope.launch(Dispatchers.IO) {
+                    playlist.playlist.browseId?.let { playlistId ->
+                        album?.album?.playlistId?.let { addPlaylistId ->
+                            YouTube.addPlaylistToPlaylist(playlistId, addPlaylistId)
+                        }
                     }
                 }
             }
@@ -327,7 +332,10 @@ fun YouTubeAlbumMenu(
                         onRetry = { songs.forEach { downloadUtil.retryMediaStoreDownload(it.id) } },
                         onRemove = { coroutineScope.launch { songs.forEach { downloadUtil.removeDownload(it.id) } } },
                     )?.let { add(it) }
-                    albumItem.artists?.let { artists ->
+                    // Only artists with a real id are navigable — a Zemer search album's artist has a
+                    // null id (channel ids aren't sent there), which would navigate to a dead
+                    // "artist/null". Filter first so "View artist" is hidden when nothing can open.
+                    albumItem.artists?.filter { !it.id.isNullOrBlank() }?.takeIf { it.isNotEmpty() }?.let { artists ->
                         add(
                             Material3MenuItemData(
                                 icon = { Icon(painterResource(R.drawable.artist), null, Modifier.size(24.dp)) },
