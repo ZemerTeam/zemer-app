@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
@@ -91,7 +92,7 @@ fun GenreSectionScreen(
 
     BackTopAppBar(
         title = {
-            Text(stringResource(if (viewModel.isSingles) R.string.singles else R.string.albums))
+            AppBarTitle(stringResource(if (viewModel.isSingles) R.string.singles else R.string.albums))
         },
         navController = navController,
         scrollBehavior = scrollBehavior,
