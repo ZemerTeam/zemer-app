@@ -46,6 +46,12 @@ covers, and all content filtering. The app's job is fetch → render → play:
   (`ZemerSearchClient.kt`), decoded by Coil's `SvgDecoder` registered in `App.newImageLoader`
   (the `coil-svg` artifact exists for exactly this). Curated playlists are editorial categories, so
   they get a branded title card, never a member track's album art.
+- **The card shows no text title, because the cover already carries it.** The generated cover SVG
+  bakes the playlist name into the artwork, so `ZemerCuratedPlaylistGridItem`
+  (`ui/component/ZemerCuratedPlaylistCard.kt`) passes `showTitle = false` on both surfaces, and the
+  compact Home row also passes `showSubtitle = false` so it is cover-only (no count/runtime label);
+  the wider See-all grid keeps the "N songs" (and runtime) sub-label. Both flags live on the shared
+  `YouTubeGridItem` (default true, so no other caller is affected).
 - **Empty list is a normal state.** `count: 0` → the Home section and See-all grid simply don't
   render. A detail 404 (curation changed between list and open) backs out via `UiState.NotFound`
   → `navigateUp()`; the Home section re-fetches on screen-open so the stale card disappears.
@@ -95,8 +101,8 @@ Plain JVM, no network:
   send-always/fail-closed parameter contract, lenient wire decoding (nulls, unknown keys, empty
   list, old-server absence of `fromAlbum`/`albums`), curated→`SongItem` mapping (order, durations,
   sparse-row drop), relative-cover resolution, and the runtime-label rule (null hides; <120 min in
-  minutes; ≥2 h in rounded hours — the compact Home card omits runtime entirely via `showRuntime`,
-  see `ui/component/ZemerCuratedPlaylistCard.kt`).
+  minutes; 2 h or more in rounded hours). See the card-rendering note above for the See-all vs Home
+  card label difference (`ui/component/ZemerCuratedPlaylistCard.kt`).
 - `app/src/test/kotlin/com/jtech/zemer/ui/screens/playlist/ZemerCuratedPlaylistFilterTest.kt` —
   the chip filter (ALL passthrough, ALBUMS/SONGS split, old-server empty set).
 
