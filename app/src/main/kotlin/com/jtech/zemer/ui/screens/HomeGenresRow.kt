@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -66,7 +67,8 @@ fun HomeGenresRow(
             .add(WindowInsets(left = 12.dp, right = 12.dp))
             .asPaddingValues(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier,
+        // Breathing room above and below the strip so it doesn't crowd the section titles.
+        modifier = modifier.padding(vertical = 8.dp),
     ) {
         items(
             items = chips,

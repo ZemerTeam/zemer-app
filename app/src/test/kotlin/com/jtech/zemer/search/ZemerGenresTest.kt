@@ -50,13 +50,21 @@ class ZemerGenresTest {
     }
 
     @Test
-    fun `k is sent only when the see-all screens request a fuller shelf`() {
-        val default = zemerGenresParameters(id = "purim", allowFemale = true, blockVideos = false)
-        assertNull(default.toMap()["k"])
+    fun `facet see-all request carries id, facet, flags, and limit`() {
+        val params = zemerGenreFacetParameters(
+            id = "acapella", facet = "albums", allowFemale = true, blockVideos = false, offset = 0, limit = 200,
+        )
+        assertEquals(listOf("id", "facet", "allowFemale", "blockVideos", "kidZone", "limit"), params.map { it.first })
+        assertEquals("acapella", params.toMap()["id"])
+        assertEquals("albums", params.toMap()["facet"])
+        assertEquals("200", params.toMap()["limit"])
+        assertNull(params.toMap()["offset"])
 
-        val seeAll = zemerGenresParameters(id = "purim", allowFemale = true, blockVideos = false, k = 60)
-        assertEquals(listOf("id", "allowFemale", "blockVideos", "kidZone", "k"), seeAll.map { it.first })
-        assertEquals("60", seeAll.toMap()["k"])
+        val paged = zemerGenreFacetParameters(
+            id = "acapella", facet = "singles", allowFemale = true, blockVideos = false, offset = 200, limit = 200,
+        )
+        assertEquals("200", paged.toMap()["offset"])
+        assertEquals("singles", paged.toMap()["facet"])
     }
 
     // ---- wire decoding ----
@@ -97,6 +105,26 @@ class ZemerGenresTest {
         assertEquals("QXLWMz4KpJg", resp.songs.single().videoId)
         assertEquals(62, resp.songs.single().durationSec)
         assertEquals(100, resp.nextOffset)
+    }
+
+    @Test
+    fun `facet page decodes the doc'd payload and maps to album items with nextOffset`() {
+        val payload =
+            """{"genre":{"id":"acapella","title":"Acapella","kind":"style","trackCount":2261,"artistCount":239,"albumCount":115,"singleCount":23,"songCount":1899,"videoCount":362},""" +
+                """"facet":"albums",""" +
+                """"items":[{"id":"MPREa","playlistId":"OLAKa","title":"Album A","artist":"X","year":2020,"thumbnail":"https://t"},""" +
+                """{"id":"","title":"sparse","artist":"Y"},{"id":"MPREa","title":"dup","artist":"Z"}],""" +
+                """"offset":0,"nextOffset":200}"""
+
+        val resp = zemerResponseJson.decodeFromString(ZemerGenreFacetResponse.serializer(), payload)
+        assertEquals(115, resp.genre.albumCount) // true total now, not the sliced length
+        assertEquals(1899, resp.genre.songCount)
+        assertEquals("albums", resp.facet)
+        assertEquals(200, resp.nextOffset)
+
+        val page = with(ZemerResultMapper) { resp.toAlbumFacetPage() }
+        assertEquals(listOf("MPREa"), page.albums.map { it.browseId }) // sparse + dup dropped
+        assertEquals(200, page.nextOffset)
     }
 
     @Test

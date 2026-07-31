@@ -20,11 +20,12 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Backs a genre's per-section see-all screen (its full Albums or Singles grid). Re-fetches the
- * genre page with the server's max shelf cap ([GENRE_SECTION_K]) — the detail screen only loads the
- * default top-20 — and exposes the chosen section's releases. `section` is
- * [com.jtech.zemer.search.GENRE_SECTION_ALBUMS]/[GENRE_SECTION_SINGLES]. Same fetch discipline as
- * the detail: flag re-fetch, stale-flag drop, 404 backs out.
+ * Backs a genre's per-section see-all screen (its full Albums or Singles grid). Pages the server's
+ * `facet` endpoint — which returns ONE list in full (the detail screen only loads the top-20 shelf)
+ * — accumulating every page until `nextOffset` is null, then shows the complete list. `section` is
+ * [com.jtech.zemer.search.GENRE_SECTION_ALBUMS]/[GENRE_SECTION_SINGLES] (both map to the
+ * album-shaped facet). Same fetch discipline as the detail: flag re-fetch, stale-flag drop, 404
+ * backs out.
  */
 @HiltViewModel
 class ZemerGenreSectionViewModel @Inject constructor(
@@ -57,12 +58,25 @@ class ZemerGenreSectionViewModel @Inject constructor(
         _state.value = UiState.Loading
         viewModelScope.launch(Dispatchers.IO) {
             val options = zemerSearchOptions(context)
-            runCatching { repository.genre(genreId, options, k = GENRE_SECTION_K) }
-                .onSuccess { page ->
+            runCatching {
+                val accumulated = mutableListOf<AlbumItem>()
+                var offset = 0
+                // Walk every page. Bounded by nextOffset (and a hard page cap as a runaway guard);
+                // an album/single facet is at most a few hundred rows = 1-2 pages at limit 200.
+                repeat(MAX_PAGES) {
+                    val page = repository.genreFacet(genreId, section, options, offset)
+                        ?: return@runCatching null
+                    accumulated += page.albums
+                    val next = page.nextOffset ?: return@runCatching accumulated.distinctBy { it.browseId }
+                    offset = next
+                }
+                accumulated.distinctBy { it.browseId }
+            }
+                .onSuccess { albums ->
                     if (zemerOptionsStillCurrent(options, ContentFilterState.current)) {
-                        _state.value = when (page) {
+                        _state.value = when (albums) {
                             null -> UiState.NotFound
-                            else -> UiState.Loaded(if (isSingles) page.singles else page.albums)
+                            else -> UiState.Loaded(albums)
                         }
                     }
                 }
@@ -75,8 +89,8 @@ class ZemerGenreSectionViewModel @Inject constructor(
         }
     }
 
-    companion object {
-        /** The server's documented max artist/album/single shelf cap (handoff §3). */
-        const val GENRE_SECTION_K = 60
+    private companion object {
+        /** Runaway guard: at limit 200 this covers 2000 rows, far beyond any real facet. */
+        const val MAX_PAGES = 10
     }
 }

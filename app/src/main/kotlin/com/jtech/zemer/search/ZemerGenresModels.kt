@@ -63,6 +63,24 @@ data class ZemerGenreHeader(
     val artistCount: Int = 0,
     val albumCount: Int = 0,
     val singleCount: Int = 0,
+    // Added 2026-07-31 (handoff addendum); absent on older servers, so defaulted.
+    val songCount: Int = 0,
+    val videoCount: Int = 0,
+)
+
+/**
+ * Wire model for `GET /genres?id=<slug>&facet=<facet>` — one facet's FULL list, paged (the summary
+ * page only returns the top-k). Used by the see-all screens. `items` is the same row shape the facet
+ * uses on the summary page; for the `albums`/`singles` facets that is [ZemerAlbum]. Page with
+ * `limit`+`offset` until [nextOffset] is null. A bad facet is a 400, an unknown/empty genre a 404.
+ */
+@Serializable
+data class ZemerGenreFacetResponse(
+    val genre: ZemerGenreHeader = ZemerGenreHeader(),
+    val facet: String = "",
+    val items: List<ZemerAlbum> = emptyList(),
+    val offset: Int = 0,
+    val nextOffset: Int? = null,
 )
 
 /**

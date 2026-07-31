@@ -363,6 +363,20 @@ object ZemerResultMapper {
     /** A googleusercontent FIFE size suffix (the part after the last `=`), e.g. `s120-c`, `w544-h544-l90-rj`. */
     private val FIFE_SIZE = Regex("[sw]\\d+.*")
 
+    /** One page of a genre facet's full list (albums/singles) as [AlbumItem]s + the next offset. */
+    data class ZemerGenreFacetPage(val albums: List<AlbumItem>, val nextOffset: Int?)
+
+    /**
+     * A `/genres?id=&facet=albums|singles` page as browsable [AlbumItem] rows, with the same
+     * defense-in-depth every Zemer collection gets (sparse-row drop, de-dup, blocked-ids). Powers
+     * the genre see-all screens.
+     */
+    fun ZemerGenreFacetResponse.toAlbumFacetPage(): ZemerGenreFacetPage =
+        ZemerGenreFacetPage(
+            albums = items.filter { it.id.isNotBlank() }.map { it.toAlbumItem() }.distinctBy { it.browseId }.dropBlocked(),
+            nextOffset = nextOffset,
+        )
+
     /**
      * A `/genres?id=` response in the same native item types the artist page maps to, with the same
      * defense-in-depth every Zemer surface gets — sparse-row drop, de-dup, hide-explicit on the

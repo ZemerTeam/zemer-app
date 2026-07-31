@@ -3,6 +3,7 @@ package com.jtech.zemer.search
 import android.content.Context
 import com.jtech.zemer.R
 import com.jtech.zemer.offline.OfflineReadProvider
+import com.jtech.zemer.search.ZemerResultMapper.toAlbumFacetPage
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumItems
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
 import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
@@ -316,13 +317,20 @@ class ZemerSearchRepository @Inject constructor(
      * tracklist. Null = 404 (unknown slug, or nothing survives these flags) — the screen backs out
      * gracefully, mirroring [curatedPlaylist]. Live-only and uncached, like [genres].
      */
-    suspend fun genre(
+    suspend fun genre(id: String, options: ZemerSearchOptions, offset: Int = 0): ZemerResultMapper.ZemerGenrePage? =
+        client.genre(id, options.allowFemale, options.blockVideos, offset)?.toGenrePage(options.hideExplicit)
+
+    /**
+     * One page of a genre's full Albums or Singles list (`facet` see-all). Null = 404 (gone/empty).
+     * Live-only and uncached, like [genre]; the caller pages with [offset] until nextOffset is null.
+     */
+    suspend fun genreFacet(
         id: String,
+        facet: String,
         options: ZemerSearchOptions,
         offset: Int = 0,
-        k: Int? = null,
-    ): ZemerResultMapper.ZemerGenrePage? =
-        client.genre(id, options.allowFemale, options.blockVideos, offset, k)?.toGenrePage(options.hideExplicit)
+    ): ZemerResultMapper.ZemerGenreFacetPage? =
+        client.genreFacet(id, facet, options.allowFemale, options.blockVideos, offset)?.toAlbumFacetPage()
 
     private val cacheMutex = Mutex()
     private val cache = object : LinkedHashMap<String, ZemerSearchResponse>(16, 0.75f, true) {
