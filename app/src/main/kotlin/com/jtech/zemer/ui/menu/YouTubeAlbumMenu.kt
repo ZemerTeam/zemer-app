@@ -219,8 +219,7 @@ fun YouTubeAlbumMenu(
                         onClick = {
                             onDismiss()
                             // Corpus-native: play the album's whitelisted tracks, then continue on the
-                            // Zemer /radio?kind=album fill (LocalAlbumRadio) - not the retired
-                            // YouTube.next()-based YouTubeAlbumRadio.
+                            // Zemer /radio?kind=album fill (LocalAlbumRadio), matching AlbumScreen.
                             album?.takeIf { it.songs.isNotEmpty() }?.let { aws ->
                                 playerConnection.playQueue(LocalAlbumRadio(aws, context = context))
                             }

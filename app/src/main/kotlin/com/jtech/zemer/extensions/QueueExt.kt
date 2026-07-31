@@ -7,7 +7,6 @@ import com.jtech.zemer.models.QueueType
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.LocalAlbumRadio
 import com.jtech.zemer.playback.queues.Queue
-import com.jtech.zemer.playback.queues.YouTubeAlbumRadio
 import com.jtech.zemer.playback.queues.YouTubeQueue
 
 fun Queue.toPersistQueue(
@@ -34,19 +33,6 @@ fun Queue.toPersistQueue(
                 position = position,
                 queueType = QueueType.YOUTUBE,
                 queueData = QueueData.YouTubeData(endpoint = endpoint)
-            )
-        }
-        is YouTubeAlbumRadio -> {
-            // Since playlistId is private, we'll store a simplified version
-            PersistQueue(
-                title = title,
-                items = items,
-                mediaItemIndex = mediaItemIndex,
-                position = position,
-                queueType = QueueType.YOUTUBE_ALBUM_RADIO,
-                queueData = QueueData.YouTubeAlbumRadioData(
-                    playlistId = "youtube_album_radio"
-                )
             )
         }
         is LocalAlbumRadio -> {
@@ -91,7 +77,9 @@ fun PersistQueue.toQueue(): Queue {
             )
         }
         is QueueType.YOUTUBE_ALBUM_RADIO -> {
-            // For now, fallback to ListQueue since we can't reconstruct YouTubeAlbumRadio properly
+            // Backward-compat only: the YouTubeAlbumRadio queue no longer exists (albums play through
+            // LocalAlbumRadio now), but a queue persisted by an older build can still be on disk -
+            // restore it as a plain ListQueue of its saved items.
             ListQueue(
                 title = title,
                 items = items.map { it.toMediaItem() },

@@ -94,7 +94,7 @@ Set when a queue is built, never per-surface guesswork:
   taxonomy value — all wired: search taps (`OnlineSearchResult` → `search`), Latest Releases
   (`LatestReleasePlayback` → `new`), artist pages (`ArtistScreen`/`ArtistSongsScreen`/
   `ArtistItemsScreen` → `artist:UC…`), albums (`album:…` — intrinsic to
-  `LocalAlbumRadio`/`YouTubeAlbumRadio`, covers `AlbumScreen`), online playlists
+  `LocalAlbumRadio`, covers `AlbumScreen` and the album long-press menu), online playlists
   (`OnlinePlaylistScreen` + `YouTubePlaylistMenu` → `playlist:PL…`), curated playlists
   (`ZemerCuratedPlaylistScreen` → `zemer:<slug>`). The album radios now continue beyond the album on
   Zemer `/radio?kind=album` (`LocalAlbumRadio`), not `YouTube.next()` — the source semantics are
