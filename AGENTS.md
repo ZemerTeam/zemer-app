@@ -397,6 +397,10 @@ Releases are. Feature package `statuses/`; UI under `ui/screens/statuses/`; full
 - **Fail-soft + isolated.** `ZemerStatusesViewModel` (Stations pattern): a fetch failure keeps the row
   empty and `HomeScreen` hides it; nothing about Home depends on it. Gated by `ShowHomeStatusesKey`.
   If only one source fails the other still populates the row (progressive `republish`).
+- **Video-first, so hidden when videos are blocked.** Statuses are predominantly video, so both the Home
+  row AND the whole Music Status section in Appearance settings are hidden when `BlockVideosKey` is on
+  (gate both sites together - hiding only one would leave a row the user can't turn off, or an orphan
+  settings group).
 - **One source of truth.** `StatusesRepository` (per-source caches + mutexes, the merged/deduped
   publish, the persisted seen set in `StatusSeenStore`). Live-refresh is three-layer: a staleness
   window (`STALE_MS`), pull-to-refresh (`refresh(force = true)`), and a per-creator re-fetch the moment

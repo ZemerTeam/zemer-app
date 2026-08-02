@@ -61,6 +61,7 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.theme.rememberPureBlack
+import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.ChipSortTypeKey
 import com.jtech.zemer.constants.CropAlbumArtKey
 import com.jtech.zemer.constants.CustomDensityScaleKey
@@ -300,6 +301,9 @@ fun AppearanceSettings(
         HideImageStatusKey,
         defaultValue = false
     )
+    // Music Status is a video-first feature, and its Home row is already hidden when videos are blocked,
+    // so the whole settings section is pointless then - hide it too.
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, defaultValue = false)
     val (showLikedPlaylist, onShowLikedPlaylistChange) = rememberPreference(
         ShowLikedPlaylistKey,
         defaultValue = true
@@ -834,35 +838,38 @@ fun AppearanceSettings(
 
         // Music Status settings, wrapped as one group. Its measured top (see [statusGroupTopY]) is what
         // the See-all gear scrolls to, so the whole section lands under the app bar rather than at the
-        // top of Appearance or barely peeking at the bottom.
-        Column(Modifier.onGloballyPositioned { statusGroupTopY.floatValue = it.positionInWindow().y }) {
-            PreferenceGroupTitle(
-                title = stringResource(R.string.statuses),
-            )
+        // top of Appearance or barely peeking at the bottom. Hidden entirely when videos are blocked
+        // (the Home row is gated the same way).
+        if (!blockVideos) {
+            Column(Modifier.onGloballyPositioned { statusGroupTopY.floatValue = it.positionInWindow().y }) {
+                PreferenceGroupTitle(
+                    title = stringResource(R.string.statuses),
+                )
 
-            SwitchPreference(
-                title = { Text(stringResource(R.string.show_statuses_row)) },
-                description = stringResource(R.string.show_statuses_row_desc),
-                icon = { Icon(painterResource(R.drawable.music_status), null) },
-                checked = showHomeStatuses,
-                onCheckedChange = onShowHomeStatusesChange
-            )
+                SwitchPreference(
+                    title = { Text(stringResource(R.string.show_statuses_row)) },
+                    description = stringResource(R.string.show_statuses_row_desc),
+                    icon = { Icon(painterResource(R.drawable.music_status), null) },
+                    checked = showHomeStatuses,
+                    onCheckedChange = onShowHomeStatusesChange
+                )
 
-            SwitchPreference(
-                title = { Text(stringResource(R.string.hide_text_status)) },
-                description = stringResource(R.string.hide_text_status_desc),
-                icon = { Icon(painterResource(R.drawable.music_status), null) },
-                checked = hideTextStatus,
-                onCheckedChange = onHideTextStatusChange
-            )
+                SwitchPreference(
+                    title = { Text(stringResource(R.string.hide_text_status)) },
+                    description = stringResource(R.string.hide_text_status_desc),
+                    icon = { Icon(painterResource(R.drawable.music_status), null) },
+                    checked = hideTextStatus,
+                    onCheckedChange = onHideTextStatusChange
+                )
 
-            SwitchPreference(
-                title = { Text(stringResource(R.string.hide_image_status)) },
-                description = stringResource(R.string.hide_image_status_desc),
-                icon = { Icon(painterResource(R.drawable.music_status), null) },
-                checked = hideImageStatus,
-                onCheckedChange = onHideImageStatusChange
-            )
+                SwitchPreference(
+                    title = { Text(stringResource(R.string.hide_image_status)) },
+                    description = stringResource(R.string.hide_image_status_desc),
+                    icon = { Icon(painterResource(R.drawable.music_status), null) },
+                    checked = hideImageStatus,
+                    onCheckedChange = onHideImageStatusChange
+                )
+            }
         }
 
         PreferenceGroupTitle(
