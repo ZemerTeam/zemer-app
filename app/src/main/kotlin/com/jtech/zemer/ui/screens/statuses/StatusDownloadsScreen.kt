@@ -15,13 +15,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
@@ -64,12 +60,10 @@ import com.jtech.zemer.statuses.StatusDownloadSort
 import com.jtech.zemer.statuses.StatusKindFilter
 import com.jtech.zemer.statuses.filterByKind
 import com.jtech.zemer.statuses.formatPostedAt
-import com.jtech.zemer.statuses.groupByCreator
 import com.jtech.zemer.statuses.sortedFlat
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.ChipsRow
-import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.theme.HeaderFontFamily
 import com.jtech.zemer.ui.utils.rememberVideoThumbnail
@@ -81,14 +75,13 @@ private val TILE_WIDTH = 112.dp
 
 @StringRes
 private fun statusSortLabel(sort: StatusDownloadSort): Int = when (sort) {
-    StatusDownloadSort.CREATOR -> R.string.status_sort_creator
     StatusDownloadSort.RECENT_SAVED -> R.string.status_sort_recent_saved
     StatusDownloadSort.RECENT_POSTED -> R.string.status_sort_recent_posted
 }
 
 /**
- * The Status downloads library: statuses the user saved to their device. Grouped by creator (per-creator
- * shelves) by default, or a flat chronological grid. Reached from the Downloaded screen's Status card;
+ * The Status downloads library: statuses the user saved to their device, as a flat chronological grid
+ * (Recently saved / Recently posted) with kind chips. Reached from the Downloaded screen's Status card;
  * hidden when videos are blocked (the entry card is gated the same way, this is the defensive backstop).
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,7 +94,7 @@ fun StatusDownloadsScreen(
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     val downloads by viewModel.downloads.collectAsState()
     var kind by rememberSaveable { mutableStateOf(StatusKindFilter.ALL) }
-    var sort by rememberSaveable { mutableStateOf(StatusDownloadSort.CREATOR) }
+    var sort by rememberSaveable { mutableStateOf(StatusDownloadSort.RECENT_SAVED) }
 
     val filtered = remember(downloads, kind) { downloads.filterByKind(kind) }
 
@@ -152,51 +145,20 @@ fun StatusDownloadsScreen(
         }
 
         val bottomInset = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()
-        if (sort == StatusDownloadSort.CREATOR) {
-            // Per-creator shelves - orderly rows, no ragged grid cells.
-            LazyColumn(
-                contentPadding = PaddingValues(top = 4.dp, bottom = bottomInset),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                filtered.groupByCreator().forEach { group ->
-                    item(key = "hdr_${group.creatorId}") {
-                        NavigationTitle(title = group.creatorName)
-                    }
-                    item(key = "row_${group.creatorId}") {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            items(group.items, key = { it.id }) { download ->
-                                SavedStatusTile(
-                                    download = download,
-                                    showCreator = false,
-                                    modifier = Modifier.width(TILE_WIDTH),
-                                    onOpen = { open(download) },
-                                    onRemove = { viewModel.remove(download) },
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(TILE_WIDTH),
-                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = bottomInset + 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                items(filtered.sortedFlat(sort), key = { it.id }) { download ->
-                    SavedStatusTile(
-                        download = download,
-                        showCreator = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        onOpen = { open(download) },
-                        onRemove = { viewModel.remove(download) },
-                    )
-                }
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(TILE_WIDTH),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = bottomInset + 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            items(filtered.sortedFlat(sort), key = { it.id }) { download ->
+                SavedStatusTile(
+                    download = download,
+                    modifier = Modifier.fillMaxWidth(),
+                    onOpen = { open(download) },
+                    onRemove = { viewModel.remove(download) },
+                )
             }
         }
     }
@@ -210,7 +172,6 @@ fun StatusDownloadsScreen(
 @Composable
 private fun SavedStatusTile(
     download: StatusDownload,
-    showCreator: Boolean,
     modifier: Modifier = Modifier,
     onOpen: () -> Unit,
     onRemove: () -> Unit,
@@ -287,25 +248,22 @@ private fun SavedStatusTile(
             }
         }
 
-        if (showCreator) {
-            Text(
-                text = download.creatorName,
-                color = colorScheme.onSurface,
-                style = MaterialTheme.typography.labelMedium,
-                fontFamily = HeaderFontFamily,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
+        Text(
+            text = download.creatorName,
+            color = colorScheme.onSurface,
+            style = MaterialTheme.typography.labelMedium,
+            fontFamily = HeaderFontFamily,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 4.dp),
+        )
         Text(
             text = formatPostedAt(download.postedAt),
             color = colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = if (showCreator) 0.dp else 4.dp),
         )
     }
 }

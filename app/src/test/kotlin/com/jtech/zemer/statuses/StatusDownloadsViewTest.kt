@@ -37,11 +37,4 @@ class StatusDownloadsViewTest {
         assertEquals(listOf("2", "3", "1", "4"), items.sortedFlat(StatusDownloadSort.RECENT_POSTED).map { it.id })
     }
 
-    @Test
-    fun `groupByCreator sorts creators A-Z and each section newest-saved first`() {
-        val groups = items.groupByCreator()
-        assertEquals(listOf("Avi", "Beri"), groups.map { it.creatorName })
-        assertEquals(listOf("4", "2"), groups[0].items.map { it.id }) // Avi: saved 200 then 100
-        assertEquals(listOf("3", "1"), groups[1].items.map { it.id }) // Beri: saved 400 then 300
-    }
 }
