@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -20,10 +22,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -45,6 +50,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -89,6 +96,35 @@ private val tsFmt = DateTimeFormatter.ofPattern("MMM d · h:mm a", Locale.US)
 private fun formatPostedAt(postedAt: String): String = try {
     tsFmt.format(ZonedDateTime.parse(postedAt).withZoneSameInstant(ZoneId.systemDefault()))
 } catch (_: Exception) { "" }
+
+/** The post's DEVICE-local calendar date ("YYYY-MM-DD"), or null if unparseable. */
+private fun localDate(postedAt: String): String? = try {
+    ZonedDateTime.parse(postedAt).withZoneSameInstant(ZoneId.systemDefault()).toLocalDate().toString()
+} catch (_: Exception) { null }
+
+private val dowFmt = DateTimeFormatter.ofPattern("EEE", Locale.US)
+private val dayFmt = DateTimeFormatter.ofPattern("d", Locale.US)
+
+/** One date the creator posted on: its ISO date, the index of its first post, and its post count. */
+private data class StatusDateGroup(val iso: String, val startIndex: Int, val count: Int)
+
+/**
+ * Group a creator's posts (sorted oldest-first, so a date's posts are contiguous) by local date, in
+ * chronological order — the data behind the "jump to date" sheet.
+ */
+private fun statusDateGroups(posts: List<StatusPost>?): List<StatusDateGroup> {
+    if (posts.isNullOrEmpty()) return emptyList()
+    val groups = mutableListOf<StatusDateGroup>()
+    var i = 0
+    while (i < posts.size) {
+        val d = localDate(posts[i].postedAt) ?: "?"
+        var j = i + 1
+        while (j < posts.size && (localDate(posts[j].postedAt) ?: "?") == d) j++
+        groups.add(StatusDateGroup(iso = d, startIndex = i, count = j - i))
+        i = j
+    }
+    return groups
+}
 
 /**
  * Full-screen WhatsApp/Stories-style viewer for JewishStatus creators. Reachable only from the Home
@@ -180,6 +216,19 @@ fun StoryScreen(
     var postIdx by remember { mutableIntStateOf(0) }
     var progress by remember { mutableFloatStateOf(0f) }
     var currentPosts by remember { mutableStateOf<List<StatusPost>?>(null) }
+    // Like JewishStatus, the viewer opens on a single date (today by default) and the "jump to date" sheet
+    // sets a different STARTING date. Statuses are grouped by local date; a date's posts are contiguous
+    // (posts are asc). The progress bars show the CURRENT post's date window (derived from `postIdx`), so
+    // finishing a date rolls FORWARD into the next date of the SAME creator along the timeline; only the
+    // creator's newest status advances to the next creator. `floorIndex` is the entry date's first index,
+    // so tapping back never descends below where you started (use the sheet to go earlier).
+    val todayIso = remember { LocalDate.now().toString() }
+    val dateGroups = remember(currentPosts) { statusDateGroups(currentPosts) }
+    var showDateSheet by remember(creatorIdx) { mutableStateOf(false) }
+    var floorIndex by remember(creatorIdx) { mutableIntStateOf(0) }
+    val currentGroup = dateGroups.firstOrNull { postIdx >= it.startIndex && postIdx < it.startIndex + it.count }
+    val windowStart = currentGroup?.startIndex ?: 0
+    val windowEnd = currentGroup?.let { it.startIndex + it.count - 1 } ?: (currentPosts?.lastIndex ?: 0)
 
     // Load posts for the current creator; preload the next in the background.
     LaunchedEffect(creatorIdx) {
@@ -189,20 +238,28 @@ fun StoryScreen(
         exoPlayer.stop()
         val id = creators.getOrNull(creatorIdx)?.id ?: return@LaunchedEffect
         val loaded = viewModel.loadPosts(id)
-        // Resume at the first UNSEEN status (WhatsApp), so reopening does not restart from the top. A
-        // fully-seen creator lands on its NEWEST (last, since posts are asc) so tapping back into it
-        // shows the latest, not a replay from the oldest. AWAIT the persisted seen set (the StateFlow
-        // snapshot is still empty for the first frames after open while DataStore loads).
+        // Default to TODAY's date window (or the newest date if none today) and resume at its first UNSEEN
+        // status (WhatsApp); if all of that date is seen, land on its newest. AWAIT the persisted seen set
+        // (the StateFlow snapshot is still empty for the first frames after open while DataStore loads).
         val seen = viewModel.seenSnapshot()
-        postIdx = loaded.indexOfFirst { it.id !in seen }.takeIf { it >= 0 } ?: loaded.lastIndex.coerceAtLeast(0)
+        postIdx = if (loaded.isEmpty()) 0 else {
+            val defaultIso = if (loaded.any { localDate(it.postedAt) == todayIso }) todayIso
+            else localDate(loaded.last().postedAt)
+            val wStart = loaded.indexOfFirst { localDate(it.postedAt) == defaultIso }.coerceAtLeast(0)
+            val wEnd = loaded.indexOfLast { localDate(it.postedAt) == defaultIso }.coerceAtLeast(wStart)
+            floorIndex = wStart
+            (wStart..wEnd).firstOrNull { loaded[it].id !in seen } ?: wEnd
+        }
         currentPosts = loaded
         creators.getOrNull(creatorIdx + 1)?.id?.let { nextId -> launch { viewModel.loadPosts(nextId) } }
     }
 
     fun advance() {
-        val posts = currentPosts ?: return
         progress = 0f
-        if (postIdx < posts.lastIndex) {
+        // Continue FORWARD along this creator's timeline (across date boundaries); only its newest status
+        // moves on to the next creator.
+        val last = currentPosts?.lastIndex ?: 0
+        if (postIdx < last) {
             postIdx++
         } else {
             val next = creatorIdx + 1
@@ -212,7 +269,8 @@ fun StoryScreen(
 
     fun goBack() {
         progress = 0f
-        if (postIdx > 0) postIdx-- else if (creatorIdx > 0) creatorIdx--
+        // Don't step below the entry date (use the jump-to-date sheet to go earlier); else previous creator.
+        if (postIdx > floorIndex) postIdx-- else if (creatorIdx > 0) creatorIdx--
     }
 
     val posts = currentPosts
@@ -269,15 +327,8 @@ fun StoryScreen(
     val creator = creators.getOrNull(creatorIdx)
     val currentPost = posts?.getOrNull(postIdx)
     val hasCaption = currentPost?.kind != "text" && !currentPost?.caption.isNullOrBlank()
-    // Posts are chronological (oldest first); "Today" jumps to the FIRST status posted today. Compare on
-    // the device-local date so it matches the timestamps shown (the raw posted_at is UTC).
-    val todayIso = remember { LocalDate.now().toString() }
-    val todayIndex = posts?.indexOfFirst {
-        runCatching {
-            ZonedDateTime.parse(it.postedAt).withZoneSameInstant(ZoneId.systemDefault())
-                .toLocalDate().toString() == todayIso
-        }.getOrDefault(false)
-    }?.takeIf { it >= 0 }
+    // The "jump to date" affordance shows only when the creator posted on more than one date.
+    val canJumpDate = posts != null && dateGroups.size > 1
 
     Box(
         Modifier
@@ -353,33 +404,20 @@ fun StoryScreen(
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(horizontal = 8.dp, vertical = 8.dp),
         ) {
-            // Controls: a clear back button on the left, and a jump-to-today shortcut on the right. The
-            // shared BackNavigationIcon (navigateUp) is forced white for legibility over the media.
+            // Controls: a clear back button on the left. The shared BackNavigationIcon (navigateUp) is
+            // forced white for legibility over the media.
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 CompositionLocalProvider(LocalContentColor provides Color.White) {
                     BackNavigationIcon(navController = navController)
                 }
                 Spacer(Modifier.weight(1f))
-                if (todayIndex != null && todayIndex != postIdx) {
-                    Text(
-                        text = stringResource(R.string.jump_to_today),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(Color.White.copy(alpha = 0.2f))
-                            .clickable { postIdx = todayIndex; progress = 0f }
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
-                    )
-                }
             }
 
             Spacer(Modifier.height(8.dp))
 
+            // One segment per status in the CURRENT date's window.
             Row(Modifier.fillMaxWidth()) {
-                val count = posts?.size ?: 1
-                repeat(count) { i ->
+                for (i in windowStart..windowEnd) {
                     val fill = when {
                         posts == null -> 0f
                         i < postIdx -> 1f
@@ -459,25 +497,146 @@ fun StoryScreen(
             }
         }
 
-        // Bottom caption (over the media scrim). Inset above the system navigation bar so the text is
-        // not clipped by the gesture pill.
-        if (hasCaption) {
+        // Bottom overlay: a "jump to date" chevron (when the creator posted on more than one day), then
+        // the caption. Inset above the system navigation bar so nothing is clipped by the gesture pill.
+        Column(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.navigationBars),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (canJumpDate && !showDateSheet) {
+                Row(
+                    Modifier
+                        .padding(bottom = 12.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.White.copy(alpha = 0.2f))
+                        .clickable { showDateSheet = true }
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.expand_less),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.jump_to_date),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+            if (hasCaption) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(scrim)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                ) {
+                    Text(
+                        text = currentPost?.caption ?: "",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+
+        // "Jump to date" sheet (JewishStatus-style): a dismiss scrim + a bottom panel of the creator's
+        // post dates (day-of-week, day number, post count). Tapping a date switches the visible window.
+        if (showDateSheet) {
             Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { showDateSheet = false },
+            )
+            Column(
                 Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .background(scrim)
+                    .background(colorScheme.surface)
                     .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
             ) {
-                Text(
-                    text = currentPost?.caption ?: "",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.jump_to_date),
+                        color = colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Icon(
+                        painter = painterResource(R.drawable.close),
+                        contentDescription = stringResource(R.string.close),
+                        tint = colorScheme.onSurface,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .clickable { showDateSheet = false }
+                            .padding(4.dp),
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(dateGroups, key = { it.iso }) { group ->
+                        StatusDateCard(
+                            group = group,
+                            selected = group.iso == currentGroup?.iso,
+                            onClick = {
+                                // Start the timeline at this date; browsing forward rolls into later dates.
+                                postIdx = group.startIndex
+                                floorIndex = group.startIndex
+                                progress = 0f
+                                showDateSheet = false
+                            },
+                        )
+                    }
+                }
             }
         }
+    }
+}
+
+/** One date card in the "jump to date" sheet: day-of-week, day number, and post count. App-themed. */
+@Composable
+private fun StatusDateCard(group: StatusDateGroup, selected: Boolean, onClick: () -> Unit) {
+    val colorScheme = MaterialTheme.colorScheme
+    val date = remember(group.iso) { runCatching { LocalDate.parse(group.iso) }.getOrNull() }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) colorScheme.primaryContainer else colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+    ) {
+        Text(
+            text = date?.format(dowFmt)?.uppercase(Locale.US) ?: "",
+            color = if (selected) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = date?.format(dayFmt) ?: "",
+            color = if (selected) colorScheme.onPrimaryContainer else colorScheme.onSurface,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = pluralStringResource(R.plurals.n_status_post, group.count, group.count),
+            color = if (selected) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelSmall,
+        )
     }
 }

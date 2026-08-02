@@ -567,7 +567,11 @@
     <string name="show_genres_row">Show genres on home</string>
     <string name="show_genres_row_desc">A row of genre shortcuts under Quick picks</string>
     <string name="statuses">Music Status</string>
-    <string name="jump_to_today">Today</string>
+    <string name="jump_to_date">Jump to date</string>
+    <plurals name="n_status_post">
+        <item quantity="one">%d post</item>
+        <item quantity="other">%d posts</item>
+    </plurals>
     <string name="show_statuses_row">Show status on home</string>
     <string name="show_statuses_row_desc">A row of music creator status updates under Quick picks</string>
     <string name="singles">Singles</string>
