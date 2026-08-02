@@ -182,8 +182,10 @@ scrolled so bars never grey-out on scroll; baked into `BackTopAppBar`, and every
 video player's fixed-black bar, and ArtistScreen's over-header transparent state),
 `PlaylistPlayShuffleButtons` + `PlaylistHeaderShimmer` (playlist headers/skeletons),
 `shimmer/BoxPlaceholder` (the base shimmer slab under `ButtonPlaceholder`/`GridItemPlaceholder`),
-`ArtistBrowseComponents` (KidZone/whitelist browse header). New screens use these; a hand-rolled
-duplicate is a review miss.
+`ArtistBrowseComponents` (KidZone/whitelist browse header), `IconCategoryCard` (the square category
+tile — centered gold icon + bold title + count subtitle on one neutral `surfaceContainerHigh` box, with
+the D-pad focus treatment; the Downloaded library's Music/Videos/Status tiles all render through it).
+New screens use these; a hand-rolled duplicate is a review miss.
 
 **Componentize on every touch (non-negotiable).** Whenever you touch anything in the app, first check
 whether a shared component already covers it — if one exists, use it. If you find yourself writing (or

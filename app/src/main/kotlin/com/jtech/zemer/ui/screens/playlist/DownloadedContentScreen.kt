@@ -1,9 +1,7 @@
 package com.jtech.zemer.ui.screens.playlist
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.asPaddingValues
@@ -11,25 +9,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -39,6 +27,7 @@ import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackTopAppBar
+import com.jtech.zemer.ui.component.IconCategoryCard
 import com.jtech.zemer.viewmodels.DownloadedContentViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,129 +60,32 @@ fun DownloadedContentScreen(
                         .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    // Music Card
-                    Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(160.dp)
-                            .clickable {
-                                navController.navigate("auto_playlist/downloaded")
-                            },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        ),
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.music_note),
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = stringResource(R.string.music),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                            Text(
-                                text = pluralStringResource(R.plurals.n_song, musicCount, musicCount),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                            )
-                        }
-                    }
+                    // All three category tiles share one neutral box (IconCategoryCard) so their color,
+                    // shape and typography stay identical - the caller only varies icon/labels/destination.
+                    IconCategoryCard(
+                        iconRes = R.drawable.music_note,
+                        title = stringResource(R.string.music),
+                        subtitle = pluralStringResource(R.plurals.n_song, musicCount, musicCount),
+                        onClick = { navController.navigate("auto_playlist/downloaded") },
+                        modifier = Modifier.weight(1f),
+                    )
 
-                    // Video Card - Only show if videos are not blocked
+                    // Video + Status tiles are hidden when videos are blocked (same gate as the home row).
                     if (!blockVideos) {
-                    Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(160.dp)
-                            .clickable {
-                                navController.navigate("downloaded_videos")
-                            },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        ),
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.slow_motion_video),
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = stringResource(R.string.videos),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            )
-                            Text(
-                                text = pluralStringResource(R.plurals.n_video, videoCount, videoCount),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
-                            )
-                        }
-                    }
-                    }
-
-                    // Status Card - saved statuses; hidden when videos are blocked (same gate as the row).
-                    if (!blockVideos) {
-                        Card(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(160.dp)
-                                .clickable { navController.navigate("status_downloads") },
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            ),
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.music_status),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(48.dp),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text(
-                                    text = stringResource(R.string.status),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
-                                Text(
-                                    text = pluralStringResource(R.plurals.n_status, statusCount, statusCount),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
+                        IconCategoryCard(
+                            iconRes = R.drawable.slow_motion_video,
+                            title = stringResource(R.string.videos),
+                            subtitle = pluralStringResource(R.plurals.n_video, videoCount, videoCount),
+                            onClick = { navController.navigate("downloaded_videos") },
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconCategoryCard(
+                            iconRes = R.drawable.music_status,
+                            title = stringResource(R.string.status),
+                            subtitle = pluralStringResource(R.plurals.n_status, statusCount, statusCount),
+                            onClick = { navController.navigate("status_downloads") },
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
             }
