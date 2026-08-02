@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.pages.ArtistPage
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.playback.queues.Queue
@@ -42,9 +43,17 @@ class ArtistViewModel @Inject constructor(
     val artistId = requireNotNull(savedStateHandle.get<String>("artistId")) {
         "artistId is required but was not provided in navigation arguments"
     }
+    // Podcast HOST channels are their own animal: not in the whitelist-pure Zemer corpus, so they
+    // load via InnerTube (`YouTube.artist`) like the rest of the InnerTube-backed podcast feature.
+    // Music artists are unaffected (corpus path).
+    val isPodcastChannel = savedStateHandle.get<Boolean>("isPodcastChannel") ?: false
     var artistPage by mutableStateOf<ArtistPage?>(null)
     var isLoading by mutableStateOf(true)
     val libraryArtist = database.artist(artistId)
+        .stateIn(viewModelScope, SharingStarted.Lazily, null)
+    // The bare artist row (no whitelist join) - the subscribe/bookmark state, which must work for
+    // podcast host channels too (they are never whitelisted, so libraryArtist above is always null).
+    val libraryArtistEntity = database.artistEntity(artistId)
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
     val librarySongs = context.dataStore.data
         .map { it[HideExplicitKey] ?: false }
@@ -82,11 +91,23 @@ class ArtistViewModel @Inject constructor(
     fun fetchArtistsFromYTM() {
         viewModelScope.launch {
             isLoading = true
-            // Served purely from the Zemer `/artist` corpus (whitelist-pure, already content-filtered,
-            // InnerTube-free). A 404 / failure leaves artistPage null — the screen then shows the local
-            // library content (showLocal) or nothing. No InnerTube fallback by design: the north-star is
-            // zero app-runtime InnerTube, and a non-corpus artist is non-whitelisted (shouldn't render).
-            artistPage = runCatching { zemerRepository.artist(artistId, zemerSearchOptions(context)) }
+            // Music artists: served purely from the Zemer `/artist` corpus (whitelist-pure, already
+            // content-filtered, InnerTube-free). A 404 / failure leaves artistPage null — the screen
+            // then shows the local library content (showLocal) or nothing. No InnerTube fallback by
+            // design: the north-star is zero app-runtime InnerTube, and a non-corpus artist is
+            // non-whitelisted (shouldn't render).
+            // Podcast host channels are the exception: they are not in the corpus, so — like the whole
+            // InnerTube-backed podcast feature — they load via InnerTube (`YouTube.artist`).
+            artistPage = runCatching {
+                if (isPodcastChannel) {
+                    // Host channels are now served whitelist-pure by the Zemer server (`/podcast-channel`,
+                    // mapped to an ArtistPage), not InnerTube `YouTube.artist`. A 404/null leaves the page
+                    // empty → the channel's not-available state, same as a corpus artist.
+                    zemerRepository.podcastChannel(artistId, zemerSearchOptions(context))
+                } else {
+                    zemerRepository.artist(artistId, zemerSearchOptions(context))
+                }
+            }
                 .onFailure {
                     if (it is java.util.concurrent.CancellationException) throw it
                     reportException(it)

@@ -4,7 +4,24 @@ import com.metrolist.innertube.models.Menu
 import com.metrolist.innertube.models.MusicResponsiveListItemRenderer.FlexColumn
 import com.metrolist.innertube.models.Run
 
+data class LibraryTokens(
+    val addToken: String? = null,
+    val removeToken: String? = null
+)
+
 object PageHelper {
+    /**
+     * Extract library tokens from menu items.
+     * Note: Currently returns empty tokens as the full playlist edit endpoint
+     * parsing is not implemented. Episodes will still play but save/unsave
+     * features require additional model support.
+     */
+    fun extractLibraryTokensFromMenuItems(items: List<Menu.MenuRenderer.Item>?): LibraryTokens {
+        // Simplified implementation - return empty tokens for now
+        // Full implementation would require adding playlistEditEndpoint to the models
+        return LibraryTokens(null, null)
+    }
+
     fun extractRuns(columns: List<FlexColumn>, typeLike: String): List<Run> {
         val filteredRuns = mutableListOf<Run>()
         for (column in columns) {

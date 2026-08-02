@@ -7,16 +7,20 @@ import com.jtech.zemer.search.ZemerResultMapper.toAlbumFacetPage
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumItems
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
 import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
+import com.jtech.zemer.search.ZemerResultMapper.toEpisodeItems
 import com.jtech.zemer.search.ZemerResultMapper.toGenrePage
+import com.jtech.zemer.search.ZemerResultMapper.toPodcastPage
 import com.jtech.zemer.search.ZemerResultMapper.toSongItems
 import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.Artist
+import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SearchSuggestions
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.pages.AlbumPage
 import com.metrolist.innertube.pages.ArtistPage
+import com.metrolist.innertube.pages.PodcastPage
 import com.metrolist.innertube.pages.SearchResult
 import com.metrolist.innertube.pages.SearchSummaryPage
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -199,6 +203,28 @@ class ZemerSearchRepository @Inject constructor(
             server = { client.artist(id, options.allowFemale, options.blockVideos) },
             offline = { offlineReads.artist(id, options.allowFemale, options.blockVideos) },
         )?.toArtistPage(options.hideExplicit, formatSongCount)
+
+    // --- Podcasts. Live-only (no offline snapshot, like /radio + /playlist). Playback stays InnerTube:
+    // an episode carries its YouTube videoId and plays through the existing pipeline. ---
+
+    /** The whitelist-pure browse list + its version gate — the whitelist source (replaces Firestore). */
+    suspend fun podcasts(options: ZemerSearchOptions): ZemerPodcastsResponse =
+        client.podcasts(options.allowFemale, options.blockVideos)
+
+    /** Cheap version probe so the whitelist sync can skip a full re-fetch when unchanged. */
+    suspend fun podcastsVersion(): Int? = client.podcastsVersion().version
+
+    /** A SHOW page (header + one episode page). Null when the show is unknown / filtered out (404). */
+    suspend fun podcast(id: String, offset: Int, options: ZemerSearchOptions): PodcastPage? =
+        client.podcast(id, offset, options.allowFemale, options.blockVideos)?.toPodcastPage()
+
+    /** A host CHANNEL as an [ArtistPage] (its shows + latest episodes). Null on 404. */
+    suspend fun podcastChannel(id: String, options: ZemerSearchOptions): ArtistPage? =
+        client.podcastChannel(id, options.allowFemale, options.blockVideos)?.toArtistPage()
+
+    /** Latest episodes across all whitelisted shows (Library New Episodes), newest-first. */
+    suspend fun podcastsNewEpisodes(k: Int, options: ZemerSearchOptions): List<EpisodeItem> =
+        client.podcastsNewEpisodes(k, options.allowFemale, options.blockVideos).toEpisodeItems()
 
     /**
      * Corpus-native radio (see [ZemerRadioResponse]): the first page seeded by [kind]/[seed] (`artist` /

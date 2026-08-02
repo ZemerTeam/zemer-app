@@ -28,6 +28,18 @@ fun ytItemMenu(
     isVideo: Boolean = false,
 ): @Composable ColumnScope.() -> Unit = {
     when (item) {
+        // A podcast show reuses the playlist menu; an episode reuses the song menu (they can reach
+        // this shared dispatcher via a podcast host-channel shelf on the artist page).
+        is com.metrolist.innertube.models.PodcastItem -> YouTubePlaylistMenu(
+            playlist = item.asPlaylistItem(),
+            coroutineScope = coroutineScope,
+            onDismiss = onDismiss,
+        )
+        is com.metrolist.innertube.models.EpisodeItem -> YouTubeSongMenu(
+            song = item.asSongItem(),
+            navController = navController,
+            onDismiss = onDismiss,
+        )
         is SongItem -> YouTubeSongMenu(
             song = item,
             navController = navController,

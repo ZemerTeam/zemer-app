@@ -28,6 +28,10 @@ data class ZemerCategories(
     // (older server build) and then defaults to empty.
     val playlists: List<ZemerPlaylist> = emptyList(),
     val community: List<ZemerPlaylist> = emptyList(),
+    // Podcast SHOWS + EPISODES folded into search (server reply 2026-08-01). Absent on an older
+    // server build → empty. Shows open the podcast SHOW screen; episodes play by videoId.
+    val podcasts: List<ZemerPodcastShow> = emptyList(),
+    val episodes: List<ZemerPodcastEpisode> = emptyList(),
 )
 
 // id/videoId default to "" rather than being required: kotlinx throws MissingFieldException for the
@@ -282,4 +286,94 @@ data class ZemerArtistResponse(
 data class ZemerRadioResponse(
     val tracks: List<ZemerTrack> = emptyList(),
     val continuation: String? = null,
+)
+
+// ---------------------------------------------------------------------------------------------------
+// Podcasts — server discovery contract (handoff `zemer-app-podcasts-request.md`, server reply
+// 2026-08-01). Every id/videoId defaults to "" (a single sparse row must never blank the whole
+// response — the mapper drops blank-id rows), and durationSeconds defaults to 0 (server sends 0 only
+// when YouTube truly has no length; the client resume math degrades gracefully).
+// ---------------------------------------------------------------------------------------------------
+
+/** A podcast SHOW row (browse grid, search, host-channel shelf). Keyed/routed on the `MPSP…` id. */
+@Serializable
+data class ZemerPodcastShow(
+    val id: String = "",
+    val name: String = "",
+    val author: String? = null,
+    // The host CHANNEL (UC…) the show belongs to — tapping opens the channel (§4) when present, else
+    // the show (§3). Resolved server-side for 167/169 shows; rare misses fall back to the show.
+    val channelId: String? = null,
+    val thumbnail: String? = null,
+    val episodeCountText: String? = null,
+)
+
+/** An episode row (search, show, channel, new-episodes). `videoId` is the YouTube id the app plays. */
+@Serializable
+data class ZemerPodcastEpisode(
+    val videoId: String = "",
+    val title: String = "",
+    val podcastId: String? = null,
+    val podcastName: String? = null,
+    val channelId: String? = null,
+    val thumbnail: String? = null,
+    val durationSeconds: Int = 0,
+    val publishedAt: String? = null,
+)
+
+/** `GET /podcasts` — replaces the direct Firestore `podcastsWhitelist` read. `version` gates re-fetch. */
+@Serializable
+data class ZemerPodcastsResponse(
+    val podcasts: List<ZemerPodcastShow> = emptyList(),
+    val version: Int? = null,
+)
+
+/** `GET /podcasts/version` — the cheap gate check (mirrors `whitelist/version`). */
+@Serializable
+data class ZemerPodcastVersionResponse(
+    val version: Int? = null,
+)
+
+/** The SHOW header on `GET /podcast?id=` (adds description + categories over the browse row). */
+@Serializable
+data class ZemerPodcastDetail(
+    val id: String = "",
+    val name: String = "",
+    val author: String? = null,
+    val channelId: String? = null,
+    val thumbnail: String? = null,
+    val description: String? = null,
+    val categories: List<String> = emptyList(),
+)
+
+/** `GET /podcast?id=MPSP…&offset=` — the SHOW page. `nextOffset` is null at the end. */
+@Serializable
+data class ZemerPodcastResponse(
+    val podcast: ZemerPodcastDetail? = null,
+    val episodes: List<ZemerPodcastEpisode> = emptyList(),
+    val nextOffset: Int? = null,
+)
+
+/** The host-CHANNEL header on `GET /podcast-channel?id=`. `banner` is currently always absent. */
+@Serializable
+data class ZemerPodcastChannelHeader(
+    val id: String = "",
+    val name: String = "",
+    val thumbnail: String? = null,
+    val banner: String? = null,
+    val description: String? = null,
+)
+
+/** `GET /podcast-channel?id=UC…` — the host-channel page (replaces InnerTube `YouTube.artist`). */
+@Serializable
+data class ZemerPodcastChannelResponse(
+    val channel: ZemerPodcastChannelHeader? = null,
+    val shows: List<ZemerPodcastShow> = emptyList(),
+    val episodes: List<ZemerPodcastEpisode> = emptyList(),
+)
+
+/** `GET /podcasts/new-episodes?k=` — latest episodes across all whitelisted shows, newest-first. */
+@Serializable
+data class ZemerNewEpisodesResponse(
+    val episodes: List<ZemerPodcastEpisode> = emptyList(),
 )

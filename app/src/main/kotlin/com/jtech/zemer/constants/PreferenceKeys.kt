@@ -100,6 +100,8 @@ val LastNightlyAnnouncedKey = stringPreferencesKey("lastNightlyAnnounced")
 val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 val InstallerTypeKey = intPreferencesKey("installerType") // InstallerType ordinal
 val LastWhitelistVersionKey = longPreferencesKey("lastWhitelistVersion")
+val LastPodcastWhitelistSyncTimeKey = longPreferencesKey("lastPodcastWhitelistSyncTime")
+val LastPodcastWhitelistVersionKey = longPreferencesKey("lastPodcastWhitelistVersion")
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")
 
@@ -141,6 +143,10 @@ val DisableScreenshotKey = booleanPreferencesKey("disableScreenshot")
 val ChipSortTypeKey = stringPreferencesKey("chipSortType")
 val SongSortTypeKey = stringPreferencesKey("songSortType")
 val SongSortDescendingKey = booleanPreferencesKey("songSortDescending")
+val PodcastFilterKey = stringPreferencesKey("podcastFilter")
+// Podcast downloaded-episode sort - its OWN keys so it never rewrites the main Songs library sort.
+val PodcastSortTypeKey = stringPreferencesKey("podcastSortType")
+val PodcastSortDescendingKey = booleanPreferencesKey("podcastSortDescending")
 val PlaylistSongSortTypeKey = stringPreferencesKey("playlistSongSortType")
 val PlaylistSongSortDescendingKey = booleanPreferencesKey("playlistSongSortDescending")
 val ArtistSortTypeKey = stringPreferencesKey("artistSortType")
@@ -169,6 +175,7 @@ val ArtistProfilesCacheTimestampKey = longPreferencesKey("artist_profiles_cache_
 val ArtistViewTypeKey = stringPreferencesKey("artistViewType")
 val AlbumViewTypeKey = stringPreferencesKey("albumViewType")
 val PlaylistViewTypeKey = stringPreferencesKey("playlistViewType")
+val PodcastViewTypeKey = stringPreferencesKey("podcastViewType")
 
 val PlaylistEditLockKey = booleanPreferencesKey("playlistEditLock")
 val QuickPicksKey = stringPreferencesKey("discover")
@@ -250,6 +257,13 @@ enum class SongSortType {
     NAME,
     ARTIST,
     PLAY_TIME,
+}
+
+/** Sub-filter within the Library -> Podcasts screen (mirrors Metrolist's podcast library tabs). */
+enum class PodcastFilter {
+    EPISODES,
+    CHANNELS,
+    DOWNLOADED,
 }
 
 enum class PlaylistSongSortType {

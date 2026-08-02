@@ -176,16 +176,32 @@ suspend fun List<YTItem>.filterWhitelisted(
             return@forEach
         }
         val decision = when (item) {
-            is SongItem -> item.isWhitelisted(
-                database,
-                allowedIds,
-                artistCache,
-                config,
-                requireAllArtists,
-                fallbackArtistId
-            ).also {
-                Timber.d("WhitelistFilter: SongItem '${item.title}' by ${item.artists.joinToString { it -> it.name }} - allowed=${it.allowed}")
-            }
+            is SongItem ->
+                // An episode routed through here arrives as a SongItem(isEpisode = true) (e.g. the
+                // Episodes-for-Later sync, newEpisodes). It must be gated by the SEPARATE podcast
+                // whitelist, never the music artist whitelist - podcast hosts are not
+                // artist-whitelisted, so running an episode through isWhitelisted() would wrongly
+                // drop every one.
+                if (item.isEpisode) {
+                    ArtistFilterDecision(
+                        allowed = com.jtech.zemer.sync.PodcastSyncLogic.episodePassesPodcastWhitelist(
+                            artistIds = item.artists.map { it.id },
+                            filtersEnabled = config.filtersEnabled,
+                            isAllowedPodcastId = { PodcastWhitelistCache.isAllowed(it) },
+                            isAllowedChannelId = { PodcastWhitelistCache.isAllowedByChannelId(it) },
+                        ),
+                        isChasidish = false,
+                    )
+                } else item.isWhitelisted(
+                    database,
+                    allowedIds,
+                    artistCache,
+                    config,
+                    requireAllArtists,
+                    fallbackArtistId
+                ).also {
+                    Timber.d("WhitelistFilter: SongItem '${item.title}' by ${item.artists.joinToString { it -> it.name }} - allowed=${it.allowed}")
+                }
             is AlbumItem -> item.isWhitelisted(
                 database,
                 allowedIds,
@@ -202,6 +218,23 @@ suspend fun List<YTItem>.filterWhitelisted(
             is PlaylistItem -> item.isWhitelisted(database, allowedIds, artistCache, config).also {
                 Timber.d("WhitelistFilter: PlaylistItem '${item.title}' - allowed=${it.allowed}")
             }
+            // Podcasts/episodes are gated by the SEPARATE podcast whitelist (PodcastWhitelistCache),
+            // not the music artist whitelist. Enforce it HERE too so this chokepoint stays the single
+            // content gate for any mixed list routed through it (filters-off passes everything).
+            is com.metrolist.innertube.models.PodcastItem ->
+                ArtistFilterDecision(
+                    allowed = !config.filtersEnabled ||
+                        PodcastWhitelistCache.isAllowed(item.id) ||
+                        (item.channelId?.let { PodcastWhitelistCache.isAllowedByChannelId(it) } == true),
+                    isChasidish = false,
+                )
+            is com.metrolist.innertube.models.EpisodeItem ->
+                ArtistFilterDecision(
+                    allowed = !config.filtersEnabled ||
+                        (item.podcast?.id?.let { PodcastWhitelistCache.isAllowed(it) } == true) ||
+                        (item.author?.id?.let { PodcastWhitelistCache.isAllowedByChannelId(it) } == true),
+                    isChasidish = false,
+                )
         }
         if (decision.allowed) {
             filtered.add(item to decision.isChasidish)

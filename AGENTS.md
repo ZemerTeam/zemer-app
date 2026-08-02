@@ -626,6 +626,89 @@ statuses. Rules that must not regress:
   border + check badge when selected. Grid tiles decode a video poster frame via the cached
   `rememberVideoThumbnail`; text tiles render natively (never cropped).
 
+### Podcasts (browse → show → episodes → play; a "Kosher" podcast client on top)
+
+A full podcast feature ported from Metrolist onto Zemer main. **DISCOVERY is now the whitelist-pure Zemer
+server** (`search.zemer.io`), exactly like artist/album/home-rows/radio — the app carries **no InnerTube
+podcast-discovery path and no direct Firestore `podcastsWhitelist` read**. The endpoints
+(`handoff-docs/zemer-app-podcasts-request.md`, both sides SETTLED 2026-08-01) are `GET /podcasts` (browse
+grid + the whitelist source, `+ /podcasts/version` gate), `GET /podcast?id=MPSP…&offset=` (show + episode
+page), `GET /podcast-channel?id=UC…` (host channel → an `ArtistPage`), `GET /podcasts/new-episodes`
+(Library New Episodes), and podcast/episode groups folded into `/search`. All are wired in
+`ZemerSearchClient`/`ZemerResultMapper`/`ZemerSearchRepository` and are **live-only** (no offline snapshot,
+like `/radio`+`/playlist`). **NOTE: as of 2026-08-01 the server endpoints are BUILT but NOT YET DEPLOYED**
+— `syncPodcastWhitelist` preserves the last-good table on fetch failure, so existing installs degrade
+gracefully until deploy; live integration testing waits on the deploy.
+**Two things stay InnerTube:** (1) **PLAYBACK NEVER MOVES** — an episode is a YouTube video with a real
+`videoId`, played through the existing InnerTube + cipher pipeline exactly like a song/video (the
+irreducible core); (2) **ACCOUNT SYNC** — subscriptions + episodes-for-later sync bidirectionally to the
+YouTube account (`SyncUtils.syncPodcastSubscriptions`/`syncEpisodesForLater`, gated on
+`isPersonalAccountSignedIn`), the music-library model, never the server. The rules that must not regress
+(full detail in the handoff doc + `docs/` if generated):
+
+- **An episode IS a `SongEntity` with `isEpisode = 1`.** Its "saved for later" state is `inLibrary != null`
+  (NOT `liked`); it plays by `videoId`; `EpisodeItem.asSongItem()`/`toMediaMetadata()`/`toMediaItem()`
+  carry `isEpisode = true` through the whole pipeline. Regular downloaded-songs queries EXCLUDE
+  `isEpisode = 1` — downloaded episodes surface only in Library → Podcasts → Downloaded.
+- **Show vs. host channel are different things** (the #1 gotcha): a **show** is `MPSP…` (a series of
+  episodes, what the whitelist lists, opened via `OnlinePodcastScreen`/`online_podcast/{id}`); a **host
+  channel** is `UC…` (publishes several shows, opened via `artist/{id}?isPodcastChannel=true`). The
+  browse grid, Search, and the show screen operate on shows; "View channel" and the Library → Channels
+  tab operate on host channels. `whitelistedPodcastRoute(podcastId, channelId)` (unit-tested) routes a
+  browsed podcast to the channel when a channelId is known, else the show.
+- **The host-channel page reuses `ArtistScreen`, loaded from the Zemer server** (`isPodcastChannel` nav
+  arg → `ArtistViewModel` calls `zemerRepository.podcastChannel(id)` → `GET /podcast-channel`, mapped to
+  an `ArtistPage`: the channel's shows become a "Podcasts" section (PodcastItem), latest episodes an
+  "Episodes" section). NOT InnerTube `YouTube.artist` anymore (that path was deleted). A 404/null →
+  the not-available state. Radio is HIDDEN for `isPodcastChannel` (no corpus radio for a host).
+- **The podcast whitelist source is the server, not Firestore** (`SyncUtils.syncPodcastWhitelist` reads
+  `GET /podcasts` + `/podcasts/version`, mapping shows → `PodcastWhitelistEntity` with thumbnails inline).
+  Because every `/podcasts` row carries a ready-to-load thumbnail, the old per-row art fetch
+  (`requestPodcastThumbnail` → `YouTube.podcast`) is **gone**. An empty/failed fetch never wipes the local
+  table (never unblocks). **New Episodes** is the global `GET /podcasts/new-episodes` feed scoped
+  CLIENT-SIDE to locally-subscribed shows (`PodcastLibrarySources.whitelistedNewEpisodes`), so it works
+  for anonymous sessions too (no account gate — it is discovery, not account state). **Search** folds
+  podcast/episode groups into `/search` (rendered by `YouTubeListItem`; a show row opens the
+  channel/show via `whitelistedPodcastRoute`, an episode row plays by videoId). The episode-aware
+  `filterWhitelisted` branch gates an `isEpisode` `SongItem` on the podcast whitelist (never the artist one).
+- **Subscribe (channel) vs. save-to-library (show) are distinct.** Channel Subscribe writes a bookmarked
+  `ArtistEntity` with `isPodcastChannel = 1` (→ the Channels tab via `bookmarkedPodcastChannels()`), and
+  hits `YouTube.subscribeChannel` which **must send `params="EgIIAhgA"`** or the server no-ops it. The
+  subscribe button reads the bare `artistEntity(id)` query (NOT `artist(id)`, which whitelist-INNER-JOINs
+  and always returns null for a non-whitelisted host). Save-a-show writes a `PodcastEntity` bookmark.
+- **Account-leak gate:** every podcast ACCOUNT read/write (new-episodes, library channels, save/subscribe,
+  episode save-for-later) gates on `isPersonalAccountSignedIn` — NEVER SAPISID/`isUserLoggedIn`, and there
+  is no `YouTube.isAnonLogin` (that flag was dead; deleted). Anon = local-only (pooled-account leak rule).
+  Save/subscribe toggles are OPTIMISTIC (flip local first, revert + toast on server failure).
+- **Episode resume** (podcasts are long): `MusicService` saves `song.lastPositionMs` from every exit path
+  (periodic 15s — episode-gated, never a music wakeup; on-pause; on track-SWITCH via
+  `previousEpisodeId`/`previousEpisodePosition`; on-destroy) and seeks on load. The pure decision is
+  `EpisodeResume` (unit-tested): don't resume within `RESUME_EDGE_MS` of the start, and a FINISHED episode
+  (within `COMPLETION_EDGE_MS` of the end) restarts from 0. **NEVER read `player.*` inside `database.query{}`**
+  (background executor → "Player accessed on the wrong thread"); capture on the main/caller thread first.
+  Episode rows show a **"N left"** hint (`episodeResumePositions()` Map query, gated by `EpisodeResume`);
+  the song menu has a local **mark-played/unplayed** row (sets `lastPositionMs` to end/0).
+- **EPISODE-ONLY player controls** (`Player.kt` `EpisodePlaybackControls`, shown only when
+  `mediaMetadata.isEpisode`): a speed pill (1×→1.25×→1.5×→1.75×→2×) + ±30s skip (fast-rewind/fast-forward
+  icons). MusicService **resets `playbackSpeed` to 1× on any non-episode** so episode speed never leaks
+  into music.
+- **Home "Continue Listening" row** (`HomeContinueListeningRow` + isolated fail-soft
+  `ContinueListeningViewModel`, placed BELOW the Podcasts row): in-progress episodes, most-recent first
+  via `continueListeningEpisodes()` — recency comes from the play `event` table, so **no new column**.
+- **Episodes NEVER appear in the MUSIC discovery rows.** An episode is a `SongEntity` in the `event`
+  table, so Keep-Listening / Quick-Picks fallbacks / Forgotten-favorites all filter `!isEpisode`
+  (`HomeViewModel`); regular `downloadedSongs*` queries exclude `isEpisode` too. Episodes live ONLY on
+  the podcast surfaces.
+- **Library → Podcasts = three sub-filter tabs** (`PodcastFilter` EPISODES/CHANNELS/DOWNLOADED, own
+  `PodcastSortTypeKey`/`PodcastSortDescendingKey` — must NOT reuse the Songs sort keys). New-Episodes /
+  Episodes-for-Later are `AutoPlaylistCard`s (personal → `online_playlist/RDPN`,`/SE`; anon → local
+  inline). The shared podcast data sources (whitelist filter + leak gate) live in ONE place,
+  `utils/PodcastLibrarySources`, so the two podcast VMs can't drift.
+- **Whitelist:** podcasts have their OWN whitelist (`podcastsWhitelist` Firestore → `PodcastWhitelistCache`),
+  separate from the artist whitelist. `filterWhitelisted` gates `PodcastItem`/`EpisodeItem` against it too
+  (respecting filters-off) as defense-in-depth. Play source/surface: episode plays tag
+  `PlaySource.podcast(id)` / `TrackingSurface.podcast|channel` (append-only slugs).
+
 ### Offline search backup (`offline/` — the outage fallback)
 
 A downloaded, incrementally-synced snapshot of the corpus serves `/search`, `/artist`, `/album`,

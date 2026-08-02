@@ -28,6 +28,7 @@ import com.jtech.zemer.ui.screens.playlist.DownloadedContentScreen
 import com.jtech.zemer.ui.screens.playlist.DownloadedVideosScreen
 import com.jtech.zemer.ui.screens.playlist.LocalPlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.OnlinePlaylistScreen
+import com.jtech.zemer.ui.screens.podcast.OnlinePodcastScreen
 import com.jtech.zemer.ui.screens.playlist.TopPlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.ZemerCuratedPlaylistScreen
 import com.jtech.zemer.ui.screens.recognition.RecognitionHistoryScreen
@@ -67,6 +68,19 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable(Screens.Artists.route) {
         WhitelistedArtistsScreen(navController, searchBarScrollBehavior)
+    }
+    composable(Screens.Podcasts.route) {
+        WhitelistedPodcastsScreen(navController, searchBarScrollBehavior)
+    }
+    composable(
+        route = "online_podcast/{podcastId}",
+        arguments = listOf(
+            navArgument("podcastId") {
+                type = NavType.StringType
+            },
+        ),
+    ) {
+        OnlinePodcastScreen(navController, scrollBehavior)
     }
     composable(Screens.KidZone.route) {
         KidZoneScreen(navController)
@@ -216,11 +230,15 @@ fun NavGraphBuilder.navigationBuilder(
         AlbumScreen(navController, scrollBehavior)
     }
     composable(
-        route = "artist/{artistId}",
+        route = "artist/{artistId}?isPodcastChannel={isPodcastChannel}",
         arguments =
         listOf(
             navArgument("artistId") {
                 type = NavType.StringType
+            },
+            navArgument("isPodcastChannel") {
+                type = NavType.BoolType
+                defaultValue = false
             },
         ),
     ) {

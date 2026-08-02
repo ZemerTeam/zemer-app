@@ -160,12 +160,26 @@ fun OnlineSearchScreen(
         // sits among live suggestions/results.
         if (query.isBlank()) {
             item(key = "browse_artists") {
-                BrowseArtistsItem(
+                BrowseAllItem(
                     onClick = {
                         navController.navigate(Screens.Artists.route)
                         onDismiss()
                     },
                     pureBlack = pureBlack,
+                    iconRes = R.drawable.artist,
+                    labelRes = R.string.browse_artists,
+                    modifier = Modifier.animateItem(),
+                )
+            }
+            item(key = "browse_podcasts") {
+                BrowseAllItem(
+                    onClick = {
+                        navController.navigate(Screens.Podcasts.route)
+                        onDismiss()
+                    },
+                    pureBlack = pureBlack,
+                    iconRes = R.drawable.podcast,
+                    labelRes = R.string.browse_podcasts,
                     modifier = Modifier.animateItem(),
                 )
             }
@@ -262,6 +276,8 @@ fun OnlineSearchScreen(
                     .combinedClickable(
                         onClick = {
                             when (item) {
+                                is com.metrolist.innertube.models.PodcastItem -> {}
+                                is com.metrolist.innertube.models.EpisodeItem -> {}
                                 is SongItem -> {
                                     if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                         playerConnection.playPause()
@@ -312,6 +328,8 @@ fun OnlineSearchScreen(
                     .onKeyEvent { event ->
                         if (event.key == Key.Enter || event.key == Key.DirectionCenter) {
                             when (item) {
+                                is com.metrolist.innertube.models.PodcastItem -> {}
+                                is com.metrolist.innertube.models.EpisodeItem -> {}
                                 is SongItem -> {
                                     if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                         playerConnection.playPause()
@@ -347,13 +365,16 @@ fun OnlineSearchScreen(
 }
 
 /**
- * A "Browse all artists" shortcut styled to match [SuggestionItem] (same height, focus border, D-pad
- * focusability). Shown at the top of the pre-typing search list; opens the whitelisted-artists screen.
+ * A "Browse all X" shortcut styled to match [SuggestionItem] (same height, focus border, D-pad
+ * focusability). Shown at the top of the pre-typing search list; opens a whitelisted-browse screen
+ * (artists or podcasts).
  */
 @Composable
-fun BrowseArtistsItem(
+fun BrowseAllItem(
     onClick: () -> Unit,
     pureBlack: Boolean,
+    @androidx.annotation.DrawableRes iconRes: Int,
+    @androidx.annotation.StringRes labelRes: Int,
     modifier: Modifier = Modifier,
 ) {
     var focusState by remember { mutableStateOf<FocusState?>(null) }
@@ -397,13 +418,13 @@ fun BrowseArtistsItem(
             .focusable(),
     ) {
         Icon(
-            painterResource(R.drawable.artist),
+            painterResource(iconRes),
             contentDescription = null,
             modifier = Modifier.padding(horizontal = 16.dp).alpha(iconAlpha)
         )
 
         Text(
-            text = stringResource(R.string.browse_artists),
+            text = stringResource(labelRes),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),

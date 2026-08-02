@@ -49,7 +49,7 @@
 #   R15-morevert   raw `R.drawable.more_vert` in a screen -> use the shared MoreVertMenuButton
 #                  (component/IconButton.kt) instead of a hand-rolled 3-dot overflow button.
 #                  Ratcheted.
-#   R16-navroute   hand-built single-segment id route `navigate("artist/$id")` / `navigate("album/$id")`
+#   R16-navroute   hand-built id route navigate("artist/$id") / navigate("album/$id") / navigate("online_podcast/$id")
 #                  -> use the null-safe navigateToArtist/navigateToAlbum helpers
 #                  (ui/utils/AppNavigation.kt); a blank id would otherwise crash on "artist/". Baseline 0.
 #   R17-entrypoint raw `EntryPointAccessors.fromApplication(..., ZemerSearchRepositoryEntryPoint::class.java)`
@@ -116,7 +116,7 @@ violations() {
   # Route through the null-safe navigateToArtist/navigateToAlbum helpers (ui/utils/AppNavigation.kt).
   # The regex matches ONLY the plain single-segment form (no `/sub` route, no `?query`), so the
   # legit `artist/{id}/songs` and zemerAlbumRoute() sites are not flagged. Baselined at zero.
-  grep -rnE 'navigate\("(artist|album)/\$[^"/]*"\)' "$UI" --include=*.kt 2>/dev/null \
+  grep -rnE 'navigate\("(artist|album|online_podcast)/\$[^"/]*"\)' "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | grep -v "utils/AppNavigation.kt" | sed -E 's/:.*//' | sed 's/$/\tR16-navroute/'
   # R17: hand-rolled EntryPoint resolution of the Zemer repository in a composable. A leaf composable
   # with no ViewModel resolves the repo via Context.zemerSearchRepository() (di/ZemerSearchRepositoryEntryPoint.kt),

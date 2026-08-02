@@ -3,6 +3,7 @@ package com.jtech.zemer.utils
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.QuerySnapshot
 import com.jtech.zemer.db.entities.ArtistWhitelistEntity
+import com.jtech.zemer.db.entities.PodcastWhitelistEntity
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDateTime
 import timber.log.Timber
@@ -144,4 +145,9 @@ object WhitelistFetcher {
                 },
             )
         }
+
+    // The podcast whitelist is no longer read from Firestore here: it is served whitelist-pure by the
+    // Zemer server's `/podcasts` endpoint (with thumbnails inline) and synced in SyncUtils, the same move
+    // the artist whitelist / home-rows / artist / album discovery already made. The old
+    // fetchPodcastVersion()/fetchPodcastWhitelist() Firestore reads were removed with that migration.
 }

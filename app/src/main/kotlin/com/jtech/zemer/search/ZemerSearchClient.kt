@@ -237,6 +237,92 @@ class ZemerSearchClient @Inject constructor() {
         return zemerResponseJson.decodeFromString(ZemerArtistResponse.serializer(), response.bodyAsText())
     }
 
+    // --- Podcast discovery (handoff `zemer-app-podcasts-request.md`). Whitelist-pure + content-filtered
+    // server-side; playback still runs on InnerTube by videoId. All are live-only (no offline snapshot,
+    // like /playlist and /radio). Content flags are sent for parity (mostly no-ops for podcasts). ---
+
+    /** `GET /podcasts` — the whitelist-pure browse grid + the whitelist source (replaces Firestore). */
+    suspend fun podcasts(allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastsResponse {
+        val response: HttpResponse = client.get("$BASE_URL/podcasts") {
+            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
+                parameter(name, value)
+            }
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer podcasts returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerPodcastsResponse.serializer(), response.bodyAsText())
+    }
+
+    /** `GET /podcasts/version` — cheap gate check so the app can skip re-fetching the browse list. */
+    suspend fun podcastsVersion(): ZemerPodcastVersionResponse {
+        val response: HttpResponse = client.get("$BASE_URL/podcasts/version")
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer podcasts/version returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerPodcastVersionResponse.serializer(), response.bodyAsText())
+    }
+
+    /** `GET /podcast?id=&offset=` — a SHOW + its episodes page. Null on 404 (unknown/filtered-out show). */
+    suspend fun podcast(
+        id: String,
+        offset: Int,
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+    ): ZemerPodcastResponse? {
+        val response: HttpResponse = client.get("$BASE_URL/podcast") {
+            parameter("id", id)
+            parameter("offset", offset.toString())
+            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
+                parameter(name, value)
+            }
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer podcast returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerPodcastResponse.serializer(), response.bodyAsText())
+    }
+
+    /** `GET /podcast-channel?id=` — a host CHANNEL (its shows + latest episodes). Null on 404. */
+    suspend fun podcastChannel(
+        id: String,
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+    ): ZemerPodcastChannelResponse? {
+        val response: HttpResponse = client.get("$BASE_URL/podcast-channel") {
+            parameter("id", id)
+            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
+                parameter(name, value)
+            }
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer podcast-channel returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerPodcastChannelResponse.serializer(), response.bodyAsText())
+    }
+
+    /** `GET /podcasts/new-episodes?k=` — latest episodes across all whitelisted shows, newest-first. */
+    suspend fun podcastsNewEpisodes(
+        k: Int,
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+    ): ZemerNewEpisodesResponse {
+        val response: HttpResponse = client.get("$BASE_URL/podcasts/new-episodes") {
+            parameter("k", k.toString())
+            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
+                parameter(name, value)
+            }
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer podcasts/new-episodes returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerNewEpisodesResponse.serializer(), response.bodyAsText())
+    }
+
     /**
      * Corpus-native radio: the first page of a whitelist-pure continuation seeded by [kind] (`artist` /
      * `album` / `song`, with [seed] the channelId/browseId/videoId) or `shuffle` (no seed) for Radio mode.

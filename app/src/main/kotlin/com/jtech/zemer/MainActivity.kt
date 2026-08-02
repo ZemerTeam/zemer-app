@@ -680,10 +680,12 @@ class MainActivity : ComponentActivity() {
                         DisposableEffect(lifecycleOwner, true) {
 
                             syncScope.launch { syncUtils.syncArtistWhitelist() }
+                        syncScope.launch { syncUtils.syncPodcastWhitelist() }
 
                             val observer = LifecycleEventObserver { _, event ->
                                 if (event == Lifecycle.Event.ON_START) {
                                     syncScope.launch { syncUtils.syncArtistWhitelist() }
+                        syncScope.launch { syncUtils.syncPodcastWhitelist() }
                                 }
                             }
                             lifecycleOwner.lifecycle.addObserver(observer)
@@ -695,6 +697,7 @@ class MainActivity : ComponentActivity() {
                             if (!syncProgress.isComplete && !isWhitelistSyncing && !launchSyncOnce) {
                                 setLaunchSyncOnce(true)
                                 syncScope.launch { syncUtils.syncArtistWhitelist() }
+                        syncScope.launch { syncUtils.syncPodcastWhitelist() }
                             }
                             if (alreadySyncedLocally && !initialSyncHandled) {
                                 setInitialSyncHandled(true)
@@ -927,6 +930,7 @@ class MainActivity : ComponentActivity() {
                             listOf(
                                 Screens.Home.route,
                                 Screens.Artists.route,
+                                Screens.Podcasts.route,
                                 Screens.KidZone.route,
                                 Screens.Search.route,
                                 Screens.Library.route,
@@ -1198,6 +1202,7 @@ class MainActivity : ComponentActivity() {
                         when (navBackStackEntry?.destination?.route) {
                             Screens.Home.route -> R.string.home
                             Screens.Artists.route -> R.string.artists
+                            Screens.Podcasts.route -> R.string.podcasts
                             Screens.KidZone.route -> R.string.kid_zone
                             Screens.Search.route -> R.string.search
                             Screens.Library.route -> R.string.filter_library

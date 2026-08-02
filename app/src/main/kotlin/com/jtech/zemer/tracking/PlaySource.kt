@@ -24,6 +24,8 @@ object PlaySource {
     fun zemer(id: String) = "zemer:$id"
     /** Genre radio started from a genre page ("Play genre"); `id` is the server genre slug. */
     fun genre(id: String) = "genre:$id"
+    /** A play started from a podcast SHOW's episode list; `id` is the podcast (show) id. */
+    fun podcast(id: String) = "podcast:$id"
 }
 
 /**

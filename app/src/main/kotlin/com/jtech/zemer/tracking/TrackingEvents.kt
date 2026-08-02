@@ -144,6 +144,11 @@ object TrackingSurface {
     fun zemer(id: String) = "zemer:$id"
     /** A genre detail page's tracklist; `id` is the server genre slug. */
     fun genre(id: String) = "genre:$id"
+    /** A podcast SHOW's episode list; `id` is the podcast (show) id. */
+    fun podcast(id: String) = "podcast:$id"
+    /** A podcast host CHANNEL page; `id` is the channel id. Surfaces are append-only - keep the
+     *  declared list in sync with the tracking maintainer (docs/tracking) when a release adds one. */
+    fun channel(id: String) = "channel:$id"
 }
 
 /** At most this many ids per impression event; the server truncates an event beyond it. */

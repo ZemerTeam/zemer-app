@@ -55,6 +55,7 @@ import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -153,6 +154,21 @@ fun OnlineSearchResult(
         val activate = {
             Tracker.click(viewModel.query, item.id, clickKind(item, searchFilter?.value), rank)
             when (item) {
+                // Podcast SHOW: open the host channel when known (where Subscribe lives), else the show —
+                // exactly the browse-grid routing (whitelistedPodcastRoute).
+                is com.metrolist.innertube.models.PodcastItem -> {
+                    val route = whitelistedPodcastRoute(item.id, item.channelId)
+                    if (route != null) navController.navigate(route)
+                }
+                // Episode: play it (by videoId, through the normal pipeline), seed-first like a song tap.
+                is com.metrolist.innertube.models.EpisodeItem ->
+                    playerConnection.playQueue(
+                        ZemerRadioQueue.song(
+                            item.asSongItem().toMediaMetadata(),
+                            playerConnection.service,
+                            PlaySource.SEARCH,
+                        )
+                    )
                 is SongItem -> {
                     // Audio-first always (I2): every result plays as a normal song; video is a per-play
                     // in-player toggle, never a separate watch entry point (D3).
@@ -441,6 +457,8 @@ private fun clickKind(item: YTItem, filterValue: String?): String = when (item) 
     is SongItem -> if (item.isVideo) "video" else "song"
     is AlbumItem -> "album"
     is ArtistItem -> "artist"
+    is com.metrolist.innertube.models.PodcastItem -> "podcast"
+    is com.metrolist.innertube.models.EpisodeItem -> "episode"
     is PlaylistItem -> if (playlistIsCommunity(filterValue)) "community" else "playlist"
 }
 
@@ -462,4 +480,7 @@ private fun mapItemToFilter(item: YTItem): com.metrolist.innertube.YouTube.Searc
         is AlbumItem -> FILTER_ALBUM
         is ArtistItem -> FILTER_ARTIST
         is PlaylistItem -> FILTER_COMMUNITY_PLAYLIST
+        // Podcasts/episodes have no Zemer search chip (they come from a separate podcast path).
+        is com.metrolist.innertube.models.PodcastItem,
+        is com.metrolist.innertube.models.EpisodeItem -> null
     }

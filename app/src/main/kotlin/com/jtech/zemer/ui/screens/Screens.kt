@@ -26,6 +26,15 @@ sealed class Screens(
         route = "artists"
     )
 
+    // Reached from the drawer, "Browse all podcasts" in Search, and the Library filter - never a
+    // default bottom-nav tab (mirrors Artists, per the surface-in-search decision).
+    object Podcasts : Screens(
+        titleId = R.string.podcasts,
+        iconIdInactive = R.drawable.podcast,
+        iconIdActive = R.drawable.podcast,
+        route = "podcasts"
+    )
+
     object KidZone : Screens(
         titleId = R.string.kid_zone,
         iconIdInactive = R.drawable.kid_zone,
@@ -48,6 +57,6 @@ sealed class Screens(
     )
 
     companion object {
-        val MainScreens = listOf(Home, Artists, KidZone, Search, Library)
+        val MainScreens = listOf(Home, Artists, Podcasts, KidZone, Search, Library)
     }
 }

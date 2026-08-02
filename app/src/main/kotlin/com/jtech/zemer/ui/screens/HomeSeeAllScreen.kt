@@ -164,6 +164,8 @@ internal fun <T : YTItem> YtItemGrid(
                 modifier = Modifier.combinedClickable(
                     onClick = {
                         when (item) {
+                            is com.metrolist.innertube.models.PodcastItem -> {}
+                            is com.metrolist.innertube.models.EpisodeItem -> {}
                             // The only SongItems in this grid are the Featured Videos row. Audio-first
                             // always (I2); video is a per-play in-player toggle, not an entry point (D3).
                             is SongItem -> playerConnection.playQueue(

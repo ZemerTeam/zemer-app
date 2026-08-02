@@ -388,12 +388,14 @@ class InnerTube {
     suspend fun subscribeChannel(
         client: YouTubeClient,
         channelId: String,
+        params: String? = null,
     ) = httpClient.post("subscription/subscribe") {
         ytClient(client, setLogin = true)
         setBody(
             SubscribeBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
-                channelIds = listOf(channelId)
+                channelIds = listOf(channelId),
+                params = params,
             )
         )
     }
@@ -401,12 +403,14 @@ class InnerTube {
     suspend fun unsubscribeChannel(
         client: YouTubeClient,
         channelId: String,
+        params: String? = null,
     ) = httpClient.post("subscription/unsubscribe") {
         ytClient(client, setLogin = true)
         setBody(
             SubscribeBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
-                channelIds = listOf(channelId)
+                channelIds = listOf(channelId),
+                params = params,
             )
         )
     }

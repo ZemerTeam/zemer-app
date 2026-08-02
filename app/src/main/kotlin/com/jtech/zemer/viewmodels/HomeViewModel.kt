@@ -135,7 +135,8 @@ class HomeViewModel @Inject constructor(
             val quickPicks = if (quickPickIds.isNotEmpty()) database.getSongsByIds(quickPickIds) else emptyList()
             val forgotten = if (forgottenIds.isNotEmpty()) database.getSongsByIds(forgottenIds) else emptyList()
             val keepListening = if (keepListeningIds.isNotEmpty()) {
-                database.getSongsByIds(keepListeningIds).map { it as LocalItem }
+                // Drop any episode ids a stale cache may hold - they belong to Continue Listening.
+                database.getSongsByIds(keepListeningIds).filter { !it.song.isEpisode }.map { it as LocalItem }
             } else emptyList()
 
             Triple(quickPicks, forgotten, keepListening)
@@ -191,20 +192,21 @@ class HomeViewModel @Inject constructor(
                 val raw = runCatching { database.quickPicks().first() }.getOrDefault(emptyList())
                 val seeded = raw.ifEmpty { artistBasedQuickPicks() }
                 val withFallback = seeded.ifEmpty {
-                    database.events().first().map { it.song }.distinctBy { it.id }.take(50)
+                    database.events().first().map { it.song }.filter { !it.song.isEpisode }.distinctBy { it.id }.take(50)
                 }
                 withFallback
             }
 
             QuickPicks.LAST_LISTEN -> {
                 val events = database.events().first()
-                val song = events.firstOrNull()?.song
+                // Seed related-songs from the last MUSIC listen, not a podcast episode.
+                val song = events.firstOrNull { !it.song.song.isEpisode }?.song
                 val raw = when {
                     song != null && database.hasRelatedSongs(song.id) -> database.getRelatedSongs(song.id).first()
                     else -> emptyList()
                 }
                 val withFallback = raw.ifEmpty {
-                    events.map { it.song }.distinctBy { it.id }.take(50)
+                    events.map { it.song }.filter { !it.song.isEpisode }.distinctBy { it.id }.take(50)
                 }
                 withFallback
             }
@@ -215,7 +217,7 @@ class HomeViewModel @Inject constructor(
             .distinctBy { it.artists.firstOrNull()?.id ?: it.id }
             .take(20)
             .ifEmpty {
-                val historyFallback = database.events().first().map { it.song }.distinctBy { it.id }.take(20)
+                val historyFallback = database.events().first().map { it.song }.filter { !it.song.isEpisode }.distinctBy { it.id }.take(20)
                 Timber.d("HomeViewModel: Quick picks fallback from history - ${historyFallback.size} songs")
                 historyFallback
             }
@@ -226,7 +228,10 @@ class HomeViewModel @Inject constructor(
     private suspend fun loadKeepListening(): List<LocalItem> {
         val toTimeStamp = System.currentTimeMillis()
         val fromTimeStamp = toTimeStamp - 86400000 * 7 * 2
-        val historySongs = database.events().first().map { it.song }.distinctBy { it.id }.take(40)
+        // Podcast episodes are songs too, but they belong to the podcast "Continue Listening" row, NOT
+        // the music Keep-Listening row - exclude them here.
+        val historySongs = database.events().first().map { it.song }.distinctBy { it.id }
+            .filter { !it.song.isEpisode }.take(40)
 
         val keepListeningSongs = runCatching {
             database.mostPlayedSongs(
@@ -235,7 +240,7 @@ class HomeViewModel @Inject constructor(
                 limit = 25,
                 offset = 0,
             ).first()
-        }.getOrDefault(emptyList()).ifEmpty { historySongs }
+        }.getOrDefault(emptyList()).filter { !it.song.isEpisode }.ifEmpty { historySongs }
 
         val keepListeningAlbums = runCatching {
             database.mostPlayedAlbums(
@@ -514,7 +519,8 @@ class HomeViewModel @Inject constructor(
             Timber.d("HomeViewModel: Starting parallel fetch at +${parallelStartTime - loadStartTime}ms")
             val quickDeferred = viewModelScope.async(Dispatchers.IO) { loadQuickPicks() }
             val forgottenDeferred = viewModelScope.async(Dispatchers.IO) {
-                database.forgottenFavorites().first().shuffled().take(20)
+                // Episodes are played songs but never belong in a music discovery row.
+                database.forgottenFavorites().first().filter { !it.song.isEpisode }.shuffled().take(20)
             }
             val keepListeningDeferred = viewModelScope.async(Dispatchers.IO) { loadKeepListening() }
 

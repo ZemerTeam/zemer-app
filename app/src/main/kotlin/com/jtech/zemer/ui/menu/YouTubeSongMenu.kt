@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.jtech.zemer.LocalDatabase
+import com.jtech.zemer.playback.EpisodeResume
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.LocalSyncUtils
@@ -426,6 +427,38 @@ fun YouTubeSongMenu(
                         onRetry = { downloadUtil.retryMediaStoreDownload(song.id) },
                         onRemove = { coroutineScope.launch { downloadUtil.removeDownload(song.id) } },
                     )?.let { add(it) }
+                    // Episode-only: mark played (position -> end) / unplayed (position -> 0), local.
+                    if (song.isEpisode) {
+                        song.duration?.takeIf { it > 0 }?.times(1000L)?.let { durationMs ->
+                            val positionMs = librarySong?.song?.lastPositionMs ?: 0L
+                            val isPlayed = positionMs > EpisodeResume.RESUME_EDGE_MS &&
+                                !EpisodeResume.shouldResume(positionMs, durationMs)
+                            add(
+                                Material3MenuItemData(
+                                    icon = {
+                                        Icon(
+                                            painterResource(if (isPlayed) R.drawable.replay else R.drawable.check),
+                                            null,
+                                            Modifier.size(24.dp),
+                                        )
+                                    },
+                                    title = {
+                                        Text(stringResource(if (isPlayed) R.string.mark_as_unplayed else R.string.mark_as_played))
+                                    },
+                                    onClick = {
+                                        val target = if (isPlayed) 0L else durationMs
+                                        database.query {
+                                            val rows = updateEpisodePosition(song.id, target)
+                                            if (rows == 0) {
+                                                insert(song.toMediaMetadata().toSongEntity().copy(lastPositionMs = target, isEpisode = true))
+                                            }
+                                        }
+                                        onDismiss()
+                                    },
+                                )
+                            )
+                        }
+                    }
                     if (artists.isNotEmpty()) {
                         add(
                             Material3MenuItemData(

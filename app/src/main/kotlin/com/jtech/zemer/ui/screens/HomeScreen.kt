@@ -77,7 +77,11 @@ import com.jtech.zemer.ui.component.ArtistGridItem
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
+import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.NavigationTitle
+import com.jtech.zemer.ui.component.WhitelistedPodcastGridItem
 import com.jtech.zemer.ui.component.ZemerCuratedPlaylistGridItem
 import com.jtech.zemer.ui.component.SongGridItem
 import com.jtech.zemer.ui.component.SongListItem
@@ -111,6 +115,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.jtech.zemer.viewmodels.STATION_ROW_REFRESH_MS
 import com.jtech.zemer.viewmodels.ZemerGenresViewModel
+import com.jtech.zemer.viewmodels.PodcastsHomeViewModel
 import com.jtech.zemer.viewmodels.ZemerStatusesViewModel
 import com.jtech.zemer.viewmodels.ZemerStationsViewModel
 import com.metrolist.innertube.models.AlbumItem
@@ -170,6 +175,10 @@ fun HomeScreen(
     // Passed to the row so each ring counts only statuses the user can view under their content filter
     // (the ring never over-counts hidden kinds). Creators are NOT dropped - only the ring reflects it.
     val statusContentFilter by zemerStatusesViewModel.contentFilter.collectAsState()
+    val podcastsHomeViewModel: PodcastsHomeViewModel = hiltViewModel()
+    val homePodcasts by podcastsHomeViewModel.podcasts.collectAsState()
+    val continueListeningViewModel: com.jtech.zemer.viewmodels.ContinueListeningViewModel = hiltViewModel()
+    val continueEpisodes by continueListeningViewModel.episodes.collectAsState()
     // Settings → Appearance owns these toggles (there is deliberately no in-row hide affordance).
     val (showHomeGenres, _) = rememberPreference(ShowHomeGenresKey, defaultValue = true)
     val (showHomeStatuses, _) = rememberPreference(ShowHomeStatusesKey, defaultValue = true)
@@ -363,6 +372,8 @@ fun HomeScreen(
                 .combinedClickable(
                     onClick = {
                         when (item) {
+                            is com.metrolist.innertube.models.PodcastItem -> {}
+                            is com.metrolist.innertube.models.EpisodeItem -> {}
                             is SongItem -> playerConnection.playQueue(
                                 ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service)
                             )
@@ -1004,6 +1015,68 @@ fun HomeScreen(
                     }
                 }
             }
+
+                // Podcasts row: the whitelisted podcasts, opening the full browse via "See all". Own
+                // isolated fail-soft VM (empty list -> hidden), like the Stations/Genres rows.
+                homePodcasts.takeIf { it.isNotEmpty() }?.let { podcasts ->
+                    item(key = "podcasts_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.podcasts),
+                            onClick = { navController.navigate(Screens.Podcasts.route) },
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+                    item(key = "podcasts_row", contentType = "grid") {
+                        LazyRow(
+                            contentPadding = WindowInsets.systemBars
+                                .only(WindowInsetsSides.Horizontal)
+                                .asPaddingValues(),
+                            modifier = Modifier.animateItem()
+                        ) {
+                            items(
+                                items = podcasts,
+                                key = { it.podcastId },
+                                contentType = { "podcast" }
+                            ) { podcast ->
+                                WhitelistedPodcastGridItem(
+                                    navController = navController,
+                                    podcast = podcast,
+                                    fillMaxWidth = false,
+                                    modifier = Modifier
+                                        .width(GridThumbnailHeight + 24.dp)
+                                        .animateItem(),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Continue Listening: in-progress podcast episodes, most-recently-played first. Own
+                // isolated fail-soft VM (empty list -> hidden). Placed BELOW the Podcasts row. Tapping
+                // resumes the episode (the saved position is restored on load by MusicService).
+                continueEpisodes.takeIf { it.isNotEmpty() }?.let { eps ->
+                    item(key = "continue_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.continue_listening),
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                    item(key = "continue_row", contentType = "grid") {
+                        HomeContinueListeningRow(
+                            episodes = eps,
+                            onPlay = { song ->
+                                playerConnection.playQueue(
+                                    ListQueue(
+                                        title = song.song.title,
+                                        items = listOf(song.toMediaItem()),
+                                        playSource = PlaySource.podcast(song.song.albumId ?: song.id),
+                                    )
+                                )
+                            },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                }
 
             if (shouldShowShimmer) {
                 item(key = "loading_shimmer") {

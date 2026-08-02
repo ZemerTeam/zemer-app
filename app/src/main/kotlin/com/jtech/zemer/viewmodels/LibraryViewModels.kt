@@ -2,6 +2,9 @@
 
 package com.jtech.zemer.viewmodels
 
+import androidx.compose.runtime.MutableState
+import com.jtech.zemer.constants.LibraryFilter
+import androidx.compose.runtime.mutableStateOf
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -27,6 +30,8 @@ import com.jtech.zemer.constants.PlaylistSortType
 import com.jtech.zemer.constants.PlaylistSortTypeKey
 import com.jtech.zemer.constants.SongFilter
 import com.jtech.zemer.constants.SongFilterKey
+import com.jtech.zemer.constants.PodcastSortDescendingKey
+import com.jtech.zemer.constants.PodcastSortTypeKey
 import com.jtech.zemer.constants.SongSortDescendingKey
 import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.SongSortTypeKey
@@ -38,26 +43,38 @@ import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.filterExplicit
 import com.jtech.zemer.extensions.filterExplicitAlbums
+import com.jtech.zemer.extensions.isPersonalAccountSignedIn
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.playback.DownloadUtil
 import com.jtech.zemer.repositories.CachedSongsRepository
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.search.ZemerSearchRepository
+import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.utils.SyncUtils
+import com.jtech.zemer.utils.PodcastLibrarySources
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.SongItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import timber.log.Timber
 import java.time.Duration
 import java.time.LocalDateTime
 import javax.inject.Inject
@@ -457,3 +474,159 @@ class LibraryAutoPlaylistViewModel @Inject constructor(
         const val TOP_PLAYLIST_ID = "LP_TOP"
     }
 }
+
+@HiltViewModel
+class LibraryViewModel
+@Inject
+constructor() : ViewModel() {
+    private val curScreen = mutableStateOf(LibraryFilter.LIBRARY)
+    val filter: MutableState<LibraryFilter> = curScreen
+}
+
+@HiltViewModel
+class LibraryPodcastsViewModel
+@Inject
+constructor(
+    @ApplicationContext private val context: Context,
+    private val database: MusicDatabase,
+    private val syncUtils: SyncUtils,
+    private val zemerRepository: ZemerSearchRepository,
+) : ViewModel() {
+    // Subscribed shows (whitelist-filtered) - shared source so the filter can't drift between VMs.
+    val subscribedPodcasts = PodcastLibrarySources.whitelistedSubscribedPodcasts(database)
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    // "Episodes for Later" (local songs flagged isEpisode + inLibrary). LOCAL -> works for anon.
+    val savedEpisodes = database.savedEpisodes()
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    // Downloaded episodes, reacting to the podcast-only sort prefs (NOT the main Songs library keys).
+    val downloadedEpisodes =
+        context.dataStore.data
+            .map {
+                it[PodcastSortTypeKey].toEnum(SongSortType.CREATE_DATE) to (it[PodcastSortDescendingKey] ?: true)
+            }.distinctUntilChanged()
+            .flatMapLatest { (sortType, descending) -> database.downloadedEpisodes(sortType, descending) }
+            .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    // New Episodes from the personal account's feed (VLRDPN). PERSONAL-ONLY: reading the pooled anon
+    // account's feed would leak across users (the dataSyncId gate music uses, not SAPISID).
+    private val _newEpisodes = MutableStateFlow<List<SongItem>>(emptyList())
+    val newEpisodes: StateFlow<List<SongItem>> = _newEpisodes.asStateFlow()
+
+    private val _isLoadingNewEpisodes = MutableStateFlow(false)
+    val isLoadingNewEpisodes: StateFlow<Boolean> = _isLoadingNewEpisodes.asStateFlow()
+
+    // Podcast host channels. Personal accounts get them from the account library; every session also
+    // gets the channels derivable from locally-subscribed shows (channelId + author). The API read is
+    // personal-only (no pooled-account read for anon); the local derivation is always safe.
+    private val _apiPodcastChannels = MutableStateFlow<List<PodcastChannel>>(emptyList())
+    val podcastChannels: StateFlow<List<PodcastChannel>> =
+        combine(
+            _apiPodcastChannels,
+            subscribedPodcasts,
+            database.bookmarkedPodcastChannels(),
+        ) { api, local, bookmarked ->
+            // Channels the user subscribed to from a channel page (bookmarked ArtistEntity flagged
+            // isPodcastChannel) - the primary source, matching Metrolist's bookmarkedPodcastChannels.
+            val bookmarkedChannels = bookmarked.map {
+                PodcastChannel(id = it.id, name = it.name, thumbnailUrl = it.thumbnailUrl)
+            }
+            // Plus channels derivable from locally-subscribed shows (channelId + author).
+            val localChannels = local.mapNotNull { p ->
+                p.channelId?.takeIf { it.isNotBlank() }?.let {
+                    PodcastChannel(id = it, name = p.author ?: p.title, thumbnailUrl = p.thumbnailUrl)
+                }
+            }
+            (api + bookmarkedChannels + localChannels).distinctBy { it.id }
+        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    init {
+        fetchNewEpisodes()
+        refreshChannels()
+        syncEpisodesForLater()
+        syncPodcastSubscriptions()
+    }
+
+    fun fetchNewEpisodes() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoadingNewEpisodes.value = true
+            _newEpisodes.value = PodcastLibrarySources.whitelistedNewEpisodes(
+                zemerRepository,
+                zemerSearchOptions(context),
+                database,
+            )
+            _isLoadingNewEpisodes.value = false
+        }
+    }
+
+    fun refreshChannels() {
+        if (!isPersonalAccountSignedIn) return
+        viewModelScope.launch(Dispatchers.IO) {
+            YouTube.libraryPodcastChannels().onSuccess { page ->
+                _apiPodcastChannels.value = page.items
+                    .filterIsInstance<ArtistItem>()
+                    .map { PodcastChannel(id = it.id, name = it.title, thumbnailUrl = it.thumbnail) }
+            }
+        }
+    }
+
+    fun syncPodcastSubscriptions() {
+        viewModelScope.launch(Dispatchers.IO) { syncUtils.syncPodcastSubscriptions() }
+    }
+
+    fun syncEpisodesForLater() {
+        viewModelScope.launch(Dispatchers.IO) { syncUtils.syncEpisodesForLater() }
+    }
+
+    suspend fun refreshAll() {
+        syncUtils.syncPodcastSubscriptions()
+        syncUtils.syncEpisodesForLater()
+        fetchNewEpisodes()
+        refreshChannels()
+    }
+
+    /**
+     * Toggle an episode's "saved for later" state. OPTIMISTIC: the local `inLibrary` flips at once
+     * (drives the bookmark icon), then the server SE-playlist write runs and is reverted (with a
+     * toast) on failure. Un-save always clears local even when the setVideoId needed for the server
+     * removal is unknown, so an episode can never get stuck saved. Anonymous sessions are local-only.
+     */
+    fun toggleEpisodeSaved(context: Context, song: Song) {
+        val wasSaved = song.song.inLibrary != null
+        viewModelScope.launch(Dispatchers.IO) {
+            database.query {
+                update(song.song.copy(inLibrary = if (wasSaved) null else LocalDateTime.now()))
+            }
+            if (!isPersonalAccountSignedIn) return@launch
+
+            val result = if (wasSaved) {
+                // Local is already cleared; remove from the server playlist only when we know the id.
+                val setVideoId = database.getSetVideoId(song.id)?.setVideoId
+                if (setVideoId != null) {
+                    YouTube.removeEpisodeFromSavedEpisodes(song.id, setVideoId)
+                } else {
+                    Result.success(Unit)
+                }
+            } else {
+                YouTube.addEpisodeToSavedEpisodes(song.id)
+            }
+            result.onFailure { e ->
+                Timber.e(e, "[EPISODE_SAVE] toggle failed for ${song.id} - reverting")
+                database.query {
+                    update(song.song.copy(inLibrary = if (wasSaved) LocalDateTime.now() else null))
+                }
+                withContext(Dispatchers.Main) {
+                    context.toast(if (wasSaved) R.string.error_episode_remove else R.string.error_episode_save)
+                }
+            }
+        }
+    }
+}
+
+/** A podcast host channel row in the Library -> Podcasts CHANNELS tab. */
+data class PodcastChannel(
+    val id: String,
+    val name: String,
+    val thumbnailUrl: String?,
+)
