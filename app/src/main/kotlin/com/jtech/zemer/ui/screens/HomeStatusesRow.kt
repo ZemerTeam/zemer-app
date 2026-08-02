@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.jtech.zemer.statuses.StatusContentFilter
 import com.jtech.zemer.statuses.StatusCreator
 import com.jtech.zemer.statuses.sortedByUnseenFirst
 import com.jtech.zemer.ui.component.StatusCreatorCircle
@@ -28,10 +29,13 @@ import com.jtech.zemer.ui.component.StatusCreatorCircle
 fun HomeStatusesRow(
     creators: List<StatusCreator>,
     seenPostIds: Set<String>,
+    contentFilter: StatusContentFilter,
     onCreatorClick: (creatorId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val ordered = remember(creators, seenPostIds) { creators.sortedByUnseenFirst(seenPostIds) }
+    val ordered = remember(creators, seenPostIds, contentFilter) {
+        creators.sortedByUnseenFirst(seenPostIds, contentFilter)
+    }
     LazyRow(
         contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
             .add(WindowInsets(left = 12.dp, right = 12.dp))
@@ -46,6 +50,7 @@ fun HomeStatusesRow(
             StatusCreatorCircle(
                 creator = creator,
                 seenPostIds = seenPostIds,
+                contentFilter = contentFilter,
                 onClick = { onCreatorClick(creator.id) },
             )
         }

@@ -42,6 +42,10 @@ data class StatusCreator(
     // YidStatus) — drives the segmented story ring (one segment each) and the WhatsApp "read" state
     // (newest seen => caught up), oldest-first so the newest is the LAST id.
     val recentPostIds: List<String> = emptyList(),
+    // The kind of each recent status, aligned 1:1 with [recentPostIds], so the ring can respect the
+    // hide-text/hide-image content filter. Empty (or a size mismatch) means "unknown" -> show all, so
+    // nothing regresses when kinds could not be resolved.
+    val recentPostKinds: List<String> = emptyList(),
     val source: StatusSource = StatusSource.JEWISH_STATUS,
 )
 
@@ -76,21 +80,37 @@ fun List<StatusPost>.applyStatusFilter(filter: StatusContentFilter): List<Status
     filter { (!filter.hideText || it.kind != "text") && (!filter.hideImage || it.kind != "image") }
 
 /**
- * Whether the user is "caught up" on a creator (WhatsApp read state): their NEWEST status has been
- * viewed. `recent_post_ids` is oldest-first (verified against posted_at), so the newest is the LAST id.
- * Older days left unopened do NOT keep a creator marked unread - a user who watched today's auto-play is
- * caught up even if earlier days are still openable via the jump-to-date sheet. Empty => not caught up.
+ * The recent status ids the user can actually VIEW under their content filter (hide-text/hide-image).
+ * Drives the ring segment count and the read state, so hidden-kind statuses never show as ring segments.
+ * When kinds are unknown (no [recentPostKinds], or a size mismatch), every id is returned - never hides
+ * more than we can prove, so nothing regresses.
  */
-fun StatusCreator.caughtUpOnLatest(seenPostIds: Set<String>): Boolean =
-    recentPostIds.lastOrNull()?.let { it in seenPostIds } ?: false
+fun StatusCreator.visibleRecentIds(filter: StatusContentFilter): List<String> {
+    if (recentPostKinds.size != recentPostIds.size) return recentPostIds
+    return recentPostIds.filterIndexed { i, _ ->
+        val kind = recentPostKinds[i]
+        (!filter.hideText || kind != "text") && (!filter.hideImage || kind != "image")
+    }
+}
+
+/**
+ * Whether the user is "caught up" on a creator (WhatsApp read state): their NEWEST VISIBLE status has
+ * been viewed. `recent_post_ids` is oldest-first (verified against posted_at), so the newest is the LAST
+ * id. Older days left unopened do NOT keep a creator marked unread - a user who watched today's auto-play
+ * is caught up even if earlier days are still openable via the jump-to-date sheet. Empty => not caught up.
+ */
+fun StatusCreator.caughtUpOnLatest(seenPostIds: Set<String>, filter: StatusContentFilter): Boolean =
+    visibleRecentIds(filter).lastOrNull()?.let { it in seenPostIds } ?: false
 
 /**
  * Creators ordered for the Home row AND the See-all grid (one definition so the two can't drift):
- * creators the user is caught up on (newest seen) sink to the end (WhatsApp), preserving recency order
- * within each group.
+ * creators the user is caught up on (newest VISIBLE status seen) sink to the end (WhatsApp), preserving
+ * recency order within each group.
  */
-fun List<StatusCreator>.sortedByUnseenFirst(seenPostIds: Set<String>): List<StatusCreator> =
-    sortedBy { it.caughtUpOnLatest(seenPostIds) }
+fun List<StatusCreator>.sortedByUnseenFirst(
+    seenPostIds: Set<String>,
+    filter: StatusContentFilter,
+): List<StatusCreator> = sortedBy { it.caughtUpOnLatest(seenPostIds, filter) }
 
 /**
  * Merge two platforms' creators, dropping cross-platform DUPLICATES (the same real creator appears on
@@ -137,7 +157,28 @@ suspend fun fetchStatusCreators(): List<StatusCreator> = coroutineScope {
         // empty ring and open to nothing. YidStatus already only keeps creators that have posts.
         .filter { it.recentPostIds.isNotEmpty() }
 
-    base
+    // Resolve the KIND of each recent status (one batched query over all ids) so the ring can respect
+    // the hide-text/hide-image filter. Fail-soft: an unresolved id stays "" (unknown -> shown).
+    val kinds = async(Dispatchers.IO) { fetchPostKinds(base.flatMap { it.recentPostIds }) }.await()
+    base.map { c -> c.copy(recentPostKinds = c.recentPostIds.map { kinds[it].orEmpty() }) }
+}
+
+/** Batch-resolve `id -> kind` for the given post ids (chunked to keep the URL bounded). Fail-soft. */
+private fun fetchPostKinds(ids: List<String>): Map<String, String> {
+    if (ids.isEmpty()) return emptyMap()
+    val out = HashMap<String, String>(ids.size)
+    ids.distinct().chunked(100).forEach { chunk ->
+        // Post ids are Supabase UUIDs (URL-safe), so no encoding is needed for the `in.(...)` list.
+        val url = "$BASE/public_posts?id=in.(${chunk.joinToString(",")})&select=id,kind"
+        runCatching {
+            val arr = JSONArray(getJson(url))
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                out[o.getString("id")] = o.optString("kind")
+            }
+        }
+    }
+    return out
 }
 
 /**

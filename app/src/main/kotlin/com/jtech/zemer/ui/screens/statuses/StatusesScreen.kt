@@ -32,7 +32,9 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.statuses.StatusCreator
 import com.jtech.zemer.statuses.StatusSource
+import com.jtech.zemer.statuses.StatusContentFilter
 import com.jtech.zemer.statuses.sortedByUnseenFirst
+import com.jtech.zemer.statuses.visibleRecentIds
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.ArtistSearchField
 import com.jtech.zemer.ui.component.BackNavigationIcon
@@ -59,14 +61,15 @@ fun StatusesScreen(
 ) {
     val creators by viewModel.creators.collectAsState()
     val seenPostIds by viewModel.seenPostIds.collectAsState()
+    val contentFilter by viewModel.contentFilter.collectAsState()
     var query by rememberSaveable { mutableStateOf("") }
     val searchFocus = remember { FocusRequester() }
 
-    val jewish = remember(creators, seenPostIds, query) {
-        creators.filterSourceAndQuery(StatusSource.JEWISH_STATUS, query).sortedByUnseenFirst(seenPostIds)
+    val jewish = remember(creators, seenPostIds, query, contentFilter) {
+        creators.filterSourceAndQuery(StatusSource.JEWISH_STATUS, query).visibleUnseenFirst(seenPostIds, contentFilter)
     }
-    val yid = remember(creators, seenPostIds, query) {
-        creators.filterSourceAndQuery(StatusSource.YID_STATUS, query).sortedByUnseenFirst(seenPostIds)
+    val yid = remember(creators, seenPostIds, query, contentFilter) {
+        creators.filterSourceAndQuery(StatusSource.YID_STATUS, query).visibleUnseenFirst(seenPostIds, contentFilter)
     }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
@@ -88,8 +91,8 @@ fun StatusesScreen(
                     modifier = Modifier.padding(top = 8.dp), // sit a bit lower under the app bar
                 )
             }
-            statusSection(R.string.status_source_jewishstatus, jewish, seenPostIds, ::open)
-            statusSection(R.string.status_source_yidstatus, yid, seenPostIds, ::open)
+            statusSection(R.string.status_source_jewishstatus, jewish, seenPostIds, contentFilter, ::open)
+            statusSection(R.string.status_source_yidstatus, yid, seenPostIds, contentFilter, ::open)
         }
     }
 
@@ -112,11 +115,16 @@ fun StatusesScreen(
 private fun List<StatusCreator>.filterSourceAndQuery(source: StatusSource, query: String) =
     filter { it.source == source && (query.isBlank() || it.displayName.contains(query.trim(), ignoreCase = true)) }
 
+// Drop creators with nothing viewable under the filter, then sink caught-up creators to the end.
+private fun List<StatusCreator>.visibleUnseenFirst(seenPostIds: Set<String>, filter: StatusContentFilter) =
+    filter { it.visibleRecentIds(filter).isNotEmpty() }.sortedByUnseenFirst(seenPostIds, filter)
+
 /** One platform section: the shared Home-row section title (only when it has matches) then its circles. */
 private fun androidx.compose.foundation.lazy.grid.LazyGridScope.statusSection(
     titleRes: Int,
     creators: List<StatusCreator>,
     seenPostIds: Set<String>,
+    contentFilter: StatusContentFilter,
     onOpen: (StatusCreator) -> Unit,
 ) {
     if (creators.isEmpty()) return
@@ -128,6 +136,7 @@ private fun androidx.compose.foundation.lazy.grid.LazyGridScope.statusSection(
             StatusCreatorCircle(
                 creator = creator,
                 seenPostIds = seenPostIds,
+                contentFilter = contentFilter,
                 onClick = { onOpen(creator) },
                 modifier = Modifier.padding(vertical = 4.dp),
             )
