@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -1200,9 +1201,16 @@ class MainActivity : ComponentActivity() {
                                 ModalDrawerSheet(
                                     drawerContainerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp),
                                     drawerContentColor = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.focusProperties {
-                                        canFocus = drawerState.isOpen
-                                    }
+                                    // The Material default (360dp) is nearly the full width on a phone, so the
+                                    // items' pills stretch far right and the drawer covers most of the screen.
+                                    // Size it DYNAMICALLY to a compact fraction of the screen (leaving a clear
+                                    // scrim), capped so it does not get oversized on tablets/foldables.
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.66f)
+                                        .widthIn(max = 320.dp)
+                                        .focusProperties {
+                                            canFocus = drawerState.isOpen
+                                        }
                                 ) {
                                     Column(
                                         modifier = Modifier
