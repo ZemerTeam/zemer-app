@@ -84,6 +84,7 @@ fun StatusesScreen(
                     onQueryChange = { query = it },
                     searchFocus = searchFocus,
                     placeholderRes = R.string.search_status_hint,
+                    modifier = Modifier.padding(top = 8.dp), // sit a bit lower under the app bar
                 )
             }
             statusSection(R.string.status_source_jewishstatus, jewish, seenPostIds, ::open)
