@@ -1,5 +1,9 @@
 package com.jtech.zemer.statuses
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -61,16 +65,20 @@ fun statusMediaUrl(path: String?): String? = path?.let { "$CDN/status-media/$it"
 // --- Public API. All calls are blocking; run them off the main thread (the repository uses IO). ---
 
 /** All creators across the three music categories, deduplicated, most recent first. */
-fun fetchStatusCreators(): List<StatusCreator> {
+suspend fun fetchStatusCreators(): List<StatusCreator> = coroutineScope {
+    // The three categories are independent, so fetch them concurrently instead of summing their
+    // latencies (each is a paginating series of blocking round-trips).
     val seen = mutableSetOf<String>()
-    val base = (fetchByCategory(CAT_JEWISH_MUSIC) +
-        fetchByCategory(CAT_MUSIC_IND) +
-        fetchByCategory(CAT_CONCERTS))
+    val base = listOf(CAT_JEWISH_MUSIC, CAT_MUSIC_IND, CAT_CONCERTS)
+        .map { cat -> async(Dispatchers.IO) { fetchByCategory(cat) } }
+        .awaitAll()
+        .flatten()
         .filter { seen.add(it.id) }
 
-    // One batch call for is_verified + downloads_enabled (the browse RPC omits them).
+    // Batch is_verified + downloads_enabled (the browse RPC omits them), chunked so a large creator
+    // list never builds an over-length `id=in.(...)` URL that a proxy 414s.
     val details = fetchCreatorDetails(base.map { it.id })
-    return base.map { c ->
+    base.map { c ->
         val d = details[c.id]
         c.copy(
             isVerified = d?.first ?: false,
@@ -121,20 +129,31 @@ private fun fetchByCategory(catId: String): List<StatusCreator> {
     return all
 }
 
-/** Returns Map<id, Pair<isVerified, downloadsEnabled>> via one batch request. */
+/**
+ * Returns Map<id, Pair<isVerified, downloadsEnabled>>, chunked so the `id=in.(...)` URL stays under
+ * any proxy length limit. Best-effort per chunk: a failed chunk is skipped (those creators just miss
+ * their verified badge / default to downloads-enabled) rather than failing the whole creators load.
+ */
 private fun fetchCreatorDetails(ids: List<String>): Map<String, Pair<Boolean, Boolean>> {
     if (ids.isEmpty()) return emptyMap()
-    val inList = ids.joinToString(",")
-    val url = "$BASE/public_creators?select=id,is_verified,downloads_enabled&id=in.($inList)"
-    val arr = JSONArray(getJson(url))
-    return (0 until arr.length()).associate { i ->
-        val o = arr.getJSONObject(i)
-        o.getString("id") to Pair(
-            o.optBoolean("is_verified", false),
-            o.optBoolean("downloads_enabled", true),
-        )
+    val out = mutableMapOf<String, Pair<Boolean, Boolean>>()
+    ids.chunked(DETAILS_CHUNK).forEach { chunk ->
+        runCatching {
+            val url = "$BASE/public_creators?select=id,is_verified,downloads_enabled&id=in.(${chunk.joinToString(",")})"
+            val arr = JSONArray(getJson(url))
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                out[o.getString("id")] = Pair(
+                    o.optBoolean("is_verified", false),
+                    o.optBoolean("downloads_enabled", true),
+                )
+            }
+        }
     }
+    return out
 }
+
+private const val DETAILS_CHUNK = 100
 
 // A nullable string field. Guards the org.json gotcha: on Android's runtime `optString` returns the
 // literal "null" for a JSON `null` value (the reference impl returns ""), which was rendering a text

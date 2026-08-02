@@ -284,19 +284,17 @@ fun NavGraphBuilder.navigationBuilder(
         val artist = backStackEntry.arguments?.getString("artist")
         VideoPlayerScreen(navController, videoId, title, artist)
     }
-    // The full-screen JewishStatus story viewer, opened from the Home "Music Statuses" row at a creator
-    // index (the creators list comes from the shared session cache, so only the index rides the route).
+    // The full-screen JewishStatus story viewer, opened from the Home "Music Status" row by the tapped
+    // creator's STABLE id (the creators list comes from the shared session cache; the viewer resolves
+    // the id to the current index, which survives a process-death re-fetch under the recency sort).
     composable(
-        route = "story/{index}",
+        route = "story/{creatorId}",
         arguments = listOf(
-            navArgument("index") {
-                type = NavType.IntType
-                defaultValue = 0
-            }
+            navArgument("creatorId") { type = NavType.StringType }
         )
     ) { backStackEntry ->
-        val index = backStackEntry.arguments?.getInt("index") ?: 0
-        StoryScreen(navController, index)
+        val creatorId = backStackEntry.arguments?.getString("creatorId") ?: return@composable
+        StoryScreen(navController, creatorId)
     }
     composable(
         // Optional `zemer` flag (default false) routes a Zemer-search playlist open through the

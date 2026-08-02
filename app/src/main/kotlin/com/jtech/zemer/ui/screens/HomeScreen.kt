@@ -586,7 +586,7 @@ fun HomeScreen(
                             HomeStatusesRow(
                                 creators = creators,
                                 seenPostIds = statusSeenPostIds,
-                                onCreatorClick = { index -> navController.navigate(storyRoute(index)) },
+                                onCreatorClick = { creatorId -> navController.navigate(storyRoute(creatorId)) },
                                 modifier = Modifier.animateItem(),
                             )
                         }

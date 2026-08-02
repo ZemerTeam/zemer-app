@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -26,7 +26,7 @@ import com.jtech.zemer.ui.component.StatusCreatorCircle
 fun HomeStatusesRow(
     creators: List<StatusCreator>,
     seenPostIds: Set<String>,
-    onCreatorClick: (index: Int) -> Unit,
+    onCreatorClick: (creatorId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyRow(
@@ -36,14 +36,14 @@ fun HomeStatusesRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = modifier.padding(vertical = 8.dp),
     ) {
-        itemsIndexed(
+        items(
             items = creators,
-            key = { _, creator -> creator.id },
-        ) { index, creator ->
+            key = { creator -> creator.id },
+        ) { creator ->
             StatusCreatorCircle(
                 creator = creator,
                 seenPostIds = seenPostIds,
-                onClick = { onCreatorClick(index) },
+                onClick = { onCreatorClick(creator.id) },
             )
         }
     }

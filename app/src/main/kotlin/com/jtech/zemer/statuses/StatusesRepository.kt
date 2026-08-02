@@ -1,6 +1,11 @@
 package com.jtech.zemer.statuses
 
+import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -9,16 +14,18 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Session-scoped access to the JewishStatus feed ([StatusesApi]). Shared by the Home-row ViewModel and
- * the story-viewer ViewModel so creators + a creator's posts are each fetched at most once per session.
+ * Session-scoped access to the JewishStatus feed ([StatusesApi]) plus the SHARED feed state both the
+ * Home-row and story-viewer ViewModels read — [creators] and [seen] live here once instead of being
+ * loaded/exposed independently in each VM (they can never disagree, and the fetch logic exists once).
  *
- * Errors PROPAGATE to callers (the Home row is fail-soft and treats any throw as "no data"). The cache
- * is never invalidated in-session (a Stories feed refreshing mid-session isn't worth the complexity;
- * a process restart re-fetches). Reads run on [Dispatchers.IO].
+ * Fetches are cached and never invalidated in-session (a Stories feed refreshing mid-session isn't
+ * worth the complexity; a process restart re-fetches). Reads run on [Dispatchers.IO]. [refreshCreators]
+ * is fail-soft — a failure keeps the previous (possibly empty) list, so the Home row just stays hidden.
  */
 @Singleton
-class StatusesRepository @Inject constructor() {
-
+class StatusesRepository @Inject constructor(
+    private val seenStore: StatusSeenStore,
+) {
     // The creators mutex is deliberately held across the fetch: every caller wants the SAME one-shot
     // list, so blocking a concurrent caller until it is ready dedupes the 3-category fetch.
     private val creatorsMutex = Mutex()
@@ -28,13 +35,29 @@ class StatusesRepository @Inject constructor() {
     // waits behind the current one; a rare duplicate concurrent fetch for one creator is harmless.
     private val postsCache = ConcurrentHashMap<String, List<StatusPost>>()
 
-    /** All music creators (deduped, newest first). Fetched once, then served from cache. */
-    suspend fun creators(): List<StatusCreator> = creatorsMutex.withLock {
-        creatorsCache ?: withContext(Dispatchers.IO) { fetchStatusCreators() }.also { creatorsCache = it }
+    // Shared feed state (single source for both VMs).
+    private val _creators = MutableStateFlow<List<StatusCreator>>(emptyList())
+    val creators: StateFlow<List<StatusCreator>> = _creators.asStateFlow()
+
+    /** The persisted "seen" post ids (WhatsApp read state). Delegates to the shared store. */
+    val seen: Flow<Set<String>> get() = seenStore.seen
+
+    /** Load the creators list into [creators], fail-soft (a failure keeps the previous list). */
+    suspend fun refreshCreators() {
+        runCatching { creatorsOnce() }
+            .onSuccess { _creators.value = it }
+            .onFailure { reportException(it) }
     }
 
-    /** One creator's posts (newest first). Cached per creator. */
+    /** One creator's posts (chronological). Cached per creator. */
     suspend fun posts(creatorId: String): List<StatusPost> =
         postsCache[creatorId]
             ?: withContext(Dispatchers.IO) { fetchStatusPosts(creatorId) }.also { postsCache[creatorId] = it }
+
+    /** Record a status as viewed (persisted). */
+    suspend fun markSeen(postId: String) = seenStore.markSeen(listOf(postId))
+
+    private suspend fun creatorsOnce(): List<StatusCreator> = creatorsMutex.withLock {
+        creatorsCache ?: withContext(Dispatchers.IO) { fetchStatusCreators() }.also { creatorsCache = it }
+    }
 }

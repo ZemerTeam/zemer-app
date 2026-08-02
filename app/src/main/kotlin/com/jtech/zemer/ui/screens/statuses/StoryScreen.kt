@@ -52,6 +52,9 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -63,6 +66,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.ui.component.BackNavigationIcon
+import com.jtech.zemer.ui.component.VerifiedBadge
 import com.jtech.zemer.statuses.StatusPost
 import com.jtech.zemer.statuses.statusAvatarUrl
 import com.jtech.zemer.statuses.statusMediaUrl
@@ -75,6 +79,9 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+// A status video that hasn't started playing within this long is treated as failed and skipped.
+private const val VIDEO_START_TIMEOUT_MS = 12_000L
+
 private val tsFmt = DateTimeFormatter.ofPattern("MMM d · h:mm a", Locale.US)
 
 // Convert the post's UTC/offset timestamp to the DEVICE's local zone before formatting, or the shown
@@ -85,9 +92,10 @@ private fun formatPostedAt(postedAt: String): String = try {
 
 /**
  * Full-screen WhatsApp/Stories-style viewer for JewishStatus creators. Reachable only from the Home
- * "Music Statuses" row; [initialCreatorIdx] is the tapped creator's index in the row's list. Advances
- * across creators, tap-left-35% = back / tap-right = forward, auto-advance (video plays to its end,
- * image/text hold [StatusPost.durationSeconds] or 7s).
+ * "Music Status" row; [initialCreatorId] is the tapped creator's STABLE id (not an index, which would
+ * remap to the wrong creator after a process-death re-fetch under the recency sort). Advances across
+ * creators, tap-left-35% = back / tap-right = forward, auto-advance (video plays to its end, image/text
+ * hold [StatusPost.durationSeconds] or 7s).
  *
  * App-themed (colors from `colorScheme`, text from `typography`). White is used ONLY for chrome that
  * overlays the media (progress bars, header, caption over the scrim), where a fixed light-on-scrim is
@@ -100,13 +108,14 @@ private fun formatPostedAt(postedAt: String): String = try {
 @Composable
 fun StoryScreen(
     navController: NavController,
-    initialCreatorIdx: Int,
+    initialCreatorId: String,
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     val scrim = colorScheme.scrim.copy(alpha = 0.8f)
     val viewModel: StoryViewModel = hiltViewModel()
     val creators by viewModel.creators.collectAsState()
+    val loadAttempted by viewModel.loadAttempted.collectAsState()
     val playerConnection = LocalPlayerConnection.current
 
     val onClose = { navController.navigateUp(); Unit }
@@ -134,16 +143,40 @@ fun StoryScreen(
         }
     }
 
-    // Creators come from the shared session cache (warm from the Home row), so this resolves within a
-    // frame; guard the empty window before it lands.
+    // Pause the status video when the app is backgrounded (the composable is not disposed, only stopped),
+    // so it doesn't keep playing audio off-screen; resume when it returns.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> exoPlayer.pause()
+                Lifecycle.Event.ON_START ->
+                    if (exoPlayer.mediaItemCount > 0 && exoPlayer.playbackState != Player.STATE_ENDED) exoPlayer.play()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Creators come from the shared cache (warm from the Home row). Show a spinner only while the load is
+    // still in flight; once it has been attempted and there is still nothing (feed down / creator gone),
+    // close instead of spinning forever.
     if (creators.isEmpty()) {
-        Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
+        if (loadAttempted) {
+            LaunchedEffect(Unit) { onClose() }
+        } else {
+            Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
+            }
         }
         return
     }
 
-    var creatorIdx by remember { mutableIntStateOf(initialCreatorIdx.coerceIn(0, creators.lastIndex)) }
+    // Resolve the stable id to the current index; a gone creator falls back to the first.
+    var creatorIdx by remember {
+        mutableIntStateOf(creators.indexOfFirst { it.id == initialCreatorId }.coerceAtLeast(0))
+    }
     var postIdx by remember { mutableIntStateOf(0) }
     var progress by remember { mutableFloatStateOf(0f) }
     var currentPosts by remember { mutableStateOf<List<StatusPost>?>(null) }
@@ -156,10 +189,11 @@ fun StoryScreen(
         exoPlayer.stop()
         val id = creators.getOrNull(creatorIdx)?.id ?: return@LaunchedEffect
         val loaded = viewModel.loadPosts(id)
-        // Resume at the first UNSEEN status (WhatsApp), so reopening does not restart from the top.
-        // All-seen falls back to 0 (replay from the newest). Snapshot the seen set at load time.
+        // Resume at the first UNSEEN status (WhatsApp), so reopening does not restart from the top. A
+        // fully-seen creator lands on its NEWEST (last, since posts are asc) so tapping back into it
+        // shows the latest, not a replay from the oldest. Snapshot the seen set at load time.
         val seen = viewModel.seenPostIds.value
-        postIdx = loaded.indexOfFirst { it.id !in seen }.takeIf { it >= 0 } ?: 0
+        postIdx = loaded.indexOfFirst { it.id !in seen }.takeIf { it >= 0 } ?: loaded.lastIndex.coerceAtLeast(0)
         currentPosts = loaded
         creators.getOrNull(creatorIdx + 1)?.id?.let { nextId -> launch { viewModel.loadPosts(nextId) } }
     }
@@ -182,7 +216,13 @@ fun StoryScreen(
 
     val posts = currentPosts
     LaunchedEffect(posts, postIdx) {
-        if (posts.isNullOrEmpty()) return@LaunchedEffect
+        if (posts == null) return@LaunchedEffect // still loading this creator
+        // A creator whose posts failed to load or has none: skip to the next creator (or close on the
+        // last) instead of getting stuck on a blank, never-advancing screen.
+        if (posts.isEmpty()) {
+            advance()
+            return@LaunchedEffect
+        }
         val post = posts.getOrNull(postIdx) ?: return@LaunchedEffect
 
         // WhatsApp "seen": mark the status viewed as soon as it is shown (persisted; mutes the ring).
@@ -196,12 +236,19 @@ fun StoryScreen(
             exoPlayer.setMediaItem(MediaItem.fromUri(uri))
             exoPlayer.prepare()
             exoPlayer.play()
+            var waited = 0L
             while (true) {
                 delay(80)
+                waited += 80
                 val dur = exoPlayer.duration
                 val pos = exoPlayer.currentPosition
                 if (dur > 0L) progress = (pos.toFloat() / dur).coerceIn(0f, 1f)
-                if (exoPlayer.playbackState == Player.STATE_ENDED || progress >= 0.99f) break
+                val ended = exoPlayer.playbackState == Player.STATE_ENDED
+                // A failed video (bad/expired URL) sets playerError and never ENDs; the start-timeout
+                // catches a clip that buffers forever without an explicit error. Either way, advance.
+                val failed = exoPlayer.playerError != null
+                val stalledAtStart = progress == 0f && waited >= VIDEO_START_TIMEOUT_MS
+                if (ended || failed || stalledAtStart || progress >= 0.99f) break
             }
             exoPlayer.stop()
         } else {
@@ -368,20 +415,7 @@ fun StoryScreen(
                             .background(colorScheme.surfaceVariant),
                     )
                     if (creator?.isVerified == true) {
-                        Box(
-                            Modifier
-                                .size(14.dp)
-                                .clip(CircleShape)
-                                .background(colorScheme.primary),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                "✓",
-                                color = colorScheme.onPrimary,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
+                        VerifiedBadge(size = 14.dp)
                     }
                 }
 

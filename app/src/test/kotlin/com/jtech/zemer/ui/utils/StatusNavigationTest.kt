@@ -5,8 +5,7 @@ import org.junit.Test
 
 class StatusNavigationTest {
     @Test
-    fun `storyRoute encodes the creator index`() {
-        assertEquals("story/0", storyRoute(0))
-        assertEquals("story/7", storyRoute(7))
+    fun `storyRoute carries the creator id`() {
+        assertEquals("story/cd98ac88-528f-473e-8939-eb8f56cbcc35", storyRoute("cd98ac88-528f-473e-8939-eb8f56cbcc35"))
     }
 }

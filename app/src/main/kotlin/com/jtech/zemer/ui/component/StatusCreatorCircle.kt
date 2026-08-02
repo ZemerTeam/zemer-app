@@ -96,20 +96,7 @@ fun StatusCreatorCircle(
                 )
             }
             if (creator.isVerified) {
-                Box(
-                    Modifier
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(colorScheme.primary),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        "✓",
-                        color = colorScheme.onPrimary,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+                VerifiedBadge(size = 16.dp)
             }
         }
 

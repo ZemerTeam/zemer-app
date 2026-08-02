@@ -1,8 +1,9 @@
 package com.jtech.zemer.ui.utils
 
 /**
- * Route to the full-screen story viewer, opened at the given creator index within the Home row's
- * creator list. Pure so it is unit-tested (see StatusNavigationTest). The viewer reads the creators
- * list from the shared session cache, so only the start index needs to travel in the route.
+ * Route to the full-screen story viewer, opened at a given creator by STABLE id (not a list index,
+ * which would remap to the wrong creator after a process-death re-fetch under the recency sort). The
+ * viewer resolves the id against the shared creators list. Creator ids are Supabase UUIDs (URL-safe),
+ * so no encoding is needed. Pure so it is unit-tested.
  */
-fun storyRoute(index: Int): String = "story/$index"
+fun storyRoute(creatorId: String): String = "story/$creatorId"
