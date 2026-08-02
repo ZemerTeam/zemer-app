@@ -254,15 +254,6 @@ class ZemerSearchClient @Inject constructor() {
         return zemerResponseJson.decodeFromString(ZemerPodcastsResponse.serializer(), response.bodyAsText())
     }
 
-    /** `GET /podcasts/version` — cheap gate check so the app can skip re-fetching the browse list. */
-    suspend fun podcastsVersion(): ZemerPodcastVersionResponse {
-        val response: HttpResponse = client.get("$BASE_URL/podcasts/version")
-        if (!response.status.isSuccess()) {
-            throw IOException("Zemer podcasts/version returned HTTP ${response.status.value}")
-        }
-        return zemerResponseJson.decodeFromString(ZemerPodcastVersionResponse.serializer(), response.bodyAsText())
-    }
-
     /** `GET /podcast?id=&offset=` — a SHOW + its episodes page. Null on 404 (unknown/filtered-out show). */
     suspend fun podcast(
         id: String,

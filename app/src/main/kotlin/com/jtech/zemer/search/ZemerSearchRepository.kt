@@ -207,12 +207,10 @@ class ZemerSearchRepository @Inject constructor(
     // --- Podcasts. Live-only (no offline snapshot, like /radio + /playlist). Playback stays InnerTube:
     // an episode carries its YouTube videoId and plays through the existing pipeline. ---
 
-    /** The whitelist-pure browse list + its version gate — the whitelist source (replaces Firestore). */
+    /** The whitelist-pure browse catalog (rich art). The allow-set + version gate live in the mirror
+     *  (`ZemerContentClient.podcastsWhitelist`), so this is used for browse/art enrichment, not the gate. */
     suspend fun podcasts(options: ZemerSearchOptions): ZemerPodcastsResponse =
         client.podcasts(options.allowFemale, options.blockVideos)
-
-    /** Cheap version probe so the whitelist sync can skip a full re-fetch when unchanged. */
-    suspend fun podcastsVersion(): Int? = client.podcastsVersion().version
 
     /** A SHOW page (header + one episode page). Null when the show is unknown / filtered out (404). */
     suspend fun podcast(id: String, offset: Int, options: ZemerSearchOptions): PodcastPage? =

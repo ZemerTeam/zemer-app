@@ -321,16 +321,11 @@ data class ZemerPodcastEpisode(
     val publishedAt: String? = null,
 )
 
-/** `GET /podcasts` — replaces the direct Firestore `podcastsWhitelist` read. `version` gates re-fetch. */
+/** `GET /podcasts` — the rich browse catalog (art guaranteed). The allow-set + version gate live in the
+ *  content mirror (`/podcastsWhitelist`), so `version` here is informational, not the gate the app uses. */
 @Serializable
 data class ZemerPodcastsResponse(
     val podcasts: List<ZemerPodcastShow> = emptyList(),
-    val version: Int? = null,
-)
-
-/** `GET /podcasts/version` — the cheap gate check (mirrors `whitelist/version`). */
-@Serializable
-data class ZemerPodcastVersionResponse(
     val version: Int? = null,
 )
 

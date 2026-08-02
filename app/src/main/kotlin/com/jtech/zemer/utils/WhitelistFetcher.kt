@@ -146,8 +146,81 @@ object WhitelistFetcher {
             )
         }
 
-    // The podcast whitelist is no longer read from Firestore here: it is served whitelist-pure by the
-    // Zemer server's `/podcasts` endpoint (with thumbnails inline) and synced in SyncUtils, the same move
-    // the artist whitelist / home-rows / artist / album discovery already made. The old
-    // fetchPodcastVersion()/fetchPodcastWhitelist() Firestore reads were removed with that migration.
+    // The podcast whitelist is the authoritative allow-set + version gate, read MIRROR-FIRST from
+    // content.zemer.io (already live) with the Firestore collection as fallback — exactly like the artist
+    // whitelist (fetchVersion/fetchWhitelist). `zemer-search /podcasts` is the rich browse catalog, NOT
+    // the gate (it enriches art in SyncUtils); the gate lives here.
+
+    suspend fun fetchPodcastVersion(): Result<Long> =
+        runCatching {
+            mirrorFirst<Long>(
+                "podcastVersion",
+                mirror = { ZemerContentClient.podcastsWhitelistVersion() },
+                firebase = {
+                    val doc = firestore.collection("podcastDatabaseNumber").document("latest").get().await()
+                    val updatedAt = doc.getTimestamp("updatedAt")?.toDate()?.time
+                    val update = doc.getString("update") ?: doc.getLong("update")
+                    (updatedAt ?: update)?.toString()?.toLongOrNull()
+                        ?: error("Missing or invalid update value in podcastDatabaseNumber/latest")
+                },
+            )
+        }
+
+    suspend fun fetchPodcastWhitelist(onProgress: (current: Int, total: Int) -> Unit = { _, _ -> }): Result<List<PodcastWhitelistEntity>> =
+        runCatching {
+            mirrorFirst<List<PodcastWhitelistEntity>>(
+                "podcastWhitelist",
+                mirror = {
+                    val now = LocalDateTime.now()
+                    val docs = ZemerContentClient.podcastsWhitelist()
+                    val total = docs.size
+                    Timber.d("WhitelistFetcher: mapping %d podcasts from content mirror", total)
+                    val entities = ArrayList<PodcastWhitelistEntity>(total)
+                    docs.forEachIndexed { index, doc ->
+                        onProgress(index + 1, total)
+                        val podcastId = (doc.id.takeIf { it.isNotBlank() } ?: doc.podcastId)?.takeIf { it.isNotBlank() }
+                            ?: return@forEachIndexed
+                        val podcastName = (doc.name ?: doc.podcastName)?.takeIf { it.isNotBlank() }
+                            ?: return@forEachIndexed
+                        entities.add(
+                            PodcastWhitelistEntity(
+                                podcastId = podcastId,
+                                podcastName = podcastName,
+                                thumbnailUrl = doc.thumbnailUrl,
+                                channelId = doc.channelId,
+                                addedAt = now,
+                                source = "mirror",
+                                lastSyncedAt = now,
+                            )
+                        )
+                    }
+                    entities
+                },
+                firebase = {
+                    val now = LocalDateTime.now()
+                    val whitelistEntities = mutableListOf<PodcastWhitelistEntity>()
+                    val snapshot: QuerySnapshot = firestore.collection("podcastsWhitelist").get().await()
+                    val total = snapshot.size()
+                    var processed = 0
+                    snapshot.documents.forEach { doc ->
+                        val podcastId = (doc.getString("id") ?: doc.getString("podcastId")) ?: return@forEach
+                        val podcastName = (doc.getString("name") ?: doc.getString("podcastName")) ?: return@forEach
+                        whitelistEntities.add(
+                            PodcastWhitelistEntity(
+                                podcastId = podcastId,
+                                podcastName = podcastName,
+                                thumbnailUrl = doc.getString("thumbnailUrl"),
+                                channelId = doc.getString("channelId"),
+                                addedAt = now,
+                                source = "firestore",
+                                lastSyncedAt = now,
+                            )
+                        )
+                        processed++
+                        onProgress(processed, total)
+                    }
+                    whitelistEntities
+                },
+            )
+        }
 }

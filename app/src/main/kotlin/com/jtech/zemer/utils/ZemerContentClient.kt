@@ -87,6 +87,26 @@ object ZemerContentClient {
     }
 
     /**
+     * `/podcastsWhitelist/version` → the podcast allow-set gate (the direct parallel to
+     * `/whitelist/version`). The mirror is the authoritative allow-set + version gate for podcasts, same
+     * as the artist whitelist; `zemer-search /podcasts` is the rich browse catalog, not the gate.
+     */
+    suspend fun podcastsWhitelistVersion(): Long {
+        val dto = json.decodeFromString(ContentVersionDto.serializer(), getText("/podcastsWhitelist/version", SMALL_TIMEOUT_MS))
+        val gate = dto.gate ?: error("content mirror: missing gate in /podcastsWhitelist/version")
+        Timber.d("ZemerContentClient: /podcastsWhitelist/version gate=%d", gate)
+        return gate
+    }
+
+    /** `/podcastsWhitelist` → the podcast allow-set docs. Throws on empty so [mirrorFirst] falls back. */
+    suspend fun podcastsWhitelist(): List<ContentPodcastDoc> {
+        val docs = json.decodeFromString(ListSerializer(ContentPodcastDoc.serializer()), getText("/podcastsWhitelist", WHITELIST_TIMEOUT_MS))
+        if (docs.isEmpty()) error("content mirror: empty /podcastsWhitelist")
+        Timber.d("ZemerContentClient: /podcastsWhitelist %d docs", docs.size)
+        return docs
+    }
+
+    /**
      * `/blockedContentIds` → id→reason map, rebuilt from the server's pre-bucketed `{global, female}`
      * (disabled entries already dropped, unknown reasons already folded into `global` — which the app
      * already treats as "hide for everyone", so this is behavior-preserving). Empty is a legitimate state.
@@ -194,6 +214,21 @@ data class ContentWhitelistDoc(
     val isGroup: Boolean? = null,
     // Per-artist channel image (yt3/lh3 URL), resolved once server-side so devices don't each fetch it.
     val thumbnail: String? = null,
+)
+
+/**
+ * One `/podcastsWhitelist` document (the mirror's copy of a Firestore `podcastsWhitelist` doc). Accepts
+ * both `id`/`podcastId` and `name`/`podcastName` (the collection has used either). `thumbnailUrl` is
+ * often sparse here — the browse grid's guaranteed art is enriched from `zemer-search /podcasts`.
+ */
+@Serializable
+data class ContentPodcastDoc(
+    val id: String = "",
+    @SerialName("podcastId") val podcastId: String? = null,
+    val name: String? = null,
+    @SerialName("podcastName") val podcastName: String? = null,
+    val thumbnailUrl: String? = null,
+    val channelId: String? = null,
 )
 
 /**
