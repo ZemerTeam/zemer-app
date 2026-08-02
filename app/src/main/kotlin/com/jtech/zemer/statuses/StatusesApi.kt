@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -157,12 +158,33 @@ suspend fun fetchStatusCreators(): List<StatusCreator> = coroutineScope {
         // empty ring and open to nothing. YidStatus already only keeps creators that have posts.
         .filter { it.recentPostIds.isNotEmpty() }
 
-    // NOTE: we deliberately do NOT resolve each recent status's KIND here. `recent_post_ids` carry no
-    // kind, and a batched id->kind fetch added a blocking round-trip that noticeably slowed the (formerly
-    // instant) load. So JewishStatus creators leave `recentPostKinds` empty -> the ring shows the full
-    // recent list (never over-hides). YidStatus gets kinds for free from its feed, so its ring still
-    // respects the content filter. This keeps loading instant.
+    // KINDS are resolved SEPARATELY (see [fetchJewishPostKinds]) and applied by the repository in the
+    // BACKGROUND, so the creator list (and its rings) appear instantly here; the rings then refine to
+    // respect the content filter once kinds land. `recent_post_ids` carry no kind, so a blocking fetch
+    // here would slow the (formerly instant) load.
     base
+}
+
+/**
+ * Batch-resolve `id -> kind` for JewishStatus recent-post ids (chunked to keep the URL bounded), so the
+ * ring can respect the hide-text/hide-image filter. Called by the repository AFTER creators are already
+ * published, never on the critical path. Fail-soft: an unresolved id is simply absent (-> shown).
+ */
+suspend fun fetchJewishPostKinds(ids: List<String>): Map<String, String> = withContext(Dispatchers.IO) {
+    if (ids.isEmpty()) return@withContext emptyMap()
+    val out = HashMap<String, String>(ids.size)
+    ids.distinct().chunked(100).forEach { chunk ->
+        // Post ids are Supabase UUIDs (URL-safe), so no encoding is needed for the `in.(...)` list.
+        val url = "$BASE/public_posts?id=in.(${chunk.joinToString(",")})&select=id,kind"
+        runCatching {
+            val arr = JSONArray(getJson(url))
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                out[o.getString("id")] = o.optString("kind")
+            }
+        }
+    }
+    out
 }
 
 /**

@@ -80,15 +80,10 @@ class StatusesRepository @Inject constructor(
     /** One creator's posts (chronological), routed by source. Cached per creator. */
     suspend fun posts(creatorId: String): List<StatusPost> =
         postsCache[creatorId] ?: run {
-            // YidStatus posts are primed from its ONE global feed. If a YidStatus creator misses the cache,
-            // the feed just hasn't landed yet (the viewer was opened before it) - AWAIT the feed load and
-            // return what it holds, rather than an immediate empty list (which made the viewer auto-skip
-            // the creator until a back/forward retriggered it). The statuses table is not publicly
-            // readable, so there is no per-creator fetch.
-            if (sourceById[creatorId] == StatusSource.YID_STATUS) {
-                runCatching { loadYid(force = false) }
-                return postsCache[creatorId] ?: emptyList()
-            }
+            // YidStatus posts are primed from its feed; if a YidStatus creator misses the cache there is
+            // nothing to fetch per-creator (the statuses table is not publicly readable). Only JewishStatus
+            // fetches per creator - guard so a YidStatus id never hits the JewishStatus endpoint.
+            if (sourceById[creatorId] == StatusSource.YID_STATUS) return emptyList()
             withContext(Dispatchers.IO) { fetchStatusPosts(creatorId) }.also { postsCache[creatorId] = it }
         }
 
@@ -102,12 +97,7 @@ class StatusesRepository @Inject constructor(
      * cache holds. Fail-soft: on error keep the cached list. Returns the up-to-date posts.
      */
     suspend fun refreshPosts(creatorId: String): List<StatusPost> {
-        if (sourceById[creatorId] == StatusSource.YID_STATUS) {
-            postsCache[creatorId]?.let { return it }
-            // Feed not primed yet - await it (see posts()) so the first tap loads instead of showing empty.
-            runCatching { loadYid(force = false) }
-            return postsCache[creatorId] ?: emptyList()
-        }
+        if (sourceById[creatorId] == StatusSource.YID_STATUS) return postsCache[creatorId] ?: emptyList()
         return runCatching { withContext(Dispatchers.IO) { fetchStatusPosts(creatorId) } }
             .onFailure { reportException(it) }
             .getOrNull()?.also { postsCache[creatorId] = it }
@@ -124,7 +114,17 @@ class StatusesRepository @Inject constructor(
         loaded.forEach { sourceById[it.id] = StatusSource.JEWISH_STATUS }
         jewishCache = loaded
         jewishFetchedAt = SystemClock.elapsedRealtime()
-        republish()
+        republish() // creators (and rings) appear NOW; rings refine once kinds land below
+
+        // Resolve each recent status's KIND off the critical path, then re-publish so the rings drop the
+        // hidden kinds (JewishStatus recent_post_ids carry no kind). Fail-soft; a failure just leaves the
+        // full ring showing. Only re-publish if the cache still holds this exact load (no newer refresh).
+        val kinds = runCatching { fetchJewishPostKinds(loaded.flatMap { it.recentPostIds }) }
+            .getOrDefault(emptyMap())
+        if (kinds.isNotEmpty() && jewishCache === loaded) {
+            jewishCache = loaded.map { c -> c.copy(recentPostKinds = c.recentPostIds.map { kinds[it].orEmpty() }) }
+            republish()
+        }
     }
 
     private suspend fun loadYid(force: Boolean) = yidMutex.withLock {

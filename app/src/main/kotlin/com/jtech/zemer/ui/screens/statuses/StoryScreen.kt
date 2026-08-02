@@ -262,6 +262,10 @@ fun StoryScreen(
     LaunchedEffect(creatorIdx, contentFilter) {
         progress = 0f
         exoPlayer.stop()
+        // Wait for the persisted content filter before the first load, so we never load with a provisional
+        // filter and then re-run/restart when the real one lands (the hide-image first-open restart). Once
+        // it arrives this effect re-runs with the real value; a later settings change re-runs it too.
+        if (contentFilter == null) { currentPosts = null; return@LaunchedEffect }
         val id = creators.getOrNull(creatorIdx)?.id ?: run { currentPosts = emptyList(); return@LaunchedEffect }
         // Resolve the resume position EXACTLY ONCE (a re-resume after the play effect marks the status
         // seen would skip it and jump/flash). Cached creators (all YidStatus + prefetched JewishStatus)
@@ -751,6 +755,11 @@ private fun StatusPreviewFace(
                     .clip(CircleShape)
                     .background(colorScheme.surfaceVariant),
             )
+        }
+        // While the posts are still loading (a YidStatus creator opened before its feed landed can take a
+        // moment), show a spinner over the avatar so it reads as LOADING, not stuck.
+        if (posts == null) {
+            CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
         }
     }
 }

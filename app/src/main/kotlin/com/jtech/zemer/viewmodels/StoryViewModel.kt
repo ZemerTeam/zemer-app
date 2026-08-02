@@ -60,7 +60,13 @@ class StoryViewModel @Inject constructor(
     // The user's status content filter (Settings -> Appearance), reactive so a settings change re-filters
     // the posts the viewer shows. Text-only is hidden by default; image is shown by default. Held as a
     // StateFlow so [cachedPosts] can read the current value synchronously off the DataStore hot path.
-    val contentFilter: StateFlow<StatusContentFilter> =
+    //
+    // Initial value is NULL ("not read yet"), deliberately NOT a provisional default: seeding a guessed
+    // default (hideImage = false) and letting DataStore flip it a few ms later re-ran the viewer's driver
+    // mid-open and restarted playback - visible only when the user's real setting differs from the guess,
+    // i.e. exactly when hide-image is ON. The driver waits for the first (real) non-null value, so its
+    // first load already uses the persisted filter.
+    val contentFilter: StateFlow<StatusContentFilter?> =
         context.dataStore.data
             .map {
                 StatusContentFilter(
@@ -68,13 +74,10 @@ class StoryViewModel @Inject constructor(
                     hideImage = it[HideImageStatusKey] ?: false,
                 )
             }
-            .stateIn(
-                viewModelScope,
-                SharingStarted.Eagerly,
-                StatusContentFilter(hideText = true, hideImage = false),
-            )
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    private fun List<StatusPost>.filtered(): List<StatusPost> = applyStatusFilter(contentFilter.value)
+    private fun List<StatusPost>.filtered(): List<StatusPost> =
+        contentFilter.value?.let { applyStatusFilter(it) } ?: this
 
     private val _loadAttempted = MutableStateFlow(false)
     val loadAttempted: StateFlow<Boolean> = _loadAttempted.asStateFlow()

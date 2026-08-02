@@ -55,10 +55,16 @@ fun StatusCreatorCircle(
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     // Ring over the statuses the user can actually VIEW under their content filter, so hidden-kind
-    // statuses never show as segments. If the filter hides everything recent, fall back to the full
-    // ring so the creator still shows a normal circle (never an empty/phantom ring, never dropped).
+    // statuses never show as segments. When the filter hides everything recent: if kinds are KNOWN this
+    // creator genuinely has nothing to view -> a single MUTED arc ("nothing new"); if kinds are NOT yet
+    // resolved (JewishStatus, before the background kind fetch lands) -> the full ring, refined shortly.
     val visibleIds = remember(creator, contentFilter) {
-        creator.visibleRecentIds(contentFilter).ifEmpty { creator.recentPostIds }
+        val v = creator.visibleRecentIds(contentFilter)
+        when {
+            v.isNotEmpty() -> v
+            creator.recentPostKinds.size == creator.recentPostIds.size -> emptyList()
+            else -> creator.recentPostIds
+        }
     }
     val segments = visibleIds.size.coerceAtLeast(1)
 
@@ -85,8 +91,9 @@ fun StatusCreatorCircle(
                 repeat(segments) { i ->
                     // Per-segment read state: an arc mutes to the subtle outline once ITS status is
                     // seen, so the accent arcs that remain show how many are left to view.
+                    // A null id is the placeholder arc for a creator with nothing viewable -> muted.
                     val postId = visibleIds.getOrNull(i)
-                    val seen = postId != null && postId in seenPostIds
+                    val seen = postId == null || postId in seenPostIds
                     drawArc(
                         color = if (seen) colorScheme.outlineVariant else colorScheme.primary,
                         startAngle = start + gapDeg / 2f,
