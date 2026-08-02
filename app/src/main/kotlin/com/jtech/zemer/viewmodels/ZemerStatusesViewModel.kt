@@ -29,8 +29,11 @@ class ZemerStatusesViewModel @Inject constructor(
     val seenPostIds: StateFlow<Set<String>> =
         repository.seen.stateIn(viewModelScope, SharingStarted.Lazily, emptySet())
 
-    fun refresh() {
-        // Fail-soft in the repository (a failure keeps the previous list).
-        viewModelScope.launch(Dispatchers.IO) { repository.refreshCreators() }
+    /**
+     * Refresh the row. [force] (pull-to-refresh) always re-fetches; a plain call (screen open) re-fetches
+     * only a platform whose cache has gone stale. Fail-soft in the repository (a failure keeps the list).
+     */
+    fun refresh(force: Boolean = false) {
+        viewModelScope.launch(Dispatchers.IO) { repository.refreshCreators(force) }
     }
 }

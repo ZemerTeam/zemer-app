@@ -420,7 +420,7 @@ fun HomeScreen(
                     zemerPlaylistsViewModel.refresh()
                     zemerStationsViewModel.refresh()
                     zemerGenresViewModel.refresh()
-                    zemerStatusesViewModel.refresh()
+                    zemerStatusesViewModel.refresh(force = true) // pull-to-refresh always re-fetches
                 }
             ),
         contentAlignment = Alignment.TopStart

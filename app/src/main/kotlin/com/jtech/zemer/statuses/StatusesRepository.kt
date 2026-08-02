@@ -1,5 +1,6 @@
 package com.jtech.zemer.statuses
 
+import android.os.SystemClock
 import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -23,8 +24,11 @@ import javax.inject.Singleton
  * See-all screen can group by platform and [posts] routes to the right backend.
  *
  * Both platforms are fetched CONCURRENTLY and independently fail-soft: one platform being down still
- * shows the other. Fetches are cached and never invalidated in-session (a process restart re-fetches);
- * an all-empty result is NOT cached, so a transient outage retries on the next refresh.
+ * shows the other. So the row picks up newly-posted statuses, the caches self-refresh:
+ *  - screen open / re-entry re-fetches a platform whose cache is older than [STALE_MS];
+ *  - pull-to-refresh forces both (`refreshCreators(force = true)`);
+ *  - opening a creator re-fetches THAT creator's posts immediately ([refreshPosts]).
+ * An all-empty / failed fetch keeps the previous cache (never blanks the row).
  */
 @Singleton
 class StatusesRepository @Inject constructor(
@@ -38,6 +42,16 @@ class StatusesRepository @Inject constructor(
     private val yidMutex = Mutex()
     @Volatile private var jewishCache: List<StatusCreator>? = null
     @Volatile private var yidCache: YidFeed? = null
+    @Volatile private var jewishFetchedAt = 0L
+    @Volatile private var yidFetchedAt = 0L
+
+    // A cached platform this old is re-fetched on the next screen open (not just on a full app restart).
+    private companion object {
+        const val STALE_MS = 5 * 60 * 1000L // 5 minutes
+    }
+
+    private fun isFresh(fetchedAt: Long) =
+        fetchedAt != 0L && SystemClock.elapsedRealtime() - fetchedAt < STALE_MS
 
     // Posts use a concurrent map with NO lock across the fetch, so preloading the next creator never
     // waits behind the current one; a rare duplicate concurrent fetch for one creator is harmless.
@@ -54,12 +68,13 @@ class StatusesRepository @Inject constructor(
 
     /**
      * Load both platforms into [creators], each on its own coroutine so the row updates progressively as
-     * each lands. Fail-soft per source: a platform's failure leaves its cache null (retried next refresh)
-     * and never blanks the other.
+     * each lands. [force] (pull-to-refresh) re-fetches unconditionally; otherwise a platform is re-fetched
+     * only when its cache is empty or older than [STALE_MS]. Fail-soft per source: a failure keeps the
+     * previous cache and never blanks the other.
      */
-    suspend fun refreshCreators(): Unit = coroutineScope {
-        launch { loadJewish() }
-        launch { loadYid() }
+    suspend fun refreshCreators(force: Boolean = false): Unit = coroutineScope {
+        launch { loadJewish(force) }
+        launch { loadYid(force) }
     }
 
     /** One creator's posts (chronological), routed by source. Cached per creator. */
@@ -75,25 +90,41 @@ class StatusesRepository @Inject constructor(
     /** The already-cached posts for a creator, or null if not fetched yet (no network). */
     fun cachedPosts(creatorId: String): List<StatusPost>? = postsCache[creatorId]
 
+    /**
+     * Re-fetch ONE creator's posts right now (called when the viewer opens a creator, so the one you
+     * tapped shows its newest statuses immediately). JewishStatus has a per-creator endpoint; YidStatus
+     * does not (its posts come from the global feed), so a YidStatus creator returns whatever the feed
+     * cache holds. Fail-soft: on error keep the cached list. Returns the up-to-date posts.
+     */
+    suspend fun refreshPosts(creatorId: String): List<StatusPost> {
+        if (sourceById[creatorId] == StatusSource.YID_STATUS) return postsCache[creatorId] ?: emptyList()
+        return runCatching { withContext(Dispatchers.IO) { fetchStatusPosts(creatorId) } }
+            .onFailure { reportException(it) }
+            .getOrNull()?.also { postsCache[creatorId] = it }
+            ?: (postsCache[creatorId] ?: emptyList())
+    }
+
     /** Record a status as viewed (persisted). */
     suspend fun markSeen(postId: String) = seenStore.markSeen(listOf(postId))
 
-    private suspend fun loadJewish() = jewishMutex.withLock {
-        if (jewishCache != null) return@withLock republish()
+    private suspend fun loadJewish(force: Boolean) = jewishMutex.withLock {
+        if (!force && jewishCache != null && isFresh(jewishFetchedAt)) return@withLock republish()
         val loaded = runCatching { withContext(Dispatchers.IO) { fetchStatusCreators() } }
-            .onFailure { reportException(it) }.getOrNull() ?: return@withLock // retry next refresh
+            .onFailure { reportException(it) }.getOrNull() ?: return@withLock republish() // keep old on failure
         loaded.forEach { sourceById[it.id] = StatusSource.JEWISH_STATUS }
         jewishCache = loaded
+        jewishFetchedAt = SystemClock.elapsedRealtime()
         republish()
     }
 
-    private suspend fun loadYid() = yidMutex.withLock {
-        if (yidCache != null) return@withLock republish()
+    private suspend fun loadYid(force: Boolean) = yidMutex.withLock {
+        if (!force && yidCache != null && isFresh(yidFetchedAt)) return@withLock republish()
         val feed = runCatching { withContext(Dispatchers.IO) { fetchYidStatusFeed() } }
-            .onFailure { reportException(it) }.getOrNull() ?: return@withLock // retry next refresh
+            .onFailure { reportException(it) }.getOrNull() ?: return@withLock republish() // keep old on failure
         feed.creators.forEach { sourceById[it.id] = StatusSource.YID_STATUS }
         feed.postsByCreator.forEach { (id, posts) -> postsCache[id] = posts }
         yidCache = feed
+        yidFetchedAt = SystemClock.elapsedRealtime()
         republish()
     }
 

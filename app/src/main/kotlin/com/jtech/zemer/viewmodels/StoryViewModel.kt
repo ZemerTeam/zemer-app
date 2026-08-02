@@ -44,6 +44,11 @@ class StoryViewModel @Inject constructor(
     suspend fun loadPosts(creatorId: String): List<StatusPost> =
         runCatching { repository.posts(creatorId) }.getOrDefault(emptyList())
 
+    /** Re-fetch one creator's posts NOW, so the creator the user just tapped shows its newest statuses
+     *  immediately (JewishStatus; YidStatus returns its cached feed posts). Fail-soft. */
+    suspend fun refreshPosts(creatorId: String): List<StatusPost> =
+        runCatching { repository.refreshPosts(creatorId) }.getOrDefault(emptyList())
+
     /** The already-cached posts for a creator, or null if not fetched yet - seeds the cube preview face
      *  without a load flash for neighbors that are already prefetched. */
     fun cachedPosts(creatorId: String): List<StatusPost>? = repository.cachedPosts(creatorId)

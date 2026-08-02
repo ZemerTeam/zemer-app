@@ -330,6 +330,17 @@ fun StoryScreen(
         postIdx = rp.index
         currentPosts = loaded
         postsCreatorIdx = creatorIdx // now the active face may render - its state matches this creator
+        // Pull THIS creator's newest statuses right now (the one the user just tapped) and extend the
+        // timeline in place if new ones arrived. Auto-cancelled if they swipe away. Playback is NOT
+        // disturbed: the play effect keys on the current status id and new statuses append at the end.
+        launch {
+            val fresh = viewModel.refreshPosts(id)
+            if (fresh.isNotEmpty() && fresh != currentPosts) {
+                currentPosts = fresh
+                postIdx = postIdx.coerceIn(0, fresh.lastIndex)
+                floorIndex = floorIndex.coerceIn(0, fresh.lastIndex)
+            }
+        }
         // Prefetch BOTH neighbors - their POSTS and the THUMBNAIL image of the status they will show - so
         // swiping either way reveals a real frame immediately instead of a black-loading flash.
         listOf(creatorIdx - 1, creatorIdx + 1).forEach { n ->
@@ -367,7 +378,10 @@ fun StoryScreen(
     }
 
     val posts = currentPosts
-    LaunchedEffect(posts, postIdx) {
+    // Key on the CURRENT status's identity (not the whole list), so a background refresh that merely
+    // appends newer statuses does NOT re-fire this effect and restart the playing video. `posts == null`
+    // distinguishes "loading" from "empty" (both have a null current-post id).
+    LaunchedEffect(posts?.getOrNull(postIdx)?.id, posts == null) {
         if (posts == null) return@LaunchedEffect // still loading this creator
         // A creator whose posts failed to load or has none: skip to the next creator (or close on the
         // last) instead of getting stuck on a blank, never-advancing screen.
