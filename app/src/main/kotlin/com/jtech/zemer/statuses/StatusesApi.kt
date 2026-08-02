@@ -60,18 +60,21 @@ data class StatusPost(
 )
 
 /**
- * Whether EVERY one of a creator's recent statuses has been viewed (WhatsApp "read"). A creator with no
- * known statuses is not "all seen". Used to sink fully-viewed creators to the end of the row/grid.
+ * Whether the user is "caught up" on a creator (WhatsApp read state): their NEWEST status has been
+ * viewed. `recent_post_ids` is oldest-first (verified against posted_at), so the newest is the LAST id.
+ * Older days left unopened do NOT keep a creator marked unread - a user who watched today's auto-play is
+ * caught up even if earlier days are still openable via the jump-to-date sheet. Empty => not caught up.
  */
-fun StatusCreator.allStatusesSeen(seenPostIds: Set<String>): Boolean =
-    recentPostIds.isNotEmpty() && recentPostIds.all { it in seenPostIds }
+fun StatusCreator.caughtUpOnLatest(seenPostIds: Set<String>): Boolean =
+    recentPostIds.lastOrNull()?.let { it in seenPostIds } ?: false
 
 /**
  * Creators ordered for the Home row AND the See-all grid (one definition so the two can't drift):
- * fully-viewed creators sink to the end (WhatsApp), preserving recency order within each group.
+ * creators the user is caught up on (newest seen) sink to the end (WhatsApp), preserving recency order
+ * within each group.
  */
 fun List<StatusCreator>.sortedByUnseenFirst(seenPostIds: Set<String>): List<StatusCreator> =
-    sortedBy { it.allStatusesSeen(seenPostIds) }
+    sortedBy { it.caughtUpOnLatest(seenPostIds) }
 
 fun statusAvatarUrl(path: String?): String? = path?.let { "$CDN/avatars/$it" }
 fun statusMediaUrl(path: String?): String? = path?.let { "$CDN/status-media/$it" }

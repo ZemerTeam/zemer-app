@@ -112,15 +112,31 @@ class StatusesApiTest {
     }
 
     @Test
-    fun `allStatusesSeen is true only when every recent status is seen`() {
+    fun `caughtUpOnLatest keys off the newest (last) recent id, not older ones`() {
+        // recent_post_ids is oldest-first, so p2 is the newest.
         val creator = StatusCreator(
             id = "c1", slug = "s", displayName = "S", avatarPath = null, liveNow = false,
             recentPostIds = listOf("p1", "p2"),
         )
-        assertFalse(creator.allStatusesSeen(emptySet()))
-        assertFalse(creator.allStatusesSeen(setOf("p1")))
-        assertTrue(creator.allStatusesSeen(setOf("p1", "p2")))
-        // A creator with no known statuses is never "all seen" (so it never sinks on an empty ring).
-        assertFalse(creator.copy(recentPostIds = emptyList()).allStatusesSeen(setOf("p1")))
+        assertFalse(creator.caughtUpOnLatest(emptySet()))
+        // Seeing only the OLDER status does not count as caught up.
+        assertFalse(creator.caughtUpOnLatest(setOf("p1")))
+        // Seeing the newest (last) status => caught up, even if an older one is still unseen.
+        assertTrue(creator.caughtUpOnLatest(setOf("p2")))
+        // A creator with no known statuses is never caught up (so it never sinks on an empty ring).
+        assertFalse(creator.copy(recentPostIds = emptyList()).caughtUpOnLatest(setOf("p2")))
+    }
+
+    @Test
+    fun `sortedByUnseenFirst sinks caught-up creators to the end, stable otherwise`() {
+        fun c(id: String, vararg ids: String) = StatusCreator(
+            id = id, slug = id, displayName = id, avatarPath = null, liveNow = false,
+            recentPostIds = ids.toList(),
+        )
+        val a = c("a", "a1", "a2")   // newest a2 unseen -> stays
+        val b = c("b", "b1", "b2")   // newest b2 seen   -> sinks
+        val d = c("d", "d1", "d2")   // newest d2 unseen -> stays
+        val ordered = listOf(a, b, d).sortedByUnseenFirst(setOf("b2", "a1"))
+        assertEquals(listOf("a", "d", "b"), ordered.map { it.id })
     }
 }
