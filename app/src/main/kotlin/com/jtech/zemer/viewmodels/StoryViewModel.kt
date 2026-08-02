@@ -8,8 +8,10 @@ import com.jtech.zemer.statuses.StatusSeenStore
 import com.jtech.zemer.statuses.StatusesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -26,6 +28,10 @@ class StoryViewModel @Inject constructor(
 ) : ViewModel() {
     private val _creators = MutableStateFlow<List<StatusCreator>>(emptyList())
     val creators: StateFlow<List<StatusCreator>> = _creators.asStateFlow()
+
+    // The persisted seen set — read as a snapshot to resume a creator at its first unseen status.
+    val seenPostIds: StateFlow<Set<String>> =
+        seenStore.seen.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     init {
         viewModelScope.launch {

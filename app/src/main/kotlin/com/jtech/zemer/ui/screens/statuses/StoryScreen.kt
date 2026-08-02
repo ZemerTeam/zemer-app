@@ -24,10 +24,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,7 +45,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,12 +62,14 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.jtech.zemer.LocalPlayerConnection
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.statuses.StatusPost
 import com.jtech.zemer.statuses.statusAvatarUrl
 import com.jtech.zemer.statuses.statusMediaUrl
 import com.jtech.zemer.viewmodels.StoryViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -150,7 +152,12 @@ fun StoryScreen(
         progress = 0f
         exoPlayer.stop()
         val id = creators.getOrNull(creatorIdx)?.id ?: return@LaunchedEffect
-        currentPosts = viewModel.loadPosts(id)
+        val loaded = viewModel.loadPosts(id)
+        // Resume at the first UNSEEN status (WhatsApp), so reopening does not restart from the top.
+        // All-seen falls back to 0 (replay from the newest). Snapshot the seen set at load time.
+        val seen = viewModel.seenPostIds.value
+        postIdx = loaded.indexOfFirst { it.id !in seen }.takeIf { it >= 0 } ?: 0
+        currentPosts = loaded
         creators.getOrNull(creatorIdx + 1)?.id?.let { nextId -> launch { viewModel.loadPosts(nextId) } }
     }
 
@@ -211,6 +218,9 @@ fun StoryScreen(
     val creator = creators.getOrNull(creatorIdx)
     val currentPost = posts?.getOrNull(postIdx)
     val hasCaption = currentPost?.kind != "text" && !currentPost?.caption.isNullOrBlank()
+    // Posts are newest-first, so today's statuses sit at the top; offer a jump to the newest one today.
+    val todayIso = remember { LocalDate.now().toString() }
+    val todayIndex = posts?.indexOfFirst { it.postedAt.take(10) == todayIso }?.takeIf { it >= 0 }
 
     Box(
         Modifier
@@ -286,6 +296,30 @@ fun StoryScreen(
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(horizontal = 8.dp, vertical = 8.dp),
         ) {
+            // Controls: a clear back button on the left, and a jump-to-today shortcut on the right. The
+            // shared BackNavigationIcon (navigateUp) is forced white for legibility over the media.
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                CompositionLocalProvider(LocalContentColor provides Color.White) {
+                    BackNavigationIcon(navController = navController)
+                }
+                Spacer(Modifier.weight(1f))
+                if (todayIndex != null && todayIndex != postIdx) {
+                    Text(
+                        text = stringResource(R.string.jump_to_today),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(Color.White.copy(alpha = 0.2f))
+                            .clickable { postIdx = todayIndex; progress = 0f }
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
             Row(Modifier.fillMaxWidth()) {
                 val count = posts?.size ?: 1
                 repeat(count) { i ->
@@ -377,15 +411,6 @@ fun StoryScreen(
                     text = "${creatorIdx + 1} / ${creators.size}",
                     color = Color.White.copy(alpha = 0.7f),
                     style = MaterialTheme.typography.labelMedium,
-                )
-                Spacer(Modifier.width(10.dp))
-                Icon(
-                    painter = painterResource(R.drawable.close),
-                    contentDescription = stringResource(R.string.close),
-                    tint = Color.White,
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clickable(onClick = onClose),
                 )
             }
         }
