@@ -1,9 +1,13 @@
 package com.jtech.zemer.statuses
 
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
+import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 /**
  * Self-contained client for YidStatus.com - a second, larger Jewish/kosher status platform. Backed by a
@@ -125,21 +129,25 @@ private fun isMusicCreator(o: JSONObject): Boolean {
 
 // --- HTTP ---
 
+// MUST be OkHttp, not HttpURLConnection: `Origin` is a JDK/Android "restricted header" that
+// HttpURLConnection.setRequestProperty SILENTLY DROPS, and the feed 403s without it. OkHttp sends it.
+private val yidHttpClient by lazy {
+    OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(45, TimeUnit.SECONDS)
+        .build()
+}
+private val JSON_MEDIA_TYPE = "application/json".toMediaType()
+
 private fun postFeed(body: String): String {
-    val conn = (URL(YID_FEED_URL).openConnection() as HttpURLConnection).apply {
-        requestMethod = "POST"
-        connectTimeout = 15_000
-        readTimeout = 45_000
-        doOutput = true
-        setRequestProperty("apikey", YID_KEY)
-        setRequestProperty("Content-Type", "application/json")
-        // REQUIRED: the edge function 403s without the site origin (see docs/status/yidstatus-api.md).
-        setRequestProperty("Origin", YID_ORIGIN)
-    }
-    try {
-        conn.outputStream.use { it.write(body.toByteArray()) }
-        return conn.inputStream.bufferedReader().use { it.readText() }
-    } finally {
-        conn.disconnect()
+    val request = Request.Builder()
+        .url(YID_FEED_URL)
+        .post(body.toRequestBody(JSON_MEDIA_TYPE))
+        .header("apikey", YID_KEY)
+        .header("Origin", YID_ORIGIN) // required; see docs/status/yidstatus-api.md
+        .build()
+    yidHttpClient.newCall(request).execute().use { resp ->
+        if (!resp.isSuccessful) throw IOException("YidStatus feed HTTP ${resp.code}")
+        return resp.body?.string() ?: throw IOException("YidStatus feed empty body")
     }
 }

@@ -13,13 +13,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -33,7 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,6 +41,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.statuses.StatusCreator
 import com.jtech.zemer.statuses.StatusSource
 import com.jtech.zemer.statuses.sortedByUnseenFirst
+import com.jtech.zemer.ui.component.ArtistSearchField
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.StatusCreatorCircle
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
@@ -69,6 +66,7 @@ fun StatusesScreen(
     val creators by viewModel.creators.collectAsState()
     val seenPostIds by viewModel.seenPostIds.collectAsState()
     var query by rememberSaveable { mutableStateOf("") }
+    val searchFocus = remember { FocusRequester() }
 
     val jewish = remember(creators, seenPostIds, query) {
         creators.filterSourceAndQuery(StatusSource.JEWISH_STATUS, query).sortedByUnseenFirst(seenPostIds)
@@ -88,10 +86,11 @@ fun StatusesScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                StatusSearchField(
+                ArtistSearchField(
                     query = query,
                     onQueryChange = { query = it },
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    searchFocus = searchFocus,
+                    placeholderRes = R.string.search_status_hint,
                 )
             }
             statusSection(R.string.status_source_jewishstatus, jewish, seenPostIds, ::open)
@@ -164,22 +163,3 @@ private fun androidx.compose.foundation.lazy.grid.LazyGridScope.statusSection(
     }
 }
 
-@Composable
-private fun StatusSearchField(query: String, onQueryChange: (String) -> Unit, modifier: Modifier = Modifier) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = modifier.fillMaxWidth(),
-        singleLine = true,
-        shape = RoundedCornerShape(28.dp),
-        placeholder = { Text(stringResource(R.string.search_status_hint), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        leadingIcon = { Icon(painterResource(R.drawable.search), contentDescription = null) },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(painterResource(R.drawable.close), contentDescription = stringResource(R.string.close))
-                }
-            }
-        },
-    )
-}

@@ -31,9 +31,12 @@ Origin: https://yidstatus.com
 
 This is a server-side check inside the edge function (confirmed: identical request with the header
 returns `200`; without it, `403`). The CORS preflight advertises
-`access-control-allow-origin: https://yidstatus.com`. A **native client** (OkHttp / `HttpURLConnection`)
-can set `Origin` freely (there is no browser CORS enforcement off-browser), so the app can read the feed
-by sending that header. It is trivially spoofable, so it works today, but treat it as fragile: the
+`access-control-allow-origin: https://yidstatus.com`.
+
+**Use OkHttp, NOT HttpURLConnection.** `Origin` is a JDK/Android "restricted header" that
+`HttpURLConnection.setRequestProperty("Origin", ...)` SILENTLY DROPS (verified: the request goes out with
+no Origin and gets `403 {"error":"Forbidden"}`). OkHttp sends it. The app's `YidStatusApi` uses an OkHttp
+client for exactly this reason. It is trivially spoofable, so it works today, but treat it as fragile: the
 platform can change the allowlist, add Turnstile, or rate-limit by IP at any time. Fail soft.
 
 The plain PostgREST RPCs (below) are **not** Origin-gated; they work with just the `apikey` header.

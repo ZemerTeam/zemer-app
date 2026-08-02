@@ -31,17 +31,19 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.LibraryViewType
 
 /**
- * Search field shared by the KidZone and Whitelisted-Artists browse screens: leading search icon,
- * trailing clear icon (shown only while non-empty), D-pad down-focus handoff to [downTarget] both
- * via [focusProperties] and the DirectionDown key preview.
+ * Search field shared by the KidZone / Whitelisted-Artists browse screens and the Music Status See-all:
+ * leading search icon, trailing clear icon (shown only while non-empty), and optional D-pad down-focus
+ * handoff to [downTarget] (both via [focusProperties] and the DirectionDown key preview) when provided.
+ * [placeholderRes] lets each caller label it.
  */
 @Composable
 fun ArtistSearchField(
     query: String,
     onQueryChange: (String) -> Unit,
     searchFocus: FocusRequester,
-    downTarget: FocusRequester,
+    downTarget: FocusRequester? = null,
     modifier: Modifier = Modifier,
+    placeholderRes: Int = R.string.search_artists,
 ) {
     OutlinedTextField(
         value = query,
@@ -50,18 +52,21 @@ fun ArtistSearchField(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .focusRequester(searchFocus)
-            .focusProperties {
-                down = downTarget
-            }
-            .onPreviewKeyEvent { event ->
-                if (event.key == Key.DirectionDown && event.type == KeyEventType.KeyDown) {
-                    downTarget.requestFocus()
-                    false
+            .then(
+                if (downTarget != null) {
+                    Modifier
+                        .focusProperties { down = downTarget }
+                        .onPreviewKeyEvent { event ->
+                            if (event.key == Key.DirectionDown && event.type == KeyEventType.KeyDown) {
+                                downTarget.requestFocus()
+                            }
+                            false
+                        }
                 } else {
-                    false
+                    Modifier
                 }
-            },
-        placeholder = { Text(stringResource(R.string.search_artists)) },
+            ),
+        placeholder = { Text(stringResource(placeholderRes)) },
         leadingIcon = {
             Icon(
                 painter = painterResource(R.drawable.search),

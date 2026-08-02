@@ -3,6 +3,10 @@ package com.jtech.zemer.ui.screens.statuses
 import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.pager.HorizontalPager
@@ -588,13 +592,21 @@ fun StoryScreen(
 
             Spacer(Modifier.height(8.dp))
 
+            // The raw `progress` only ticks every ~80ms (choppy); interpolate the active segment's fill
+            // linearly between ticks. Snap (no animation) when it resets to 0 for a new status, so the
+            // bar never visibly rewinds.
+            val animatedProgress by animateFloatAsState(
+                targetValue = progress,
+                animationSpec = if (progress == 0f) snap() else tween(durationMillis = 120, easing = LinearEasing),
+                label = "statusSegmentProgress",
+            )
             // One segment per status in the CURRENT date's window.
             Row(Modifier.fillMaxWidth()) {
                 for (i in windowStart..windowEnd) {
                     val fill = when {
                         posts == null -> 0f
                         i < postIdx -> 1f
-                        i == postIdx -> progress
+                        i == postIdx -> animatedProgress
                         else -> 0f
                     }
                     Box(
