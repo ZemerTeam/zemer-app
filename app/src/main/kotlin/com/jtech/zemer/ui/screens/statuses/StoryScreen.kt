@@ -79,12 +79,12 @@ import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.jtech.zemer.LocalPlayerConnection
-import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.statuses.StatusCreator
 import com.jtech.zemer.statuses.StatusPost
 import com.jtech.zemer.statuses.statusAvatarUrl
 import com.jtech.zemer.statuses.statusMediaUrl
+import com.jtech.zemer.ui.theme.HeaderFontFamily
 import com.jtech.zemer.viewmodels.StoryViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -573,7 +573,16 @@ fun StoryScreen(
             CompositionLocalProvider(LocalContentColor provides Color.White) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     BackNavigationIcon(navController = navController)
-                    AppBarTitle(stringResource(R.string.statuses), modifier = Modifier.weight(1f))
+                    Text(
+                        text = stringResource(R.string.statuses),
+                        modifier = Modifier.weight(1f),
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontFamily = HeaderFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
 
@@ -624,6 +633,7 @@ fun StoryScreen(
                         text = creator?.displayName ?: "",
                         color = Color.White,
                         style = MaterialTheme.typography.titleSmall,
+                        fontFamily = HeaderFontFamily,
                         fontWeight = FontWeight.SemiBold,
                     )
                     val ts = currentPost?.postedAt?.let { formatPostedAt(it) }
@@ -715,6 +725,7 @@ fun StoryScreen(
                         text = stringResource(R.string.jump_to_date),
                         color = colorScheme.onSurface,
                         style = MaterialTheme.typography.titleMedium,
+                        fontFamily = HeaderFontFamily,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(Modifier.weight(1f))
@@ -838,12 +849,14 @@ private fun StatusDateCard(group: StatusDateGroup, selected: Boolean, onClick: (
             text = date?.format(dowFmt)?.uppercase(Locale.US) ?: "",
             color = if (selected) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelMedium,
+            fontFamily = HeaderFontFamily,
             fontWeight = FontWeight.SemiBold,
         )
         Text(
             text = date?.format(dayFmt) ?: "",
-            color = if (selected) colorScheme.onPrimaryContainer else colorScheme.onSurface,
+            color = if (selected) colorScheme.primary else colorScheme.onSurface,
             style = MaterialTheme.typography.headlineSmall,
+            fontFamily = HeaderFontFamily,
             fontWeight = FontWeight.Bold,
         )
         Text(

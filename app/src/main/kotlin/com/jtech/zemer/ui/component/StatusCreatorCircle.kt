@@ -32,6 +32,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.jtech.zemer.statuses.StatusCreator
 import com.jtech.zemer.statuses.statusAvatarUrl
+import com.jtech.zemer.ui.theme.HeaderFontFamily
 
 /**
  * One JewishStatus creator as a WhatsApp/Stories-style avatar circle: a SEGMENTED story ring (one arc
@@ -106,10 +107,11 @@ fun StatusCreatorCircle(
 
         Text(
             // Single line + ellipsis, matching the app's card titles (e.g. ZemerStationCard) instead of
-            // wrapping mid-word into a ragged second line.
+            // wrapping mid-word into a ragged second line. Heebo header face (the Genres treatment).
             text = creator.displayName,
             color = colorScheme.onSurface,
             style = MaterialTheme.typography.labelSmall,
+            fontFamily = HeaderFontFamily,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
             maxLines = 1,

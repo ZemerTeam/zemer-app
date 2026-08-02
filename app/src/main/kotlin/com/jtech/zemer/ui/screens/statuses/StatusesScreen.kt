@@ -2,18 +2,23 @@ package com.jtech.zemer.ui.screens.statuses
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -30,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -39,11 +45,10 @@ import com.jtech.zemer.R
 import com.jtech.zemer.statuses.StatusCreator
 import com.jtech.zemer.statuses.StatusSource
 import com.jtech.zemer.statuses.sortedByUnseenFirst
-import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
-import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.StatusCreatorCircle
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
+import com.jtech.zemer.ui.theme.HeaderFontFamily
 import com.jtech.zemer.ui.utils.storyRoute
 import com.jtech.zemer.viewmodels.ZemerStatusesViewModel
 
@@ -95,11 +100,42 @@ fun StatusesScreen(
     }
 
     TopAppBar(
-        title = { AppBarTitle(stringResource(R.string.statuses)) },
+        title = {
+            Text(
+                text = stringResource(R.string.statuses),
+                style = MaterialTheme.typography.titleLarge,
+                fontFamily = HeaderFontFamily,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
         colors = zemerTopAppBarColors(),
     )
+}
+
+/** A platform section header: the name in the Heebo header face + the theme accent, with an accent rule. */
+@Composable
+private fun StatusSectionHeader(title: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontFamily = HeaderFontFamily,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.width(12.dp))
+        HorizontalDivider(
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.30f),
+        )
+    }
 }
 
 private fun List<StatusCreator>.filterSourceAndQuery(source: StatusSource, query: String) =
@@ -114,7 +150,7 @@ private fun androidx.compose.foundation.lazy.grid.LazyGridScope.statusSection(
 ) {
     if (creators.isEmpty()) return
     item(span = { GridItemSpan(maxLineSpan) }, key = "header_$titleRes") {
-        NavigationTitle(title = stringResource(titleRes))
+        StatusSectionHeader(stringResource(titleRes))
     }
     items(items = creators, key = { it.id }) { creator ->
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
