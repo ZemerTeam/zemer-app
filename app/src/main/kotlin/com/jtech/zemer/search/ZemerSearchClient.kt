@@ -247,6 +247,9 @@ class ZemerSearchClient @Inject constructor() {
             zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
                 parameter(name, value)
             }
+            // Whole-catalog payload (~37 KB / 113 shows) — give it the large ceiling like /artist, /album
+            // so a cold mobile fetch doesn't false-timeout at the 8 s default (which silently blanked art).
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
         if (!response.status.isSuccess()) {
             throw IOException("Zemer podcasts returned HTTP ${response.status.value}")
