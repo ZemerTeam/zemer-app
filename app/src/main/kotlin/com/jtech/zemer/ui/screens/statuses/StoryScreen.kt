@@ -43,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -74,6 +75,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
+import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.jtech.zemer.LocalPlayerConnection
@@ -115,6 +117,45 @@ private val dayFmt = DateTimeFormatter.ofPattern("d", Locale.US)
 
 /** One date the creator posted on: its ISO date, the index of its first post, and its post count. */
 private data class StatusDateGroup(val iso: String, val startIndex: Int, val count: Int)
+
+/** Where a creator opens: the entry date's first index (`floor`) and the status to resume on (`index`). */
+private data class ResumePos(val floor: Int, val index: Int)
+
+/**
+ * The WhatsApp resume position: default to TODAY's date window (or the newest date if none today) and
+ * land on its first UNSEEN status, else its newest. Shared by the driver and the cube preview face so
+ * the status shown mid-swipe is exactly the one that plays once the pager settles (no jump).
+ */
+private fun resumePos(posts: List<StatusPost>, seen: Set<String>, todayIso: String): ResumePos {
+    if (posts.isEmpty()) return ResumePos(0, 0)
+    val defaultIso = if (posts.any { localDate(it.postedAt) == todayIso }) todayIso
+    else localDate(posts.last().postedAt)
+    val wStart = posts.indexOfFirst { localDate(it.postedAt) == defaultIso }.coerceAtLeast(0)
+    val wEnd = posts.indexOfLast { localDate(it.postedAt) == defaultIso }.coerceAtLeast(wStart)
+    val index = (wStart..wEnd).firstOrNull { posts[it].id !in seen } ?: wEnd
+    return ResumePos(wStart, index)
+}
+
+/**
+ * Warm Coil's cache with the image a neighbor creator will show on the cube face (its resume status's
+ * media / video thumbnail), so swiping to it reveals a real frame instead of a black-loading flash.
+ * Prefetching the POSTS alone is not enough - the thumbnail bytes must be cached too.
+ */
+private fun prefetchStatusImage(
+    context: android.content.Context,
+    posts: List<StatusPost>,
+    seen: Set<String>,
+    todayIso: String,
+) {
+    if (posts.isEmpty()) return
+    val post = posts[resumePos(posts, seen, todayIso).index]
+    val url = when (post.kind) {
+        "image" -> statusMediaUrl(post.mediaPath)
+        "video" -> post.thumbPath?.let { statusMediaUrl(it) }
+        else -> null
+    } ?: return
+    context.imageLoader.enqueue(ImageRequest.Builder(context).data(url).build())
+}
 
 /**
  * Group a creator's posts (sorted oldest-first, so a date's posts are contiguous) by local date, in
@@ -159,6 +200,7 @@ fun StoryScreen(
     val scrim = colorScheme.scrim.copy(alpha = 0.8f)
     val viewModel: StoryViewModel = hiltViewModel()
     val creators by viewModel.creators.collectAsState()
+    val seenPostIds by viewModel.seenPostIds.collectAsState()
     val loadAttempted by viewModel.loadAttempted.collectAsState()
     val playerConnection = LocalPlayerConnection.current
 
@@ -228,8 +270,24 @@ fun StoryScreen(
     var postIdx by remember { mutableIntStateOf(0) }
     var progress by remember { mutableFloatStateOf(0f) }
     var currentPosts by remember { mutableStateOf<List<StatusPost>?>(null) }
+    // Which creator `currentPosts`/`postIdx` currently belong to. `creatorIdx` (= settledPage) flips one
+    // frame BEFORE the driver reloads, so without this the active face would render the PREVIOUS creator's
+    // status (then black + reload) on every settle - the flash. The active face waits for this to match.
+    var postsCreatorIdx by remember { mutableIntStateOf(-1) }
     // Press-and-hold anywhere pauses the current status (Instagram/JewishStatus); release resumes.
     var paused by remember { mutableStateOf(false) }
+
+    // True once the CURRENT video has actually drawn its first frame. The thumbnail is held over the
+    // player until then (not merely until progress ticks) so there is no black gap between the thumbnail
+    // and the video - the "blurry, flash, then play" the user saw. Reset per status by the play effect.
+    var videoRendered by remember { mutableStateOf(false) }
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onRenderedFirstFrame() { videoRendered = true }
+        }
+        exoPlayer.addListener(listener)
+        onDispose { exoPlayer.removeListener(listener) }
+    }
 
     // Reflect the hold onto the video: pause while held, resume on release (image/text honor `paused`
     // inside their timer loop). A video that is already playing is left alone.
@@ -254,28 +312,42 @@ fun StoryScreen(
     val windowStart = currentGroup?.startIndex ?: 0
     val windowEnd = currentGroup?.let { it.startIndex + it.count - 1 } ?: (currentPosts?.lastIndex ?: 0)
 
-    // Load posts for the current creator; preload the next in the background.
+    // Load posts for the current creator; preload both neighbors.
     LaunchedEffect(creatorIdx) {
-        currentPosts = null
-        postIdx = 0
         progress = 0f
         exoPlayer.stop()
-        val id = creators.getOrNull(creatorIdx)?.id ?: return@LaunchedEffect
-        val loaded = viewModel.loadPosts(id)
-        // Default to TODAY's date window (or the newest date if none today) and resume at its first UNSEEN
-        // status (WhatsApp); if all of that date is seen, land on its newest. AWAIT the persisted seen set
-        // (the StateFlow snapshot is still empty for the first frames after open while DataStore loads).
-        val seen = viewModel.seenSnapshot()
-        postIdx = if (loaded.isEmpty()) 0 else {
-            val defaultIso = if (loaded.any { localDate(it.postedAt) == todayIso }) todayIso
-            else localDate(loaded.last().postedAt)
-            val wStart = loaded.indexOfFirst { localDate(it.postedAt) == defaultIso }.coerceAtLeast(0)
-            val wEnd = loaded.indexOfLast { localDate(it.postedAt) == defaultIso }.coerceAtLeast(wStart)
-            floorIndex = wStart
-            (wStart..wEnd).firstOrNull { loaded[it].id !in seen } ?: wEnd
+        val id = creators.getOrNull(creatorIdx)?.id ?: run { currentPosts = emptyList(); return@LaunchedEffect }
+        // Resolve the resume position EXACTLY ONCE. Computing it a second time after seeding is what
+        // caused the flash: the play effect marks the seeded status seen, so a re-resume would skip it and
+        // jump to the next status (black frame + jump). When the creator was prefetched, seed instantly
+        // from the cache (its posts + the live seen StateFlow are accurate); otherwise load + await seen.
+        val cached = viewModel.cachedPosts(id)
+        val loaded: List<StatusPost>
+        val seen: Set<String>
+        if (cached != null) {
+            loaded = cached
+            seen = seenPostIds
+        } else {
+            currentPosts = null
+            postIdx = 0
+            loaded = viewModel.loadPosts(id)
+            seen = viewModel.seenSnapshot()
         }
+        val rp = resumePos(loaded, seen, todayIso)
+        floorIndex = rp.floor
+        postIdx = rp.index
         currentPosts = loaded
-        creators.getOrNull(creatorIdx + 1)?.id?.let { nextId -> launch { viewModel.loadPosts(nextId) } }
+        postsCreatorIdx = creatorIdx // now the active face may render - its state matches this creator
+        // Prefetch BOTH neighbors - their POSTS and the THUMBNAIL image of the status they will show - so
+        // swiping either way reveals a real frame immediately instead of a black-loading flash.
+        listOf(creatorIdx - 1, creatorIdx + 1).forEach { n ->
+            creators.getOrNull(n)?.id?.let { pid ->
+                launch {
+                    val neighborPosts = viewModel.loadPosts(pid)
+                    prefetchStatusImage(context, neighborPosts, seenPostIds, todayIso)
+                }
+            }
+        }
     }
 
     fun advance() {
@@ -317,6 +389,7 @@ fun StoryScreen(
         viewModel.markSeen(post.id)
 
         progress = 0f
+        videoRendered = false // hold the thumbnail until THIS status's video draws its first frame
         exoPlayer.stop()
 
         if (post.kind == "video" && post.mediaPath != null) {
@@ -387,8 +460,12 @@ fun StoryScreen(
                   rotationY = (if (off < 0f) 90f else -90f) * abs(off)
               },
       ) {
-        if (page != creatorIdx) {
-            StatusPreviewFace(creators[page])
+        // Show the live face only when the loaded posts belong to THIS creator; until the driver catches
+        // up after a settle (and for every non-active page) show the correct static preview, which loads
+        // this creator's resume status independently. This hands the cube's thumbnail straight to the
+        // active face with no stale-content or black flash in between.
+        if (page != creatorIdx || postsCreatorIdx != creatorIdx) {
+            StatusPreviewFace(creators[page], viewModel, seenPostIds, todayIso)
             return@Box
         }
         Box(
@@ -418,20 +495,37 @@ fun StoryScreen(
         } else {
             Crossfade(targetState = currentPost, label = "post") { post ->
                 when (post?.kind) {
-                    "video" -> AndroidView(
-                        factory = { ctx ->
-                            PlayerView(ctx).apply {
-                                player = exoPlayer
-                                useController = false
-                                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                layoutParams = ViewGroup.LayoutParams(
-                                    ViewGroup.LayoutParams.MATCH_PARENT,
-                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    "video" -> Box(Modifier.fillMaxSize()) {
+                        AndroidView(
+                            factory = { ctx ->
+                                PlayerView(ctx).apply {
+                                    player = exoPlayer
+                                    useController = false
+                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                    layoutParams = ViewGroup.LayoutParams(
+                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                    )
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        // Hold the thumbnail over the (black) player surface until the video actually
+                        // draws its first frame, so settling on a video shows a frame, never a black gap.
+                        if (!videoRendered) {
+                            post.thumbPath?.let { thumb ->
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data(statusMediaUrl(thumb))
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.fillMaxSize(),
                                 )
                             }
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                        }
+                    }
                     "image" -> AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(statusMediaUrl(post.mediaPath))
@@ -658,25 +752,72 @@ fun StoryScreen(
 }
 
 /**
- * The face shown for a NON-active creator during a cube swipe: its avatar centered on black. Kept
- * lightweight (no player/posts) - the real face composes once the pager settles on this creator.
+ * The face shown for a NON-active creator during a cube swipe. Loads the creator's posts (cached) and
+ * renders the SAME status the viewer will resume to (image, text, or a video's thumbnail frame) - no
+ * player, no auto-advance - so both sides of the cube show real content. Falls back to the avatar while
+ * the posts load or when there is nothing to show.
  */
 @Composable
-private fun StatusPreviewFace(creator: StatusCreator) {
+private fun StatusPreviewFace(
+    creator: StatusCreator,
+    viewModel: StoryViewModel,
+    seenPostIds: Set<String>,
+    todayIso: String,
+) {
     val context = LocalContext.current
+    val colorScheme = MaterialTheme.colorScheme
+    // Seed from the synchronous cache (neighbors are prefetched) so an already-loaded creator shows its
+    // real status on the very first frame instead of flashing the avatar; produceState fills in if not.
+    val initial = remember(creator.id) { viewModel.cachedPosts(creator.id) }
+    val posts by produceState(initial, creator.id) {
+        value = viewModel.loadPosts(creator.id)
+    }
+    val post = posts?.takeIf { it.isNotEmpty() }?.let { it[resumePos(it, seenPostIds, todayIso).index] }
+
     Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(statusAvatarUrl(creator.avatarPath))
-                .crossfade(true)
-                .build(),
-            contentDescription = creator.displayName,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(96.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-        )
+        val thumb = when (post?.kind) {
+            "image" -> statusMediaUrl(post.mediaPath)
+            "video" -> post.thumbPath?.let { statusMediaUrl(it) }
+            else -> null
+        }
+        when {
+            post?.kind == "text" -> {
+                val parsedBg = post.textBgColor?.let {
+                    runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull()
+                }
+                Box(
+                    Modifier.fillMaxSize().background(parsedBg ?: colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = post.textBody ?: post.caption ?: "",
+                        color = if (parsedBg != null) Color.White else colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(32.dp),
+                    )
+                }
+            }
+            thumb != null -> AsyncImage(
+                model = ImageRequest.Builder(context).data(thumb).crossfade(true).build(),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
+            // Posts still loading, or a video with no thumbnail: fall back to the avatar.
+            else -> AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(statusAvatarUrl(creator.avatarPath))
+                    .crossfade(true)
+                    .build(),
+                contentDescription = creator.displayName,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(CircleShape)
+                    .background(colorScheme.surfaceVariant),
+            )
+        }
     }
 }
 

@@ -44,6 +44,10 @@ class StoryViewModel @Inject constructor(
     suspend fun loadPosts(creatorId: String): List<StatusPost> =
         runCatching { repository.posts(creatorId) }.getOrDefault(emptyList())
 
+    /** The already-cached posts for a creator, or null if not fetched yet - seeds the cube preview face
+     *  without a load flash for neighbors that are already prefetched. */
+    fun cachedPosts(creatorId: String): List<StatusPost>? = repository.cachedPosts(creatorId)
+
     /**
      * The current persisted seen set, AWAITED (not the [seenPostIds] StateFlow snapshot, which is still
      * emptySet() for the first frames after the viewer opens while DataStore loads) so resuming at the

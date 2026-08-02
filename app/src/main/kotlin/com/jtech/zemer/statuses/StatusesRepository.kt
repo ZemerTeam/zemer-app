@@ -54,6 +54,9 @@ class StatusesRepository @Inject constructor(
         postsCache[creatorId]
             ?: withContext(Dispatchers.IO) { fetchStatusPosts(creatorId) }.also { postsCache[creatorId] = it }
 
+    /** The already-cached posts for a creator, or null if not fetched yet (no network). */
+    fun cachedPosts(creatorId: String): List<StatusPost>? = postsCache[creatorId]
+
     /** Record a status as viewed (persisted). */
     suspend fun markSeen(postId: String) = seenStore.markSeen(listOf(postId))
 
