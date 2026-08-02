@@ -173,8 +173,8 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusSeenStore.kt` | 31 | `com.jtech.zemer.statuses` | no | 9 | 5 | android.content, androidx.datastore, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusTextImage.kt` | 60 | `com.jtech.zemer.statuses` | no | 8 | 12 | android.graphics, android.text, androidx.core |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusTimeline.kt` | 76 | `com.jtech.zemer.statuses` | no | 4 | 20 | java.time, java.util |
-| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesApi.kt` | 288 | `com.jtech.zemer.statuses` | no | 8 | 74 | java.net, kotlinx.coroutines, org.json |
-| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesRepository.kt` | 139 | `com.jtech.zemer.statuses` | no | 15 | 25 | android.os, java.util, javax.inject, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesApi.kt` | 272 | `com.jtech.zemer.statuses` | no | 8 | 68 | java.net, kotlinx.coroutines, org.json |
+| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesRepository.kt` | 149 | `com.jtech.zemer.statuses` | no | 15 | 25 | android.os, java.util, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/YidStatusApi.kt` | 153 | `com.jtech.zemer.statuses` | no | 8 | 32 | java.io, java.util, okhttp3.MediaType, okhttp3.OkHttpClient, okhttp3.Request, okhttp3.RequestBody, org.json |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 347 | `com.jtech.zemer.sync` | no | 18 | 42 | android.util, javax.inject, kotlin.math, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentReportRepository.kt` | 54 | `com.jtech.zemer.sync` | no | 6 | 7 | com.google, javax.inject, kotlinx.coroutines |
