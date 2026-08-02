@@ -86,8 +86,9 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-// A status video that hasn't started playing within this long is treated as failed and skipped.
-private const val VIDEO_START_TIMEOUT_MS = 12_000L
+// A status video whose position hasn't advanced for this long while playback is intended (buffering
+// forever at the start OR stalling mid-stream, with no error) is treated as failed and skipped.
+private const val VIDEO_STALL_TIMEOUT_MS = 12_000L
 
 private val tsFmt = DateTimeFormatter.ofPattern("MMM d · h:mm a", Locale.US)
 
@@ -255,10 +256,12 @@ fun StoryScreen(
     }
 
     fun advance() {
+        // Ignore taps while this creator's posts are still loading; without this the ?: 0 fallback would
+        // read last = 0 and step straight to the adjacent creator, skipping the one that was tapped.
+        val last = currentPosts?.lastIndex ?: return
         progress = 0f
         // Continue FORWARD along this creator's timeline (across date boundaries); only its newest status
         // moves on to the next creator.
-        val last = currentPosts?.lastIndex ?: 0
         if (postIdx < last) {
             postIdx++
         } else {
@@ -268,6 +271,7 @@ fun StoryScreen(
     }
 
     fun goBack() {
+        if (currentPosts == null) return // still loading; see advance()
         progress = 0f
         // Don't step below the entry date (use the jump-to-date sheet to go earlier); else previous creator.
         if (postIdx > floorIndex) postIdx-- else if (creatorIdx > 0) creatorIdx--
@@ -295,19 +299,23 @@ fun StoryScreen(
             exoPlayer.setMediaItem(MediaItem.fromUri(uri))
             exoPlayer.prepare()
             exoPlayer.play()
-            var waited = 0L
+            var lastPos = -1L
+            var stalledMs = 0L
             while (true) {
                 delay(80)
-                waited += 80
                 val dur = exoPlayer.duration
                 val pos = exoPlayer.currentPosition
                 if (dur > 0L) progress = (pos.toFloat() / dur).coerceIn(0f, 1f)
+                // Stall detector: count time only while playback is INTENDED (playWhenReady) but the
+                // position is not advancing. This catches a clip that buffers forever with no error at
+                // the start OR mid-stream, yet never fires while paused/backgrounded (the lifecycle
+                // observer clears playWhenReady), so the timer freezes off-screen instead of skipping.
+                if (exoPlayer.playWhenReady && pos <= lastPos) stalledMs += 80 else stalledMs = 0
+                lastPos = pos
                 val ended = exoPlayer.playbackState == Player.STATE_ENDED
-                // A failed video (bad/expired URL) sets playerError and never ENDs; the start-timeout
-                // catches a clip that buffers forever without an explicit error. Either way, advance.
+                // A failed video (bad/expired URL) sets playerError and never ENDs.
                 val failed = exoPlayer.playerError != null
-                val stalledAtStart = progress == 0f && waited >= VIDEO_START_TIMEOUT_MS
-                if (ended || failed || stalledAtStart || progress >= 0.99f) break
+                if (ended || failed || stalledMs >= VIDEO_STALL_TIMEOUT_MS || progress >= 0.99f) break
             }
             exoPlayer.stop()
         } else {
@@ -317,6 +325,9 @@ fun StoryScreen(
             var elapsed = 0L
             while (elapsed < durationMs) {
                 delay(tickMs)
+                // Freeze the timer while backgrounded (the composable is stopped, not disposed), so it
+                // does not advance / mark-seen subsequent statuses off-screen - mirrors the video pause.
+                if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) continue
                 elapsed += tickMs
                 progress = (elapsed.toFloat() / durationMs).coerceIn(0f, 1f)
             }
@@ -471,7 +482,7 @@ fun StoryScreen(
                         if (creator?.liveNow == true) {
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                "LIVE",
+                                stringResource(R.string.station_live_badge),
                                 color = colorScheme.primary,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,

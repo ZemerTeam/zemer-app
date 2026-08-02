@@ -573,7 +573,7 @@ fun HomeScreen(
                 // "Music Statuses" (JewishStatus) — directly under Quick Picks. Hidden by the Appearance
                 // toggle, when the third-party feed is empty/unreachable (fail-soft), OR when videos are
                 // blocked by content filters: statuses are mostly video/media, so the same gate as the
-                // Featured Videos row applies. The tap carries the creator's index so the viewer advances.
+                // Featured Videos row applies. The tap carries the creator's stable id (storyRoute).
                 if (showHomeStatuses && !blockVideos) {
                     statusCreators.takeIf { it.isNotEmpty() }?.let { creators ->
                         item(key = "statuses_title", contentType = "header") {

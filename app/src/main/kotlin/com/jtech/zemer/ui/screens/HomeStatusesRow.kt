@@ -15,14 +15,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.statuses.StatusCreator
-import com.jtech.zemer.statuses.allStatusesSeen
+import com.jtech.zemer.statuses.sortedByUnseenFirst
 import com.jtech.zemer.ui.component.StatusCreatorCircle
 
 /**
  * The Home "Music Statuses" strip (title above is the standard NavigationTitle emitted by HomeScreen):
  * ONE LazyRow of creator story-circles. Presentation-only; visibility (the ShowHomeStatuses preference
- * + empty-hides) is the caller's, and the tap carries the creator's INDEX so the story viewer can
- * advance across the same list. No impression tracking (impressions are per-videoId by contract).
+ * + empty-hides) is the caller's, and the tap carries the creator's STABLE id so the story viewer opens
+ * the right creator even after a recency re-sort. No impression tracking (impressions are per-videoId).
  */
 @Composable
 fun HomeStatusesRow(
@@ -31,10 +31,7 @@ fun HomeStatusesRow(
     onCreatorClick: (creatorId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Fully-viewed creators sink to the end (WhatsApp), preserving recency order within each group.
-    val ordered = remember(creators, seenPostIds) {
-        creators.sortedBy { it.allStatusesSeen(seenPostIds) }
-    }
+    val ordered = remember(creators, seenPostIds) { creators.sortedByUnseenFirst(seenPostIds) }
     LazyRow(
         contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
             .add(WindowInsets(left = 12.dp, right = 12.dp))

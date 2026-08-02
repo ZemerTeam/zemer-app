@@ -66,6 +66,13 @@ data class StatusPost(
 fun StatusCreator.allStatusesSeen(seenPostIds: Set<String>): Boolean =
     recentPostIds.isNotEmpty() && recentPostIds.all { it in seenPostIds }
 
+/**
+ * Creators ordered for the Home row AND the See-all grid (one definition so the two can't drift):
+ * fully-viewed creators sink to the end (WhatsApp), preserving recency order within each group.
+ */
+fun List<StatusCreator>.sortedByUnseenFirst(seenPostIds: Set<String>): List<StatusCreator> =
+    sortedBy { it.allStatusesSeen(seenPostIds) }
+
 fun statusAvatarUrl(path: String?): String? = path?.let { "$CDN/avatars/$it" }
 fun statusMediaUrl(path: String?): String? = path?.let { "$CDN/status-media/$it" }
 

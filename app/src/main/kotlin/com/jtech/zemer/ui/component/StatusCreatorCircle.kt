@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -54,7 +55,11 @@ fun StatusCreatorCircle(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .width(76.dp)
-            .clickable(onClick = onClick),
+            // D-pad reachability (upstream rows omit it): the shared focus border + .focusable(), so the
+            // Home row and See-all grid are navigable by remote. Wraps the click like the peer GenreCard.
+            .focusBorder()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
     ) {
         Box(contentAlignment = Alignment.BottomEnd) {
             Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) {

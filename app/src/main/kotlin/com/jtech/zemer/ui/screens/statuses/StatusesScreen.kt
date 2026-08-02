@@ -25,7 +25,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
-import com.jtech.zemer.statuses.allStatusesSeen
+import com.jtech.zemer.statuses.sortedByUnseenFirst
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.StatusCreatorCircle
@@ -49,9 +49,7 @@ fun StatusesScreen(
 ) {
     val creators by viewModel.creators.collectAsState()
     val seenPostIds by viewModel.seenPostIds.collectAsState()
-    val ordered = remember(creators, seenPostIds) {
-        creators.sortedBy { it.allStatusesSeen(seenPostIds) }
-    }
+    val ordered = remember(creators, seenPostIds) { creators.sortedByUnseenFirst(seenPostIds) }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
