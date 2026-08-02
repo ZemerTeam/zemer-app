@@ -70,14 +70,17 @@ import com.jtech.zemer.viewmodels.StoryViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private val tsFmt = DateTimeFormatter.ofPattern("MMM d · h:mm a", Locale.US)
 
+// Convert the post's UTC/offset timestamp to the DEVICE's local zone before formatting, or the shown
+// time is off by the user's UTC offset (which read as "wrong times").
 private fun formatPostedAt(postedAt: String): String = try {
-    tsFmt.format(ZonedDateTime.parse(postedAt))
+    tsFmt.format(ZonedDateTime.parse(postedAt).withZoneSameInstant(ZoneId.systemDefault()))
 } catch (_: Exception) { "" }
 
 /**
@@ -218,9 +221,15 @@ fun StoryScreen(
     val creator = creators.getOrNull(creatorIdx)
     val currentPost = posts?.getOrNull(postIdx)
     val hasCaption = currentPost?.kind != "text" && !currentPost?.caption.isNullOrBlank()
-    // Posts are newest-first, so today's statuses sit at the top; offer a jump to the newest one today.
+    // Posts are chronological (oldest first); "Today" jumps to the FIRST status posted today. Compare on
+    // the device-local date so it matches the timestamps shown (the raw posted_at is UTC).
     val todayIso = remember { LocalDate.now().toString() }
-    val todayIndex = posts?.indexOfFirst { it.postedAt.take(10) == todayIso }?.takeIf { it >= 0 }
+    val todayIndex = posts?.indexOfFirst {
+        runCatching {
+            ZonedDateTime.parse(it.postedAt).withZoneSameInstant(ZoneId.systemDefault())
+                .toLocalDate().toString() == todayIso
+        }.getOrDefault(false)
+    }?.takeIf { it >= 0 }
 
     Box(
         Modifier

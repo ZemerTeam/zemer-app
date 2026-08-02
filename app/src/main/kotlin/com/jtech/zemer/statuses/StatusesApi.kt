@@ -80,8 +80,10 @@ fun fetchStatusCreators(): List<StatusCreator> {
 }
 
 /**
- * All visible posts for one creator, newest first, no artificial cap (paginates 100/page so a creator
- * with 100+ posts is fully covered).
+ * All visible posts for one creator, in CHRONOLOGICAL order (oldest first) so the story viewer plays
+ * them the WhatsApp way (oldest -> newest). No artificial cap (paginates 100/page so a creator with
+ * 100+ posts is fully covered). We deliberately do NOT prioritize `is_featured` here — pinning featured
+ * posts to the front would scramble the timeline.
  */
 fun fetchStatusPosts(creatorId: String): List<StatusPost> {
     val all = mutableListOf<StatusPost>()
@@ -92,7 +94,7 @@ fun fetchStatusPosts(creatorId: String): List<StatusPost> {
             "?creator_id=eq.$creatorId" +
             "&select=id,kind,media_path,thumb_path,caption,text_body,text_bg_color,link_url," +
             "duration_seconds,posted_at,view_count,download_count" +
-            "&order=is_featured.desc,posted_at.desc" +
+            "&order=posted_at.asc" +
             "&limit=$pageSize&offset=$offset"
         val page = parsePosts(JSONArray(getJson(url)))
         all += page
