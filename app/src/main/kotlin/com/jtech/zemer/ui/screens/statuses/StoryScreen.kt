@@ -217,6 +217,18 @@ fun StoryScreen(
     var postIdx by remember { mutableIntStateOf(0) }
     var progress by remember { mutableFloatStateOf(0f) }
     var currentPosts by remember { mutableStateOf<List<StatusPost>?>(null) }
+    // Press-and-hold anywhere pauses the current status (Instagram/JewishStatus); release resumes.
+    var paused by remember { mutableStateOf(false) }
+
+    // Reflect the hold onto the video: pause while held, resume on release (image/text honor `paused`
+    // inside their timer loop). A video that is already playing is left alone.
+    LaunchedEffect(paused) {
+        if (paused) {
+            exoPlayer.pause()
+        } else if (exoPlayer.mediaItemCount > 0 && exoPlayer.playbackState != Player.STATE_ENDED) {
+            exoPlayer.play()
+        }
+    }
     // Like JewishStatus, the viewer opens on a single date (today by default) and the "jump to date" sheet
     // sets a different STARTING date. Statuses are grouped by local date; a date's posts are contiguous
     // (posts are asc). The progress bars show the CURRENT post's date window (derived from `postIdx`), so
@@ -325,9 +337,9 @@ fun StoryScreen(
             var elapsed = 0L
             while (elapsed < durationMs) {
                 delay(tickMs)
-                // Freeze the timer while backgrounded (the composable is stopped, not disposed), so it
-                // does not advance / mark-seen subsequent statuses off-screen - mirrors the video pause.
-                if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) continue
+                // Freeze the timer while the user is holding (pause) OR the app is backgrounded (the
+                // composable is stopped, not disposed) - so it does not advance / mark-seen off-screen.
+                if (paused || !lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) continue
                 elapsed += tickMs
                 progress = (elapsed.toFloat() / durationMs).coerceIn(0f, 1f)
             }
@@ -346,9 +358,19 @@ fun StoryScreen(
             .fillMaxSize()
             .background(Color.Black)
             .pointerInput(creatorIdx, postIdx) {
-                detectTapGestures { offset ->
-                    if (offset.x < size.width * 0.35f) goBack() else advance()
-                }
+                detectTapGestures(
+                    // Pause the moment a finger is down; resume on release. onLongPress (even empty) must
+                    // be set so that releasing a HOLD does not also fire onTap and navigate.
+                    onPress = {
+                        paused = true
+                        tryAwaitRelease()
+                        paused = false
+                    },
+                    onLongPress = {},
+                    onTap = { offset ->
+                        if (offset.x < size.width * 0.35f) goBack() else advance()
+                    },
+                )
             },
     ) {
         // Content.
