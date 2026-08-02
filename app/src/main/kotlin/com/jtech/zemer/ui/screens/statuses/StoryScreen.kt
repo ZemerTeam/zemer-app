@@ -4,8 +4,9 @@ import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,11 +44,14 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -75,6 +79,7 @@ import coil3.request.crossfade
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
+import com.jtech.zemer.statuses.StatusCreator
 import com.jtech.zemer.statuses.StatusPost
 import com.jtech.zemer.statuses.statusAvatarUrl
 import com.jtech.zemer.statuses.statusMediaUrl
@@ -86,6 +91,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.abs
 
 // A status video whose position hasn't advanced for this long while playback is intended (buffering
 // forever at the start OR stalling mid-stream, with no error) is treated as failed and skipped.
@@ -211,10 +217,14 @@ fun StoryScreen(
         return
     }
 
-    // Resolve the stable id to the current index; a gone creator falls back to the first.
-    var creatorIdx by remember {
-        mutableIntStateOf(creators.indexOfFirst { it.id == initialCreatorId }.coerceAtLeast(0))
-    }
+    // Creators live in a HorizontalPager so switching them is a finger-tracked CUBE rotation (WhatsApp/
+    // Instagram). The SETTLED page is the active creator; `creatorIdx` drives all per-creator state, and
+    // programmatic creator changes (tap past the last status, tap-back at the entry date) animate the pager.
+    val scope = rememberCoroutineScope()
+    val pagerState = rememberPagerState(
+        initialPage = creators.indexOfFirst { it.id == initialCreatorId }.coerceAtLeast(0),
+    ) { creators.size }
+    val creatorIdx = pagerState.settledPage
     var postIdx by remember { mutableIntStateOf(0) }
     var progress by remember { mutableFloatStateOf(0f) }
     var currentPosts by remember { mutableStateOf<List<StatusPost>?>(null) }
@@ -274,12 +284,12 @@ fun StoryScreen(
         val last = currentPosts?.lastIndex ?: return
         progress = 0f
         // Continue FORWARD along this creator's timeline (across date boundaries); only its newest status
-        // moves on to the next creator.
+        // rolls on to the next creator - animated as a cube via the pager (or close past the last).
         if (postIdx < last) {
             postIdx++
         } else {
             val next = creatorIdx + 1
-            if (next < creators.size) creatorIdx = next else onClose()
+            if (next < creators.size) scope.launch { pagerState.animateScrollToPage(next) } else onClose()
         }
     }
 
@@ -287,20 +297,8 @@ fun StoryScreen(
         if (currentPosts == null) return // still loading; see advance()
         progress = 0f
         // Don't step below the entry date (use the jump-to-date sheet to go earlier); else previous creator.
-        if (postIdx > floorIndex) postIdx-- else if (creatorIdx > 0) creatorIdx--
-    }
-
-    // Horizontal swipe jumps whole creators (Instagram/JewishStatus): left = next, right = previous.
-    fun nextCreator() {
-        progress = 0f
-        val next = creatorIdx + 1
-        if (next < creators.size) creatorIdx = next else onClose()
-    }
-
-    fun prevCreator() {
-        if (creatorIdx > 0) {
-            progress = 0f
-            creatorIdx--
+        if (postIdx > floorIndex) postIdx-- else if (creatorIdx > 0) scope.launch {
+            pagerState.animateScrollToPage(creatorIdx - 1)
         }
     }
 
@@ -368,43 +366,50 @@ fun StoryScreen(
     // The "jump to date" affordance shows only when the creator posted on more than one date.
     val canJumpDate = posts != null && dateGroups.size > 1
 
-    Box(
-        Modifier
+    // Each creator is a pager page; scrolling between them turns a 3D cube. Only the SETTLED creator gets
+    // the live face (media + progress + gestures); neighbors show a lightweight avatar face so the cube has
+    // something to reveal mid-swipe. Horizontal swipe -> creator (handled by the pager); tap -> status.
+    HorizontalPager(
+        state = pagerState,
+        modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
-            // Horizontal swipe -> whole-creator navigation (separate from the tap gesture, which moves
-            // status-by-status). Threshold is a fraction of the width so a small drag does not trigger it.
-            .pointerInput(creatorIdx, creators.size) {
-                var total = 0f
-                detectHorizontalDragGestures(
-                    onDragStart = { total = 0f },
-                    onDragEnd = {
-                        val threshold = size.width * 0.2f
-                        if (total <= -threshold) nextCreator()
-                        else if (total >= threshold) prevCreator()
-                    },
-                    onHorizontalDrag = { change, dragAmount ->
-                        total += dragAmount
-                        change.consume()
-                    },
-                )
-            }
-            .pointerInput(creatorIdx, postIdx) {
-                detectTapGestures(
-                    // Pause the moment a finger is down; resume on release. onLongPress (even empty) must
-                    // be set so that releasing a HOLD does not also fire onTap and navigate.
-                    onPress = {
-                        paused = true
-                        tryAwaitRelease()
-                        paused = false
-                    },
-                    onLongPress = {},
-                    onTap = { offset ->
-                        if (offset.x < size.width * 0.35f) goBack() else advance()
-                    },
-                )
-            },
-    ) {
+            .background(Color.Black),
+        beyondViewportPageCount = 1,
+    ) { page ->
+      Box(
+          Modifier
+              .fillMaxSize()
+              .graphicsLayer {
+                  val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                  val off = pageOffset.coerceIn(-1f, 1f)
+                  cameraDistance = 20f * density
+                  transformOrigin = TransformOrigin(if (off < 0f) 0f else 1f, 0.5f)
+                  rotationY = (if (off < 0f) 90f else -90f) * abs(off)
+              },
+      ) {
+        if (page != creatorIdx) {
+            StatusPreviewFace(creators[page])
+            return@Box
+        }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .pointerInput(creatorIdx, postIdx) {
+                    detectTapGestures(
+                        // Pause the moment a finger is down; resume on release. onLongPress (even empty)
+                        // must be set so releasing a HOLD does not also fire onTap and navigate.
+                        onPress = {
+                            paused = true
+                            tryAwaitRelease()
+                            paused = false
+                        },
+                        onLongPress = {},
+                        onTap = { offset ->
+                            if (offset.x < size.width * 0.35f) goBack() else advance()
+                        },
+                    )
+                },
+        ) {
         // Content.
         if (posts == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -536,13 +541,6 @@ fun StoryScreen(
                         )
                     }
                 }
-
-                Spacer(Modifier.weight(1f))
-                Text(
-                    text = "${creatorIdx + 1} / ${creators.size}",
-                    color = Color.White.copy(alpha = 0.7f),
-                    style = MaterialTheme.typography.labelMedium,
-                )
             }
         }
 
@@ -654,6 +652,31 @@ fun StoryScreen(
                 }
             }
         }
+        } // active-creator face
+      } // cube page
+    } // HorizontalPager
+}
+
+/**
+ * The face shown for a NON-active creator during a cube swipe: its avatar centered on black. Kept
+ * lightweight (no player/posts) - the real face composes once the pager settles on this creator.
+ */
+@Composable
+private fun StatusPreviewFace(creator: StatusCreator) {
+    val context = LocalContext.current
+    Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+        AsyncImage(
+            model = ImageRequest.Builder(context)
+                .data(statusAvatarUrl(creator.avatarPath))
+                .crossfade(true)
+                .build(),
+            contentDescription = creator.displayName,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(96.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        )
     }
 }
 
