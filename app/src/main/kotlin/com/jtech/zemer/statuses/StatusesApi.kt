@@ -119,6 +119,9 @@ suspend fun fetchStatusCreators(): List<StatusCreator> = coroutineScope {
         .awaitAll()
         .flatten()
         .filter { seen.add(it.id) }
+        // Drop creators with NO recent statuses (empty `recent_post_ids`, e.g. "shmusic"): they render an
+        // empty ring and open to nothing. YidStatus already only keeps creators that have posts.
+        .filter { it.recentPostIds.isNotEmpty() }
 
     base
 }
