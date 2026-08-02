@@ -18,8 +18,6 @@ import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toSQLiteQuery
 import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.search.ZemerSearchRepository
-import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.sync.PodcastSyncLogic
 import com.jtech.zemer.utils.filterWhitelisted
 import com.metrolist.innertube.YouTube
@@ -54,14 +52,10 @@ data class WhitelistSyncProgress(
 @Singleton
 class SyncUtils @Inject constructor(
     private val databaseLazy: dagger.Lazy<MusicDatabase>,
-    private val zemerRepositoryLazy: dagger.Lazy<ZemerSearchRepository>,
     @ApplicationContext private val context: Context,
 ) {
     private val database: MusicDatabase
         get() = databaseLazy.get()
-
-    private val zemerRepository: ZemerSearchRepository
-        get() = zemerRepositoryLazy.get()
 
     private val syncScope = CoroutineScope(Dispatchers.IO)
 
@@ -802,26 +796,17 @@ class SyncUtils @Inject constructor(
             isSyncingPodcastWhitelist.value = true
             _podcastWhitelistSyncProgress.value = WhitelistSyncProgress()
             try {
-                // The allow-set + version gate come from the content mirror (content.zemer.io/
+                // The allow-set + version gate + art all come from the content mirror (content.zemer.io/
                 // podcastsWhitelist), MIRROR-FIRST with Firestore fallback — exactly like the artist
-                // whitelist (WhitelistFetcher.fetch*). The mirror is already live, so this works ahead of
-                // the zemer-search deploy. `zemer-search /podcasts` is the rich catalog used only to
-                // ENRICH art below, never the gate.
+                // whitelist (WhitelistFetcher.fetch*): each doc now carries thumbnailUrl + channelId, so
+                // the browse grid renders straight from the mirror with no per-device catalog fetch.
                 val remoteVersion = WhitelistFetcher.fetchPodcastVersion().getOrNull()
                 val localVersion = context.dataStore.get(LastPodcastWhitelistVersionKey, 0L)
                 val localEmpty = database.getAllWhitelistedPodcastIdsSync().isEmpty()
 
-                // Fetch at least once per version; later runs skip the allow-set re-fetch when unchanged —
-                // but still SELF-HEAL missing art (the mirror allow-set carries none), so a launch whose
-                // first sync couldn't reach /podcasts fills art in on the next one instead of being stuck
-                // behind the version gate forever. Bounded: once every row has art, no fetch happens.
+                // Fetch at least once per version; later runs skip when already synced.
                 if (!forceSync && remoteVersion != null && remoteVersion <= localVersion && !localEmpty) {
-                    val existing = database.getPodcastWhitelistEntriesSync()
-                    val healed = enrichPodcastArt(existing)
-                    if (healed !== existing) {
-                        runCatching { database.transaction { healed.forEach { upsertPodcastWhitelist(it) } } }
-                    }
-                    runCatching { PodcastWhitelistCache.updateAll(healed) }
+                    runCatching { PodcastWhitelistCache.updateAll(database.getPodcastWhitelistEntriesSync()) }
                     _podcastWhitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
                     return@withContext
                 }
@@ -838,7 +823,8 @@ class SyncUtils @Inject constructor(
                     return@withContext
                 }
 
-                // Preserve existing thumbnails across the clear+reinsert (the mirror doc's art is sparse).
+                // Preserve any existing thumbnail across the clear+reinsert as a guard for a row the mirror
+                // ever omits art on (it now carries art for 113/113, but never regress a good local cover).
                 val existingThumbnails = database.getPodcastWhitelistEntriesSync()
                     .associate { it.podcastId to it.thumbnailUrl }
                 val entriesWithThumbnails = whitelistEntries.map { entry ->
@@ -847,16 +833,11 @@ class SyncUtils @Inject constructor(
                     else entry
                 }
 
-                // Art enrichment: the mirror allow-set carries no art, so fill each missing thumbnail from
-                // the live zemer-search /podcasts catalog (art guaranteed there). Best-effort — a fetch
-                // failure just leaves the mirror's (empty) art, never blocks the gate.
-                val enriched = enrichPodcastArt(entriesWithThumbnails)
-
                 database.transaction {
                     clearPodcastWhitelist()
-                    insertPodcastWhitelist(enriched)
+                    insertPodcastWhitelist(entriesWithThumbnails)
                 }
-                PodcastWhitelistCache.updateAll(enriched)
+                PodcastWhitelistCache.updateAll(entriesWithThumbnails)
 
                 _podcastWhitelistSyncProgress.value =
                     WhitelistSyncProgress(current = whitelistEntries.size, total = whitelistEntries.size, isComplete = true)
@@ -871,29 +852,6 @@ class SyncUtils @Inject constructor(
             } finally {
                 isSyncingPodcastWhitelist.value = false
             }
-        }
-    }
-
-    /**
-     * Fill each entry's missing thumbnail from the live zemer-search `/podcasts` catalog (which
-     * GUARANTEES art), keyed by the show id. The mirror allow-set carries no art, so this is where the
-     * browse grid's covers come from until the mirror itself carries `thumbnailUrl`. Best-effort and
-     * bounded: returns the SAME list (referentially) when nothing is missing or the fetch fails, so the
-     * caller can skip the DB write and no fetch happens once every row already has art.
-     */
-    private suspend fun enrichPodcastArt(
-        entries: List<PodcastWhitelistEntity>,
-    ): List<PodcastWhitelistEntity> {
-        if (entries.none { it.thumbnailUrl.isNullOrBlank() }) return entries
-        val catalogArt = runCatching {
-            zemerRepository.podcasts(zemerSearchOptions(context)).podcasts
-                .filter { it.id.isNotBlank() && !it.thumbnail.isNullOrBlank() }
-                .associate { it.id to it.thumbnail!! }
-        }.getOrNull().orEmpty()
-        if (catalogArt.isEmpty()) return entries
-        return entries.map { e ->
-            if (e.thumbnailUrl.isNullOrBlank()) catalogArt[e.podcastId]?.let { e.copy(thumbnailUrl = it) } ?: e
-            else e
         }
     }
 

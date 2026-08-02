@@ -321,14 +321,6 @@ data class ZemerPodcastEpisode(
     val publishedAt: String? = null,
 )
 
-/** `GET /podcasts` — the rich browse catalog (art guaranteed). The allow-set + version gate live in the
- *  content mirror (`/podcastsWhitelist`), so `version` here is informational, not the gate the app uses. */
-@Serializable
-data class ZemerPodcastsResponse(
-    val podcasts: List<ZemerPodcastShow> = emptyList(),
-    val version: Int? = null,
-)
-
 /** The SHOW header on `GET /podcast?id=` (adds description + categories over the browse row). */
 @Serializable
 data class ZemerPodcastDetail(

@@ -631,13 +631,14 @@ statuses. Rules that must not regress:
 A full podcast feature ported from Metrolist onto Zemer main. **DISCOVERY is now the whitelist-pure Zemer
 server** (`search.zemer.io`), exactly like artist/album/home-rows/radio — the app carries **no InnerTube
 podcast-discovery path and no direct Firestore `podcastsWhitelist` read**. The endpoints
-(`handoff-docs/zemer-app-podcasts-request.md`, both sides SETTLED 2026-08-01) are `GET /podcasts` (rich
-browse catalog + art enrichment), `GET /podcast?id=MPSP…&offset=` (show + episode page), `GET
-/podcast-channel?id=UC…` (host channel → an `ArtistPage`), `GET /podcasts/new-episodes` (Library New
-Episodes), and podcast/episode groups folded into `/search`. The **whitelist allow-set + version gate**
-come from the **content mirror** (`content.zemer.io/podcastsWhitelist` + `/podcastsWhitelist/version`),
-mirror-first with Firestore fallback — exactly like the artist whitelist (`ZemerContentClient` /
-`WhitelistFetcher`); the mirror is the authoritative gate, `zemer-search /podcasts` is the catalog. All are wired in
+(`handoff-docs/zemer-app-podcasts-request.md`, both sides SETTLED 2026-08-01) are `GET /podcast?id=MPSP…&offset=`
+(show + episode page), `GET /podcast-channel?id=UC…` (host channel → an `ArtistPage`), `GET
+/podcasts/new-episodes` (Library New Episodes), and podcast/episode groups folded into `/search`. The
+**whitelist allow-set + version gate + browse-grid data (art + channelId)** all come from the **content
+mirror** (`content.zemer.io/podcastsWhitelist` + `/podcastsWhitelist/version`), mirror-first with Firestore
+fallback — exactly like the artist whitelist (`ZemerContentClient` / `WhitelistFetcher`): each mirror doc
+carries `thumbnailUrl` + `channelId`, so the grid renders straight from the mirror (the app does NOT call
+`zemer-search /podcasts`). All are wired in
 `ZemerSearchClient`/`ZemerResultMapper`/`ZemerSearchRepository` and are **live-only** (no offline snapshot,
 like `/radio`+`/playlist`). **NOTE: as of 2026-08-01 the server endpoints are BUILT but NOT YET DEPLOYED**
 — `syncPodcastWhitelist` preserves the last-good table on fetch failure, so existing installs degrade
@@ -666,12 +667,12 @@ YouTube account (`SyncUtils.syncPodcastSubscriptions`/`syncEpisodesForLater`, ga
   the not-available state. Radio is HIDDEN for `isPodcastChannel` (no corpus radio for a host).
 - **The podcast whitelist source is the content mirror, not Firestore** (`SyncUtils.syncPodcastWhitelist`
   → `WhitelistFetcher.fetchPodcastWhitelist`/`fetchPodcastVersion`, mirror-first from
-  `content.zemer.io/podcastsWhitelist` with Firestore fallback, exactly like the artist whitelist). The
-  mirror is the authoritative allow-set + version gate and is **already live**, so podcasts work ahead of
-  the zemer-search deploy. The mirror doc's art is sparse, so thumbnails are **enriched from the
-  zemer-search `/podcasts` catalog** (best-effort overlay in the sync — a no-op until that deploys, then
-  guaranteed art); the old per-row `requestPodcastThumbnail` fetch is **gone**. An empty/failed fetch
-  never wipes the local table (never unblocks). **New Episodes** is the global `GET /podcasts/new-episodes` feed scoped
+  `content.zemer.io/podcastsWhitelist` with Firestore fallback, exactly like the artist whitelist). Each
+  mirror doc carries `thumbnailUrl` + `channelId` (`ContentPodcastDoc`), so the browse grid renders cover
+  art + routes to the host channel straight from the allow-set — no per-row fetch. The old per-row
+  `requestPodcastThumbnail` (InnerTube) fetch AND the interim `zemer-search /podcasts` art overlay are both
+  **gone** (the mirror carries art now, matching the artist path). An empty/failed fetch never wipes the
+  local table (never unblocks). **New Episodes** is the global `GET /podcasts/new-episodes` feed scoped
   CLIENT-SIDE to locally-subscribed shows (`PodcastLibrarySources.whitelistedNewEpisodes`), so it works
   for anonymous sessions too (no account gate — it is discovery, not account state). **Search** folds
   podcast/episode groups into `/search` (rendered by `YouTubeListItem`; a show row opens the
