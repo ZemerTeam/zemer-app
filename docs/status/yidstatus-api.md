@@ -195,6 +195,22 @@ on-topic, filter influencers to the **music** categories. Category counts in the
 Match case-insensitively against BOTH `category` and every entry of `categories` (a creator can carry
 several). Everything else (News, Services, Real Estate, Kosher Food, Business, ...) is excluded.
 
+**Shipped filter (`YidStatusApi.YID_MUSIC_KEYWORDS`):** the app keeps a creator whose category contains
+any of `music, singer, kumzits, simcha, concert` (substring, case-insensitive). **Comedy and general
+Entertainment are deliberately excluded** (owner decision - the row is music-only). JewishStatus needs no
+such filter (its three source categories are already music-scoped server-side).
+
+## How the app uses it
+
+`com.jtech.zemer.statuses.YidStatusApi`:
+
+- `fetchYidStatusFeed(days = 1)` - one `POST /functions/v1/feed` via **OkHttp** (for the `Origin` header),
+  reduced to music creators + their statuses (oldest-first per creator), ads/audio/hidden filtered.
+- Merged with JewishStatus in `StatusesRepository` (`mergeStatusCreators`, dedup by normalized name) and
+  parsed under unit test in `app/src/test/.../statuses/YidStatusApiTest.kt`.
+- App-side architecture (fail-soft isolation, viewer, content filter, live-refresh) is in the repo
+  `AGENTS.md` "Music Status" section.
+
 ## Differences from JewishStatus (for a shared client)
 
 - **One global feed** vs per-creator pagination. Fetch once, group by `influencer_id`, sort by

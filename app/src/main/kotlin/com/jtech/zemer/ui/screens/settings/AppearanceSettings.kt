@@ -38,16 +38,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -118,6 +119,7 @@ import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
+import kotlinx.coroutines.flow.first
 import me.saket.squiggles.SquigglySlider
 import kotlin.math.roundToInt
 
@@ -129,11 +131,19 @@ fun AppearanceSettings(
     scrollBehavior: TopAppBarScrollBehavior,
     scrollToStatus: Boolean = false,
 ) {
-    // When opened from the Music Status See-all gear, scroll the Music Status group into view instead of
-    // leaving the user at the top of a long Appearance screen.
-    val statusBringIntoView = remember { BringIntoViewRequester() }
+    // When opened from the Music Status See-all gear, scroll the Music Status group to the TOP of the
+    // screen (not merely just-into-view). We measure the viewport's and the group's window Y once both
+    // are laid out, then scroll by their delta so the group header sits under the app bar.
+    val appearanceScrollState = rememberScrollState()
+    val viewportTopY = remember { mutableFloatStateOf(Float.NaN) }
+    val statusGroupTopY = remember { mutableFloatStateOf(Float.NaN) }
     LaunchedEffect(scrollToStatus) {
-        if (scrollToStatus) statusBringIntoView.bringIntoView()
+        if (!scrollToStatus) return@LaunchedEffect
+        snapshotFlow { viewportTopY.floatValue to statusGroupTopY.floatValue }
+            .first { (vp, grp) -> !vp.isNaN() && !grp.isNaN() }
+        val target = (appearanceScrollState.value + (statusGroupTopY.floatValue - viewportTopY.floatValue))
+            .roundToInt().coerceAtLeast(0)
+        appearanceScrollState.animateScrollTo(target)
     }
     val (dynamicTheme, onDynamicThemeChange) = rememberPreference(
  DynamicThemeKey,
@@ -468,7 +478,8 @@ fun AppearanceSettings(
     Column(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(appearanceScrollState)
+            .onGloballyPositioned { viewportTopY.floatValue = it.positionInWindow().y },
     ) {
         PreferenceGroupTitle(
             title = stringResource(R.string.theme),
@@ -821,10 +832,10 @@ fun AppearanceSettings(
             onCheckedChange = onShowHomeGenresChange
         )
 
-        // Music Status settings, wrapped as one group so the See-all screen's gear scrolls the WHOLE
-        // section (title + all three toggles) into view from the top (see [statusBringIntoView]) instead
-        // of landing at the top of Appearance or only revealing the group title.
-        Column(Modifier.bringIntoViewRequester(statusBringIntoView)) {
+        // Music Status settings, wrapped as one group. Its measured top (see [statusGroupTopY]) is what
+        // the See-all gear scrolls to, so the whole section lands under the app bar rather than at the
+        // top of Appearance or barely peeking at the bottom.
+        Column(Modifier.onGloballyPositioned { statusGroupTopY.floatValue = it.positionInWindow().y }) {
             PreferenceGroupTitle(
                 title = stringResource(R.string.statuses),
             )

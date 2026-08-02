@@ -15,8 +15,14 @@ enough detail to build and maintain a client against it. These are **hand-author
 
 | Platform | Doc | Backend | Status in the app |
 |----------|-----|---------|-------------------|
-| **JewishStatus** (jewishstatus.com) | [jewishstatus-api.md](jewishstatus-api.md) | Supabase (PostgREST) + Cloudflare R2 | **Integrated** - powers Music Status today (`com.jtech.zemer.statuses`). |
-| **YidStatus** (yidstatus.com) | [yidstatus-api.md](yidstatus-api.md) | Supabase (custom domain `api.yidstatus.com`) + Supabase Storage | **Evaluated 2026-08-02, feed confirmed reachable.** Not yet integrated. |
+| **JewishStatus** (jewishstatus.com) | [jewishstatus-api.md](jewishstatus-api.md) | Supabase (PostgREST) + Cloudflare R2 | **Integrated** (`com.jtech.zemer.statuses`). The primary source. |
+| **YidStatus** (yidstatus.com) | [yidstatus-api.md](yidstatus-api.md) | Supabase (custom domain `api.yidstatus.com`) + Supabase Storage | **Integrated 2026-08-02** (`YidStatusApi.kt`). Merged into the same row/viewer, music-filtered. |
+
+Both platforms are **live in the app**. Their creators are merged and de-duplicated (by normalized name,
+`mergeStatusCreators`) into one uniform Home row; the See-all screen groups them back by `source`. The
+**app-side architecture** (fail-soft isolation, the shared `StatusesRepository`, the story viewer's
+no-flash invariants, the `HideText`/`HideImage` content filter, and the live-refresh model) lives in the
+**"Music Status" section of the repo `AGENTS.md`** - this folder is the *platform API* reference only.
 
 ## At a glance
 
@@ -53,18 +59,23 @@ Notable YidStatus-only concepts to handle if integrated: an **`audio`** status t
 JewishStatus), an **`is_ad`** flag + `storyAds`/`placements` (must be filtered out for kosher content),
 and rich link-preview fields (`link_title`/`link_image_url`/...).
 
-## Integration caveats (read before wiring YidStatus in)
+## Integration caveats (how each is handled in the app today)
 
-- **Origin gate.** `/functions/v1/feed` returns `403 {"error":"Forbidden"}` unless the request carries
-  `Origin: https://yidstatus.com`. A native client (OkHttp / `HttpURLConnection`) can set that header -
-  it is not CORS-enforced off-browser - and the call then succeeds. It is trivially spoofable, so it will
-  work today, but the platform could tighten it (allowlist change, Turnstile, per-IP limits) at any time.
-  Design fail-soft.
-- **One big payload.** The feed is global and returns everything for the window in a single response.
-  Prefer a **small `days`** (e.g. 1) and/or the incremental **`since`** cursor; never fetch a wide window
-  on the hot path.
-- **Ads & unlisted.** Filter `is_ad` statuses, `paused`/`unlisted`/`review_hidden` influencers, and the
-  `storyAds`/`placements` arrays. None of that is kosher-relevant content.
+- **Origin gate (YidStatus).** `/functions/v1/feed` returns `403 {"error":"Forbidden"}` unless the
+  request carries `Origin: https://yidstatus.com`. `HttpURLConnection` SILENTLY DROPS that header (it is a
+  JDK/Android restricted header), so `YidStatusApi` uses **OkHttp**, which sends it. It is trivially
+  spoofable, so it works today, but the platform could tighten it (allowlist change, Turnstile, per-IP
+  limits) at any time - the whole feature is fail-soft, so a `403` just hides the YidStatus creators.
+- **One big payload (YidStatus).** The feed is global and returns everything for the window in a single
+  response. The app fetches **`days:1`** deliberately (~3.35 MB; the edge function hard-errors past ~15
+  days). Never widen it on the hot path.
+- **Ads & unlisted (YidStatus).** `YidStatusApi` filters `is_ad` statuses, `paused`/`unlisted`/
+  `review_hidden` influencers, the `storyAds`/`placements` arrays, and `audio`-type statuses (the viewer
+  renders only video/image/text). None of the rest is kosher-relevant content.
+- **Music-only (YidStatus).** The feed is all-categories, so `YidStatusApi` keeps only creators whose
+  category matches the shipped keyword list `music, singer, kumzits, simcha, concert` (substring,
+  case-insensitive). **Comedy and general Entertainment are deliberately excluded** (owner decision).
+  JewishStatus is already scoped to its three music categories server-side, so it needs no such filter.
 - **Client-safe keys only.** The anon/publishable keys in these docs are the same ones the platforms ship
   in their public web bundles (RLS-scoped, read-only). They are **not** secrets. Do **not** confuse them
   with a Supabase *service-role* key (never present here).
