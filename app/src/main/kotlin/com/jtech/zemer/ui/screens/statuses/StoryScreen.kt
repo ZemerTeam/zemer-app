@@ -4,6 +4,7 @@ import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -289,6 +290,20 @@ fun StoryScreen(
         if (postIdx > floorIndex) postIdx-- else if (creatorIdx > 0) creatorIdx--
     }
 
+    // Horizontal swipe jumps whole creators (Instagram/JewishStatus): left = next, right = previous.
+    fun nextCreator() {
+        progress = 0f
+        val next = creatorIdx + 1
+        if (next < creators.size) creatorIdx = next else onClose()
+    }
+
+    fun prevCreator() {
+        if (creatorIdx > 0) {
+            progress = 0f
+            creatorIdx--
+        }
+    }
+
     val posts = currentPosts
     LaunchedEffect(posts, postIdx) {
         if (posts == null) return@LaunchedEffect // still loading this creator
@@ -357,6 +372,23 @@ fun StoryScreen(
         Modifier
             .fillMaxSize()
             .background(Color.Black)
+            // Horizontal swipe -> whole-creator navigation (separate from the tap gesture, which moves
+            // status-by-status). Threshold is a fraction of the width so a small drag does not trigger it.
+            .pointerInput(creatorIdx, creators.size) {
+                var total = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { total = 0f },
+                    onDragEnd = {
+                        val threshold = size.width * 0.2f
+                        if (total <= -threshold) nextCreator()
+                        else if (total >= threshold) prevCreator()
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        total += dragAmount
+                        change.consume()
+                    },
+                )
+            }
             .pointerInput(creatorIdx, postIdx) {
                 detectTapGestures(
                     // Pause the moment a finger is down; resume on release. onLongPress (even empty) must
