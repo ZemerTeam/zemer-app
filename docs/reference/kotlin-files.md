@@ -275,7 +275,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenresScreen.kt` | 208 | `com.jtech.zemer.ui.screens` | yes | 44 | 6 | androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 504 | `com.jtech.zemer.ui.screens` | yes | 78 | 30 | androidx.activity, androidx.compose, androidx.hilt, androidx.navigation, java.time |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeGenresRow.kt` | 84 | `com.jtech.zemer.ui.screens` | yes | 27 | 5 | androidx.compose, androidx.navigation |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1043 | `com.jtech.zemer.ui.screens` | yes | 122 | 74 | android.net, androidx.compose, androidx.hilt, androidx.lifecycle, androidx.navigation, kotlin.math, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1044 | `com.jtech.zemer.ui.screens` | yes | 122 | 74 | android.net, androidx.compose, androidx.hilt, androidx.lifecycle, androidx.navigation, kotlin.math, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeSeeAllScreen.kt` | 294 | `com.jtech.zemer.ui.screens` | yes | 61 | 25 | androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeStatusesRow.kt` | 50 | `com.jtech.zemer.ui.screens` | yes | 15 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 235 | `com.jtech.zemer.ui.screens` | yes | 43 | 18 | androidx.compose, androidx.hilt, androidx.navigation |
