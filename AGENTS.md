@@ -417,6 +417,12 @@ Releases are. Feature package `statuses/`; UI under `ui/screens/statuses/`; full
   next date; only the creator's newest status advances to the next creator; back is floored at the
   entry date (jump-to-date sheet goes earlier). The per-segment ring in `StatusCreatorCircle` colors
   seen vs unseen (accent unseen / `outlineVariant` seen).
+- **The ring respects the content filter.** `StatusCreator.recentPostKinds` carries the kind of each
+  recent status (YidStatus from the feed; JewishStatus via a batched `public_posts?id=in.(...)&select=
+  id,kind` fetch in `fetchStatusCreators`), so `visibleRecentIds(filter)` drops hidden-kind statuses.
+  The ring, `caughtUpOnLatest` and `sortedByUnseenFirst` all key off the VISIBLE ids, and a creator with
+  nothing viewable drops from the row/see-all. Unknown kinds (fetch failed / size mismatch) show all -
+  never hide more than we can prove.
 - **The viewer's no-flash invariants** (`StoryScreen`, all hard-won): creators live in a cube
   `HorizontalPager`; the active face renders only when `postsCreatorIdx == creatorIdx` (else the stale
   previous-creator content flashes on settle); both neighbors are prefetched (posts AND the thumbnail

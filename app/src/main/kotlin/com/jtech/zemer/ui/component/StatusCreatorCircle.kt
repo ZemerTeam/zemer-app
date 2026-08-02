@@ -30,8 +30,11 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import androidx.compose.runtime.remember
+import com.jtech.zemer.statuses.StatusContentFilter
 import com.jtech.zemer.statuses.StatusCreator
 import com.jtech.zemer.statuses.statusAvatarUrl
+import com.jtech.zemer.statuses.visibleRecentIds
 import com.jtech.zemer.ui.theme.HeaderFontFamily
 
 /**
@@ -45,12 +48,16 @@ import com.jtech.zemer.ui.theme.HeaderFontFamily
 fun StatusCreatorCircle(
     creator: StatusCreator,
     seenPostIds: Set<String>,
+    contentFilter: StatusContentFilter,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
-    val segments = creator.recentPostIds.size.coerceAtLeast(1)
+    // Ring over the statuses the user can actually VIEW under their content filter, so hidden-kind
+    // statuses never show as segments.
+    val visibleIds = remember(creator, contentFilter) { creator.visibleRecentIds(contentFilter) }
+    val segments = visibleIds.size.coerceAtLeast(1)
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -75,7 +82,7 @@ fun StatusCreatorCircle(
                 repeat(segments) { i ->
                     // Per-segment read state: an arc mutes to the subtle outline once ITS status is
                     // seen, so the accent arcs that remain show how many are left to view.
-                    val postId = creator.recentPostIds.getOrNull(i)
+                    val postId = visibleIds.getOrNull(i)
                     val seen = postId != null && postId in seenPostIds
                     drawArc(
                         color = if (seen) colorScheme.outlineVariant else colorScheme.primary,
