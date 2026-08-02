@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -34,7 +33,8 @@ import com.jtech.zemer.constants.LibraryViewType
  * Search field shared by the KidZone / Whitelisted-Artists browse screens and the Music Status See-all:
  * leading search icon, trailing clear icon (shown only while non-empty), and optional D-pad down-focus
  * handoff to [downTarget] (both via [focusProperties] and the DirectionDown key preview) when provided.
- * [placeholderRes] lets each caller label it.
+ * [placeholderRes] lets each caller label it. Styled like the Home genre chips: squarish corners and a
+ * whisper of the theme accent on the outline (a stronger accent when focused), with an accent search icon.
  */
 @Composable
 fun ArtistSearchField(
@@ -45,6 +45,7 @@ fun ArtistSearchField(
     modifier: Modifier = Modifier,
     placeholderRes: Int = R.string.search_artists,
 ) {
+    val accent = MaterialTheme.colorScheme.primary
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
@@ -71,7 +72,7 @@ fun ArtistSearchField(
             Icon(
                 painter = painterResource(R.drawable.search),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = accent
             )
         },
         trailingIcon = {
@@ -86,14 +87,16 @@ fun ArtistSearchField(
             }
         },
         singleLine = true,
-        shape = RoundedCornerShape(18.dp),
+        // Genre-chip shape: squarish 10dp corners.
+        shape = RoundedCornerShape(10.dp),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surface,
             unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
+            // Accent outline, like the genre chips: a whisper at rest, stronger when focused.
+            focusedIndicatorColor = accent,
+            unfocusedIndicatorColor = accent.copy(alpha = 0.35f),
             disabledContainerColor = MaterialTheme.colorScheme.surface,
-            cursorColor = MaterialTheme.colorScheme.primary,
+            cursorColor = accent,
             focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
             unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
