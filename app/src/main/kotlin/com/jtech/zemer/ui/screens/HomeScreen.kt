@@ -56,6 +56,7 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.ShowHomeGenresKey
+import com.jtech.zemer.constants.ShowHomeStatusesKey
 import com.jtech.zemer.constants.GridThumbnailHeight
 import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.db.entities.Album
@@ -94,6 +95,7 @@ import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.menu.ytItemMenu
 import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
+import com.jtech.zemer.ui.utils.storyRoute
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
@@ -110,6 +112,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.jtech.zemer.viewmodels.STATION_ROW_REFRESH_MS
 import com.jtech.zemer.viewmodels.ZemerGenresViewModel
+import com.jtech.zemer.viewmodels.ZemerStatusesViewModel
 import com.jtech.zemer.viewmodels.ZemerStationsViewModel
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -160,13 +163,20 @@ fun HomeScreen(
     val zemerStations by zemerStationsViewModel.stations.collectAsState()
     val zemerGenresViewModel: ZemerGenresViewModel = hiltViewModel()
     val homeGenres by zemerGenresViewModel.genres.collectAsState()
-    // Settings → Appearance owns this toggle (there is deliberately no in-row hide affordance).
+    // The "Music Statuses" row (JewishStatus). Isolated + fail-soft: an outage leaves the list empty
+    // and the section hides. Settings → Appearance owns its toggle.
+    val zemerStatusesViewModel: ZemerStatusesViewModel = hiltViewModel()
+    val statusCreators by zemerStatusesViewModel.creators.collectAsState()
+    val statusSeenPostIds by zemerStatusesViewModel.seenPostIds.collectAsState()
+    // Settings → Appearance owns these toggles (there is deliberately no in-row hide affordance).
     val (showHomeGenres, _) = rememberPreference(ShowHomeGenresKey, defaultValue = true)
+    val (showHomeStatuses, _) = rememberPreference(ShowHomeStatusesKey, defaultValue = true)
     // The curated endpoint's freshness contract is a plain re-fetch on screen open (single-digit-ms
     // server reads) — this also picks up a card removed by curation while a detail open 404'd.
     LaunchedEffect(Unit) {
         zemerPlaylistsViewModel.refresh()
         zemerGenresViewModel.refresh()
+        zemerStatusesViewModel.refresh()
     }
     val stationsLifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(Unit) {
@@ -410,6 +420,7 @@ fun HomeScreen(
                     zemerPlaylistsViewModel.refresh()
                     zemerStationsViewModel.refresh()
                     zemerGenresViewModel.refresh()
+                    zemerStatusesViewModel.refresh()
                 }
             ),
         contentAlignment = Alignment.TopStart
@@ -555,6 +566,28 @@ fun HomeScreen(
                                         )
                                 )
                             }
+                        }
+                    }
+                }
+
+                // "Music Statuses" (JewishStatus) — directly under Quick Picks. Hidden by the Appearance
+                // toggle or when the third-party feed is empty/unreachable (fail-soft, like the other
+                // optional rows). The tap carries the creator's index so the viewer advances across the list.
+                if (showHomeStatuses) {
+                    statusCreators.takeIf { it.isNotEmpty() }?.let { creators ->
+                        item(key = "statuses_title", contentType = "header") {
+                            NavigationTitle(
+                                title = stringResource(R.string.statuses),
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
+                        item(key = "statuses_list", contentType = "grid") {
+                            HomeStatusesRow(
+                                creators = creators,
+                                seenPostIds = statusSeenPostIds,
+                                onCreatorClick = { index -> navController.navigate(storyRoute(index)) },
+                                modifier = Modifier.animateItem(),
+                            )
                         }
                     }
                 }

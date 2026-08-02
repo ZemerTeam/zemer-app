@@ -20,6 +20,7 @@ import com.jtech.zemer.ui.screens.artist.ArtistSectionScreen
 import com.jtech.zemer.ui.screens.artist.ArtistSongsScreen
 import com.jtech.zemer.ui.screens.library.LibraryScreen
 import com.jtech.zemer.ui.screens.player.VideoPlayerScreen
+import com.jtech.zemer.ui.screens.statuses.StoryScreen
 import com.jtech.zemer.ui.screens.playlist.AutoPlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.CachePlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.DownloadedContentScreen
@@ -282,6 +283,20 @@ fun NavGraphBuilder.navigationBuilder(
         val title = backStackEntry.arguments?.getString("title")
         val artist = backStackEntry.arguments?.getString("artist")
         VideoPlayerScreen(navController, videoId, title, artist)
+    }
+    // The full-screen JewishStatus story viewer, opened from the Home "Music Statuses" row at a creator
+    // index (the creators list comes from the shared session cache, so only the index rides the route).
+    composable(
+        route = "story/{index}",
+        arguments = listOf(
+            navArgument("index") {
+                type = NavType.IntType
+                defaultValue = 0
+            }
+        )
+    ) { backStackEntry ->
+        val index = backStackEntry.arguments?.getInt("index") ?: 0
+        StoryScreen(navController, index)
     }
     composable(
         // Optional `zemer` flag (default false) routes a Zemer-search playlist open through the

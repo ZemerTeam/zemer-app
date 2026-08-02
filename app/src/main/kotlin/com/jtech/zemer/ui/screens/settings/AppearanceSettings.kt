@@ -80,6 +80,7 @@ import com.jtech.zemer.constants.PlayerButtonsStyleKey
 import com.jtech.zemer.constants.PureBlackKey
 import com.jtech.zemer.constants.ShowCachedPlaylistKey
 import com.jtech.zemer.constants.ShowHomeGenresKey
+import com.jtech.zemer.constants.ShowHomeStatusesKey
 import com.jtech.zemer.constants.ShowDownloadedPlaylistKey
 import com.jtech.zemer.constants.ShowLikedPlaylistKey
 import com.jtech.zemer.constants.ShowTopPlaylistKey
@@ -263,6 +264,10 @@ fun AppearanceSettings(
 
     val (showHomeGenres, onShowHomeGenresChange) = rememberPreference(
         ShowHomeGenresKey,
+        defaultValue = true
+    )
+    val (showHomeStatuses, onShowHomeStatusesChange) = rememberPreference(
+        ShowHomeStatusesKey,
         defaultValue = true
     )
     val (showLikedPlaylist, onShowLikedPlaylistChange) = rememberPreference(
@@ -794,6 +799,14 @@ fun AppearanceSettings(
             icon = { Icon(painterResource(R.drawable.music_note), null) },
             checked = showHomeGenres,
             onCheckedChange = onShowHomeGenresChange
+        )
+
+        SwitchPreference(
+            title = { Text(stringResource(R.string.show_statuses_row)) },
+            description = stringResource(R.string.show_statuses_row_desc),
+            icon = { Icon(painterResource(R.drawable.music_note), null) },
+            checked = showHomeStatuses,
+            onCheckedChange = onShowHomeStatusesChange
         )
 
         PreferenceGroupTitle(
