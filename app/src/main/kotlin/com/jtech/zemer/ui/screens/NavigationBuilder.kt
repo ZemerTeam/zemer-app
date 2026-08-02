@@ -391,8 +391,20 @@ fun NavGraphBuilder.navigationBuilder(
     composable("settings/android_auto") {
         AndroidAutoSettings(navController, scrollBehavior)
     }
-    composable("settings/appearance") {
-        AppearanceSettings(navController, scrollBehavior)
+    composable(
+        route = "settings/appearance?scrollTo={scrollTo}",
+        arguments = listOf(
+            navArgument("scrollTo") {
+                type = NavType.StringType
+                defaultValue = ""
+            },
+        ),
+    ) {
+        AppearanceSettings(
+            navController,
+            scrollBehavior,
+            scrollToStatus = it.arguments?.getString("scrollTo") == "status",
+        )
     }
     composable("settings/content") {
         ContentSettings(navController, scrollBehavior)

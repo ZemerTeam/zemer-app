@@ -38,6 +38,7 @@ import com.jtech.zemer.ui.component.ArtistSearchField
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.StatusCreatorCircle
+import com.jtech.zemer.ui.component.TopAppBarActionButton
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.storyRoute
 import com.jtech.zemer.viewmodels.ZemerStatusesViewModel
@@ -95,6 +96,14 @@ fun StatusesScreen(
     TopAppBar(
         title = { AppBarTitle(stringResource(R.string.statuses)) },
         navigationIcon = { BackNavigationIcon(navController) },
+        // A gear to the status content filters (hide text-only / image), which live in Appearance settings.
+        actions = {
+            TopAppBarActionButton(
+                icon = R.drawable.settings,
+                contentDescription = stringResource(R.string.settings),
+                onClick = { navController.navigate("settings/appearance?scrollTo=status") },
+            )
+        },
         scrollBehavior = scrollBehavior,
         colors = zemerTopAppBarColors(),
     )

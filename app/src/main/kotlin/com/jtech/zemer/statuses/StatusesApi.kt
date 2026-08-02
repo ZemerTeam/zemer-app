@@ -61,6 +61,20 @@ data class StatusPost(
     val source: StatusSource = StatusSource.JEWISH_STATUS,
 )
 
+/** The user's Music Status content filter (Settings -> Appearance): which status KINDS to hide. */
+data class StatusContentFilter(
+    val hideText: Boolean,
+    val hideImage: Boolean,
+)
+
+/**
+ * Drop the status kinds the user chose to hide. Text-only and still-image are the two optional filters;
+ * a video always passes. A creator left with no visible posts is auto-skipped by the viewer's existing
+ * empty-posts handling, so a fully-filtered creator simply advances to the next.
+ */
+fun List<StatusPost>.applyStatusFilter(filter: StatusContentFilter): List<StatusPost> =
+    filter { (!filter.hideText || it.kind != "text") && (!filter.hideImage || it.kind != "image") }
+
 /**
  * Whether the user is "caught up" on a creator (WhatsApp read state): their NEWEST status has been
  * viewed. `recent_post_ids` is oldest-first (verified against posted_at), so the newest is the LAST id.

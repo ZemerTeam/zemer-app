@@ -203,6 +203,8 @@ fun StoryScreen(
     val creators by viewModel.creators.collectAsState()
     val seenPostIds by viewModel.seenPostIds.collectAsState()
     val loadAttempted by viewModel.loadAttempted.collectAsState()
+    // Re-keys the post loader below so toggling "hide text/image status" re-filters the open viewer.
+    val contentFilter by viewModel.contentFilter.collectAsState()
     val playerConnection = LocalPlayerConnection.current
 
     val onClose = { navController.navigateUp(); Unit }
@@ -313,8 +315,9 @@ fun StoryScreen(
     val windowStart = currentGroup?.startIndex ?: 0
     val windowEnd = currentGroup?.let { it.startIndex + it.count - 1 } ?: (currentPosts?.lastIndex ?: 0)
 
-    // Load posts for the current creator; preload both neighbors.
-    LaunchedEffect(creatorIdx) {
+    // Load posts for the current creator; preload both neighbors. Re-runs when the content filter changes
+    // so hiding/showing text or image statuses re-filters (and re-resumes) the creator on screen.
+    LaunchedEffect(creatorIdx, contentFilter) {
         progress = 0f
         exoPlayer.stop()
         val id = creators.getOrNull(creatorIdx)?.id ?: run { currentPosts = emptyList(); return@LaunchedEffect }

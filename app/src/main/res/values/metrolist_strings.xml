@@ -577,6 +577,10 @@
     </plurals>
     <string name="show_statuses_row">Show status on home</string>
     <string name="show_statuses_row_desc">A row of music creator status updates under Quick picks</string>
+    <string name="hide_text_status">Hide text-only status</string>
+    <string name="hide_text_status_desc">Skip status updates that are just text, with no photo or video</string>
+    <string name="hide_image_status">Hide image status</string>
+    <string name="hide_image_status_desc">Skip status updates that are a still image</string>
     <string name="singles">Singles</string>
     <string name="browse_artists">Browse all artists</string>
 </resources>

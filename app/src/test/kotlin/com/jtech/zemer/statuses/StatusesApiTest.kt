@@ -144,6 +144,34 @@ class StatusesApiTest {
     }
 
     @Test
+    fun `applyStatusFilter hides the chosen kinds and keeps order, video always passes`() {
+        fun p(id: String, kind: String) = StatusPost(
+            id = id, kind = kind, mediaPath = null, thumbPath = null, caption = null,
+            textBody = null, textBgColor = null, linkUrl = null, durationSeconds = null,
+            postedAt = "2026-08-01T00:00:00+00:00",
+        )
+        val posts = listOf(p("v", "video"), p("i", "image"), p("t", "text"))
+
+        // Default: hide text only.
+        assertEquals(
+            listOf("v", "i"),
+            posts.applyStatusFilter(StatusContentFilter(hideText = true, hideImage = false)).map { it.id },
+        )
+        // Hide image only.
+        assertEquals(
+            listOf("v", "t"),
+            posts.applyStatusFilter(StatusContentFilter(hideText = false, hideImage = true)).map { it.id },
+        )
+        // Hide both -> only video survives.
+        assertEquals(
+            listOf("v"),
+            posts.applyStatusFilter(StatusContentFilter(hideText = true, hideImage = true)).map { it.id },
+        )
+        // Neither -> untouched.
+        assertEquals(3, posts.applyStatusFilter(StatusContentFilter(hideText = false, hideImage = false)).size)
+    }
+
+    @Test
     fun `sortedByUnseenFirst sinks caught-up creators to the end, stable otherwise`() {
         fun c(id: String, vararg ids: String) = StatusCreator(
             id = id, slug = id, displayName = id, avatarPath = null,

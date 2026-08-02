@@ -38,6 +38,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -80,6 +83,8 @@ import com.jtech.zemer.constants.PlayerButtonsStyleKey
 import com.jtech.zemer.constants.PureBlackKey
 import com.jtech.zemer.constants.ShowCachedPlaylistKey
 import com.jtech.zemer.constants.ShowHomeGenresKey
+import com.jtech.zemer.constants.HideImageStatusKey
+import com.jtech.zemer.constants.HideTextStatusKey
 import com.jtech.zemer.constants.ShowHomeStatusesKey
 import com.jtech.zemer.constants.ShowDownloadedPlaylistKey
 import com.jtech.zemer.constants.ShowLikedPlaylistKey
@@ -122,7 +127,14 @@ import kotlin.math.roundToInt
 fun AppearanceSettings(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
+    scrollToStatus: Boolean = false,
 ) {
+    // When opened from the Music Status See-all gear, scroll the Music Status group into view instead of
+    // leaving the user at the top of a long Appearance screen.
+    val statusBringIntoView = remember { BringIntoViewRequester() }
+    LaunchedEffect(scrollToStatus) {
+        if (scrollToStatus) statusBringIntoView.bringIntoView()
+    }
     val (dynamicTheme, onDynamicThemeChange) = rememberPreference(
  DynamicThemeKey,
         defaultValue = true
@@ -269,6 +281,14 @@ fun AppearanceSettings(
     val (showHomeStatuses, onShowHomeStatusesChange) = rememberPreference(
         ShowHomeStatusesKey,
         defaultValue = true
+    )
+    val (hideTextStatus, onHideTextStatusChange) = rememberPreference(
+        HideTextStatusKey,
+        defaultValue = true
+    )
+    val (hideImageStatus, onHideImageStatusChange) = rememberPreference(
+        HideImageStatusKey,
+        defaultValue = false
     )
     val (showLikedPlaylist, onShowLikedPlaylistChange) = rememberPreference(
         ShowLikedPlaylistKey,
@@ -801,13 +821,38 @@ fun AppearanceSettings(
             onCheckedChange = onShowHomeGenresChange
         )
 
-        SwitchPreference(
-            title = { Text(stringResource(R.string.show_statuses_row)) },
-            description = stringResource(R.string.show_statuses_row_desc),
-            icon = { Icon(painterResource(R.drawable.music_note), null) },
-            checked = showHomeStatuses,
-            onCheckedChange = onShowHomeStatusesChange
-        )
+        // Music Status settings, wrapped as one group so the See-all screen's gear scrolls the WHOLE
+        // section (title + all three toggles) into view from the top (see [statusBringIntoView]) instead
+        // of landing at the top of Appearance or only revealing the group title.
+        Column(Modifier.bringIntoViewRequester(statusBringIntoView)) {
+            PreferenceGroupTitle(
+                title = stringResource(R.string.statuses),
+            )
+
+            SwitchPreference(
+                title = { Text(stringResource(R.string.show_statuses_row)) },
+                description = stringResource(R.string.show_statuses_row_desc),
+                icon = { Icon(painterResource(R.drawable.music_status), null) },
+                checked = showHomeStatuses,
+                onCheckedChange = onShowHomeStatusesChange
+            )
+
+            SwitchPreference(
+                title = { Text(stringResource(R.string.hide_text_status)) },
+                description = stringResource(R.string.hide_text_status_desc),
+                icon = { Icon(painterResource(R.drawable.music_status), null) },
+                checked = hideTextStatus,
+                onCheckedChange = onHideTextStatusChange
+            )
+
+            SwitchPreference(
+                title = { Text(stringResource(R.string.hide_image_status)) },
+                description = stringResource(R.string.hide_image_status_desc),
+                icon = { Icon(painterResource(R.drawable.music_status), null) },
+                checked = hideImageStatus,
+                onCheckedChange = onHideImageStatusChange
+            )
+        }
 
         PreferenceGroupTitle(
             title = stringResource(R.string.auto_playlists)
