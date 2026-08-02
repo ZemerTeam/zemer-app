@@ -3,10 +3,13 @@ package com.jtech.zemer.viewmodels
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.graphics.Bitmap
 import com.jtech.zemer.constants.HideImageStatusKey
 import com.jtech.zemer.constants.HideTextStatusKey
 import com.jtech.zemer.statuses.StatusContentFilter
 import com.jtech.zemer.statuses.StatusCreator
+import com.jtech.zemer.statuses.StatusDownload
+import com.jtech.zemer.statuses.StatusDownloadManager
 import com.jtech.zemer.statuses.StatusPost
 import com.jtech.zemer.statuses.StatusesRepository
 import com.jtech.zemer.statuses.applyStatusFilter
@@ -33,11 +36,26 @@ import javax.inject.Inject
 class StoryViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: StatusesRepository,
+    private val downloadManager: StatusDownloadManager,
 ) : ViewModel() {
     val creators: StateFlow<List<StatusCreator>> = repository.creators
 
     val seenPostIds: StateFlow<Set<String>> =
         repository.seen.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    // Ids the user has already saved to their device, for the download FAB's "already saved" state.
+    val savedStatusIds: StateFlow<Set<String>> =
+        downloadManager.savedIds.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    /**
+     * Save the given status to the gallery + index it. For a text status the caller passes
+     * [renderTextBitmap] (a theme-colored render); it is invoked only for text. Fail-soft Result.
+     */
+    suspend fun saveStatus(
+        post: StatusPost,
+        creator: StatusCreator,
+        renderTextBitmap: (() -> Bitmap)? = null,
+    ): Result<StatusDownload> = downloadManager.save(post, creator, renderTextBitmap)
 
     // The user's status content filter (Settings -> Appearance), reactive so a settings change re-filters
     // the posts the viewer shows. Text-only is hidden by default; image is shown by default. Held as a

@@ -437,6 +437,34 @@ Releases are. Feature package `statuses/`; UI under `ui/screens/statuses/`; full
 - **Third-party, so NO handoff doc** (these are not Zemer services). API shape, the OkHttp/Origin
   gotcha, and the feed cost caps are recorded in `docs/status/` instead.
 
+**Status downloads (save a status to the device gallery).** A save FAB in the story viewer writes the
+current status to the gallery, and a "Status" card in Library -> Downloaded opens a browser of saved
+statuses. Rules that must not regress:
+
+- **A gallery-media concern, SEPARATE from the song download system.** Saves go through `StatusGallery`
+  (MediaStore `Images`/`Video` insert under `Pictures|Movies / Zemer / Status / <creator>`; delete reuses
+  `MediaStoreHelper.deleteFromMediaStore`), NOT `MediaStoreDownloadManager`. The FAB uses a
+  drawable-painter icon, never the Material download icon, so the download-unification ratchets stay green
+  (that system is song-only). `StatusDownloadManager` orchestrates fetch -> save -> index off the main
+  thread, fail-soft.
+- **No Room migration.** The saved-status INDEX is `StatusDownloadsStore` - a JSON array in DataStore
+  (the `StatusSeenStore` pattern), each record `{id, kind, creatorId, creatorName, creatorAvatar,
+  postedAt, caption, textBody, mediaUri, savedAt}`. The gallery holds the files; this is just the index
+  that lets the library list/group/filter/re-open them offline. Pure filename/index/view logic
+  (`StatusDownloadNaming`, `StatusDownload` JSON, `StatusDownloadsView`) is JVM-tested.
+- **Filename = posted time, creator = folder.** `Zemer/Status/<creator>/<yyyy-MM-dd HH-mm-ss>.<ext>`
+  (posted time, device zone; colons are illegal so hyphens). Text statuses render to a PNG
+  (`StatusTextImage`, color-agnostic - the composable passes theme colors in). Kept as `kind == "text"`
+  so the chip filter still classifies it.
+- **Gated on `BlockVideosKey`** everywhere (the FAB, the Downloaded card, the library screen) - statuses
+  are video-first, same gate as the row/preferences.
+- **The saved viewer presents EXACTLY like the live story viewer** (`SavedStatusScreen`): the shared
+  `StatusStoryTopOverlay` (segment bars + avatar/name/date), tap-left/right, press-hold pause,
+  auto-advance. Both viewers share `StatusVideoSurface` + `PauseMusicWhileActive`. Grid tiles decode a
+  video poster frame via the shared `rememberVideoThumbnail` (Coil has no video decoder here); text tiles
+  render natively (never cropped). Library grouped view = per-creator shelves with `NavigationTitle`
+  headers; flat sorts = adaptive grid.
+
 ### Offline search backup (`offline/` — the outage fallback)
 
 A downloaded, incrementally-synced snapshot of the corpus serves `/search`, `/artist`, `/album`,

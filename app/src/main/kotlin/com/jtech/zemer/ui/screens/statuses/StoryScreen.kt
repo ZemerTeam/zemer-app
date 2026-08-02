@@ -1,6 +1,5 @@
 package com.jtech.zemer.ui.screens.statuses
 
-import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
@@ -64,7 +63,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.graphics.toArgb
+import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.extensions.toast
+import com.jtech.zemer.statuses.StatusTextImage
+import com.jtech.zemer.ui.component.StatusStoryTopOverlay
+import com.jtech.zemer.ui.component.StatusVideoSurface
+import com.jtech.zemer.ui.component.ZemerFab
+import com.jtech.zemer.ui.utils.PauseMusicWhileActive
+import com.jtech.zemer.utils.rememberPreference
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -72,14 +79,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.statuses.StatusCreator
@@ -155,7 +159,6 @@ fun StoryScreen(
     val loadAttempted by viewModel.loadAttempted.collectAsState()
     // Re-keys the post loader below so toggling "hide text/image status" re-filters the open viewer.
     val contentFilter by viewModel.contentFilter.collectAsState()
-    val playerConnection = LocalPlayerConnection.current
 
     val onClose = { navController.navigateUp(); Unit }
     BackHandler(onBack = onClose)
@@ -168,19 +171,8 @@ fun StoryScreen(
     }
     DisposableEffect(Unit) { onDispose { exoPlayer.release() } }
 
-    // Silence the music while the viewer is up; resume it on close if it was playing. While casting,
-    // pause/resume the receiver too and route volume keys to this local video (VideoPlayerScreen pattern).
-    DisposableEffect(playerConnection) {
-        val wasPlaying = playerConnection?.isPlaying?.value == true
-        playerConnection?.player?.pause()
-        playerConnection?.setVideoPlaybackActive(true)
-        val pausedCast = playerConnection?.pauseCastForVideo() == true
-        onDispose {
-            playerConnection?.setVideoPlaybackActive(false)
-            playerConnection?.resumeCastAfterVideo(pausedCast)
-            if (wasPlaying) playerConnection?.player?.play()
-        }
-    }
+    // Silence the music while the viewer is up; resume it on close (shared with the saved-status viewer).
+    PauseMusicWhileActive()
 
     // Pause the status video when the app is backgrounded (the composable is not disposed, only stopped),
     // so it doesn't keep playing audio off-screen; resume when it returns.
@@ -407,6 +399,13 @@ fun StoryScreen(
     // The "jump to date" affordance shows only when the creator posted on more than one date.
     val canJumpDate = posts != null && dateGroups.size > 1
 
+    // Download FAB state: save the current status to the gallery. Hidden when videos are blocked (same
+    // gate as the Home row + preferences). Shows a saved icon once this status is already downloaded.
+    // The FAB lives INSIDE the active cube face (below), so it rotates with the cube transition.
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    val savedStatusIds by viewModel.savedStatusIds.collectAsState()
+    var saving by remember { mutableStateOf(false) }
+
     // Each creator is a pager page; scrolling between them turns a 3D cube. Only the SETTLED creator gets
     // the live face (media + progress + gestures); neighbors show a lightweight avatar face so the cube has
     // something to reveal mid-swipe. Horizontal swipe -> creator (handled by the pager); tap -> status.
@@ -464,20 +463,7 @@ fun StoryScreen(
             Crossfade(targetState = currentPost, label = "post") { post ->
                 when (post?.kind) {
                     "video" -> Box(Modifier.fillMaxSize()) {
-                        AndroidView(
-                            factory = { ctx ->
-                                PlayerView(ctx).apply {
-                                    player = exoPlayer
-                                    useController = false
-                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                    layoutParams = ViewGroup.LayoutParams(
-                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                    )
-                                }
-                            },
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                        StatusVideoSurface(player = exoPlayer, modifier = Modifier.fillMaxSize())
                         // Hold the thumbnail over the (black) player surface until the video actually
                         // draws its first frame, so settling on a video shows a frame, never a black gap.
                         if (!videoRendered) {
@@ -527,86 +513,17 @@ fun StoryScreen(
             }
         }
 
-        // Top overlay: segment progress bars + creator header (over the media scrim). The viewer is
-        // edge-to-edge, so inset the header below the system status bar.
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .background(scrim)
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-        ) {
-            // Header bar: the shared back button + "Music Status" title, like every other screen. Forced
-            // white for legibility over the media.
-            CompositionLocalProvider(LocalContentColor provides Color.White) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    BackNavigationIcon(navController = navController)
-                    AppBarTitle(stringResource(R.string.statuses), modifier = Modifier.weight(1f))
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            // One segment per status in the CURRENT date's window. `progress` is updated on the display
-            // frame clock (see the driver), so the active segment fills perfectly smoothly.
-            Row(Modifier.fillMaxWidth()) {
-                for (i in windowStart..windowEnd) {
-                    val fill = when {
-                        posts == null -> 0f
-                        i < postIdx -> 1f
-                        i == postIdx -> progress
-                        else -> 0f
-                    }
-                    Box(
-                        Modifier
-                            .weight(1f)
-                            .height(2.dp)
-                            .padding(horizontal = 1.dp)
-                            .clip(RoundedCornerShape(1.dp))
-                            .background(Color.White.copy(alpha = 0.35f)),
-                    ) {
-                        Box(Modifier.fillMaxHeight().fillMaxWidth(fill).background(Color.White))
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(statusAvatarUrl(creator?.avatarPath))
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(colorScheme.surfaceVariant),
-                )
-
-                Spacer(Modifier.width(10.dp))
-
-                Column {
-                    Text(
-                        text = creator?.displayName ?: "",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontFamily = HeaderFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    val ts = currentPost?.postedAt?.let { formatPostedAt(it) }
-                    if (!ts.isNullOrEmpty()) {
-                        Text(
-                            text = ts,
-                            color = Color.White.copy(alpha = 0.55f),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
-                }
-            }
-        }
+        // Top overlay: shared with the saved-status viewer so they present identically. Segment bars are
+        // over the CURRENT date's window; `progress` is on the display frame clock (smooth fill).
+        StatusStoryTopOverlay(
+            navController = navController,
+            avatarUrl = statusAvatarUrl(creator?.avatarPath),
+            creatorName = creator?.displayName ?: "",
+            subtitle = currentPost?.postedAt?.let { formatPostedAt(it) },
+            segmentCount = if (posts == null) 0 else windowEnd - windowStart + 1,
+            currentSegment = postIdx - windowStart,
+            progress = if (posts == null) 0f else progress,
+        )
 
         // Bottom overlay: a "jump to date" chevron (when the creator posted on more than one day), then
         // the caption. Inset above the system navigation bar so nothing is clipped by the gesture pill.
@@ -716,6 +633,49 @@ fun StoryScreen(
                     }
                 }
             }
+        }
+        // Save-to-gallery FAB, INSIDE the active face so it rotates with the cube transition. Hidden when
+        // videos are blocked OR the jump-to-date sheet is open (so it never overlaps the date cards);
+        // disabled while a save is in flight. Uses a drawable-painter icon (not the Material download
+        // icon), keeping the download-unification ratchets green.
+        val savePost = currentPost
+        if (!blockVideos && !showDateSheet && savePost != null && posts != null) {
+            val alreadySaved = savePost.id in savedStatusIds
+            ZemerFab(
+                icon = if (alreadySaved) R.drawable.done else R.drawable.download,
+                contentDescription = stringResource(
+                    if (alreadySaved) R.string.status_saved else R.string.save_status
+                ),
+                onClick = onSave@{
+                    val cre = creator
+                    if (cre == null || saving) return@onSave
+                    if (alreadySaved) {
+                        context.toast(R.string.status_already_saved)
+                        return@onSave
+                    }
+                    saving = true
+                    // Text statuses render to an image with theme-derived colors (or the status's own
+                    // text_bg_color), so nothing is hardcoded; image/video fetch their bytes in the manager.
+                    val renderText: (() -> android.graphics.Bitmap)? = if (savePost.kind == "text") {
+                        val parsedBg = savePost.textBgColor?.let {
+                            runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull()
+                        }
+                        val bg = parsedBg?.toArgb() ?: colorScheme.surfaceVariant.toArgb()
+                        val fg = if (parsedBg != null) Color.White.toArgb() else colorScheme.onSurfaceVariant.toArgb()
+                        val body = savePost.textBody ?: savePost.caption ?: "";
+                        { StatusTextImage.render(body, bg, fg) }
+                    } else null
+                    scope.launch {
+                        val result = viewModel.saveStatus(savePost, cre, renderText)
+                        saving = false
+                        context.toast(if (result.isSuccess) R.string.status_saved_toast else R.string.status_save_failed)
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .padding(end = 16.dp, bottom = 40.dp),
+            )
         }
         } // active-creator face
       } // cube page

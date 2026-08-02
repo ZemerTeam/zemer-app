@@ -51,6 +51,7 @@ fun DownloadedContentScreen(
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     val musicCount by viewModel.downloadedMusicCount.collectAsState()
     val videoCount by viewModel.downloadedVideoCount.collectAsState()
+    val statusCount by viewModel.downloadedStatusCount.collectAsState()
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -152,6 +153,47 @@ fun DownloadedContentScreen(
                             )
                         }
                     }
+                    }
+
+                    // Status Card - saved statuses; hidden when videos are blocked (same gate as the row).
+                    if (!blockVideos) {
+                        Card(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(160.dp)
+                                .clickable { navController.navigate("status_downloads") },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ),
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.music_status),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = stringResource(R.string.status),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text = pluralStringResource(R.plurals.n_status, statusCount, statusCount),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 }
             }
