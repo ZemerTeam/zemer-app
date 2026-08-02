@@ -126,6 +126,24 @@ class StatusesApiTest {
     }
 
     @Test
+    fun `mergeStatusCreators drops cross-platform name duplicates, primary wins`() {
+        fun c(id: String, name: String, source: StatusSource) =
+            StatusCreator(id = id, slug = id, displayName = name, avatarPath = null, source = source)
+        val jewish = listOf(
+            c("j1", "The Shira Choir", StatusSource.JEWISH_STATUS),
+            c("j2", "Yonasan Weinberger", StatusSource.JEWISH_STATUS),
+        )
+        val yid = listOf(
+            c("y1", "the shira  choir!", StatusSource.YID_STATUS), // same act (case/space/punct) -> dropped
+            c("y2", "Moishe Green", StatusSource.YID_STATUS),      // unique -> kept
+        )
+        val merged = mergeStatusCreators(jewish, yid)
+        assertEquals(listOf("j1", "j2", "y2"), merged.map { it.id })
+        // The kept YidStatus creator retains its source (for the See-all sections).
+        assertEquals(StatusSource.YID_STATUS, merged.last().source)
+    }
+
+    @Test
     fun `sortedByUnseenFirst sinks caught-up creators to the end, stable otherwise`() {
         fun c(id: String, vararg ids: String) = StatusCreator(
             id = id, slug = id, displayName = id, avatarPath = null,

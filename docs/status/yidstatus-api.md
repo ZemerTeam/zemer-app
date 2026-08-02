@@ -69,10 +69,25 @@ Origin: https://yidstatus.com
 { "days": 1, "since": null }
 ```
 
-- `days` (int): rolling window size. `days:7` returned ~19 MB (313 influencers, 13,380 statuses), so use a
-  **small window** (1-2) on the hot path.
+- `days` (int): rolling window size. Cost and caps (measured 2026-08-02):
+
+  | days | payload | note |
+  |------|---------|------|
+  | 1 | 3.35 MB | ~2 calendar dates; 20 music creators / 42 music statuses |
+  | 7 | 19.3 MB | |
+  | 15 | 41.0 MB | last size that succeeds |
+  | 20 / 30 | error | `WORKER_RESOURCE_LIMIT` - the edge function runs out of compute |
+
+  The feed is GLOBAL (all categories) so the payload is dominated by non-music creators; there is no
+  server-side category/influencer filter. Use a **small window** (the app uses `days:1`).
 - `since` (string|null): ISO timestamp cursor for **incremental** fetches (statuses newer than `since`).
 - The site retries up to 3 times with backoff; a `4xx` is terminal.
+
+**No per-creator history.** There is no public endpoint that returns one creator's full history: the
+`statuses` table is anon-denied, and the admin `backfill` action returns `Unauthorized` without an admin
+session. Combined with the window cap above, this means a deep "jump to date" (months of history, like
+JewishStatus) is **not achievable** from YidStatus's public API - only the last ~1-2 days are available.
+Everything else (viewer, cube transition, seen/ring state, search, sections) reaches full parity.
 
 Response envelope:
 

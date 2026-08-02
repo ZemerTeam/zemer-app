@@ -30,22 +30,26 @@ private const val CAT_JEWISH_MUSIC = "dc207cab-3514-4ae8-a5c1-8a69fb27ced3"
 private const val CAT_MUSIC_IND = "02ed4e29-d461-43f4-9aab-e16d05d3f795"
 private const val CAT_CONCERTS = "5a08c0ba-400a-4576-aa33-97fa9ec38d0e"
 
+/** Which third-party platform a creator/status came from. Docs: docs/status/. */
+enum class StatusSource { JEWISH_STATUS, YID_STATUS }
+
 data class StatusCreator(
     val id: String,
     val slug: String,
     val displayName: String,
     val avatarPath: String?,
-    // The recent status ids (`recent_post_ids`) — drives the segmented story ring (one segment each)
-    // and the WhatsApp "read" state (newest seen => caught up). `updates_count` is 0 on the browse RPC,
-    // so the length of this list is the count to use.
+    // The recent status ids (`recent_post_ids` on JewishStatus; derived from the grouped feed on
+    // YidStatus) — drives the segmented story ring (one segment each) and the WhatsApp "read" state
+    // (newest seen => caught up), oldest-first so the newest is the LAST id.
     val recentPostIds: List<String> = emptyList(),
+    val source: StatusSource = StatusSource.JEWISH_STATUS,
 )
 
 data class StatusPost(
     val id: String,
     val kind: String,               // "video" | "image" | "text"
-    val mediaPath: String?,
-    val thumbPath: String?,
+    val mediaPath: String?,         // relative (JewishStatus) OR a full https URL (YidStatus)
+    val thumbPath: String?,         // relative (JewishStatus) OR a full https URL (YidStatus)
     val caption: String?,
     val textBody: String?,          // the body of a text-only status (text posts have no media/caption)
     val textBgColor: String?,       // optional "#RRGGBB" background for a text status
@@ -54,6 +58,7 @@ data class StatusPost(
     val postedAt: String,           // ISO-8601, e.g. "2026-08-01T19:32:52+00:00"
     val viewCount: Int = 0,
     val downloadCount: Int = 0,
+    val source: StatusSource = StatusSource.JEWISH_STATUS,
 )
 
 /**
@@ -73,8 +78,34 @@ fun StatusCreator.caughtUpOnLatest(seenPostIds: Set<String>): Boolean =
 fun List<StatusCreator>.sortedByUnseenFirst(seenPostIds: Set<String>): List<StatusCreator> =
     sortedBy { it.caughtUpOnLatest(seenPostIds) }
 
-fun statusAvatarUrl(path: String?): String? = path?.let { "$CDN/avatars/$it" }
-fun statusMediaUrl(path: String?): String? = path?.let { "$CDN/status-media/$it" }
+/**
+ * Merge two platforms' creators, dropping cross-platform DUPLICATES (the same real creator appears on
+ * both with different ids). Matched by a normalized name (case/spacing/punctuation-insensitive). The
+ * [primary] platform wins a tie - it is kept in full; a [secondary] creator is included only when its
+ * name is not already present. The Home row is uniform over the result; the See-all groups by `source`.
+ */
+fun mergeStatusCreators(
+    primary: List<StatusCreator>,
+    secondary: List<StatusCreator>,
+): List<StatusCreator> {
+    val seenNames = HashSet<String>()
+    val out = ArrayList<StatusCreator>(primary.size + secondary.size)
+    for (c in primary) { seenNames.add(statusNameKey(c)); out.add(c) }
+    for (c in secondary) if (seenNames.add(statusNameKey(c))) out.add(c)
+    return out
+}
+
+// Normalized identity for cross-platform dedup: letters+digits only, lowercased. A blank name (should
+// not happen) falls back to the id so distinct blank-name creators are never collapsed together.
+private fun statusNameKey(c: StatusCreator): String =
+    c.displayName.lowercase().filter { it.isLetterOrDigit() }.ifBlank { c.id }
+
+// Resolve a stored path to a URL. YidStatus already stores FULL https URLs (passed through unchanged);
+// JewishStatus stores relative paths that get the R2 CDN prefix. One helper so the viewer is source-agnostic.
+fun statusAvatarUrl(path: String?): String? =
+    path?.let { if (it.startsWith("http")) it else "$CDN/avatars/$it" }
+fun statusMediaUrl(path: String?): String? =
+    path?.let { if (it.startsWith("http")) it else "$CDN/status-media/$it" }
 
 // --- Public API. All calls are blocking; run them off the main thread (the repository uses IO). ---
 
