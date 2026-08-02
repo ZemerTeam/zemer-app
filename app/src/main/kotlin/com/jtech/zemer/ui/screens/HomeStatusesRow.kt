@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.statuses.StatusCreator
+import com.jtech.zemer.statuses.allStatusesSeen
 import com.jtech.zemer.ui.component.StatusCreatorCircle
 
 /**
@@ -29,6 +31,10 @@ fun HomeStatusesRow(
     onCreatorClick: (creatorId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Fully-viewed creators sink to the end (WhatsApp), preserving recency order within each group.
+    val ordered = remember(creators, seenPostIds) {
+        creators.sortedBy { it.allStatusesSeen(seenPostIds) }
+    }
     LazyRow(
         contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
             .add(WindowInsets(left = 12.dp, right = 12.dp))
@@ -37,7 +43,7 @@ fun HomeStatusesRow(
         modifier = modifier.padding(vertical = 8.dp),
     ) {
         items(
-            items = creators,
+            items = ordered,
             key = { creator -> creator.id },
         ) { creator ->
             StatusCreatorCircle(

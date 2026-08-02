@@ -110,4 +110,17 @@ class StatusesApiTest {
         assertTrue(statusAvatarUrl("c1/a.jpg")!!.endsWith("/avatars/c1/a.jpg"))
         assertTrue(statusMediaUrl("c1/v.mp4")!!.endsWith("/status-media/c1/v.mp4"))
     }
+
+    @Test
+    fun `allStatusesSeen is true only when every recent status is seen`() {
+        val creator = StatusCreator(
+            id = "c1", slug = "s", displayName = "S", avatarPath = null, liveNow = false,
+            recentPostIds = listOf("p1", "p2"),
+        )
+        assertFalse(creator.allStatusesSeen(emptySet()))
+        assertFalse(creator.allStatusesSeen(setOf("p1")))
+        assertTrue(creator.allStatusesSeen(setOf("p1", "p2")))
+        // A creator with no known statuses is never "all seen" (so it never sinks on an empty ring).
+        assertFalse(creator.copy(recentPostIds = emptyList()).allStatusesSeen(setOf("p1")))
+    }
 }

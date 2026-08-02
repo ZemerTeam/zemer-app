@@ -579,6 +579,7 @@ fun HomeScreen(
                         item(key = "statuses_title", contentType = "header") {
                             NavigationTitle(
                                 title = stringResource(R.string.statuses),
+                                onClick = { navController.navigate("statuses") },
                                 modifier = Modifier.animateItem(),
                             )
                         }

@@ -49,8 +49,6 @@ fun StatusCreatorCircle(
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     val segments = creator.recentPostIds.size.coerceAtLeast(1)
-    val allSeen = creator.recentPostIds.isNotEmpty() && creator.recentPostIds.all { it in seenPostIds }
-    val ringColor = if (allSeen) colorScheme.outlineVariant else colorScheme.primary
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -69,9 +67,13 @@ fun StatusCreatorCircle(
                     val arcTopLeft = Offset(inset, inset)
                     val arcSize = Size(size.width - strokeWidth, size.height - strokeWidth)
                     var start = -90f
-                    repeat(segments) {
+                    repeat(segments) { i ->
+                        // Per-segment read state: an arc mutes to the subtle outline once ITS status is
+                        // seen, so the accent arcs that remain show how many are left to view.
+                        val postId = creator.recentPostIds.getOrNull(i)
+                        val seen = postId != null && postId in seenPostIds
                         drawArc(
-                            color = ringColor,
+                            color = if (seen) colorScheme.outlineVariant else colorScheme.primary,
                             startAngle = start + gapDeg / 2f,
                             sweepAngle = sweep,
                             useCenter = false,

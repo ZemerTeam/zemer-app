@@ -59,6 +59,13 @@ data class StatusPost(
     val downloadCount: Int = 0,
 )
 
+/**
+ * Whether EVERY one of a creator's recent statuses has been viewed (WhatsApp "read"). A creator with no
+ * known statuses is not "all seen". Used to sink fully-viewed creators to the end of the row/grid.
+ */
+fun StatusCreator.allStatusesSeen(seenPostIds: Set<String>): Boolean =
+    recentPostIds.isNotEmpty() && recentPostIds.all { it in seenPostIds }
+
 fun statusAvatarUrl(path: String?): String? = path?.let { "$CDN/avatars/$it" }
 fun statusMediaUrl(path: String?): String? = path?.let { "$CDN/status-media/$it" }
 

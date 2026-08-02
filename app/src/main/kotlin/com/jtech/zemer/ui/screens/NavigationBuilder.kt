@@ -20,6 +20,7 @@ import com.jtech.zemer.ui.screens.artist.ArtistSectionScreen
 import com.jtech.zemer.ui.screens.artist.ArtistSongsScreen
 import com.jtech.zemer.ui.screens.library.LibraryScreen
 import com.jtech.zemer.ui.screens.player.VideoPlayerScreen
+import com.jtech.zemer.ui.screens.statuses.StatusesScreen
 import com.jtech.zemer.ui.screens.statuses.StoryScreen
 import com.jtech.zemer.ui.screens.playlist.AutoPlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.CachePlaylistScreen
@@ -91,6 +92,9 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("latest_releases") {
         LatestReleasesScreen(navController, scrollBehavior)
+    }
+    composable("statuses") {
+        StatusesScreen(navController, scrollBehavior)
     }
     composable("zemer_playlists") {
         ZemerPlaylistsScreen(navController, scrollBehavior)
