@@ -95,7 +95,6 @@ import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.menu.ytItemMenu
 import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
-import com.jtech.zemer.statuses.visibleRecentIds
 import com.jtech.zemer.ui.utils.storyRoute
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.ui.utils.navigateToArtist
@@ -169,12 +168,9 @@ fun HomeScreen(
     val zemerStatusesViewModel: ZemerStatusesViewModel = hiltViewModel()
     val statusCreators by zemerStatusesViewModel.creators.collectAsState()
     val statusSeenPostIds by zemerStatusesViewModel.seenPostIds.collectAsState()
+    // Passed to the row so each ring counts only statuses the user can view under their content filter
+    // (the ring never over-counts hidden kinds). Creators are NOT dropped - only the ring reflects it.
     val statusContentFilter by zemerStatusesViewModel.contentFilter.collectAsState()
-    // Only creators with a status the user can actually view under their content filter (a fully
-    // hidden creator drops from the row, and its ring never over-counts).
-    val visibleStatusCreators = remember(statusCreators, statusContentFilter) {
-        statusCreators.filter { it.visibleRecentIds(statusContentFilter).isNotEmpty() }
-    }
     // Settings → Appearance owns these toggles (there is deliberately no in-row hide affordance).
     val (showHomeGenres, _) = rememberPreference(ShowHomeGenresKey, defaultValue = true)
     val (showHomeStatuses, _) = rememberPreference(ShowHomeStatusesKey, defaultValue = true)
@@ -582,7 +578,7 @@ fun HomeScreen(
                 // blocked by content filters: statuses are mostly video/media, so the same gate as the
                 // Featured Videos row applies. The tap carries the creator's stable id (storyRoute).
                 if (showHomeStatuses && !blockVideos) {
-                    visibleStatusCreators.takeIf { it.isNotEmpty() }?.let { creators ->
+                    statusCreators.takeIf { it.isNotEmpty() }?.let { creators ->
                         item(key = "statuses_title", contentType = "header") {
                             NavigationTitle(
                                 title = stringResource(R.string.statuses),

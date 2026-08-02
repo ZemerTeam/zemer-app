@@ -55,8 +55,11 @@ fun StatusCreatorCircle(
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     // Ring over the statuses the user can actually VIEW under their content filter, so hidden-kind
-    // statuses never show as segments.
-    val visibleIds = remember(creator, contentFilter) { creator.visibleRecentIds(contentFilter) }
+    // statuses never show as segments. If the filter hides everything recent, fall back to the full
+    // ring so the creator still shows a normal circle (never an empty/phantom ring, never dropped).
+    val visibleIds = remember(creator, contentFilter) {
+        creator.visibleRecentIds(contentFilter).ifEmpty { creator.recentPostIds }
+    }
     val segments = visibleIds.size.coerceAtLeast(1)
 
     Column(

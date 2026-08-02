@@ -34,7 +34,6 @@ import com.jtech.zemer.statuses.StatusCreator
 import com.jtech.zemer.statuses.StatusSource
 import com.jtech.zemer.statuses.StatusContentFilter
 import com.jtech.zemer.statuses.sortedByUnseenFirst
-import com.jtech.zemer.statuses.visibleRecentIds
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.ArtistSearchField
 import com.jtech.zemer.ui.component.BackNavigationIcon
@@ -66,10 +65,10 @@ fun StatusesScreen(
     val searchFocus = remember { FocusRequester() }
 
     val jewish = remember(creators, seenPostIds, query, contentFilter) {
-        creators.filterSourceAndQuery(StatusSource.JEWISH_STATUS, query).visibleUnseenFirst(seenPostIds, contentFilter)
+        creators.filterSourceAndQuery(StatusSource.JEWISH_STATUS, query).sortedByUnseenFirst(seenPostIds, contentFilter)
     }
     val yid = remember(creators, seenPostIds, query, contentFilter) {
-        creators.filterSourceAndQuery(StatusSource.YID_STATUS, query).visibleUnseenFirst(seenPostIds, contentFilter)
+        creators.filterSourceAndQuery(StatusSource.YID_STATUS, query).sortedByUnseenFirst(seenPostIds, contentFilter)
     }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
@@ -114,10 +113,6 @@ fun StatusesScreen(
 
 private fun List<StatusCreator>.filterSourceAndQuery(source: StatusSource, query: String) =
     filter { it.source == source && (query.isBlank() || it.displayName.contains(query.trim(), ignoreCase = true)) }
-
-// Drop creators with nothing viewable under the filter, then sink caught-up creators to the end.
-private fun List<StatusCreator>.visibleUnseenFirst(seenPostIds: Set<String>, filter: StatusContentFilter) =
-    filter { it.visibleRecentIds(filter).isNotEmpty() }.sortedByUnseenFirst(seenPostIds, filter)
 
 /** One platform section: the shared Home-row section title (only when it has matches) then its circles. */
 private fun androidx.compose.foundation.lazy.grid.LazyGridScope.statusSection(
