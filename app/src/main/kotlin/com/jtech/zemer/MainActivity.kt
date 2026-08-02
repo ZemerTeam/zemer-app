@@ -722,8 +722,11 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
+                        // Full-screen takeovers that must not have the floating mini-player over them:
+                        // the video player and the JewishStatus story viewer.
                         val isVideoScreen = remember(navBackStackEntry) {
-                            navBackStackEntry?.destination?.route?.startsWith("video/") == true
+                            val route = navBackStackEntry?.destination?.route
+                            route?.startsWith("video/") == true || route?.startsWith("story/") == true
                         }
                         val homeViewModel: HomeViewModel = hiltViewModel()
                         val accountImageUrl by homeViewModel.accountImageUrl.collectAsState()

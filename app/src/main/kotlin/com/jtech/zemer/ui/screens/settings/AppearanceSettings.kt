@@ -38,13 +38,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -57,6 +61,7 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.theme.rememberPureBlack
+import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.ChipSortTypeKey
 import com.jtech.zemer.constants.CropAlbumArtKey
 import com.jtech.zemer.constants.CustomDensityScaleKey
@@ -80,6 +85,9 @@ import com.jtech.zemer.constants.PlayerButtonsStyleKey
 import com.jtech.zemer.constants.PureBlackKey
 import com.jtech.zemer.constants.ShowCachedPlaylistKey
 import com.jtech.zemer.constants.ShowHomeGenresKey
+import com.jtech.zemer.constants.HideImageStatusKey
+import com.jtech.zemer.constants.HideTextStatusKey
+import com.jtech.zemer.constants.ShowHomeStatusesKey
 import com.jtech.zemer.constants.ShowDownloadedPlaylistKey
 import com.jtech.zemer.constants.ShowLikedPlaylistKey
 import com.jtech.zemer.constants.ShowTopPlaylistKey
@@ -112,6 +120,7 @@ import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
+import kotlinx.coroutines.flow.first
 import me.saket.squiggles.SquigglySlider
 import kotlin.math.roundToInt
 
@@ -121,7 +130,22 @@ import kotlin.math.roundToInt
 fun AppearanceSettings(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
+    scrollToStatus: Boolean = false,
 ) {
+    // When opened from the Music Status See-all gear, scroll the Music Status group to the TOP of the
+    // screen (not merely just-into-view). We measure the viewport's and the group's window Y once both
+    // are laid out, then scroll by their delta so the group header sits under the app bar.
+    val appearanceScrollState = rememberScrollState()
+    val viewportTopY = remember { mutableFloatStateOf(Float.NaN) }
+    val statusGroupTopY = remember { mutableFloatStateOf(Float.NaN) }
+    LaunchedEffect(scrollToStatus) {
+        if (!scrollToStatus) return@LaunchedEffect
+        snapshotFlow { viewportTopY.floatValue to statusGroupTopY.floatValue }
+            .first { (vp, grp) -> !vp.isNaN() && !grp.isNaN() }
+        val target = (appearanceScrollState.value + (statusGroupTopY.floatValue - viewportTopY.floatValue))
+            .roundToInt().coerceAtLeast(0)
+        appearanceScrollState.animateScrollTo(target)
+    }
     val (dynamicTheme, onDynamicThemeChange) = rememberPreference(
  DynamicThemeKey,
         defaultValue = true
@@ -265,6 +289,21 @@ fun AppearanceSettings(
         ShowHomeGenresKey,
         defaultValue = true
     )
+    val (showHomeStatuses, onShowHomeStatusesChange) = rememberPreference(
+        ShowHomeStatusesKey,
+        defaultValue = true
+    )
+    val (hideTextStatus, onHideTextStatusChange) = rememberPreference(
+        HideTextStatusKey,
+        defaultValue = true
+    )
+    val (hideImageStatus, onHideImageStatusChange) = rememberPreference(
+        HideImageStatusKey,
+        defaultValue = false
+    )
+    // Music Status is a video-first feature, and its Home row is already hidden when videos are blocked,
+    // so the whole settings section is pointless then - hide it too.
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, defaultValue = false)
     val (showLikedPlaylist, onShowLikedPlaylistChange) = rememberPreference(
         ShowLikedPlaylistKey,
         defaultValue = true
@@ -443,7 +482,8 @@ fun AppearanceSettings(
     Column(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(appearanceScrollState)
+            .onGloballyPositioned { viewportTopY.floatValue = it.positionInWindow().y },
     ) {
         PreferenceGroupTitle(
             title = stringResource(R.string.theme),
@@ -795,6 +835,42 @@ fun AppearanceSettings(
             checked = showHomeGenres,
             onCheckedChange = onShowHomeGenresChange
         )
+
+        // Music Status settings, wrapped as one group. Its measured top (see [statusGroupTopY]) is what
+        // the See-all gear scrolls to, so the whole section lands under the app bar rather than at the
+        // top of Appearance or barely peeking at the bottom. Hidden entirely when videos are blocked
+        // (the Home row is gated the same way).
+        if (!blockVideos) {
+            Column(Modifier.onGloballyPositioned { statusGroupTopY.floatValue = it.positionInWindow().y }) {
+                PreferenceGroupTitle(
+                    title = stringResource(R.string.statuses),
+                )
+
+                SwitchPreference(
+                    title = { Text(stringResource(R.string.show_statuses_row)) },
+                    description = stringResource(R.string.show_statuses_row_desc),
+                    icon = { Icon(painterResource(R.drawable.music_status), null) },
+                    checked = showHomeStatuses,
+                    onCheckedChange = onShowHomeStatusesChange
+                )
+
+                SwitchPreference(
+                    title = { Text(stringResource(R.string.hide_text_status)) },
+                    description = stringResource(R.string.hide_text_status_desc),
+                    icon = { Icon(painterResource(R.drawable.music_status), null) },
+                    checked = hideTextStatus,
+                    onCheckedChange = onHideTextStatusChange
+                )
+
+                SwitchPreference(
+                    title = { Text(stringResource(R.string.hide_image_status)) },
+                    description = stringResource(R.string.hide_image_status_desc),
+                    icon = { Icon(painterResource(R.drawable.music_status), null) },
+                    checked = hideImageStatus,
+                    onCheckedChange = onHideImageStatusChange
+                )
+            }
+        }
 
         PreferenceGroupTitle(
             title = stringResource(R.string.auto_playlists)

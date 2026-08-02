@@ -181,6 +181,12 @@ val HomeRecentArtistsKey = stringPreferencesKey("home_recent_artists")
 // The Home genre-chips row (under Quick picks). Hide/restore lives in Settings → Appearance only.
 val ShowHomeGenresKey = booleanPreferencesKey("show_home_genres")
 
+// The Home "Music Statuses" row (under Quick picks). Hide/restore lives in Settings → Appearance only.
+val ShowHomeStatusesKey = booleanPreferencesKey("show_home_statuses")
+// Music Status content filters: hide text-only statuses (ON by default) / hide image statuses (off).
+val HideTextStatusKey = booleanPreferencesKey("hide_text_status")
+val HideImageStatusKey = booleanPreferencesKey("hide_image_status")
+
 val ShowLikedPlaylistKey = booleanPreferencesKey("show_liked_playlist")
 val ShowDownloadedPlaylistKey = booleanPreferencesKey("show_downloaded_playlist")
 val ShowTopPlaylistKey = booleanPreferencesKey("show_top_playlist")

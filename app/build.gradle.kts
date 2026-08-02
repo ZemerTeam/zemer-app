@@ -297,6 +297,9 @@ dependencies {
     implementation(libs.timber)
 
     testImplementation(libs.junit)
+    // Real org.json for JVM unit tests (Android's bundled org.json is a "not mocked" stub) so the
+    // JewishStatus response parsers (StatusesApi) can be tested without Robolectric.
+    testImplementation("org.json:json:20240303")
 
     implementation(libs.glance.appwidget)
     implementation(libs.glance.material3)

@@ -20,6 +20,8 @@ import com.jtech.zemer.ui.screens.artist.ArtistSectionScreen
 import com.jtech.zemer.ui.screens.artist.ArtistSongsScreen
 import com.jtech.zemer.ui.screens.library.LibraryScreen
 import com.jtech.zemer.ui.screens.player.VideoPlayerScreen
+import com.jtech.zemer.ui.screens.statuses.StatusesScreen
+import com.jtech.zemer.ui.screens.statuses.StoryScreen
 import com.jtech.zemer.ui.screens.playlist.AutoPlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.CachePlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.DownloadedContentScreen
@@ -90,6 +92,9 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("latest_releases") {
         LatestReleasesScreen(navController, scrollBehavior)
+    }
+    composable("statuses") {
+        StatusesScreen(navController, scrollBehavior)
     }
     composable("zemer_playlists") {
         ZemerPlaylistsScreen(navController, scrollBehavior)
@@ -283,6 +288,18 @@ fun NavGraphBuilder.navigationBuilder(
         val artist = backStackEntry.arguments?.getString("artist")
         VideoPlayerScreen(navController, videoId, title, artist)
     }
+    // The full-screen JewishStatus story viewer, opened from the Home "Music Status" row by the tapped
+    // creator's STABLE id (the creators list comes from the shared session cache; the viewer resolves
+    // the id to the current index, which survives a process-death re-fetch under the recency sort).
+    composable(
+        route = "story/{creatorId}",
+        arguments = listOf(
+            navArgument("creatorId") { type = NavType.StringType }
+        )
+    ) { backStackEntry ->
+        val creatorId = backStackEntry.arguments?.getString("creatorId") ?: return@composable
+        StoryScreen(navController, creatorId)
+    }
     composable(
         // Optional `zemer` flag (default false) routes a Zemer-search playlist open through the
         // server's `/playlist` endpoint; `community` (default false) tags its plays `community:<id>`
@@ -374,8 +391,20 @@ fun NavGraphBuilder.navigationBuilder(
     composable("settings/android_auto") {
         AndroidAutoSettings(navController, scrollBehavior)
     }
-    composable("settings/appearance") {
-        AppearanceSettings(navController, scrollBehavior)
+    composable(
+        route = "settings/appearance?scrollTo={scrollTo}",
+        arguments = listOf(
+            navArgument("scrollTo") {
+                type = NavType.StringType
+                defaultValue = ""
+            },
+        ),
+    ) {
+        AppearanceSettings(
+            navController,
+            scrollBehavior,
+            scrollToStatus = it.arguments?.getString("scrollTo") == "status",
+        )
     }
     composable("settings/content") {
         ContentSettings(navController, scrollBehavior)
