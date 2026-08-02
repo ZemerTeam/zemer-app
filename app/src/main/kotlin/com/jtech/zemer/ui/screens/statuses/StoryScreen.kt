@@ -3,10 +3,6 @@ package com.jtech.zemer.ui.screens.statuses
 import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.pager.HorizontalPager
@@ -48,6 +44,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -90,7 +87,6 @@ import com.jtech.zemer.statuses.statusAvatarUrl
 import com.jtech.zemer.statuses.statusMediaUrl
 import com.jtech.zemer.ui.theme.HeaderFontFamily
 import com.jtech.zemer.viewmodels.StoryViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
@@ -321,23 +317,14 @@ fun StoryScreen(
         progress = 0f
         exoPlayer.stop()
         val id = creators.getOrNull(creatorIdx)?.id ?: run { currentPosts = emptyList(); return@LaunchedEffect }
-        // Resolve the resume position EXACTLY ONCE. Computing it a second time after seeding is what
-        // caused the flash: the play effect marks the seeded status seen, so a re-resume would skip it and
-        // jump to the next status (black frame + jump). When the creator was prefetched, seed instantly
-        // from the cache (its posts + the live seen StateFlow are accurate); otherwise load + await seen.
+        // Resolve the resume position EXACTLY ONCE (a re-resume after the play effect marks the status
+        // seen would skip it and jump/flash). Cached creators (all YidStatus + prefetched JewishStatus)
+        // seed instantly, but the seen set MUST be the AWAITED persisted snapshot, NOT the seenPostIds
+        // StateFlow: a freshly-opened viewer has a new ViewModel whose StateFlow is still emptySet for the
+        // first frames, which made resume see "nothing seen" and always restart at the first status.
         val cached = viewModel.cachedPosts(id)
-        val loaded: List<StatusPost>
-        val seen: Set<String>
-        if (cached != null) {
-            loaded = cached
-            seen = seenPostIds
-        } else {
-            currentPosts = null
-            postIdx = 0
-            loaded = viewModel.loadPosts(id)
-            seen = viewModel.seenSnapshot()
-        }
-        val rp = resumePos(loaded, seen, todayIso)
+        val loaded = cached ?: run { currentPosts = null; postIdx = 0; viewModel.loadPosts(id) }
+        val rp = resumePos(loaded, viewModel.seenSnapshot(), todayIso)
         floorIndex = rp.floor
         postIdx = rp.index
         currentPosts = loaded
@@ -402,36 +389,45 @@ fun StoryScreen(
             exoPlayer.prepare()
             exoPlayer.play()
             var lastPos = -1L
-            var stalledMs = 0L
+            var stalledMs = 0f
+            var prevFrame = 0L
             while (true) {
-                delay(80)
+                // Drive on the DISPLAY frame clock (not a fixed 80ms tick) so the bar is perfectly smooth.
+                withFrameNanos { now ->
+                    val dt = if (prevFrame == 0L) 0f else (now - prevFrame) / 1_000_000f
+                    prevFrame = now
+                    val pos = exoPlayer.currentPosition
+                    // Stall detector: accrue real time only while playback is INTENDED (playWhenReady) and
+                    // the position is not advancing; the dt cap ignores background gaps (frame clock pauses
+                    // when off-screen, then resumes with a huge dt). Reset the moment position advances.
+                    if (exoPlayer.playWhenReady && pos <= lastPos) {
+                        if (dt in 0f..100f) stalledMs += dt
+                    } else {
+                        stalledMs = 0f
+                    }
+                    lastPos = pos
+                }
                 val dur = exoPlayer.duration
-                val pos = exoPlayer.currentPosition
-                if (dur > 0L) progress = (pos.toFloat() / dur).coerceIn(0f, 1f)
-                // Stall detector: count time only while playback is INTENDED (playWhenReady) but the
-                // position is not advancing. This catches a clip that buffers forever with no error at
-                // the start OR mid-stream, yet never fires while paused/backgrounded (the lifecycle
-                // observer clears playWhenReady), so the timer freezes off-screen instead of skipping.
-                if (exoPlayer.playWhenReady && pos <= lastPos) stalledMs += 80 else stalledMs = 0
-                lastPos = pos
+                if (dur > 0L) progress = (exoPlayer.currentPosition.toFloat() / dur).coerceIn(0f, 1f)
                 val ended = exoPlayer.playbackState == Player.STATE_ENDED
-                // A failed video (bad/expired URL) sets playerError and never ENDs.
-                val failed = exoPlayer.playerError != null
+                val failed = exoPlayer.playerError != null // bad/expired URL: sets playerError, never ENDs
                 if (ended || failed || stalledMs >= VIDEO_STALL_TIMEOUT_MS || progress >= 0.99f) break
             }
             exoPlayer.stop()
         } else {
-            // Image/text: hold the API-provided duration (the site defaults to 7s).
-            val durationMs = (post.durationSeconds ?: 7) * 1000L
-            val tickMs = 80L
-            var elapsed = 0L
+            // Image/text: hold the API-provided duration (the site defaults to 7s). Advance real elapsed
+            // time on the display frame clock for a perfectly smooth bar; the dt cap freezes it while
+            // backgrounded (frame clock pauses) and the `paused` check freezes it during a press-hold.
+            val durationMs = (post.durationSeconds ?: 7) * 1000f
+            var elapsed = 0f
+            var prevFrame = 0L
             while (elapsed < durationMs) {
-                delay(tickMs)
-                // Freeze the timer while the user is holding (pause) OR the app is backgrounded (the
-                // composable is stopped, not disposed) - so it does not advance / mark-seen off-screen.
-                if (paused || !lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) continue
-                elapsed += tickMs
-                progress = (elapsed.toFloat() / durationMs).coerceIn(0f, 1f)
+                withFrameNanos { now ->
+                    val dt = if (prevFrame == 0L) 0f else (now - prevFrame) / 1_000_000f
+                    prevFrame = now
+                    if (!paused && dt in 0f..100f) elapsed += dt
+                }
+                progress = (elapsed / durationMs).coerceIn(0f, 1f)
             }
         }
         advance()
@@ -592,21 +588,14 @@ fun StoryScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            // The raw `progress` only ticks every ~80ms (choppy); interpolate the active segment's fill
-            // linearly between ticks. Snap (no animation) when it resets to 0 for a new status, so the
-            // bar never visibly rewinds.
-            val animatedProgress by animateFloatAsState(
-                targetValue = progress,
-                animationSpec = if (progress == 0f) snap() else tween(durationMillis = 120, easing = LinearEasing),
-                label = "statusSegmentProgress",
-            )
-            // One segment per status in the CURRENT date's window.
+            // One segment per status in the CURRENT date's window. `progress` is updated on the display
+            // frame clock (see the driver), so the active segment fills perfectly smoothly.
             Row(Modifier.fillMaxWidth()) {
                 for (i in windowStart..windowEnd) {
                     val fill = when {
                         posts == null -> 0f
                         i < postIdx -> 1f
-                        i == postIdx -> animatedProgress
+                        i == postIdx -> progress
                         else -> 0f
                     }
                     Box(
@@ -795,7 +784,10 @@ private fun StatusPreviewFace(
     val posts by produceState(initial, creator.id) {
         value = viewModel.loadPosts(creator.id)
     }
-    val post = posts?.takeIf { it.isNotEmpty() }?.let { it[resumePos(it, seenPostIds, todayIso).index] }
+    // AWAIT the persisted seen (the passed StateFlow is emptySet for the first frames of a freshly-opened
+    // viewer), so the preview resumes to the SAME status the active face will - not always the first.
+    val seen by produceState(seenPostIds, Unit) { value = viewModel.seenSnapshot() }
+    val post = posts?.takeIf { it.isNotEmpty() }?.let { it[resumePos(it, seen, todayIso).index] }
 
     Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
         val thumb = when (post?.kind) {
