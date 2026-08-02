@@ -380,6 +380,59 @@ non-obvious rules:
   dead-presses album radio and mis-ids share links; the server's real OLAK id (or the browseId
   fallback, whose only consumer is the disabled automix) is used instead.
 
+### Music Status (the Home "Music Status" row + story viewer; third-party sourced)
+
+A WhatsApp/Stories-style feature: a Home row of creator "status" circles under Quick Picks, a
+full-screen story viewer, and a See-all grid. Content comes from TWO third-party services the app
+can't guarantee are up, so the whole feature is **fail-soft and isolated** the way Stations/Latest
+Releases are. Feature package `statuses/`; UI under `ui/screens/statuses/`; full detail in
+`docs/status/` (README + one API reference per platform). The rules that must not regress:
+
+- **Two sources, merged + deduped, music-only.** JewishStatus (`StatusesApi.kt`, Supabase PostgREST
+  + R2 CDN) and YidStatus (`YidStatusApi.kt`). **YidStatus MUST go through OkHttp**: its edge function
+  requires an `Origin: https://yidstatus.com` header that `HttpURLConnection` silently drops (restricted
+  header) -> 403. YidStatus is filtered to music categories (no comedy). `mergeStatusCreators` drops
+  cross-platform duplicates by a normalized name (`statusNameKey`); the Home row is uniform over the
+  merge, the See-all groups by `source`. Creators with empty `recentPostIds` are dropped (no ring).
+- **Fail-soft + isolated.** `ZemerStatusesViewModel` (Stations pattern): a fetch failure keeps the row
+  empty and `HomeScreen` hides it; nothing about Home depends on it. Gated by `ShowHomeStatusesKey`.
+  If only one source fails the other still populates the row (progressive `republish`).
+- **One source of truth.** `StatusesRepository` (per-source caches + mutexes, the merged/deduped
+  publish, the persisted seen set in `StatusSeenStore`). Live-refresh is three-layer: a staleness
+  window (`STALE_MS`), pull-to-refresh (`refresh(force = true)`), and a per-creator re-fetch the moment
+  a creator is opened (`refreshPosts`, appends newer statuses in place without disturbing playback).
+- **Pure timeline math is extracted and JVM-tested — keep it that way.** `StatusTimeline.kt`
+  (`resumePos`, `statusDateGroups`, `formatPostedAt`, `statusLocalDate`; zone-injectable so the tests
+  are deterministic) holds the non-obvious WhatsApp logic. Do NOT inline it back into `StoryScreen`
+  (that is exactly the untestable-logic-in-UI split the extraction fixed). `StatusTimelineTest` +
+  `StatusesApiTest` (parse/merge/`caughtUpOnLatest`/`applyStatusFilter`) + `StatusNavigationTest` are
+  the regression gate.
+- **WhatsApp read/resume semantics.** Open on TODAY's date window (or the newest date if none today)
+  at the first UNSEEN status; caught-up (NEWEST status seen) sinks the creator to the end
+  (`sortedByUnseenFirst` / `caughtUpOnLatest`). Finishing a date rolls FORWARD into the same creator's
+  next date; only the creator's newest status advances to the next creator; back is floored at the
+  entry date (jump-to-date sheet goes earlier). The per-segment ring in `StatusCreatorCircle` colors
+  seen vs unseen (accent unseen / `outlineVariant` seen).
+- **The viewer's no-flash invariants** (`StoryScreen`, all hard-won): creators live in a cube
+  `HorizontalPager`; the active face renders only when `postsCreatorIdx == creatorIdx` (else the stale
+  previous-creator content flashes on settle); both neighbors are prefetched (posts AND the thumbnail
+  bytes); the resume position is resolved EXACTLY ONCE against the AWAITED `seenSnapshot()` (never the
+  `seenPostIds` StateFlow, which is `emptySet` for the first frames of a fresh viewer -> "always starts
+  at the first status"); the play effect keys on the CURRENT status id (not the whole list) so a
+  background refresh that appends statuses doesn't restart the video; progress is driven on the display
+  frame clock (`withFrameNanos`, dt-capped) and the thumbnail is held until `onRenderedFirstFrame`.
+  Its own short-lived ExoPlayer; the music player pauses on open and resumes on close.
+- **Content filter (`HideTextStatusKey` ON by default / `HideImageStatusKey` off, Appearance).**
+  Applied at the `StoryViewModel` chokepoints (`applyStatusFilter` on `loadPosts`/`refreshPosts`/
+  `cachedPosts`) so the driver, cube preview and resume math all see the SAME visible list; a
+  fully-filtered creator ends up with no posts and is auto-skipped. The See-all screen's gear opens
+  Appearance scrolled to the Music Status group (`settings/appearance?scrollTo=status` +
+  `BringIntoViewRequester`), not the top.
+- **Media URLs are source-agnostic** (`statusMediaUrl`/`statusAvatarUrl`): a full `https` path passes
+  through unchanged (YidStatus), a relative path gets the R2 prefix (JewishStatus).
+- **Third-party, so NO handoff doc** (these are not Zemer services). API shape, the OkHttp/Origin
+  gotcha, and the feed cost caps are recorded in `docs/status/` instead.
+
 ### Offline search backup (`offline/` — the outage fallback)
 
 A downloaded, incrementally-synced snapshot of the corpus serves `/search`, `/artist`, `/album`,

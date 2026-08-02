@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `357`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `358`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -11,7 +11,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 50 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 6 lines | text `[none]` |
-| `AGENTS.md` | 623 lines | text `.md` |
+| `AGENTS.md` | 676 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 19 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -163,6 +163,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/more_horiz.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/more_vert.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/music_note.xml` | 9 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/music_status.xml` | 14 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/nav_bar.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/offline.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/palette.xml` | 9 lines | text `.xml`; XML root `vector` |

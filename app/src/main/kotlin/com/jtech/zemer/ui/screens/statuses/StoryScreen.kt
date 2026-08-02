@@ -83,15 +83,17 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.statuses.StatusCreator
+import com.jtech.zemer.statuses.StatusDateGroup
 import com.jtech.zemer.statuses.StatusPost
+import com.jtech.zemer.statuses.formatPostedAt
+import com.jtech.zemer.statuses.resumePos
 import com.jtech.zemer.statuses.statusAvatarUrl
+import com.jtech.zemer.statuses.statusDateGroups
 import com.jtech.zemer.statuses.statusMediaUrl
 import com.jtech.zemer.ui.theme.HeaderFontFamily
 import com.jtech.zemer.viewmodels.StoryViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.ZoneId
-import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
@@ -100,42 +102,8 @@ import kotlin.math.abs
 // forever at the start OR stalling mid-stream, with no error) is treated as failed and skipped.
 private const val VIDEO_STALL_TIMEOUT_MS = 12_000L
 
-private val tsFmt = DateTimeFormatter.ofPattern("MMM d · h:mm a", Locale.US)
-
-// Convert the post's UTC/offset timestamp to the DEVICE's local zone before formatting, or the shown
-// time is off by the user's UTC offset (which read as "wrong times").
-private fun formatPostedAt(postedAt: String): String = try {
-    tsFmt.format(ZonedDateTime.parse(postedAt).withZoneSameInstant(ZoneId.systemDefault()))
-} catch (_: Exception) { "" }
-
-/** The post's DEVICE-local calendar date ("YYYY-MM-DD"), or null if unparseable. */
-private fun localDate(postedAt: String): String? = try {
-    ZonedDateTime.parse(postedAt).withZoneSameInstant(ZoneId.systemDefault()).toLocalDate().toString()
-} catch (_: Exception) { null }
-
 private val dowFmt = DateTimeFormatter.ofPattern("EEE", Locale.US)
 private val dayFmt = DateTimeFormatter.ofPattern("d", Locale.US)
-
-/** One date the creator posted on: its ISO date, the index of its first post, and its post count. */
-private data class StatusDateGroup(val iso: String, val startIndex: Int, val count: Int)
-
-/** Where a creator opens: the entry date's first index (`floor`) and the status to resume on (`index`). */
-private data class ResumePos(val floor: Int, val index: Int)
-
-/**
- * The WhatsApp resume position: default to TODAY's date window (or the newest date if none today) and
- * land on its first UNSEEN status, else its newest. Shared by the driver and the cube preview face so
- * the status shown mid-swipe is exactly the one that plays once the pager settles (no jump).
- */
-private fun resumePos(posts: List<StatusPost>, seen: Set<String>, todayIso: String): ResumePos {
-    if (posts.isEmpty()) return ResumePos(0, 0)
-    val defaultIso = if (posts.any { localDate(it.postedAt) == todayIso }) todayIso
-    else localDate(posts.last().postedAt)
-    val wStart = posts.indexOfFirst { localDate(it.postedAt) == defaultIso }.coerceAtLeast(0)
-    val wEnd = posts.indexOfLast { localDate(it.postedAt) == defaultIso }.coerceAtLeast(wStart)
-    val index = (wStart..wEnd).firstOrNull { posts[it].id !in seen } ?: wEnd
-    return ResumePos(wStart, index)
-}
 
 /**
  * Warm Coil's cache with the image a neighbor creator will show on the cube face (its resume status's
@@ -156,24 +124,6 @@ private fun prefetchStatusImage(
         else -> null
     } ?: return
     context.imageLoader.enqueue(ImageRequest.Builder(context).data(url).build())
-}
-
-/**
- * Group a creator's posts (sorted oldest-first, so a date's posts are contiguous) by local date, in
- * chronological order — the data behind the "jump to date" sheet.
- */
-private fun statusDateGroups(posts: List<StatusPost>?): List<StatusDateGroup> {
-    if (posts.isNullOrEmpty()) return emptyList()
-    val groups = mutableListOf<StatusDateGroup>()
-    var i = 0
-    while (i < posts.size) {
-        val d = localDate(posts[i].postedAt) ?: "?"
-        var j = i + 1
-        while (j < posts.size && (localDate(posts[j].postedAt) ?: "?") == d) j++
-        groups.add(StatusDateGroup(iso = d, startIndex = i, count = j - i))
-        i = j
-    }
-    return groups
 }
 
 /**
