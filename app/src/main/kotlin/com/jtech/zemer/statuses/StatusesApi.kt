@@ -37,11 +37,9 @@ data class StatusCreator(
     val avatarPath: String?,
     val liveNow: Boolean,
     // The recent status ids (`recent_post_ids`) — drives the segmented story ring (one segment each)
-    // and the WhatsApp "read" state (all seen => muted ring). `updates_count` is 0 on the browse RPC,
+    // and the WhatsApp "read" state (newest seen => caught up). `updates_count` is 0 on the browse RPC,
     // so the length of this list is the count to use.
     val recentPostIds: List<String> = emptyList(),
-    val isVerified: Boolean = false,
-    val downloadsEnabled: Boolean = true,
 )
 
 data class StatusPost(
@@ -92,16 +90,7 @@ suspend fun fetchStatusCreators(): List<StatusCreator> = coroutineScope {
         .flatten()
         .filter { seen.add(it.id) }
 
-    // Batch is_verified + downloads_enabled (the browse RPC omits them), chunked so a large creator
-    // list never builds an over-length `id=in.(...)` URL that a proxy 414s.
-    val details = fetchCreatorDetails(base.map { it.id })
-    base.map { c ->
-        val d = details[c.id]
-        c.copy(
-            isVerified = d?.first ?: false,
-            downloadsEnabled = d?.second ?: true,
-        )
-    }
+    base
 }
 
 /**
@@ -145,32 +134,6 @@ private fun fetchByCategory(catId: String): List<StatusCreator> {
     }
     return all
 }
-
-/**
- * Returns Map<id, Pair<isVerified, downloadsEnabled>>, chunked so the `id=in.(...)` URL stays under
- * any proxy length limit. Best-effort per chunk: a failed chunk is skipped (those creators just miss
- * their verified badge / default to downloads-enabled) rather than failing the whole creators load.
- */
-private fun fetchCreatorDetails(ids: List<String>): Map<String, Pair<Boolean, Boolean>> {
-    if (ids.isEmpty()) return emptyMap()
-    val out = mutableMapOf<String, Pair<Boolean, Boolean>>()
-    ids.chunked(DETAILS_CHUNK).forEach { chunk ->
-        runCatching {
-            val url = "$BASE/public_creators?select=id,is_verified,downloads_enabled&id=in.(${chunk.joinToString(",")})"
-            val arr = JSONArray(getJson(url))
-            for (i in 0 until arr.length()) {
-                val o = arr.getJSONObject(i)
-                out[o.getString("id")] = Pair(
-                    o.optBoolean("is_verified", false),
-                    o.optBoolean("downloads_enabled", true),
-                )
-            }
-        }
-    }
-    return out
-}
-
-private const val DETAILS_CHUNK = 100
 
 // A nullable string field. Guards the org.json gotcha: on Android's runtime `optString` returns the
 // literal "null" for a JSON `null` value (the reference impl returns ""), which was rendering a text

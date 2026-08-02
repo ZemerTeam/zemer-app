@@ -61,50 +61,45 @@ fun StatusCreatorCircle(
             .clickable(onClick = onClick)
             .padding(vertical = 4.dp),
     ) {
-        Box(contentAlignment = Alignment.BottomEnd) {
-            Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) {
-                // Segmented ring: one arc per recent status, with a small gap between arcs.
-                Canvas(Modifier.size(64.dp)) {
-                    val strokeWidth = 3.dp.toPx()
-                    val gapDeg = if (segments > 1) 8f else 0f
-                    val sweep = (360f - gapDeg * segments) / segments
-                    val inset = strokeWidth / 2f
-                    val arcTopLeft = Offset(inset, inset)
-                    val arcSize = Size(size.width - strokeWidth, size.height - strokeWidth)
-                    var start = -90f
-                    repeat(segments) { i ->
-                        // Per-segment read state: an arc mutes to the subtle outline once ITS status is
-                        // seen, so the accent arcs that remain show how many are left to view.
-                        val postId = creator.recentPostIds.getOrNull(i)
-                        val seen = postId != null && postId in seenPostIds
-                        drawArc(
-                            color = if (seen) colorScheme.outlineVariant else colorScheme.primary,
-                            startAngle = start + gapDeg / 2f,
-                            sweepAngle = sweep,
-                            useCenter = false,
-                            topLeft = arcTopLeft,
-                            size = arcSize,
-                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                        )
-                        start += sweep + gapDeg
-                    }
+        Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) {
+            // Segmented ring: one arc per recent status, with a small gap between arcs.
+            Canvas(Modifier.size(64.dp)) {
+                val strokeWidth = 3.dp.toPx()
+                val gapDeg = if (segments > 1) 8f else 0f
+                val sweep = (360f - gapDeg * segments) / segments
+                val inset = strokeWidth / 2f
+                val arcTopLeft = Offset(inset, inset)
+                val arcSize = Size(size.width - strokeWidth, size.height - strokeWidth)
+                var start = -90f
+                repeat(segments) { i ->
+                    // Per-segment read state: an arc mutes to the subtle outline once ITS status is
+                    // seen, so the accent arcs that remain show how many are left to view.
+                    val postId = creator.recentPostIds.getOrNull(i)
+                    val seen = postId != null && postId in seenPostIds
+                    drawArc(
+                        color = if (seen) colorScheme.outlineVariant else colorScheme.primary,
+                        startAngle = start + gapDeg / 2f,
+                        sweepAngle = sweep,
+                        useCenter = false,
+                        topLeft = arcTopLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                    )
+                    start += sweep + gapDeg
                 }
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(statusAvatarUrl(creator.avatarPath))
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = creator.displayName,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(54.dp)
-                        .clip(CircleShape)
-                        .background(colorScheme.surfaceVariant),
-                )
             }
-            if (creator.isVerified) {
-                VerifiedBadge(size = 16.dp)
-            }
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(statusAvatarUrl(creator.avatarPath))
+                    .crossfade(true)
+                    .build(),
+                contentDescription = creator.displayName,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(CircleShape)
+                    .background(colorScheme.surfaceVariant),
+            )
         }
 
         Spacer(Modifier.height(4.dp))

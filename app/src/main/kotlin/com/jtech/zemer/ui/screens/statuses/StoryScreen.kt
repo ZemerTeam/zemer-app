@@ -74,7 +74,6 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.ui.component.BackNavigationIcon
-import com.jtech.zemer.ui.component.VerifiedBadge
 import com.jtech.zemer.statuses.StatusPost
 import com.jtech.zemer.statuses.statusAvatarUrl
 import com.jtech.zemer.statuses.statusMediaUrl
@@ -505,23 +504,18 @@ fun StoryScreen(
             Spacer(Modifier.height(8.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(contentAlignment = Alignment.BottomEnd) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(statusAvatarUrl(creator?.avatarPath))
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(colorScheme.surfaceVariant),
-                    )
-                    if (creator?.isVerified == true) {
-                        VerifiedBadge(size = 14.dp)
-                    }
-                }
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(statusAvatarUrl(creator?.avatarPath))
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(colorScheme.surfaceVariant),
+                )
 
                 Spacer(Modifier.width(10.dp))
 
