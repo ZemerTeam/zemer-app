@@ -40,8 +40,10 @@ import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -1206,11 +1208,12 @@ class MainActivity : ComponentActivity() {
                                     drawerContentColor = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurface,
                                     // The Material default (360dp) is nearly the full width on a phone, so the
                                     // items' pills stretch far right and the drawer covers most of the screen.
-                                    // Size it DYNAMICALLY to a compact fraction of the screen (leaving a clear
-                                    // scrim), capped so it does not get oversized on tablets/foldables.
+                                    // Size it to the CONTENT's own width (IntrinsicSize.Max = the widest row) so
+                                    // there is no dead space to the right of the labels, clamped so it never gets
+                                    // too cramped or oversized on tablets/foldables.
                                     modifier = Modifier
-                                        .fillMaxWidth(0.66f)
-                                        .widthIn(max = 320.dp)
+                                        .width(IntrinsicSize.Max)
+                                        .widthIn(min = 240.dp, max = 300.dp)
                                         .focusProperties {
                                             canFocus = drawerState.isOpen
                                         }
