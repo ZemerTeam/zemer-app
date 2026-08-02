@@ -191,8 +191,9 @@ fun StoryScreen(
         val loaded = viewModel.loadPosts(id)
         // Resume at the first UNSEEN status (WhatsApp), so reopening does not restart from the top. A
         // fully-seen creator lands on its NEWEST (last, since posts are asc) so tapping back into it
-        // shows the latest, not a replay from the oldest. Snapshot the seen set at load time.
-        val seen = viewModel.seenPostIds.value
+        // shows the latest, not a replay from the oldest. AWAIT the persisted seen set (the StateFlow
+        // snapshot is still empty for the first frames after open while DataStore loads).
+        val seen = viewModel.seenSnapshot()
         postIdx = loaded.indexOfFirst { it.id !in seen }.takeIf { it >= 0 } ?: loaded.lastIndex.coerceAtLeast(0)
         currentPosts = loaded
         creators.getOrNull(creatorIdx + 1)?.id?.let { nextId -> launch { viewModel.loadPosts(nextId) } }

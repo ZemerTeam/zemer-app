@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -42,6 +43,13 @@ class StoryViewModel @Inject constructor(
     /** One creator's posts, from the shared session cache (fetched on first open); [] on failure. */
     suspend fun loadPosts(creatorId: String): List<StatusPost> =
         runCatching { repository.posts(creatorId) }.getOrDefault(emptyList())
+
+    /**
+     * The current persisted seen set, AWAITED (not the [seenPostIds] StateFlow snapshot, which is still
+     * emptySet() for the first frames after the viewer opens while DataStore loads) so resuming at the
+     * first-unseen status is correct on open.
+     */
+    suspend fun seenSnapshot(): Set<String> = repository.seen.first()
 
     /** Record a status as viewed (persisted) — WhatsApp "seen", drives the muted ring. */
     fun markSeen(postId: String) {
