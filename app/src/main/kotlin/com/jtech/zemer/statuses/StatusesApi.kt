@@ -35,7 +35,6 @@ data class StatusCreator(
     val slug: String,
     val displayName: String,
     val avatarPath: String?,
-    val liveNow: Boolean,
     // The recent status ids (`recent_post_ids`) — drives the segmented story ring (one segment each)
     // and the WhatsApp "read" state (newest seen => caught up). `updates_count` is 0 on the browse RPC,
     // so the length of this list is the count to use.
@@ -150,7 +149,6 @@ internal fun parseCreators(arr: JSONArray): List<StatusCreator> =
             slug = o.getString("slug"),
             displayName = o.getString("display_name"),
             avatarPath = o.optStringOrNull("avatar_path"),
-            liveNow = o.optBoolean("live_now", false),
             recentPostIds = o.optJSONArray("recent_post_ids")?.let { arr ->
                 (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotEmpty() } }
             } ?: emptyList(),

@@ -73,6 +73,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.jtech.zemer.LocalPlayerConnection
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.statuses.StatusPost
 import com.jtech.zemer.statuses.statusAvatarUrl
@@ -468,13 +469,13 @@ fun StoryScreen(
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(horizontal = 8.dp, vertical = 8.dp),
         ) {
-            // Controls: a clear back button on the left. The shared BackNavigationIcon (navigateUp) is
-            // forced white for legibility over the media.
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                CompositionLocalProvider(LocalContentColor provides Color.White) {
+            // Header bar: the shared back button + "Music Status" title, like every other screen. Forced
+            // white for legibility over the media.
+            CompositionLocalProvider(LocalContentColor provides Color.White) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     BackNavigationIcon(navController = navController)
+                    AppBarTitle(stringResource(R.string.statuses), modifier = Modifier.weight(1f))
                 }
-                Spacer(Modifier.weight(1f))
             }
 
             Spacer(Modifier.height(8.dp))
@@ -520,23 +521,12 @@ fun StoryScreen(
                 Spacer(Modifier.width(10.dp))
 
                 Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = creator?.displayName ?: "",
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        if (creator?.liveNow == true) {
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                stringResource(R.string.station_live_badge),
-                                color = colorScheme.primary,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                    }
+                    Text(
+                        text = creator?.displayName ?: "",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                     val ts = currentPost?.postedAt?.let { formatPostedAt(it) }
                     if (!ts.isNullOrEmpty()) {
                         Text(

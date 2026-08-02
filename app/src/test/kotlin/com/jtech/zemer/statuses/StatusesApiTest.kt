@@ -28,10 +28,8 @@ class StatusesApiTest {
         assertEquals("shia", a.slug)
         assertEquals("Shia Scharf", a.displayName)
         assertEquals("c1/a.jpg", a.avatarPath)
-        assertTrue(a.liveNow)
-        // Empty avatar_path -> null; live_now defaults handled.
+        // Empty avatar_path -> null.
         assertNull(creators[1].avatarPath)
-        assertFalse(creators[1].liveNow)
     }
 
     @Test
@@ -115,7 +113,7 @@ class StatusesApiTest {
     fun `caughtUpOnLatest keys off the newest (last) recent id, not older ones`() {
         // recent_post_ids is oldest-first, so p2 is the newest.
         val creator = StatusCreator(
-            id = "c1", slug = "s", displayName = "S", avatarPath = null, liveNow = false,
+            id = "c1", slug = "s", displayName = "S", avatarPath = null,
             recentPostIds = listOf("p1", "p2"),
         )
         assertFalse(creator.caughtUpOnLatest(emptySet()))
@@ -130,7 +128,7 @@ class StatusesApiTest {
     @Test
     fun `sortedByUnseenFirst sinks caught-up creators to the end, stable otherwise`() {
         fun c(id: String, vararg ids: String) = StatusCreator(
-            id = id, slug = id, displayName = id, avatarPath = null, liveNow = false,
+            id = id, slug = id, displayName = id, avatarPath = null,
             recentPostIds = ids.toList(),
         )
         val a = c("a", "a1", "a2")   // newest a2 unseen -> stays
