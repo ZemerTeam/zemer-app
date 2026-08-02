@@ -1,5 +1,7 @@
 package com.jtech.zemer.ui.component
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,11 +14,17 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -46,12 +54,20 @@ fun ArtistSearchField(
     placeholderRes: Int = R.string.search_artists,
 ) {
     val accent = MaterialTheme.colorScheme.primary
+    // A bold accent outline (like the genre chips, but tougher), brightening to full accent on focus.
+    var focused by remember { mutableStateOf(false) }
+    val borderColor by animateColorAsState(
+        targetValue = if (focused) accent else accent.copy(alpha = 0.6f),
+        label = "search_border",
+    )
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
+            .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(10.dp))
+            .onFocusChanged { focused = it.isFocused }
             .focusRequester(searchFocus)
             .then(
                 if (downTarget != null) {
@@ -87,14 +103,14 @@ fun ArtistSearchField(
             }
         },
         singleLine = true,
-        // Genre-chip shape: squarish 10dp corners.
+        // Genre-chip shape: squarish 10dp corners. The outline is drawn by the Modifier.border above,
+        // so the field's own indicator stays transparent (no double border).
         shape = RoundedCornerShape(10.dp),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surface,
             unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-            // Accent outline, like the genre chips: a whisper at rest, stronger when focused.
-            focusedIndicatorColor = accent,
-            unfocusedIndicatorColor = accent.copy(alpha = 0.35f),
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
             disabledContainerColor = MaterialTheme.colorScheme.surface,
             cursorColor = accent,
             focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,

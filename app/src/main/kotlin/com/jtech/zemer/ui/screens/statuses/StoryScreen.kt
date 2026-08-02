@@ -80,6 +80,7 @@ import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.jtech.zemer.LocalPlayerConnection
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.statuses.StatusCreator
 import com.jtech.zemer.statuses.StatusPost
@@ -573,16 +574,7 @@ fun StoryScreen(
             CompositionLocalProvider(LocalContentColor provides Color.White) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     BackNavigationIcon(navController = navController)
-                    Text(
-                        text = stringResource(R.string.statuses),
-                        modifier = Modifier.weight(1f),
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontFamily = HeaderFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    AppBarTitle(stringResource(R.string.statuses), modifier = Modifier.weight(1f))
                 }
             }
 
