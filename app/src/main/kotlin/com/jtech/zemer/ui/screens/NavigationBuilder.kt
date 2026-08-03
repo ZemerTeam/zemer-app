@@ -386,7 +386,11 @@ fun NavGraphBuilder.navigationBuilder(
             },
         ),
     ) {
-        SavedStatusScreen(navController, startId = it.arguments?.getString("start")?.ifBlank { null })
+        SavedStatusScreen(
+            navController,
+            initialCreatorId = it.arguments?.getString("creatorId").orEmpty(),
+            startId = it.arguments?.getString("start")?.ifBlank { null },
+        )
     }
     composable(route = "downloaded_videos") {
         DownloadedVideosScreen(navController, scrollBehavior)

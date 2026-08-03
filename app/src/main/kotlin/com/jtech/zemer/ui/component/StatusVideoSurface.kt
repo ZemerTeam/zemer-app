@@ -27,13 +27,18 @@ fun StatusVideoSurface(
     AndroidView(
         factory = { ctx ->
             PlayerView(ctx).apply {
-                this.player = player
+                // Kill the transport controls, their auto-show, and the buffering spinner BEFORE binding
+                // the player, so none of them flash when a new video is prepared (the story taps drive
+                // playback; a brief play-button/seek-bar or buffering ring is not wanted).
                 this.useController = useController
+                controllerAutoShow = false
+                setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT,
                 )
+                this.player = player
             }
         },
         modifier = modifier,

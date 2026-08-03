@@ -42,6 +42,7 @@ import com.jtech.zemer.ui.component.Material3MenuItemData
 fun SavedStatusMenu(
     download: StatusDownload,
     onRemove: () -> Unit,
+    onSelect: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     Column(
@@ -90,6 +91,14 @@ fun SavedStatusMenu(
 
         Material3MenuGroup(
             items = listOf(
+                Material3MenuItemData(
+                    icon = { Icon(painterResource(R.drawable.select_all), contentDescription = null, modifier = Modifier.size(24.dp)) },
+                    title = { Text(stringResource(R.string.status_select)) },
+                    onClick = {
+                        onDismiss()
+                        onSelect()
+                    },
+                ),
                 Material3MenuItemData(
                     icon = { Icon(painterResource(R.drawable.delete), contentDescription = null, modifier = Modifier.size(24.dp)) },
                     title = { Text(stringResource(R.string.status_remove)) },

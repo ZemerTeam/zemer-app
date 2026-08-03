@@ -34,7 +34,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -82,10 +81,14 @@ import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.statuses.StatusTextImage
 import com.jtech.zemer.statuses.linkifyStatusText
 import androidx.compose.ui.text.style.TextAlign
+import com.jtech.zemer.ui.component.ExpandableStatusCaption
+import com.jtech.zemer.ui.component.StatusCopyButton
+import com.jtech.zemer.ui.component.StatusLoadingIndicator
 import com.jtech.zemer.ui.component.StatusStoryTopOverlay
 import com.jtech.zemer.ui.component.StatusVideoSurface
 import com.jtech.zemer.ui.component.ZemerFab
 import com.jtech.zemer.ui.utils.PauseMusicWhileActive
+import com.jtech.zemer.ui.utils.cubeFace
 import com.jtech.zemer.utils.rememberPreference
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -211,9 +214,7 @@ fun StoryScreen(
         if (loadAttempted) {
             LaunchedEffect(Unit) { onClose() }
         } else {
-            Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
-            }
+            StatusLoadingIndicator(Modifier.fillMaxSize().background(Color.Black))
         }
         return
     }
@@ -445,13 +446,7 @@ fun StoryScreen(
       Box(
           Modifier
               .fillMaxSize()
-              .graphicsLayer {
-                  val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-                  val off = pageOffset.coerceIn(-1f, 1f)
-                  cameraDistance = 20f * density
-                  transformOrigin = TransformOrigin(if (off < 0f) 0f else 1f, 0.5f)
-                  rotationY = (if (off < 0f) 90f else -90f) * abs(off)
-              },
+              .cubeFace((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction),
       ) {
         // Show the live face only when the loaded posts belong to THIS creator; until the driver catches
         // up after a settle (and for every non-active page) show the correct static preview, which loads
@@ -482,30 +477,19 @@ fun StoryScreen(
         ) {
         // Content.
         if (posts == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
-            }
+            StatusLoadingIndicator(Modifier.fillMaxSize(), avatarUrl = statusAvatarUrl(creator?.avatarPath))
         } else {
             Crossfade(targetState = currentPost, label = "post") { post ->
                 when (post?.kind) {
                     "video" -> Box(Modifier.fillMaxSize()) {
                         StatusVideoSurface(player = exoPlayer, modifier = Modifier.fillMaxSize())
-                        // Hold the thumbnail over the (black) player surface until the video actually
-                        // draws its first frame, so settling on a video shows a frame, never a black gap.
+                        // The shared loading state (avatar + ring) covers the surface until the video draws
+                        // its first frame - straight from "loading" to playing, no low-res/blurry poster.
                         if (!videoRendered) {
-                            post.thumbPath?.let { thumb ->
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context)
-                                        .data(statusMediaUrl(thumb))
-                                        .crossfade(true)
-                                        .build(),
-                                    contentDescription = null,
-                                    // Crop to match the video's fill-and-crop, so the held poster fills
-                                    // the same frame and there is no fit->fill jump on the first frame.
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            }
+                            StatusLoadingIndicator(
+                                Modifier.fillMaxSize().background(Color.Black),
+                                avatarUrl = statusAvatarUrl(creator?.avatarPath),
+                            )
                         }
                     }
                     "image" -> AsyncImage(
@@ -600,23 +584,10 @@ fun StoryScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (showCopy) {
-                        // Icon-only: the copy glyph is self-explanatory (label kept as the a11y description).
-                        Box(
-                            Modifier
-                                .height(pillHeight)
-                                .aspectRatio(1f)
-                                .clip(CircleShape)
-                                .background(colorScheme.secondaryContainer.copy(alpha = 0.9f))
-                                .clickable { context.copyToClipboard(context.getString(R.string.statuses), copyableText!!) },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.content_copy),
-                                contentDescription = stringResource(R.string.copy_text),
-                                tint = colorScheme.onSecondaryContainer,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        }
+                        StatusCopyButton(
+                            onClick = { context.copyToClipboard(context.getString(R.string.statuses), copyableText!!) },
+                            modifier = Modifier.height(pillHeight).aspectRatio(1f),
+                        )
                     }
                     if (showJump) {
                         // A themed pill rather than a translucent white chip, at high opacity so it stays
@@ -782,87 +753,6 @@ fun StoryScreen(
     } // HorizontalPager
 }
 
-private const val COLLAPSED_CAPTION_LINES = 3
-
-/**
- * The status caption, WhatsApp-style. Collapsed it shows up to [COLLAPSED_CAPTION_LINES] lines and, when
- * the text overflows, a "Read more" toggle; expanded it shows the full caption in a scrollable area with a
- * "Read less" toggle pinned below it. The panel is a dark scrim - darker when expanded - so the text stays
- * readable over the media. Expanding also freezes auto-advance, done by the caller via [onExpandedChange].
- */
-@Composable
-private fun ExpandableStatusCaption(
-    caption: String,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
-    onCopy: () -> Unit,
-    reserveEnd: androidx.compose.ui.unit.Dp = 0.dp,
-    modifier: Modifier = Modifier,
-) {
-    val context = LocalContext.current
-    val colorScheme = MaterialTheme.colorScheme
-    val linkColor = colorScheme.primary
-    var overflows by remember(caption) { mutableStateOf(false) }
-    val background = if (expanded) Color.Black.copy(alpha = 0.94f) else Color.Black.copy(alpha = 0.85f)
-    val linkified = remember(caption, linkColor) {
-        linkifyStatusText(caption, linkColor) { context.openStatusLink(it) }
-    }
-    // Caption text (+ Read more/less) on the left, and the copy button in the caption's own empty right
-    // space (top-aligned with the first line) rather than up in the pill row. [reserveEnd] keeps that
-    // content clear of the save FAB that floats over the caption's right.
-    Row(
-        modifier
-            .fillMaxWidth()
-            .background(background)
-            .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 16.dp + reserveEnd),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = linkified,
-                color = Color.White,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = if (expanded) Int.MAX_VALUE else COLLAPSED_CAPTION_LINES,
-                overflow = if (expanded) TextOverflow.Clip else TextOverflow.Ellipsis,
-                onTextLayout = { if (!expanded) overflows = it.hasVisualOverflow },
-                // Expanded: a very long caption scrolls within a bounded height instead of pushing the
-                // toggle (and the whole overlay) off-screen.
-                modifier = if (expanded) {
-                    Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState())
-                } else {
-                    Modifier
-                },
-            )
-            if (expanded || overflows) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(if (expanded) R.string.read_less else R.string.read_more),
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable { onExpandedChange(!expanded) },
-                )
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        // Icon-only copy button on the same themed circle as the pill-row one.
-        Box(
-            Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(colorScheme.secondaryContainer.copy(alpha = 0.9f))
-                .clickable(onClick = onCopy),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.content_copy),
-                contentDescription = stringResource(R.string.copy_text),
-                tint = colorScheme.onSecondaryContainer,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-    }
-}
 
 /**
  * A determinate progress stroke that traces the save FAB's OWN rounded-square outline (not a circle), so
@@ -942,12 +832,15 @@ private fun StatusPreviewFace(
     val post = posts?.takeIf { it.isNotEmpty() }?.let { it[resumePos(it, seen, todayIso).index] }
 
     Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        val thumb = when (post?.kind) {
-            "image" -> statusMediaUrl(post.mediaPath)
-            "video" -> post.thumbPath?.let { statusMediaUrl(it) }
-            else -> null
-        }
+        // Only an IMAGE preview uses a still; a VIDEO shows the shared avatar+ring loading state (its
+        // thumbnail is low-res and reads as a blurry flash before playback).
+        val imageThumb = if (post?.kind == "image") statusMediaUrl(post.mediaPath) else null
         when {
+            // Still loading, or a video (loading straight through to playback): the shared loading state.
+            posts == null || post?.kind == "video" -> StatusLoadingIndicator(
+                Modifier.fillMaxSize(),
+                avatarUrl = statusAvatarUrl(creator.avatarPath),
+            )
             post?.kind == "text" -> {
                 val parsedBg = post.textBgColor?.let {
                     runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull()
@@ -965,30 +858,17 @@ private fun StatusPreviewFace(
                     )
                 }
             }
-            thumb != null -> AsyncImage(
-                model = ImageRequest.Builder(context).data(thumb).crossfade(true).build(),
+            imageThumb != null -> AsyncImage(
+                model = ImageRequest.Builder(context).data(imageThumb).crossfade(true).build(),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
             )
-            // Posts still loading, or a video with no thumbnail: fall back to the avatar.
-            else -> AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(statusAvatarUrl(creator.avatarPath))
-                    .crossfade(true)
-                    .build(),
-                contentDescription = creator.displayName,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(96.dp)
-                    .clip(CircleShape)
-                    .background(colorScheme.surfaceVariant),
+            // Nothing to show yet: the shared loading state.
+            else -> StatusLoadingIndicator(
+                Modifier.fillMaxSize(),
+                avatarUrl = statusAvatarUrl(creator.avatarPath),
             )
-        }
-        // While the posts are still loading (a YidStatus creator opened before its feed landed can take a
-        // moment), show a spinner over the avatar so it reads as LOADING, not stuck.
-        if (posts == null) {
-            CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
         }
     }
 }

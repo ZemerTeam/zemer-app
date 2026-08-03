@@ -601,6 +601,7 @@
     <string name="status_chip_image">Images</string>
     <string name="status_chip_text">Text</string>
     <string name="status_remove">Remove from device</string>
+    <string name="status_select">Select</string>
     <string name="status_sort_recent_saved">Recently saved</string>
     <string name="status_sort_recent_posted">Recently posted</string>
     <string name="singles">Singles</string>

@@ -26,4 +26,9 @@ class StatusDownloadsViewModel @Inject constructor(
     fun remove(download: StatusDownload) {
         viewModelScope.launch { manager.remove(download) }
     }
+
+    /** Bulk-remove a selection of saved statuses (gallery file + index record for each). */
+    fun removeAll(items: List<StatusDownload>) {
+        viewModelScope.launch { items.forEach { manager.remove(it) } }
+    }
 }

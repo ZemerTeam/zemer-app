@@ -184,8 +184,14 @@ video player's fixed-black bar, and ArtistScreen's over-header transparent state
 `shimmer/BoxPlaceholder` (the base shimmer slab under `ButtonPlaceholder`/`GridItemPlaceholder`),
 `ArtistBrowseComponents` (KidZone/whitelist browse header), `IconCategoryCard` (the square category
 tile — centered gold icon + bold title + count subtitle on one neutral `surfaceContainerHigh` box, with
-the D-pad focus treatment; the Downloaded library's Music/Videos/Status tiles all render through it).
-New screens use these; a hand-rolled duplicate is a review miss.
+the D-pad focus treatment; the Downloaded library's Music/Videos/Status tiles all render through it). The
+**status viewers** share a family so the live (`StoryScreen`) and saved (`SavedStatusScreen`) viewers
+can't drift: `StatusStoryTopOverlay` (segment bars + avatar/name/date), `ExpandableStatusCaption` (the
+WhatsApp Read-more caption with clickable links + inline copy), `StatusCopyButton` (icon-only themed copy
+circle), `StatusVideoSurface` (the full-bleed ZOOM `PlayerView`, controls/buffering disabled),
+`StatusLoadingIndicator` (avatar + M3 progress ring loading state, spinner fallback), plus the
+`ui/utils/cubeFace` modifier (the cube swipe transform). New screens use these; a hand-rolled duplicate is
+a review miss.
 
 **Componentize on every touch (non-negotiable).** Whenever you touch anything in the app, first check
 whether a shared component already covers it — if one exists, use it. If you find yourself writing (or
