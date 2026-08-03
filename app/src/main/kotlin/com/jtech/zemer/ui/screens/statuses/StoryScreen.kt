@@ -253,6 +253,14 @@ fun StoryScreen(
         exoPlayer.addListener(listener)
         onDispose { exoPlayer.removeListener(listener) }
     }
+    // Show the video loading state ONLY if the video is still not ready ~0.75s after this status started.
+    // Reset SYNCHRONOUSLY per status (remember key) so the previous status's elapsed state can't flash on
+    // a Crossfade; a fast video renders before this fires, so it never flashes a spinner.
+    var showVideoLoading by remember(creatorIdx, postIdx) { mutableStateOf(false) }
+    LaunchedEffect(creatorIdx, postIdx) {
+        kotlinx.coroutines.delay(750L)
+        showVideoLoading = true
+    }
 
     // Reflect the hold (or an expanded caption) onto the video: pause while held/reading, resume when
     // released and collapsed (image/text honor the same flags inside their timer loop). A video that is
@@ -483,13 +491,18 @@ fun StoryScreen(
                 when (post?.kind) {
                     "video" -> Box(Modifier.fillMaxSize()) {
                         StatusVideoSurface(player = exoPlayer, modifier = Modifier.fillMaxSize())
-                        // The shared loading state (avatar + ring) covers the surface until the video draws
-                        // its first frame - straight from "loading" to playing, no low-res/blurry poster.
+                        // A black cover holds the surface until the video draws; the loading state (avatar
+                        // + ring) appears only if it is STILL not ready after 0.75s, so a fast load never
+                        // flashes a spinner (no low-res/blurry poster either).
                         if (!videoRendered) {
-                            StatusLoadingIndicator(
-                                Modifier.fillMaxSize().background(Color.Black),
-                                avatarUrl = statusAvatarUrl(creator?.avatarPath),
-                            )
+                            Box(Modifier.fillMaxSize().background(Color.Black)) {
+                                if (showVideoLoading) {
+                                    StatusLoadingIndicator(
+                                        Modifier.fillMaxSize(),
+                                        avatarUrl = statusAvatarUrl(creator?.avatarPath),
+                                    )
+                                }
+                            }
                         }
                     }
                     "image" -> AsyncImage(
@@ -836,8 +849,8 @@ private fun StatusPreviewFace(
         // thumbnail is low-res and reads as a blurry flash before playback).
         val imageThumb = if (post?.kind == "image") statusMediaUrl(post.mediaPath) else null
         when {
-            // Still loading, or a video (loading straight through to playback): the shared loading state.
-            posts == null || post?.kind == "video" -> StatusLoadingIndicator(
+            // Still loading the feed: the shared avatar + ring loading state.
+            posts == null -> StatusLoadingIndicator(
                 Modifier.fillMaxSize(),
                 avatarUrl = statusAvatarUrl(creator.avatarPath),
             )
@@ -864,11 +877,9 @@ private fun StatusPreviewFace(
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
             )
-            // Nothing to show yet: the shared loading state.
-            else -> StatusLoadingIndicator(
-                Modifier.fillMaxSize(),
-                avatarUrl = statusAvatarUrl(creator.avatarPath),
-            )
+            // A video (or nothing to show yet): stay BLACK. The live face owns the video's own delayed
+            // loading state, so the preview never flashes a spinner before it.
+            else -> {}
         }
     }
 }

@@ -139,6 +139,13 @@ fun SavedStatusScreen(
     // The creator whose LIVE face is ready to render. Until the driver catches up after a settle (and for
     // every non-settled page) the static preview face shows instead - no stale-content flash on swipe.
     var faceCreator by remember { mutableIntStateOf(-1) }
+    // Show the video loading state only if it is STILL not ready ~0.75s after the status started (reset
+    // synchronously per status so a fast load never flashes a spinner, even across a Crossfade).
+    var showVideoLoading by remember(creatorIdx, postIdx) { mutableStateOf(false) }
+    LaunchedEffect(creatorIdx, postIdx) {
+        kotlinx.coroutines.delay(750L)
+        showVideoLoading = true
+    }
 
     // Position within a creator: on the FIRST settle open at the tapped status; on any later creator
     // change (swipe or programmatic) restart that creator at its first status.
@@ -252,14 +259,18 @@ fun SavedStatusScreen(
                         null -> {}
                         "video" -> Box(Modifier.fillMaxSize()) {
                             StatusVideoSurface(player = exoPlayer, modifier = Modifier.fillMaxSize())
-                            // A loading spinner (the shared one) covers the surface until the video draws,
-                            // so it goes straight from "loading" to playing - no jarring poster-thumbnail
-                            // flash before the video.
+                            // A black cover holds the surface until the video draws; the loading state
+                            // only appears if it is STILL not ready after 0.75s, so a fast load goes
+                            // straight to playing with no spinner/poster flash.
                             if (!videoRendered) {
-                                StatusLoadingIndicator(
-                                    Modifier.fillMaxSize().background(Color.Black),
-                                    avatarUrl = statusAvatarUrl(item?.creatorAvatar),
-                                )
+                                Box(Modifier.fillMaxSize().background(Color.Black)) {
+                                    if (showVideoLoading) {
+                                        StatusLoadingIndicator(
+                                            Modifier.fillMaxSize(),
+                                            avatarUrl = statusAvatarUrl(item?.creatorAvatar),
+                                        )
+                                    }
+                                }
                             }
                         }
                         else -> AsyncImage(
@@ -323,11 +334,9 @@ private fun SavedPreviewFace(creator: SavedCreatorStatuses?) {
     val first = creator?.statuses?.firstOrNull()
     Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
         when (first?.kind) {
-            null -> {}
-            "video" -> StatusLoadingIndicator(
-                Modifier.fillMaxSize(),
-                avatarUrl = statusAvatarUrl(first.creatorAvatar),
-            )
+            // A video stays BLACK here; the live face owns the video's delayed loading state, so the
+            // preview never flashes a spinner before it. An image/text shows its still.
+            null, "video" -> {}
             else -> AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current).data(first.mediaUri).crossfade(true).build(),
                 contentDescription = null,

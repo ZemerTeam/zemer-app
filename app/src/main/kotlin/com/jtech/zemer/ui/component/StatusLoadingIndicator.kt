@@ -24,7 +24,9 @@ import coil3.request.crossfade
  * everywhere. When [avatarUrl] is given it shows the creator's profile picture with a Material 3 progress
  * ring around it (rounded cap + subtle track), so a loading creator is recognisable; otherwise (creator
  * not yet known) it falls back to a bare centered spinner. Forced white for legibility over the media -
- * pass a background/size via [modifier] (e.g. `Modifier.fillMaxSize().background(Color.Black)`).
+ * pass a background/size via [modifier] (e.g. `Modifier.fillMaxSize().background(Color.Black)`). Callers
+ * that want a "only if still loading after a delay" gate keep that state themselves and simply don't
+ * render this until it fires (see the viewers' `showVideoLoading`).
  */
 @Composable
 fun StatusLoadingIndicator(
