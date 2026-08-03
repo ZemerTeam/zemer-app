@@ -27,21 +27,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import com.jtech.zemer.R
 import com.jtech.zemer.ui.theme.HeaderFontFamily
 
 /**
- * The shared WhatsApp/Stories top overlay: segment progress bars + the "Music Status" bar (back + title)
- * + a creator header (avatar, name, timestamp), all forced white over the media scrim. Used by BOTH the
- * live story viewer and the saved-status viewer so they present identically. [currentSegment] is the
- * active segment (0-based) and [progress] fills it; earlier segments are full, later ones empty.
+ * The shared WhatsApp/Stories top overlay: segment progress bars at the very top, then a compact creator
+ * header (back button, avatar, name, timestamp), all forced white over a media scrim. Used by BOTH the
+ * live story viewer and the saved-status viewer so they present identically. There is deliberately NO
+ * "Music Status" app-bar title row - it only stole vertical space from the (now full-bleed) media; the
+ * creator avatar/name identifies the content the stories way. [currentSegment] is the active segment
+ * (0-based) and [progress] fills it; earlier segments are full, later ones empty.
  */
 @Composable
 fun StatusStoryTopOverlay(
@@ -65,17 +65,7 @@ fun StatusStoryTopOverlay(
             .windowInsetsPadding(WindowInsets.statusBars)
             .padding(horizontal = 8.dp, vertical = 8.dp),
     ) {
-        // Back button + "Music Status" title, forced white for legibility over the media.
-        CompositionLocalProvider(LocalContentColor provides Color.White) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                BackNavigationIcon(navController = navController)
-                AppBarTitle(stringResource(R.string.statuses), modifier = Modifier.weight(1f))
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // One segment per status, the active one filling with `progress`.
+        // Segment progress bars at the very top (stories convention), the active one filling with `progress`.
         Row(Modifier.fillMaxWidth()) {
             for (i in 0 until segmentCount.coerceAtLeast(1)) {
                 val fill = when {
@@ -96,35 +86,42 @@ fun StatusStoryTopOverlay(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(
-                model = ImageRequest.Builder(context).data(avatarUrl).crossfade(true).build(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(colorScheme.surfaceVariant),
-            )
+        // Compact header row: back + avatar + name/timestamp, forced white for legibility over the media.
+        CompositionLocalProvider(LocalContentColor provides Color.White) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                BackNavigationIcon(navController = navController)
 
-            Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(4.dp))
 
-            Column {
-                Text(
-                    text = creatorName,
-                    color = Color.White,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontFamily = HeaderFontFamily,
-                    fontWeight = FontWeight.SemiBold,
+                AsyncImage(
+                    model = ImageRequest.Builder(context).data(avatarUrl).crossfade(true).build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(colorScheme.surfaceVariant),
                 )
-                if (!subtitle.isNullOrEmpty()) {
+
+                Spacer(Modifier.width(10.dp))
+
+                Column(Modifier.weight(1f)) {
                     Text(
-                        text = subtitle,
-                        color = Color.White.copy(alpha = 0.55f),
-                        style = MaterialTheme.typography.labelSmall,
+                        text = creatorName,
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontFamily = HeaderFontFamily,
+                        fontWeight = FontWeight.SemiBold,
                     )
+                    if (!subtitle.isNullOrEmpty()) {
+                        Text(
+                            text = subtitle,
+                            color = Color.White.copy(alpha = 0.55f),
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
                 }
             }
         }

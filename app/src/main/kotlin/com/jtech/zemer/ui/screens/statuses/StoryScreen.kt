@@ -28,6 +28,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -65,8 +69,12 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import androidx.compose.ui.graphics.toArgb
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.extensions.copyToClipboard
+import com.jtech.zemer.extensions.openStatusLink
 import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.statuses.StatusTextImage
+import com.jtech.zemer.statuses.linkifyStatusText
+import androidx.compose.ui.text.style.TextAlign
 import com.jtech.zemer.ui.component.StatusStoryTopOverlay
 import com.jtech.zemer.ui.component.StatusVideoSurface
 import com.jtech.zemer.ui.component.ZemerFab
@@ -152,7 +160,6 @@ fun StoryScreen(
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
-    val scrim = colorScheme.scrim.copy(alpha = 0.8f)
     val viewModel: StoryViewModel = hiltViewModel()
     val creators by viewModel.creators.collectAsState()
     val seenPostIds by viewModel.seenPostIds.collectAsState()
@@ -222,6 +229,11 @@ fun StoryScreen(
     // Press-and-hold anywhere pauses the current status (Instagram/JewishStatus); release resumes.
     var paused by remember { mutableStateOf(false) }
 
+    // WhatsApp-style caption expand: a long caption collapses to a few lines with "Read more"; expanding
+    // it shows the full text over a darker panel AND freezes auto-advance so it can actually be read.
+    // Reset per status (keyed on creator+post index) so a new status starts collapsed and playing.
+    var captionExpanded by remember(creatorIdx, postIdx) { mutableStateOf(false) }
+
     // True once the CURRENT video has actually drawn its first frame. The thumbnail is held over the
     // player until then (not merely until progress ticks) so there is no black gap between the thumbnail
     // and the video - the "blurry, flash, then play" the user saw. Reset per status by the play effect.
@@ -234,10 +246,11 @@ fun StoryScreen(
         onDispose { exoPlayer.removeListener(listener) }
     }
 
-    // Reflect the hold onto the video: pause while held, resume on release (image/text honor `paused`
-    // inside their timer loop). A video that is already playing is left alone.
-    LaunchedEffect(paused) {
-        if (paused) {
+    // Reflect the hold (or an expanded caption) onto the video: pause while held/reading, resume when
+    // released and collapsed (image/text honor the same flags inside their timer loop). A video that is
+    // already playing is left alone.
+    LaunchedEffect(paused, captionExpanded) {
+        if (paused || captionExpanded) {
             exoPlayer.pause()
         } else if (exoPlayer.mediaItemCount > 0 && exoPlayer.playbackState != Player.STATE_ENDED) {
             exoPlayer.play()
@@ -389,7 +402,7 @@ fun StoryScreen(
                 withFrameNanos { now ->
                     val dt = if (prevFrame == 0L) 0f else (now - prevFrame) / 1_000_000f
                     prevFrame = now
-                    if (!paused && dt in 0f..100f) elapsed += dt
+                    if (!paused && !captionExpanded && dt in 0f..100f) elapsed += dt
                 }
                 progress = (elapsed / durationMs).coerceIn(0f, 1f)
             }
@@ -478,7 +491,9 @@ fun StoryScreen(
                                         .crossfade(true)
                                         .build(),
                                     contentDescription = null,
-                                    contentScale = ContentScale.Fit,
+                                    // Crop to match the video's fill-and-crop, so the held poster fills
+                                    // the same frame and there is no fit->fill jump on the first frame.
+                                    contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }
@@ -499,16 +514,30 @@ fun StoryScreen(
                         val parsedBg = post.textBgColor?.let {
                             runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull()
                         }
+                        val body = post.textBody ?: post.caption ?: ""
+                        val textColor = if (parsedBg != null) Color.White else colorScheme.onSurfaceVariant
+                        // Links are readable on either backdrop: white (underlined) over a colored bg, the
+                        // gold accent over the neutral themed surface.
+                        val textLinkColor = if (parsedBg != null) Color.White else colorScheme.primary
+                        val linkedBody = remember(body, textLinkColor) {
+                            linkifyStatusText(body, textLinkColor) { context.openStatusLink(it) }
+                        }
                         Box(
-                            Modifier.fillMaxSize().background(parsedBg ?: colorScheme.surfaceVariant),
+                            Modifier
+                                .fillMaxSize()
+                                .background(parsedBg ?: colorScheme.surfaceVariant)
+                                .verticalScroll(rememberScrollState()),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
-                                text = post.textBody ?: post.caption ?: "",
-                                color = if (parsedBg != null) Color.White else colorScheme.onSurfaceVariant,
+                                text = linkedBody,
+                                color = textColor,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(32.dp),
+                                textAlign = TextAlign.Center,
+                                // Headroom for the top header and the bottom Copy button; a long body
+                                // scrolls within the Box rather than running under them.
+                                modifier = Modifier.padding(horizontal = 32.dp, vertical = 96.dp),
                             )
                         }
                     }
@@ -529,6 +558,10 @@ fun StoryScreen(
             progress = if (posts == null) 0f else progress,
         )
 
+        // Whether the save FAB (bottom-right) is currently shown - the caption reserves space on its right
+        // for it so the caption's copy icon never sits under the FAB.
+        val fabShowing = !blockVideos && !showDateSheet && !captionExpanded && currentPost != null && posts != null
+
         // Bottom overlay: a "jump to date" chevron (when the creator posted on more than one day), then
         // the caption. Inset above the system navigation bar so nothing is clipped by the gesture pill.
         Column(
@@ -538,46 +571,83 @@ fun StoryScreen(
                 .windowInsetsPadding(WindowInsets.navigationBars),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (canJumpDate && !showDateSheet) {
+            // Copy (icon-only, self-explanatory) + jump-to-date share ONE row so they never waste a
+            // second line. In the pill row copy is ONLY for a TEXT status (its body fills the screen, so
+            // there is no caption band to host it) - a video/image caption hosts its own copy icon inside
+            // the caption panel. Jump-to-date shows when the creator posted on >1 day.
+            val copyableText = currentPost
+                ?.takeIf { it.kind == "text" }
+                ?.let { it.textBody ?: it.caption }
+                ?.takeIf { it.isNotBlank() }
+            val showCopy = copyableText != null && !showDateSheet
+            val showJump = canJumpDate && !showDateSheet
+            if (showCopy || showJump) {
+                // Both controls share one explicit height so the icon-only copy button lines up exactly
+                // with the jump-to-date pill.
+                val pillHeight = 36.dp
                 Row(
-                    Modifier
-                        .padding(bottom = 12.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(Color.White.copy(alpha = 0.2f))
-                        .clickable { showDateSheet = true }
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                    Modifier.padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.expand_less),
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = stringResource(R.string.jump_to_date),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    if (showCopy) {
+                        // Icon-only: the copy glyph is self-explanatory (label kept as the a11y description).
+                        Box(
+                            Modifier
+                                .height(pillHeight)
+                                .aspectRatio(1f)
+                                .clip(CircleShape)
+                                .background(colorScheme.secondaryContainer.copy(alpha = 0.9f))
+                                .clickable { context.copyToClipboard(context.getString(R.string.statuses), copyableText!!) },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.content_copy),
+                                contentDescription = stringResource(R.string.copy_text),
+                                tint = colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    }
+                    if (showJump) {
+                        // A themed pill rather than a translucent white chip, at high opacity so it stays
+                        // legible and on-brand over the media.
+                        Row(
+                            Modifier
+                                .height(pillHeight)
+                                .clip(RoundedCornerShape(50))
+                                .background(colorScheme.secondaryContainer.copy(alpha = 0.9f))
+                                .clickable { showDateSheet = true }
+                                .padding(horizontal = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.expand_less),
+                                contentDescription = null,
+                                tint = colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.jump_to_date),
+                                color = colorScheme.onSecondaryContainer,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
                 }
             }
             if (hasCaption) {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(scrim)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                ) {
-                    Text(
-                        text = currentPost?.caption ?: "",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                val cap = currentPost?.caption ?: ""
+                ExpandableStatusCaption(
+                    caption = cap,
+                    expanded = captionExpanded,
+                    onExpandedChange = { captionExpanded = it },
+                    onCopy = { context.copyToClipboard(context.getString(R.string.statuses), cap) },
+                    // Keep the caption content clear of the save FAB on the right.
+                    reserveEnd = if (fabShowing) 64.dp else 0.dp,
+                )
             }
         }
 
@@ -642,8 +712,10 @@ fun StoryScreen(
         // videos are blocked OR the jump-to-date sheet is open (so it never overlaps the date cards);
         // disabled while a save is in flight. Uses a drawable-painter icon (not the Material download
         // icon), keeping the download-unification ratchets green.
-        val savePost = currentPost
-        if (!blockVideos && !showDateSheet && savePost != null && posts != null) {
+        // Shown per `fabShowing` (computed above): hidden while videos are blocked, the jump-to-date sheet
+        // is open, or the caption is expanded for reading (so the FAB never sits over the caption panel).
+        if (fabShowing) {
+            val savePost = currentPost!!
             val alreadySaved = savePost.id in savedStatusIds
             ZemerFab(
                 icon = if (alreadySaved) R.drawable.done else R.drawable.download,
@@ -684,6 +756,88 @@ fun StoryScreen(
         } // active-creator face
       } // cube page
     } // HorizontalPager
+}
+
+private const val COLLAPSED_CAPTION_LINES = 3
+
+/**
+ * The status caption, WhatsApp-style. Collapsed it shows up to [COLLAPSED_CAPTION_LINES] lines and, when
+ * the text overflows, a "Read more" toggle; expanded it shows the full caption in a scrollable area with a
+ * "Read less" toggle pinned below it. The panel is a dark scrim - darker when expanded - so the text stays
+ * readable over the media. Expanding also freezes auto-advance, done by the caller via [onExpandedChange].
+ */
+@Composable
+private fun ExpandableStatusCaption(
+    caption: String,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onCopy: () -> Unit,
+    reserveEnd: androidx.compose.ui.unit.Dp = 0.dp,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val colorScheme = MaterialTheme.colorScheme
+    val linkColor = colorScheme.primary
+    var overflows by remember(caption) { mutableStateOf(false) }
+    val background = if (expanded) Color.Black.copy(alpha = 0.94f) else Color.Black.copy(alpha = 0.85f)
+    val linkified = remember(caption, linkColor) {
+        linkifyStatusText(caption, linkColor) { context.openStatusLink(it) }
+    }
+    // Caption text (+ Read more/less) on the left, and the copy button in the caption's own empty right
+    // space (top-aligned with the first line) rather than up in the pill row. [reserveEnd] keeps that
+    // content clear of the save FAB that floats over the caption's right.
+    Row(
+        modifier
+            .fillMaxWidth()
+            .background(background)
+            .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 16.dp + reserveEnd),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = linkified,
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = if (expanded) Int.MAX_VALUE else COLLAPSED_CAPTION_LINES,
+                overflow = if (expanded) TextOverflow.Clip else TextOverflow.Ellipsis,
+                onTextLayout = { if (!expanded) overflows = it.hasVisualOverflow },
+                // Expanded: a very long caption scrolls within a bounded height instead of pushing the
+                // toggle (and the whole overlay) off-screen.
+                modifier = if (expanded) {
+                    Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState())
+                } else {
+                    Modifier
+                },
+            )
+            if (expanded || overflows) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(if (expanded) R.string.read_less else R.string.read_more),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable { onExpandedChange(!expanded) },
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        // Icon-only copy button on the same themed circle as the pill-row one.
+        Box(
+            Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(colorScheme.secondaryContainer.copy(alpha = 0.9f))
+                .clickable(onClick = onCopy),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.content_copy),
+                contentDescription = stringResource(R.string.copy_text),
+                tint = colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
 }
 
 /**

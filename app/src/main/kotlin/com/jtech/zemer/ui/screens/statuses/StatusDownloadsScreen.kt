@@ -20,8 +20,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -64,7 +62,9 @@ import com.jtech.zemer.statuses.sortedFlat
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.SortHeader
+import com.jtech.zemer.ui.menu.SavedStatusMenu
 import com.jtech.zemer.ui.theme.HeaderFontFamily
 import com.jtech.zemer.ui.utils.rememberVideoThumbnail
 import com.jtech.zemer.ui.utils.savedStatusRoute
@@ -93,6 +93,7 @@ fun StatusDownloadsScreen(
 ) {
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     val downloads by viewModel.downloads.collectAsState()
+    val menuState = LocalMenuState.current
     var kind by rememberSaveable { mutableStateOf(StatusKindFilter.ALL) }
     var sort by rememberSaveable { mutableStateOf(StatusDownloadSort.RECENT_SAVED) }
 
@@ -157,7 +158,15 @@ fun StatusDownloadsScreen(
                     download = download,
                     modifier = Modifier.fillMaxWidth(),
                     onOpen = { open(download) },
-                    onRemove = { viewModel.remove(download) },
+                    onMenu = {
+                        menuState.show {
+                            SavedStatusMenu(
+                                download = download,
+                                onRemove = { viewModel.remove(download) },
+                                onDismiss = menuState::dismiss,
+                            )
+                        }
+                    },
                 )
             }
         }
@@ -174,12 +183,11 @@ private fun SavedStatusTile(
     download: StatusDownload,
     modifier: Modifier = Modifier,
     onOpen: () -> Unit,
-    onRemove: () -> Unit,
+    onMenu: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    var menuOpen by remember { mutableStateOf(false) }
 
-    Column(modifier.combinedClickable(onClick = onOpen, onLongClick = { menuOpen = true })) {
+    Column(modifier.combinedClickable(onClick = onOpen, onLongClick = onMenu)) {
         Box(
             Modifier
                 .fillMaxWidth()
@@ -233,17 +241,6 @@ private fun SavedStatusTile(
                     contentDescription = download.creatorName,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
-                )
-            }
-
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.status_remove)) },
-                    leadingIcon = { Icon(painterResource(R.drawable.delete), contentDescription = null) },
-                    onClick = {
-                        menuOpen = false
-                        onRemove()
-                    },
                 )
             }
         }
