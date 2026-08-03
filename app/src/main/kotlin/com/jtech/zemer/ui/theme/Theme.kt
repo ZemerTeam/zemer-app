@@ -1,13 +1,10 @@
 package com.jtech.zemer.ui.theme
 
 import android.graphics.Bitmap
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -17,7 +14,6 @@ import androidx.compose.runtime.saveable.SaverScope
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.palette.graphics.Palette
 import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.PureBlackKey
@@ -30,6 +26,16 @@ import com.materialkolor.rememberDynamicColorScheme
 import com.materialkolor.score.Score
 
 val DefaultThemeColor = Color(0xFFED5564)
+
+// The app's BRAND palette, used as the theme whenever the dynamic theme is OFF - on EVERY device, no more
+// wallpaper-derived colors: a maroon/pink scheme instead of the generic default. [BrandFallbackSeed] seeds
+// the whole scheme; the exact primary family below is pinned on the dark scheme so it matches the design.
+// (With the dynamic toggle ON the album-art color is used on any version.)
+private val BrandFallbackSeed = Color(0xFFFFAFB7)
+private val BrandPrimaryDark = Color(0xFFFFAFB7)
+private val BrandOnPrimaryDark = Color(0xFF5E1122)
+private val BrandPrimaryContainerDark = Color(0xFF60383E)
+private val BrandOnPrimaryContainerDark = Color(0xFFFFD9DD)
 
 /**
  * Whether the UI should render AMOLED pure-black surfaces right now: the preference is on AND
@@ -53,23 +59,17 @@ fun ZemerTheme(
     themeColor: Color = DefaultThemeColor,
     content: @Composable () -> Unit,
 ) {
-    val context = LocalContext.current
-    // Determine if system dynamic colors should be used (Android S+ and default theme color)
-    val useSystemDynamicColor = (themeColor == DefaultThemeColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+    // Dynamic theme OFF (the default sentinel) -> the app's BRAND palette on EVERY device (no
+    // wallpaper-derived colors); dynamic ON -> the album-art seed.
+    val useBrandFallback = (themeColor == DefaultThemeColor)
 
-    // Select the appropriate color scheme generation method
-    val baseColorScheme = if (useSystemDynamicColor) {
-        // Use standard Material 3 dynamic color functions for system wallpaper colors
-        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-    } else {
-        // Use materialKolor only when a specific seed color is provided
-        rememberDynamicColorScheme(
-            seedColor = themeColor, // themeColor is guaranteed non-default here
-            isDark = darkTheme,
-            specVersion = ColorSpec.SpecVersion.SPEC_2025,
-            style = PaletteStyle.TonalSpot // Keep existing style
-        )
-    }
+    // materialKolor from a seed: the album-art color (dynamic ON) or the app's brand seed (dynamic OFF).
+    val baseColorScheme = rememberDynamicColorScheme(
+        seedColor = if (useBrandFallback) BrandFallbackSeed else themeColor,
+        isDark = darkTheme,
+        specVersion = ColorSpec.SpecVersion.SPEC_2025,
+        style = PaletteStyle.TonalSpot // Keep existing style
+    )
 
     // Neutralize surfaces to avoid overly tinted backgrounds from vivid seeds.
     val neutralDefaults = if (darkTheme) darkColorScheme() else lightColorScheme()
@@ -83,9 +83,22 @@ fun ZemerTheme(
         outlineVariant = neutralDefaults.outlineVariant,
     )
 
+    // Pin the exact brand primary family on the dark fallback so it matches the design colors
+    // (primary FFAFB7 / primaryContainer 60383E); the light fallback uses the seed-generated tones.
+    val brandedColorScheme = if (useBrandFallback && darkTheme) {
+        mergedColorScheme.copy(
+            primary = BrandPrimaryDark,
+            onPrimary = BrandOnPrimaryDark,
+            primaryContainer = BrandPrimaryContainerDark,
+            onPrimaryContainer = BrandOnPrimaryContainerDark,
+        )
+    } else {
+        mergedColorScheme
+    }
+
     // Apply pureBlack modification if needed
-    val colorScheme = remember(mergedColorScheme, pureBlack, darkTheme) {
-        if (darkTheme && pureBlack) mergedColorScheme.pureBlack(true) else mergedColorScheme
+    val colorScheme = remember(brandedColorScheme, pureBlack, darkTheme) {
+        if (darkTheme && pureBlack) brandedColorScheme.pureBlack(true) else brandedColorScheme
     }
 
     // Use standard MaterialTheme instead of MaterialExpressiveTheme
