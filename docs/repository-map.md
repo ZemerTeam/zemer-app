@@ -898,7 +898,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/ui/screens/LoginCaptureTest.kt` | 61 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/ui/screens/playlist/PlaylistHeaderCoverTest.kt` | 23 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/ui/screens/playlist/ZemerCuratedPlaylistFilterTest.kt` | 73 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/ui/theme/ThemePaletteSelectionTest.kt` | 80 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/ui/theme/ThemePaletteSelectionTest.kt` | 84 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/ui/utils/AppNavigationTest.kt` | 39 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/ui/utils/StatusNavigationTest.kt` | 17 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/ui/utils/StringUtilsTest.kt` | 21 lines | `.kt` |

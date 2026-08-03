@@ -60,15 +60,19 @@ class ThemePaletteSelectionTest {
     }
 
     @Test
-    fun `pureBlack drives every surface token to black but keeps the accent`() {
+    fun `pureBlack blacks backgrounds and bars but keeps card elevation and the accent visible`() {
         val scheme = darkColorScheme(primary = Color(0xFFFFAFB7))
         val black = scheme.pureBlack(true)
+        // Backgrounds + the bar's surfaceContainer go true black.
         listOf(
-            black.surface, black.background, black.surfaceVariant, black.surfaceDim, black.surfaceBright,
+            black.surface, black.background, black.surfaceVariant, black.surfaceDim,
             black.surfaceContainerLowest, black.surfaceContainerLow, black.surfaceContainer,
-            black.surfaceContainerHigh, black.surfaceContainerHighest,
         ).forEach { assertEquals(Color.Black, it) }
-        // Accent slot is deliberately untouched (the theme still shows through it on the black canvas).
+        // Elevated card tones stay from the scheme so cards/dialogs stay visible on black.
+        assertEquals(scheme.surfaceContainerHigh, black.surfaceContainerHigh)
+        assertEquals(scheme.surfaceContainerHighest, black.surfaceContainerHighest)
+        assertEquals(scheme.surfaceBright, black.surfaceBright)
+        // Accent slot is untouched.
         assertEquals(Color(0xFFFFAFB7), black.primary)
     }
 

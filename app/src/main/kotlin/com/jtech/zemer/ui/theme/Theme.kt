@@ -157,18 +157,18 @@ fun Bitmap.extractGradientColors(): List<Color> {
 
 fun ColorScheme.pureBlack(apply: Boolean) =
     if (apply) copy(
-        // AMOLED "black" mode: every background/surface tone goes true black, not just the base — so
-        // bars, cards and containers are all black, not a tinted grey. Accent slots are left alone.
+        // AMOLED "black" mode: the BACKGROUND + bar tones go true black (surface/background and the
+        // lower containers, incl. the bar's surfaceContainer). The ELEVATED card tones
+        // (surfaceContainerHigh/Highest, surfaceBright) are deliberately kept from the scheme so cards,
+        // dialogs and the genre grid stay VISIBLE on the black canvas — blacking them made those cards
+        // disappear. Accent slots are left alone.
         surface = Color.Black,
         background = Color.Black,
         surfaceVariant = Color.Black,
         surfaceDim = Color.Black,
-        surfaceBright = Color.Black,
         surfaceContainerLowest = Color.Black,
         surfaceContainerLow = Color.Black,
         surfaceContainer = Color.Black,
-        surfaceContainerHigh = Color.Black,
-        surfaceContainerHighest = Color.Black,
     ) else this
 
 val ColorSaver = object : Saver<Color, Int> {

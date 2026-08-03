@@ -545,7 +545,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/ui/screens/LoginCaptureTest.kt` | 61 | `com.jtech.zemer.ui.screens` | no | 5 | 2 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/screens/playlist/PlaylistHeaderCoverTest.kt` | 23 | `com.jtech.zemer.ui.screens.playlist` | no | 3 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/screens/playlist/ZemerCuratedPlaylistFilterTest.kt` | 73 | `com.jtech.zemer.ui.screens.playlist` | no | 7 | 4 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/ui/theme/ThemePaletteSelectionTest.kt` | 80 | `com.jtech.zemer.ui.theme` | no | 7 | 11 | androidx.compose, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/ui/theme/ThemePaletteSelectionTest.kt` | 84 | `com.jtech.zemer.ui.theme` | no | 7 | 11 | androidx.compose, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/utils/AppNavigationTest.kt` | 39 | `com.jtech.zemer.ui.utils` | no | 3 | 5 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/utils/StatusNavigationTest.kt` | 17 | `com.jtech.zemer.ui.utils` | no | 2 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/utils/StringUtilsTest.kt` | 21 | `com.jtech.zemer.ui.utils` | no | 3 | 2 | java.util, org.junit |
