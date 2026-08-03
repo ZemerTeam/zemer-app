@@ -47,6 +47,7 @@ import com.jtech.zemer.ui.screens.settings.PlayerSettings
 import com.jtech.zemer.ui.screens.settings.PrivacySettings
 import com.jtech.zemer.ui.screens.settings.SettingsScreen
 import com.jtech.zemer.ui.screens.settings.StorageSettings
+import com.jtech.zemer.ui.screens.settings.ThemeScreen
 import com.jtech.zemer.ui.screens.settings.StreamSourceSettings
 import com.jtech.zemer.ui.screens.settings.UpdaterScreen
 import com.jtech.zemer.ui.screens.settings.integrations.IntegrationScreen
@@ -426,6 +427,9 @@ fun NavGraphBuilder.navigationBuilder(
             scrollBehavior,
             scrollToStatus = it.arguments?.getString("scrollTo") == "status",
         )
+    }
+    composable("settings/appearance/theme") {
+        ThemeScreen(navController, scrollBehavior)
     }
     composable("settings/content") {
         ContentSettings(navController, scrollBehavior)

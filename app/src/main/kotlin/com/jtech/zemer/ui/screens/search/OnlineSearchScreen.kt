@@ -153,7 +153,7 @@ fun OnlineSearchScreen(
         contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Bottom).asPaddingValues(),
         modifier = Modifier
             .fillMaxSize()
-            .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Before the user types, offer a shortcut into the whitelisted-artists browse (the Artists tab
         // was removed from the bottom bar and lives here now). Hidden once a query exists so it never
@@ -301,7 +301,7 @@ fun OnlineSearchScreen(
                             )
                         }
                     )
-                    .background(if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface)
+                    .background(MaterialTheme.colorScheme.surface)
                     .then(if (firstItemKey == "item_${item.id}") Modifier.focusRequester(firstResultFocusRequester) else Modifier)
                     .focusProperties {
                         if (searchFocusRequester != null) {
@@ -362,7 +362,7 @@ fun BrowseArtistsItem(
     val backgroundColor by animateColorAsState(
         targetValue = when {
             isFocused -> MaterialTheme.colorScheme.primary
-            else -> if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface
+            else -> MaterialTheme.colorScheme.surface
         },
         label = "browse_artists_focus_bg"
     )
@@ -433,7 +433,7 @@ fun SuggestionItem(
     val backgroundColor by animateColorAsState(
         targetValue = when {
             isFocused -> MaterialTheme.colorScheme.primary
-            else -> if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface
+            else -> MaterialTheme.colorScheme.surface
         },
         label = "suggestion_focus_bg"
     )

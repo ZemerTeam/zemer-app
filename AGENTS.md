@@ -640,6 +640,43 @@ transport buttons reuse `TransportSkipButton` + the accent focus border; new D-p
 `Modifier.focusBorder()`. `scripts/ui-audit.sh` ratchets raw `Modifier.blur(` in `ui/` (R12) — route
 player blur through the effective style.
 
+### The theme system (palette picker, cohesive Material You, pure-black)
+
+The app's colors are one cohesive materialKolor scheme generated from a **single seed accent**, chosen
+in **Settings → Appearance → Theme** (`ui/screens/settings/ThemeScreen.kt`, ported from Metrolist). Rules
+that must not regress:
+
+- **One seed, no neutralized surfaces.** `ZemerTheme` (`ui/theme/Theme.kt`) seeds the WHOLE scheme
+  (surfaces, containers, accents) from the selected color so the app is tonally cohesive — the
+  system-wallpaper "Material You" look. Do **not** re-introduce surface neutralization (copying
+  `darkColorScheme()` surfaces over the seed) — that greys the surfaces while the accent stays
+  saturated, so bars can't pick up the theme and containers clash. The only override is the **brand
+  accent** pinning its exact dark primary family (`BrandPrimaryDark`/`…Container` in `ThemePalettes.kt`,
+  the design hexes `FFAFB7`/`60383E` materialKolor's tones drift from).
+- **The picker is a single control.** `SelectedThemeColorKey` (int ARGB) holds the accent;
+  `DynamicThemeKey` is the album-art toggle. Pure selection logic is `ThemePaletteSelection`
+  (JVM-tested). Palette entries (`PaletteColors` in `ui/theme/ThemePalettes.kt`, R8-hex-exempt because
+  it's `ui/theme/`): **Dynamic** (album-art, `Color.Transparent` sentinel), **System** (wallpaper,
+  `SystemWallpaperThemeColor` sentinel — shown only on Android 12+ via `visiblePaletteColors`), **Zemer**
+  (brand), then the accent spectrum. **Default = `defaultThemeColor(systemSupported)` = System on 12+,
+  else brand.** The `SystemWallpaperThemeColor` sentinel routes `ZemerTheme` to the platform
+  `dynamicDark/LightColorScheme` (the ONLY wallpaper path).
+- **Pure-black ("BLACK" mode) is all-black via the scheme, not hardcoded.** `ColorScheme.pureBlack(true)`
+  drives every surface/surfaceContainer/surfaceVariant token to `Color.Black`, so dark mode stays tinted
+  grey and BLACK mode is truly black — a clear difference. Consequently **no `if (pureBlack) Color.Black
+  else <token>` conditionals** anywhere: bars, drawer, dialogs, snackbar, mini-player and search just use
+  the plain surface token and let the scheme black it. Don't reintroduce per-site pure-black hardcodes.
+- **Top bars are neutral chrome.** `zemerTopAppBarColors()` (`ui/component/BackTopAppBar.kt`) = plain
+  `surfaceContainer` container + neutral title/icons; the accent lives in content, never the app-bar
+  chrome. Every screen bar (including MainActivity's Home bar) routes through it — one source, no
+  per-screen drift.
+- **Activities outside MainActivity use `ZemerAppTheme`** (`ui/theme/Theme.kt`), which resolves the
+  user's saved palette + dark mode + pure-black, so popups (the recognition dialog) follow the chosen
+  theme instead of the brand default. `ZemerTheme` with default params = brand pink and is only correct
+  inside MainActivity (which drives `themeColor` itself, incl. album-art). The home-screen **widget**
+  (`widget/MusicWidget.kt`) is RemoteViews and can't read the Compose theme — it uses the static
+  `@color/widget_accent` (brand).
+
 ### The download system (ONE unified path — never fork it)
 
 Downloads go **exclusively** through `MediaStoreDownloadManager` (file saved to MediaStore, durable

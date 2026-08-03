@@ -8,9 +8,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavController
-import com.jtech.zemer.ui.theme.rememberPureBlack
 
 /**
  * The one shared top-app-bar container color for every ordinary screen, so bars never drift between
@@ -25,10 +23,16 @@ import com.jtech.zemer.ui.theme.rememberPureBlack
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun zemerTopAppBarColors(): TopAppBarColors {
-    val container = if (rememberPureBlack()) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+    // The bar sits on the tinted surfaceContainer — a step above the body in dark mode, and true black
+    // in pure-black mode (the scheme drives surfaceContainer to black there, so no hardcoding needed).
+    // Title/icons stay neutral; the accent lives in content + the nav pill.
+    val container = MaterialTheme.colorScheme.surfaceContainer
     return TopAppBarDefaults.topAppBarColors(
         containerColor = container,
         scrolledContainerColor = container,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
