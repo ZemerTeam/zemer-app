@@ -416,9 +416,8 @@
     <string name="bottom_nav_select_one">Select at least 1 item</string>
 
     <!-- About screen -->
-    <string name="about_tagline">An audio-first YouTube Music experience</string>
+    <string name="about_tagline">Kosher YouTube Music Client</string>
     <string name="about_version">Version %s</string>
-    <string name="about_created_by">Created by Ars18 and TripleU</string>
     <string name="about_based_on">Based on Metrolist by MO AGAMY</string>
     <string name="github">GitHub</string>
 
@@ -606,6 +605,17 @@
     <string name="status_sort_recent_posted">Recently posted</string>
     <string name="singles">Singles</string>
     <string name="browse_artists">Browse all artists</string>
+    <!-- About / credits -->
+    <string name="about_lead_developer">Lead developer</string>
+    <string name="about_lead_developers">Lead Developers</string>
+    <string name="about_collaborator">Collaborator</string>
+    <string name="about_collaborators">Collaborators</string>
+    <string name="about_jtechforums">JTechForums</string>
+    <string name="about_website">Website</string>
+    <string name="about_avatar_cd">%1$s avatar</string>
+    <string name="about_links">Links &amp; Community</string>
+    <string name="about_releases">Releases thread</string>
+    <string name="about_discussion">Discussion &amp; feedback</string>
     <!-- Theme & Colors screen -->
     <string name="theme_colors">Theme &amp; Colors</string>
     <string name="theme_desc">Customize your app theme</string>
