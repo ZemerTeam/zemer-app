@@ -109,8 +109,10 @@ private val collaborators = listOf(
     ),
 )
 
+private const val ZEMER_TEAM_URL = "https://github.com/ZemerTeam"
 private const val RELEASES_URL = "https://forums.jtechforums.org/t/zemer-official-release/5144"
 private const val DISCUSSION_URL = "https://forums.jtechforums.org/t/zemer-bugs-comments-and-feedback/5160"
+private const val SOURCE_URL = "https://github.com/ZemerTeam/zemer-app"
 private const val METROLIST_URL = "https://github.com/metrolistgroup/metrolist"
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -198,6 +200,19 @@ fun AboutScreen(
                         )
                     }
 
+                    // The ZemerTeam GitHub org owns the app, so its link sits with the app identity.
+                    AssistChip(
+                        onClick = { uriHandler.openUri(ZEMER_TEAM_URL) },
+                        label = { Text(stringResource(R.string.about_zemer_team)) },
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(R.drawable.github),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                    )
+
                     Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.Center,
@@ -216,10 +231,6 @@ fun AboutScreen(
                                 }
                             },
                             label = { Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME)) },
-                            colors = AssistChipDefaults.assistChipColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
                         )
                     }
                 }
@@ -262,6 +273,12 @@ fun AboutScreen(
             title = { Text(stringResource(R.string.about_discussion)) },
             icon = { Icon(painterResource(R.drawable.link), null) },
             onClick = { uriHandler.openUri(DISCUSSION_URL) },
+            modifier = Modifier.padding(horizontal = 4.dp),
+        )
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.about_source_code)) },
+            icon = { Icon(painterResource(R.drawable.github), null) },
+            onClick = { uriHandler.openUri(SOURCE_URL) },
             modifier = Modifier.padding(horizontal = 4.dp),
         )
         PreferenceEntry(

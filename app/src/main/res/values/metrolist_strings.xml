@@ -613,9 +613,11 @@
     <string name="about_jtechforums">JTechForums</string>
     <string name="about_website">Website</string>
     <string name="about_avatar_cd">%1$s avatar</string>
+    <string name="about_zemer_team">ZemerTeam</string>
     <string name="about_links">Links &amp; Community</string>
     <string name="about_releases">Releases thread</string>
     <string name="about_discussion">Discussion &amp; feedback</string>
+    <string name="about_source_code">Source code</string>
     <!-- Theme & Colors screen -->
     <string name="theme_colors">Theme &amp; Colors</string>
     <string name="theme_desc">Customize your app theme</string>
