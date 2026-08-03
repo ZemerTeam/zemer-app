@@ -147,8 +147,8 @@ fun AppearanceSettings(
         appearanceScrollState.animateScrollTo(target)
     }
     val (dynamicTheme, onDynamicThemeChange) = rememberPreference(
- DynamicThemeKey,
-        defaultValue = true
+        DynamicThemeKey,
+        defaultValue = false
     )
     val (darkMode, onDarkModeChange) = rememberEnumPreference(
         DarkModeKey,
