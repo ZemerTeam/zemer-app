@@ -109,6 +109,8 @@ class StatusesApiTest {
         assertTrue(statusMediaUrl("c1/v.mp4")!!.endsWith("/status-media/c1/v.mp4"))
     }
 
+    private val showAll = StatusContentFilter(hideText = false, hideImage = false)
+
     @Test
     fun `caughtUpOnLatest keys off the newest (last) recent id, not older ones`() {
         // recent_post_ids is oldest-first, so p2 is the newest.
@@ -116,13 +118,33 @@ class StatusesApiTest {
             id = "c1", slug = "s", displayName = "S", avatarPath = null,
             recentPostIds = listOf("p1", "p2"),
         )
-        assertFalse(creator.caughtUpOnLatest(emptySet()))
+        assertFalse(creator.caughtUpOnLatest(emptySet(), showAll))
         // Seeing only the OLDER status does not count as caught up.
-        assertFalse(creator.caughtUpOnLatest(setOf("p1")))
+        assertFalse(creator.caughtUpOnLatest(setOf("p1"), showAll))
         // Seeing the newest (last) status => caught up, even if an older one is still unseen.
-        assertTrue(creator.caughtUpOnLatest(setOf("p2")))
+        assertTrue(creator.caughtUpOnLatest(setOf("p2"), showAll))
         // A creator with no known statuses is never caught up (so it never sinks on an empty ring).
-        assertFalse(creator.copy(recentPostIds = emptyList()).caughtUpOnLatest(setOf("p2")))
+        assertFalse(creator.copy(recentPostIds = emptyList()).caughtUpOnLatest(setOf("p2"), showAll))
+    }
+
+    @Test
+    fun `visibleRecentIds drops hidden kinds, keys off newest visible for caught-up`() {
+        // v(video) t(text) i(image), oldest-first; kinds aligned 1:1.
+        val creator = StatusCreator(
+            id = "c1", slug = "s", displayName = "S", avatarPath = null,
+            recentPostIds = listOf("v", "i", "t"),
+            recentPostKinds = listOf("video", "image", "text"),
+        )
+        // Default filter (hide text): text drops, ring shows v + i.
+        val hideText = StatusContentFilter(hideText = true, hideImage = false)
+        assertEquals(listOf("v", "i"), creator.visibleRecentIds(hideText))
+        // Caught up is now keyed off the newest VISIBLE (i), not the hidden newest (t).
+        assertTrue(creator.caughtUpOnLatest(setOf("i"), hideText))
+        assertFalse(creator.caughtUpOnLatest(setOf("t"), hideText))
+        // Hide both text and image -> only the video remains.
+        assertEquals(listOf("v"), creator.visibleRecentIds(StatusContentFilter(hideText = true, hideImage = true)))
+        // Unknown kinds (no recentPostKinds) -> show everything, never hide more than we can prove.
+        assertEquals(listOf("v", "i", "t"), creator.copy(recentPostKinds = emptyList()).visibleRecentIds(hideText))
     }
 
     @Test
@@ -180,7 +202,7 @@ class StatusesApiTest {
         val a = c("a", "a1", "a2")   // newest a2 unseen -> stays
         val b = c("b", "b1", "b2")   // newest b2 seen   -> sinks
         val d = c("d", "d1", "d2")   // newest d2 unseen -> stays
-        val ordered = listOf(a, b, d).sortedByUnseenFirst(setOf("b2", "a1"))
+        val ordered = listOf(a, b, d).sortedByUnseenFirst(setOf("b2", "a1"), showAll)
         assertEquals(listOf("a", "d", "b"), ordered.map { it.id })
     }
 }

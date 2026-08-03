@@ -1,8 +1,9 @@
 package com.jtech.zemer.ui.screens.statuses
 
-import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.pager.HorizontalPager
@@ -29,7 +30,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +55,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -64,7 +73,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.graphics.toArgb
+import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.extensions.copyToClipboard
+import com.jtech.zemer.extensions.openStatusLink
+import com.jtech.zemer.extensions.toast
+import com.jtech.zemer.statuses.StatusTextImage
+import com.jtech.zemer.statuses.linkifyStatusText
+import androidx.compose.ui.text.style.TextAlign
+import com.jtech.zemer.ui.component.ExpandableStatusCaption
+import com.jtech.zemer.ui.component.StatusCopyButton
+import com.jtech.zemer.ui.component.StatusLoadingIndicator
+import com.jtech.zemer.ui.component.StatusStoryTopOverlay
+import com.jtech.zemer.ui.component.StatusVideoSurface
+import com.jtech.zemer.ui.component.ZemerFab
+import com.jtech.zemer.ui.utils.PauseMusicWhileActive
+import com.jtech.zemer.ui.utils.cubeFace
+import com.jtech.zemer.utils.rememberPreference
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -72,14 +97,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.statuses.StatusCreator
@@ -148,14 +170,12 @@ fun StoryScreen(
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
-    val scrim = colorScheme.scrim.copy(alpha = 0.8f)
     val viewModel: StoryViewModel = hiltViewModel()
     val creators by viewModel.creators.collectAsState()
     val seenPostIds by viewModel.seenPostIds.collectAsState()
     val loadAttempted by viewModel.loadAttempted.collectAsState()
     // Re-keys the post loader below so toggling "hide text/image status" re-filters the open viewer.
     val contentFilter by viewModel.contentFilter.collectAsState()
-    val playerConnection = LocalPlayerConnection.current
 
     val onClose = { navController.navigateUp(); Unit }
     BackHandler(onBack = onClose)
@@ -168,19 +188,8 @@ fun StoryScreen(
     }
     DisposableEffect(Unit) { onDispose { exoPlayer.release() } }
 
-    // Silence the music while the viewer is up; resume it on close if it was playing. While casting,
-    // pause/resume the receiver too and route volume keys to this local video (VideoPlayerScreen pattern).
-    DisposableEffect(playerConnection) {
-        val wasPlaying = playerConnection?.isPlaying?.value == true
-        playerConnection?.player?.pause()
-        playerConnection?.setVideoPlaybackActive(true)
-        val pausedCast = playerConnection?.pauseCastForVideo() == true
-        onDispose {
-            playerConnection?.setVideoPlaybackActive(false)
-            playerConnection?.resumeCastAfterVideo(pausedCast)
-            if (wasPlaying) playerConnection?.player?.play()
-        }
-    }
+    // Silence the music while the viewer is up; resume it on close (shared with the saved-status viewer).
+    PauseMusicWhileActive()
 
     // Pause the status video when the app is backgrounded (the composable is not disposed, only stopped),
     // so it doesn't keep playing audio off-screen; resume when it returns.
@@ -205,9 +214,7 @@ fun StoryScreen(
         if (loadAttempted) {
             LaunchedEffect(Unit) { onClose() }
         } else {
-            Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
-            }
+            StatusLoadingIndicator(Modifier.fillMaxSize().background(Color.Black))
         }
         return
     }
@@ -230,6 +237,11 @@ fun StoryScreen(
     // Press-and-hold anywhere pauses the current status (Instagram/JewishStatus); release resumes.
     var paused by remember { mutableStateOf(false) }
 
+    // WhatsApp-style caption expand: a long caption collapses to a few lines with "Read more"; expanding
+    // it shows the full text over a darker panel AND freezes auto-advance so it can actually be read.
+    // Reset per status (keyed on creator+post index) so a new status starts collapsed and playing.
+    var captionExpanded by remember(creatorIdx, postIdx) { mutableStateOf(false) }
+
     // True once the CURRENT video has actually drawn its first frame. The thumbnail is held over the
     // player until then (not merely until progress ticks) so there is no black gap between the thumbnail
     // and the video - the "blurry, flash, then play" the user saw. Reset per status by the play effect.
@@ -242,10 +254,11 @@ fun StoryScreen(
         onDispose { exoPlayer.removeListener(listener) }
     }
 
-    // Reflect the hold onto the video: pause while held, resume on release (image/text honor `paused`
-    // inside their timer loop). A video that is already playing is left alone.
-    LaunchedEffect(paused) {
-        if (paused) {
+    // Reflect the hold (or an expanded caption) onto the video: pause while held/reading, resume when
+    // released and collapsed (image/text honor the same flags inside their timer loop). A video that is
+    // already playing is left alone.
+    LaunchedEffect(paused, captionExpanded) {
+        if (paused || captionExpanded) {
             exoPlayer.pause()
         } else if (exoPlayer.mediaItemCount > 0 && exoPlayer.playbackState != Player.STATE_ENDED) {
             exoPlayer.play()
@@ -270,6 +283,10 @@ fun StoryScreen(
     LaunchedEffect(creatorIdx, contentFilter) {
         progress = 0f
         exoPlayer.stop()
+        // Wait for the persisted content filter before the first load, so we never load with a provisional
+        // filter and then re-run/restart when the real one lands (the hide-image first-open restart). Once
+        // it arrives this effect re-runs with the real value; a later settings change re-runs it too.
+        if (contentFilter == null) { currentPosts = null; return@LaunchedEffect }
         val id = creators.getOrNull(creatorIdx)?.id ?: run { currentPosts = emptyList(); return@LaunchedEffect }
         // Resolve the resume position EXACTLY ONCE (a re-resume after the play effect marks the status
         // seen would skip it and jump/flash). Cached creators (all YidStatus + prefetched JewishStatus)
@@ -393,7 +410,7 @@ fun StoryScreen(
                 withFrameNanos { now ->
                     val dt = if (prevFrame == 0L) 0f else (now - prevFrame) / 1_000_000f
                     prevFrame = now
-                    if (!paused && dt in 0f..100f) elapsed += dt
+                    if (!paused && !captionExpanded && dt in 0f..100f) elapsed += dt
                 }
                 progress = (elapsed / durationMs).coerceIn(0f, 1f)
             }
@@ -406,6 +423,15 @@ fun StoryScreen(
     val hasCaption = currentPost?.kind != "text" && !currentPost?.caption.isNullOrBlank()
     // The "jump to date" affordance shows only when the creator posted on more than one date.
     val canJumpDate = posts != null && dateGroups.size > 1
+
+    // Download FAB state: save the current status to the gallery. Hidden when videos are blocked (same
+    // gate as the Home row + preferences). Shows a saved icon once this status is already downloaded.
+    // The FAB lives INSIDE the active cube face (below), so it rotates with the cube transition.
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    val savedStatusIds by viewModel.savedStatusIds.collectAsState()
+    var saving by remember { mutableStateOf(false) }
+    // Download progress (0..1) shown as a ring around the save FAB while a save is in flight.
+    var saveProgress by remember { mutableFloatStateOf(0f) }
 
     // Each creator is a pager page; scrolling between them turns a 3D cube. Only the SETTLED creator gets
     // the live face (media + progress + gestures); neighbors show a lightweight avatar face so the cube has
@@ -420,13 +446,7 @@ fun StoryScreen(
       Box(
           Modifier
               .fillMaxSize()
-              .graphicsLayer {
-                  val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-                  val off = pageOffset.coerceIn(-1f, 1f)
-                  cameraDistance = 20f * density
-                  transformOrigin = TransformOrigin(if (off < 0f) 0f else 1f, 0.5f)
-                  rotationY = (if (off < 0f) 90f else -90f) * abs(off)
-              },
+              .cubeFace((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction),
       ) {
         // Show the live face only when the loaded posts belong to THIS creator; until the driver catches
         // up after a settle (and for every non-active page) show the correct static preview, which loads
@@ -457,41 +477,19 @@ fun StoryScreen(
         ) {
         // Content.
         if (posts == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
-            }
+            StatusLoadingIndicator(Modifier.fillMaxSize(), avatarUrl = statusAvatarUrl(creator?.avatarPath))
         } else {
             Crossfade(targetState = currentPost, label = "post") { post ->
                 when (post?.kind) {
                     "video" -> Box(Modifier.fillMaxSize()) {
-                        AndroidView(
-                            factory = { ctx ->
-                                PlayerView(ctx).apply {
-                                    player = exoPlayer
-                                    useController = false
-                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                    layoutParams = ViewGroup.LayoutParams(
-                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                    )
-                                }
-                            },
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                        // Hold the thumbnail over the (black) player surface until the video actually
-                        // draws its first frame, so settling on a video shows a frame, never a black gap.
+                        StatusVideoSurface(player = exoPlayer, modifier = Modifier.fillMaxSize())
+                        // The shared loading state (avatar + ring) covers the surface until the video draws
+                        // its first frame - straight from "loading" to playing, no low-res/blurry poster.
                         if (!videoRendered) {
-                            post.thumbPath?.let { thumb ->
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context)
-                                        .data(statusMediaUrl(thumb))
-                                        .crossfade(true)
-                                        .build(),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            }
+                            StatusLoadingIndicator(
+                                Modifier.fillMaxSize().background(Color.Black),
+                                avatarUrl = statusAvatarUrl(creator?.avatarPath),
+                            )
                         }
                     }
                     "image" -> AsyncImage(
@@ -509,16 +507,30 @@ fun StoryScreen(
                         val parsedBg = post.textBgColor?.let {
                             runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull()
                         }
+                        val body = post.textBody ?: post.caption ?: ""
+                        val textColor = if (parsedBg != null) Color.White else colorScheme.onSurfaceVariant
+                        // Links are readable on either backdrop: white (underlined) over a colored bg, the
+                        // gold accent over the neutral themed surface.
+                        val textLinkColor = if (parsedBg != null) Color.White else colorScheme.primary
+                        val linkedBody = remember(body, textLinkColor) {
+                            linkifyStatusText(body, textLinkColor) { context.openStatusLink(it) }
+                        }
                         Box(
-                            Modifier.fillMaxSize().background(parsedBg ?: colorScheme.surfaceVariant),
+                            Modifier
+                                .fillMaxSize()
+                                .background(parsedBg ?: colorScheme.surfaceVariant)
+                                .verticalScroll(rememberScrollState()),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
-                                text = post.textBody ?: post.caption ?: "",
-                                color = if (parsedBg != null) Color.White else colorScheme.onSurfaceVariant,
+                                text = linkedBody,
+                                color = textColor,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(32.dp),
+                                textAlign = TextAlign.Center,
+                                // Headroom for the top header and the bottom Copy button; a long body
+                                // scrolls within the Box rather than running under them.
+                                modifier = Modifier.padding(horizontal = 32.dp, vertical = 96.dp),
                             )
                         }
                     }
@@ -527,86 +539,21 @@ fun StoryScreen(
             }
         }
 
-        // Top overlay: segment progress bars + creator header (over the media scrim). The viewer is
-        // edge-to-edge, so inset the header below the system status bar.
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .background(scrim)
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-        ) {
-            // Header bar: the shared back button + "Music Status" title, like every other screen. Forced
-            // white for legibility over the media.
-            CompositionLocalProvider(LocalContentColor provides Color.White) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    BackNavigationIcon(navController = navController)
-                    AppBarTitle(stringResource(R.string.statuses), modifier = Modifier.weight(1f))
-                }
-            }
+        // Top overlay: shared with the saved-status viewer so they present identically. Segment bars are
+        // over the CURRENT date's window; `progress` is on the display frame clock (smooth fill).
+        StatusStoryTopOverlay(
+            navController = navController,
+            avatarUrl = statusAvatarUrl(creator?.avatarPath),
+            creatorName = creator?.displayName ?: "",
+            subtitle = currentPost?.postedAt?.let { formatPostedAt(it) },
+            segmentCount = if (posts == null) 0 else windowEnd - windowStart + 1,
+            currentSegment = postIdx - windowStart,
+            progress = if (posts == null) 0f else progress,
+        )
 
-            Spacer(Modifier.height(8.dp))
-
-            // One segment per status in the CURRENT date's window. `progress` is updated on the display
-            // frame clock (see the driver), so the active segment fills perfectly smoothly.
-            Row(Modifier.fillMaxWidth()) {
-                for (i in windowStart..windowEnd) {
-                    val fill = when {
-                        posts == null -> 0f
-                        i < postIdx -> 1f
-                        i == postIdx -> progress
-                        else -> 0f
-                    }
-                    Box(
-                        Modifier
-                            .weight(1f)
-                            .height(2.dp)
-                            .padding(horizontal = 1.dp)
-                            .clip(RoundedCornerShape(1.dp))
-                            .background(Color.White.copy(alpha = 0.35f)),
-                    ) {
-                        Box(Modifier.fillMaxHeight().fillMaxWidth(fill).background(Color.White))
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(statusAvatarUrl(creator?.avatarPath))
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(colorScheme.surfaceVariant),
-                )
-
-                Spacer(Modifier.width(10.dp))
-
-                Column {
-                    Text(
-                        text = creator?.displayName ?: "",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontFamily = HeaderFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    val ts = currentPost?.postedAt?.let { formatPostedAt(it) }
-                    if (!ts.isNullOrEmpty()) {
-                        Text(
-                            text = ts,
-                            color = Color.White.copy(alpha = 0.55f),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
-                }
-            }
-        }
+        // Whether the save FAB (bottom-right) is currently shown - the caption reserves space on its right
+        // for it so the caption's copy icon never sits under the FAB.
+        val fabShowing = !blockVideos && !showDateSheet && !captionExpanded && currentPost != null && posts != null
 
         // Bottom overlay: a "jump to date" chevron (when the creator posted on more than one day), then
         // the caption. Inset above the system navigation bar so nothing is clipped by the gesture pill.
@@ -617,46 +564,70 @@ fun StoryScreen(
                 .windowInsetsPadding(WindowInsets.navigationBars),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (canJumpDate && !showDateSheet) {
+            // Copy (icon-only, self-explanatory) + jump-to-date share ONE row so they never waste a
+            // second line. In the pill row copy is ONLY for a TEXT status (its body fills the screen, so
+            // there is no caption band to host it) - a video/image caption hosts its own copy icon inside
+            // the caption panel. Jump-to-date shows when the creator posted on >1 day.
+            val copyableText = currentPost
+                ?.takeIf { it.kind == "text" }
+                ?.let { it.textBody ?: it.caption }
+                ?.takeIf { it.isNotBlank() }
+            val showCopy = copyableText != null && !showDateSheet
+            val showJump = canJumpDate && !showDateSheet
+            if (showCopy || showJump) {
+                // Both controls share one explicit height so the icon-only copy button lines up exactly
+                // with the jump-to-date pill.
+                val pillHeight = 36.dp
                 Row(
-                    Modifier
-                        .padding(bottom = 12.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(Color.White.copy(alpha = 0.2f))
-                        .clickable { showDateSheet = true }
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                    Modifier.padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.expand_less),
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = stringResource(R.string.jump_to_date),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    if (showCopy) {
+                        StatusCopyButton(
+                            onClick = { context.copyToClipboard(context.getString(R.string.statuses), copyableText!!) },
+                            modifier = Modifier.height(pillHeight).aspectRatio(1f),
+                        )
+                    }
+                    if (showJump) {
+                        // A themed pill rather than a translucent white chip, at high opacity so it stays
+                        // legible over the media.
+                        Row(
+                            Modifier
+                                .height(pillHeight)
+                                .clip(RoundedCornerShape(50))
+                                .background(colorScheme.secondaryContainer.copy(alpha = 0.9f))
+                                .clickable { showDateSheet = true }
+                                .padding(horizontal = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.expand_less),
+                                contentDescription = null,
+                                tint = colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.jump_to_date),
+                                color = colorScheme.onSecondaryContainer,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
                 }
             }
             if (hasCaption) {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(scrim)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                ) {
-                    Text(
-                        text = currentPost?.caption ?: "",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                val cap = currentPost?.caption ?: ""
+                ExpandableStatusCaption(
+                    caption = cap,
+                    expanded = captionExpanded,
+                    onExpandedChange = { captionExpanded = it },
+                    onCopy = { context.copyToClipboard(context.getString(R.string.statuses), cap) },
+                    // Keep the caption content clear of the save FAB on the right.
+                    reserveEnd = if (fabShowing) 64.dp else 0.dp,
+                )
             }
         }
 
@@ -717,9 +688,121 @@ fun StoryScreen(
                 }
             }
         }
+        // Save-to-gallery FAB, INSIDE the active face so it rotates with the cube transition. Hidden when
+        // videos are blocked OR the jump-to-date sheet is open (so it never overlaps the date cards);
+        // disabled while a save is in flight. Uses a drawable-painter icon (not the Material download
+        // icon), keeping the download-unification ratchets green.
+        // Shown per `fabShowing` (computed above): hidden while videos are blocked, the jump-to-date sheet
+        // is open, or the caption is expanded for reading (so the FAB never sits over the caption panel).
+        if (fabShowing) {
+            val savePost = currentPost!!
+            val alreadySaved = savePost.id in savedStatusIds
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .padding(end = 16.dp, bottom = 40.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                ZemerFab(
+                    icon = if (alreadySaved) R.drawable.done else R.drawable.download,
+                    contentDescription = stringResource(
+                        if (alreadySaved) R.string.status_saved else R.string.save_status
+                    ),
+                    onClick = onSave@{
+                        val cre = creator
+                        if (cre == null || saving) return@onSave
+                        if (alreadySaved) {
+                            context.toast(R.string.status_already_saved)
+                            return@onSave
+                        }
+                        saving = true
+                        saveProgress = 0f
+                        // Text statuses render to an image with theme-derived colors (or the status's own
+                        // text_bg_color), so nothing is hardcoded; image/video fetch their bytes in the manager.
+                        val renderText: (() -> android.graphics.Bitmap)? = if (savePost.kind == "text") {
+                            val parsedBg = savePost.textBgColor?.let {
+                                runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull()
+                            }
+                            val bg = parsedBg?.toArgb() ?: colorScheme.surfaceVariant.toArgb()
+                            val fg = if (parsedBg != null) Color.White.toArgb() else colorScheme.onSurfaceVariant.toArgb()
+                            val body = savePost.textBody ?: savePost.caption ?: "";
+                            { StatusTextImage.render(body, bg, fg) }
+                        } else null
+                        scope.launch {
+                            val result = viewModel.saveStatus(savePost, cre, renderText) { p -> saveProgress = p }
+                            saving = false
+                            context.toast(if (result.isSuccess) R.string.status_saved_toast else R.string.status_save_failed)
+                        }
+                    },
+                )
+                // Progress ring drawn ON TOP of the FAB (so the FAB + its elevation shadow don't cover it),
+                // tracing the FAB's rounded-square shape from top-center clockwise.
+                if (saving) {
+                    FabProgressRing(
+                        progress = saveProgress,
+                        color = colorScheme.primary,
+                        trackColor = colorScheme.primary.copy(alpha = 0.25f),
+                        modifier = Modifier.size(64.dp),
+                    )
+                }
+            }
+        }
         } // active-creator face
       } // cube page
     } // HorizontalPager
+}
+
+
+/**
+ * A determinate progress stroke that traces the save FAB's OWN rounded-square outline (not a circle), so
+ * it hugs the FAB's shape. Drawn concentric to a 56dp/16dp-corner FAB centered in this (larger) box; the
+ * progress starts at top-center and sweeps clockwise, wrapping around. Smoothed so byte updates don't
+ * jump.
+ */
+@Composable
+private fun FabProgressRing(
+    progress: Float,
+    color: Color,
+    trackColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val animated by animateFloatAsState(progress.coerceIn(0f, 1f), label = "fab_progress")
+    val strokeDp = 4.dp
+    val cornerDp = 20.dp
+    Canvas(modifier) {
+        val sw = strokeDp.toPx()
+        val inset = sw / 2f
+        val left = inset
+        val top = inset
+        val right = size.width - inset
+        val bottom = size.height - inset
+        val r = cornerDp.toPx()
+        val cx = (left + right) / 2f
+        // Build the rounded-rect EXPLICITLY starting at top-center and going clockwise, so the progress
+        // (a segment from distance 0) truly begins at 12 o'clock. addRoundRect's own start point is not
+        // top-center - assuming it was is what made the ring start in the wrong place.
+        val path = Path().apply {
+            moveTo(cx, top)
+            lineTo(right - r, top)
+            arcTo(Rect(right - 2 * r, top, right, top + 2 * r), -90f, 90f, false)
+            lineTo(right, bottom - r)
+            arcTo(Rect(right - 2 * r, bottom - 2 * r, right, bottom), 0f, 90f, false)
+            lineTo(left + r, bottom)
+            arcTo(Rect(left, bottom - 2 * r, left + 2 * r, bottom), 90f, 90f, false)
+            lineTo(left, top + r)
+            arcTo(Rect(left, top, left + 2 * r, top + 2 * r), 180f, 90f, false)
+            close()
+        }
+        drawPath(path, color = trackColor, style = Stroke(width = sw))
+        if (animated > 0f) {
+            val measure = PathMeasure()
+            measure.setPath(path, true)
+            val seg = Path()
+            measure.getSegment(0f, measure.length * animated, seg, true)
+            drawPath(seg, color = color, style = Stroke(width = sw, cap = StrokeCap.Round))
+        }
+    }
 }
 
 /**
@@ -749,12 +832,15 @@ private fun StatusPreviewFace(
     val post = posts?.takeIf { it.isNotEmpty() }?.let { it[resumePos(it, seen, todayIso).index] }
 
     Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        val thumb = when (post?.kind) {
-            "image" -> statusMediaUrl(post.mediaPath)
-            "video" -> post.thumbPath?.let { statusMediaUrl(it) }
-            else -> null
-        }
+        // Only an IMAGE preview uses a still; a VIDEO shows the shared avatar+ring loading state (its
+        // thumbnail is low-res and reads as a blurry flash before playback).
+        val imageThumb = if (post?.kind == "image") statusMediaUrl(post.mediaPath) else null
         when {
+            // Still loading, or a video (loading straight through to playback): the shared loading state.
+            posts == null || post?.kind == "video" -> StatusLoadingIndicator(
+                Modifier.fillMaxSize(),
+                avatarUrl = statusAvatarUrl(creator.avatarPath),
+            )
             post?.kind == "text" -> {
                 val parsedBg = post.textBgColor?.let {
                     runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull()
@@ -772,24 +858,16 @@ private fun StatusPreviewFace(
                     )
                 }
             }
-            thumb != null -> AsyncImage(
-                model = ImageRequest.Builder(context).data(thumb).crossfade(true).build(),
+            imageThumb != null -> AsyncImage(
+                model = ImageRequest.Builder(context).data(imageThumb).crossfade(true).build(),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
             )
-            // Posts still loading, or a video with no thumbnail: fall back to the avatar.
-            else -> AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(statusAvatarUrl(creator.avatarPath))
-                    .crossfade(true)
-                    .build(),
-                contentDescription = creator.displayName,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(96.dp)
-                    .clip(CircleShape)
-                    .background(colorScheme.surfaceVariant),
+            // Nothing to show yet: the shared loading state.
+            else -> StatusLoadingIndicator(
+                Modifier.fillMaxSize(),
+                avatarUrl = statusAvatarUrl(creator.avatarPath),
             )
         }
     }

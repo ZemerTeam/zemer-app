@@ -59,7 +59,7 @@ fun fetchYidStatusFeed(days: Int = YID_FEED_DAYS): YidFeed {
     // Keep only creators that actually have a status in the window; attach their status ids as the ring.
     val creators = musicCreators.mapNotNull { c ->
         val posts = byCreator[c.id]?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
-        c.copy(recentPostIds = posts.map { it.id })
+        c.copy(recentPostIds = posts.map { it.id }, recentPostKinds = posts.map { it.kind })
     }
     return YidFeed(creators, byCreator)
 }

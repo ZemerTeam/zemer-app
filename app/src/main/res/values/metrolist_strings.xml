@@ -568,6 +568,9 @@
     <string name="show_genres_row_desc">A row of genre shortcuts under Quick picks</string>
     <string name="statuses">Music Status</string>
     <string name="jump_to_date">Jump to date</string>
+    <string name="read_more">Read more</string>
+    <string name="read_less">Read less</string>
+    <string name="copy_text">Copy text</string>
     <string name="search_status_hint">Search creators</string>
     <string name="status_source_jewishstatus">JewishStatus</string>
     <string name="status_source_yidstatus">YidStatus</string>
@@ -575,12 +578,32 @@
         <item quantity="one">%d post</item>
         <item quantity="other">%d posts</item>
     </plurals>
+    <plurals name="n_status">
+        <item quantity="one">%d status</item>
+        <item quantity="other">%d statuses</item>
+    </plurals>
     <string name="show_statuses_row">Show status on home</string>
     <string name="show_statuses_row_desc">A row of music creator status updates under Quick picks</string>
     <string name="hide_text_status">Hide text-only status</string>
     <string name="hide_text_status_desc">Skip status updates that are just text, with no photo or video</string>
     <string name="hide_image_status">Hide image status</string>
     <string name="hide_image_status_desc">Skip status updates that are a still image</string>
+    <!-- Music Status downloads -->
+    <string name="status">Status</string>
+    <string name="save_status">Save status</string>
+    <string name="status_saved">Saved</string>
+    <string name="status_saved_toast">Saved to your device</string>
+    <string name="status_already_saved">Already saved</string>
+    <string name="status_save_failed">Couldn\'t save this status</string>
+    <string name="status_downloads_empty">Statuses you save will appear here</string>
+    <string name="status_chip_all">All</string>
+    <string name="status_chip_video">Videos</string>
+    <string name="status_chip_image">Images</string>
+    <string name="status_chip_text">Text</string>
+    <string name="status_remove">Remove from device</string>
+    <string name="status_select">Select</string>
+    <string name="status_sort_recent_saved">Recently saved</string>
+    <string name="status_sort_recent_posted">Recently posted</string>
     <string name="singles">Singles</string>
     <string name="browse_artists">Browse all artists</string>
 </resources>

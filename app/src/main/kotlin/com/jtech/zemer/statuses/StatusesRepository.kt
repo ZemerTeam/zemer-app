@@ -114,7 +114,17 @@ class StatusesRepository @Inject constructor(
         loaded.forEach { sourceById[it.id] = StatusSource.JEWISH_STATUS }
         jewishCache = loaded
         jewishFetchedAt = SystemClock.elapsedRealtime()
-        republish()
+        republish() // creators (and rings) appear NOW; rings refine once kinds land below
+
+        // Resolve each recent status's KIND off the critical path, then re-publish so the rings drop the
+        // hidden kinds (JewishStatus recent_post_ids carry no kind). Fail-soft; a failure just leaves the
+        // full ring showing. Only re-publish if the cache still holds this exact load (no newer refresh).
+        val kinds = runCatching { fetchJewishPostKinds(loaded.flatMap { it.recentPostIds }) }
+            .getOrDefault(emptyMap())
+        if (kinds.isNotEmpty() && jewishCache === loaded) {
+            jewishCache = loaded.map { c -> c.copy(recentPostKinds = c.recentPostIds.map { kinds[it].orEmpty() }) }
+            republish()
+        }
     }
 
     private suspend fun loadYid(force: Boolean) = yidMutex.withLock {

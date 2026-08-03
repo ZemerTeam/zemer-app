@@ -726,7 +726,8 @@ class MainActivity : ComponentActivity() {
                         // the video player and the JewishStatus story viewer.
                         val isVideoScreen = remember(navBackStackEntry) {
                             val route = navBackStackEntry?.destination?.route
-                            route?.startsWith("video/") == true || route?.startsWith("story/") == true
+                            route?.startsWith("video/") == true || route?.startsWith("story/") == true ||
+                                route?.startsWith("saved_status/") == true
                         }
                         val homeViewModel: HomeViewModel = hiltViewModel()
                         val accountImageUrl by homeViewModel.accountImageUrl.collectAsState()

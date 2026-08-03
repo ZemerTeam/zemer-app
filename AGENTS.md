@@ -182,8 +182,16 @@ scrolled so bars never grey-out on scroll; baked into `BackTopAppBar`, and every
 video player's fixed-black bar, and ArtistScreen's over-header transparent state),
 `PlaylistPlayShuffleButtons` + `PlaylistHeaderShimmer` (playlist headers/skeletons),
 `shimmer/BoxPlaceholder` (the base shimmer slab under `ButtonPlaceholder`/`GridItemPlaceholder`),
-`ArtistBrowseComponents` (KidZone/whitelist browse header). New screens use these; a hand-rolled
-duplicate is a review miss.
+`ArtistBrowseComponents` (KidZone/whitelist browse header), `IconCategoryCard` (the square category
+tile — centered gold icon + bold title + count subtitle on one neutral `surfaceContainerHigh` box, with
+the D-pad focus treatment; the Downloaded library's Music/Videos/Status tiles all render through it). The
+**status viewers** share a family so the live (`StoryScreen`) and saved (`SavedStatusScreen`) viewers
+can't drift: `StatusStoryTopOverlay` (segment bars + avatar/name/date), `ExpandableStatusCaption` (the
+WhatsApp Read-more caption with clickable links + inline copy), `StatusCopyButton` (icon-only themed copy
+circle), `StatusVideoSurface` (the full-bleed ZOOM `PlayerView`, controls/buffering disabled),
+`StatusLoadingIndicator` (avatar + M3 progress ring loading state, spinner fallback), plus the
+`ui/utils/cubeFace` modifier (the cube swipe transform). New screens use these; a hand-rolled duplicate is
+a review miss.
 
 **Componentize on every touch (non-negotiable).** Whenever you touch anything in the app, first check
 whether a shared component already covers it — if one exists, use it. If you find yourself writing (or
@@ -417,6 +425,12 @@ Releases are. Feature package `statuses/`; UI under `ui/screens/statuses/`; full
   next date; only the creator's newest status advances to the next creator; back is floored at the
   entry date (jump-to-date sheet goes earlier). The per-segment ring in `StatusCreatorCircle` colors
   seen vs unseen (accent unseen / `outlineVariant` seen).
+- **The ring respects the content filter.** `StatusCreator.recentPostKinds` carries the kind of each
+  recent status (YidStatus from the feed; JewishStatus via a batched `public_posts?id=in.(...)&select=
+  id,kind` fetch in `fetchStatusCreators`), so `visibleRecentIds(filter)` drops hidden-kind statuses.
+  The ring, `caughtUpOnLatest` and `sortedByUnseenFirst` all key off the VISIBLE ids, and a creator with
+  nothing viewable drops from the row/see-all. Unknown kinds (fetch failed / size mismatch) show all -
+  never hide more than we can prove.
 - **The viewer's no-flash invariants** (`StoryScreen`, all hard-won): creators live in a cube
   `HorizontalPager`; the active face renders only when `postsCreatorIdx == creatorIdx` (else the stale
   previous-creator content flashes on settle); both neighbors are prefetched (posts AND the thumbnail
@@ -424,18 +438,73 @@ Releases are. Feature package `statuses/`; UI under `ui/screens/statuses/`; full
   `seenPostIds` StateFlow, which is `emptySet` for the first frames of a fresh viewer -> "always starts
   at the first status"); the play effect keys on the CURRENT status id (not the whole list) so a
   background refresh that appends statuses doesn't restart the video; progress is driven on the display
-  frame clock (`withFrameNanos`, dt-capped) and the thumbnail is held until `onRenderedFirstFrame`.
-  Its own short-lived ExoPlayer; the music player pauses on open and resumes on close.
+  frame clock (`withFrameNanos`, dt-capped). A video FILLS the screen (`RESIZE_MODE_ZOOM` in the shared
+  `StatusVideoSurface`, whose PlayerView controller auto-show + buffering spinner are disabled BEFORE the
+  player binds, so no transport controls flash on prepare); until its first frame draws the shared
+  `StatusLoadingIndicator` (the creator's avatar + an M3 progress ring) covers the surface - videos never
+  show a low-res/blurry poster. Its own short-lived ExoPlayer; the music player pauses on open, resumes on
+  close, and the video pauses when the app is backgrounded (`ON_STOP`).
+- **The caption + text are interactive** (shared with the saved viewer). The bottom caption is
+  `ExpandableStatusCaption`: it collapses to 3 lines with a Read more/less toggle (expanding freezes
+  auto-advance and darkens the panel), links are clickable via `linkifyStatusText`, and an inline
+  `StatusCopyButton` copies it; a text status gets its own copy pill (its body has no caption band). Links
+  open in the EXTERNAL browser via `Context.openStatusLink` UNLESS the URL matches one of the app's OWN
+  registered deep links (YouTube / music·video.zemer.io) - a status link must never open in an in-app
+  webview (the browser intent is pinned to the default browser). The save FAB shows a DETERMINATE download
+  progress ring (real byte progress from `StatusDownloadManager`, streamed) tracing the FAB's own
+  rounded-square outline while saving.
 - **Content filter (`HideTextStatusKey` ON by default / `HideImageStatusKey` off, Appearance).**
   Applied at the `StoryViewModel` chokepoints (`applyStatusFilter` on `loadPosts`/`refreshPosts`/
   `cachedPosts`) so the driver, cube preview and resume math all see the SAME visible list; a
-  fully-filtered creator ends up with no posts and is auto-skipped. The See-all screen's gear opens
+  fully-filtered creator ends up with no posts and is auto-skipped. `StoryViewModel.contentFilter` starts
+  **null** ("not read yet"), NOT a provisional default, and the driver waits for the first real DataStore
+  value before loading - seeding a guessed default let DataStore flip it a few ms after open and re-run
+  the driver, restarting playback (visible only when the real setting differed from the guess, i.e.
+  hide-image ON). The See-all screen's gear opens
   Appearance scrolled to the Music Status group (`settings/appearance?scrollTo=status` +
   `BringIntoViewRequester`), not the top.
 - **Media URLs are source-agnostic** (`statusMediaUrl`/`statusAvatarUrl`): a full `https` path passes
   through unchanged (YidStatus), a relative path gets the R2 prefix (JewishStatus).
 - **Third-party, so NO handoff doc** (these are not Zemer services). API shape, the OkHttp/Origin
   gotcha, and the feed cost caps are recorded in `docs/status/` instead.
+
+**Status downloads (save a status to the device gallery).** A save FAB in the story viewer writes the
+current status to the gallery, and a "Status" card in Library -> Downloaded opens a browser of saved
+statuses. Rules that must not regress:
+
+- **A gallery-media concern, SEPARATE from the song download system.** Saves go through `StatusGallery`
+  (MediaStore `Images`/`Video` insert under `Pictures|Movies / Zemer / Status / <creator>`; delete reuses
+  `MediaStoreHelper.deleteFromMediaStore`), NOT `MediaStoreDownloadManager`. The FAB uses a
+  drawable-painter icon, never the Material download icon, so the download-unification ratchets stay green
+  (that system is song-only). `StatusDownloadManager` orchestrates fetch -> save -> index off the main
+  thread, fail-soft.
+- **No Room migration.** The saved-status INDEX is `StatusDownloadsStore` - a JSON array in DataStore
+  (the `StatusSeenStore` pattern), each record `{id, kind, creatorId, creatorName, creatorAvatar,
+  postedAt, caption, textBody, mediaUri, savedAt}`. The gallery holds the files; this is just the index
+  that lets the library list/group/filter/re-open them offline. Pure filename/index/view logic
+  (`StatusDownloadNaming`, `StatusDownload` JSON, `StatusDownloadsView`) is JVM-tested.
+- **Filename = posted time, creator = folder.** `Zemer/Status/<creator>/<yyyy-MM-dd HH-mm-ss>.<ext>`
+  (posted time, device zone; colons are illegal so hyphens). Text statuses render to a PNG
+  (`StatusTextImage`, color-agnostic - the composable passes theme colors in). Kept as `kind == "text"`
+  so the chip filter still classifies it.
+- **Gated on `BlockVideosKey`** everywhere (the FAB, the Downloaded card, the library screen) - statuses
+  are video-first, same gate as the row/preferences.
+- **The saved viewer is at FULL PARITY with the live one** (`SavedStatusScreen`): creators are
+  cube-pager pages you swipe between (`SavedStatusViewModel` groups all saved statuses by creator), with
+  the same segment bars/header (`StatusStoryTopOverlay`), auto-advance, tap-left/right, press-hold pause,
+  background-pause, the `ExpandableStatusCaption` (Read more / clickable links / inline copy) for a
+  captioned image/video and a copy pill for a text status, and the shared `StatusLoadingIndicator`
+  (avatar + ring) while a video prepares - only the media comes from the DOWNLOADED files. It reuses the
+  same shared components + the `cubeFace` transform as `StoryScreen`; the `faceCreator` gate + poster
+  cache (`rememberVideoThumbnail`, byte-bounded LruCache) keep the swipe flash-free.
+- **The library is a flat grid with filters + multi-select** (no grouped/shelf view - that was removed):
+  kind chips (All/Video/Image/Text), a Recently-saved/Recently-posted sort, and - when more than one
+  creator is saved - a creator-avatar filter row (tap to filter to one creator, tap again to clear). A
+  long-press opens the standard bottom-sheet menu (`SavedStatusMenu`: avatar/name/date header +
+  `Material3MenuGroup` Select / Remove). **Select** enters multi-select (the shared `SelectionTopActions`:
+  count / select-all / a bulk-remove menu via `ItemWrapper` + `removeAll`); the tile shows an accent
+  border + check badge when selected. Grid tiles decode a video poster frame via the cached
+  `rememberVideoThumbnail`; text tiles render natively (never cropped).
 
 ### Offline search backup (`offline/` — the outage fallback)
 

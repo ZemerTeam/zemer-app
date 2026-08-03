@@ -168,6 +168,9 @@ fun HomeScreen(
     val zemerStatusesViewModel: ZemerStatusesViewModel = hiltViewModel()
     val statusCreators by zemerStatusesViewModel.creators.collectAsState()
     val statusSeenPostIds by zemerStatusesViewModel.seenPostIds.collectAsState()
+    // Passed to the row so each ring counts only statuses the user can view under their content filter
+    // (the ring never over-counts hidden kinds). Creators are NOT dropped - only the ring reflects it.
+    val statusContentFilter by zemerStatusesViewModel.contentFilter.collectAsState()
     // Settings → Appearance owns these toggles (there is deliberately no in-row hide affordance).
     val (showHomeGenres, _) = rememberPreference(ShowHomeGenresKey, defaultValue = true)
     val (showHomeStatuses, _) = rememberPreference(ShowHomeStatusesKey, defaultValue = true)
@@ -587,6 +590,7 @@ fun HomeScreen(
                             HomeStatusesRow(
                                 creators = creators,
                                 seenPostIds = statusSeenPostIds,
+                                contentFilter = statusContentFilter,
                                 onCreatorClick = { creatorId -> navController.navigate(storyRoute(creatorId)) },
                                 modifier = Modifier.animateItem(),
                             )

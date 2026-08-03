@@ -20,6 +20,8 @@ import com.jtech.zemer.ui.screens.artist.ArtistSectionScreen
 import com.jtech.zemer.ui.screens.artist.ArtistSongsScreen
 import com.jtech.zemer.ui.screens.library.LibraryScreen
 import com.jtech.zemer.ui.screens.player.VideoPlayerScreen
+import com.jtech.zemer.ui.screens.statuses.SavedStatusScreen
+import com.jtech.zemer.ui.screens.statuses.StatusDownloadsScreen
 import com.jtech.zemer.ui.screens.statuses.StatusesScreen
 import com.jtech.zemer.ui.screens.statuses.StoryScreen
 import com.jtech.zemer.ui.screens.playlist.AutoPlaylistScreen
@@ -370,6 +372,25 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable(route = "downloaded_content") {
         DownloadedContentScreen(navController, scrollBehavior)
+    }
+    composable(route = "status_downloads") {
+        StatusDownloadsScreen(navController, scrollBehavior)
+    }
+    composable(
+        route = "saved_status/{creatorId}?start={start}",
+        arguments = listOf(
+            navArgument("creatorId") { type = NavType.StringType },
+            navArgument("start") {
+                type = NavType.StringType
+                defaultValue = ""
+            },
+        ),
+    ) {
+        SavedStatusScreen(
+            navController,
+            initialCreatorId = it.arguments?.getString("creatorId").orEmpty(),
+            startId = it.arguments?.getString("start")?.ifBlank { null },
+        )
     }
     composable(route = "downloaded_videos") {
         DownloadedVideosScreen(navController, scrollBehavior)

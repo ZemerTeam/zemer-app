@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.Uri
 import android.widget.Toast
 import androidx.annotation.StringRes
 import com.jtech.zemer.R
@@ -56,6 +57,54 @@ fun Context.copyToClipboard(
     val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
     toast(confirmationRes)
+}
+
+/**
+ * Open a link found in user content (a status description/body). If the URL matches one of the app's
+ * OWN registered deep links (YouTube, music/video.zemer.io - see the manifest intent filters), it is
+ * handed to this app so it opens NATIVELY. Everything else is forced into the external browser and can
+ * NEVER land in an in-app webview: the browser intent is pinned to the default browser package (resolved
+ * via a scheme-only probe no app deep-links), so even a link some other app claims still opens in the
+ * browser. Fail-soft: on any error it retries an unpinned open so the link still resolves.
+ */
+fun Context.openStatusLink(url: String) {
+    val uri = Uri.parse(url)
+    val viewIntent = Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE)
+    val appHandlesIt = runCatching {
+        packageManager.queryIntentActivities(viewIntent, 0).any { it.activityInfo.packageName == packageName }
+    }.getOrDefault(false)
+
+    if (appHandlesIt) {
+        // A registered deep link -> route to THIS app (native handling, not a webview).
+        val opened = runCatching {
+            startActivity(
+                Intent(Intent.ACTION_VIEW, uri)
+                    .setPackage(packageName)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+            true
+        }.getOrDefault(false)
+        if (opened) return
+    }
+    openInExternalBrowser(uri)
+}
+
+private fun Context.openInExternalBrowser(uri: Uri) {
+    val intent = Intent(Intent.ACTION_VIEW, uri)
+        .addCategory(Intent.CATEGORY_BROWSABLE)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    // Pin to the default BROWSER (probe a scheme-only https URI that no app deep-links) so the link can
+    // never resolve into this app or an in-app webview.
+    val browserProbe = Intent(Intent.ACTION_VIEW, Uri.fromParts("https", "", null))
+        .addCategory(Intent.CATEGORY_BROWSABLE)
+    runCatching { packageManager.resolveActivity(browserProbe, 0)?.activityInfo?.packageName }
+        .getOrNull()
+        ?.takeIf { it != packageName }
+        ?.let { intent.setPackage(it) }
+    runCatching { startActivity(intent) }.onFailure {
+        // Pinned browser unavailable: retry unpinned so the link still opens somewhere sane.
+        runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
 }
 
 /**
