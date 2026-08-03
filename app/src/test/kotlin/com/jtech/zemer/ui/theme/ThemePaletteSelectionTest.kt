@@ -47,9 +47,8 @@ class ThemePaletteSelectionTest {
     }
 
     @Test
-    fun `default accent is system wallpaper where supported, else brand`() {
-        assertEquals(SystemWallpaperThemeColor, defaultThemeColor(systemDynamicSupported = true))
-        assertEquals(BrandThemeColor, defaultThemeColor(systemDynamicSupported = false))
+    fun `default accent is the brand palette`() {
+        assertEquals(BrandThemeColor, DefaultAccentColor)
     }
 
     @Test

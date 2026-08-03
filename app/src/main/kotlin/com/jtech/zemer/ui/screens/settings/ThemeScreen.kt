@@ -82,7 +82,7 @@ import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.theme.BrandThemeColor
 import com.jtech.zemer.ui.theme.SystemWallpaperThemeColor
-import com.jtech.zemer.ui.theme.defaultThemeColor
+import com.jtech.zemer.ui.theme.DefaultAccentColor
 import com.jtech.zemer.ui.theme.ThemePalette
 import com.jtech.zemer.ui.theme.ThemePaletteSelection
 import com.jtech.zemer.ui.theme.ZemerTheme
@@ -111,7 +111,7 @@ fun ThemeScreen(
     val (pureBlack, onPureBlackChange) = rememberPreference(PureBlackKey, defaultValue = false)
     val (selectedThemeColorInt, onSelectedThemeColorChange) = rememberPreference(
         SelectedThemeColorKey,
-        defaultValue = defaultThemeColor(systemDynamicSupported).toArgb(),
+        defaultValue = DefaultAccentColor.toArgb(),
     )
     val (dynamicEnabled, onDynamicThemeChange) = rememberPreference(DynamicThemeKey, defaultValue = false)
 

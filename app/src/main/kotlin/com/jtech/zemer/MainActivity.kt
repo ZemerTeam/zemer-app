@@ -234,7 +234,7 @@ import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.screens.settings.DarkMode
 import com.jtech.zemer.ui.screens.settings.NavigationTab
 import com.jtech.zemer.ui.theme.ColorSaver
-import com.jtech.zemer.ui.theme.defaultThemeColor
+import com.jtech.zemer.ui.theme.DefaultAccentColor
 import com.jtech.zemer.ui.theme.ZemerTheme
 import com.jtech.zemer.ui.theme.extractThemeColor
 import com.jtech.zemer.ui.theme.rememberPureBlack
@@ -535,9 +535,7 @@ class MainActivity : ComponentActivity() {
             val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = false)
             val selectedThemeColorInt by rememberPreference(
                 SelectedThemeColorKey,
-                defaultValue = defaultThemeColor(
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
-                ).toArgb(),
+                defaultValue = DefaultAccentColor.toArgb(),
             )
             val selectedThemeColor = Color(selectedThemeColorInt)
             val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)

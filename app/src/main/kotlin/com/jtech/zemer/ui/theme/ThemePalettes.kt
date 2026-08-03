@@ -69,12 +69,11 @@ val PaletteColors: List<ThemePalette> = listOf(
 )
 
 /**
- * The default accent for a fresh install: the System (wallpaper) palette where the platform supports
- * it (Android 12+), otherwise the brand. This is the value stored under `SelectedThemeColorKey` when
- * the user has never picked one.
+ * The default accent for a fresh install: the Zemer brand palette, on every device. (System/wallpaper
+ * and the other accents stay available in the picker; they are just not the default.) This is the
+ * value stored under `SelectedThemeColorKey` when the user has never picked one.
  */
-fun defaultThemeColor(systemDynamicSupported: Boolean): Color =
-    if (systemDynamicSupported) SystemWallpaperThemeColor else BrandThemeColor
+val DefaultAccentColor: Color = BrandThemeColor
 
 /**
  * The palette entries to display. The System (wallpaper) entry is offered only on devices whose

@@ -63,7 +63,7 @@ fun ZemerAppTheme(content: @Composable () -> Unit) {
     val pureBlack = rememberPureBlack()
     val selectedColorInt by rememberPreference(
         SelectedThemeColorKey,
-        defaultValue = defaultThemeColor(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S).toArgb(),
+        defaultValue = DefaultAccentColor.toArgb(),
     )
     ZemerTheme(
         darkTheme = useDark,

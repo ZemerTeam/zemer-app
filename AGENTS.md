@@ -658,9 +658,9 @@ that must not regress:
   (JVM-tested). Palette entries (`PaletteColors` in `ui/theme/ThemePalettes.kt`, R8-hex-exempt because
   it's `ui/theme/`): **Dynamic** (album-art, `Color.Transparent` sentinel), **System** (wallpaper,
   `SystemWallpaperThemeColor` sentinel — shown only on Android 12+ via `visiblePaletteColors`), **Zemer**
-  (brand), then the accent spectrum. **Default = `defaultThemeColor(systemSupported)` = System on 12+,
-  else brand.** The `SystemWallpaperThemeColor` sentinel routes `ZemerTheme` to the platform
-  `dynamicDark/LightColorScheme` (the ONLY wallpaper path).
+  (brand), then the accent spectrum. **Default = `DefaultAccentColor` = the Zemer brand palette on every
+  device** (System/wallpaper stays in the picker, just not the default). The `SystemWallpaperThemeColor`
+  sentinel routes `ZemerTheme` to the platform `dynamicDark/LightColorScheme` (the ONLY wallpaper path).
 - **Pure-black ("BLACK" mode) is all-black via the scheme, not hardcoded.** `ColorScheme.pureBlack(true)`
   drives every surface/surfaceContainer/surfaceVariant token to `Color.Black`, so dark mode stays tinted
   grey and BLACK mode is truly black — a clear difference. Consequently **no `if (pureBlack) Color.Black
