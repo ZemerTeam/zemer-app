@@ -135,7 +135,6 @@
     <string name="end_of_song">סוף השיר</string>
     <string name="queue_all_songs">כל השירים</string>
     <string name="music_player">‪שירים שחיפשת</string>
-    <string name="pure_black">שחור</string>
     <plurals name="n_year">
         <item quantity="one">שנה %d</item>
         <item quantity="two">%d שנים</item>
@@ -164,11 +163,6 @@
     <string name="settings">הגדרות</string>
     <string name="appearance">נראות</string>
     <string name="theme">עיצוב</string>
-    <string name="enable_dynamic_theme">הפעלת עיצוב דינמית</string>
-    <string name="dark_theme">עיצוב כהה</string>
-    <string name="dark_theme_on">פועל</string>
-    <string name="dark_theme_off">כבוי</string>
-    <string name="dark_theme_follow_system">כמו המערכת</string>
     <string name="player">נגן</string>
     <string name="left">שמאל</string>
     <string name="center">מרכז</string>

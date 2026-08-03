@@ -69,7 +69,6 @@ import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.DefaultOpenTabKey
 import com.jtech.zemer.constants.DensityScale
 import com.jtech.zemer.constants.DensityScaleKey
-import com.jtech.zemer.constants.DynamicThemeKey
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.constants.GridItemSize
 import com.jtech.zemer.constants.GridItemsSizeKey
@@ -146,14 +145,6 @@ fun AppearanceSettings(
             .roundToInt().coerceAtLeast(0)
         appearanceScrollState.animateScrollTo(target)
     }
-    val (dynamicTheme, onDynamicThemeChange) = rememberPreference(
-        DynamicThemeKey,
-        defaultValue = false
-    )
-    val (darkMode, onDarkModeChange) = rememberEnumPreference(
-        DarkModeKey,
-        defaultValue = DarkMode.AUTO
-    )
     val (useNewPlayerDesign, onUseNewPlayerDesignChange) = rememberPreference(
         UseNewPlayerDesignKey,
         defaultValue = true
@@ -179,7 +170,6 @@ fun AppearanceSettings(
             PlayerBackgroundStyleKey,
             defaultValue = PlayerBackgroundStyle.DEFAULT,
         )
-    val (pureBlack, onPureBlackChange) = rememberPreference(PureBlackKey, defaultValue = false)
     val (customDensityValue, setCustomDensityValue) = rememberPreference(CustomDensityScaleKey, defaultValue = 0.85f)
     val context = LocalContext.current
     var showRestartDialog by rememberSaveable { mutableStateOf(false) }
@@ -324,12 +314,6 @@ fun AppearanceSettings(
         ShowUploadedPlaylistKey,
         defaultValue = true
     )
-
-    val isSystemInDarkTheme = isSystemInDarkTheme()
-    val useDarkTheme =
-        remember(darkMode, isSystemInDarkTheme) {
-            if (darkMode == DarkMode.AUTO) isSystemInDarkTheme else darkMode == DarkMode.ON
-        }
 
     val (defaultChip, onDefaultChipChange) = rememberEnumPreference(
         key = ChipSortTypeKey,
@@ -489,35 +473,15 @@ fun AppearanceSettings(
             title = stringResource(R.string.theme),
         )
 
-        SwitchPreference(
-            title = { Text(stringResource(R.string.enable_dynamic_theme)) },
+        // Dynamic (album-art) theme, theme mode (system/light/dark/pure-black) and the accent Color
+        // Palette all live on the dedicated Theme & Colors screen, so there is a single home for every
+        // color/mode control (the old standalone "dynamic theme" switch was redundant with it).
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.theme)) },
+            description = stringResource(R.string.theme_desc),
             icon = { Icon(painterResource(R.drawable.palette), null) },
-            checked = dynamicTheme,
-            onCheckedChange = onDynamicThemeChange,
+            onClick = { navController.navigate("settings/appearance/theme") },
         )
-
-        EnumListPreference(
-            title = { Text(stringResource(R.string.dark_theme)) },
-            icon = { Icon(painterResource(R.drawable.dark_mode), null) },
-            selectedValue = darkMode,
-            onValueSelected = onDarkModeChange,
-            valueText = {
-                when (it) {
-                    DarkMode.ON -> stringResource(R.string.dark_theme_on)
-                    DarkMode.OFF -> stringResource(R.string.dark_theme_off)
-                    DarkMode.AUTO -> stringResource(R.string.dark_theme_follow_system)
-                }
-            },
-        )
-
-        AnimatedVisibility(useDarkTheme) {
-            SwitchPreference(
-                title = { Text(stringResource(R.string.pure_black)) },
-                icon = { Icon(painterResource(R.drawable.contrast), null) },
-                checked = pureBlack,
-                onCheckedChange = onPureBlackChange,
-            )
-        }
 
         ListPreference(
             title = { Text(stringResource(R.string.display_density)) },
@@ -1022,7 +986,7 @@ fun AppearanceSettings(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
-                    .background(if (pureBlackActive) Color(0xFF0A0A0A) else Color.Transparent),
+                    .background(if (pureBlackActive) Color.Black else Color.Transparent),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(

@@ -50,13 +50,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.jtech.zemer.R
-import com.jtech.zemer.ui.theme.rememberPureBlack
 import kotlinx.coroutines.delay
 
-/** Dialog surface color: AMOLED pure black when the theme calls for it, M3 default otherwise. */
+/** Dialog surface color: the M3 default (surfaceContainerHigh), which the theme drives to true black
+ *  in pure-black mode — so AMOLED is handled by the scheme, no hardcoded color here. */
 @Composable
-private fun dialogContainerColor(): Color =
-    if (rememberPureBlack()) Color(0xFF0A0A0A) else AlertDialogDefaults.containerColor
+private fun dialogContainerColor(): Color = AlertDialogDefaults.containerColor
 
 @Composable
 fun DefaultDialog(

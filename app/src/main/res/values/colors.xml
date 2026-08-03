@@ -5,5 +5,5 @@
     <color name="widget_text_secondary">#AAAAAA</color>
     <color name="widget_background">#000000</color>
     <color name="widget_album_bg">#000000</color>
-    <color name="widget_accent">#ED5564</color>
+    <color name="widget_accent">#FFAFB7</color>
 </resources>

@@ -126,21 +126,4 @@ object PlayerSliderColors {
             inactiveTrackColor = inactiveTrackColor
         )
     }
-
-    /**
-     * Configuration constants for slider colors
-     */
-    object Config {
-        /** Alpha transparency for inactive track - subtle white appearance */
-        const val INACTIVE_TRACK_ALPHA = 0.15f
-        
-        /** Alpha transparency for inactive ticks */
-        const val INACTIVE_TICK_ALPHA = 0.2f
-        
-        /** Default active color when no theme color is available */
-        val DEFAULT_ACTIVE_COLOR = Color(0xFF1976D2)
-        
-        /** Default inactive color when no theme color is available */
-        val DEFAULT_INACTIVE_COLOR = Color.White.copy(alpha = INACTIVE_TRACK_ALPHA)
-    }
 }

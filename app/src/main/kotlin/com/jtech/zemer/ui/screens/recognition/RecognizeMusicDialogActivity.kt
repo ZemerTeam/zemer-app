@@ -47,7 +47,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -59,7 +58,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.jtech.zemer.R
 import com.jtech.zemer.recognition.RecognitionAudioCapture
-import com.jtech.zemer.ui.theme.ZemerTheme
+import com.jtech.zemer.ui.theme.ZemerAppTheme
 import com.jtech.zemer.ui.utils.resize
 import com.jtech.zemer.viewmodels.RecognizeMusicViewModel
 import com.jtech.zemer.viewmodels.RecognizeUiState
@@ -77,7 +76,7 @@ class RecognizeMusicDialogActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            ZemerTheme {
+            ZemerAppTheme {
                 RecognizeDialog(
                     onDismiss = { finish() },
                     onPlay = { song ->
@@ -149,7 +148,7 @@ private fun RecognizeDialog(
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = colorResource(R.color.widget_background),
+            color = MaterialTheme.colorScheme.surface,
             tonalElevation = 0.dp,
             modifier = Modifier
                 .fillMaxWidth(0.86f)
@@ -193,13 +192,13 @@ private fun ZemerBrandHeader(onHistory: () -> Unit) {
             text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = colorResource(R.color.widget_text_primary),
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.weight(1f))
         Icon(
             painter = painterResource(R.drawable.history),
             contentDescription = stringResource(R.string.recognition_history),
-            tint = colorResource(R.color.widget_text_secondary),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .size(22.dp)
                 .clip(CircleShape)
@@ -251,20 +250,20 @@ private fun DialogStatus(
             .size(112.dp)
             .scale(if (listening) scale else 1f)
             .clip(CircleShape)
-            .background(colorResource(R.color.widget_accent))
+            .background(MaterialTheme.colorScheme.primary)
             .clickable(enabled = tappable, onClick = onAction),
         contentAlignment = Alignment.Center,
     ) {
         if (working) {
             CircularProgressIndicator(
-                color = colorResource(R.color.widget_text_primary),
+                color = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(44.dp),
             )
         } else {
             Icon(
                 painter = painterResource(R.drawable.mic),
                 contentDescription = stringResource(R.string.recognize_music_mic_button),
-                tint = colorResource(R.color.widget_text_primary),
+                tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(48.dp),
             )
         }
@@ -274,7 +273,7 @@ private fun DialogStatus(
     Text(
         text = title,
         style = MaterialTheme.typography.titleMedium,
-        color = colorResource(R.color.widget_text_primary),
+        color = MaterialTheme.colorScheme.onSurface,
         textAlign = TextAlign.Center,
     )
     if (hint != null) {
@@ -282,7 +281,7 @@ private fun DialogStatus(
         Text(
             text = hint,
             style = MaterialTheme.typography.bodyMedium,
-            color = colorResource(R.color.widget_text_secondary),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
     }
@@ -309,7 +308,7 @@ private fun DialogResult(
     Text(
         text = song.title,
         style = MaterialTheme.typography.titleLarge,
-        color = colorResource(R.color.widget_text_primary),
+        color = MaterialTheme.colorScheme.onSurface,
         textAlign = TextAlign.Center,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,
@@ -318,7 +317,7 @@ private fun DialogResult(
     Text(
         text = song.artists.joinToString(" • ") { it.name },
         style = MaterialTheme.typography.bodyMedium,
-        color = colorResource(R.color.widget_text_secondary),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,

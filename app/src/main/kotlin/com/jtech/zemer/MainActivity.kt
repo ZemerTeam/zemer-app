@@ -173,6 +173,7 @@ import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.DefaultOpenTabKey
 import com.jtech.zemer.constants.DisableScreenshotKey
 import com.jtech.zemer.constants.DynamicThemeKey
+import com.jtech.zemer.constants.SelectedThemeColorKey
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.InstallerTypeKey
@@ -210,6 +211,7 @@ import com.jtech.zemer.ui.component.AccountSettingsDialog
 import com.jtech.zemer.ui.component.BottomSheetMenu
 import com.jtech.zemer.ui.component.BottomSheetPage
 import com.jtech.zemer.ui.component.AppBarTitle
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.TopAppBarActionButton
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
@@ -232,7 +234,7 @@ import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.screens.settings.DarkMode
 import com.jtech.zemer.ui.screens.settings.NavigationTab
 import com.jtech.zemer.ui.theme.ColorSaver
-import com.jtech.zemer.ui.theme.DefaultThemeColor
+import com.jtech.zemer.ui.theme.defaultThemeColor
 import com.jtech.zemer.ui.theme.ZemerTheme
 import com.jtech.zemer.ui.theme.extractThemeColor
 import com.jtech.zemer.ui.theme.rememberPureBlack
@@ -531,6 +533,13 @@ class MainActivity : ComponentActivity() {
             }
 
             val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = false)
+            val selectedThemeColorInt by rememberPreference(
+                SelectedThemeColorKey,
+                defaultValue = defaultThemeColor(
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
+                ).toArgb(),
+            )
+            val selectedThemeColor = Color(selectedThemeColorInt)
             val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
             val isSystemInDarkTheme = isSystemInDarkTheme()
             val useDarkTheme = remember(darkTheme, isSystemInDarkTheme) {
@@ -550,15 +559,21 @@ class MainActivity : ComponentActivity() {
             }
 
             var themeColor by rememberSaveable(stateSaver = ColorSaver) {
-                mutableStateOf(DefaultThemeColor)
+                mutableStateOf(selectedThemeColor)
             }
             val themeColorCache = remember { mutableStateMapOf<String, Color>() }
 
-            LaunchedEffect(playerConnection, enableDynamicTheme) {
+            // When the dynamic (album-art) palette is off, the theme is simply the user's picked accent;
+            // this also re-applies it the moment the accent changes in Settings.
+            LaunchedEffect(selectedThemeColor, enableDynamicTheme) {
+                if (!enableDynamicTheme) themeColor = selectedThemeColor
+            }
+
+            LaunchedEffect(playerConnection, enableDynamicTheme, selectedThemeColor) {
                 val playerConnection = playerConnection
                 if (!enableDynamicTheme || playerConnection == null) {
                     themeColorCache.clear()
-                    themeColor = DefaultThemeColor
+                    themeColor = selectedThemeColor
                     return@LaunchedEffect
                 }
 
@@ -586,13 +601,13 @@ class MainActivity : ComponentActivity() {
                                     }
                                     result?.image?.toBitmap()?.extractThemeColor()
                                 }.getOrNull()
-                            } ?: DefaultThemeColor
+                            } ?: selectedThemeColor
 
                             themeColorCache[thumbnailUrl] = resolvedColor
                             themeColor = resolvedColor
                         }
                     } else {
-                        themeColor = DefaultThemeColor
+                        themeColor = selectedThemeColor
                     }
                 }
             }
@@ -615,7 +630,7 @@ class MainActivity : ComponentActivity() {
                         Modifier
                             .fillMaxSize()
                             .background(
-                                if (pureBlack) Color.Black else MaterialTheme.colorScheme.surface
+                                MaterialTheme.colorScheme.surface
                             )
                     ) {
                         val focusManager = LocalFocusManager.current
@@ -1176,7 +1191,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    val baseBg = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+                    val baseBg = MaterialTheme.colorScheme.surfaceContainer
                     val insetBg = if (playerBottomSheetState.progress > 0f) Color.Transparent else baseBg
                     val drawerFocusRequester = remember { FocusRequester() }
                     val topPlayFocusRequester = remember { FocusRequester() }
@@ -1205,8 +1220,8 @@ class MainActivity : ComponentActivity() {
                             drawerState = drawerState,
                             drawerContent = {
                                 ModalDrawerSheet(
-                                    drawerContainerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp),
-                                    drawerContentColor = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurface,
+                                    drawerContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    drawerContentColor = MaterialTheme.colorScheme.onSurface,
                                     // The Material default (360dp) is nearly the full width on a phone, so the
                                     // items' pills stretch far right and the drawer covers most of the screen.
                                     // Size it to the CONTENT's own width (IntrinsicSize.Max = the widest row) so
@@ -1593,13 +1608,7 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             },
                                             scrollBehavior = searchBarScrollBehavior,
-                                            colors = TopAppBarDefaults.topAppBarColors(
-                                                containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                                                scrolledContainerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer,
-                                                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                                                actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                            ),
+                                            colors = zemerTopAppBarColors(),
                                             modifier = Modifier.windowInsetsPadding(
                                                 cutoutInsets.only(WindowInsetsSides.Start + WindowInsetsSides.End)
                                             )
@@ -1685,25 +1694,26 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier
                                             .align(Alignment.TopCenter)
                                             .windowInsetsPadding(WindowInsets(0.dp)),
-                                        colors = if (pureBlack && active) {
-                                            SearchBarDefaults.colors(
-                                                containerColor = Color.Black,
-                                                dividerColor = Color.DarkGray,
-                                                inputFieldColors = TextFieldDefaults.colors(
-                                                    focusedTextColor = Color.White,
-                                                    unfocusedTextColor = Color.Gray,
-                                                    focusedContainerColor = Color.Transparent,
-                                                    unfocusedContainerColor = Color.Transparent,
-                                                    cursorColor = Color.White,
-                                                    focusedIndicatorColor = Color.Transparent,
-                                                    unfocusedIndicatorColor = Color.Transparent,
-                                                )
-                                            )
-                                        } else {
-                                            SearchBarDefaults.colors(
-                                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                                            )
-                                        }
+                                        // Themed colors, no hardcoding: neutral container (true black
+                                        // only under AMOLED while active), theme-token text/divider, and
+                                        // the caret in the accent so the field tracks the palette.
+                                        colors = SearchBarDefaults.colors(
+                                            containerColor = if (pureBlack && active) {
+                                                Color.Black
+                                            } else {
+                                                MaterialTheme.colorScheme.surfaceContainerLow
+                                            },
+                                            dividerColor = MaterialTheme.colorScheme.outlineVariant,
+                                            inputFieldColors = TextFieldDefaults.colors(
+                                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                                unfocusedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                focusedContainerColor = Color.Transparent,
+                                                unfocusedContainerColor = Color.Transparent,
+                                                cursorColor = MaterialTheme.colorScheme.primary,
+                                                focusedIndicatorColor = Color.Transparent,
+                                                unfocusedIndicatorColor = Color.Transparent,
+                                            ),
+                                        )
                                     ) {
                                         OnlineSearchScreen(
                                             query = query.text,
@@ -1767,7 +1777,7 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             }
                                         },
-                                    containerColor = if (pureBlack) Color(0xFF0A0A0A) else MaterialTheme.colorScheme.surfaceContainer
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer
                                 ) {
                                     bottomNavigationItems.forEach { screen ->
                                         val isSelected = navBackStackEntry?.destination?.hierarchy?.any {
@@ -1952,8 +1962,7 @@ class MainActivity : ComponentActivity() {
                             Snackbar(
                                 snackbarData = data,
                                 shape = RoundedCornerShape(12.dp),
-                                containerColor = if (pureBlack) Color(0xFF0A0A0A)
-                                    else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 contentColor = MaterialTheme.colorScheme.onSurface,
                                 actionColor = MaterialTheme.colorScheme.primary,
                                 dismissActionContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
