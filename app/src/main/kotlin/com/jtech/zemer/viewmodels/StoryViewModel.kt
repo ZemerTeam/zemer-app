@@ -55,7 +55,8 @@ class StoryViewModel @Inject constructor(
         post: StatusPost,
         creator: StatusCreator,
         renderTextBitmap: (() -> Bitmap)? = null,
-    ): Result<StatusDownload> = downloadManager.save(post, creator, renderTextBitmap)
+        onProgress: (Float) -> Unit = {},
+    ): Result<StatusDownload> = downloadManager.save(post, creator, renderTextBitmap, onProgress)
 
     // The user's status content filter (Settings -> Appearance), reactive so a settings change re-filters
     // the posts the viewer shows. Text-only is hidden by default; image is shown by default. Held as a

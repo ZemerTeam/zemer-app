@@ -2,6 +2,8 @@ package com.jtech.zemer.ui.screens.statuses
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.pager.HorizontalPager
@@ -54,7 +56,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -422,6 +429,8 @@ fun StoryScreen(
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     val savedStatusIds by viewModel.savedStatusIds.collectAsState()
     var saving by remember { mutableStateOf(false) }
+    // Download progress (0..1) shown as a ring around the save FAB while a save is in flight.
+    var saveProgress by remember { mutableFloatStateOf(0f) }
 
     // Each creator is a pager page; scrolling between them turns a 3D cube. Only the SETTLED creator gets
     // the live face (media + progress + gestures); neighbors show a lightweight avatar face so the cube has
@@ -611,7 +620,7 @@ fun StoryScreen(
                     }
                     if (showJump) {
                         // A themed pill rather than a translucent white chip, at high opacity so it stays
-                        // legible and on-brand over the media.
+                        // legible over the media.
                         Row(
                             Modifier
                                 .height(pillHeight)
@@ -717,41 +726,56 @@ fun StoryScreen(
         if (fabShowing) {
             val savePost = currentPost!!
             val alreadySaved = savePost.id in savedStatusIds
-            ZemerFab(
-                icon = if (alreadySaved) R.drawable.done else R.drawable.download,
-                contentDescription = stringResource(
-                    if (alreadySaved) R.string.status_saved else R.string.save_status
-                ),
-                onClick = onSave@{
-                    val cre = creator
-                    if (cre == null || saving) return@onSave
-                    if (alreadySaved) {
-                        context.toast(R.string.status_already_saved)
-                        return@onSave
-                    }
-                    saving = true
-                    // Text statuses render to an image with theme-derived colors (or the status's own
-                    // text_bg_color), so nothing is hardcoded; image/video fetch their bytes in the manager.
-                    val renderText: (() -> android.graphics.Bitmap)? = if (savePost.kind == "text") {
-                        val parsedBg = savePost.textBgColor?.let {
-                            runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull()
-                        }
-                        val bg = parsedBg?.toArgb() ?: colorScheme.surfaceVariant.toArgb()
-                        val fg = if (parsedBg != null) Color.White.toArgb() else colorScheme.onSurfaceVariant.toArgb()
-                        val body = savePost.textBody ?: savePost.caption ?: "";
-                        { StatusTextImage.render(body, bg, fg) }
-                    } else null
-                    scope.launch {
-                        val result = viewModel.saveStatus(savePost, cre, renderText)
-                        saving = false
-                        context.toast(if (result.isSuccess) R.string.status_saved_toast else R.string.status_save_failed)
-                    }
-                },
+            Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(end = 16.dp, bottom = 40.dp),
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                ZemerFab(
+                    icon = if (alreadySaved) R.drawable.done else R.drawable.download,
+                    contentDescription = stringResource(
+                        if (alreadySaved) R.string.status_saved else R.string.save_status
+                    ),
+                    onClick = onSave@{
+                        val cre = creator
+                        if (cre == null || saving) return@onSave
+                        if (alreadySaved) {
+                            context.toast(R.string.status_already_saved)
+                            return@onSave
+                        }
+                        saving = true
+                        saveProgress = 0f
+                        // Text statuses render to an image with theme-derived colors (or the status's own
+                        // text_bg_color), so nothing is hardcoded; image/video fetch their bytes in the manager.
+                        val renderText: (() -> android.graphics.Bitmap)? = if (savePost.kind == "text") {
+                            val parsedBg = savePost.textBgColor?.let {
+                                runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull()
+                            }
+                            val bg = parsedBg?.toArgb() ?: colorScheme.surfaceVariant.toArgb()
+                            val fg = if (parsedBg != null) Color.White.toArgb() else colorScheme.onSurfaceVariant.toArgb()
+                            val body = savePost.textBody ?: savePost.caption ?: "";
+                            { StatusTextImage.render(body, bg, fg) }
+                        } else null
+                        scope.launch {
+                            val result = viewModel.saveStatus(savePost, cre, renderText) { p -> saveProgress = p }
+                            saving = false
+                            context.toast(if (result.isSuccess) R.string.status_saved_toast else R.string.status_save_failed)
+                        }
+                    },
+                )
+                // Progress ring drawn ON TOP of the FAB (so the FAB + its elevation shadow don't cover it),
+                // tracing the FAB's rounded-square shape from top-center clockwise.
+                if (saving) {
+                    FabProgressRing(
+                        progress = saveProgress,
+                        color = colorScheme.primary,
+                        trackColor = colorScheme.primary.copy(alpha = 0.25f),
+                        modifier = Modifier.size(64.dp),
+                    )
+                }
+            }
         }
         } // active-creator face
       } // cube page
@@ -836,6 +860,57 @@ private fun ExpandableStatusCaption(
                 tint = colorScheme.onSecondaryContainer,
                 modifier = Modifier.size(18.dp),
             )
+        }
+    }
+}
+
+/**
+ * A determinate progress stroke that traces the save FAB's OWN rounded-square outline (not a circle), so
+ * it hugs the FAB's shape. Drawn concentric to a 56dp/16dp-corner FAB centered in this (larger) box; the
+ * progress starts at top-center and sweeps clockwise, wrapping around. Smoothed so byte updates don't
+ * jump.
+ */
+@Composable
+private fun FabProgressRing(
+    progress: Float,
+    color: Color,
+    trackColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val animated by animateFloatAsState(progress.coerceIn(0f, 1f), label = "fab_progress")
+    val strokeDp = 4.dp
+    val cornerDp = 20.dp
+    Canvas(modifier) {
+        val sw = strokeDp.toPx()
+        val inset = sw / 2f
+        val left = inset
+        val top = inset
+        val right = size.width - inset
+        val bottom = size.height - inset
+        val r = cornerDp.toPx()
+        val cx = (left + right) / 2f
+        // Build the rounded-rect EXPLICITLY starting at top-center and going clockwise, so the progress
+        // (a segment from distance 0) truly begins at 12 o'clock. addRoundRect's own start point is not
+        // top-center - assuming it was is what made the ring start in the wrong place.
+        val path = Path().apply {
+            moveTo(cx, top)
+            lineTo(right - r, top)
+            arcTo(Rect(right - 2 * r, top, right, top + 2 * r), -90f, 90f, false)
+            lineTo(right, bottom - r)
+            arcTo(Rect(right - 2 * r, bottom - 2 * r, right, bottom), 0f, 90f, false)
+            lineTo(left + r, bottom)
+            arcTo(Rect(left, bottom - 2 * r, left + 2 * r, bottom), 90f, 90f, false)
+            lineTo(left, top + r)
+            arcTo(Rect(left, top, left + 2 * r, top + 2 * r), 180f, 90f, false)
+            close()
+        }
+        drawPath(path, color = trackColor, style = Stroke(width = sw))
+        if (animated > 0f) {
+            val measure = PathMeasure()
+            measure.setPath(path, true)
+            val seg = Path()
+            measure.getSegment(0f, measure.length * animated, seg, true)
+            drawPath(seg, color = color, style = Stroke(width = sw, cap = StrokeCap.Round))
         }
     }
 }

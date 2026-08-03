@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.ByteArrayOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,16 +40,17 @@ class StatusDownloadManager @Inject constructor(
         post: StatusPost,
         creator: StatusCreator,
         renderTextBitmap: (() -> Bitmap)? = null,
+        onProgress: (Float) -> Unit = {},
     ): Result<StatusDownload> = runCatching {
         val creatorName = creator.displayName
         val baseName = statusDownloadStamp(post.postedAt)
         val uri: Uri = when (post.kind) {
             "video" -> {
-                val (bytes, mime) = fetch(statusMediaUrl(post.mediaPath))
+                val (bytes, mime) = fetch(statusMediaUrl(post.mediaPath), onProgress)
                 StatusGallery.saveVideo(context, bytes, mime.ifBlank { "video/mp4" }, creatorName, baseName)
             }
             "image" -> {
-                val (bytes, mime) = fetch(statusMediaUrl(post.mediaPath))
+                val (bytes, mime) = fetch(statusMediaUrl(post.mediaPath), onProgress)
                 StatusGallery.saveImage(context, bytes, mime.ifBlank { "image/jpeg" }, creatorName, baseName)
             }
             "text" -> {
@@ -80,13 +82,37 @@ class StatusDownloadManager @Inject constructor(
         store.remove(download.id)
     }
 
-    private suspend fun fetch(url: String?): Pair<ByteArray, String> = withContext(Dispatchers.IO) {
+    private suspend fun fetch(
+        url: String?,
+        onProgress: (Float) -> Unit = {},
+    ): Pair<ByteArray, String> = withContext(Dispatchers.IO) {
         requireNotNull(url) { "status media url was null" }
         http.newCall(Request.Builder().url(url).build()).execute().use { response ->
             require(response.isSuccessful) { "status media fetch failed: HTTP ${response.code}" }
             val body = response.body ?: error("empty status media body")
             val mime = body.contentType()?.toString()?.substringBefore(';')?.trim().orEmpty()
-            body.bytes() to mime
+            val total = body.contentLength() // -1 if the server didn't send Content-Length
+            val out = ByteArrayOutputStream(if (total > 0) total.toInt() else 32 * 1024)
+            body.byteStream().use { input ->
+                val buffer = ByteArray(16 * 1024)
+                var read = 0L
+                var lastReported = 0f
+                while (true) {
+                    val n = input.read(buffer)
+                    if (n < 0) break
+                    out.write(buffer, 0, n)
+                    read += n
+                    if (total > 0) {
+                        val fraction = (read.toFloat() / total).coerceIn(0f, 1f)
+                        // Throttle to ~1% steps so a multi-MB file doesn't spam the UI callback.
+                        if (fraction - lastReported >= 0.01f || fraction >= 1f) {
+                            lastReported = fraction
+                            onProgress(fraction)
+                        }
+                    }
+                }
+            }
+            out.toByteArray() to mime
         }
     }
 }
