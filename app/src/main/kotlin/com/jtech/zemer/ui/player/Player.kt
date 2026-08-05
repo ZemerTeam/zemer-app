@@ -116,6 +116,7 @@ import com.jtech.zemer.constants.QueuePeekHeight
 import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.extensions.copyToClipboard
@@ -237,11 +238,7 @@ fun BottomSheetPlayer(
     // A video-mode playback failure reverted to audio (I8) — surface it once.
     LaunchedEffect(Unit) {
         playerConnection.videoErrorEvents.collect {
-            Toast.makeText(
-                context,
-                context.getString(R.string.video_playback_error),
-                Toast.LENGTH_SHORT,
-            ).show()
+            context.toast(R.string.video_playback_error)
         }
     }
 

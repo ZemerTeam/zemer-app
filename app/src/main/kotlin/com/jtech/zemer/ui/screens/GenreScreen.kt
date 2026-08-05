@@ -463,7 +463,7 @@ fun GenreScreen(
     )
 }
 
-/** One tracklist row: seed-first song radio on tap (video rows open the video player instead). */
+/** One tracklist row: seed-first song radio on tap (audio-first — video is the in-player toggle). */
 @Composable
 private fun GenreTrackRow(
     song: SongItem,
@@ -486,10 +486,8 @@ private fun GenreTrackRow(
         modifier = Modifier
             .combinedClickable(
                 onClick = {
-                    if (isVideo) {
-                        val artistDisplay = song.artists.joinToString(" • ") { it.name }
-                        navController.navigate(videoRoute(song.id, song.title, artistDisplay))
-                    } else if (activeRowTapTogglesPlayPause(isActive, playerConnection.isStationBroadcast.value)) {
+                    // Audio-first always (I2); video is a per-play in-player toggle, not an entry point (D3).
+                    if (activeRowTapTogglesPlayPause(isActive, playerConnection.isStationBroadcast.value)) {
                         playerConnection.playPause()
                     } else {
                         playerConnection.playQueue(

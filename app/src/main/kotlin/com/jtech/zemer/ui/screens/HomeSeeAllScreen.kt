@@ -156,10 +156,10 @@ internal fun <T : YTItem> YtItemGrid(
                 modifier = Modifier.combinedClickable(
                     onClick = {
                         when (item) {
-                            // The only SongItems in this grid are the Featured Videos row — open the video
-                            // player (matching the Home row), not audio playback.
-                            is SongItem -> navController.navigate(
-                                videoRoute(item.id, item.title, item.artists.joinToString(" • ") { it.name }),
+                            // The only SongItems in this grid are the Featured Videos row. Audio-first
+                            // always (I2); video is a per-play in-player toggle, not an entry point (D3).
+                            is SongItem -> playerConnection.playQueue(
+                                ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service),
                             )
                             // Featured albums are Zemer-sourced: open via the server route (bot-gate-proof).
                             is AlbumItem ->
