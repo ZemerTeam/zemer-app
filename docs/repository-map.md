@@ -975,7 +975,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
 | `docs/repository-map.md` | 1183 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
-| `docs/status/README.md` | 116 lines | `.md` |
+| `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
 | `docs/status/yidstatus-api.md` | 238 lines | `.md` |
 | `docs/tracking/README.md` | 347 lines | `.md` |
