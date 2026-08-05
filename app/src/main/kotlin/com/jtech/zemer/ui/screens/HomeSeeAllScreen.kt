@@ -26,6 +26,7 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
 import com.jtech.zemer.LocalDatabase
+import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
@@ -51,14 +52,11 @@ import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.ArtistMenu
 import com.jtech.zemer.ui.menu.SongMenu
-import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
-import com.jtech.zemer.ui.menu.YouTubeArtistMenu
-import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
-import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.menu.ytItemMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
+import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeSeeAllStore
 
@@ -80,6 +78,7 @@ fun HomeSeeAllScreen(
     row: HomeSeeAllRow,
 ) {
     val data by HomeSeeAllStore.data.collectAsState()
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
 
     val rowIsEmpty = when (row) {
         HomeSeeAllRow.FEATURED_ALBUMS -> data.featuredAlbums.isEmpty()
@@ -114,7 +113,15 @@ fun HomeSeeAllScreen(
     }
 
     TopAppBar(
-        title = { AppBarTitle(stringResource(row.titleRes)) },
+        // Blocked-video users see the videos row as their "video songs" (audio-first rows).
+        title = {
+            AppBarTitle(
+                stringResource(
+                    if (row == HomeSeeAllRow.FEATURED_VIDEOS && blockVideos) R.string.featured_video_songs
+                    else row.titleRes
+                )
+            )
+        },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
         colors = zemerTopAppBarColors(),
@@ -138,6 +145,7 @@ internal fun <T : YTItem> YtItemGrid(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val scope = rememberCoroutineScope()
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
 
     LazyVerticalGrid(
         // Two across, not three: album/artist titles here run long (full Hebrew + English names), and a
@@ -156,10 +164,10 @@ internal fun <T : YTItem> YtItemGrid(
                 modifier = Modifier.combinedClickable(
                     onClick = {
                         when (item) {
-                            // The only SongItems in this grid are the Featured Videos row — open the video
-                            // player (matching the Home row), not audio playback.
-                            is SongItem -> navController.navigate(
-                                videoRoute(item.id, item.title, item.artists.joinToString(" • ") { it.name }),
+                            // The only SongItems in this grid are the Featured Videos row. Audio-first
+                            // always (I2); video is a per-play in-player toggle, not an entry point (D3).
+                            is SongItem -> playerConnection.playQueue(
+                                ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service),
                             )
                             // Featured albums are Zemer-sourced: open via the server route (bot-gate-proof).
                             is AlbumItem ->
@@ -181,9 +189,10 @@ internal fun <T : YTItem> YtItemGrid(
                                 navController = navController,
                                 coroutineScope = scope,
                                 onDismiss = menuState::dismiss,
-                                // Videos row: isVideo = true so the menu offers "Download video" (video),
-                                // not the audio "Download".
-                                isVideo = true,
+                                // Per-item flag (set by the mapper): the Featured Videos row's SongItems
+                                // get the video menu ("Download video" / video share), everything else —
+                                // and every row for a blocked-video user — gets the audio menu.
+                                isVideo = item is SongItem && item.isVideo && !blockVideos,
                             )
                         )
                     },

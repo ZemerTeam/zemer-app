@@ -5,13 +5,16 @@ import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
+import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
+import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
 import com.jtech.zemer.search.ZemerResultMapper.toSongItems
 import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -86,7 +89,7 @@ class ZemerResultMapperTest {
     }
 
     @Test
-    fun `summary matches YouTube section order and folds videos into Songs`() {
+    fun `summary keeps songs and videos in separate sections`() {
         val resp = ZemerSearchResponse(
             categories = ZemerCategories(
                 artists = listOf(ZemerArtist("UC1", "An Artist", "thumb")),
@@ -99,11 +102,12 @@ class ZemerResultMapperTest {
         )
 
         val page = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
-        // Same titles/order as YouTube.searchSummary; no separate Videos section.
-        assertEquals(listOf("Albums", "Songs", "Artists", "Playlists"), page.summaries.map { it.title })
-        // Videos fold into the Songs section (videos are SongItems), exactly like YouTube.
-        val songsSection = page.summaries.first { it.title == "Songs" }
-        assertEquals(listOf("s1", "v1"), songsSection.items.map { it.id })
+        // Songs and Videos are SEPARATE sections (videos no longer fold into Songs).
+        assertEquals(listOf("Albums", "Songs", "Videos", "Artists", "Playlists"), page.summaries.map { it.title })
+        assertEquals(listOf("s1"), page.summaries.first { it.title == "Songs" }.items.map { it.id })
+        val videosSection = page.summaries.first { it.title == "Videos" }
+        assertEquals(listOf("v1"), videosSection.items.map { it.id })
+        assertTrue((videosSection.items.single() as SongItem).isVideo)
         // The "Playlists" section previews COMMUNITY playlists (its header drills into the Community
         // chip), so featured/artist-owned playlists are not shown here.
         val playlistsSection = page.summaries.first { it.title == "Playlists" }
@@ -241,8 +245,7 @@ class ZemerResultMapperTest {
 
     @Test
     fun `summary caps each section to a compact preview`() {
-        // The merged Songs section (songs + videos) would otherwise be a long scroll; the chip still
-        // returns everything.
+        // The Songs section would otherwise be a long scroll; the chip still returns everything.
         val resp = ZemerSearchResponse(
             categories = ZemerCategories(songs = (1..20).map { ZemerTrack("s$it", "Song $it", "A") }),
         )
@@ -256,9 +259,9 @@ class ZemerResultMapperTest {
     }
 
     @Test
-    fun `Songs chip returns songs and videos so the summary Songs drill-in keeps the videos`() {
-        // The summary folds videos into "Songs"; tapping that header (FILTER_SONG) must return both,
-        // and a video-only query must NOT come back empty.
+    fun `Songs chip returns plain songs only and the Videos chip returns videos only`() {
+        // Songs and videos are separated: a video-song must NOT appear under the Songs chip (it has its
+        // own Videos / "Video songs" chip), so it can't show in both.
         val resp = ZemerSearchResponse(
             categories = ZemerCategories(
                 songs = listOf(ZemerTrack("s1", "Song", "A")),
@@ -266,13 +269,10 @@ class ZemerResultMapperTest {
             ),
         )
         val songsChip = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG, hideExplicit = false).items
-        assertEquals(listOf("s1", "v1"), songsChip.map { it.id })
+        assertEquals(listOf("s1"), songsChip.map { it.id }) // songs only — no video
 
-        val videoOnly = ZemerSearchResponse(
-            categories = ZemerCategories(videos = listOf(ZemerTrack("v1", "Video", "A"))),
-        )
-        val videoOnlySongsChip = ZemerResultMapper.filtered(videoOnly, SearchFilter.FILTER_SONG, hideExplicit = false).items
-        assertEquals(listOf("v1"), videoOnlySongsChip.map { it.id }) // not empty
+        val videosChip = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_VIDEO, hideExplicit = false).items
+        assertEquals(listOf("v1"), videosChip.map { it.id }) // videos only
     }
 
     @Test
@@ -486,6 +486,22 @@ class ZemerResultMapperTest {
         )
     }
 
+    @Test
+    fun `artist page flags only the Videos section as videos`() {
+        // The per-item flag is set ONCE by the mapper — the badge, menu gating and section relabel all
+        // key off SongItem.isVideo, never a per-screen title sniff.
+        val page = ZemerArtistResponse(
+            artist = ZemerArtist("UC1", "Artist"),
+            songs = listOf(ZemerTrack("s1", "Song", "Artist")),
+            videos = listOf(ZemerTrack("v1", "Clip", "Artist")),
+        ).toArtistPage(hideExplicit = false)
+
+        val songs = page.sections.first { it.title == "Songs" }.items.filterIsInstance<SongItem>()
+        val videos = page.sections.first { it.title == "Videos" }.items.filterIsInstance<SongItem>()
+        assertFalse(songs.single().isVideo)
+        assertTrue(videos.single().isVideo)
+    }
+
     // --- /home-rows mapping (telemetry-ranked home tab rows) ---
 
     @Test
@@ -512,6 +528,7 @@ class ZemerResultMapperTest {
         assertEquals("v1", video.id)
         assertEquals("UCb", video.artists.single().id)
         assertEquals("https://i.ytimg.com/vi/v1/hqdefault.jpg", video.thumbnail) // derived from videoId
+        assertTrue(video.isVideo) // the mapper sets the flag once; badge/menus key off it
 
         val artist = rows.artists.single()
         assertEquals("UCc", artist.id)
@@ -623,5 +640,49 @@ class ZemerResultMapperTest {
         )
 
         assertEquals(listOf("a", "b"), resp.toSongItems().map { it.id })
+    }
+
+    @Test
+    fun `videos are classified as video-songs per item and plain songs are not`() {
+        val resp = ZemerSearchResponse(
+            categories = ZemerCategories(
+                songs = listOf(ZemerTrack("song1", "A Song", "Artist")),
+                videos = listOf(ZemerTrack("vid1", "A Video", "Artist")),
+            ),
+        )
+
+        // Songs and videos live in separate summary sections; each item carries the right flag.
+        val page = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
+        val songs = page.summaries.single { it.title == "Songs" }.items.filterIsInstance<SongItem>()
+        val videos = page.summaries.single { it.title == "Videos" }.items.filterIsInstance<SongItem>()
+
+        assertEquals(listOf("song1"), songs.map { it.id })
+        assertFalse(songs.single().isVideo)
+        assertEquals(listOf("vid1"), videos.map { it.id })
+        assertTrue(videos.single().isVideo)
+    }
+
+    @Test
+    fun `the Videos chip flags its results as videos`() {
+        val resp = ZemerSearchResponse(
+            categories = ZemerCategories(videos = listOf(ZemerTrack("vid1", "A Video", "Artist"))),
+        )
+
+        val item = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_VIDEO, hideExplicit = false)
+            .items.single() as SongItem
+
+        assertTrue(item.isVideo)
+    }
+
+    @Test
+    fun `a video-song never propagates isVideo into playback metadata - playback stays audio`() {
+        val video = ZemerResultMapper.filtered(
+            ZemerSearchResponse(categories = ZemerCategories(videos = listOf(ZemerTrack("vid1", "V", "A")))),
+            SearchFilter.FILTER_VIDEO,
+            hideExplicit = false,
+        ).items.single() as SongItem
+
+        assertTrue(video.isVideo)                          // classified as a video for the UI…
+        assertFalse(video.toMediaMetadata().isVideo)       // …but playback treats it as ordinary audio
     }
 }

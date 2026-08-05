@@ -93,7 +93,6 @@ import com.jtech.zemer.ui.menu.YouTubeArtistMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.menu.ytItemMenu
-import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.storyRoute
 import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
@@ -455,7 +454,7 @@ fun HomeScreen(
         val hasRemoteHomeContent =
             featuredArtists.isNotEmpty() ||
                 featuredAlbums.isNotEmpty() ||
-                (!blockVideos && featuredVideos.isNotEmpty()) ||
+                featuredVideos.isNotEmpty() ||
                 latestReleases.isNotEmpty() ||
                 zemerPlaylists.isNotEmpty()
         val shouldShowShimmer = isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent)
@@ -933,10 +932,14 @@ fun HomeScreen(
                 }
             }
 
-            if (!blockVideos && featuredVideos.isNotEmpty()) {
+            // Shown to blocked-video users too — the rows play audio-first, so for them the shelf is
+            // simply their "video songs" (relabelled, watch/download-video affordances gated off).
+            if (featuredVideos.isNotEmpty()) {
                 item(key = "featured_videos_title", contentType = "header") {
                     NavigationTitle(
-                        title = stringResource(R.string.featured_videos),
+                        title = stringResource(
+                            if (blockVideos) R.string.featured_video_songs else R.string.featured_videos
+                        ),
                         onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_VIDEOS.slug}") },
                         modifier = Modifier.animateItem()
                     )
@@ -977,8 +980,10 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .combinedClickable(
                                         onClick = {
-                                            val artistDisplay = video.artists.joinToString(" • ") { it.name }
-                                            navController.navigate(videoRoute(video.id, video.title, artistDisplay))
+                                            // Audio-first always (I2); video is a per-play in-player toggle, not an entry point (D3).
+                                            playerConnection.playQueue(
+                                                ZemerRadioQueue.song(video.toMediaMetadata(), playerConnection.service)
+                                            )
                                         },
                                         onLongClick = {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -987,7 +992,8 @@ fun HomeScreen(
                                                     song = video,
                                                     navController = navController,
                                                     onDismiss = menuState::dismiss,
-                                                    isVideo = true,
+                                                    // Audio menu (no video download/share) when blocked.
+                                                    isVideo = video.isVideo && !blockVideos,
                                                 )
                                             }
                                         }

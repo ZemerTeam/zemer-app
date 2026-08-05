@@ -22,7 +22,11 @@ suspend fun zemerSearchOptions(context: Context): ZemerSearchOptions {
     val filters = ContentFilterState.current
     return ZemerSearchOptions(
         allowFemale = filters.allowFemaleSingers,
-        blockVideos = filters.blockVideos,
+        // Always fetch videos from the server. "Block videos" no longer hides them — blocked videos are
+        // shown as audio-only "video song" rows (every video plays audio-first; the Song/Video toggle is
+        // the only watch path and is gated on BlockVideosKey). Sending blockVideos=1 here would drop the
+        // videos category server-side and there would be nothing to render as audio.
+        blockVideos = false,
         hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false),
     )
 }

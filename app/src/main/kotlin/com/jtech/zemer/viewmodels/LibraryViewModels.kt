@@ -31,6 +31,7 @@ import com.jtech.zemer.constants.SongSortDescendingKey
 import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.SongSortTypeKey
 import com.jtech.zemer.constants.TopSize
+import com.jtech.zemer.constants.VideoDownloadsInMusicKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.PlaylistEntity
@@ -79,15 +80,19 @@ constructor(
                         it[SongSortTypeKey].toEnum(SongSortType.CREATE_DATE),
                         (it[SongSortDescendingKey] ?: true),
                     ),
-                    it[HideExplicitKey] ?: false
+                    Pair(
+                        it[HideExplicitKey] ?: false,
+                        it[VideoDownloadsInMusicKey] ?: true,
+                    ),
                 )
             }.distinctUntilChanged()
-            .flatMapLatest { (filterSort, hideExplicit) ->
+            .flatMapLatest { (filterSort, flags) ->
                 val (filter, sortType, descending) = filterSort
+                val (hideExplicit, videosInMusic) = flags
                 when (filter) {
                     SongFilter.LIBRARY -> database.songs(sortType, descending).map { it.filterExplicit(hideExplicit) }
                     SongFilter.LIKED -> database.likedSongs(sortType, descending).map { it.filterExplicit(hideExplicit) }
-                    SongFilter.DOWNLOADED -> database.downloadedSongs(sortType, descending).map { it.filterExplicit(hideExplicit) }
+                    SongFilter.DOWNLOADED -> database.downloadedSongs(sortType, descending, videosInMusic).map { it.filterExplicit(hideExplicit) }
                     SongFilter.UPLOADED -> database.uploadedSongs(sortType, descending).map { it.filterExplicit(hideExplicit) }
                 }
             }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
@@ -387,7 +392,10 @@ class LibraryAutoPlaylistViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.Lazily, "50")
 
     private val likedSongs = database.likedSongs(SongSortType.CREATE_DATE, true)
-    private val downloadedSongs = database.downloadedSongs(SongSortType.CREATE_DATE, true)
+    private val downloadedSongs = context.dataStore.data
+        .map { it[VideoDownloadsInMusicKey] ?: true }
+        .distinctUntilChanged()
+        .flatMapLatest { database.downloadedSongs(SongSortType.CREATE_DATE, true, it) }
     private val topSongs =
         topSize
             .flatMapLatest { top ->

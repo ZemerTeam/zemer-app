@@ -178,8 +178,9 @@ refresh), `AppBarTitle` (the shared bold screen title — `titleLarge`+Bold, sin
 EVERY screen-level `TopAppBar`/`BackTopAppBar` title through it so weights don't drift), `zemerTopAppBarColors()`
 (the one top-bar container color — pure black under AMOLED / `surfaceContainer` otherwise, container ==
 scrolled so bars never grey-out on scroll; baked into `BackTopAppBar`, and every hand-rolled screen
-`TopAppBar` passes `colors = zemerTopAppBarColors()` — except the full-bleed login/onboarding bars, the
-video player's fixed-black bar, and ArtistScreen's over-header transparent state),
+`TopAppBar` passes `colors = zemerTopAppBarColors()` — except the full-bleed login/onboarding bars and
+ArtistScreen's over-header transparent state; the in-player fullscreen video overlay
+(`PlayerVideoFullscreen`) has no `TopAppBar` at all, just an exit icon over the scrim),
 `PlaylistPlayShuffleButtons` + `PlaylistHeaderShimmer` (playlist headers/skeletons),
 `shimmer/BoxPlaceholder` (the base shimmer slab under `ButtonPlaceholder`/`GridItemPlaceholder`),
 `ArtistBrowseComponents` (KidZone/whitelist browse header), `IconCategoryCard` (the square category
@@ -190,8 +191,10 @@ can't drift: `StatusStoryTopOverlay` (segment bars + avatar/name/date), `Expanda
 WhatsApp Read-more caption with clickable links + inline copy), `StatusCopyButton` (icon-only themed copy
 circle), `StatusVideoSurface` (the full-bleed ZOOM `PlayerView`, controls/buffering disabled),
 `StatusLoadingIndicator` (avatar + M3 progress ring loading state, spinner fallback), plus the
-`ui/utils/cubeFace` modifier (the cube swipe transform). New screens use these; a hand-rolled duplicate is
-a review miss.
+`ui/utils/cubeFace` modifier (the cube swipe transform). `VideoModePill` (the in-player Song/Video
+toggle — a sliding-thumb segmented control overlaid on the art slot, see §Video mode) is the one
+source for that control; a screen wanting the same audio/video choice imports it, never a hand-rolled
+switch. New screens use these; a hand-rolled duplicate is a review miss.
 
 **Componentize on every touch (non-negotiable).** Whenever you touch anything in the app, first check
 whether a shared component already covers it — if one exists, use it. If you find yourself writing (or
@@ -266,7 +269,8 @@ reaching YouTube for content, in rough priority order. Pick from here before inv
   home-rows got one. (`MoodAndGenresScreen`, `YouTubeBrowseScreen`, `BrowseScreen` and their
   `YouTube.moodAndGenres`/`explore`/`ExplorePage` InnerTube paths were DELETED with the Genres
   feature — the Zemer catalog is the replacement moods/genres surface. The legacy `ArtistItemsScreen`
-  is superseded by the Zemer per-section see-all — delete, don't migrate.)
+  + its ViewModel + the `artist/{id}/items` route were DELETED — the Zemer per-section see-all had
+  already replaced it and nothing navigated to the old route anymore.)
 - **Non-engine InnerTube *search* users** (survived the engine removal deliberately — each needs its
   own design, not a blind swap): `RecognitionResolver` (fingerprint match → `YouTube.search` →
   whitelist check; a corpus-side match would need server support), the Android Auto **voice search**
@@ -291,6 +295,13 @@ Rules that must not regress:
   proxy that gates the (now-removed) scrape; applying famous/american here cut the rows to near-empty.
   Cards carry the artist channel id (`ZemerAlbum/Track.artistId`, `ZemerArtist.id`) so the one-per-artist
   `rotateByArtist` dedup and the female/israeli check work; without it both no-op.
+- **Featured Videos stays visible when videos are blocked** — retitled "Featured video songs"
+  (`R.string.featured_video_songs`) on both the Home row and its see-all page. Every row plays
+  audio-first (see §Video mode), so hiding the shelf for blocked users would just hide music; the
+  long-press menu is gated to audio-only (`isVideo = item.isVideo && !blockVideos`) on both surfaces
+  so a blocked user never gets a video download/share affordance. The artist page's own Videos
+  section and the search Videos chip follow the identical pattern — a video section/row is never
+  hidden, only relabeled + audio-gated. Don't reintroduce a `!blockVideos` visibility gate here.
 - **Zemer-sourced albums/playlists open via the server route** (`onlineAlbumRoute` / `onlinePlaylistRoute`,
   `?zemer=true`), gated on `featuredAlbumsAreZemer` / `featuredPlaylistsAreZemer`, so the opened screen
   is whitelist-scoped and immune to on-device InnerTube bot-gating. The Home shuffle button is **"Radio
@@ -663,6 +674,129 @@ transport buttons reuse `TransportSkipButton` + the accent focus border; new D-p
 `Modifier.focusBorder()`. `scripts/ui-audit.sh` ratchets raw `Modifier.blur(` in `ui/` (R12) — route
 player blur through the effective style.
 
+### Video mode (the in-player Song/Video toggle; audio-first everywhere)
+
+A video-classified song ("video-song") plays as **ordinary audio by default on every surface** —
+search, home, artist, genre, library, downloads. Watching it is a per-play, in-player opt-in: an icon
+pill (`VideoModePill`) on the art slot swaps the current queue item's rendition between audio and
+video without changing the queue, the track, or the tracking identity. There is **no standalone video
+screen or nav route** — the old `VideoPlayerScreen` / `video/{videoId}` route / `ArtistItemsScreen`
+were deleted with this redesign; a fullscreen video is `PlayerVideoFullscreen`, an in-player overlay
+(I6), not a destination. The numbered invariants below (I1–I8, D3/D4/D5/D7/D8) are cited by the same
+labels in the source comments (`VideoModeController.kt`, `VideoModeLogic.kt`, `PlayerVideoUiLogic.kt`)
+— there is no separate design doc, the code comments ARE the spec.
+
+**Classification (know it, don't guess).** `SongItem.isVideo` is the ONE flag, set exactly once at the
+mapper boundary — `ZemerResultMapper.songItems(..., isVideo = true)` for every Zemer videos-category
+row (artist Videos section, home-rows videos, genre videos, search Videos chip/section) and by
+InnerTube's own `musicVideoType` for the (mostly dormant) non-engine search users. Every UI surface —
+the `Icon.Video()` badge (`ui/component/Items.kt`), menu `isVideo` gating, the search `clickKind`
+telemetry, the artist/genre section relabel — reads this ONE flag; never re-derive it per screen (a
+title-sniff like `section.title.contains("video")` is a compensation smell that means the mapper
+missed a spot). `SongItem.isVideo` deliberately does **not** flow into `MediaMetadata`/playback — a
+video-song downloads, persists, and plays exactly like a plain song; only `VideoModeController` cares
+that it's video-capable.
+
+**Availability — `VideoModeLogic.availability()` is the single source of truth** (pure, JVM-tested;
+`VideoModeController` never re-derives its conditions). Hard gates, checked FIRST and unconditionally:
+casting, `BlockVideosKey`, and a Zemer Station broadcast — any one returns null (no toggle) regardless
+of what rendition would otherwise exist, including an already-downloaded LOCAL file. Renditions, in
+order: **LOCAL** (a downloaded muxed file — no source swap, works offline), **SELF** (a KNOWN non-ATV
+`musicVideoType` — never guessed on unknown), **COUNTERPART** (an audio song with a known video
+counterpart id — the `next()` counterpart source is dormant in production, plumbing only). A fourth,
+corpus-sourced path grants SELF **instantly** while YouTube's own type is still unknown:
+`VideoSongIds` (a small process-wide LRU, marked at the `SongItem.toMediaMetadata()` boundary) lets
+the pill be already-decided the moment a corpus-discovered video-song is tapped, instead of waiting on
+a network round-trip — but a later-LEARNED `musicVideoType` (including ATV) always overrides it.
+`blockVideosNow` (the controller's cached mirror of the live preference, read off the async DataStore
+collector) is seeded **unknown** (`null`), not `false` — a synchronous `recomputeNow()` during a
+**restored** queue (a persisted item's `SongEntity.isVideo` and local-file resolution are both
+independent of the async collector) can otherwise run before the real value lands; unknown reads
+fail-safe as **blocked**. `videoModeAvailable` is published TWO ways: an async `combine` over every
+input that can change out-of-band, and a **synchronous republish** (`recomputeNow()`, called from
+`MusicService.onEvents` in the same stack that updates `currentMediaMetadata`) — the pill's visibility
+must change atomically with the current item, or it visibly flashes in mid-way through the
+player-open animation.
+
+**The swap mechanics (`VideoModeController`, media3-literal).** Entering video mode replaces the
+current `MediaItem` with a `video:<id>`-keyed rendition (`VideoRendition`, `buildUpon()` — same
+mediaId, different URI/cache key) and seeks to the captured position; exiting reverses it,
+position-continuous. `pendingSwap` + `videoModeItemId` classify the OWN swap's own
+`onMediaItemTransition` so it never fires the queue's real-transition side effects (cast reload,
+auto-load-more, save-queue) or double-counts the listen — `ListenAccumulator` suppresses a
+swap-caused `PlaybackStats` end and emits once, accumulated, at the real end (I4). A **repeat-one loop
+of the SAME video item** classifies the SAME way (`isRepeatOfSameItem`, from media3's
+`MEDIA_ITEM_TRANSITION_REASON_REPEAT`) — treating it as a real track change reverted video to audio,
+un-seeked, on every single loop, which is exactly the opposite of what repeat-one promises; per-loop
+tracking still fires correctly since `ListenAccumulator` isn't touched by this classification.
+**`exitVideoModeSameItem` verifies the current index actually holds the video-mode item before
+touching it** (mirrors `revertDepartedItem`'s existing by-identity check) — media3 MASKS
+`seekToNext`/`Previous` synchronously, updating `currentMediaItemIndex` before the matching transition
+callback dispatches, so an unrelated exit trigger (block flag, cast, error) landing in that gap could
+otherwise clobber the user's freshly-selected track with the departed audio item.
+
+**A player error during video mode hands off, never crashes into silence:**
+`VideoModeController.onPlayerError` reverts to audio for a STREAMING rendition failure (SELF/
+COUNTERPART) — must run before `MusicService`'s own 403-refresh path, which would otherwise invalidate
+the wrong (audio) cache entry. A **LOCAL** rendition error is NOT handled here (`onPlayerError` returns
+`false`) — LOCAL never swapped the source, so the failure is the downloaded file itself, and the
+service's normal error pipeline (self-repair, network wait, auto-skip) is what must run; swallowing it
+here would strand the player in `ERROR` with nothing to re-prepare it. Separately, a **STREAMING** item
+(not yet downloaded, no video mode involved) whose file exists hands playback over to it on ANY player
+error — the mid-play-download-then-offline case (the sticky-source rule keeps a mid-play download
+streaming until the item restarts; going offline afterward would otherwise stall on the network wait
+with a good file on disk). Async (`scope.launch` + `withContext(IO)`), never `runBlocking` — a
+`Player.Listener` callback dispatches on the main thread by default.
+
+**Cache correctness (two corruption classes, both fixed, both load-bearing).** (1) The data-source
+chain reads a downloaded local file THROUGH `playerCache`, keyed by the same mediaId as the item's
+STREAM — and `CacheDataSource` serves cached spans regardless of the resolved URI. Historically
+harmless (a download used the streaming itag, byte-identical spans); Option A muxed video downloads
+(and itag drift) broke that identity, so a downloaded item whose id had streamed spans mixed two
+containers in one extractor pass (negative-offset arraycopy, "No valid varint length mask found",
+black video). **Every position-0 open that picks the local file purges the id's `playerCache`
+resource first** (`removeResource`), and `DownloadUtil.removeDownload` purges it again on delete
+(bare id + the `video:` namespace) — a file play must read ONLY file bytes, always. (2) A download's
+resolved stream URL is a `forDownload` format (muxed for videos, generally a different itag than
+what's streaming) and downloads never read the shared playback URL cache themselves — writing it there
+(even into an apparently-empty slot) let a mid-play download poison a later seek's stream source with
+a foreign container. **Downloads must never write `DownloadUtil.sharedUrlCache`.**
+
+**Downloads — Option A: a video-capable item downloads its MUXED video, not audio-only.**
+`VideoModeController.currentItemIsVideo` (musicVideoType OR the corpus flag) drives the player-menu
+download decision, gated `!blockVideos` (a blocked user's download stays plain audio — `songRow`
+otherwise HIDES the row entirely for a video item, leaving no download at all). The muxed file plays
+as ordinary audio in the music queue (`Mp4Extractor` added to `createMediaSourceFactory` for the
+plain-moov container the fragmented/mkv extractors can't parse) and the shared song row stays
+addable to music playlists; the Song/Video toggle then works fully offline via LOCAL, and one
+"Remove" truthfully covers both renditions. Every video download (streamed or muxed) shares ONE
+metered-aware bitrate cap with the streaming swap (`VideoRendition.defaultMaxBitrateKbps`) — 1500 kbps
+metered / 6000 unmetered by default, overridable per-download via `requestedVideoBitrate` (which must
+survive a failed attempt, see §download system) — a video fetch must never silently pull the largest
+available file on a metered connection. See §The download system for `VideoDownloadsInMusicKey` (the
+library-wide "show video downloads as music too" preference this enables).
+
+**UI-only rules (`PlayerVideoUiLogic`, pure, JVM-tested — the inline surface and the fullscreen
+overlay must never disagree about which one is live).** Opening the lyrics sheet reverts video mode
+to audio (position-continuous) — the sheet covers the inline video slot, leaving it decoding
+invisibly behind the sheet; closing lyrics does NOT auto-restore video (it's a per-play opt-in the
+user re-toggles). Fullscreen force-exits the instant video mode ends (track advance/skip/error revert)
+or the player sheet collapses — a fullscreen video must never survive past the content it was showing.
+Backgrounding the app (`MainActivity.onStop`) reverts video mode to audio too — the same "don't decode
+invisibly" reasoning, orientation changes never pass here (`configChanges` handles them, no Activity
+restart).
+
+**The blocked-user guarantee, end to end (verified, not assumed).** There is exactly ONE code path
+that can ever set video mode true — `VideoModeController.enterVideoMode`, reachable only through
+`setVideoMode(true)`, which unconditionally re-checks `computeAvailability()` first. Every actual
+video-rendering surface in the app (`PlayerVideoSurface`, composed only inside `Thumbnail`'s inline
+slot and `PlayerVideoFullscreen`) requires `isVideoMode == true` with no `||` bypass. So a blocked
+user's video-songs are rows — relabeled ("Video songs"), badged, played as audio — never a moving
+pixel: no code path exists to enter video mode while blocked, casting, or during a station broadcast.
+When touching this system, don't reintroduce a `!blockVideos` *visibility* gate on a video row/section
+anywhere (the current design is "always shown, relabeled + audio-gated, never hidden" — see the Home
+tab's Featured Videos rule) — hiding was the pre-redesign behavior and is a regression, not a fix.
+
 ### The theme system (palette picker, cohesive Material You, pure-black)
 
 The app's colors are one cohesive materialKolor scheme generated from a **single seed accent**, chosen
@@ -718,7 +852,11 @@ Every download/progress affordance reads ONE path; do not re-implement per surfa
 - **Menu rows:** `ui/menu/DownloadMenuItems.kt` `downloadMenuItem(...)`, decided by
   `playback/DownloadMenuLogic.kt` (`songRow`/`collectionRow`, pure + tested). A download row **never
   dismisses the menu** (it animates Download → progress → Remove in place). Videos use the same path
-  (`DOWNLOAD_VIDEO`, hidden when videos blocked).
+  (`DOWNLOAD_VIDEO`, hidden when videos blocked). **Option A (§Video mode): a video-capable song
+  downloads its MUXED video, not audio-only** — the player-menu download reads
+  `VideoModeController.currentItemIsVideo` (gated `!blockVideos`) so the toggle works fully offline
+  afterward; see §Video mode for the shared metered-bitrate cap and the playerCache-corruption
+  invariants a download must respect.
 - **A collection NEVER shows a FAILED/retry row** (`collectionRow` takes only the aggregate status —
   REMOVE / DOWNLOADING / DOWNLOAD). A failed member just leaves the aggregate NOT_DOWNLOADED, so the
   collection offers DOWNLOAD again, which re-enqueues only the not-yet-downloaded members (= retry)
@@ -759,8 +897,8 @@ Every download/progress affordance reads ONE path; do not re-implement per surfa
   album-page entity, or the like-then-auto-download race). It also backfills `duration` AND
   `thumbnailUrl` only when the existing row lacks them.
 - **Backfill `duration` AND `thumbnailUrl` from the playback response** in `performDownload`
-  (`playbackData.videoDetails`) — songs reached via an album/playlist page, and standalone videos
-  opened from the Video player, often carry neither (showed "0:00" / no artwork in the Downloaded list).
+  (`playbackData.videoDetails`) — songs reached via an album/playlist page often carry neither
+  (showed "0:00" / no artwork in the Downloaded list).
 - **A per-download video bitrate must survive a failed attempt.** `requestedVideoBitrate` is cleared on
   success / cancel / delete, **never** in the per-attempt `finally` — else `retryDownload` re-issues the
   download with no bitrate and silently falls back to best/default quality (a large file over a metered
@@ -768,6 +906,14 @@ Every download/progress affordance reads ONE path; do not re-implement per surfa
 - **Remove must delete the actual file on EVERY backend.** A custom download path saves a SAF document
   uri; `ContentResolver.delete` silently no-ops on those, so `MediaStoreHelper.deleteFromMediaStore`
   routes document uris through `DocumentsContract.deleteDocument`.
+- **Downloaded video-songs also appear in the downloaded MUSIC surfaces by default** —
+  `VideoDownloadsInMusicKey` (default ON), since Option A means one muxed file serves both renditions
+  (see §Video mode). `DatabaseDao.downloadedSongs*` take `includeVideos`; the phone library list, the
+  Downloaded auto-playlist, the library mix, AND Android Auto's downloaded browse (`MediaLibrarySessionCallback`,
+  `downloadedSongsWhitelistedByCreateDateAsc`) all read the SAME preference — don't let Auto and the
+  phone disagree about which songs are in the list again. The opt-out switch lives on
+  `DownloadedVideosScreen` ("Show in downloaded music"), which stays reachable even when videos are
+  blocked (same reasoning as the Home Featured Videos shelf above — it never renders watchable video).
 
 Enforcement (so this can't regress): `scripts/check-download-unification.sh` (whole-app, wired into
 the UI-audit workflow) + `scripts/ui-audit.sh` rule **R13** fail CI on any `downloadUtil.downloads` /

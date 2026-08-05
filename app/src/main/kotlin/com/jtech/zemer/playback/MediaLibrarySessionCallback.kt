@@ -30,6 +30,7 @@ import com.jtech.zemer.constants.AndroidAutoYouTubePlaylistsKey
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.MediaSessionConstants
 import com.jtech.zemer.constants.SongSortType
+import com.jtech.zemer.constants.VideoDownloadsInMusicKey
 import com.jtech.zemer.ui.screens.settings.AndroidAutoSection
 import com.jtech.zemer.ui.screens.settings.deserializeSections
 import com.jtech.zemer.ui.screens.settings.serializeSections
@@ -268,7 +269,9 @@ constructor(
                         val likedSongCount = database.likedSongsCount().first()
                         // Persisted MediaStore downloads (the legacy ExoPlayer `downloads` map is dead) —
                         // whitelist-filtered, since Android Auto is a content-filtered surface.
-                        val downloadedSongCount = database.downloadedSongsWhitelistedByCreateDateAsc().first().size
+                        val downloadedSongCount = database.downloadedSongsWhitelistedByCreateDateAsc(
+                            includeVideos = context.dataStore.get(VideoDownloadsInMusicKey, true),
+                        ).first().size
                         listOf(
                             browsableMediaItem(
                                 "${MusicService.PLAYLIST}/${PlaylistEntity.LIKED_PLAYLIST_ID}",
@@ -384,7 +387,9 @@ constructor(
                                     // is a content-filtered surface (pre-unification this used the
                                     // whitelist-filtered allSongs()). The legacy ExoPlayer map is dead.
                                     PlaylistEntity.DOWNLOADED_PLAYLIST_ID ->
-                                        database.downloadedSongsWhitelistedByCreateDateAsc()
+                                        database.downloadedSongsWhitelistedByCreateDateAsc(
+                                            includeVideos = context.dataStore.get(VideoDownloadsInMusicKey, true),
+                                        )
 
                                     else ->
                                         database.playlistSongs(playlistId).map { list ->
@@ -610,7 +615,9 @@ constructor(
                     val songs = when (playlistId) {
                         PlaylistEntity.LIKED_PLAYLIST_ID -> database.likedSongs(SongSortType.CREATE_DATE, descending = true)
                         PlaylistEntity.DOWNLOADED_PLAYLIST_ID ->
-                            database.downloadedSongsWhitelistedByCreateDateAsc()
+                            database.downloadedSongsWhitelistedByCreateDateAsc(
+                                includeVideos = context.dataStore.get(VideoDownloadsInMusicKey, true),
+                            )
                         else -> database.playlistSongs(playlistId).map { list ->
                             list.map { it.song }
                         }

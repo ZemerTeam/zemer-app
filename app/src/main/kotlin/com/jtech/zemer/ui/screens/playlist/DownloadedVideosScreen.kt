@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -69,6 +68,8 @@ import com.jtech.zemer.constants.SongSortDescendingKey
 import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.SongSortTypeKey
 import com.jtech.zemer.constants.ThumbnailCornerRadius
+import com.jtech.zemer.constants.VideoDownloadsInMusicKey
+import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
@@ -86,7 +87,6 @@ import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
-import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.makeTimeString
@@ -109,6 +109,7 @@ fun DownloadedVideosScreen(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
 
     val videos by viewModel.downloadedVideos.collectAsState(null)
+    val downloadedVideosTitle = stringResource(R.string.downloaded_videos)
     val mutableVideos = remember { mutableStateListOf<Song>() }
 
     var isSearching by remember { mutableStateOf(false) }
@@ -147,6 +148,7 @@ fun DownloadedVideosScreen(
         SongSortType.CREATE_DATE
     )
     val (sortDescending, onSortDescendingChange) = rememberPreference(SongSortDescendingKey, true)
+    val (videosInMusic, onVideosInMusicChange) = rememberPreference(VideoDownloadsInMusicKey, true)
 
     LaunchedEffect(videos) {
         mutableVideos.apply {
@@ -254,20 +256,37 @@ fun DownloadedVideosScreen(
 
                                 PlaylistPlayShuffleButtons(
                                     onPlay = {
-                                        videos!!.firstOrNull()?.let { first ->
-                                            val artistDisplay = first.artists.joinToString(" • ") { it.name }
-                                            navController.navigate(videoRoute(first.id, first.song.title, artistDisplay))
-                                        }
+                                        // Audio-first always (I2); video is a per-play in-player toggle (D3).
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = downloadedVideosTitle,
+                                                items = videos!!.map { it.toMediaItem() },
+                                            )
+                                        )
                                     },
                                     onShuffle = {
-                                        videos!!.shuffled().firstOrNull()?.let { first ->
-                                            val artistDisplay = first.artists.joinToString(" • ") { it.name }
-                                            navController.navigate(videoRoute(first.id, first.song.title, artistDisplay))
-                                        }
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = downloadedVideosTitle,
+                                                items = videos!!.shuffled().map { it.toMediaItem() },
+                                            )
+                                        )
                                     },
                                 )
                             }
                         }
+                    }
+
+                    item(key = "videos_in_music_toggle") {
+                        // Downloaded video-songs double as ordinary audio-first song rows in the
+                        // downloaded MUSIC surfaces (the one muxed file serves both renditions;
+                        // in-player Song/Video toggle picks the rendition per play). Opt out here.
+                        SwitchPreference(
+                            title = { Text(stringResource(R.string.video_downloads_in_music)) },
+                            description = stringResource(R.string.video_downloads_in_music_description),
+                            checked = videosInMusic,
+                            onCheckedChange = onVideosInMusicChange,
+                        )
                     }
 
                     item(key = "videos_header") {
@@ -322,8 +341,14 @@ fun DownloadedVideosScreen(
                             .combinedClickable(
                                 onClick = {
                                     if (!selection) {
-                                        val artistDisplay = videoWrapper.item.artists.joinToString(" • ") { it.name }
-                                        navController.navigate(videoRoute(videoWrapper.item.id, videoWrapper.item.song.title, artistDisplay))
+                                        // Audio-first always (I2); video is a per-play in-player toggle (D3).
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = downloadedVideosTitle,
+                                                items = filteredVideos.map { it.item.toMediaItem() },
+                                                startIndex = index,
+                                            )
+                                        )
                                     } else {
                                         videoWrapper.isSelected = !videoWrapper.isSelected
                                     }

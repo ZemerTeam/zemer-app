@@ -15,7 +15,9 @@ import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,8 +30,10 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -75,6 +79,7 @@ import com.jtech.zemer.constants.PlayerHorizontalPadding
 import com.jtech.zemer.constants.SeekExtraSeconds
 import com.jtech.zemer.constants.SwipeThumbnailKey
 import com.jtech.zemer.constants.ThumbnailCornerRadius
+import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.delay
@@ -86,6 +91,11 @@ fun Thumbnail(
     @Suppress("unused") sliderPositionProvider: () -> Long?,
     modifier: Modifier = Modifier,
     isPlayerExpanded: Boolean = true, // Add parameter to control swipe based on player state
+    showVideo: Boolean = false, // render the shared player's video surface in the current item's art slot
+    onEnterFullscreen: () -> Unit = {},
+    showVideoToggle: Boolean = false, // overlay the Song/Video pill on the current item's art slot (= videoModeAvailable)
+    isVideoMode: Boolean = false,
+    onToggleVideoMode: (Boolean) -> Unit = {},
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
@@ -383,6 +393,57 @@ fun Thumbnail(
                                             contentDescription = null,
                                             contentScale = if (cropAlbumArt) ContentScale.Crop else ContentScale.Fit,
                                             modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+
+                                    // Video mode: the shared player's surface takes over the current
+                                    // item's art slot (letterboxed 16:9). Artwork stays for audio mode
+                                    // and for the prev/next swipe items; the background/gradient keeps
+                                    // deriving from the artwork (never from video frames).
+                                    if (showVideo && item.mediaId == currentMediaItem?.mediaId) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                // The letterbox behind the 16:9 video — the theme's scrim
+                                                // token (media-dark in both light and dark), never a literal.
+                                                .background(MaterialTheme.colorScheme.scrim),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            PlayerVideoSurface(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .aspectRatio(16f / 9f),
+                                            )
+                                            IconButton(
+                                                onClick = onEnterFullscreen,
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomEnd)
+                                                    .padding(8.dp)
+                                                    .focusBorder(CircleShape),
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.ic_fullscreen),
+                                                    contentDescription = stringResource(R.string.enter_fullscreen),
+                                                    tint = Color.White,
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Song/Video toggle (D7): an icon pill on the TopStart corner of
+                                    // the art slot — inside the square, so no player-controls density
+                                    // can cover it. Opposite corner from the fullscreen button
+                                    // (BottomEnd); cast lives at TopEnd. Shown only for the current
+                                    // item, gated by videoModeAvailable (passed as showVideoToggle) —
+                                    // which the corpus classification (VideoSongIds) decides at tap
+                                    // time, so the pill is simply present when the player opens.
+                                    if (showVideoToggle && item.mediaId == currentMediaItem?.mediaId) {
+                                        VideoModePill(
+                                            isVideoMode = isVideoMode,
+                                            onSelect = onToggleVideoMode,
+                                            modifier = Modifier
+                                                .align(Alignment.TopStart)
+                                                .padding(8.dp),
                                         )
                                     }
 

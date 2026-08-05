@@ -249,6 +249,10 @@ class ZemerGenresTest {
         assertEquals(listOf("v1"), mapped.songs.map { it.id })
         assertEquals(listOf("v2"), mapped.videos.map { it.id })
         assertEquals(100, mapped.nextOffset)
+        // The per-item flag is set ONCE by the mapper (badge/menu/relabel all key off it): the videos
+        // list is flagged, plain songs are not.
+        assertEquals(listOf(false), mapped.songs.map { it.isVideo })
+        assertEquals(listOf(true), mapped.videos.map { it.isVideo })
     }
 
     @Test

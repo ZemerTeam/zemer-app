@@ -80,7 +80,6 @@ import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
-import com.jtech.zemer.ui.screens.videoRoute
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -155,11 +154,9 @@ fun OnlineSearchResult(
             Tracker.click(viewModel.query, item.id, clickKind(item, searchFilter?.value), rank)
             when (item) {
                 is SongItem -> {
-                    val isVideoFilter = !blockVideos && searchFilter?.value == FILTER_VIDEO.value
-                    if (isVideoFilter) {
-                        val artistDisplay = item.artists.joinToString(" • ") { it.name }
-                        navController.navigate(videoRoute(item.id, item.title, artistDisplay))
-                    } else if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
+                    // Audio-first always (I2): every result plays as a normal song; video is a per-play
+                    // in-player toggle, never a separate watch entry point (D3).
+                    if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                         playerConnection.playPause()
                     } else {
                         playerConnection.playQueue(
@@ -189,7 +186,11 @@ fun OnlineSearchResult(
                     navController = navController,
                     coroutineScope = coroutineScope,
                     onDismiss = menuState::dismiss,
-                    isVideo = !blockVideos && searchFilter?.value == FILTER_VIDEO.value,
+                    // Video download / video share is offered only for a video item while video
+                    // imagery is not blocked; otherwise it downloads/shares as ordinary audio.
+                    // Per-item flag, not the chip: the same video row must get the same menu on the
+                    // All summary and the Videos chip.
+                    isVideo = item is SongItem && item.isVideo && !blockVideos,
                 )
             )
         }
@@ -247,9 +248,15 @@ fun OnlineSearchResult(
                 buildList {
                     add(null to stringResource(R.string.filter_all))
                     add(FILTER_SONG to stringResource(R.string.filter_songs))
-                    if (!blockVideos) {
-                        add(FILTER_VIDEO to stringResource(R.string.filter_videos))
-                    }
+                    // Videos are always browsable and audio-first now. When imagery is blocked they are
+                    // audio-only "Video songs"; otherwise they are labelled "Videos" (watchable via the
+                    // in-player toggle). The chip is always available either way.
+                    val videosAsAudio = blockVideos
+                    add(
+                        FILTER_VIDEO to stringResource(
+                            if (videosAsAudio) R.string.filter_video_songs else R.string.filter_videos
+                        )
+                    )
                     add(FILTER_ALBUM to stringResource(R.string.filter_albums))
                     add(FILTER_ARTIST to stringResource(R.string.filter_artists))
                     add(FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists))
@@ -334,13 +341,15 @@ fun OnlineSearchResult(
                                             "albums" -> FILTER_ALBUM
                                             "songs" -> FILTER_SONG
                                             "artists" -> FILTER_ARTIST
-                                            "videos" -> if (!blockVideos) FILTER_VIDEO else null
+                                            "videos" -> FILTER_VIDEO
                                             "community playlists" -> FILTER_COMMUNITY_PLAYLIST
                                             "featured playlists" -> FILTER_FEATURED_PLAYLIST
                                             else -> null
                                         }
+                                val isVideoSection = (summary.items.firstOrNull() as? SongItem)?.isVideo == true
                                 NavigationTitle(
-                                    title = summary.title,
+                                    title = if (isVideoSection && blockVideos)
+                                        stringResource(R.string.video_songs) else summary.title,
                                     onClick = {
                                         summaryFilter?.let {
                                             viewModel.filter.value = summaryFilter
@@ -424,7 +433,9 @@ private fun summaryItemKey(sectionTitle: String, id: String, index: Int) = "$sec
 private fun filteredItemKey(id: String) = "filtered_$id"
 
 private fun clickKind(item: YTItem, filterValue: String?): String = when (item) {
-    is SongItem -> if (filterValue == FILTER_VIDEO.value) "video" else "song"
+    // Per-item flag, not the chip: a video row in the All summary's Videos section is displayed
+    // (and badged) as a video there too, so it reports "video" on either surface.
+    is SongItem -> if (item.isVideo) "video" else "song"
     is AlbumItem -> "album"
     is ArtistItem -> "artist"
     is PlaylistItem -> if (playlistIsCommunity(filterValue)) "community" else "playlist"
@@ -444,7 +455,7 @@ private fun playlistIsCommunity(filterValue: String?): Boolean = when {
 
 private fun mapItemToFilter(item: YTItem): com.metrolist.innertube.YouTube.SearchFilter? =
     when (item) {
-        is SongItem -> FILTER_SONG
+        is SongItem -> if (item.isVideo) FILTER_VIDEO else FILTER_SONG
         is AlbumItem -> FILTER_ALBUM
         is ArtistItem -> FILTER_ARTIST
         is PlaylistItem -> FILTER_COMMUNITY_PLAYLIST

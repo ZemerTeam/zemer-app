@@ -167,6 +167,11 @@ val AllowFemaleSingersKey = booleanPreferencesKey("allowFemaleSingers")
 val FemalePasscodeHashKey = stringPreferencesKey("femalePasscodeHash")
 val AllowChasidishKey = booleanPreferencesKey("allowChasidish")
 val BlockVideosKey = booleanPreferencesKey("blockVideos")
+
+// Downloaded video-songs also appear (as ordinary audio-first song rows) in the downloaded MUSIC
+// surfaces — the Option A muxed file serves both renditions, so hiding it from music was arbitrary.
+// Default ON; toggled from the Downloaded Videos library ("Show in downloaded music").
+val VideoDownloadsInMusicKey = booleanPreferencesKey("videoDownloadsInMusic")
 val EnableContentFiltersKey = booleanPreferencesKey("enableContentFilters")
 
 val DeveloperModeEnabledKey = booleanPreferencesKey("developerModeEnabled")

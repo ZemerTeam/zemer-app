@@ -116,10 +116,12 @@ import com.jtech.zemer.constants.QueuePeekHeight
 import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.extensions.copyToClipboard
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.playback.PlayerVideoUiLogic
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.BottomSheet
 import com.jtech.zemer.ui.component.BottomSheetState
@@ -217,6 +219,35 @@ fun BottomSheetPlayer(
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
+
+    // Video mode (the in-player Song/Video toggle). videoModeAvailable already encodes blocked +
+    // casting + rendition availability (VideoModeController) — read it, never re-derive those.
+    val videoModeAvailable by playerConnection.videoModeAvailable.collectAsState()
+    val isVideoMode by playerConnection.isVideoMode.collectAsState()
+    var isFullscreen by rememberSaveable { mutableStateOf(false) }
+
+    // Fullscreen is a per-play, in-video affordance: exit it the instant video mode ends (a track
+    // advance/skip/error revert — I2/D4) or the sheet collapses. isVideoMode flipping false here is
+    // exactly what makes "track end in fullscreen → advance as audio" fall out for free.
+    LaunchedEffect(isVideoMode, state.isExpanded) {
+        if (PlayerVideoUiLogic.shouldExitFullscreen(isFullscreen, isVideoMode, state.isExpanded)) {
+            isFullscreen = false
+        }
+    }
+
+    // A video-mode playback failure reverted to audio (I8) — surface it once.
+    LaunchedEffect(Unit) {
+        playerConnection.videoErrorEvents.collect {
+            context.toast(R.string.video_playback_error)
+        }
+    }
+
+    // Kick the on-demand counterpart lookup when the expanded player shows a new item (a no-op today —
+    // the counterpart source is dormant per step 3 — but the call site is kept for when it re-lights).
+    LaunchedEffect(state.isExpanded, mediaMetadata?.id) {
+        val id = mediaMetadata?.id
+        if (state.isExpanded && id != null) playerConnection.requestVideoAvailability(id)
+    }
 
     var position by rememberSaveable(playbackState) {
         mutableLongStateOf(playerConnection.player.currentPosition)
@@ -424,6 +455,15 @@ fun BottomSheetPlayer(
         initialAnchor = 1
     )
 
+    // Opening lyrics over an inline video would leave the video decoding invisibly behind the sheet
+    // (DESIGN §4) — revert to audio (position-continuous). Video is a per-play opt-in; closing lyrics
+    // does not auto-restore it.
+    LaunchedEffect(lyricsSheetState.isExpanded, isVideoMode) {
+        if (PlayerVideoUiLogic.shouldRevertVideoForLyrics(lyricsSheetState.isExpanded, isVideoMode)) {
+            playerConnection.setVideoMode(false)
+        }
+    }
+
     val bottomSheetBackgroundColor = when (playerBackground) {
         PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT -> 
             MaterialTheme.colorScheme.surfaceContainer
@@ -516,6 +556,9 @@ fun BottomSheetPlayer(
         },
     ) {
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
+            // The Song/Video toggle now lives as an icon pill overlaid on the art slot (see
+            // Thumbnail's showVideoToggle / VideoModePill, D7) so higher display densities can't
+            // clip it — it is no longer part of this controls column.
             val playPauseRoundness by animateDpAsState(
                 targetValue = if (isPlaying) 24.dp else 36.dp,
                 animationSpec = tween(durationMillis = 90, easing = LinearEasing),
@@ -1169,7 +1212,12 @@ fun BottomSheetPlayer(
                         Thumbnail(
                             sliderPositionProvider = { sliderPosition },
                             modifier = Modifier.size(thumbnailSize),
-                            isPlayerExpanded = state.isExpanded
+                            isPlayerExpanded = state.isExpanded,
+                            showVideo = PlayerVideoUiLogic.showInlineVideo(isVideoMode, isFullscreen),
+                            onEnterFullscreen = { isFullscreen = true },
+                            showVideoToggle = videoModeAvailable,
+                            isVideoMode = isVideoMode,
+                            onToggleVideoMode = { playerConnection.setVideoMode(it) },
                         )
                     }
                     Column(
@@ -1202,7 +1250,12 @@ fun BottomSheetPlayer(
                         Thumbnail(
                             sliderPositionProvider = { sliderPosition },
                             modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
-                            isPlayerExpanded = state.isExpanded
+                            isPlayerExpanded = state.isExpanded,
+                            showVideo = PlayerVideoUiLogic.showInlineVideo(isVideoMode, isFullscreen),
+                            onEnterFullscreen = { isFullscreen = true },
+                            showVideoToggle = videoModeAvailable,
+                            isVideoMode = isVideoMode,
+                            onToggleVideoMode = { playerConnection.setVideoMode(it) },
                         )
                     }
 
@@ -1258,6 +1311,12 @@ fun BottomSheetPlayer(
                     )
                 }
             }
+        }
+
+        // Fullscreen video overlay — drawn last so it covers the expanded player (I6: same surface,
+        // re-parented). Only while expanded + in video mode + fullscreen requested.
+        if (PlayerVideoUiLogic.showFullscreenVideo(state.isExpanded, isVideoMode, isFullscreen)) {
+            PlayerVideoFullscreen(onExit = { isFullscreen = false })
         }
     }
 }

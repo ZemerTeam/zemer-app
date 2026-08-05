@@ -11,6 +11,10 @@
     <string name="home_see_all_empty">Nothing here yet</string>
     <string name="artist_not_available">This artist isn\'t available yet</string>
     <string name="album_not_available">This album isn\'t available</string>
+    <string name="song_not_available">This song isn\'t available</string>
+    <string name="featured_video_songs">Featured video songs</string>
+    <string name="video_downloads_in_music">Show in downloaded music</string>
+    <string name="video_downloads_in_music_description">Downloaded videos also appear as songs in your downloaded music</string>
 
     <string name="local_history">Local</string>
     <string name="remote_history">Remote</string>
@@ -97,6 +101,12 @@
     <string name="floating_mini_player_desc">Show the mini player overlay above screens</string>
     <string name="featured_videos">Featured videos</string>
     <string name="videos">Videos</string>
+    <string name="video">Video</string>
+    <string name="song">Song</string>
+    <string name="enter_fullscreen">Enter fullscreen</string>
+    <string name="exit_fullscreen">Exit fullscreen</string>
+    <string name="video_songs">Video songs</string>
+    <string name="filter_video_songs">Video songs</string>
     <string name="music">Music</string>
     <string name="downloaded_videos">Downloaded videos</string>
     <string name="no_downloaded_videos">No downloaded videos</string>
@@ -311,17 +321,6 @@
     <string name="sync_account_create">Create Account</string>
     <string name="sync_account_please_wait">Please wait…</string>
 
-    <!-- Video player dialogs -->
-    <string name="video_download_title">Download video</string>
-    <string name="video_choose_quality">Choose a quality</string>
-    <string name="video_loading_qualities">Loading available qualities…</string>
-    <string name="video_playback_speed">Playback speed</string>
-    <string name="video_speed_normal">1.0x (Normal)</string>
-    <string name="video_quality">Video quality</string>
-    <string name="video_quality_current_auto">Current: Auto</string>
-    <string name="video_quality_auto">Auto</string>
-    <string name="video_quality_track">Track %d</string>
-
     <!-- Lyrics image sharing -->
     <string name="lyrics_image_failed">Failed to create image: %s</string>
 
@@ -452,16 +451,10 @@
 
     <!-- Video player -->
     <string name="video_playback_error">Playback error</string>
-    <string name="pip_unable">Unable to start PiP</string>
-    <string name="pip_unavailable">PiP unavailable: %s</string>
 
     <!-- Accessibility content descriptions -->
     <string name="cd_repeat">Repeat</string>
     <string name="cd_play_pause">Play/Pause</string>
-    <string name="cd_pause">Pause</string>
-    <string name="cd_previous">Previous</string>
-    <string name="cd_next">Next</string>
-    <string name="cd_fullscreen">Fullscreen</string>
     <string name="cd_fetch_from_ytm">Fetch from YouTube Music</string>
     <string name="cd_suggestions_available">Suggestions available</string>
 
@@ -477,7 +470,6 @@
     <string name="clip_label_artist">Artist</string>
     <string name="clip_label_song_link">Song link</string>
     <string name="clip_label_artist_link">Artist link</string>
-    <string name="clip_label_video_link">Video link</string>
 
     <!-- Song details sheet -->
     <string name="format_itag">Itag</string>

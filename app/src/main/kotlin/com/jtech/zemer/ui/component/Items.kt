@@ -297,6 +297,9 @@ fun SongListItem(
         if (song.song.explicit) {
             Icon.Explicit()
         }
+        if (song.song.isVideo) {
+            Icon.Video()
+        }
         if (showInLibraryIcon && song.song.inLibrary != null) {
             Icon.Library()
         }
@@ -359,6 +362,9 @@ fun SongGridItem(
     badges: @Composable RowScope.() -> Unit = {
         if (showLikedIcon && song.song.liked) {
             Icon.Favorite()
+        }
+        if (song.song.isVideo) {
+            Icon.Video()
         }
         if (showInLibraryIcon && song.song.inLibrary != null) {
             Icon.Library()
@@ -773,6 +779,9 @@ fun MediaMetadataListItem(
             mediaMetadata.artists.joinToString { it.name },
             makeTimeString(mediaMetadata.duration * 1000L)
         ),
+        badges = {
+            if (mediaMetadata.isVideo) Icon.Video()
+        },
         thumbnailContent = {
             ItemThumbnail(
                 thumbnailUrl = mediaMetadata.thumbnailUrl,
@@ -823,6 +832,7 @@ fun YouTubeListItem(
             Icon.Favorite()
         }
         if (item.explicit) Icon.Explicit()
+        if (item is SongItem && item.isVideo) Icon.Video()
         if (item is SongItem && song?.song?.inLibrary != null) {
             Icon.Library()
         }
@@ -908,6 +918,7 @@ fun YouTubeGridItem(
             Icon.Favorite()
         }
         if (item.explicit) Icon.Explicit()
+        if (item is SongItem && item.isVideo) Icon.Video()
         if (item is SongItem && song?.song?.inLibrary != null) Icon.Library()
         when (item) {
             is SongItem -> SongDownloadBadge(item.id, song?.song?.isDownloaded == true)
@@ -1576,6 +1587,18 @@ private object Icon {
             contentDescription = null,
             modifier = Modifier
                 .size(18.dp)
+                .padding(end = 2.dp)
+        )
+    }
+
+    /** Marks a row that is a video being surfaced as a "video song" (played as audio). */
+    @Composable
+    fun Video() {
+        Icon(
+            painter = painterResource(R.drawable.ondemand_video),
+            contentDescription = stringResource(R.string.video),
+            modifier = Modifier
+                .size(15.dp)
                 .padding(end = 2.dp)
         )
     }

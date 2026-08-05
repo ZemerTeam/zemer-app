@@ -198,6 +198,7 @@ import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
 import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.SearchHistory
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.models.DpadDirection
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.CastVolumeKeyAction
@@ -230,7 +231,6 @@ import com.jtech.zemer.ui.screens.Screens
 import com.jtech.zemer.ui.screens.SplashScreen
 import com.jtech.zemer.ui.screens.navigationBuilder
 import com.jtech.zemer.ui.screens.search.OnlineSearchScreen
-import com.jtech.zemer.ui.screens.videoRoute
 import com.jtech.zemer.ui.screens.settings.DarkMode
 import com.jtech.zemer.ui.screens.settings.NavigationTab
 import com.jtech.zemer.ui.theme.ColorSaver
@@ -249,7 +249,10 @@ import com.jtech.zemer.utils.ButtonMapperBridge
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.Updater
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.filterWhitelisted
+import com.jtech.zemer.utils.filterWhitelistedWithLocalArtists
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.hasNotificationPermission
@@ -384,6 +387,10 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        // Backgrounding reverts video mode to audio: an invisible muxed stream would keep downloading
+        // and decoding (the same waste the lyrics-sheet revert exists for). Audio continues seamlessly;
+        // orientation changes never pass here (configChanges handles them, no Activity restart).
+        playerConnection?.setVideoMode(false)
         try {
             unbindService(serviceConnection)
         } catch (e: IllegalArgumentException) {
@@ -736,10 +743,11 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         // Full-screen takeovers that must not have the floating mini-player over them:
-                        // the video player and the JewishStatus story viewer.
-                        val isVideoScreen = remember(navBackStackEntry) {
+                        // the JewishStatus story viewers (the standalone video player is gone — video is
+                        // the in-player toggle now).
+                        val isImmersiveViewerScreen = remember(navBackStackEntry) {
                             val route = navBackStackEntry?.destination?.route
-                            route?.startsWith("video/") == true || route?.startsWith("story/") == true ||
+                            route?.startsWith("story/") == true ||
                                 route?.startsWith("saved_status/") == true
                         }
                         val homeViewModel: HomeViewModel = hiltViewModel()
@@ -993,7 +1001,7 @@ class MainActivity : ComponentActivity() {
                         label = "navigationBarHeight"
                     )
 
-                    val floatingMiniPlayerAllowed = floatingMiniPlayerEnabled && !isVideoScreen
+                    val floatingMiniPlayerAllowed = floatingMiniPlayerEnabled && !isImmersiveViewerScreen
 
                     val collapsedBound = remember(
                         bottomInset,
@@ -2036,9 +2044,6 @@ class MainActivity : ComponentActivity() {
         val uri = intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri() ?: return
         val coroutineScope = lifecycleScope
 
-        // Check if it's a video.zemer.io link
-        val isVideoLink = uri.host == "video.zemer.io"
-
         when (val path = uri.pathSegments.firstOrNull()) {
             "playlist" -> uri.getQueryParameter("list")?.let { playlistId ->
                 if (playlistId.startsWith("OLAK5uy_")) {
@@ -2113,33 +2118,36 @@ class MainActivity : ComponentActivity() {
                 val playlistId = uri.getQueryParameter("list")
 
                 videoId?.let {
-                    if (isVideoLink) {
-                        // For video.zemer.io links, navigate directly to video player
-                        navController.navigate(videoRoute(it))
-                    } else {
-                        // For other links, use audio player
-                        coroutineScope.launch(Dispatchers.IO) {
-                            YouTube.queue(listOf(it), playlistId).onSuccess { queue ->
-                                // Filter by whitelist
-                                val filteredQueue = queue.filterWhitelisted(database).filterIsInstance<SongItem>()
+                    // Incoming watch links always play through the normal audio-first player now — video is
+                    // a per-play in-player toggle, so video.zemer.io links are no longer special-cased.
+                    coroutineScope.launch(Dispatchers.IO) {
+                        YouTube.queue(listOf(it), playlistId).onSuccess { queue ->
+                            // filterWhitelistedWithLocalArtists, not the plain filterWhitelisted: a
+                            // shared link's renderer can carry a sparse/topic-channel artist id for a
+                            // song that IS by a whitelisted artist (the same known YTM renderer gap
+                            // SyncUtils.syncSavedPlaylists works around) — falling back to the local DB
+                            // row's resolved artist keeps a real whitelisted link from silently dead-ending.
+                            val allowedArtistIds = WhitelistCache.allowedEntries(database, ContentFilterState.current)
+                                .map { entry -> entry.artistId }.toSet()
+                            val filteredQueue = queue.filterWhitelistedWithLocalArtists(database, allowedArtistIds)
 
-                                // Silently ignore if no whitelisted songs
-                                if (filteredQueue.isEmpty()) {
-                                    return@onSuccess
-                                }
-
-                                withContext(Dispatchers.Main) {
-                                    playerConnection?.playQueue(
-                                        YouTubeQueue(
-                                            WatchEndpoint(videoId = filteredQueue.firstOrNull()?.id, playlistId = playlistId),
-                                            filteredQueue.firstOrNull()?.toMediaMetadata(),
-                                            database
-                                        )
-                                    )
-                                }
-                            }.onFailure { ex ->
-                                reportException(ex)
+                            // Nothing whitelisted behind the link: say so instead of opening to nothing.
+                            if (filteredQueue.isEmpty()) {
+                                withContext(Dispatchers.Main) { toast(R.string.song_not_available) }
+                                return@onSuccess
                             }
+
+                            withContext(Dispatchers.Main) {
+                                playerConnection?.playQueue(
+                                    YouTubeQueue(
+                                        WatchEndpoint(videoId = filteredQueue.firstOrNull()?.id, playlistId = playlistId),
+                                        filteredQueue.firstOrNull()?.toMediaMetadata(),
+                                        database
+                                    )
+                                )
+                            }
+                        }.onFailure { ex ->
+                            reportException(ex)
                         }
                     }
                 }

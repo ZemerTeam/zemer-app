@@ -70,15 +70,21 @@ fun DownloadedContentScreen(
                         modifier = Modifier.weight(1f),
                     )
 
-                    // Video + Status tiles are hidden when videos are blocked (same gate as the home row).
+                    // The Videos tile stays reachable when videos are blocked (like every other video
+                    // surface in this redesign): the screen plays audio-first and never renders watchable
+                    // video, and it's the only place blocked users can reach the "Show in downloaded
+                    // music" switch for video-song downloads they may already have. Relabeled to match
+                    // the artist page's "Video songs" section for blocked users.
+                    IconCategoryCard(
+                        iconRes = R.drawable.slow_motion_video,
+                        title = stringResource(if (blockVideos) R.string.video_songs else R.string.videos),
+                        subtitle = pluralStringResource(R.plurals.n_video, videoCount, videoCount),
+                        onClick = { navController.navigate("downloaded_videos") },
+                        modifier = Modifier.weight(1f),
+                    )
+                    // The Status tile stays gated: Music Status is genuinely video-first/watchable
+                    // content, unlike the Videos tile above (see AGENTS.md §Music Status).
                     if (!blockVideos) {
-                        IconCategoryCard(
-                            iconRes = R.drawable.slow_motion_video,
-                            title = stringResource(R.string.videos),
-                            subtitle = pluralStringResource(R.plurals.n_video, videoCount, videoCount),
-                            onClick = { navController.navigate("downloaded_videos") },
-                            modifier = Modifier.weight(1f),
-                        )
                         IconCategoryCard(
                             iconRes = R.drawable.music_status,
                             title = stringResource(R.string.status),
