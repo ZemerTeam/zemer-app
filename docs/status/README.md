@@ -87,9 +87,15 @@ the third parties; only the filter *config* is centralized. Full contract:
   `/functions/v1/feed` path + required `Origin` header are welded to their `type`'s handler, never in a
   descriptor (a descriptor carries only tunable data). Baked into `StatusesApi.kt` / `YidStatusApi.kt`.
 - **Where it lives.** `statuses/StatusSourcesConfig.kt` (model + parse + `StatusSourcesCache`); synced by
-  `StatusesRepository.syncStatusSources()` (version-gated, non-blocking, on the refresh path); persisted to
-  DataStore (`StatusSourcesConfigKey` / `StatusSourcesVersionKey`) and reloaded at startup in `App.kt` so
-  the last-good config survives restarts / offline. Fetch methods live on `ZemerContentClient`.
+  `StatusesRepository.syncStatusSources()` on the status refresh path - AWAITED only for the first-ever
+  sync (a fresh install's first load runs with a real config), non-blocking after; throttled to one poll
+  per `STALE_MS` window and quiet on network failure (matches the other mirror syncs); the installed
+  version is endpoint-capped (`minOf(body, endpoint)`) so a stale CDN body can never suppress future
+  syncs; the family caches are config-version-stamped so a config change invalidates them immediately, and
+  a failed provider's previous creators are kept while sibling providers refresh (per-provider fail-soft).
+  Persisted to DataStore (`StatusSourcesConfigKey` / `StatusSourcesVersionKey` - the effective version,
+  read back at startup) and reloaded in `App.kt`; `StatusSourcesCache.update()` never rolls back to an
+  older version (restore/sync race safe). Fetch methods live on `ZemerContentClient`.
 
 ## Integration caveats (how each is handled in the app today)
 
