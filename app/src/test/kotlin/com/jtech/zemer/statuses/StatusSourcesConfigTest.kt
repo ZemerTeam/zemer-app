@@ -15,6 +15,13 @@ import org.junit.Test
  */
 class StatusSourcesConfigTest {
 
+    @org.junit.Before
+    fun resetCache() {
+        // The cache is a process-wide singleton with a no-rollback guard; without a reset the
+        // version-dependent tests below would interfere across (arbitrary) JUnit method order.
+        StatusSourcesCache.resetForTest()
+    }
+
     private fun descriptor(
         id: String = "jewish-status",
         type: String = "supabase-category",
@@ -112,13 +119,38 @@ class StatusSourcesConfigTest {
     }
 
     @Test
+    fun `baseUrl is normalized - a trailing slash never reaches a handler`() {
+        // Handlers concatenate "$baseUrl/path"; an un-normalized trailing slash would build //rpc URLs
+        // and silently 404 the whole provider family (the config is hand-authored).
+        val json = doc(
+            """{"id":"jewish-status","type":"supabase-category","baseUrl":"https://x.supabase.co/rest/v1/","apiKey":"k","categoryIds":["a"]}""",
+        )
+        assertEquals("https://x.supabase.co/rest/v1", parseStatusSourcesConfig(json)!!.providers.single().baseUrl)
+    }
+
+    @Test
     fun `installing a config makes it current and reports its version`() {
-        // NOTE: process-wide singleton; this test installs a config and does not assume a pristine start.
         val installed = parseStatusSourcesConfig(
             doc(descriptor(id = "yid-status", type = "keyword-feed", filterKey = "musicKeywords", filter = """["music"]"""), version = 42),
         )!!
         StatusSourcesCache.update(installed)
         assertEquals(42L, StatusSourcesCache.syncedVersion)
+        assertEquals(listOf("yid-status"), StatusSourcesCache.current().providers.map { it.id })
+    }
+
+    @Test
+    fun `update never rolls back to an older config`() {
+        // Guards the startup-restore race: a persisted older snapshot must not clobber a config a
+        // concurrent sync already installed. Same version re-installs (harmless, same content).
+        val newer = parseStatusSourcesConfig(
+            doc(descriptor(id = "yid-status", type = "keyword-feed", filterKey = "musicKeywords", filter = """["music"]"""), version = 100),
+        )!!
+        val older = parseStatusSourcesConfig(
+            doc(descriptor(id = "jewish-status"), version = 99),
+        )!!
+        StatusSourcesCache.update(newer)
+        StatusSourcesCache.update(older) // ignored
+        assertEquals(100L, StatusSourcesCache.syncedVersion)
         assertEquals(listOf("yid-status"), StatusSourcesCache.current().providers.map { it.id })
     }
 }

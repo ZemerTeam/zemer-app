@@ -57,6 +57,11 @@ class StatusesRepository @Inject constructor(
     @Volatile private var yidCache: YidFeed? = null
     @Volatile private var jewishFetchedAt = 0L
     @Volatile private var yidFetchedAt = 0L
+    // The config version each family cache was loaded under. A config change (first sync landing, a
+    // source darked/re-enabled) makes the cache stale IMMEDIATELY - without this, an empty "no config
+    // yet" load stamped fresh would hide the row for a whole STALE_MS after the first sync succeeds.
+    @Volatile private var jewishConfigVersion = Long.MIN_VALUE
+    @Volatile private var yidConfigVersion = Long.MIN_VALUE
 
     // A cached family this old is re-fetched on the next screen open (not just on a full app restart).
     private companion object {
@@ -65,6 +70,10 @@ class StatusesRepository @Inject constructor(
 
     private fun isFresh(fetchedAt: Long) =
         fetchedAt != 0L && SystemClock.elapsedRealtime() - fetchedAt < STALE_MS
+
+    /** A family cache is fresh only if recently fetched AND loaded under the currently-installed config. */
+    private fun isFamilyFresh(fetchedAt: Long, loadedVersion: Long) =
+        isFresh(fetchedAt) && loadedVersion == StatusSourcesCache.syncedVersion
 
     // Posts use a concurrent map with NO lock across the fetch, so preloading the next creator never
     // waits behind the current one; a rare duplicate concurrent fetch for one creator is harmless.
@@ -88,7 +97,14 @@ class StatusesRepository @Inject constructor(
      * cache is empty or older than [STALE_MS]. Fail-soft per source: a failure keeps the previous cache.
      */
     suspend fun refreshCreators(force: Boolean = false): Unit = coroutineScope {
-        launch { syncStatusSources() } // refreshes config for the NEXT load; never blocks this one
+        // Until the FIRST config has synced the sync is AWAITED, so a fresh install's very first load runs
+        // with a real config instead of loading empty (server-only design: no config = nothing to fetch).
+        // After that it runs non-blocking - a config change applies via the version staleness check.
+        if (StatusSourcesCache.syncedVersion < 0) {
+            syncStatusSources(force)
+        } else {
+            launch { syncStatusSources(force) }
+        }
         launch { loadJewish(force) }
         launch { loadYid(force) }
     }
@@ -126,53 +142,79 @@ class StatusesRepository @Inject constructor(
     /** Record a status as viewed (persisted). */
     suspend fun markSeen(postId: String) = seenStore.markSeen(listOf(postId))
 
+    // The sync itself is throttled to one attempt per STALE_MS window (whatever the outcome), so the
+    // per-screen-entry refresh path doesn't hammer /status-sources/version. The mutex also dedupes
+    // concurrent entries. force (pull-to-refresh) bypasses the throttle, never the in-flight dedupe.
+    private val syncMutex = Mutex()
+    @Volatile private var syncAttemptedAt = 0L
+
     /**
      * Version-gated refresh of the server-driven source config. Re-fetches [ZemerContentClient.statusSourcesRaw]
      * only when `/status-sources/version` reports a newer integer than what is installed, installs it into
-     * [StatusSourcesCache], and persists the raw JSON + version so it survives restarts. Fully fail-soft:
-     * an unreachable mirror, a 503 (invalid config), or an unparseable body leaves the last-good config
-     * live (or the feature hidden if none has synced). Runs off the load's critical path (a config change
-     * applies to the next refresh).
+     * [StatusSourcesCache], and persists the raw JSON + the EFFECTIVE version so it survives restarts.
+     * The installed version is capped at the endpoint's ([minOf]): a CDN-stale body keeps its older version
+     * (so the next poll retries until the body catches up), and a body ever ahead of the endpoint can never
+     * permanently suppress future syncs. Fully fail-soft AND deliberately QUIET on failure (like
+     * `refreshBlockedIds` / the whitelist sync - an unreachable mirror offline is expected, not a
+     * reportable error): any failure leaves the last-good config live (or the feature hidden if none has
+     * synced).
      */
-    private suspend fun syncStatusSources() = withContext(Dispatchers.IO) {
+    private suspend fun syncStatusSources(force: Boolean = false) = withContext(Dispatchers.IO) {
         if (!ZemerContentClient.enabled) return@withContext
-        runCatching {
-            val remoteVersion = ZemerContentClient.statusSourcesVersion()
-            if (remoteVersion <= StatusSourcesCache.syncedVersion) return@runCatching // already current
-            val raw = ZemerContentClient.statusSourcesRaw()
-            val config = parseStatusSourcesConfig(raw) ?: return@runCatching // invalid -> keep current (fallback)
-            StatusSourcesCache.update(config)
-            context.dataStore.edit {
-                it[StatusSourcesConfigKey] = raw
-                it[StatusSourcesVersionKey] = config.version
+        syncMutex.withLock {
+            if (!force && isFresh(syncAttemptedAt)) return@withLock // one poll per window
+            syncAttemptedAt = SystemClock.elapsedRealtime()
+            runCatching {
+                val remoteVersion = ZemerContentClient.statusSourcesVersion()
+                if (remoteVersion <= StatusSourcesCache.syncedVersion) return@runCatching // already current
+                val raw = ZemerContentClient.statusSourcesRaw()
+                val parsed = parseStatusSourcesConfig(raw) ?: return@runCatching // invalid -> keep current
+                val config = parsed.copy(version = minOf(parsed.version, remoteVersion))
+                StatusSourcesCache.update(config)
+                context.dataStore.edit {
+                    it[StatusSourcesConfigKey] = raw
+                    it[StatusSourcesVersionKey] = config.version
+                }
             }
-        }.onFailure { reportException(it) }
+        }
     }
 
     private suspend fun loadJewish(force: Boolean) = jewishMutex.withLock {
-        if (!force && jewishCache != null && isFresh(jewishFetchedAt)) return@withLock republish()
-        val providers = StatusSourcesCache.current().providersOfType(StatusProviderType.SUPABASE_CATEGORY)
+        if (!force && jewishCache != null && isFamilyFresh(jewishFetchedAt, jewishConfigVersion)) {
+            return@withLock republish()
+        }
+        val config = StatusSourcesCache.current()
+        val providers = config.providersOfType(StatusProviderType.SUPABASE_CATEGORY)
         if (providers.isEmpty()) { // no active supabase-category source (darked / none) -> honored empty
             jewishCache = emptyList()
             jewishFetchedAt = SystemClock.elapsedRealtime()
+            jewishConfigVersion = config.version
             return@withLock republish()
         }
         var anySuccess = false
         val byId = LinkedHashMap<String, StatusCreator>() // dedupe by id across providers, keep order
         withContext(Dispatchers.IO) {
             providers.forEach { provider ->
-                runCatching { fetchStatusCreators(provider.baseUrl, provider.apiKey, provider.categoryIds) }
+                val list = runCatching { fetchStatusCreators(provider.baseUrl, provider.apiKey, provider.categoryIds) }
                     .onFailure { reportException(it) }
-                    .getOrNull()?.let { list ->
-                        anySuccess = true
-                        list.forEach { c -> if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider }
+                    .getOrNull()
+                if (list != null) {
+                    anySuccess = true
+                    list.forEach { c -> if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider }
+                } else {
+                    // Fail-soft PER provider: keep THIS provider's previously-loaded creators so one
+                    // source's outage never blanks its rows while its siblings refresh.
+                    jewishCache?.filter { providerByCreator[it.id]?.id == provider.id }?.forEach { c ->
+                        if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider
                     }
+                }
             }
         }
-        if (!anySuccess) return@withLock republish() // every provider failed -> keep old cache
+        if (!anySuccess) return@withLock republish() // every provider failed -> keep old cache unstamped
         val loaded = byId.values.toList()
         jewishCache = loaded
         jewishFetchedAt = SystemClock.elapsedRealtime()
+        jewishConfigVersion = config.version
         republish() // creators (and rings) appear NOW; rings refine once kinds land below
 
         // Resolve each recent status's KIND off the critical path (SUPABASE_CATEGORY recent ids carry no
@@ -196,11 +238,15 @@ class StatusesRepository @Inject constructor(
     }
 
     private suspend fun loadYid(force: Boolean) = yidMutex.withLock {
-        if (!force && yidCache != null && isFresh(yidFetchedAt)) return@withLock republish()
-        val providers = StatusSourcesCache.current().providersOfType(StatusProviderType.KEYWORD_FEED)
+        if (!force && yidCache != null && isFamilyFresh(yidFetchedAt, yidConfigVersion)) {
+            return@withLock republish()
+        }
+        val config = StatusSourcesCache.current()
+        val providers = config.providersOfType(StatusProviderType.KEYWORD_FEED)
         if (providers.isEmpty()) { // no active keyword-feed source (darked / none) -> honored empty
             yidCache = YidFeed(emptyList(), emptyMap())
             yidFetchedAt = SystemClock.elapsedRealtime()
+            yidConfigVersion = config.version
             return@withLock republish()
         }
         var anySuccess = false
@@ -208,20 +254,31 @@ class StatusesRepository @Inject constructor(
         val postsByCreator = HashMap<String, List<StatusPost>>()
         withContext(Dispatchers.IO) {
             providers.forEach { provider ->
-                runCatching { fetchYidStatusFeed(provider.baseUrl, provider.apiKey, provider.musicKeywords) }
+                val feed = runCatching { fetchYidStatusFeed(provider.baseUrl, provider.apiKey, provider.musicKeywords) }
                     .onFailure { reportException(it) }
-                    .getOrNull()?.let { feed ->
-                        anySuccess = true
-                        feed.creators.forEach { c -> if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider }
-                        postsByCreator.putAll(feed.postsByCreator)
+                    .getOrNull()
+                if (feed != null) {
+                    anySuccess = true
+                    feed.creators.forEach { c -> if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider }
+                    // FIRST provider wins for posts too, matching the creator merge: the published
+                    // creator's ring came from its provider's keyword-filtered posts, so its posts must
+                    // come from the same provider (last-wins here would skew ring vs viewer content).
+                    feed.postsByCreator.forEach { (id, posts) -> postsByCreator.putIfAbsent(id, posts) }
+                } else {
+                    // Fail-soft PER provider: keep THIS provider's previously-loaded creators (their posts
+                    // are still in postsCache) so one source's outage never blanks its rows.
+                    yidCache?.creators?.filter { providerByCreator[it.id]?.id == provider.id }?.forEach { c ->
+                        if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider
                     }
+                }
             }
         }
-        if (!anySuccess) return@withLock republish() // every provider failed -> keep old cache
+        if (!anySuccess) return@withLock republish() // every provider failed -> keep old cache unstamped
         val feed = YidFeed(byId.values.toList(), postsByCreator)
         feed.postsByCreator.forEach { (id, posts) -> postsCache[id] = posts }
         yidCache = feed
         yidFetchedAt = SystemClock.elapsedRealtime()
+        yidConfigVersion = config.version
         republish()
     }
 

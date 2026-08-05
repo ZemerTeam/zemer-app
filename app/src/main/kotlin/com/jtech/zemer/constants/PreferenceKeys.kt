@@ -77,9 +77,10 @@ val YtmSyncKey = booleanPreferencesKey("ytmSync")
 // Persisted snapshot of the server's blockedContentIds list (newline-joined), loaded at startup so the
 // blocklist is active before the first sync of the session and survives offline launches.
 val BlockedContentIdsKey = stringPreferencesKey("blockedContentIds")
-// Persisted Music Status source config: the raw /status-sources JSON + the last-synced integer version
-// gate. Loaded at startup so the last-good (server-driven) filter config survives restarts / offline,
-// falling back to the baked-in default only when neither a persisted nor a fresh config is usable.
+// Persisted Music Status source config: the raw /status-sources JSON + the last-synced EFFECTIVE integer
+// version (endpoint-capped). Loaded at startup so the last-good (server-driven) filter config survives
+// restarts / offline. There is NO baked-in fallback (server-only design): with neither a persisted nor a
+// fresh config the feature simply stays hidden until the first successful sync.
 val StatusSourcesConfigKey = stringPreferencesKey("statusSourcesConfig")
 val StatusSourcesVersionKey = longPreferencesKey("statusSourcesVersion")
 val CheckForUpdatesKey = booleanPreferencesKey("checkForUpdates")

@@ -100,7 +100,9 @@ fun parseStatusSourcesConfig(text: String?): StatusSourcesConfig? {
             if (!o.optBoolean("enabled", true)) return@mapNotNull null // darked source: skip
             val type = StatusProviderType.fromSlug(o.optStringOrNull("type")) ?: return@mapNotNull null // unknown -> skip
             val id = o.optStringOrNull("id") ?: return@mapNotNull null
-            val baseUrl = o.optStringOrNull("baseUrl") ?: return@mapNotNull null
+            // Normalized once here so EVERY handler can safely concatenate "$baseUrl/path" - the config is
+            // hand-authored and a trailing slash must not silently 404 a whole provider family.
+            val baseUrl = o.optStringOrNull("baseUrl")?.trimEnd('/')?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
             val apiKey = o.optStringOrNull("apiKey") ?: return@mapNotNull null
             StatusProvider(
                 id = id,
@@ -134,8 +136,15 @@ object StatusSourcesCache {
     @Volatile
     private var installed: StatusSourcesConfig? = null
 
-    /** Install a validated mirror config. Never pass null (null from the parser means "keep last-good"). */
+    /**
+     * Install a validated mirror config. Never pass null (null from the parser means "keep last-good").
+     * Never rolls back: an older-versioned config is ignored, so the startup restore of the persisted
+     * snapshot can safely race a concurrent sync that already installed something newer.
+     */
+    @Synchronized
     fun update(config: StatusSourcesConfig) {
+        val current = installed
+        if (current != null && config.version < current.version) return
         installed = config
     }
 
@@ -145,4 +154,9 @@ object StatusSourcesCache {
     /** The version currently installed from the mirror, or -1 if none has synced yet. */
     val syncedVersion: Long
         get() = installed?.version ?: -1L
+
+    /** Test-only: clear the installed config (the object is process-wide; JVM tests need isolation). */
+    internal fun resetForTest() {
+        installed = null
+    }
 }

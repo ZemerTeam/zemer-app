@@ -124,7 +124,8 @@ object ZemerContentClient {
      * `/status-sources/version` → the monotonic INTEGER gate for the Music Status source config (same
      * version-gate pattern as `/whitelist/version`). Poll this; re-fetch [statusSourcesRaw] only when it
      * increases. Throws on a missing version or any non-2xx (e.g. the 503 the mirror serves for an
-     * invalid config) so the caller falls back to the last-good / baked-in config.
+     * invalid config) so the caller keeps its last-good config (or the feature stays hidden if none has
+     * ever synced - there is no baked-in fallback).
      */
     suspend fun statusSourcesVersion(): Long {
         val dto = json.decodeFromString(StatusSourcesVersionDto.serializer(), getText("/status-sources/version", SMALL_TIMEOUT_MS))
@@ -136,7 +137,7 @@ object ZemerContentClient {
     /**
      * `/status-sources` → the raw typed-descriptor config JSON, parsed by
      * [com.jtech.zemer.statuses.parseStatusSourcesConfig] (org.json, shared with the unit tests). Kept as
-     * raw text here so the parse/validate/fallback logic lives in one place next to the baked-in default.
+     * raw text here so the parse/validate/fail-soft logic lives in one place (the `statuses` package).
      */
     suspend fun statusSourcesRaw(): String = getText("/status-sources", SMALL_TIMEOUT_MS)
 

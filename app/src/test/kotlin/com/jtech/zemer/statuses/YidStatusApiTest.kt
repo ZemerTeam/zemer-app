@@ -13,7 +13,7 @@ import org.junit.Test
  */
 class YidStatusApiTest {
 
-    // The keyword filter is now config-driven; the tests pin the (baked-in) default set.
+    // The keyword filter is server-config-driven; the tests pin the currently-deployed set.
     private val keywords = listOf("music", "singer", "kumzits", "simcha", "concert")
 
     @Test
