@@ -171,7 +171,7 @@ fun StorageSettings(
         }
     }
     LaunchedEffect(database) {
-        database.downloadedSongsByCreateDateAsc().collect { songs ->
+        database.downloadedSongsByCreateDateAsc(includeVideos = true).collect { songs ->
             downloadCacheSize = calculateDownloadedSongsSize(context, songs)
         }
     }
@@ -239,7 +239,7 @@ fun StorageSettings(
                         // nothing. Remove each download (audio AND video) through the unified path so the
                         // actual file is deleted and the flag cleared, then sweep any legacy cache remnants.
                         val allDownloaded =
-                            playerService.database.downloadedSongsByCreateDateAsc().first() +
+                            playerService.database.downloadedSongsByCreateDateAsc(includeVideos = false).first() +
                                 playerService.database.downloadedVideos().first()
                         allDownloaded.forEach { song ->
                             playerService.downloadUtil.removeDownload(song.id)

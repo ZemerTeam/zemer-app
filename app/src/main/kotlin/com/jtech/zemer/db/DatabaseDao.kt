@@ -970,27 +970,30 @@ interface DatabaseDao {
 
     fun downloadedSongs(
         sortType: SongSortType,
-        descending: Boolean
+        descending: Boolean,
+        includeVideos: Boolean = true,
     ): Flow<List<Song>> = when (sortType) {
-        SongSortType.CREATE_DATE -> downloadedSongsByCreateDateAsc()
-        SongSortType.NAME -> downloadedSongsByNameAsc().map { songs ->
+        SongSortType.CREATE_DATE -> downloadedSongsByCreateDateAsc(includeVideos)
+        SongSortType.NAME -> downloadedSongsByNameAsc(includeVideos).map { songs ->
             val collator = Collator.getInstance(Locale.getDefault())
             collator.strength = Collator.PRIMARY
             songs.sortedWith(compareBy(collator) { it.song.title })
         }
-        SongSortType.ARTIST -> downloadedSongsByNameAsc().map { songs ->
+        SongSortType.ARTIST -> downloadedSongsByNameAsc(includeVideos).map { songs ->
             val collator = Collator.getInstance(Locale.getDefault())
             collator.strength = Collator.PRIMARY
             songs.sortedWith(compareBy(collator) { song ->
                 song.artists.joinToString("") { it.name }
             })
         }
-        SongSortType.PLAY_TIME -> downloadedSongsByPlayTimeAsc()
+        SongSortType.PLAY_TIME -> downloadedSongsByPlayTimeAsc(includeVideos)
     }.map { it.reversed(descending) }
 
+    // includeVideos folds downloaded video-songs (Option A muxed files, which play audio-first) into
+    // the downloaded-music surfaces; false keeps the audio-only view (VideoDownloadsInMusicKey off).
     @Transaction
-    @Query("SELECT * FROM song WHERE isDownloaded = 1 AND isVideo = 0 ORDER BY dateDownload")
-    fun downloadedSongsByCreateDateAsc(): Flow<List<Song>>
+    @Query("SELECT * FROM song WHERE isDownloaded = 1 AND (:includeVideos OR isVideo = 0) ORDER BY dateDownload")
+    fun downloadedSongsByCreateDateAsc(includeVideos: Boolean): Flow<List<Song>>
 
     // Whitelist-filtered downloaded songs for content-filtered surfaces (Android Auto / media browse).
     // The pre-unification Auto "Downloaded" list was built from allSongs() (whitelist-filtered); the
@@ -1000,12 +1003,12 @@ interface DatabaseDao {
     fun downloadedSongsWhitelistedByCreateDateAsc(): Flow<List<Song>>
 
     @Transaction
-    @Query("SELECT * FROM song WHERE isDownloaded = 1 AND isVideo = 0 ORDER BY title")
-    fun downloadedSongsByNameAsc(): Flow<List<Song>>
+    @Query("SELECT * FROM song WHERE isDownloaded = 1 AND (:includeVideos OR isVideo = 0) ORDER BY title")
+    fun downloadedSongsByNameAsc(includeVideos: Boolean): Flow<List<Song>>
 
     @Transaction
-    @Query("SELECT * FROM song WHERE isDownloaded = 1 AND isVideo = 0 ORDER BY totalPlayTime")
-    fun downloadedSongsByPlayTimeAsc(): Flow<List<Song>>
+    @Query("SELECT * FROM song WHERE isDownloaded = 1 AND (:includeVideos OR isVideo = 0) ORDER BY totalPlayTime")
+    fun downloadedSongsByPlayTimeAsc(includeVideos: Boolean): Flow<List<Song>>
 
     @Query("UPDATE song SET isDownloaded = :downloaded, dateDownload = :date WHERE id = :songId")
     fun updateDownloadedInfo(songId: String, downloaded: Boolean, date: LocalDateTime?)

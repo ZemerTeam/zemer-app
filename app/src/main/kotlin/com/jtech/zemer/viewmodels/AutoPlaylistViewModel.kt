@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtech.zemer.constants.HideExplicitKey
+import com.jtech.zemer.constants.VideoDownloadsInMusicKey
 import com.jtech.zemer.constants.SongSortDescendingKey
 import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.SongSortTypeKey
@@ -45,17 +46,18 @@ constructor(
                 Pair(
                     it[SongSortTypeKey].toEnum(SongSortType.CREATE_DATE) to (it[SongSortDescendingKey]
                         ?: true),
-                    it[HideExplicitKey] ?: false
+                    (it[HideExplicitKey] ?: false) to (it[VideoDownloadsInMusicKey] ?: true)
                 )
             }
             .distinctUntilChanged()
-            .flatMapLatest { (sortDesc, hideExplicit) ->
+            .flatMapLatest { (sortDesc, flags) ->
                 val (sortType, descending) = sortDesc
+                val (hideExplicit, videosInMusic) = flags
                 when (playlist) {
                     "liked" -> database.likedSongs(sortType, descending)
                         .map { it.filterExplicit(hideExplicit) }
 
-                    "downloaded" -> database.downloadedSongs(sortType, descending)
+                    "downloaded" -> database.downloadedSongs(sortType, descending, videosInMusic)
                         .map { it.filterExplicit(hideExplicit) }
 
                     "uploaded" -> database.uploadedSongs(sortType, descending)

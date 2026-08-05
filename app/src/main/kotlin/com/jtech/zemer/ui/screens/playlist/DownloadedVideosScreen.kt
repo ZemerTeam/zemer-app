@@ -69,6 +69,8 @@ import com.jtech.zemer.constants.SongSortDescendingKey
 import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.SongSortTypeKey
 import com.jtech.zemer.constants.ThumbnailCornerRadius
+import com.jtech.zemer.constants.VideoDownloadsInMusicKey
+import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
@@ -147,6 +149,7 @@ fun DownloadedVideosScreen(
         SongSortType.CREATE_DATE
     )
     val (sortDescending, onSortDescendingChange) = rememberPreference(SongSortDescendingKey, true)
+    val (videosInMusic, onVideosInMusicChange) = rememberPreference(VideoDownloadsInMusicKey, true)
 
     LaunchedEffect(videos) {
         mutableVideos.apply {
@@ -273,6 +276,18 @@ fun DownloadedVideosScreen(
                                 )
                             }
                         }
+                    }
+
+                    item(key = "videos_in_music_toggle") {
+                        // Downloaded video-songs double as ordinary audio-first song rows in the
+                        // downloaded MUSIC surfaces (the one muxed file serves both renditions;
+                        // in-player Song/Video toggle picks the rendition per play). Opt out here.
+                        SwitchPreference(
+                            title = { Text(stringResource(R.string.video_downloads_in_music)) },
+                            description = stringResource(R.string.video_downloads_in_music_description),
+                            checked = videosInMusic,
+                            onCheckedChange = onVideosInMusicChange,
+                        )
                     }
 
                     item(key = "videos_header") {
