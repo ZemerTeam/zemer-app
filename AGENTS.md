@@ -402,6 +402,21 @@ Releases are. Feature package `statuses/`; UI under `ui/screens/statuses/`; full
   header) -> 403. YidStatus is filtered to music categories (no comedy). `mergeStatusCreators` drops
   cross-platform duplicates by a normalized name (`statusNameKey`); the Home row is uniform over the
   merge, the See-all groups by `source`. Creators with empty `recentPostIds` are dropped (no ring).
+- **The source filter is server-driven, SERVER-ONLY** (`statuses/StatusSourcesConfig.kt`, contract
+  `handoff-docs/zemer-status-sources-config-request.md`): which JewishStatus category UUIDs + YidStatus
+  keywords count as "music" sync (version-gated) from `content.zemer.io/status-sources`, so they retune
+  without an APK. Typed descriptors with **one handler per `type`** (`supabase-category` / `keyword-feed`);
+  the two clients take `baseUrl`/`apiKey`/filter as params, but each `type`'s PROTOCOL details (the R2 CDN
+  host, the YidStatus feed path + `Origin` header) stay baked into its handler, never in a descriptor.
+  **There is NO baked-in fallback config** - the mirror is the single source of truth; the app persists the
+  last-good config (reloaded at startup) and is simply hidden until the first successful sync (fail-soft,
+  never wrong content). Fail-soft parse: null ONLY when a valid config can't be obtained (unreachable /
+  `503` / non-JSON / no `providers` array) -> caller keeps its last-good (or stays hidden); a VALID config
+  is honored as-is even when its usable set is empty (all `enabled:false` / unknown-type / empty-filter = an
+  intentional dark, row hidden); unknown `type` / disabled / empty-filter providers are skipped non-fatally.
+  Config synced by `StatusesRepository.syncStatusSources()` (non-blocking, on the refresh path; applies next
+  load), persisted (`StatusSourcesConfigKey`/`StatusSourcesVersionKey`) + reloaded at startup. Adding a
+  provider of an existing type is config-only; a new `type` is the one thing that needs an app change.
 - **Fail-soft + isolated.** `ZemerStatusesViewModel` (Stations pattern): a fetch failure keeps the row
   empty and `HomeScreen` hides it; nothing about Home depends on it. Gated by `ShowHomeStatusesKey`.
   If only one source fails the other still populates the row (progressive `republish`).

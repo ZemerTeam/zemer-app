@@ -13,6 +13,9 @@ import org.junit.Test
  */
 class YidStatusApiTest {
 
+    // The keyword filter is now config-driven; the tests pin the (baked-in) default set.
+    private val keywords = listOf("music", "singer", "kumzits", "simcha", "concert")
+
     @Test
     fun `parseYidCreators keeps only music categories, drops hidden creators`() {
         val json = """
@@ -26,7 +29,7 @@ class YidStatusApiTest {
               {"id":"c7","name":"Hidden","category":"Kumzits","review_hidden":true}
             ]
         """.trimIndent()
-        val creators = parseYidCreators(JSONArray(json))
+        val creators = parseYidCreators(JSONArray(json), keywords)
         // Music / Singer / Concerts / Simcha kept; Comedy + News dropped; paused/hidden dropped.
         assertEquals(listOf("c1", "c2", "c3"), creators.map { it.id })
         val c1 = creators.first()

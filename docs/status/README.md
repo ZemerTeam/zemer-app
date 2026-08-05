@@ -59,6 +59,38 @@ Notable YidStatus-only concepts to handle if integrated: an **`audio`** status t
 JewishStatus), an **`is_ad`** flag + `storyAds`/`placements` (must be filtered out for kosher content),
 and rich link-preview fields (`link_title`/`link_image_url`/...).
 
+## Server-driven source config (which categories / keywords count as "music")
+
+The per-platform "music" filter - JewishStatus's category UUIDs and YidStatus's keyword list - is **no
+longer hardcoded in the APK**. It is synced (version-gated) from the **private content mirror**,
+`GET content.zemer.io/status-sources` (+ `/status-sources/version`), so the owner can retune it, dark a
+flaky source, or add a source **without an app release**. The status *content* still comes straight from
+the third parties; only the filter *config* is centralized. Full contract:
+`handoff-docs/zemer-status-sources-config-request.md`.
+
+- **Typed descriptors.** The config is `{ version, updatedAt, providers: [ { id, type, baseUrl, apiKey,
+  categoryIds | musicKeywords, enabled } ] }`. The app has **one handler per `type`**
+  (`StatusProviderType`): `supabase-category` (JewishStatus shape, per-category + per-creator fetch) and
+  `keyword-feed` (YidStatus shape, one global feed + keyword filter). A provider of an existing `type` is
+  pure config - **no release**; a brand-new `type` is the only thing that needs an app change.
+- **Server-only, no baked-in fallback.** The mirror is the single source of truth; the values live in the
+  private mirror config, not in the APK. The app persists the last-good config (reloaded at startup) so it
+  survives restarts / offline; until a device's **first successful sync it has NO config and the row is
+  simply hidden** (fail-soft - the worst case is an absent row, never wrong content).
+- **Fail-soft, precisely.** `parseStatusSourcesConfig` returns null ONLY when a valid config cannot be
+  obtained (unreachable, the mirror's `503` for an invalid doc, non-JSON, `providers` not an array) -> the
+  caller KEEPS its last-good config (or stays hidden if none). A **valid** config is honored as-is, even
+  when its usable set is empty (every provider `enabled:false` / unknown-type / empty-filter) = an
+  intentional dark (row hidden). An unknown `type`, a disabled provider, or an enabled provider with an
+  empty filter list is **skipped non-fatally**; the others still load.
+- **Protocol details stay in the handler, not the config.** The JewishStatus R2 CDN host and the YidStatus
+  `/functions/v1/feed` path + required `Origin` header are welded to their `type`'s handler, never in a
+  descriptor (a descriptor carries only tunable data). Baked into `StatusesApi.kt` / `YidStatusApi.kt`.
+- **Where it lives.** `statuses/StatusSourcesConfig.kt` (model + parse + `StatusSourcesCache`); synced by
+  `StatusesRepository.syncStatusSources()` (version-gated, non-blocking, on the refresh path); persisted to
+  DataStore (`StatusSourcesConfigKey` / `StatusSourcesVersionKey`) and reloaded at startup in `App.kt` so
+  the last-good config survives restarts / offline. Fetch methods live on `ZemerContentClient`.
+
 ## Integration caveats (how each is handled in the app today)
 
 - **Origin gate (YidStatus).** `/functions/v1/feed` returns `403 {"error":"Forbidden"}` unless the
@@ -73,9 +105,10 @@ and rich link-preview fields (`link_title`/`link_image_url`/...).
   `review_hidden` influencers, the `storyAds`/`placements` arrays, and `audio`-type statuses (the viewer
   renders only video/image/text). None of the rest is kosher-relevant content.
 - **Music-only (YidStatus).** The feed is all-categories, so `YidStatusApi` keeps only creators whose
-  category matches the shipped keyword list `music, singer, kumzits, simcha, concert` (substring,
-  case-insensitive). **Comedy and general Entertainment are deliberately excluded** (owner decision).
-  JewishStatus is already scoped to its three music categories server-side, so it needs no such filter.
+  category matches the keyword list (substring, case-insensitive) - **server-driven** (currently `music,
+  singer, kumzits, simcha, concert`; see *Server-driven source config* above). **Comedy and general
+  Entertainment are deliberately excluded** (owner decision). JewishStatus is scoped by its category UUIDs
+  (also server-driven), so it needs no keyword filter.
 - **Client-safe keys only.** The anon/publishable keys in these docs are the same ones the platforms ship
   in their public web bundles (RLS-scoped, read-only). They are **not** secrets. Do **not** confuse them
   with a Supabase *service-role* key (never present here).
