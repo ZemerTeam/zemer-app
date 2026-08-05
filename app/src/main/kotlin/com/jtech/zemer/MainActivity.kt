@@ -249,7 +249,10 @@ import com.jtech.zemer.utils.ButtonMapperBridge
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.Updater
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.filterWhitelisted
+import com.jtech.zemer.utils.filterWhitelistedWithLocalArtists
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.hasNotificationPermission
@@ -2119,11 +2122,16 @@ class MainActivity : ComponentActivity() {
                     // a per-play in-player toggle, so video.zemer.io links are no longer special-cased.
                     coroutineScope.launch(Dispatchers.IO) {
                         YouTube.queue(listOf(it), playlistId).onSuccess { queue ->
-                            // Filter by whitelist
-                            val filteredQueue = queue.filterWhitelisted(database).filterIsInstance<SongItem>()
+                            // filterWhitelistedWithLocalArtists, not the plain filterWhitelisted: a
+                            // shared link's renderer can carry a sparse/topic-channel artist id for a
+                            // song that IS by a whitelisted artist (the same known YTM renderer gap
+                            // SyncUtils.syncSavedPlaylists works around) — falling back to the local DB
+                            // row's resolved artist keeps a real whitelisted link from silently dead-ending.
+                            val allowedArtistIds = WhitelistCache.allowedEntries(database, ContentFilterState.current)
+                                .map { entry -> entry.artistId }.toSet()
+                            val filteredQueue = queue.filterWhitelistedWithLocalArtists(database, allowedArtistIds)
 
-                            // Nothing whitelisted behind the link (or the renderer carried a sparse
-                            // artist id): say so instead of opening to nothing.
+                            // Nothing whitelisted behind the link: say so instead of opening to nothing.
                             if (filteredQueue.isEmpty()) {
                                 withContext(Dispatchers.Main) { toast(R.string.song_not_available) }
                                 return@onSuccess

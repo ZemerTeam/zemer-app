@@ -1642,24 +1642,42 @@ class MusicService :
         // extractor, so the file is read from a fresh state, never under a stream-fed extractor (the
         // container-mix corruption class); the sticky flip + purge make every later open serve ONLY
         // file bytes. Stations keep their own slot recovery below.
-        if (currentQueue !is StationQueue) {
-            val mediaId = player.currentMediaItem?.mediaId
-            if (mediaId != null && playbackSourceIsLocal[mediaId] != true) {
-                val mediaStoreUri = runBlocking(Dispatchers.IO) {
+        //
+        // Async, not runBlocking: onPlayerError is a Player.Listener callback dispatched on the
+        // application/main thread (no custom playback looper is set), so a blocking DB read + file
+        // I/O here would stall the UI on every playback error — exactly what "never runBlocking on a
+        // UI path" forbids. The fallback error handling below is shared via [handleUnrecoverableError]
+        // so both the synchronous "can't possibly recover" path and the async "checked, no file" path
+        // run the identical sequence.
+        val mediaId = player.currentMediaItem?.mediaId
+        if (currentQueue !is StationQueue && mediaId != null && playbackSourceIsLocal[mediaId] != true) {
+            scope.launch {
+                val mediaStoreUri = withContext(Dispatchers.IO) {
                     database.song(mediaId).first()?.song?.mediaStoreUri
                 }
                 if (mediaStoreUri != null && downloadedFileOpens(mediaStoreUri)) {
                     Timber.w("Player error while a downloaded file exists for $mediaId; handing over to the local file")
                     playbackSourceIsLocal[mediaId] = true
                     runCatching { playerCache.removeResource(mediaId) }
-                    player.seekTo(player.currentMediaItemIndex, player.currentPosition)
-                    player.prepare()
-                    player.playWhenReady = true
-                    return
+                    // The player may have moved on (skip, another error already handled) while this
+                    // check was in flight — only apply the recovery to the item it was checked for.
+                    if (player.currentMediaItem?.mediaId == mediaId) {
+                        player.seekTo(player.currentMediaItemIndex, player.currentPosition)
+                        player.prepare()
+                        player.playWhenReady = true
+                    }
+                } else {
+                    handleUnrecoverablePlayerError(error)
                 }
             }
+            return
         }
 
+        handleUnrecoverablePlayerError(error)
+    }
+
+    /** The shared tail of [onPlayerError] once no local-file recovery is possible or found. */
+    private fun handleUnrecoverablePlayerError(error: PlaybackException) {
         val isConnectionError = (error.cause?.cause is PlaybackException) &&
                 (error.cause?.cause as PlaybackException).errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
 

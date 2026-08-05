@@ -75,11 +75,16 @@ class VideoModeController(
 
     // Latest BlockVideosKey value, kept current by the block collector in init{} — so availability never
     // does a blocking dataStore read on the main thread (the combine transform + setVideoMode are hot/UI
-    // paths). Seeded false rather than read eagerly: this lazy controller is first constructed on the main
-    // thread (PlayerConnection reads its flows in its property initializers), and the collector below
-    // publishes the real value on its first emission (immediate for a DataStore flow) before any toggle.
+    // paths). Seeded UNKNOWN (null), not false: the naive "seed false, the collector's first emission
+    // lands before any toggle" reasoning misses a restored queue — computeAvailability can run
+    // SYNCHRONOUSLY off recomputeNow() (MusicService.onEvents, on the current-item metadata change)
+    // during queue restore, before blockVideosFlow's first DataStore emission arrives, for an item
+    // that is ALREADY known video-capable from its persisted SongEntity.isVideo flag (Song.toMediaMetadata,
+    // not the corpus tap boundary) with its local file already resolved (player.prepare() during
+    // restore). A blocked user could see the toggle for that narrow window. Null means "not yet known"
+    // and is read fail-safe as BLOCKED (never leak availability while the real answer is unknown).
     @Volatile
-    private var blockVideosNow: Boolean = false
+    private var blockVideosNow: Boolean? = null
 
     private val _isVideoMode = MutableStateFlow(false)
     val isVideoMode: StateFlow<Boolean> = _isVideoMode.asStateFlow()
@@ -167,7 +172,9 @@ class VideoModeController(
         return VideoModeLogic.availability(
             mediaId = id,
             casting = service.discoveryHandler.isConnected,
-            blockVideos = blockVideosNow,
+            // Unknown (not-yet-collected) reads as BLOCKED — never leak the toggle while the real
+            // preference value hasn't arrived yet (see the field's kdoc).
+            blockVideos = blockVideosNow ?: true,
             stationBroadcast = service.isStationBroadcast.value,
             localVideoFile = meta.isVideo && service.playbackSourceIsLocalFile(id),
             online = service.isNetworkConnected.value,
@@ -230,7 +237,7 @@ class VideoModeController(
         scope.launch {
             if (!VideoModeLogic.shouldRequestAvailability(
                     casting = service.discoveryHandler.isConnected,
-                    blockVideos = blockVideosNow,
+                    blockVideos = blockVideosNow ?: true,
                     musicVideoType = availabilityCache.get(mediaId)?.musicVideoType,
                     counterpartResolved = availabilityCache.get(mediaId)?.counterpartResolved == true,
                 )
@@ -364,7 +371,22 @@ class VideoModeController(
         val kind = renditionKind
         val audioItem = videoModeAudioItem
         val index = player.currentMediaItemIndex
-        if (kind != RenditionKind.LOCAL && audioItem != null && index != C.INDEX_UNSET) {
+        // media3 MASKS transport commands: seekToNext()/seekToPrevious() update currentMediaItemIndex
+        // synchronously on the calling thread, before the corresponding onMediaItemTransition actually
+        // dispatches. If an exit trigger unrelated to that skip (block flag flipping, cast connecting,
+        // an error) lands in that gap, `index` already points at the NEWLY selected item, not ours —
+        // trusting it blindly (as this used to) would replaceMediaItem the user's fresh selection with
+        // the departed audio item. Verify identity first, mirroring revertDepartedItem's by-identity
+        // check; on a mismatch the in-flight transition's own TRACK_CHANGE -> revertDepartedItem() will
+        // correctly restore the ACTUAL departed item, so clearState() here is enough.
+        val itemAtIndexIsOurs = index != C.INDEX_UNSET && index < player.mediaItemCount &&
+            run {
+                val item = player.getMediaItemAt(index)
+                val isVideoKey = item.localConfiguration?.customCacheKey
+                    ?.let { VideoRendition.isVideoKey(it) } ?: false
+                VideoModeLogic.shouldRestoreDepartedItem(videoModeItemId, item.mediaId, isVideoKey)
+            }
+        if (kind != RenditionKind.LOCAL && audioItem != null && itemAtIndexIsOurs) {
             val position = player.currentPosition
             val playWhenReady = player.playWhenReady
             videoModeItemId?.let { listenAccumulator.onSwap(it) }

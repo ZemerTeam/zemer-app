@@ -114,8 +114,11 @@ class ZemerCuratedPlaylistsTest {
             false,
             zemerOptionsStillCurrent(options, ContentFilterConfig(allowFemaleSingers = false, blockVideos = false)),
         )
+        // blockVideos is deliberately NOT compared: ZemerSearchOptions.blockVideos is a pinned
+        // constant (false), so a live blockVideos=true config must still publish - comparing it would
+        // permanently drop every response for a "Block videos" user (the regression this guards).
         assertEquals(
-            false,
+            true,
             zemerOptionsStillCurrent(options, ContentFilterConfig(allowFemaleSingers = true, blockVideos = true)),
         )
     }
