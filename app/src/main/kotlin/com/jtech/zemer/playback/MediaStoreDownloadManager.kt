@@ -426,13 +426,13 @@ constructor(
             val format = playbackData.format
             val downloadUrl = playbackData.streamUrl
 
-            // Only update shared cache if there's no valid entry - don't overwrite player's URL
-            // Different fetches return different URL signatures, overwriting breaks playback
-            val existingEntry = DownloadUtil.sharedUrlCache[song.id]
-            if (existingEntry == null || existingEntry.second < System.currentTimeMillis()) {
-                DownloadUtil.sharedUrlCache[song.id] = downloadUrl to
-                    (System.currentTimeMillis() + playbackData.streamExpiresInSeconds * 1000L)
-            }
+            // NEVER write this URL into the shared playback URL cache: it is a forDownload format
+            // (muxed MP4 for videos, and generally a different itag than what's streaming), and
+            // downloads never read the cache themselves (this resolution is always fresh). Writing
+            // it — even into an absent/expired slot — poisoned mid-play seeks: a download started
+            // while a song was playing from cached spans left this URL as the seek's stream source,
+            // and the already-initialized extractor read a foreign container ("No valid varint
+            // length mask found" / Source error).
             Timber.d("Got format: ${format.mimeType}, URL length: ${downloadUrl.length}")
 
             // Create temporary file for download
