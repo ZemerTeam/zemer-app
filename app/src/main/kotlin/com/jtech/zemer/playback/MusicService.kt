@@ -1632,6 +1632,31 @@ class MusicService :
             return
         }
 
+        // A STREAMING item whose downloaded file exists hands playback over to the file instead of
+        // failing — most importantly when the device went offline after a mid-play download (the
+        // sticky source keeps streaming until the item restarts; without this the app would wait for
+        // network with a perfectly good file on disk). Safe because seekTo+prepare re-initializes the
+        // extractor, so the file is read from a fresh state, never under a stream-fed extractor (the
+        // container-mix corruption class); the sticky flip + purge make every later open serve ONLY
+        // file bytes. Stations keep their own slot recovery below.
+        if (currentQueue !is StationQueue) {
+            val mediaId = player.currentMediaItem?.mediaId
+            if (mediaId != null && playbackSourceIsLocal[mediaId] != true) {
+                val mediaStoreUri = runBlocking(Dispatchers.IO) {
+                    database.song(mediaId).first()?.song?.mediaStoreUri
+                }
+                if (mediaStoreUri != null && downloadedFileOpens(mediaStoreUri)) {
+                    Timber.w("Player error while a downloaded file exists for $mediaId; handing over to the local file")
+                    playbackSourceIsLocal[mediaId] = true
+                    runCatching { playerCache.removeResource(mediaId) }
+                    player.seekTo(player.currentMediaItemIndex, player.currentPosition)
+                    player.prepare()
+                    player.playWhenReady = true
+                    return
+                }
+            }
+        }
+
         val isConnectionError = (error.cause?.cause is PlaybackException) &&
                 (error.cause?.cause as PlaybackException).errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
 
