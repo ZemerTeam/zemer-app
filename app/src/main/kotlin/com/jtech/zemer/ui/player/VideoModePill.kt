@@ -6,8 +6,10 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
@@ -29,8 +31,9 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.focusBorder
 
-private val SegmentSize = 32.dp
-private val ThumbPadding = 3.dp
+private val SegmentSize = 36.dp
+private val SegmentGap = 4.dp
+private val ThumbPadding = 4.dp
 
 /**
  * The Song/Video toggle, rendered as an **icon-only segmented pill** overlaid on a corner of the
@@ -57,9 +60,9 @@ fun VideoModePill(
     modifier: Modifier = Modifier,
     accentColor: Color = MaterialTheme.colorScheme.primary,
 ) {
-    // The thumb slides from the Song slot (0) to the Video slot (one segment across).
+    // The thumb slides from the Song slot (0) to the Video slot (one segment + gap across).
     val thumbOffset by animateDpAsState(
-        targetValue = if (isVideoMode) SegmentSize else 0.dp,
+        targetValue = if (isVideoMode) SegmentSize + SegmentGap else 0.dp,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMediumLow,
@@ -70,7 +73,9 @@ fun VideoModePill(
         modifier = modifier
             .clip(CircleShape)
             // The theme's scrim token (the StatusStoryTopOverlay media-scrim pattern), never a literal.
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f))
+            // A hairline ring lifts the pill off both artwork and video (the over-media white idiom).
+            .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
             .padding(ThumbPadding),
     ) {
         Box(
@@ -80,7 +85,10 @@ fun VideoModePill(
                 .clip(CircleShape)
                 .background(accentColor),
         )
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SegmentGap),
+        ) {
             VideoModeSegment(
                 icon = R.drawable.music_note,
                 contentDescription = stringResource(R.string.song),
@@ -127,7 +135,7 @@ private fun VideoModeSegment(
             painter = painterResource(icon),
             contentDescription = contentDescription,
             tint = tint,
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(20.dp),
         )
     }
 }
