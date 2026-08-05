@@ -120,6 +120,27 @@ object ZemerContentClient {
         return ids
     }
 
+    /**
+     * `/status-sources/version` → the monotonic INTEGER gate for the Music Status source config (same
+     * version-gate pattern as `/whitelist/version`). Poll this; re-fetch [statusSourcesRaw] only when it
+     * increases. Throws on a missing version or any non-2xx (e.g. the 503 the mirror serves for an
+     * invalid config) so the caller keeps its last-good config (or the feature stays hidden if none has
+     * ever synced - there is no baked-in fallback).
+     */
+    suspend fun statusSourcesVersion(): Long {
+        val dto = json.decodeFromString(StatusSourcesVersionDto.serializer(), getText("/status-sources/version", SMALL_TIMEOUT_MS))
+        val version = dto.version ?: error("content mirror: missing version in /status-sources/version")
+        Timber.d("ZemerContentClient: /status-sources/version version=%d", version)
+        return version
+    }
+
+    /**
+     * `/status-sources` → the raw typed-descriptor config JSON, parsed by
+     * [com.jtech.zemer.statuses.parseStatusSourcesConfig] (org.json, shared with the unit tests). Kept as
+     * raw text here so the parse/validate/fail-soft logic lives in one place (the `statuses` package).
+     */
+    suspend fun statusSourcesRaw(): String = getText("/status-sources", SMALL_TIMEOUT_MS)
+
     private const val CONNECT_TIMEOUT_MS = 3_000L
     private const val DEFAULT_TIMEOUT_MS = 4_000L
     private const val SMALL_TIMEOUT_MS = 4_000L
@@ -141,6 +162,13 @@ data class ContentVersionDto(
 data class ContentBlockedDto(
     val global: List<String> = emptyList(),
     val female: List<String> = emptyList(),
+)
+
+/** `/status-sources/version`. `version` is the monotonic integer the app version-gates on; `updatedAt` is informational. */
+@Serializable
+data class StatusSourcesVersionDto(
+    val version: Long? = null,
+    val updatedAt: String? = null,
 )
 
 /**

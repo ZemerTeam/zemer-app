@@ -18,28 +18,22 @@ import java.util.concurrent.TimeUnit
  * we fetch it once, filter to the MUSIC categories, and group statuses by creator. Media URLs come back
  * fully qualified, so they pass straight through [statusMediaUrl]/[statusAvatarUrl].
  *
- * Two non-obvious rules (see the doc):
- *  - The `/feed` edge function returns 403 unless the request carries `Origin: https://yidstatus.com`.
- *    A native client may set it freely; treat the whole thing as fail-soft (the row hides on failure).
- *  - [KEY] is the platform's public anon JWT (client-safe, read-only), NOT a secret.
+ * The base URL, the public anon JWT (client-safe, read-only, NOT a secret), and which category keywords
+ * count as "music" are supplied by the caller from [StatusSourcesConfig] (server-driven; the mirror is
+ * the single source of truth). Two YidStatus-specific PROTOCOL details stay baked in here,
+ * because they are welded to this platform rather than tunable:
+ *  - The `/functions/v1/feed` edge path ([yidFeedUrl]).
+ *  - The `Origin: https://yidstatus.com` header the feed requires (a 403 without it). It is a JDK/Android
+ *    "restricted header" that HttpURLConnection silently drops, which is why this client uses OkHttp.
  */
-private const val YID_BASE = "https://api.yidstatus.com"
-private const val YID_FEED_URL = "$YID_BASE/functions/v1/feed"
 private const val YID_ORIGIN = "https://yidstatus.com"
-private const val YID_KEY =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzaW53YWxxaGd3YXBldndpYm1k" +
-        "Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODEyODUsImV4cCI6MjA5ODI1NzI4NX0." +
-        "ZwrXgeUknPSDAWsOzdI8jdj7wCO9xOe7glLSj3OB_vA"
+private fun yidFeedUrl(base: String) = "${base.trimEnd('/')}/functions/v1/feed"
 
 // Rolling window (days). Kept at 1 deliberately: the feed is GLOBAL (all categories) and costs ~3.35 MB
 // per day before filtering, and the edge function hard-errors past ~15 days (WORKER_RESOURCE_LIMIT).
 // YidStatus exposes NO per-creator history endpoint, so a deep "jump to date" like JewishStatus is not
 // achievable from its public API - one day already spans ~2 calendar dates, which is the practical cap.
 private const val YID_FEED_DAYS = 1
-
-// A creator is "music" if any of its categories contains one of these (case-insensitive). Owner choice
-// (2026-08-02): music acts + simchas/events + concerts; NOT comedy/entertainment/news/business/etc.
-private val YID_MUSIC_KEYWORDS = listOf("music", "singer", "kumzits", "simcha", "concert")
 
 /** A creator's music-filtered YidStatus feed: creators (with statuses in the window) + their posts. */
 data class YidFeed(
@@ -51,9 +45,9 @@ data class YidFeed(
  * Fetch the YidStatus feed and reduce it to music creators + their statuses (oldest-first per creator).
  * Blocking; run off the main thread. Throws on network/HTTP error (callers are fail-soft).
  */
-fun fetchYidStatusFeed(days: Int = YID_FEED_DAYS): YidFeed {
-    val root = JSONObject(postFeed("""{"days":$days,"since":null}"""))
-    val musicCreators = parseYidCreators(root.optJSONArray("influencers") ?: JSONArray())
+fun fetchYidStatusFeed(base: String, key: String, keywords: List<String>, days: Int = YID_FEED_DAYS): YidFeed {
+    val root = JSONObject(postFeed(yidFeedUrl(base), key, """{"days":$days,"since":null}"""))
+    val musicCreators = parseYidCreators(root.optJSONArray("influencers") ?: JSONArray(), keywords)
     val musicIds = musicCreators.associateBy { it.id }
     val byCreator = parseYidStatuses(root.optJSONArray("statuses") ?: JSONArray(), musicIds.keys)
     // Keep only creators that actually have a status in the window; attach their status ids as the ring.
@@ -66,12 +60,12 @@ fun fetchYidStatusFeed(days: Int = YID_FEED_DAYS): YidFeed {
 
 // --- Parsing ---
 
-internal fun parseYidCreators(arr: JSONArray): List<StatusCreator> =
+internal fun parseYidCreators(arr: JSONArray, keywords: List<String>): List<StatusCreator> =
     (0 until arr.length()).mapNotNull { i ->
         val o = arr.getJSONObject(i)
         // Exclude hidden/paused/unlisted creators and anything outside the music categories.
         if (o.optBoolean("paused") || o.optBoolean("unlisted") || o.optBoolean("review_hidden")) return@mapNotNull null
-        if (!isMusicCreator(o)) return@mapNotNull null
+        if (!isMusicCreator(o, keywords)) return@mapNotNull null
         StatusCreator(
             id = o.getString("id"),
             slug = o.optStringOrNull("slug") ?: o.getString("id"),
@@ -119,12 +113,12 @@ internal fun parseYidStatuses(arr: JSONArray, musicIds: Set<String>): Map<String
 
 private val ALLOWED_YID_KINDS = setOf("video", "image", "text")
 
-private fun isMusicCreator(o: JSONObject): Boolean {
+private fun isMusicCreator(o: JSONObject, keywords: List<String>): Boolean {
     val cats = buildList {
         o.optStringOrNull("category")?.let { add(it) }
         o.optJSONArray("categories")?.let { a -> for (i in 0 until a.length()) add(a.optString(i)) }
     }
-    return cats.any { c -> YID_MUSIC_KEYWORDS.any { kw -> c.lowercase().contains(kw) } }
+    return cats.any { c -> keywords.any { kw -> c.lowercase().contains(kw.lowercase()) } }
 }
 
 // --- HTTP ---
@@ -139,11 +133,11 @@ private val yidHttpClient by lazy {
 }
 private val JSON_MEDIA_TYPE = "application/json".toMediaType()
 
-private fun postFeed(body: String): String {
+private fun postFeed(feedUrl: String, key: String, body: String): String {
     val request = Request.Builder()
-        .url(YID_FEED_URL)
+        .url(feedUrl)
         .post(body.toRequestBody(JSON_MEDIA_TYPE))
-        .header("apikey", YID_KEY)
+        .header("apikey", key)
         .header("Origin", YID_ORIGIN) // required; see docs/status/yidstatus-api.md
         .build()
     yidHttpClient.newCall(request).execute().use { resp ->

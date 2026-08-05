@@ -34,6 +34,8 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.CrashReportingTree
 import com.jtech.zemer.utils.BlockedIdsCache
+import com.jtech.zemer.statuses.StatusSourcesCache
+import com.jtech.zemer.statuses.parseStatusSourcesConfig
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.LogBufferTree
@@ -159,6 +161,20 @@ class App : Application(), SingletonImageLoader.Factory {
             runCatching {
                 val persisted = BlockedIdsCache.parse(dataStore.get(BlockedContentIdsKey, ""))
                 if (persisted.isNotEmpty()) BlockedIdsCache.updateAll(persisted)
+            }
+        }
+
+        // Load the persisted Music Status source config so the last-good (server-driven) categories/keywords
+        // are live at startup / offline, before the feature's first version-gated sync. There is no baked-in
+        // fallback: an unparseable / absent value leaves the feature with no config, so it stays hidden until
+        // the first successful sync. The persisted EFFECTIVE version (endpoint-capped at sync time) overrides
+        // the body's, and update() itself never rolls back a concurrently-synced newer config.
+        applicationScope.launch(Dispatchers.IO) {
+            runCatching {
+                parseStatusSourcesConfig(dataStore.get(StatusSourcesConfigKey, ""))?.let { parsed ->
+                    val persistedVersion = dataStore.get(StatusSourcesVersionKey, parsed.version)
+                    StatusSourcesCache.update(parsed.copy(version = minOf(parsed.version, persistedVersion)))
+                }
             }
         }
 

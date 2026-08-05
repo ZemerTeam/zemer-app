@@ -19,17 +19,13 @@ import java.net.URL
  * "no data" (the Home row hides itself). Kept deliberately dependency-free (raw [HttpURLConnection], no
  * coupling to the app's OkHttp / YouTube proxy) — it talks to a different backend.
  *
- * [KEY] is a Supabase **publishable** anon key: client-safe by design (the JewishStatus web app ships
- * the same one publicly), NOT a secret. Do not treat it like a service-account credential.
+ * The Supabase base URL, the **publishable** anon key (client-safe by design - the JewishStatus web app
+ * ships the same one publicly, NOT a secret), and which category ids count as "music" are all supplied by
+ * the caller from [StatusSourcesConfig] (server-driven; the mirror is the single source of truth).
+ * The R2 CDN host is the one JewishStatus-specific detail that stays baked in here: it is welded to this
+ * platform's media paths, not a tunable, so it lives with the handler (like YidStatus's `Origin` header).
  */
-private const val BASE = "https://raiodurvjneoehnphkrs.supabase.co/rest/v1"
 private const val CDN = "https://pub-0dd407ad34e240909673d1619658d5c2.r2.dev"
-private const val KEY = "sb_publishable_Pj9SDOxf5Xxw9LavwAl5yw_5ldleSyD"
-
-// The three music categories on JewishStatus (a creator may appear in more than one → deduped).
-private const val CAT_JEWISH_MUSIC = "dc207cab-3514-4ae8-a5c1-8a69fb27ced3"
-private const val CAT_MUSIC_IND = "02ed4e29-d461-43f4-9aab-e16d05d3f795"
-private const val CAT_CONCERTS = "5a08c0ba-400a-4576-aa33-97fa9ec38d0e"
 
 /** Which third-party platform a creator/status came from. Docs: docs/status/. */
 enum class StatusSource { JEWISH_STATUS, YID_STATUS }
@@ -144,13 +140,13 @@ fun statusMediaUrl(path: String?): String? =
 
 // --- Public API. All calls are blocking; run them off the main thread (the repository uses IO). ---
 
-/** All creators across the three music categories, deduplicated, most recent first. */
-suspend fun fetchStatusCreators(): List<StatusCreator> = coroutineScope {
-    // The three categories are independent, so fetch them concurrently instead of summing their
-    // latencies (each is a paginating series of blocking round-trips).
+/** All creators across the given music [categoryIds], deduplicated, most recent first. */
+suspend fun fetchStatusCreators(base: String, key: String, categoryIds: List<String>): List<StatusCreator> = coroutineScope {
+    // The categories are independent, so fetch them concurrently instead of summing their latencies
+    // (each is a paginating series of blocking round-trips).
     val seen = mutableSetOf<String>()
-    val base = listOf(CAT_JEWISH_MUSIC, CAT_MUSIC_IND, CAT_CONCERTS)
-        .map { cat -> async(Dispatchers.IO) { fetchByCategory(cat) } }
+    val creators = categoryIds
+        .map { cat -> async(Dispatchers.IO) { fetchByCategory(base, key, cat) } }
         .awaitAll()
         .flatten()
         .filter { seen.add(it.id) }
@@ -162,7 +158,7 @@ suspend fun fetchStatusCreators(): List<StatusCreator> = coroutineScope {
     // BACKGROUND, so the creator list (and its rings) appear instantly here; the rings then refine to
     // respect the content filter once kinds land. `recent_post_ids` carry no kind, so a blocking fetch
     // here would slow the (formerly instant) load.
-    base
+    creators
 }
 
 /**
@@ -170,14 +166,14 @@ suspend fun fetchStatusCreators(): List<StatusCreator> = coroutineScope {
  * ring can respect the hide-text/hide-image filter. Called by the repository AFTER creators are already
  * published, never on the critical path. Fail-soft: an unresolved id is simply absent (-> shown).
  */
-suspend fun fetchJewishPostKinds(ids: List<String>): Map<String, String> = withContext(Dispatchers.IO) {
+suspend fun fetchJewishPostKinds(base: String, key: String, ids: List<String>): Map<String, String> = withContext(Dispatchers.IO) {
     if (ids.isEmpty()) return@withContext emptyMap()
     val out = HashMap<String, String>(ids.size)
     ids.distinct().chunked(100).forEach { chunk ->
         // Post ids are Supabase UUIDs (URL-safe), so no encoding is needed for the `in.(...)` list.
-        val url = "$BASE/public_posts?id=in.(${chunk.joinToString(",")})&select=id,kind"
+        val url = "$base/public_posts?id=in.(${chunk.joinToString(",")})&select=id,kind"
         runCatching {
-            val arr = JSONArray(getJson(url))
+            val arr = JSONArray(getJson(url, key))
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
                 out[o.getString("id")] = o.optString("kind")
@@ -193,18 +189,18 @@ suspend fun fetchJewishPostKinds(ids: List<String>): Map<String, String> = withC
  * 100+ posts is fully covered). We deliberately do NOT prioritize `is_featured` here — pinning featured
  * posts to the front would scramble the timeline.
  */
-fun fetchStatusPosts(creatorId: String): List<StatusPost> {
+fun fetchStatusPosts(base: String, key: String, creatorId: String): List<StatusPost> {
     val all = mutableListOf<StatusPost>()
     val pageSize = 100
     var offset = 0
     while (true) {
-        val url = "$BASE/public_posts" +
+        val url = "$base/public_posts" +
             "?creator_id=eq.$creatorId" +
             "&select=id,kind,media_path,thumb_path,caption,text_body,text_bg_color,link_url," +
             "duration_seconds,posted_at,view_count,download_count" +
             "&order=posted_at.asc" +
             "&limit=$pageSize&offset=$offset"
-        val page = parsePosts(JSONArray(getJson(url)))
+        val page = parsePosts(JSONArray(getJson(url, key)))
         all += page
         if (page.size < pageSize) break
         offset += pageSize
@@ -214,14 +210,14 @@ fun fetchStatusPosts(creatorId: String): List<StatusPost> {
 
 // --- Private helpers ---
 
-private fun fetchByCategory(catId: String): List<StatusCreator> {
+private fun fetchByCategory(base: String, key: String, catId: String): List<StatusCreator> {
     val all = mutableListOf<StatusCreator>()
     val pageSize = 100
     var offset = 0
     while (true) {
         val body = """{"p_section":"all","p_search":null,"p_limit":$pageSize,"p_offset":$offset,
             "p_category":"$catId","p_location":null,"p_sort":"recent"}"""
-        val page = parseCreators(JSONArray(postJson("$BASE/rpc/browse_creators_sorted", body)))
+        val page = parseCreators(JSONArray(postJson("$base/rpc/browse_creators_sorted", body, key)))
         all += page
         if (page.size < pageSize) break
         offset += pageSize
@@ -269,25 +265,25 @@ internal fun parsePosts(arr: JSONArray): List<StatusPost> =
         )
     }
 
-private fun postJson(url: String, body: String): String {
+private fun postJson(url: String, body: String, key: String): String {
     val conn = URL(url).openConnection() as HttpURLConnection
     conn.requestMethod = "POST"
     conn.connectTimeout = TIMEOUT_MS
     conn.readTimeout = TIMEOUT_MS
     conn.setRequestProperty("Content-Type", "application/json")
-    conn.setRequestProperty("apikey", KEY)
-    conn.setRequestProperty("Authorization", "Bearer $KEY")
+    conn.setRequestProperty("apikey", key)
+    conn.setRequestProperty("Authorization", "Bearer $key")
     conn.doOutput = true
     conn.outputStream.use { it.write(body.toByteArray()) }
     return conn.inputStream.use { it.reader().readText() }
 }
 
-private fun getJson(url: String): String {
+private fun getJson(url: String, key: String): String {
     val conn = URL(url).openConnection() as HttpURLConnection
     conn.connectTimeout = TIMEOUT_MS
     conn.readTimeout = TIMEOUT_MS
-    conn.setRequestProperty("apikey", KEY)
-    conn.setRequestProperty("Authorization", "Bearer $KEY")
+    conn.setRequestProperty("apikey", key)
+    conn.setRequestProperty("Authorization", "Bearer $key")
     return conn.inputStream.use { it.reader().readText() }
 }
 
