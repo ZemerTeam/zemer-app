@@ -672,9 +672,9 @@ fun ArtistScreen(
                         // SongItem.album != null before — always set on the InnerTube path but absent on the
                         // Zemer /artist songs — so key on item type + section instead. Same result for the
                         // InnerTube path (its song shelf is non-video and album-tagged), fixes the Zemer path.
-                        // An audio-mode video section also renders as the LIST ("video song" rows).
-                        if ((section.items.firstOrNull() is SongItem && !isVideoSection) ||
-                            (isVideoSection && videosAsAudio)) {
+                        // Video sections keep the SAME grid for blocked users (just retitled "Video songs"
+                        // above) — the tiles play audio-first, so no special layout is needed.
+                        if (section.items.firstOrNull() is SongItem && !isVideoSection) {
                             items(
                                 items = displayItems,
                                 key = { "youtube_song_${it.id}" },
