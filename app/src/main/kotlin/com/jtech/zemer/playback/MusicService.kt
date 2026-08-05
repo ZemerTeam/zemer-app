@@ -1646,7 +1646,7 @@ class MusicService :
         // Async, not runBlocking: onPlayerError is a Player.Listener callback dispatched on the
         // application/main thread (no custom playback looper is set), so a blocking DB read + file
         // I/O here would stall the UI on every playback error — exactly what "never runBlocking on a
-        // UI path" forbids. The fallback error handling below is shared via [handleUnrecoverableError]
+        // UI path" forbids. The fallback error handling below is shared via [handleUnrecoverablePlayerError]
         // so both the synchronous "can't possibly recover" path and the async "checked, no file" path
         // run the identical sequence.
         val mediaId = player.currentMediaItem?.mediaId
