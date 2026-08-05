@@ -31,9 +31,9 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.focusBorder
 
-private val SegmentSize = 36.dp
-private val SegmentGap = 4.dp
-private val ThumbPadding = 4.dp
+private val SegmentSize = 28.dp
+private val SegmentGap = 3.dp
+private val ThumbPadding = 3.dp
 
 /**
  * The Song/Video toggle, rendered as an **icon-only segmented pill** overlaid on a corner of the
@@ -135,7 +135,7 @@ private fun VideoModeSegment(
             painter = painterResource(icon),
             contentDescription = contentDescription,
             tint = tint,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(16.dp),
         )
     }
 }
