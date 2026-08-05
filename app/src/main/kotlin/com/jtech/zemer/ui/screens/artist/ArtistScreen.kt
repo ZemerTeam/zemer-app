@@ -84,7 +84,6 @@ import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.extensions.toMediaItem
-import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.extensions.copyToClipboard
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
@@ -112,13 +111,9 @@ import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
 import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.SongMenu
-import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
-import com.jtech.zemer.ui.menu.YouTubeArtistMenu
-import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.menu.ytItemMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
-import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.fadingEdge
 import com.jtech.zemer.ui.utils.resize
 import com.jtech.zemer.ui.utils.navigateToArtist
@@ -154,8 +149,8 @@ fun ArtistScreen(
     val libraryAlbums by viewModel.libraryAlbums.collectAsState()
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
-    // A video section is shown as audio "video song" rows when video imagery is blocked; otherwise the
-    // rows are labelled by their raw section title and play audio-first (video via the in-player toggle).
+    // With video imagery blocked, a video section keeps the same grid but is retitled "Video songs"
+    // (every tile plays audio-first either way; video is the in-player toggle, gated on the filter).
     val videosAsAudio = blockVideos
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
