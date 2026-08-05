@@ -4,7 +4,6 @@ package com.jtech.zemer.ui.player
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.scaleIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -435,21 +434,16 @@ fun Thumbnail(
                                     // the art slot — inside the square, so no player-controls density
                                     // can cover it. Opposite corner from the fullscreen button
                                     // (BottomEnd); cast lives at TopEnd. Shown only for the current
-                                    // item, gated by videoModeAvailable (passed as showVideoToggle).
-                                    // Faded in/out rather than a hard if: availability settles over a
-                                    // few frames on a track change (stale-true → unknown → known), and
-                                    // a hard cut renders that as an unpleasant on/off flash.
-                                    androidx.compose.animation.AnimatedVisibility(
-                                        visible = showVideoToggle && item.mediaId == currentMediaItem?.mediaId,
-                                        enter = fadeIn() + scaleIn(initialScale = 0.85f),
-                                        exit = fadeOut(),
-                                        modifier = Modifier
-                                            .align(Alignment.TopStart)
-                                            .padding(8.dp),
-                                    ) {
+                                    // item, gated by videoModeAvailable (passed as showVideoToggle) —
+                                    // which the corpus classification (VideoSongIds) decides at tap
+                                    // time, so the pill is simply present when the player opens.
+                                    if (showVideoToggle && item.mediaId == currentMediaItem?.mediaId) {
                                         VideoModePill(
                                             isVideoMode = isVideoMode,
                                             onSelect = onToggleVideoMode,
+                                            modifier = Modifier
+                                                .align(Alignment.TopStart)
+                                                .padding(8.dp),
                                         )
                                     }
 
