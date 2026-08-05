@@ -1856,6 +1856,13 @@ class MusicService :
                     // now be available; nudge the availability flow (it can't observe this map directly).
                     videoModeController.onPlaybackSourceResolved()
                     if (fileOpens) {
+                        // The local file is about to be read THROUGH the playerCache (the CacheDataSource
+                        // serves cached spans regardless of the resolved URI, keyed by this mediaId).
+                        // Any spans cached from STREAMING this id are a different container/byte layout
+                        // than the file (Option A muxed downloads; itag drift), and mixing them corrupts
+                        // the extractor mid-track (negative-offset arraycopy / varint errors, black
+                        // video). Purge the id's resource so this play reads ONLY file bytes.
+                        runCatching { playerCache.removeResource(mediaId) }
                         scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                         return@Factory dataSpec.withUri(mediaStoreUri.toUri())
                     }

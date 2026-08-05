@@ -298,6 +298,13 @@ constructor(
         // Remove legacy ExoPlayer cache download if present
         runCatching { downloadManager.removeDownload(songId) }
 
+        // Purge the id's playerCache resources: local-file plays cached FILE bytes under this key,
+        // which are a different container than a future STREAM of the same id — stale spans would
+        // corrupt the extractor mid-track. The video: rendition namespace is purged too (a deleted
+        // muxed file's cached video spans must not survive it).
+        runCatching { playerCache.removeResource(songId) }
+        runCatching { playerCache.removeResource(VideoRendition.key(songId)) }
+
         downloads.update { it - songId }
 
         runCatching {
