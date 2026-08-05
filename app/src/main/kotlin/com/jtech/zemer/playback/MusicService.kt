@@ -1929,6 +1929,12 @@ class MusicService :
                 ) ||
                 playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)
             ) {
+                // Cached playback skips the stream resolution that records musicVideoType, so kick the
+                // on-demand probe NOW (deduped, one light call per unknown id per session) — the
+                // Song/Video toggle is then already decided by the time the player is expanded,
+                // instead of appearing a beat after (the probe's old expand-time trigger remains as
+                // the fallback for items that start mid-span).
+                videoModeController.requestVideoAvailability(mediaId)
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                 return@Factory dataSpec
             }

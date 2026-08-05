@@ -191,7 +191,9 @@ class VideoModeController(
         player.clearVideoTextureView(view)
     }
 
-    // Ids already probed this session — one metadata call per item, ever (main-thread confined).
+    // Ids already probed this session — one metadata call per item, ever. Mutated only inside
+    // [scope] (main), but requests may ARRIVE from the data-source resolver thread, so
+    // [requestVideoAvailability] hops onto the scope before touching it.
     private val availabilityProbed = mutableSetOf<String>()
 
     /**
@@ -204,17 +206,19 @@ class VideoModeController(
      * authenticated `next()` probe found none; this records the item's OWN type only.)
      */
     fun requestVideoAvailability(mediaId: String) {
-        if (!VideoModeLogic.shouldRequestAvailability(
-                casting = service.discoveryHandler.isConnected,
-                blockVideos = blockVideosNow,
-                musicVideoType = availabilityCache.get(mediaId)?.musicVideoType,
-                counterpartResolved = availabilityCache.get(mediaId)?.counterpartResolved == true,
-            )
-        ) {
-            return
-        }
-        if (!service.isNetworkConnected.value || !availabilityProbed.add(mediaId)) return
+        // Callable from any thread (the expanded player AND the data-source resolver) — all state is
+        // touched on [scope] (main).
         scope.launch {
+            if (!VideoModeLogic.shouldRequestAvailability(
+                    casting = service.discoveryHandler.isConnected,
+                    blockVideos = blockVideosNow,
+                    musicVideoType = availabilityCache.get(mediaId)?.musicVideoType,
+                    counterpartResolved = availabilityCache.get(mediaId)?.counterpartResolved == true,
+                )
+            ) {
+                return@launch
+            }
+            if (!service.isNetworkConnected.value || !availabilityProbed.add(mediaId)) return@launch
             val type = withContext(Dispatchers.IO) {
                 YTPlayerUtils.playerResponseForMetadata(mediaId).getOrNull()?.videoDetails?.musicVideoType
             }
