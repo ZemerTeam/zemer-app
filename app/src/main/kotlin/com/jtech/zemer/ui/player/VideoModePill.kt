@@ -1,11 +1,8 @@
 package com.jtech.zemer.ui.player
 
 import androidx.annotation.DrawableRes
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -15,19 +12,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
+import com.jtech.zemer.ui.component.focusBorder
 
 /**
  * The Song/Video toggle, rendered as an **icon-only segmented pill** overlaid on a corner of the
@@ -40,7 +33,7 @@ import com.jtech.zemer.R
  *
  * Legibility over arbitrary artwork *and* over playing video comes from the dark scrim behind the
  * icons plus the accent fill on the selected segment — the same white-on-scrim treatment as the
- * fullscreen button. Both segments are `.focusable()` + accent-focus-bordered so the pill is
+ * fullscreen button. Both segments carry the shared [focusBorder] treatment so the pill is
  * D-pad reachable inside the player pager.
  *
  * Visibility is decided by the caller (`videoModeAvailable` — the single source of truth that
@@ -56,7 +49,8 @@ fun VideoModePill(
     Row(
         modifier = modifier
             .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.45f))
+            // The theme's scrim token (the StatusStoryTopOverlay media-scrim pattern), never a literal.
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
             .padding(3.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -86,26 +80,21 @@ private fun VideoModeSegment(
     accentColor: Color,
     onClick: () -> Unit,
 ) {
-    var focused by remember { mutableStateOf(false) }
-    val borderColor by animateColorAsState(
-        targetValue = if (focused) accentColor else Color.Transparent,
-        label = "video_mode_pill_focus",
-    )
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .clip(CircleShape)
+            // The shared D-pad focus treatment (FocusBorder.kt) — never hand-rolled per component.
+            .focusBorder(CircleShape)
             .background(if (selected) accentColor else Color.Transparent)
-            .border(2.dp, borderColor, CircleShape)
-            .focusable()
-            .onFocusChanged { focused = it.isFocused }
             .clickable(onClick = onClick)
             .padding(6.dp),
     ) {
         Icon(
             painter = painterResource(icon),
             contentDescription = contentDescription,
-            tint = if (selected) Color.White else Color.White.copy(alpha = 0.65f),
+            // Selected sits on the accent fill -> its theme pair (onPrimary). Unselected sits on the
+            // dark media scrim -> forced white, the shared StatusStoryTopOverlay over-media idiom.
+            tint = if (selected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.65f),
             modifier = Modifier.size(18.dp),
         )
     }

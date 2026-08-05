@@ -171,7 +171,7 @@ object ZemerResultMapper {
                 .map { it.toAlbumItem() }
                 .distinctBy { it.id }
                 .dropBlocked(),
-            videos = songItems(resp.topVideos, hideExplicit = false),
+            videos = songItems(resp.topVideos, hideExplicit = false, isVideo = true),
             artists = resp.topArtists.filter { it.id.isNotBlank() }
                 .map { it.toArtistItem() }
                 .distinctBy { it.id }
@@ -297,7 +297,7 @@ object ZemerResultMapper {
                 ?.let { add(ArtistSection(TITLE_ALBUMS, it, null)) }
             albumSection(singles).takeIf { it.isNotEmpty() }
                 ?.let { add(ArtistSection(TITLE_SINGLES, it, null)) }
-            songItems(videos, hideExplicit).takeIf { it.isNotEmpty() }
+            songItems(videos, hideExplicit, isVideo = true).takeIf { it.isNotEmpty() }
                 ?.let { add(ArtistSection(TITLE_VIDEOS, it, null)) }
             playlistItems(playlists, formatSongCount).takeIf { it.isNotEmpty() }
                 ?.let { add(ArtistSection(TITLE_PLAYLISTS, it, null)) }
@@ -396,7 +396,7 @@ object ZemerResultMapper {
             albums = albumSection(albums),
             singles = albumSection(singles),
             songs = songItems(songs, hideExplicit),
-            videos = songItems(videos, hideExplicit),
+            videos = songItems(videos, hideExplicit, isVideo = true),
             nextOffset = nextOffset,
         )
     }

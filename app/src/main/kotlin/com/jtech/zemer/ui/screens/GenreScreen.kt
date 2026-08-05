@@ -407,7 +407,7 @@ fun GenreScreen(
                     ) { video ->
                         GenreTrackRow(
                             song = video,
-                            isVideo = true,
+                            isVideo = video.isVideo,
                             isActive = mediaMetadata?.id == video.id,
                             isPlaying = isPlaying,
                             genreId = viewModel.genreId,

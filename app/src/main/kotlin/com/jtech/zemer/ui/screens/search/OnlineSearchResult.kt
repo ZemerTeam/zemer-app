@@ -188,9 +188,9 @@ fun OnlineSearchResult(
                     onDismiss = menuState::dismiss,
                     // Video download / video share is offered only for a video item while video
                     // imagery is not blocked; otherwise it downloads/shares as ordinary audio.
-                    isVideo = item is SongItem && item.isVideo &&
-                        !blockVideos &&
-                        searchFilter?.value == FILTER_VIDEO.value,
+                    // Per-item flag, not the chip: the same video row must get the same menu on the
+                    // All summary and the Videos chip.
+                    isVideo = item is SongItem && item.isVideo && !blockVideos,
                 )
             )
         }
@@ -433,7 +433,9 @@ private fun summaryItemKey(sectionTitle: String, id: String, index: Int) = "$sec
 private fun filteredItemKey(id: String) = "filtered_$id"
 
 private fun clickKind(item: YTItem, filterValue: String?): String = when (item) {
-    is SongItem -> if (filterValue == FILTER_VIDEO.value) "video" else "song"
+    // Per-item flag, not the chip: a video row in the All summary's Videos section is displayed
+    // (and badged) as a video there too, so it reports "video" on either surface.
+    is SongItem -> if (item.isVideo) "video" else "song"
     is AlbumItem -> "album"
     is ArtistItem -> "artist"
     is PlaylistItem -> if (playlistIsCommunity(filterValue)) "community" else "playlist"

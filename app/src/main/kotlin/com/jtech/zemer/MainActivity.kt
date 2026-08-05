@@ -198,6 +198,7 @@ import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
 import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.SearchHistory
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.models.DpadDirection
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.CastVolumeKeyAction
@@ -383,6 +384,10 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        // Backgrounding reverts video mode to audio: an invisible muxed stream would keep downloading
+        // and decoding (the same waste the lyrics-sheet revert exists for). Audio continues seamlessly;
+        // orientation changes never pass here (configChanges handles them, no Activity restart).
+        playerConnection?.setVideoMode(false)
         try {
             unbindService(serviceConnection)
         } catch (e: IllegalArgumentException) {
@@ -737,7 +742,7 @@ class MainActivity : ComponentActivity() {
                         // Full-screen takeovers that must not have the floating mini-player over them:
                         // the JewishStatus story viewers (the standalone video player is gone — video is
                         // the in-player toggle now).
-                        val isVideoScreen = remember(navBackStackEntry) {
+                        val isImmersiveViewerScreen = remember(navBackStackEntry) {
                             val route = navBackStackEntry?.destination?.route
                             route?.startsWith("story/") == true ||
                                 route?.startsWith("saved_status/") == true
@@ -993,7 +998,7 @@ class MainActivity : ComponentActivity() {
                         label = "navigationBarHeight"
                     )
 
-                    val floatingMiniPlayerAllowed = floatingMiniPlayerEnabled
+                    val floatingMiniPlayerAllowed = floatingMiniPlayerEnabled && !isImmersiveViewerScreen
 
                     val collapsedBound = remember(
                         bottomInset,
@@ -2117,8 +2122,10 @@ class MainActivity : ComponentActivity() {
                             // Filter by whitelist
                             val filteredQueue = queue.filterWhitelisted(database).filterIsInstance<SongItem>()
 
-                            // Silently ignore if no whitelisted songs
+                            // Nothing whitelisted behind the link (or the renderer carried a sparse
+                            // artist id): say so instead of opening to nothing.
                             if (filteredQueue.isEmpty()) {
+                                withContext(Dispatchers.Main) { toast(R.string.song_not_available) }
                                 return@onSuccess
                             }
 

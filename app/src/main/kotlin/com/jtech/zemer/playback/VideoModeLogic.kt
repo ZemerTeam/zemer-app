@@ -50,14 +50,17 @@ object VideoModeLogic {
         mediaId: String,
         casting: Boolean,
         blockVideos: Boolean,
+        stationBroadcast: Boolean = false,
         localVideoFile: Boolean,
         online: Boolean,
         musicVideoType: String?,
         counterpartVideoId: String?,
         isBlockedRendition: (String) -> Boolean,
     ): Rendition? {
-        // I5 + I1: no video while casting or when videos are blocked.
-        if (casting || blockVideos) return null
+        // I5 + I1: no video while casting or when videos are blocked. A Zemer Station broadcast is
+        // play/stop only — the toggle would mutate the synchronized timeline behind every station
+        // transport guard, so it is simply never offered there.
+        if (casting || blockVideos || stationBroadcast) return null
 
         // LOCAL first: a downloaded muxed file plays the video track with no swap and works offline.
         if (localVideoFile && !isBlockedRendition(mediaId)) {

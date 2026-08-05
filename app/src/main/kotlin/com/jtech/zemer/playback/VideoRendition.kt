@@ -20,4 +20,16 @@ object VideoRendition {
 
     /** The bare rendition videoId behind a `video:` key (returns the input unchanged if not a video key). */
     fun renditionId(key: String): String = key.removePrefix(PREFIX)
+
+    /** Max muxed-video bitrate (kbps) on a metered connection (the old VideoPlayerScreen's caps). */
+    const val METERED_MAX_KBPS = 1500
+
+    /** Max muxed-video bitrate (kbps) on an unmetered connection. */
+    const val UNMETERED_MAX_KBPS = 6000
+
+    /**
+     * The ONE video bitrate policy, shared by streaming (video-mode swap) and downloads (muxed save)
+     * so neither path can silently fetch YouTube's largest file on a metered connection.
+     */
+    fun defaultMaxBitrateKbps(metered: Boolean): Int = if (metered) METERED_MAX_KBPS else UNMETERED_MAX_KBPS
 }

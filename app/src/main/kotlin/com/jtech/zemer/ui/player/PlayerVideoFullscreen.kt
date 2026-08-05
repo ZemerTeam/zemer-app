@@ -115,7 +115,8 @@ fun PlayerVideoFullscreen(onExit: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            // Fullscreen video backdrop: the theme's scrim token, never a literal.
+            .background(MaterialTheme.colorScheme.scrim)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -137,7 +138,7 @@ fun PlayerVideoFullscreen(onExit: () -> Unit) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.35f))
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.35f))
                     .systemBarsPadding(),
             ) {
                 IconButton(

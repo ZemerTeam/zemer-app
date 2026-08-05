@@ -15,6 +15,7 @@ class VideoModeLogicTest {
     private fun availability(
         casting: Boolean = false,
         blockVideos: Boolean = false,
+        stationBroadcast: Boolean = false,
         localVideoFile: Boolean = false,
         online: Boolean = true,
         musicVideoType: String? = null,
@@ -24,6 +25,7 @@ class VideoModeLogicTest {
         mediaId = "SONG",
         casting = casting,
         blockVideos = blockVideos,
+        stationBroadcast = stationBroadcast,
         localVideoFile = localVideoFile,
         online = online,
         musicVideoType = musicVideoType,
@@ -41,6 +43,15 @@ class VideoModeLogicTest {
     @Test
     fun `casting ⇒ never available even with a counterpart`() {
         assertNull(availability(casting = true, counterpartVideoId = "VID"))
+    }
+
+    @Test
+    fun `station broadcast ⇒ never available — even a LOCAL file must not offer the toggle`() {
+        // A broadcast is play/stop only: the toggle would mutate the synchronized timeline behind
+        // every station transport guard.
+        assertNull(availability(stationBroadcast = true, musicVideoType = OMV))
+        assertNull(availability(stationBroadcast = true, localVideoFile = true))
+        assertNull(availability(stationBroadcast = true, counterpartVideoId = "VID"))
     }
 
     // --- rendition selection ------------------------------------------------

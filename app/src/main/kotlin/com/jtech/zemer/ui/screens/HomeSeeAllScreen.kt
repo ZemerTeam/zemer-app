@@ -181,9 +181,9 @@ internal fun <T : YTItem> YtItemGrid(
                                 navController = navController,
                                 coroutineScope = scope,
                                 onDismiss = menuState::dismiss,
-                                // Videos row: isVideo = true so the menu offers "Download video" (video),
-                                // not the audio "Download".
-                                isVideo = true,
+                                // Per-item flag (set by the mapper): the Featured Videos row's SongItems
+                                // get the video menu ("Download video" / video share), everything else audio.
+                                isVideo = item is SongItem && item.isVideo,
                             )
                         )
                     },

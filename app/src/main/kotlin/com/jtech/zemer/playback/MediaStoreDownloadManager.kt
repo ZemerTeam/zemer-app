@@ -411,7 +411,15 @@ constructor(
                 audioQuality = audioQuality,
                 connectivityManager = connectivityManager,
                 preferVideo = isVideoDownload,
-                maxVideoBitrateKbps = if (isVideoDownload) requestedVideoBitrate[song.id] else null,
+                // An explicit per-download cap survives retries (requestedVideoBitrate); without one,
+                // the shared metered-aware default applies — a video download must never silently
+                // fetch the largest available file on a metered connection.
+                maxVideoBitrateKbps = if (isVideoDownload) {
+                    requestedVideoBitrate[song.id]
+                        ?: VideoRendition.defaultMaxBitrateKbps(connectivityManager?.isActiveNetworkMetered == true)
+                } else {
+                    null
+                },
                 forDownload = true,
             ).getOrThrow()
 

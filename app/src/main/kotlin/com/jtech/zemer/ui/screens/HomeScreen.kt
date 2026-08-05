@@ -988,7 +988,7 @@ fun HomeScreen(
                                                     song = video,
                                                     navController = navController,
                                                     onDismiss = menuState::dismiss,
-                                                    isVideo = true,
+                                                    isVideo = video.isVideo,
                                                 )
                                             }
                                         }

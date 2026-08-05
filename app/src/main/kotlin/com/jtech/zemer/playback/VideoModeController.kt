@@ -102,7 +102,9 @@ class VideoModeController(
                 service.discoveryHandler.remoteConnectionState,
                 blockVideosFlow,
                 availabilityCache.revision,
-                recompute,
+                // A station broadcast starting/ending must re-evaluate (the toggle is never offered
+                // during a broadcast); recompute covers local-file source resolution.
+                combine(service.isStationBroadcast, recompute) { _, _ -> },
             ) { _, _, _, _, _ -> },
             // Connectivity gates the streaming renditions (a downloaded LOCAL file stays available offline).
             service.isNetworkConnected,
@@ -147,6 +149,7 @@ class VideoModeController(
             mediaId = id,
             casting = service.discoveryHandler.isConnected,
             blockVideos = blockVideosNow,
+            stationBroadcast = service.isStationBroadcast.value,
             localVideoFile = meta.isVideo && service.playbackSourceIsLocalFile(id),
             online = service.isNetworkConnected.value,
             musicVideoType = avail?.musicVideoType,
@@ -236,14 +239,20 @@ class VideoModeController(
      * Handle a player error while in video mode (I8): revert to audio at the captured position, report,
      * and surface a one-shot error. Returns true iff handled — the caller must then NOT run its audio
      * 403-refresh path (which operates on the real id and would invalidate the wrong cache entry).
+     *
+     * A [RenditionKind.LOCAL] error is NOT handled here (returns false): LOCAL never swapped the
+     * source, so the failure is the downloaded file itself — exactly what the service's normal error
+     * pipeline (self-repair, network wait, auto-skip) exists for. Exiting only clears the video-mode
+     * state; without the service pipeline the player would sit in ERROR forever (nothing re-prepares).
      */
     fun onPlayerError(error: PlaybackException): Boolean {
         if (!_isVideoMode.value) return false
-        videoRenditionId?.let { service.invalidateStreamCache(VideoRendition.key(it)) }
+        val wasLocal = renditionKind == RenditionKind.LOCAL
+        if (!wasLocal) videoRenditionId?.let { service.invalidateStreamCache(VideoRendition.key(it)) }
         reportException(error, "Video mode playback error")
         exitVideoModeSameItem()
         scope.launch { _videoErrorEvents.emit(Unit) }
-        return true
+        return !wasLocal
     }
 
     /** Force audio (cast/error revert of the CURRENT, still-playing item — position-continuous). */

@@ -7,6 +7,7 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
+import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
 import com.jtech.zemer.search.ZemerResultMapper.toSongItems
 import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.utils.ContentFilterConfig
@@ -485,6 +486,22 @@ class ZemerResultMapperTest {
         )
     }
 
+    @Test
+    fun `artist page flags only the Videos section as videos`() {
+        // The per-item flag is set ONCE by the mapper — the badge, menu gating and section relabel all
+        // key off SongItem.isVideo, never a per-screen title sniff.
+        val page = ZemerArtistResponse(
+            artist = ZemerArtist("UC1", "Artist"),
+            songs = listOf(ZemerTrack("s1", "Song", "Artist")),
+            videos = listOf(ZemerTrack("v1", "Clip", "Artist")),
+        ).toArtistPage(hideExplicit = false)
+
+        val songs = page.sections.first { it.title == "Songs" }.items.filterIsInstance<SongItem>()
+        val videos = page.sections.first { it.title == "Videos" }.items.filterIsInstance<SongItem>()
+        assertFalse(songs.single().isVideo)
+        assertTrue(videos.single().isVideo)
+    }
+
     // --- /home-rows mapping (telemetry-ranked home tab rows) ---
 
     @Test
@@ -511,6 +528,7 @@ class ZemerResultMapperTest {
         assertEquals("v1", video.id)
         assertEquals("UCb", video.artists.single().id)
         assertEquals("https://i.ytimg.com/vi/v1/hqdefault.jpg", video.thumbnail) // derived from videoId
+        assertTrue(video.isVideo) // the mapper sets the flag once; badge/menus key off it
 
         val artist = rows.artists.single()
         assertEquals("UCc", artist.id)

@@ -1806,8 +1806,8 @@ class MusicService :
                 songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                     return@Factory dataSpec.withUri(it.first.toUri())
                 }
-                // Metered cap 1500 kbps, else 6000 (the old VideoPlayerScreen's constants).
-                val maxVideoBitrateKbps = if (connectivityManager.isActiveNetworkMetered) 1500 else 6000
+                // The shared metered-aware cap (one policy with muxed downloads — VideoRendition).
+                val maxVideoBitrateKbps = VideoRendition.defaultMaxBitrateKbps(connectivityManager.isActiveNetworkMetered)
                 val videoPlayback = runBlocking(Dispatchers.IO) {
                     YTPlayerUtils.playerResponseForPlayback(
                         renditionId,

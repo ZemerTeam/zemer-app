@@ -404,7 +404,9 @@ fun Thumbnail(
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxSize()
-                                                .background(Color.Black),
+                                                // The letterbox behind the 16:9 video — the theme's scrim
+                                                // token (media-dark in both light and dark), never a literal.
+                                                .background(MaterialTheme.colorScheme.scrim),
                                             contentAlignment = Alignment.Center,
                                         ) {
                                             PlayerVideoSurface(
