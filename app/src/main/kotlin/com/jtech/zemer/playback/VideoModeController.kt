@@ -11,9 +11,12 @@ import com.jtech.zemer.playback.VideoModeLogic.RenditionKind
 import com.jtech.zemer.playback.VideoModeLogic.TransitionClass
 import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -188,15 +191,35 @@ class VideoModeController(
         player.clearVideoTextureView(view)
     }
 
+    // Ids already probed this session — one metadata call per item, ever (main-thread confined).
+    private val availabilityProbed = mutableSetOf<String>()
+
     /**
-     * Reserved for on-demand counterpart discovery (DESIGN §1 source 3). Currently a cache-only no-op:
-     * the authenticated on-demand `next()` probe returned no counterparts for the tested account (step-3
-     * report), so firing one per expanded item would be pure waste. Re-enable once pooled/Premium
-     * counterpart availability is confirmed on-device (step 6). SELF availability needs no lookup — it
-     * comes free from the current item's playback resolution ([recordMusicVideoType]).
+     * On-demand SELF-type probe for the expanded player's current item. Normally the type comes free
+     * from the item's stream resolution ([recordMusicVideoType]) — but the availability cache is
+     * in-memory and a disk-cache hit SKIPS resolution entirely (MusicService's cached early-return),
+     * so after a process restart a fully-cached video-song would never record its type and the
+     * Song/Video toggle would silently stay hidden. One metadata-only player call per unknown item
+     * per session closes that hole. (On-demand COUNTERPART discovery stays dormant — the step-3
+     * authenticated `next()` probe found none; this records the item's OWN type only.)
      */
-    fun requestVideoAvailability(@Suppress("UNUSED_PARAMETER") mediaId: String) {
-        // intentionally no network call — see kdoc.
+    fun requestVideoAvailability(mediaId: String) {
+        if (!VideoModeLogic.shouldRequestAvailability(
+                casting = service.discoveryHandler.isConnected,
+                blockVideos = blockVideosNow,
+                musicVideoType = availabilityCache.get(mediaId)?.musicVideoType,
+                counterpartResolved = availabilityCache.get(mediaId)?.counterpartResolved == true,
+            )
+        ) {
+            return
+        }
+        if (!service.isNetworkConnected.value || !availabilityProbed.add(mediaId)) return
+        scope.launch {
+            val type = withContext(Dispatchers.IO) {
+                YTPlayerUtils.playerResponseForMetadata(mediaId).getOrNull()?.videoDetails?.musicVideoType
+            }
+            recordMusicVideoType(mediaId, type)
+        }
     }
 
     // ---- MusicService hooks ------------------------------------------------
