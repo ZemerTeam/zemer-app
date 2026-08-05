@@ -6,6 +6,7 @@ import android.view.TextureView
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.playback.VideoModeLogic.RenditionKind
 import com.jtech.zemer.playback.VideoModeLogic.TransitionClass
@@ -207,9 +208,11 @@ class VideoModeController(
         player.clearVideoTextureView(view)
     }
 
-    // Ids already probed this session — one metadata call per item, ever. Mutated only inside
-    // [scope] (main), but requests may ARRIVE from the data-source resolver thread, so
-    // [requestVideoAvailability] hops onto the scope before touching it.
+    // Ids currently in-flight OR permanently resolved — one SUCCESSFUL metadata call per item, ever
+    // (dedups concurrent/duplicate requests too). A failed fetch is removed again so a later call can
+    // retry — see [requestVideoAvailability]. Mutated only inside [scope] (main), but requests may
+    // ARRIVE from the data-source resolver thread, so [requestVideoAvailability] hops onto the scope
+    // before touching it.
     private val availabilityProbed = mutableSetOf<String>()
 
     /**
@@ -235,10 +238,17 @@ class VideoModeController(
                 return@launch
             }
             if (!service.isNetworkConnected.value || !availabilityProbed.add(mediaId)) return@launch
-            val type = withContext(Dispatchers.IO) {
-                YTPlayerUtils.playerResponseForMetadata(mediaId).getOrNull()?.videoDetails?.musicVideoType
+            val result = withContext(Dispatchers.IO) {
+                YTPlayerUtils.playerResponseForMetadata(mediaId)
             }
-            recordMusicVideoType(mediaId, type)
+            if (result.isFailure) {
+                // Transient failure (not "successfully learned unknown") — un-mark so a LATER call
+                // (re-open the player, re-tap, next session's cache hit) gets a fresh attempt instead
+                // of the toggle staying silently hidden for this id for the rest of the process.
+                availabilityProbed.remove(mediaId)
+                return@launch
+            }
+            recordMusicVideoType(mediaId, result.getOrNull()?.videoDetails?.musicVideoType)
         }
     }
 
@@ -268,8 +278,15 @@ class VideoModeController(
      * cast/auto-load-more/save-queue side effects and keeps video mode); a real track change reverts to
      * audio (I2) and returns false so the caller runs its normal transition handling.
      */
-    fun onMediaItemTransition(mediaItem: MediaItem?, @Suppress("UNUSED_PARAMETER") reason: Int): Boolean =
-        when (VideoModeLogic.classifyTransition(pendingSwap, mediaItem?.mediaId, videoModeItemId)) {
+    fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int): Boolean =
+        when (
+            VideoModeLogic.classifyTransition(
+                pendingSwap = pendingSwap,
+                isRepeatOfSameItem = reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT,
+                newMediaId = mediaItem?.mediaId,
+                videoModeItemId = videoModeItemId,
+            )
+        ) {
             TransitionClass.OWN_SWAP -> true
             TransitionClass.TRACK_CHANGE -> {
                 listenAccumulator.onTrackTransition()

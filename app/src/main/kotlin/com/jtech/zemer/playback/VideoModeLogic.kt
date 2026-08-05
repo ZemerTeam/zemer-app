@@ -129,27 +129,39 @@ object VideoModeLogic {
         metadataIsVideo || (musicVideoType != null && musicVideoType != MUSIC_VIDEO_TYPE_ATV)
 
     enum class TransitionClass {
-        /** Our own rendition swap (replaceMediaItem of the current item) — keep video mode, skip side effects. */
+        /**
+         * Not a real move to another listen — keep video mode, skip side effects (cast reload,
+         * auto-load-more, save-queue, station resync). Either our own rendition swap (replaceMediaItem
+         * of the current item) or a repeat-one loop restarting the SAME video item — both leave the
+         * user watching the same content, just re-entering it.
+         */
         OWN_SWAP,
 
-        /** A real move to another listen (auto-advance, skip, repeat restart) — revert to audio (I2). */
+        /** A real move to another listen (auto-advance, skip, a different item) — revert to audio (I2). */
         TRACK_CHANGE,
     }
 
     /**
      * Classifies an `onMediaItemTransition`. Because a swap preserves the item's mediaId, our own swap is
-     * the transition that arrives while a swap is pending AND still on the same item; everything else — a
-     * different id (advance/skip) or a repeat restart of the same id (pendingSwap false) — is a real track
-     * change that must revert video mode. Robust to the swap firing no transition at all: the pending mark
-     * is cleared deterministically by the controller after the swap, so a later real transition always
+     * the transition that arrives while a swap is pending AND still on the same item. A repeat-one loop
+     * of the SAME video item (media3 fires `MEDIA_ITEM_TRANSITION_REASON_REPEAT`) is likewise NOT a real
+     * track change — reverting there would kick the user back to audio, un-seeked, on every single loop,
+     * which is exactly the opposite of what repeat-one promises. Everything else — a different id
+     * (advance/skip), or a repeat restart while NOT in video mode for that id — is a real track change
+     * that must revert video mode. Robust to the swap firing no transition at all: the pending mark is
+     * cleared deterministically by the controller after the swap, so a later real transition always
      * classifies as TRACK_CHANGE.
      */
     fun classifyTransition(
         pendingSwap: Boolean,
+        isRepeatOfSameItem: Boolean,
         newMediaId: String?,
         videoModeItemId: String?,
     ): TransitionClass =
-        if (pendingSwap && videoModeItemId != null && newMediaId == videoModeItemId) {
+        if (videoModeItemId != null &&
+            newMediaId == videoModeItemId &&
+            (pendingSwap || isRepeatOfSameItem)
+        ) {
             TransitionClass.OWN_SWAP
         } else {
             TransitionClass.TRACK_CHANGE

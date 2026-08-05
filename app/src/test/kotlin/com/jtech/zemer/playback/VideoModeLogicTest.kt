@@ -188,22 +188,36 @@ class VideoModeLogicTest {
 
     @Test
     fun `pending swap on the same item ⇒ OWN_SWAP`() {
-        assertEquals(TransitionClass.OWN_SWAP, VideoModeLogic.classifyTransition(true, "SONG", "SONG"))
+        assertEquals(TransitionClass.OWN_SWAP, VideoModeLogic.classifyTransition(true, false, "SONG", "SONG"))
     }
 
     @Test
-    fun `advance to a different id ⇒ TRACK_CHANGE (even if pending)`() {
-        assertEquals(TransitionClass.TRACK_CHANGE, VideoModeLogic.classifyTransition(true, "NEXT", "SONG"))
+    fun `advance to a different id ⇒ TRACK_CHANGE (even if pending or a repeat reason)`() {
+        assertEquals(TransitionClass.TRACK_CHANGE, VideoModeLogic.classifyTransition(true, false, "NEXT", "SONG"))
+        assertEquals(TransitionClass.TRACK_CHANGE, VideoModeLogic.classifyTransition(false, true, "NEXT", "SONG"))
     }
 
     @Test
-    fun `repeat restart of same id without a pending swap ⇒ TRACK_CHANGE`() {
-        assertEquals(TransitionClass.TRACK_CHANGE, VideoModeLogic.classifyTransition(false, "SONG", "SONG"))
+    fun `repeat-one loop of the SAME video item ⇒ OWN_SWAP, not a revert-triggering track change`() {
+        // The bug this guards: reverting here kicked the user back to audio, un-seeked, on every single
+        // loop — exactly the opposite of what repeat-one promises. media3 fires the transition with
+        // MEDIA_ITEM_TRANSITION_REASON_REPEAT; the controller translates that to isRepeatOfSameItem.
+        assertEquals(TransitionClass.OWN_SWAP, VideoModeLogic.classifyTransition(false, true, "SONG", "SONG"))
+    }
+
+    @Test
+    fun `repeat restart of same id without a pending swap or repeat reason ⇒ TRACK_CHANGE`() {
+        assertEquals(TransitionClass.TRACK_CHANGE, VideoModeLogic.classifyTransition(false, false, "SONG", "SONG"))
+    }
+
+    @Test
+    fun `repeat reason while not in video mode for that id ⇒ TRACK_CHANGE (no-op revert)`() {
+        assertEquals(TransitionClass.TRACK_CHANGE, VideoModeLogic.classifyTransition(false, true, "SONG", null))
     }
 
     @Test
     fun `transition while not in video mode ⇒ TRACK_CHANGE`() {
-        assertEquals(TransitionClass.TRACK_CHANGE, VideoModeLogic.classifyTransition(false, "SONG", null))
+        assertEquals(TransitionClass.TRACK_CHANGE, VideoModeLogic.classifyTransition(false, false, "SONG", null))
     }
 
     // --- shouldRestoreDepartedItem (the "tap a new song in video mode" bug) --
