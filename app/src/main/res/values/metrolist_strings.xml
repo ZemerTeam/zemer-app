@@ -12,6 +12,7 @@
     <string name="artist_not_available">This artist isn\'t available yet</string>
     <string name="album_not_available">This album isn\'t available</string>
     <string name="song_not_available">This song isn\'t available</string>
+    <string name="featured_video_songs">Featured video songs</string>
     <string name="video_downloads_in_music">Show in downloaded music</string>
     <string name="video_downloads_in_music_description">Downloaded videos also appear as songs in your downloaded music</string>
 

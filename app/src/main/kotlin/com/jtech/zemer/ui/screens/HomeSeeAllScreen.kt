@@ -26,6 +26,7 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
 import com.jtech.zemer.LocalDatabase
+import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
@@ -59,6 +60,7 @@ import com.jtech.zemer.ui.menu.ytItemMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
+import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeSeeAllStore
 
@@ -80,6 +82,7 @@ fun HomeSeeAllScreen(
     row: HomeSeeAllRow,
 ) {
     val data by HomeSeeAllStore.data.collectAsState()
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
 
     val rowIsEmpty = when (row) {
         HomeSeeAllRow.FEATURED_ALBUMS -> data.featuredAlbums.isEmpty()
@@ -114,7 +117,15 @@ fun HomeSeeAllScreen(
     }
 
     TopAppBar(
-        title = { AppBarTitle(stringResource(row.titleRes)) },
+        // Blocked-video users see the videos row as their "video songs" (audio-first rows).
+        title = {
+            AppBarTitle(
+                stringResource(
+                    if (row == HomeSeeAllRow.FEATURED_VIDEOS && blockVideos) R.string.featured_video_songs
+                    else row.titleRes
+                )
+            )
+        },
         navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
         colors = zemerTopAppBarColors(),
@@ -138,6 +149,7 @@ internal fun <T : YTItem> YtItemGrid(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val scope = rememberCoroutineScope()
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
 
     LazyVerticalGrid(
         // Two across, not three: album/artist titles here run long (full Hebrew + English names), and a
@@ -182,8 +194,9 @@ internal fun <T : YTItem> YtItemGrid(
                                 coroutineScope = scope,
                                 onDismiss = menuState::dismiss,
                                 // Per-item flag (set by the mapper): the Featured Videos row's SongItems
-                                // get the video menu ("Download video" / video share), everything else audio.
-                                isVideo = item is SongItem && item.isVideo,
+                                // get the video menu ("Download video" / video share), everything else —
+                                // and every row for a blocked-video user — gets the audio menu.
+                                isVideo = item is SongItem && item.isVideo && !blockVideos,
                             )
                         )
                     },

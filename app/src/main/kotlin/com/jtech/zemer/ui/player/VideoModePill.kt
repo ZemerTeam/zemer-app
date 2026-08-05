@@ -1,17 +1,24 @@
 package com.jtech.zemer.ui.player
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,6 +29,9 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.focusBorder
 
+private val SegmentSize = 32.dp
+private val ThumbPadding = 3.dp
+
 /**
  * The Song/Video toggle, rendered as an **icon-only segmented pill** overlaid on a corner of the
  * artwork/video slot (see D7). It replaces the old text pill in `controlsContent`, which higher
@@ -31,10 +41,11 @@ import com.jtech.zemer.ui.component.focusBorder
  * button at TopEnd, and the fullscreen button at **BottomEnd** — diagonally opposite this pill so
  * they can never collide.
  *
- * Legibility over arbitrary artwork *and* over playing video comes from the dark scrim behind the
- * icons plus the accent fill on the selected segment — the same white-on-scrim treatment as the
- * fullscreen button. Both segments carry the shared [focusBorder] treatment so the pill is
- * D-pad reachable inside the player pager.
+ * Selection is an accent **thumb that slides** between the two segments (a gentle spring), with the
+ * icon tints crossfading — the M3 connected-button feel without any Expressive-only API. Legibility
+ * over arbitrary artwork *and* over playing video comes from the theme-scrim behind the icons plus
+ * the accent thumb — the same white-on-scrim treatment as the fullscreen button. Both segments carry
+ * the shared [focusBorder] treatment so the pill is D-pad reachable inside the player pager.
  *
  * Visibility is decided by the caller (`videoModeAvailable` — the single source of truth that
  * already encodes blocked/casting/rendition gating); this composable never re-derives it.
@@ -46,29 +57,43 @@ fun VideoModePill(
     modifier: Modifier = Modifier,
     accentColor: Color = MaterialTheme.colorScheme.primary,
 ) {
-    Row(
+    // The thumb slides from the Song slot (0) to the Video slot (one segment across).
+    val thumbOffset by animateDpAsState(
+        targetValue = if (isVideoMode) SegmentSize else 0.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+        label = "video_mode_thumb",
+    )
+    Box(
         modifier = modifier
             .clip(CircleShape)
             // The theme's scrim token (the StatusStoryTopOverlay media-scrim pattern), never a literal.
             .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
-            .padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(ThumbPadding),
     ) {
-        VideoModeSegment(
-            icon = R.drawable.music_note,
-            contentDescription = stringResource(R.string.song),
-            selected = !isVideoMode,
-            accentColor = accentColor,
-            onClick = { onSelect(false) },
+        Box(
+            modifier = Modifier
+                .offset(x = thumbOffset)
+                .size(SegmentSize)
+                .clip(CircleShape)
+                .background(accentColor),
         )
-        VideoModeSegment(
-            icon = R.drawable.ondemand_video,
-            contentDescription = stringResource(R.string.video),
-            selected = isVideoMode,
-            accentColor = accentColor,
-            onClick = { onSelect(true) },
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            VideoModeSegment(
+                icon = R.drawable.music_note,
+                contentDescription = stringResource(R.string.song),
+                selected = !isVideoMode,
+                onClick = { onSelect(false) },
+            )
+            VideoModeSegment(
+                icon = R.drawable.ondemand_video,
+                contentDescription = stringResource(R.string.video),
+                selected = isVideoMode,
+                onClick = { onSelect(true) },
+            )
+        }
     }
 }
 
@@ -77,24 +102,31 @@ private fun VideoModeSegment(
     @DrawableRes icon: Int,
     contentDescription: String,
     selected: Boolean,
-    accentColor: Color,
     onClick: () -> Unit,
 ) {
+    // Selected sits on the sliding accent thumb -> its theme pair (onPrimary). Unselected sits on
+    // the dark media scrim -> forced white, the shared StatusStoryTopOverlay over-media idiom.
+    val tint by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.65f),
+        label = "video_mode_tint",
+    )
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
+            .size(SegmentSize)
             // The shared D-pad focus treatment (FocusBorder.kt) — never hand-rolled per component.
             .focusBorder(CircleShape)
-            .background(if (selected) accentColor else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(6.dp),
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                // The sliding thumb IS the selection feedback; a ripple under it doubles up.
+                indication = null,
+                onClick = onClick,
+            ),
     ) {
         Icon(
             painter = painterResource(icon),
             contentDescription = contentDescription,
-            // Selected sits on the accent fill -> its theme pair (onPrimary). Unselected sits on the
-            // dark media scrim -> forced white, the shared StatusStoryTopOverlay over-media idiom.
-            tint = if (selected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.65f),
+            tint = tint,
             modifier = Modifier.size(18.dp),
         )
     }

@@ -294,7 +294,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt` | 1130 | `com.jtech.zemer.ui.player` | yes | 119 | 49 | android.annotation, androidx.activity, androidx.compose, androidx.media3, androidx.navigation, kotlin.math, kotlinx.coroutines, sh.calvin |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/StationLiveBar.kt` | 70 | `com.jtech.zemer.ui.player` | yes | 17 | 2 | androidx.compose, androidx.media3 |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 563 | `com.jtech.zemer.ui.player` | yes | 82 | 59 | androidx.compose, androidx.media3, coil3.compose, kotlin.math, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoModePill.kt` | 101 | `com.jtech.zemer.ui.player` | yes | 21 | 2 | androidx.annotation, androidx.compose |
+| `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoModePill.kt` | 133 | `com.jtech.zemer.ui.player` | yes | 28 | 6 | androidx.annotation, androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AccountScreen.kt` | 192 | `com.jtech.zemer.ui.screens` | yes | 40 | 8 | androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AlbumScreen.kt` | 564 | `com.jtech.zemer.ui.screens` | yes | 100 | 43 | androidx.activity, androidx.compose, androidx.hilt, androidx.media3, androidx.navigation, coil3.compose, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/ChartsScreen.kt` | 285 | `com.jtech.zemer.ui.screens` | yes | 71 | 15 | androidx.compose, androidx.hilt, androidx.navigation |
@@ -303,8 +303,8 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenresScreen.kt` | 208 | `com.jtech.zemer.ui.screens` | yes | 44 | 6 | androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 504 | `com.jtech.zemer.ui.screens` | yes | 78 | 30 | androidx.activity, androidx.compose, androidx.hilt, androidx.navigation, java.time |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeGenresRow.kt` | 84 | `com.jtech.zemer.ui.screens` | yes | 27 | 5 | androidx.compose, androidx.navigation |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1050 | `com.jtech.zemer.ui.screens` | yes | 121 | 74 | android.net, androidx.compose, androidx.hilt, androidx.lifecycle, androidx.navigation, kotlin.math, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeSeeAllScreen.kt` | 294 | `com.jtech.zemer.ui.screens` | yes | 61 | 25 | androidx.compose, androidx.navigation |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1055 | `com.jtech.zemer.ui.screens` | yes | 121 | 74 | android.net, androidx.compose, androidx.hilt, androidx.lifecycle, androidx.navigation, kotlin.math, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeSeeAllScreen.kt` | 307 | `com.jtech.zemer.ui.screens` | yes | 63 | 29 | androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeStatusesRow.kt` | 58 | `com.jtech.zemer.ui.screens` | yes | 18 | 2 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 235 | `com.jtech.zemer.ui.screens` | yes | 43 | 18 | androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LatestReleasesScreen.kt` | 108 | `com.jtech.zemer.ui.screens` | yes | 34 | 9 | androidx.compose, androidx.hilt, androidx.navigation |
