@@ -42,6 +42,10 @@ object VideoModeLogic {
      *   offered only when online — otherwise tapping it would just throw a source error and revert. [RenditionKind.LOCAL]
      *   plays from disk and stays available offline.
      * @param musicVideoType the item's own music-video type from the availability cache (null = unknown).
+     * @param corpusVideoSong true when the CORPUS classified the item as a video-song
+     *   ([com.jtech.zemer.playback.VideoSongIds] — authoritative server data, not a guess). Grants
+     *   SELF availability instantly while YouTube's own type is still unknown; a LEARNED type always
+     *   governs (an ATV verdict overrides the corpus and hides the toggle).
      * @param counterpartVideoId a known video counterpart id for the item, or null.
      * @param isBlockedRendition content-filter check for a specific rendition id (BlockedIdsCache) — a
      *   Firestore-blocked video is never watchable even when its audio side is fine.
@@ -54,6 +58,7 @@ object VideoModeLogic {
         localVideoFile: Boolean,
         online: Boolean,
         musicVideoType: String?,
+        corpusVideoSong: Boolean = false,
         counterpartVideoId: String?,
         isBlockedRendition: (String) -> Boolean,
     ): Rendition? {
@@ -71,7 +76,8 @@ object VideoModeLogic {
         // error and revert). A downloaded muxed file is the sole offline video path (LOCAL, above).
         if (!online) return null
 
-        // SELF: the item is itself a video. Requires a KNOWN non-ATV type (never guess on unknown).
+        // SELF: the item is itself a video. Requires a KNOWN non-ATV type; a known ATV type falls
+        // through to the counterpart tier (an audio song can still have a separate music video).
         if (musicVideoType != null && musicVideoType != MUSIC_VIDEO_TYPE_ATV) {
             return if (isBlockedRendition(mediaId)) null else Rendition(RenditionKind.SELF, mediaId)
         }
@@ -80,6 +86,14 @@ object VideoModeLogic {
         if (counterpartVideoId != null) {
             return if (isBlockedRendition(counterpartVideoId)) null
             else Rendition(RenditionKind.COUNTERPART, counterpartVideoId)
+        }
+
+        // Type still UNKNOWN, but the CORPUS classified this a video-song — authoritative server data
+        // (every Zemer videos-category row), not a guess: SELF, instantly, no round-trip. A LEARNED
+        // ATV type never reaches here (it exits null above via the counterpart tier), so YouTube's own
+        // verdict still governs once known.
+        if (musicVideoType == null && corpusVideoSong) {
+            return if (isBlockedRendition(mediaId)) null else Rendition(RenditionKind.SELF, mediaId)
         }
 
         return null

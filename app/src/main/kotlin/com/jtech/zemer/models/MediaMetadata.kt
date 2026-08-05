@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import com.metrolist.innertube.models.SongItem
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.db.entities.SongEntity
+import com.jtech.zemer.playback.VideoSongIds
 import com.jtech.zemer.ui.utils.resize
 import java.io.Serializable
 import java.time.LocalDateTime
@@ -81,8 +82,12 @@ fun Song.toMediaMetadata() =
         isVideo = song.isVideo,
     )
 
-fun SongItem.toMediaMetadata() =
-    MediaMetadata(
+fun SongItem.toMediaMetadata(): MediaMetadata {
+    // The corpus's video classification deliberately does NOT enter playback metadata (a video-song
+    // plays/downloads/persists as ordinary audio) — but the Song/Video toggle is entitled to it, so
+    // it rides the process-wide registry instead: marked here, at the one SongItem→playback boundary.
+    if (isVideo) VideoSongIds.mark(id)
+    return MediaMetadata(
         id = id,
         title = title,
         artists =
@@ -106,3 +111,4 @@ fun SongItem.toMediaMetadata() =
         libraryAddToken = libraryAddToken,
         libraryRemoveToken = libraryRemoveToken
     )
+}

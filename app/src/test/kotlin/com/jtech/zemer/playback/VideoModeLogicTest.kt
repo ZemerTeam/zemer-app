@@ -19,6 +19,7 @@ class VideoModeLogicTest {
         localVideoFile: Boolean = false,
         online: Boolean = true,
         musicVideoType: String? = null,
+        corpusVideoSong: Boolean = false,
         counterpartVideoId: String? = null,
         isBlockedRendition: (String) -> Boolean = neverBlocked,
     ) = VideoModeLogic.availability(
@@ -29,6 +30,7 @@ class VideoModeLogicTest {
         localVideoFile = localVideoFile,
         online = online,
         musicVideoType = musicVideoType,
+        corpusVideoSong = corpusVideoSong,
         counterpartVideoId = counterpartVideoId,
         isBlockedRendition = isBlockedRendition,
     )
@@ -43,6 +45,28 @@ class VideoModeLogicTest {
     @Test
     fun `casting ⇒ never available even with a counterpart`() {
         assertNull(availability(casting = true, counterpartVideoId = "VID"))
+    }
+
+    // --- corpus classification (VideoSongIds — instant SELF while YouTube's type is unknown) -----
+
+    @Test
+    fun `corpus video-song ⇒ SELF instantly while the type is unknown`() {
+        val r = availability(corpusVideoSong = true)
+        assertEquals(RenditionKind.SELF, r?.kind)
+        assertEquals("SONG", r?.renditionVideoId)
+    }
+
+    @Test
+    fun `a LEARNED ATV type overrides the corpus flag — YouTube's own verdict governs`() {
+        assertNull(availability(corpusVideoSong = true, musicVideoType = ATV))
+    }
+
+    @Test
+    fun `corpus video-song still honors the hard gates and the blocked-ids filter`() {
+        assertNull(availability(corpusVideoSong = true, blockVideos = true))
+        assertNull(availability(corpusVideoSong = true, casting = true))
+        assertNull(availability(corpusVideoSong = true, online = false))
+        assertNull(availability(corpusVideoSong = true, isBlockedRendition = { it == "SONG" }))
     }
 
     @Test

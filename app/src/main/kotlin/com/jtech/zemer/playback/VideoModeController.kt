@@ -156,6 +156,7 @@ class VideoModeController(
             localVideoFile = meta.isVideo && service.playbackSourceIsLocalFile(id),
             online = service.isNetworkConnected.value,
             musicVideoType = avail?.musicVideoType,
+            corpusVideoSong = VideoSongIds.contains(id),
             counterpartVideoId = avail?.counterpartVideoId,
             isBlockedRendition = { rid -> BlockedIdsCache.isBlocked(rid, ContentFilterState.current) },
         )
