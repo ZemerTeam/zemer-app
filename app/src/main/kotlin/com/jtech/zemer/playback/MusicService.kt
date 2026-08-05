@@ -1574,6 +1574,9 @@ class MusicService :
             )
         ) {
             currentMediaMetadata.value = player.currentMetadata
+            // Same-stack availability republish: the Song/Video pill state must change atomically with
+            // the current item — the async combine's dispatch hops flashed it in mid player-open.
+            videoModeController.recomputeNow()
         }
     }
 

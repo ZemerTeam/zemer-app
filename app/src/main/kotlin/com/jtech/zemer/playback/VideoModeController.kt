@@ -94,25 +94,24 @@ class VideoModeController(
     private val blockVideosFlow =
         service.dataStore.data.map { it[BlockVideosKey] ?: false }.distinctUntilChanged()
 
+    private val _videoModeAvailable = MutableStateFlow(false)
+
     /**
      * Whether the current item can show video (and the toggle should appear). The UI must read THIS and
      * not re-derive block/cast/availability conditions itself.
+     *
+     * Published two ways: the combine below reacts to every async input (cast/block/cache/network/
+     * station), and [recomputeNow] republishes SYNCHRONOUSLY from the service the moment the current
+     * item changes — the flow-propagation hops of a nested combine land a few frames after the
+     * metadata, which flashed the pill in mid player-open. Synchronous republish makes the pill state
+     * atomic with the track.
      */
-    val videoModeAvailable: StateFlow<Boolean> =
-        combine(
-            combine(
-                service.currentMediaMetadata,
-                service.discoveryHandler.remoteConnectionState,
-                blockVideosFlow,
-                availabilityCache.revision,
-                // A station broadcast starting/ending must re-evaluate (the toggle is never offered
-                // during a broadcast); recompute covers local-file source resolution.
-                combine(service.isStationBroadcast, recompute) { _, _ -> },
-            ) { _, _, _, _, _ -> },
-            // Connectivity gates the streaming renditions (a downloaded LOCAL file stays available offline).
-            service.isNetworkConnected,
-        ) { _, _ -> computeAvailability() != null }
-            .stateIn(scope, SharingStarted.Eagerly, false)
+    val videoModeAvailable: StateFlow<Boolean> = _videoModeAvailable.asStateFlow()
+
+    /** Recompute availability in the CALLER's stack (main) — see [videoModeAvailable]. */
+    fun recomputeNow() {
+        _videoModeAvailable.value = computeAvailability() != null
+    }
 
     /**
      * Whether the CURRENT item should download its muxed video rather than audio-only (Option A). The
@@ -127,6 +126,22 @@ class VideoModeController(
         }.stateIn(scope, SharingStarted.Eagerly, false)
 
     init {
+        // The async availability inputs — anything recomputeNow's synchronous path can't observe.
+        scope.launch {
+            combine(
+                combine(
+                    service.currentMediaMetadata,
+                    service.discoveryHandler.remoteConnectionState,
+                    blockVideosFlow,
+                    availabilityCache.revision,
+                    // A station broadcast starting/ending must re-evaluate (the toggle is never offered
+                    // during a broadcast); recompute covers local-file source resolution.
+                    combine(service.isStationBroadcast, recompute) { _, _ -> },
+                ) { _, _, _, _, _ -> },
+                // Connectivity gates the streaming renditions (a downloaded LOCAL file stays available offline).
+                service.isNetworkConnected,
+            ) { _, _ -> }.collect { recomputeNow() }
+        }
         // I5: a cast session starting forces audio (the receiver only ever gets the audio stream, keyed
         // on the real id) — revert the local timeline item back to audio.
         scope.launch {
