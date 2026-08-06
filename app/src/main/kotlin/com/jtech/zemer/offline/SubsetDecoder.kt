@@ -198,7 +198,9 @@ object SubsetDecoder {
         )
     }
 
-    // Podcast show row: [ id(MPSP), name, author, channelId(UC), thumbnail, episodeCountText ].
+    // Podcast show row: [ id(MPSP), name, author, channelId(UC), thumbnail, episodeCountText, genres ].
+    // `genres` (col 6) is a comma-separated slug string, appended after the podcast client shipped —
+    // getOrNull keeps a pre-genres snapshot (6 cols) decoding cleanly.
     fun decodePodcastShows(text: String): List<SubPodcastShow> = rows(text).map { r ->
         SubPodcastShow(
             id = r[0].asString(),
@@ -207,6 +209,7 @@ object SubsetDecoder {
             channelId = r[3].asStringOrNull(),
             thumbnail = r[4].asStringOrNull(),
             episodeCountText = r[5].asStringOrNull(),
+            genres = r.getOrNull(6).asStringOrNull()?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty(),
         )
     }
 

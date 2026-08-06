@@ -15,6 +15,9 @@ import com.jtech.zemer.search.ZemerPodcastChannelHeader
 import com.jtech.zemer.search.ZemerPodcastChannelResponse
 import com.jtech.zemer.search.ZemerPodcastDetail
 import com.jtech.zemer.search.ZemerPodcastEpisode
+import com.jtech.zemer.search.ZemerPodcastGenrePageResponse
+import com.jtech.zemer.search.ZemerPodcastGenreSummary
+import com.jtech.zemer.search.ZemerPodcastGenresResponse
 import com.jtech.zemer.search.ZemerPodcastResponse
 import com.jtech.zemer.search.ZemerPodcastShow
 import com.jtech.zemer.search.ZemerTrack
@@ -670,6 +673,54 @@ fun offlinePodcastsNewEpisodes(
         .map { it.toWire(corpus.podcastsById[it.showId]) }
         .toList()
     return ZemerNewEpisodesResponse(episodes = episodes)
+}
+
+// A genre slug's display title, derived offline the same way the server labels it: the vocabulary is
+// single lowercase words, so the title is the slug with its first letter uppercased ("gemara" -> "Gemara").
+private fun podcastGenreTitle(slug: String): String = slug.replaceFirstChar { it.uppercase() }
+
+/**
+ * `GET /podcast-genres` — the flat catalog. Each approved, gate-passing show contributes to every genre
+ * slug in its `genres` field; the count is the post-filter show count per slug. Ordered most-populated
+ * first (then slug), matching the server catalog.
+ */
+fun offlinePodcastGenres(
+    corpus: SubsetCorpus,
+    allowFemale: Boolean,
+    blockVideos: Boolean,
+    kidZone: Boolean,
+): ZemerPodcastGenresResponse {
+    val counts = HashMap<String, Int>()
+    for (show in corpus.podcasts) {
+        if (show.genres.isEmpty()) continue
+        if (!corpus.podcastShowPasses(show, allowFemale, blockVideos, kidZone)) continue
+        for (slug in show.genres) counts[slug] = (counts[slug] ?: 0) + 1
+    }
+    val genres = counts.entries
+        .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+        .map { ZemerPodcastGenreSummary(id = it.key, title = podcastGenreTitle(it.key), showCount = it.value) }
+    return ZemerPodcastGenresResponse(count = genres.size, genres = genres)
+}
+
+/**
+ * `GET /podcast-genres?id=<slug>` — one genre's member shows (gate-passing), in stored order. Null (404)
+ * when no show survives, mirroring the server + the live client's back-out behavior.
+ */
+fun offlinePodcastGenre(
+    corpus: SubsetCorpus,
+    slug: String,
+    allowFemale: Boolean,
+    blockVideos: Boolean,
+    kidZone: Boolean,
+): ZemerPodcastGenrePageResponse? {
+    val shows = corpus.podcasts.filter {
+        slug in it.genres && corpus.podcastShowPasses(it, allowFemale, blockVideos, kidZone)
+    }
+    if (shows.isEmpty()) return null
+    return ZemerPodcastGenrePageResponse(
+        genre = ZemerPodcastGenreSummary(id = slug, title = podcastGenreTitle(slug), showCount = shows.size),
+        shows = shows.map { it.toWire() },
+    )
 }
 
 // store.mjs `zemerPlaylistDetail` album rows: the curated album items (or, for a year rule, the albums

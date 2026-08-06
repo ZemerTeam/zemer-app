@@ -407,6 +407,19 @@ object ZemerResultMapper {
     fun ZemerSearchResponse.podcastShowItems(): List<PodcastItem> = categories.podcasts.toPodcastItems()
     fun ZemerSearchResponse.podcastEpisodeItems(): List<EpisodeItem> = categories.episodes.toEpisodeItems()
 
+    /** One podcast genre's page: the display title + its member shows as the standard podcast show cards. */
+    data class PodcastGenrePage(val title: String, val shows: List<PodcastItem>)
+
+    /**
+     * A `/podcast-genres?id=` response as a [PodcastGenrePage] (title + shows). Null when the header is
+     * missing (treated as a 404 → the screen backs out). Shows reuse the existing show mapping, so they
+     * render + route through the same podcast show card as the browse grid / channel shelf.
+     */
+    fun ZemerPodcastGenrePageResponse.toPodcastGenrePage(): PodcastGenrePage? {
+        val g = genre.takeIf { it.id.isNotBlank() } ?: return null
+        return PodcastGenrePage(title = g.title, shows = shows.toPodcastItems())
+    }
+
     /**
      * One genre's page in native item types (see [toGenrePage]). [header] carries the true
      * post-filter totals (the artist/album/single lists are the server's capped top-k, not the

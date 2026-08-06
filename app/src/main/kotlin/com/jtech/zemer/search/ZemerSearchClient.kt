@@ -303,6 +303,47 @@ class ZemerSearchClient @Inject constructor() {
     }
 
     /**
+     * `GET /podcast-genres` — the flat podcast-genre catalog (mirrors `/genres`, minus `kind`). Reuses
+     * the shared genre param builder (id=null + content flags). An empty list is a normal state.
+     */
+    suspend fun podcastGenres(
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+    ): ZemerPodcastGenresResponse {
+        val response: HttpResponse = client.get("$BASE_URL/podcast-genres") {
+            zemerGenresParameters(id = null, allowFemale, blockVideos).forEach { (name, value) ->
+                parameter(name, value)
+            }
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer podcast-genres returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerPodcastGenresResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * `GET /podcast-genres?id=<slug>` — one genre's flat show list. Null on 404 (unknown slug or all
+     * shows filtered out for this viewer), which the caller handles by backing out.
+     */
+    suspend fun podcastGenre(
+        id: String,
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+    ): ZemerPodcastGenrePageResponse? {
+        val response: HttpResponse = client.get("$BASE_URL/podcast-genres") {
+            zemerGenresParameters(id, allowFemale, blockVideos).forEach { (name, value) ->
+                parameter(name, value)
+            }
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer podcast-genre returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerPodcastGenrePageResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
      * Corpus-native radio: the first page of a whitelist-pure continuation seeded by [kind] (`artist` /
      * `album` / `song`, with [seed] the channelId/browseId/videoId) or `shuffle` (no seed) for Radio mode.
      * Content flags are sent explicitly (kidZone included), same as the other endpoints.

@@ -176,6 +176,8 @@ data class SubPodcastShow(
     val channelId: String?,
     val thumbnail: String?,
     val episodeCountText: String?,
+    /** The show's genre slugs (appended shard column; empty on a pre-genres snapshot). */
+    val genres: List<String> = emptyList(),
 )
 
 /** A podcast EPISODE (played by `videoId` via InnerTube). `durationSec`/`publishedAt` may be absent. */

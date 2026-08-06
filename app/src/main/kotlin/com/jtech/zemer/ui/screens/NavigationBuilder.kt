@@ -147,6 +147,19 @@ fun NavGraphBuilder.navigationBuilder(
         if (genreId.isNullOrBlank()) LaunchedEffect(Unit) { navController.navigateUp() }
         else GenreSectionScreen(navController, scrollBehavior)
     }
+    composable("podcast_genres") {
+        PodcastGenresScreen(navController, scrollBehavior)
+    }
+    composable(
+        // One podcast genre's flat show list. {genreId} is the server slug; blank = broken deep link,
+        // pop back; unknown 404s and the screen backs itself out.
+        route = "podcast_genre/{genreId}",
+        arguments = listOf(navArgument("genreId") { type = NavType.StringType }),
+    ) {
+        val genreId = it.arguments?.getString("genreId")
+        if (genreId.isNullOrBlank()) LaunchedEffect(Unit) { navController.navigateUp() }
+        else PodcastGenreScreen(navController, scrollBehavior)
+    }
     composable(
         route = "home_see_all/{row}",
         arguments = listOf(navArgument("row") { type = NavType.StringType }),

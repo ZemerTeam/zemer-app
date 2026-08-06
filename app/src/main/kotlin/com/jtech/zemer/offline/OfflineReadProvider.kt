@@ -9,6 +9,8 @@ import com.jtech.zemer.search.ZemerCuratedPlaylistsResponse
 import com.jtech.zemer.search.ZemerHomeRowsResponse
 import com.jtech.zemer.search.ZemerNewEpisodesResponse
 import com.jtech.zemer.search.ZemerPodcastChannelResponse
+import com.jtech.zemer.search.ZemerPodcastGenrePageResponse
+import com.jtech.zemer.search.ZemerPodcastGenresResponse
 import com.jtech.zemer.search.ZemerPodcastResponse
 import com.jtech.zemer.search.ZemerSearchResponse
 import com.jtech.zemer.utils.WhitelistCache
@@ -119,5 +121,15 @@ class OfflineReadProvider @Inject constructor(
     suspend fun podcastsNewEpisodes(k: Int, allowFemale: Boolean, blockVideos: Boolean): ZemerNewEpisodesResponse? =
         withContext(Dispatchers.IO) {
             snapshot()?.let { offlinePodcastsNewEpisodes(it.corpus, k, allowFemale, blockVideos, kidZone = false) }
+        }
+
+    suspend fun podcastGenres(allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastGenresResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlinePodcastGenres(it.corpus, allowFemale, blockVideos, kidZone = false) }
+        }
+
+    suspend fun podcastGenre(id: String, allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastGenrePageResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlinePodcastGenre(it.corpus, id, allowFemale, blockVideos, kidZone = false) }
         }
 }

@@ -18,10 +18,10 @@ class SubsetPodcastReadTest {
     private val chNorm = SubPodcastChannel("UCn", "Normal Cast", "tn", isFemale = false, isKidZone = false, isVerified = true, showCount = 2, episodeCount = 3)
     private val chFem = SubPodcastChannel("UCw", "Women Cast", "tw", isFemale = true, isKidZone = false, isVerified = false, showCount = 1, episodeCount = 1)
 
-    // shows (id, name, author, channelId, thumbnail, episodeCountText)
-    private val s1 = SubPodcastShow("MPS1", "Alpha Show", "Host A", "UCn", "ts1", "2 episodes")
-    private val s2 = SubPodcastShow("MPS2", "Beta Show", "Host B", "UCn", "ts2", null) // female-blocked per item
-    private val sf = SubPodcastShow("MPSF", "Ladies Show", "Host F", "UCw", "tsf", null)
+    // shows (id, name, author, channelId, thumbnail, episodeCountText, genres)
+    private val s1 = SubPodcastShow("MPS1", "Alpha Show", "Host A", "UCn", "ts1", "2 episodes", genres = listOf("gemara", "history"))
+    private val s2 = SubPodcastShow("MPS2", "Beta Show", "Host B", "UCn", "ts2", null, genres = listOf("gemara")) // female-blocked per item
+    private val sf = SubPodcastShow("MPSF", "Ladies Show", "Host F", "UCw", "tsf", null, genres = listOf("gemara"))
 
     // episodes (videoId, showId, title, thumbnail, durationSec, publishedAt)
     private val e1 = SubPodcastEpisode("ve1", "MPS1", "Ep One", "te1", 100, "2026-05-01")
@@ -107,5 +107,33 @@ class SubsetPodcastReadTest {
         assertTrue(ladiesBlocked.categories.episodes.none { it.videoId == "vef" })
         val ladiesAllowed = offlineSearch(corpus, matcher, "Ladies", 10, allowFemale = true, blockVideos = false, kidZone = false)
         assertTrue(ladiesAllowed.categories.episodes.any { it.videoId == "vef" })
+    }
+
+    @Test
+    fun `genre catalog counts are post-filter, most-populated first, titles capitalized`() {
+        // allowFemale: all three shows carry "gemara" (3); only s1 carries "history" (1).
+        val open = offlinePodcastGenres(corpus, allowFemale = true, blockVideos = false, kidZone = false)
+        assertEquals(listOf("gemara", "history"), open.genres.map { it.id }) // count desc → gemara first
+        assertEquals(3, open.genres.first { it.id == "gemara" }.showCount)
+        assertEquals("Gemara", open.genres.first { it.id == "gemara" }.title) // slug capitalized offline
+        assertEquals(1, open.genres.first { it.id == "history" }.showCount)
+
+        // female blocked: MPS2 (blocked.female) + MPSF (female channel) drop → gemara down to 1 (s1 only).
+        val blocked = offlinePodcastGenres(corpus, allowFemale = false, blockVideos = false, kidZone = false)
+        assertEquals(1, blocked.genres.first { it.id == "gemara" }.showCount)
+    }
+
+    @Test
+    fun `genre detail lists gated member shows, 404 when none`() {
+        val open = offlinePodcastGenre(corpus, "gemara", allowFemale = true, blockVideos = false, kidZone = false)!!
+        assertEquals("Gemara", open.genre.title)
+        assertEquals(listOf("MPS1", "MPS2", "MPSF"), open.shows.map { it.id })
+
+        val blocked = offlinePodcastGenre(corpus, "gemara", allowFemale = false, blockVideos = false, kidZone = false)!!
+        assertEquals(listOf("MPS1"), blocked.shows.map { it.id })
+
+        // history has only s1; an unknown slug is a 404.
+        assertEquals(listOf("MPS1"), offlinePodcastGenre(corpus, "history", allowFemale = true, blockVideos = false, kidZone = false)!!.shows.map { it.id })
+        assertNull(offlinePodcastGenre(corpus, "nonexistent", allowFemale = true, blockVideos = false, kidZone = false))
     }
 }

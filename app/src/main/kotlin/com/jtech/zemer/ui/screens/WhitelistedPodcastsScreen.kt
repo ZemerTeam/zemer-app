@@ -81,6 +81,8 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.NavigationTitle
+import com.jtech.zemer.search.zemerPodcastGenresRoute
 import com.jtech.zemer.ui.component.WhitelistedPodcastGridItem
 import com.jtech.zemer.ui.component.WhitelistedPodcastListItem
 import com.jtech.zemer.utils.rememberEnumPreference
@@ -170,6 +172,14 @@ fun WhitelistedPodcastsScreen(
         )
     }
 
+    // Entry into the podcast-genre catalog (reuses the shared see-all NavigationTitle: gold title + arrow).
+    val genresEntry = @Composable {
+        NavigationTitle(
+            title = stringResource(R.string.genres),
+            onClick = { navController.navigate(zemerPodcastGenresRoute()) },
+        )
+    }
+
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -184,6 +194,10 @@ fun WhitelistedPodcastsScreen(
                         contentType = CONTENT_TYPE_HEADER,
                     ) {
                         searchContent()
+                    }
+
+                    item(key = "genres_entry", contentType = CONTENT_TYPE_HEADER) {
+                        genresEntry()
                     }
 
                     // Subscribed Channels Section (the user's account subscriptions, synced + whitelist-filtered)
@@ -264,6 +278,10 @@ fun WhitelistedPodcastsScreen(
                         contentType = CONTENT_TYPE_HEADER,
                     ) {
                         searchContent()
+                    }
+
+                    item(key = "genres_entry", span = { GridItemSpan(maxLineSpan) }, contentType = CONTENT_TYPE_HEADER) {
+                        genresEntry()
                     }
 
                     // Subscribed Channels Section (the user's account subscriptions, synced + whitelist-filtered)

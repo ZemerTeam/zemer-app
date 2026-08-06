@@ -9,6 +9,7 @@ import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
 import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
 import com.jtech.zemer.search.ZemerResultMapper.toEpisodeItems
 import com.jtech.zemer.search.ZemerResultMapper.toGenrePage
+import com.jtech.zemer.search.ZemerResultMapper.toPodcastGenrePage
 import com.jtech.zemer.search.ZemerResultMapper.toPodcastPage
 import com.jtech.zemer.search.ZemerResultMapper.toSongItems
 import com.metrolist.innertube.YouTube.SearchFilter
@@ -229,6 +230,39 @@ class ZemerSearchRepository @Inject constructor(
             server = { client.podcastsNewEpisodes(k, options.allowFemale, options.blockVideos) },
             offline = { offlineReads.podcastsNewEpisodes(k, options.allowFemale, options.blockVideos) },
         ).toEpisodeItems()
+
+    /**
+     * The flat podcast-genre catalog. Server-first with the offline snapshot fallback (the subset's
+     * `podcasts` shard carries each show's genres). Flag-keyed TTL memo, mirroring [genres] — the Home-
+     * adjacent catalog is opened repeatedly, and the data changes on curation timescales.
+     */
+    suspend fun podcastGenres(options: ZemerSearchOptions): List<ZemerPodcastGenreSummary> {
+        val key = "${options.allowFemale}|${options.blockVideos}"
+        val now = System.currentTimeMillis()
+        podcastGenresCache?.let { (cachedKey, at, value) ->
+            if (cachedKey == key && now - at < GENRES_CACHE_TTL_MS) return value
+        }
+        return serverOrOffline(
+            server = { client.podcastGenres(options.allowFemale, options.blockVideos) },
+            offline = { offlineReads.podcastGenres(options.allowFemale, options.blockVideos) },
+        ).genres
+            .filter { it.id.isNotBlank() }
+            .distinctBy { it.id }
+            .also { podcastGenresCache = Triple(key, now, it) }
+    }
+
+    @Volatile
+    private var podcastGenresCache: Triple<String, Long, List<ZemerPodcastGenreSummary>>? = null
+
+    /**
+     * One podcast genre's page (its member shows). Null = 404 (unknown slug / all filtered out) — the
+     * screen backs out. Server-first with the offline fallback; uncached, like [genre].
+     */
+    suspend fun podcastGenre(id: String, options: ZemerSearchOptions): ZemerResultMapper.PodcastGenrePage? =
+        serverOrOffline(
+            server = { client.podcastGenre(id, options.allowFemale, options.blockVideos) },
+            offline = { offlineReads.podcastGenre(id, options.allowFemale, options.blockVideos) },
+        )?.toPodcastGenrePage()
 
     /**
      * Corpus-native radio (see [ZemerRadioResponse]): the first page seeded by [kind]/[seed] (`artist` /
