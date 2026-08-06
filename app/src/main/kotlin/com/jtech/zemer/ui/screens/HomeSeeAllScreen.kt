@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -141,6 +142,9 @@ internal fun <T : YTItem> YtItemGrid(
     // Zemer playlists tag their plays community:<id> by default (the Home community row); the artist
     // page's own playlists are artist-owned, so it passes false to keep them plain playlist:<id>.
     communityPlaylists: Boolean = true,
+    // Optional full-width content above the grid (e.g. the podcast-genre GenreDetailHeader), scrolling
+    // with it as a single list.
+    header: (@Composable () -> Unit)? = null,
 ) {
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -156,6 +160,9 @@ internal fun <T : YTItem> YtItemGrid(
         columns = GridCells.Fixed(2),
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) {
+        header?.let {
+            item(span = { GridItemSpan(maxLineSpan) }, key = "yt_grid_header") { it() }
+        }
         items(items = items, key = { it.id }) { item ->
             YouTubeGridItem(
                 item = item,

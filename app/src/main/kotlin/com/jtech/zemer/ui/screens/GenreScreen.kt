@@ -1,6 +1,5 @@
 package com.jtech.zemer.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
@@ -42,23 +40,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.painter.ColorPainter
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
@@ -76,13 +66,11 @@ import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.ui.component.AppBarTitle
-import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.BackNavigationIcon
-import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
-import com.jtech.zemer.ui.component.GenreWeaveLayer
+import com.jtech.zemer.ui.component.GenreDetailHeader
 import com.jtech.zemer.ui.component.genreIcon
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.YouTubeGridItem
@@ -228,127 +216,40 @@ fun GenreScreen(
                 val header = uiState.page.header
 
                 item(key = "genre_header") {
-                    // The genre's face, in three layers, all count-free (a concrete number reads
-                    // as small — the catalog should read as complete, not counted):
-                    // 1. an album-art mosaic of the genre's own top covers — the app's ONLY color
-                    //    source by design ("the album arts are already getting the color"), fading
-                    //    into the surface under a scrim so the chrome above stays legible;
-                    // 2. the same motif weave its catalog card carries (card→page continuity);
-                    // 3. one full-width gold pill — the screen's single loud accent — that starts
-                    //    genre radio (never the browse tracklist, per the handoff).
+                    // The genre's face — the shared GenreDetailHeader (mosaic + weave + title); the
+                    // music page's own control is the gold pill that starts genre RADIO (never the
+                    // browse tracklist, per the handoff).
                     val covers = remember(uiState.page) { uiState.page.headerCovers() }
-                    val motif = painterResource(genreIcon(header.id))
-                    val surface = MaterialTheme.colorScheme.surface
-                    // Graceful degradation: a cover that fails or is still loading paints this
-                    // neutral card tone, not a transparent gap that would read as a broken stripe.
-                    val coverFallback = remember(surface) {
-                        ColorPainter(surface)
-                    }
-                    val surfaceContainerHigh = MaterialTheme.colorScheme.surfaceContainerHigh
-                    val coverPlaceholder = remember(surfaceContainerHigh) {
-                        ColorPainter(surfaceContainerHigh)
-                    }
-                    // fillMaxWidth on the CONTAINER, not its children: the mosaic sizes to this
-                    // box, and without it the box shrinks to the widest child (the compact pill
-                    // regression that halved the artwork).
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .animateItem(),
+                    GenreDetailHeader(
+                        title = header.title,
+                        coverUrls = covers,
+                        motifRes = genreIcon(header.id),
+                        modifier = Modifier.animateItem(),
                     ) {
-                        if (covers.isNotEmpty()) {
-                            Row(modifier = Modifier.matchParentSize()) {
-                                covers.forEach { url ->
-                                    AsyncImage(
-                                        // Usually already in coil's cache: the VM preloads these
-                                        // URLs the moment the page JSON lands. Crossfade covers
-                                        // the cold-cache remainder instead of a hard pop-in.
-                                        model = ImageRequest.Builder(LocalContext.current)
-                                            .data(url)
-                                            .crossfade(true)
-                                            .build(),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        // A failed/loading column shows a neutral fill, never a
-                                        // see-through gap in the all-or-nothing strip.
-                                        placeholder = coverPlaceholder,
-                                        error = coverFallback,
-                                        fallback = coverFallback,
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .fillMaxHeight(),
-                                    )
-                                }
-                            }
-                            // Scrim: covers glow through up top, melt into the surface below so
-                            // title and pill sit on solid ground in any theme.
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            0f to surface.copy(alpha = 0.35f),
-                                            0.55f to surface.copy(alpha = 0.88f),
-                                            1f to surface,
-                                        ),
-                                    ),
-                            )
-                        }
-                        // The SAME drifting weave the catalog card carries — one continuous
-                        // fabric from card to page (it animates here too, not statically).
-                        GenreWeaveLayer(
-                            motif = motif,
-                            tint = MaterialTheme.colorScheme.primary,
-                            alpha = 0.05f,
-                            modifier = Modifier.matchParentSize(),
-                        )
-                        Column(
-                            modifier = Modifier.padding(12.dp),
+                        Button(
+                            onClick = {
+                                playerConnection.playQueue(
+                                    ZemerRadioQueue.genre(viewModel.genreId, playerConnection.service),
+                                )
+                            },
+                            shape = CircleShape,
+                            contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                            // Compact by review: the pill is the screen's accent note, not a banner.
+                            modifier = Modifier.height(44.dp),
                         ) {
-                            // Expanded stage (owner ask: "expand a lot more that top place, a lot
-                            // bigger"): tall art runway, then the title in the app's display face.
-                            Spacer(Modifier.height(96.dp))
-                            AutoResizeText(
-                                text = header.title,
-                                fontFamily = HeaderFontFamily,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                // Relative line height: the ambient style's fixed sp line height
-                                // made a wrapped 44sp title overlap its own second line.
-                                lineHeight = 1.1.em,
-                                fontSizeRange = FontSizeRange(30.sp, 44.sp),
+                            // A plain play arrow (the genre motif inside the pill read as noise).
+                            Icon(
+                                painter = painterResource(R.drawable.play),
+                                contentDescription = null,
+                                modifier = Modifier.size(ButtonDefaults.IconSize),
                             )
-
-                            Spacer(Modifier.height(16.dp))
-
-                            Button(
-                                onClick = {
-                                    playerConnection.playQueue(
-                                        ZemerRadioQueue.genre(viewModel.genreId, playerConnection.service),
-                                    )
-                                },
-                                shape = CircleShape,
-                                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                                // Compact by review: the pill is the screen's accent note, not a
-                                // banner — content-sized, not edge to edge.
-                                modifier = Modifier.height(44.dp),
-                            ) {
-                                // A plain play arrow (owner review: the genre motif inside the
-                                // pill — a diamond on the Chasunah page — read as noise; the
-                                // motif's home is the weave and the chips).
-                                Icon(
-                                    painter = painterResource(R.drawable.play),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(ButtonDefaults.IconSize),
-                                )
-                                Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                                Text(
-                                    text = stringResource(R.string.play),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontFamily = HeaderFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
+                            Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                            Text(
+                                text = stringResource(R.string.play),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontFamily = HeaderFontFamily,
+                                fontWeight = FontWeight.Bold,
+                            )
                         }
                     }
                 }
