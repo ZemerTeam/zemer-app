@@ -455,6 +455,32 @@ private fun SectionHeader(text: String) {
 }
 
 /** Auto-playlist card (mirrors YT Music) - used for the New Episodes and Episodes-for-Later playlists. */
+/** The 56dp rounded podcast thumbnail with the neutral queue_music fallback — shared by the library rows. */
+@Composable
+private fun PodcastRowThumbnail(thumbnailUrl: String?) {
+    Box(
+        modifier = Modifier.size(56.dp).clip(RoundedCornerShape(ThumbnailCornerRadius))
+            .background(MaterialTheme.colorScheme.primaryContainer),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (thumbnailUrl != null) {
+            AsyncImage(
+                model = thumbnailUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(56.dp).clip(RoundedCornerShape(ThumbnailCornerRadius)),
+            )
+        } else {
+            Icon(
+                painter = painterResource(R.drawable.queue_music),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(28.dp),
+            )
+        }
+    }
+}
+
 @Composable
 private fun AutoPlaylistCard(
     title: String,
@@ -467,27 +493,7 @@ private fun AutoPlaylistCard(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier.fillMaxWidth().focusBorder().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
-        Box(
-            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(ThumbnailCornerRadius))
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (thumbnailUrl != null) {
-                AsyncImage(
-                    model = thumbnailUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(ThumbnailCornerRadius)),
-                )
-            } else {
-                Icon(
-                    painter = painterResource(R.drawable.queue_music),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-        }
+        PodcastRowThumbnail(thumbnailUrl)
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(text = title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -520,27 +526,7 @@ private fun PodcastEpisodePlaylistItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier.focusBorder().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Box(
-            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(ThumbnailCornerRadius))
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (podcast.thumbnailUrl != null) {
-                AsyncImage(
-                    model = podcast.thumbnailUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(ThumbnailCornerRadius)),
-                )
-            } else {
-                Icon(
-                    painter = painterResource(R.drawable.queue_music),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-        }
+        PodcastRowThumbnail(podcast.thumbnailUrl)
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(text = podcast.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
