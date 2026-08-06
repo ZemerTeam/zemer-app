@@ -19,7 +19,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.CardColors
 import com.jtech.zemer.ui.component.focusBorder
+
+/**
+ * The standard M3 card fill shared by every onboarding selectable/status card, so cards, buttons and
+ * the search field all read as one family: a SOLID container tone (never an alpha-blended
+ * `surfaceVariant` hack) — [secondaryContainer] when active/selected, [surfaceContainerHigh] otherwise
+ * (the same neutral fill `OnboardingActionButton` and the shared search field use). Top-level in the
+ * onboarding package so the per-screen cards reuse it with no import.
+ */
+@Composable
+internal fun onboardingCardColors(active: Boolean): CardColors = CardDefaults.cardColors(
+    containerColor = if (active) MaterialTheme.colorScheme.secondaryContainer
+    else MaterialTheme.colorScheme.surfaceContainerHigh,
+)
 
 /**
  * The shared radio-select choice card the onboarding steps use (bottom-nav setup, search backup) —
@@ -37,18 +51,14 @@ fun OnboardingChoiceCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(
-                width = 1.5.dp,
-                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                shape = RoundedCornerShape(12.dp),
+            .then(
+                if (selected) Modifier.border(
+                    width = 1.5.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(12.dp),
+                ) else Modifier
             ),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            },
-        ),
+        colors = onboardingCardColors(active = selected),
         shape = RoundedCornerShape(12.dp),
     ) {
         Row(

@@ -1,5 +1,7 @@
 package com.jtech.zemer.ui.screens.onboarding
 
+import android.content.Context
+import androidx.core.content.edit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,72 +20,69 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.jtech.zemer.R
-import com.jtech.zemer.viewmodels.OfflineSearchSettingsViewModel
+import com.jtech.zemer.ui.screens.onboarding.OnboardingChoiceCard
+import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.ui.component.OnboardingStepTitle
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton
 import com.jtech.zemer.ui.component.OnboardingTextButton
 
-/**
- * Onboarding step offering the offline search backup — every new user learns the feature exists
- * BEFORE the first server outage, not from a failed search. Enable-selected by default; declining
- * also silences the one-time search-screen promo ([OfflineSearchSettingsViewModel.dismissPromo]) so
- * an explicit "no" is not re-asked. The download itself runs on the syncer's own scope, so leaving
- * onboarding never cancels it.
- */
 @Composable
-fun OnboardingSearchBackupScreen(
+internal fun BottomNavSetupScreen(
     onBack: () -> Unit,
     onComplete: () -> Unit,
-    viewModel: OfflineSearchSettingsViewModel = hiltViewModel(),
 ) {
-    var enableBackup by remember { mutableStateOf(true) }
+    val context = LocalContext.current
+    var enableBottomNav by remember { mutableStateOf(true) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface),
+            .background(MaterialTheme.colorScheme.surface)
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier
                 .align(Alignment.Center)
-                .fillMaxWidth(0.9f),
+                .fillMaxWidth(0.9f)
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 OnboardingStepTitle(
-                    text = stringResource(R.string.onboarding_backup_title),
+                    text = stringResource(R.string.onboarding_nav_setup),
                 )
                 Text(
-                    text = stringResource(R.string.onboarding_backup_question),
+                    text = stringResource(R.string.onboarding_nav_question),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
+                    textAlign = TextAlign.Center
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Choice cards — the shared onboarding radio card (D-pad focus treatment included)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 OnboardingChoiceCard(
-                    selected = enableBackup,
-                    title = stringResource(R.string.onboarding_backup_enable),
-                    description = stringResource(R.string.onboarding_backup_enable_desc),
-                    onSelect = { enableBackup = true },
+                    selected = enableBottomNav,
+                    title = stringResource(R.string.onboarding_nav_enable),
+                    description = stringResource(R.string.onboarding_nav_enable_desc),
+                    onSelect = { enableBottomNav = true },
                 )
                 OnboardingChoiceCard(
-                    selected = !enableBackup,
-                    title = stringResource(R.string.onboarding_backup_skip),
-                    description = stringResource(R.string.onboarding_backup_skip_desc),
-                    onSelect = { enableBackup = false },
+                    selected = !enableBottomNav,
+                    title = stringResource(R.string.onboarding_nav_no_thanks),
+                    description = stringResource(R.string.onboarding_nav_later),
+                    onSelect = { enableBottomNav = false },
                 )
             }
 
@@ -90,12 +90,28 @@ fun OnboardingSearchBackupScreen(
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                Text(
+                    text = stringResource(R.string.onboarding_nav_customize_later),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
+                )
+
                 OnboardingPrimaryButton(
                     text = stringResource(R.string.onboarding_continue),
                     onClick = {
-                        if (enableBackup) viewModel.setEnabled(true) else viewModel.dismissPromo()
+                        // Save preference using SharedPreferences
+                        val prefs = context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE)
+                        prefs.edit {
+                            putBoolean("bottomNavigationBarEnabled", enableBottomNav)
+                            // Set default items if enabling
+                            if (enableBottomNav) {
+                                putString("bottomNavigationItems", "home,search,library")
+                            }
+                        }
                         onComplete()
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -110,3 +126,4 @@ fun OnboardingSearchBackupScreen(
         }
     }
 }
+

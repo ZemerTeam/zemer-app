@@ -1,6 +1,6 @@
 package com.jtech.zemer.ui.screens
-import com.jtech.zemer.ui.component.AppNameTitle
 
+import com.jtech.zemer.ui.component.AppNameTitle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
