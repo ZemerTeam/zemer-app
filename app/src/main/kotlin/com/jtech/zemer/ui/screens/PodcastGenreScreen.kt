@@ -6,14 +6,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -23,8 +26,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jtech.zemer.R
-import com.jtech.zemer.ui.component.BackTopAppBar
+import com.jtech.zemer.ui.component.AppBarTitle
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.EmptyPlaceholder
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.GenreDetailHeader
 import com.jtech.zemer.ui.component.podcastGenreIcon
 import com.jtech.zemer.ui.component.shimmer.BoxPlaceholder
@@ -48,6 +53,13 @@ fun PodcastGenreScreen(
     viewModel: PodcastGenreViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+
+    // Own the grid's scroll state so the top bar can reveal the title once the header scrolls off
+    // (item 0 is the GenreDetailHeader) — parity with the music genre page.
+    val gridState = rememberLazyGridState()
+    val showTopBarTitle by remember {
+        derivedStateOf { gridState.firstVisibleItemIndex > 0 }
+    }
 
     LaunchedEffect(state) {
         if (state is UiState.NotFound) navController.navigateUp()
@@ -82,6 +94,8 @@ fun PodcastGenreScreen(
                 YtItemGrid(
                     items = uiState.shows,
                     navController = navController,
+                    gridState = gridState,
+                    columns = 3,
                     header = {
                         GenreDetailHeader(
                             title = uiState.title,
@@ -112,11 +126,16 @@ fun PodcastGenreScreen(
         }
     }
 
-    // No title in the bar — the big header carries it (parity with the music genre page's look); just
-    // the back arrow floats over the header.
-    BackTopAppBar(
-        title = {},
-        navController = navController,
+    // Scroll-reveal title, exactly like the music genre page: the big header carries the title at rest,
+    // and the bar shows it only once the header has scrolled off.
+    TopAppBar(
+        title = {
+            if (showTopBarTitle) {
+                AppBarTitle((state as? UiState.Loaded)?.title.orEmpty())
+            }
+        },
+        navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
+        colors = zemerTopAppBarColors(),
     )
 }

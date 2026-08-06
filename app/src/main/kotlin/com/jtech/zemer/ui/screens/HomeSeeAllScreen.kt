@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBar
@@ -145,6 +147,12 @@ internal fun <T : YTItem> YtItemGrid(
     // Optional full-width content above the grid (e.g. the podcast-genre GenreDetailHeader), scrolling
     // with it as a single list.
     header: (@Composable () -> Unit)? = null,
+    // Exposed so a caller can drive a scroll-reveal top bar (item 0 is the header, so
+    // firstVisibleItemIndex > 0 means the header has scrolled off).
+    gridState: LazyGridState = rememberLazyGridState(),
+    // Column count. Default 2 (album/artist titles run long); the podcast-genre shows grid passes 3
+    // (square art + short titles pack tighter).
+    columns: Int = 2,
 ) {
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -157,7 +165,8 @@ internal fun <T : YTItem> YtItemGrid(
     LazyVerticalGrid(
         // Two across, not three: album/artist titles here run long (full Hebrew + English names), and a
         // third-of-screen cell chops them mid-word. Two columns give the title + "artist · year" room.
-        columns = GridCells.Fixed(2),
+        state = gridState,
+        columns = GridCells.Fixed(columns),
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) {
         header?.let {
