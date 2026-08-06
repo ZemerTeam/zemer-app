@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,12 +17,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.jtech.zemer.R
 import com.jtech.zemer.viewmodels.OfflineSearchSettingsViewModel
-import com.jtech.zemer.ui.component.OnboardingStepTitle
+import com.jtech.zemer.ui.component.OnboardingStepHeader
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton
 import com.jtech.zemer.ui.component.OnboardingTextButton
 
@@ -53,21 +51,10 @@ fun OnboardingSearchBackupScreen(
                 .align(Alignment.Center)
                 .fillMaxWidth(0.9f),
         ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                OnboardingStepTitle(
-                    text = stringResource(R.string.onboarding_backup_title),
-                )
-                Text(
-                    text = stringResource(R.string.onboarding_backup_question),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
+            OnboardingStepHeader(
+                title = stringResource(R.string.onboarding_backup_title),
+                subtitle = stringResource(R.string.onboarding_backup_question),
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 

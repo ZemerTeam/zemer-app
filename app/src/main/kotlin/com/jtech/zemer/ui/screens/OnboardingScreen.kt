@@ -20,8 +20,8 @@ import com.jtech.zemer.ui.screens.onboarding.DensityScreen
 import com.jtech.zemer.ui.screens.onboarding.ContentFiltersScreen
 import com.jtech.zemer.ui.screens.onboarding.PermissionsScreen
 import com.jtech.zemer.ui.screens.onboarding.BottomNavSetupScreen
-
-private enum class OnboardingStep { Welcome, Density, ContentFilters, Permissions, BottomNavSetup, SearchBackup, Loading }
+import com.jtech.zemer.ui.screens.onboarding.OnboardingNavigation
+import com.jtech.zemer.ui.screens.onboarding.OnboardingStep
 
 @Composable
 fun OnboardingFlow(
@@ -50,24 +50,18 @@ fun OnboardingFlow(
     when (step) {
         OnboardingStep.Welcome -> WelcomeScreen(
             onContinue = {
-                step = when {
-                    densityAlreadySet && contentFiltersAlreadySet -> OnboardingStep.Permissions
-                    densityAlreadySet -> OnboardingStep.ContentFilters
-                    else -> OnboardingStep.Density
-                }
+                step = OnboardingNavigation.afterWelcome(densityAlreadySet, contentFiltersAlreadySet)
             }
         )
 
         OnboardingStep.Density -> DensityScreen(
-            onSkip = {
-                step = if (contentFiltersAlreadySet) OnboardingStep.Permissions else OnboardingStep.ContentFilters
-            },
+            onSkip = { step = OnboardingNavigation.afterDensity(contentFiltersAlreadySet) },
             onBack = { step = OnboardingStep.Welcome }
         )
 
         OnboardingStep.ContentFilters -> ContentFiltersScreen(
             onSkip = { step = OnboardingStep.Permissions },
-            onBack = { step = if (densityAlreadySet) OnboardingStep.Welcome else OnboardingStep.Density },
+            onBack = { step = OnboardingNavigation.backFromContentFilters(densityAlreadySet) },
             viewModel = viewModel,
             contentFiltersAlreadySet = contentFiltersAlreadySet
         )

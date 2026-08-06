@@ -47,7 +47,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.utils.PermissionHelper
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import com.jtech.zemer.ui.component.OnboardingStepTitle
+import com.jtech.zemer.ui.component.OnboardingStepHeader
 import com.jtech.zemer.ui.component.OnboardingActionButton
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton
 import com.jtech.zemer.ui.component.OnboardingTextButton
@@ -155,25 +155,13 @@ internal fun PermissionsScreen(
                 .align(Alignment.Center)
                 .fillMaxWidth(0.9f)
         ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                OnboardingStepTitle(
-                    text = stringResource(R.string.onboarding_permissions_title),
-                )
-                Text(
-                    text = if (allGranted) {
-                        stringResource(R.string.onboarding_all_set)
-                    } else {
-                        stringResource(R.string.onboarding_permissions_subtitle)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (allGranted) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-            }
+            OnboardingStepHeader(
+                title = stringResource(R.string.onboarding_permissions_title),
+                subtitle = if (allGranted) stringResource(R.string.onboarding_all_set)
+                else stringResource(R.string.onboarding_permissions_subtitle),
+                subtitleColor = if (allGranted) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             Spacer(modifier = Modifier.height(20.dp))
 

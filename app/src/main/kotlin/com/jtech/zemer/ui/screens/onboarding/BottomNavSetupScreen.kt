@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.screens.onboarding.OnboardingChoiceCard
 import androidx.datastore.preferences.core.edit
-import com.jtech.zemer.ui.component.OnboardingStepTitle
+import com.jtech.zemer.ui.component.OnboardingStepHeader
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton
 import com.jtech.zemer.ui.component.OnboardingTextButton
 
@@ -50,21 +50,10 @@ internal fun BottomNavSetupScreen(
                 .align(Alignment.Center)
                 .fillMaxWidth(0.9f)
         ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                OnboardingStepTitle(
-                    text = stringResource(R.string.onboarding_nav_setup),
-                )
-                Text(
-                    text = stringResource(R.string.onboarding_nav_question),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-            }
+            OnboardingStepHeader(
+                title = stringResource(R.string.onboarding_nav_setup),
+                subtitle = stringResource(R.string.onboarding_nav_question),
+            )
 
             Spacer(modifier = Modifier.height(20.dp))
 

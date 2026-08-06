@@ -21,7 +21,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,13 +36,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.DensityScale
-import com.jtech.zemer.extensions.isInternetConnected
 import androidx.datastore.preferences.core.edit
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.delay
 import com.jtech.zemer.ui.component.DefaultDialog
-import com.jtech.zemer.ui.component.OnboardingStepTitle
+import com.jtech.zemer.ui.component.OnboardingStepHeader
 import com.jtech.zemer.ui.component.OnboardingActionButton
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton
 import com.jtech.zemer.ui.component.OnboardingTextButton
@@ -54,28 +49,7 @@ internal fun DensityScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
-    var isConnected by remember { mutableStateOf(false) }
-    var isCheckingNetwork by remember { mutableStateOf(true) }
-
-    // Initial and periodic network checks
-    LaunchedEffect(Unit) {
-        // Initial check
-        isConnected = withContext(Dispatchers.IO) {
-            context.isInternetConnected()
-        }
-        isCheckingNetwork = false
-
-        // Continue checking every 2 seconds
-        while (true) {
-            delay(2000)
-            val newConnectionState = withContext(Dispatchers.IO) {
-                context.isInternetConnected()
-            }
-            if (newConnectionState != isConnected) {
-                isConnected = newConnectionState
-            }
-        }
-    }
+    val (isConnected, isCheckingNetwork) = rememberOnboardingConnectivity()
     var selectedDensity by rememberSaveable { mutableStateOf(DensityScale.NATIVE) }
     var customDensityValue by rememberSaveable { mutableStateOf(0.85f) }
     var showRestartDialog by rememberSaveable { mutableStateOf(false) }
@@ -94,22 +68,11 @@ internal fun DensityScreen(
                 .align(Alignment.Center)
                 .fillMaxWidth(0.9f)
         ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                OnboardingStepTitle(
-                    text = stringResource(R.string.onboarding_density_title),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    text = stringResource(R.string.onboarding_density_subtitle),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-            }
+            OnboardingStepHeader(
+                title = stringResource(R.string.onboarding_density_title),
+                subtitle = stringResource(R.string.onboarding_density_subtitle),
+                titleStyle = MaterialTheme.typography.titleMedium,
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 

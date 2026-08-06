@@ -46,7 +46,6 @@ import com.jtech.zemer.viewmodels.OnboardingViewModel
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.SyncAccountWarning
 import com.jtech.zemer.ui.component.DefaultDialog
-import com.jtech.zemer.extensions.isInternetConnected
 import androidx.datastore.core.DataStore
 import com.jtech.zemer.constants.EnableContentFiltersKey
 import com.jtech.zemer.constants.AllowFemaleSingersKey
@@ -56,9 +55,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.ui.res.painterResource
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
+import com.jtech.zemer.ui.component.OnboardingStepHeader
 import com.jtech.zemer.ui.component.OnboardingStepTitle
 import com.jtech.zemer.ui.component.OnboardingActionButton
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton
@@ -75,28 +73,7 @@ internal fun ContentFiltersScreen(
     val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
     val authState by viewModel.authState.collectAsState(initial = com.jtech.zemer.auth.AuthState.SignedOut)
-    var isConnected by remember { mutableStateOf(false) }
-    var isCheckingNetwork by remember { mutableStateOf(true) }
-
-    // Initial and periodic network checks
-    LaunchedEffect(Unit) {
-        // Initial check
-        isConnected = withContext(Dispatchers.IO) {
-            context.isInternetConnected()
-        }
-        isCheckingNetwork = false
-
-        // Continue checking every 2 seconds
-        while (true) {
-            delay(2000)
-            val newConnectionState = withContext(Dispatchers.IO) {
-                context.isInternetConnected()
-            }
-            if (newConnectionState != isConnected) {
-                isConnected = newConnectionState
-            }
-        }
-    }
+    val (isConnected, isCheckingNetwork) = rememberOnboardingConnectivity()
 
     // Content filter states (using rememberPreference to auto-save to DataStore)
     val (enableContentFilters, onEnableContentFiltersChange) = rememberPreference(key = EnableContentFiltersKey, defaultValue = true)
@@ -266,21 +243,10 @@ internal fun ContentFiltersScreen(
                 }
             } else {
                 // Normal content filter setup screen
-                // Title and subtitle
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    OnboardingStepTitle(
-                        text = stringResource(R.string.content_filters),
-                    )
-                    Text(
-                        text = stringResource(R.string.onboarding_filters_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                }
+                OnboardingStepHeader(
+                    title = stringResource(R.string.content_filters),
+                    subtitle = stringResource(R.string.onboarding_filters_subtitle),
+                )
 
                 // Allow Female Singers toggle
                 FilterOptionCard(

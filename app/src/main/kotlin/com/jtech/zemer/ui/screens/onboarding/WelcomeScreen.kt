@@ -20,17 +20,14 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -44,10 +41,6 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import com.airbnb.lottie.compose.rememberLottieDynamicProperties
 import com.airbnb.lottie.compose.rememberLottieDynamicProperty
 import com.jtech.zemer.R
-import com.jtech.zemer.extensions.isInternetConnected
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.delay
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton
 
@@ -57,32 +50,9 @@ private enum class LegalKind { TOS, PRIVACY }
 internal fun WelcomeScreen(
     onContinue: () -> Unit,
 ) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     var legal by remember { mutableStateOf<LegalKind?>(null) }
     var agreed by rememberSaveable { mutableStateOf(false) }
-    var isConnected by remember { mutableStateOf(false) }
-    var isCheckingNetwork by remember { mutableStateOf(true) }
-
-    // Initial and periodic network checks
-    LaunchedEffect(Unit) {
-        // Initial check
-        isConnected = withContext(Dispatchers.IO) {
-            context.isInternetConnected()
-        }
-        isCheckingNetwork = false
-
-        // Continue checking every 2 seconds
-        while (true) {
-            delay(2000)
-            val newConnectionState = withContext(Dispatchers.IO) {
-                context.isInternetConnected()
-            }
-            if (newConnectionState != isConnected) {
-                isConnected = newConnectionState
-            }
-        }
-    }
+    val (isConnected, isCheckingNetwork) = rememberOnboardingConnectivity()
 
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.welcome))
     val animationState = animateLottieCompositionAsState(
