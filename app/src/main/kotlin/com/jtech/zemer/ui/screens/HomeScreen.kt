@@ -68,6 +68,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerGenresRoute
+import com.jtech.zemer.search.zemerPodcastGenresRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.tracking.TrackImpressionsByKey
@@ -177,6 +178,10 @@ fun HomeScreen(
     val statusContentFilter by zemerStatusesViewModel.contentFilter.collectAsState()
     val podcastsHomeViewModel: PodcastsHomeViewModel = hiltViewModel()
     val homePodcasts by podcastsHomeViewModel.podcasts.collectAsState()
+    // The Home "Podcast Genres" chips strip, above the Podcasts row. Isolated + fail-soft like the
+    // music genres strip: an outage leaves the list empty and the strip hides.
+    val podcastGenresHomeViewModel: com.jtech.zemer.viewmodels.PodcastGenresHomeViewModel = hiltViewModel()
+    val homePodcastGenres by podcastGenresHomeViewModel.genres.collectAsState()
     val continueListeningViewModel: com.jtech.zemer.viewmodels.ContinueListeningViewModel = hiltViewModel()
     val continueEpisodes by continueListeningViewModel.episodes.collectAsState()
     // Settings → Appearance owns these toggles (there is deliberately no in-row hide affordance).
@@ -187,6 +192,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         zemerPlaylistsViewModel.refresh()
         zemerGenresViewModel.refresh()
+        podcastGenresHomeViewModel.refresh()
         zemerStatusesViewModel.refresh()
     }
     val stationsLifecycleOwner = LocalLifecycleOwner.current
@@ -433,6 +439,7 @@ fun HomeScreen(
                     zemerPlaylistsViewModel.refresh()
                     zemerStationsViewModel.refresh()
                     zemerGenresViewModel.refresh()
+                    podcastGenresHomeViewModel.refresh()
                     zemerStatusesViewModel.refresh(force = true) // pull-to-refresh always re-fetches
                 }
             ),
@@ -1015,6 +1022,25 @@ fun HomeScreen(
                     }
                 }
             }
+
+                // Podcast Genres strip: the podcast twin of the music genres chips, sitting directly
+                // above the Podcasts row. Own isolated fail-soft VM (empty -> hidden); arrow -> catalog.
+                homePodcastGenres.takeIf { it.isNotEmpty() }?.let { genres ->
+                    item(key = "podcast_genre_chips_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.podcast_genres),
+                            onClick = { navController.navigate(zemerPodcastGenresRoute()) },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                    item(key = "podcast_genre_chips_list", contentType = "grid") {
+                        HomePodcastGenresRow(
+                            genres = genres,
+                            navController = navController,
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                }
 
                 // Podcasts row: the whitelisted podcasts, opening the full browse via "See all". Own
                 // isolated fail-soft VM (empty list -> hidden), like the Stations/Genres rows.
