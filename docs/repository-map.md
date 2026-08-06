@@ -77,10 +77,10 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1105`
+- Files counted: `1104`
 - By extension:
   - `.kt`: `687`
-  - `.xml`: `177`
+  - `.xml`: `176`
   - `.mjs`: `74`
   - `.md`: `68`
   - `.json`: `36`
@@ -115,7 +115,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
-| `AGENTS.md` | 955 lines | `.md` |
+| `AGENTS.md` | 976 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 19 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -811,7 +811,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/drawable/warning.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/widget_background.xml` | 6 lines | `.xml` |
 | `app/src/main/res/drawable/widget_preview.xml` | 18 lines | `.xml` |
-| `app/src/main/res/drawable/wifi_proxy.xml` | 9 lines | `.xml` |
 | `app/src/main/res/font/heebo_bold.ttf` | 44304 bytes | `.ttf` |
 | `app/src/main/res/font/heebo_extrabold.ttf` | 44528 bytes | `.ttf` |
 | `app/src/main/res/layout/widget_loading.xml` | 45 lines | `.xml` |
@@ -843,7 +842,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/main/res/values/colors.xml` | 9 lines | `.xml` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | `.xml` |
-| `app/src/main/res/values/metrolist_strings.xml` | 645 lines | `.xml` |
+| `app/src/main/res/values/metrolist_strings.xml` | 642 lines | `.xml` |
 | `app/src/main/res/values/strings.xml` | 438 lines | `.xml` |
 | `app/src/main/res/values/styles.xml` | 26 lines | `.xml` |
 | `app/src/main/res/values/values.xml` | 8 lines | `.xml` |
@@ -991,7 +990,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 710 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 364 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 363 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
 | `docs/remote_cipher_config/02-file-format.md` | 116 lines | `.md` |
@@ -1001,7 +1000,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1215 lines | `.md` |
+| `docs/repository-map.md` | 1214 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
