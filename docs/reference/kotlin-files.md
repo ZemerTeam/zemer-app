@@ -236,7 +236,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3MenuItem.kt` | 139 | `com.jtech.zemer.ui.component` | yes | 31 | 13 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3SettingsGroup.kt` | 215 | `com.jtech.zemer.ui.component` | yes | 37 | 13 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/MenuDialogs.kt` | 129 | `com.jtech.zemer.ui.component` | yes | 27 | 6 | androidx.compose, coil3.compose |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/NavigationTitle.kt` | 77 | `com.jtech.zemer.ui.component` | yes | 22 | 1 | androidx.compose |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/NavigationTitle.kt` | 81 | `com.jtech.zemer.ui.component` | yes | 22 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/NewMenuComponents.kt` | 154 | `com.jtech.zemer.ui.component` | yes | 32 | 14 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/OfflineBackupPromo.kt` | 91 | `com.jtech.zemer.ui.component` | yes | 22 | 5 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/PlayerSlider.kt` | 112 | `com.jtech.zemer.ui.component` | yes | 17 | 19 | androidx.compose |

@@ -60,7 +60,9 @@ fun NavigationTitle(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
+                // Neutral, like the top-bar title (AppBarTitle inherits onSurface): the accent stays
+                // reserved for the interactive bits — the see-all arrow, chips, play buttons — instead
+                // of tinting every section header. The arrow below keeps the accent.
                 overflow = TextOverflow.Ellipsis,
                 maxLines = 1,
             )
@@ -70,7 +72,9 @@ fun NavigationTitle(
             Icon(
                 painter = painterResource(R.drawable.arrow_forward),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+                // Neutral like the top-bar icons — a quiet "see all" affordance, not an accent. The
+                // accent lives only in real content (chips, play buttons, status rings, active rows).
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

@@ -395,7 +395,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3MenuItem.kt` | 139 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3SettingsGroup.kt` | 215 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/MenuDialogs.kt` | 129 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/NavigationTitle.kt` | 77 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/NavigationTitle.kt` | 81 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/NewMenuComponents.kt` | 154 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/OfflineBackupPromo.kt` | 91 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/PlayerSlider.kt` | 112 lines | `.kt` |
