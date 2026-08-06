@@ -427,15 +427,16 @@ val MIGRATION_31_32 =
 val MIGRATION_33_34 =
     object : Migration(33, 34) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            // Create podcast_whitelist table
+            // Create podcast_whitelist table (CHANNEL-level: keyed by the UC... host channel id).
             db.execSQL("""
                 CREATE TABLE IF NOT EXISTS `podcast_whitelist` (
-                    `podcastId` TEXT NOT NULL PRIMARY KEY,
-                    `podcastName` TEXT NOT NULL,
+                    `channelId` TEXT NOT NULL PRIMARY KEY,
+                    `name` TEXT NOT NULL,
                     `thumbnailUrl` TEXT,
-                    `channelId` TEXT,
-                    `addedAt` INTEGER NOT NULL,
-                    `source` TEXT NOT NULL DEFAULT 'firestore',
+                    `isFemale` INTEGER NOT NULL DEFAULT 0,
+                    `isKidZone` INTEGER NOT NULL DEFAULT 0,
+                    `isVerified` INTEGER NOT NULL DEFAULT 0,
+                    `showCount` INTEGER NOT NULL DEFAULT 0,
                     `lastSyncedAt` INTEGER NOT NULL
                 )
             """.trimIndent())

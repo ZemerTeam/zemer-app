@@ -174,22 +174,21 @@ object WhitelistFetcher {
                     val now = LocalDateTime.now()
                     val docs = ZemerContentClient.podcastsWhitelist()
                     val total = docs.size
-                    Timber.d("WhitelistFetcher: mapping %d podcasts from content mirror", total)
+                    Timber.d("WhitelistFetcher: mapping %d podcast channels from content mirror", total)
                     val entities = ArrayList<PodcastWhitelistEntity>(total)
                     docs.forEachIndexed { index, doc ->
                         onProgress(index + 1, total)
-                        val podcastId = (doc.id.takeIf { it.isNotBlank() } ?: doc.podcastId)?.takeIf { it.isNotBlank() }
-                            ?: return@forEachIndexed
-                        val podcastName = (doc.name ?: doc.podcastName)?.takeIf { it.isNotBlank() }
-                            ?: return@forEachIndexed
+                        val channelId = doc.id.takeIf { it.isNotBlank() } ?: return@forEachIndexed
+                        val name = doc.name?.takeIf { it.isNotBlank() } ?: return@forEachIndexed
                         entities.add(
                             PodcastWhitelistEntity(
-                                podcastId = podcastId,
-                                podcastName = podcastName,
+                                channelId = channelId,
+                                name = name,
                                 thumbnailUrl = doc.thumbnailUrl,
-                                channelId = doc.channelId,
-                                addedAt = now,
-                                source = "mirror",
+                                isFemale = doc.isFemale,
+                                isKidZone = doc.isKidZone,
+                                isVerified = doc.isVerified,
+                                showCount = doc.showCount,
                                 lastSyncedAt = now,
                             )
                         )
@@ -199,20 +198,21 @@ object WhitelistFetcher {
                 firebase = {
                     val now = LocalDateTime.now()
                     val whitelistEntities = mutableListOf<PodcastWhitelistEntity>()
-                    val snapshot: QuerySnapshot = firestore.collection("podcastsWhitelist").get().await()
+                    val snapshot: QuerySnapshot = firestore.collection("podcastChannelsWhitelist").get().await()
                     val total = snapshot.size()
                     var processed = 0
                     snapshot.documents.forEach { doc ->
-                        val podcastId = (doc.getString("id") ?: doc.getString("podcastId")) ?: return@forEach
-                        val podcastName = (doc.getString("name") ?: doc.getString("podcastName")) ?: return@forEach
+                        val channelId = (doc.getString("id") ?: doc.id).takeIf { it.isNotBlank() } ?: return@forEach
+                        val name = doc.getString("name")?.takeIf { it.isNotBlank() } ?: return@forEach
                         whitelistEntities.add(
                             PodcastWhitelistEntity(
-                                podcastId = podcastId,
-                                podcastName = podcastName,
+                                channelId = channelId,
+                                name = name,
                                 thumbnailUrl = doc.getString("thumbnailUrl"),
-                                channelId = doc.getString("channelId"),
-                                addedAt = now,
-                                source = "firestore",
+                                isFemale = doc.getBoolean("isFemale") ?: false,
+                                isKidZone = doc.getBoolean("isKidZone") ?: false,
+                                isVerified = doc.getBoolean("isVerified") ?: false,
+                                showCount = (doc.getLong("showCount") ?: 0L).toInt(),
                                 lastSyncedAt = now,
                             )
                         )

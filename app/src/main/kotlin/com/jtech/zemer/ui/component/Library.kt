@@ -409,12 +409,12 @@ fun WhitelistedPodcastListItem(
     onRequestThumb: () -> Unit = {},
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = ListItem(
-    title = podcast.podcastName,
+    title = podcast.name,
     subtitle = "",
     badges = {},
     thumbnailContent = {
         if (podcast.thumbnailUrl.isNullOrBlank()) {
-            LaunchedEffect(podcast.podcastId) { onRequestThumb() }
+            LaunchedEffect(podcast.channelId) { onRequestThumb() }
         }
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
@@ -452,12 +452,12 @@ fun WhitelistedPodcastGridItem(
     fillMaxWidth: Boolean = true,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = GridItem(
-    title = podcast.podcastName,
+    title = podcast.name,
     subtitle = "",
     badges = {},
     thumbnailContent = {
         if (podcast.thumbnailUrl.isNullOrBlank()) {
-            LaunchedEffect(podcast.podcastId) { onRequestThumb() }
+            LaunchedEffect(podcast.channelId) { onRequestThumb() }
         }
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
@@ -487,10 +487,10 @@ fun WhitelistedPodcastGridItem(
 )
 
 /**
- * Open a browsed whitelisted podcast: to the host CHANNEL page (where Subscribe + the host's shows
- * live) when the entry carries a channelId, otherwise straight to the show's episode list. Shared by
- * the list + grid rows so the destination can't drift.
+ * Open a browsed whitelisted podcast CHANNEL: the whitelist is channel-level, so every entry opens the
+ * host channel page (ArtistScreen, isPodcastChannel) where Subscribe + the channel's shows live. Shared
+ * by the list + grid rows so the destination can't drift.
  */
 private fun NavController.openWhitelistedPodcast(podcast: PodcastWhitelistEntity) {
-    whitelistedPodcastRoute(podcast.podcastId, podcast.channelId)?.let(::navigate)
+    whitelistedPodcastRoute(null, podcast.channelId)?.let(::navigate)
 }

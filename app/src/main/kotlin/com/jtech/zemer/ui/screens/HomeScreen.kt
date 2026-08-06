@@ -1035,7 +1035,7 @@ fun HomeScreen(
                         ) {
                             items(
                                 items = podcasts,
-                                key = { it.podcastId },
+                                key = { it.channelId },
                                 contentType = { "podcast" }
                             ) { podcast ->
                                 WhitelistedPodcastGridItem(

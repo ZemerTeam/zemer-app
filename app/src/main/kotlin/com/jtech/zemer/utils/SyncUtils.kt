@@ -867,12 +867,12 @@ class SyncUtils @Inject constructor(
                     return@withContext
                 }
 
-                // Preserve any existing thumbnail across the clear+reinsert as a guard for a row the mirror
-                // ever omits art on (it now carries art for 113/113, but never regress a good local cover).
+                // Preserve any existing channel avatar across the clear+reinsert as a guard for a row the
+                // mirror ever omits art on (never regress a good local cover).
                 val existingThumbnails = database.getPodcastWhitelistEntriesSync()
-                    .associate { it.podcastId to it.thumbnailUrl }
+                    .associate { it.channelId to it.thumbnailUrl }
                 val entriesWithThumbnails = whitelistEntries.map { entry ->
-                    val existingThumb = existingThumbnails[entry.podcastId]
+                    val existingThumb = existingThumbnails[entry.channelId]
                     if (existingThumb != null && entry.thumbnailUrl.isNullOrBlank()) entry.copy(thumbnailUrl = existingThumb)
                     else entry
                 }

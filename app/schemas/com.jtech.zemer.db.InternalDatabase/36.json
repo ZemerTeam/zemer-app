@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 36,
-    "identityHash": "fb300f5fb92b1e2001772c2d244883a0",
+    "identityHash": "34aedfb248fca6ea1217dc974399c622",
     "entities": [
       {
         "tableName": "song",
@@ -1238,17 +1238,17 @@
       },
       {
         "tableName": "podcast_whitelist",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`podcastId` TEXT NOT NULL, `podcastName` TEXT NOT NULL, `thumbnailUrl` TEXT, `channelId` TEXT, `addedAt` INTEGER NOT NULL, `source` TEXT NOT NULL, `lastSyncedAt` INTEGER NOT NULL, PRIMARY KEY(`podcastId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`channelId` TEXT NOT NULL, `name` TEXT NOT NULL, `thumbnailUrl` TEXT, `isFemale` INTEGER NOT NULL, `isKidZone` INTEGER NOT NULL, `isVerified` INTEGER NOT NULL, `showCount` INTEGER NOT NULL, `lastSyncedAt` INTEGER NOT NULL, PRIMARY KEY(`channelId`))",
         "fields": [
           {
-            "fieldPath": "podcastId",
-            "columnName": "podcastId",
+            "fieldPath": "channelId",
+            "columnName": "channelId",
             "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "podcastName",
-            "columnName": "podcastName",
+            "fieldPath": "name",
+            "columnName": "name",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -1258,20 +1258,27 @@
             "affinity": "TEXT"
           },
           {
-            "fieldPath": "channelId",
-            "columnName": "channelId",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "addedAt",
-            "columnName": "addedAt",
+            "fieldPath": "isFemale",
+            "columnName": "isFemale",
             "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "source",
-            "columnName": "source",
-            "affinity": "TEXT",
+            "fieldPath": "isKidZone",
+            "columnName": "isKidZone",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isVerified",
+            "columnName": "isVerified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "showCount",
+            "columnName": "showCount",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
@@ -1284,7 +1291,7 @@
         "primaryKey": {
           "autoGenerate": false,
           "columnNames": [
-            "podcastId"
+            "channelId"
           ]
         }
       },
@@ -1355,7 +1362,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'fb300f5fb92b1e2001772c2d244883a0')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '34aedfb248fca6ea1217dc974399c622')"
     ]
   }
 }

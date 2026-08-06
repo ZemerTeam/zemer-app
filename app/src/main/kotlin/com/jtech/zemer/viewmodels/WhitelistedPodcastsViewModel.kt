@@ -49,7 +49,7 @@ constructor(
             searchQuery
         ) { podcasts: List<PodcastWhitelistEntity>, query ->
             if (query.isBlank()) podcasts
-            else podcasts.filter { podcast -> podcast.podcastName.contains(query, ignoreCase = true) }
+            else podcasts.filter { podcast -> podcast.name.contains(query, ignoreCase = true) }
         }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {

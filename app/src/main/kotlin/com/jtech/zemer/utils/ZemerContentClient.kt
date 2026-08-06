@@ -87,22 +87,22 @@ object ZemerContentClient {
     }
 
     /**
-     * `/podcastsWhitelist/version` → the podcast allow-set gate (the direct parallel to
-     * `/whitelist/version`). The mirror is the authoritative allow-set + version gate for podcasts, same
-     * as the artist whitelist; `zemer-search /podcasts` is the rich browse catalog, not the gate.
+     * `/podcastChannelsWhitelist/version` → the podcast CHANNEL allow-set gate (the direct parallel to
+     * `/whitelist/version`). The whitelist is channel-level now; the mirror is the authoritative allow-set
+     * + version gate, same as the artist whitelist.
      */
     suspend fun podcastsWhitelistVersion(): Long {
-        val dto = json.decodeFromString(ContentVersionDto.serializer(), getText("/podcastsWhitelist/version", SMALL_TIMEOUT_MS))
-        val gate = dto.gate ?: error("content mirror: missing gate in /podcastsWhitelist/version")
-        Timber.d("ZemerContentClient: /podcastsWhitelist/version gate=%d", gate)
+        val dto = json.decodeFromString(ContentVersionDto.serializer(), getText("/podcastChannelsWhitelist/version", SMALL_TIMEOUT_MS))
+        val gate = dto.gate ?: error("content mirror: missing gate in /podcastChannelsWhitelist/version")
+        Timber.d("ZemerContentClient: /podcastChannelsWhitelist/version gate=%d", gate)
         return gate
     }
 
-    /** `/podcastsWhitelist` → the podcast allow-set docs. Throws on empty so [mirrorFirst] falls back. */
+    /** `/podcastChannelsWhitelist` → the whitelisted host-channel docs. Throws on empty so [mirrorFirst] falls back. */
     suspend fun podcastsWhitelist(): List<ContentPodcastDoc> {
-        val docs = json.decodeFromString(ListSerializer(ContentPodcastDoc.serializer()), getText("/podcastsWhitelist", WHITELIST_TIMEOUT_MS))
-        if (docs.isEmpty()) error("content mirror: empty /podcastsWhitelist")
-        Timber.d("ZemerContentClient: /podcastsWhitelist %d docs", docs.size)
+        val docs = json.decodeFromString(ListSerializer(ContentPodcastDoc.serializer()), getText("/podcastChannelsWhitelist", WHITELIST_TIMEOUT_MS))
+        if (docs.isEmpty()) error("content mirror: empty /podcastChannelsWhitelist")
+        Timber.d("ZemerContentClient: /podcastChannelsWhitelist %d docs", docs.size)
         return docs
     }
 
@@ -217,18 +217,20 @@ data class ContentWhitelistDoc(
 )
 
 /**
- * One `/podcastsWhitelist` document (the mirror's copy of a Firestore `podcastsWhitelist` doc). Accepts
- * both `id`/`podcastId` and `name`/`podcastName` (the collection has used either). `thumbnailUrl` is
- * often sparse here — the browse grid's guaranteed art is enriched from `zemer-search /podcasts`.
+ * One `/podcastChannelsWhitelist` document (the mirror's copy of a Firestore `podcastChannelsWhitelist`
+ * doc) — a whitelisted podcast HOST CHANNEL. `id` is the `UC…` channel id; `thumbnailUrl` is the durable
+ * channel avatar; `isFemale`/`isKidZone` are the wholly-female/kids channel flags; `showCount` is how
+ * many of the channel's shows are known.
  */
 @Serializable
 data class ContentPodcastDoc(
     val id: String = "",
-    @SerialName("podcastId") val podcastId: String? = null,
     val name: String? = null,
-    @SerialName("podcastName") val podcastName: String? = null,
     val thumbnailUrl: String? = null,
-    val channelId: String? = null,
+    val isFemale: Boolean = false,
+    val isKidZone: Boolean = false,
+    val isVerified: Boolean = false,
+    val showCount: Int = 0,
 )
 
 /**

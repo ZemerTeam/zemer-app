@@ -272,7 +272,7 @@ fun WhitelistedPodcastsScreen(
 
                     itemsIndexed(
                         items = podcasts,
-                        key = { _, item -> item.podcastId },
+                        key = { _, item -> item.channelId },
                         contentType = { _, _ -> CONTENT_TYPE_PODCAST },
                     ) { index, podcast ->
                         WhitelistedPodcastListItem(
@@ -355,7 +355,7 @@ fun WhitelistedPodcastsScreen(
 
                     itemsIndexed(
                         items = podcasts,
-                        key = { _, item -> item.podcastId },
+                        key = { _, item -> item.channelId },
                         contentType = { _, _ -> CONTENT_TYPE_PODCAST },
                     ) { index, podcast ->
                         WhitelistedPodcastGridItem(

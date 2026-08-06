@@ -1710,14 +1710,14 @@ interface DatabaseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertPodcastWhitelist(whitelistEntries: List<PodcastWhitelistEntity>)
 
-    @Query("SELECT podcastId FROM podcast_whitelist")
+    @Query("SELECT channelId FROM podcast_whitelist")
     suspend fun getAllWhitelistedPodcastIdsSync(): List<String>
 
-    @Query("SELECT * FROM podcast_whitelist ORDER BY podcastName COLLATE NOCASE")
+    @Query("SELECT * FROM podcast_whitelist ORDER BY name COLLATE NOCASE")
     fun allWhitelistedPodcastsByName(): Flow<List<PodcastWhitelistEntity>>
 
-    @Query("SELECT * FROM podcast_whitelist WHERE podcastId = :podcastId LIMIT 1")
-    suspend fun getPodcastWhitelistEntry(podcastId: String): PodcastWhitelistEntity?
+    @Query("SELECT * FROM podcast_whitelist WHERE channelId = :channelId LIMIT 1")
+    suspend fun getPodcastWhitelistEntry(channelId: String): PodcastWhitelistEntity?
 
     @Query("SELECT * FROM podcast_whitelist")
     suspend fun getPodcastWhitelistEntriesSync(): List<PodcastWhitelistEntity>
