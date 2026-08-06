@@ -144,14 +144,21 @@ fun OnlinePodcastScreen(
                                 Column(
                                     verticalArrangement = Arrangement.Center,
                                 ) {
+                                    // title, author, episode-count — the three text lines the header renders.
                                     TextPlaceholder()
                                     TextPlaceholder()
                                     TextPlaceholder()
+
+                                    // The Add-to-library pill the header always shows below those lines.
+                                    Spacer(Modifier.height(8.dp))
+                                    ButtonPlaceholder(Modifier.width(140.dp))
                                 }
                             }
 
-                            Spacer(Modifier.padding(8.dp))
+                            // Matches the real header's Spacer(12) before the Play/Shuffle row.
+                            Spacer(Modifier.height(12.dp))
 
+                            // PlaylistPlayShuffleButtons — two equal-width buttons.
                             Row {
                                 ButtonPlaceholder(Modifier.weight(1f))
 
