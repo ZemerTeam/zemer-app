@@ -205,7 +205,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AnonymousAuthEmailDialog.kt` | 123 | `com.jtech.zemer.ui.component` | yes | 25 | 3 | androidx.compose, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AppBarTitle.kt` | 31 | `com.jtech.zemer.ui.component` | yes | 6 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AppStateViews.kt` | 121 | `com.jtech.zemer.ui.component` | yes | 27 | 1 | androidx.annotation, androidx.compose |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/ArtistBrowseComponents.kt` | 201 | `com.jtech.zemer.ui.component` | yes | 42 | 6 | androidx.compose |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/ArtistBrowseComponents.kt` | 198 | `com.jtech.zemer.ui.component` | yes | 38 | 5 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AutoResizeText.kt` | 97 | `com.jtech.zemer.ui.component` | yes | 20 | 9 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/BackTopAppBar.kt` | 59 | `com.jtech.zemer.ui.component` | yes | 9 | 3 | androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/BigSeekBar.kt` | 58 | `com.jtech.zemer.ui.component` | yes | 17 | 2 | androidx.compose |

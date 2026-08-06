@@ -364,7 +364,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AnonymousAuthEmailDialog.kt` | 123 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AppBarTitle.kt` | 31 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AppStateViews.kt` | 121 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/ArtistBrowseComponents.kt` | 201 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/ArtistBrowseComponents.kt` | 198 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AutoResizeText.kt` | 97 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/BackTopAppBar.kt` | 59 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/BigSeekBar.kt` | 58 lines | `.kt` |
