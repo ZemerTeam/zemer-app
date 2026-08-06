@@ -58,7 +58,7 @@ import com.jtech.zemer.ui.menu.ytItemMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
-import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
+import com.jtech.zemer.ui.utils.navigateToPodcast
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeSeeAllStore
@@ -167,10 +167,12 @@ internal fun <T : YTItem> YtItemGrid(
                 modifier = Modifier.combinedClickable(
                     onClick = {
                         when (item) {
-                            // Podcast SHOW: open the host channel when known (where Subscribe lives),
-                            // else the show - the browse-grid routing (whitelistedPodcastRoute).
+                            // Podcast SHOW: open the show itself. This grid is a channel page's
+                            // "See all", so it matches the channel page's own tap (navigateToPodcast) -
+                            // NOT the browse-grid channel routing, which (a show carries its channelId)
+                            // would loop straight back to the channel you're already on.
                             is com.metrolist.innertube.models.PodcastItem ->
-                                whitelistedPodcastRoute(item.id, item.channelId)?.let { navController.navigate(it) }
+                                navController.navigateToPodcast(item.id)
                             // Episode: play it alone by videoId through the normal pipeline.
                             is com.metrolist.innertube.models.EpisodeItem ->
                                 playerConnection.playQueue(
