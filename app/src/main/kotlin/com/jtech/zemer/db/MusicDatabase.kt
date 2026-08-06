@@ -97,7 +97,7 @@ class MusicDatabase(
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 36,
+    version = 34,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -142,7 +142,7 @@ abstract class InternalDatabase : RoomDatabase() {
             val builtDb = try {
                 Room
                     .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
-                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_33_34)
                     .setJournalMode(JournalMode.TRUNCATE)
                     .enableMultiInstanceInvalidation()
                     .build().also {
@@ -459,20 +459,10 @@ val MIGRATION_33_34 =
 
             // Add index for isEpisode column
             db.execSQL("CREATE INDEX IF NOT EXISTS index_song_isEpisode ON song(isEpisode)")
-        }
-    }
 
-val MIGRATION_34_35 =
-    object : Migration(34, 35) {
-        override fun migrate(db: SupportSQLiteDatabase) {
             // Resume position for long content (podcast episodes). 0 = start from the beginning.
             db.execSQL("ALTER TABLE song ADD COLUMN lastPositionMs INTEGER NOT NULL DEFAULT 0")
-        }
-    }
 
-val MIGRATION_35_36 =
-    object : Migration(35, 36) {
-        override fun migrate(db: SupportSQLiteDatabase) {
             // Flags a bookmarked artist row as a podcast host channel (for the Channels library tab).
             db.execSQL("ALTER TABLE artist ADD COLUMN isPodcastChannel INTEGER NOT NULL DEFAULT 0")
         }
