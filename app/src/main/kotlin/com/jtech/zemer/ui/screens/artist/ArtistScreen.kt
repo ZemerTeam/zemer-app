@@ -681,7 +681,7 @@ fun ArtistScreen(
                                     // so a short row (nothing more to reveal) shows no arrow.
                                     onClick = seeAllOnClick(distinctItems.size) {
                                         navController.navigate(
-                                            "artist_section/${viewModel.artistId}?title=${java.net.URLEncoder.encode(section.title, "UTF-8")}",
+                                            "artist_section/${viewModel.artistId}?title=${java.net.URLEncoder.encode(section.title, "UTF-8")}&isPodcastChannel=${viewModel.isPodcastChannel}",
                                         )
                                     },
                                 )

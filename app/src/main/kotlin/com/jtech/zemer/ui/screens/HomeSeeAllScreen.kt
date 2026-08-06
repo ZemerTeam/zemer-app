@@ -36,6 +36,8 @@ import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
@@ -56,6 +58,7 @@ import com.jtech.zemer.ui.menu.ytItemMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
+import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeSeeAllStore
@@ -164,8 +167,18 @@ internal fun <T : YTItem> YtItemGrid(
                 modifier = Modifier.combinedClickable(
                     onClick = {
                         when (item) {
-                            is com.metrolist.innertube.models.PodcastItem -> {}
-                            is com.metrolist.innertube.models.EpisodeItem -> {}
+                            // Podcast SHOW: open the host channel when known (where Subscribe lives),
+                            // else the show - the browse-grid routing (whitelistedPodcastRoute).
+                            is com.metrolist.innertube.models.PodcastItem ->
+                                whitelistedPodcastRoute(item.id, item.channelId)?.let { navController.navigate(it) }
+                            // Episode: play it alone by videoId through the normal pipeline.
+                            is com.metrolist.innertube.models.EpisodeItem ->
+                                playerConnection.playQueue(
+                                    ListQueue(
+                                        title = item.title,
+                                        items = listOf(item.toMediaItem()),
+                                    ),
+                                )
                             // The only SongItems in this grid are the Featured Videos row. Audio-first
                             // always (I2); video is a per-play in-player toggle, not an entry point (D3).
                             is SongItem -> playerConnection.playQueue(

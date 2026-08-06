@@ -157,12 +157,18 @@ fun NavGraphBuilder.navigationBuilder(
         else HomeSeeAllScreen(navController, scrollBehavior, row)
     }
     composable(
-        route = "artist_section/{artistId}?title={title}",
+        route = "artist_section/{artistId}?title={title}&isPodcastChannel={isPodcastChannel}",
         arguments = listOf(
             navArgument("artistId") { type = NavType.StringType },
             navArgument("title") {
                 type = NavType.StringType
                 defaultValue = ""
+            },
+            // Carried through so the section's ArtistViewModel loads the podcast-channel endpoint
+            // (/podcast-channel) rather than the music /artist path for a UC... channel id.
+            navArgument("isPodcastChannel") {
+                type = NavType.BoolType
+                defaultValue = false
             },
         ),
     ) {
