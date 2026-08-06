@@ -85,6 +85,7 @@ import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.GenreWeaveLayer
 import com.jtech.zemer.ui.component.genreIcon
 import com.jtech.zemer.ui.component.NavigationTitle
+import com.jtech.zemer.ui.utils.seeAllOnClick
 import com.jtech.zemer.ui.component.YouTubeGridItem
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
@@ -520,7 +521,12 @@ private fun LazyListScope.genreAlbumShelf(
 ) {
     if (albums.isEmpty()) return
     item(key = "${key}_title") {
-        NavigationTitle(title = title(), onClick = onSeeAll, modifier = Modifier.animateItem())
+        // Gate the see-all arrow behind the shared threshold (a short shelf has nothing more to reveal).
+        NavigationTitle(
+            title = title(),
+            onClick = onSeeAll?.let { seeAllOnClick(albums.size, it) },
+            modifier = Modifier.animateItem(),
+        )
     }
     item(key = "${key}_row") {
         val haptic = LocalHapticFeedback.current
