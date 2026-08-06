@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import com.jtech.zemer.db.entities.PodcastEntity
+import com.jtech.zemer.ui.component.ArtistSearchField
 import com.jtech.zemer.ui.component.focusBorder
 import com.metrolist.innertube.models.SongItem
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -39,10 +40,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,12 +59,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -154,56 +147,12 @@ fun WhitelistedPodcastsScreen(
     }
 
     val searchContent = @Composable {
-        val downTarget = if (podcasts.isNotEmpty()) firstPodcastFocus else firstFocus
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { viewModel.searchQuery.value = it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .focusRequester(searchFocus)
-                .focusProperties {
-                    down = downTarget
-                }
-                .onPreviewKeyEvent { event ->
-                    if (event.key == Key.DirectionDown && event.type == KeyEventType.KeyDown) {
-                        downTarget.requestFocus()
-                        false
-                    } else {
-                        false
-                    }
-                },
-            placeholder = { Text(stringResource(R.string.search_podcasts)) },
-            leadingIcon = {
-                Icon(
-                    painter = painterResource(R.drawable.search),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { viewModel.searchQuery.value = "" }) {
-                        Icon(
-                            painter = painterResource(R.drawable.close),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            },
-            singleLine = true,
-            shape = RoundedCornerShape(18.dp),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledContainerColor = MaterialTheme.colorScheme.surface,
-                cursorColor = MaterialTheme.colorScheme.primary,
-                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        ArtistSearchField(
+            query = searchQuery,
+            onQueryChange = { viewModel.searchQuery.value = it },
+            searchFocus = searchFocus,
+            downTarget = if (podcasts.isNotEmpty()) firstPodcastFocus else firstFocus,
+            placeholderRes = R.string.search_podcasts,
         )
     }
 
