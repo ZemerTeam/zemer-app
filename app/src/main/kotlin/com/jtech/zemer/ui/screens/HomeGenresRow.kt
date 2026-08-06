@@ -30,6 +30,7 @@ import com.jtech.zemer.search.homeGenreChips
 import com.jtech.zemer.search.zemerGenreRoute
 import com.jtech.zemer.search.zemerPodcastGenreRoute
 import com.jtech.zemer.ui.component.GenreChip
+import com.jtech.zemer.ui.component.podcastGenreIcon
 
 /**
  * The reusable Home genre-chips strip: ONE row of hollow accent-outlined [GenreChip] pills — a single
@@ -46,6 +47,8 @@ fun HomeGenreChipsStrip(
     chips: List<Pair<String, String>>,
     onChipClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    // Resolves a slug → motif drawable; null = the music default ([GenreChip]'s slug lookup).
+    iconOverride: ((String) -> Int)? = null,
 ) {
     val listState = rememberLazyListState()
     // Weighted snap: splines carry the fling's momentum, then a low-stiffness spring eases the
@@ -69,10 +72,15 @@ fun HomeGenreChipsStrip(
             .asPaddingValues(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         // Breathing room above and below the strip so it doesn't crowd the section titles.
-        modifier = modifier.padding(vertical = 8.dp),
+        modifier = modifier.padding(vertical = 12.dp),
     ) {
         items(items = chips, key = { it.first }) { (slug, title) ->
-            GenreChip(title = title, slug = slug, onClick = { onChipClick(slug) })
+            GenreChip(
+                title = title,
+                slug = slug,
+                onClick = { onChipClick(slug) },
+                iconOverride = iconOverride?.invoke(slug),
+            )
         }
     }
 }
@@ -105,5 +113,6 @@ fun HomePodcastGenresRow(
         chips = chips,
         onChipClick = { navController.navigate(zemerPodcastGenreRoute(it)) },
         modifier = modifier,
+        iconOverride = { podcastGenreIcon(it) },
     )
 }

@@ -44,3 +44,40 @@ internal fun genreIcon(slug: String): Int = when (slug) {
     "melave-malka" -> R.drawable.genre_nightlife
     else -> R.drawable.genre_music_note
 }
+
+/**
+ * The per-genre motif for PODCAST genres (server vocab: zemer-app-podcasts-request.md §genres note) —
+ * the podcast twin of [genreIcon]. Podcast topics (gemara/mussar/halacha/…) don't match the music
+ * motifs, so each slug maps to its own distinct drawable from the shared set: a book for study, a
+ * shield for halacha, a flame for chizuk, and so on — never the plain note for everything. Keyed off
+ * the stable slug; an unknown/new slug falls back to the note so a server addition still renders.
+ *
+ * NOTE: these are INTERIM mappings to existing (mostly music) drawables — the app has no bespoke
+ * podcast-topic icon set yet. They are placeholders to be replaced with dedicated per-genre art;
+ * a few are approximations (machshava→compass, women→account, tefilla→sun). Slugs are the contract,
+ * so swapping the drawables later touches only this map.
+ */
+@DrawableRes
+internal fun podcastGenreIcon(slug: String): Int = when (slug) {
+    "gemara" -> R.drawable.genre_menu_book
+    "parsha" -> R.drawable.genre_alef
+    "chassidus" -> R.drawable.genre_menorah
+    "mussar" -> R.drawable.genre_self_improvement
+    "halacha" -> R.drawable.security
+    "machshava" -> R.drawable.explore_outlined
+    "tefilla" -> R.drawable.genre_wb_sunny
+    "stories" -> R.drawable.genre_theater_comedy
+    "history" -> R.drawable.history
+    "kiruv" -> R.drawable.subscribe
+    "family" -> R.drawable.genre_dinner_dining
+    "parnassah" -> R.drawable.genre_diamond
+    "health" -> R.drawable.favorite
+    "news" -> R.drawable.genre_campaign
+    "people" -> R.drawable.person
+    "music" -> R.drawable.genre_music_note
+    "chizuk" -> R.drawable.genre_local_fire_department
+    "shiur" -> R.drawable.genre_mic
+    "moadim" -> R.drawable.genre_celebration
+    "women" -> R.drawable.account
+    else -> R.drawable.genre_music_note
+}

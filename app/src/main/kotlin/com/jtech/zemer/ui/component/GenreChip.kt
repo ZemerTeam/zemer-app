@@ -39,6 +39,8 @@ fun GenreChip(
     slug: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // Overrides the slug→motif lookup (music by default) so podcast genres get their own icons.
+    @androidx.annotation.DrawableRes iconOverride: Int? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
@@ -66,7 +68,7 @@ fun GenreChip(
             modifier = modifier.focusBorder(RoundedCornerShape(10.dp)),
             leadingIcon = {
                 Icon(
-                    painter = painterResource(genreIcon(slug)),
+                    painter = painterResource(iconOverride ?: genreIcon(slug)),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier

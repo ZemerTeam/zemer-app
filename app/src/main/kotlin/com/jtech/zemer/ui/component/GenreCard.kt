@@ -115,9 +115,11 @@ fun GenreCard(
     slug: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // Overrides the slug→motif lookup (music by default) so podcast genres get their own icons.
+    @androidx.annotation.DrawableRes iconOverride: Int? = null,
 ) {
     val shape = RoundedCornerShape(20.dp)
-    val motif = painterResource(genreIcon(slug))
+    val motif = painterResource(iconOverride ?: genreIcon(slug))
     val accent = MaterialTheme.colorScheme.primary
     Box(
         modifier = modifier

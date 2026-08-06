@@ -35,6 +35,7 @@ import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.GenreCard
+import com.jtech.zemer.ui.component.podcastGenreIcon
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.BoxPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
@@ -59,6 +60,9 @@ fun PodcastGenresScreen(
     LazyColumn(
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) {
+        // Breathing room between the top bar and the first row of cards (owner ask).
+        item(key = "top_spacer") { Spacer(Modifier.height(16.dp)) }
+
         when (val uiState = state) {
             UiState.Loading -> item(key = "loading_shimmer") {
                 PodcastGenreCatalogShimmer()
@@ -88,6 +92,7 @@ fun PodcastGenresScreen(
                                     slug = genre.id,
                                     onClick = { navController.navigate(zemerPodcastGenreRoute(genre.id)) },
                                     modifier = Modifier.weight(1f),
+                                    iconOverride = podcastGenreIcon(genre.id),
                                 )
                             }
                             // Keep a lone trailing card at exact cell width (see the music catalog).
