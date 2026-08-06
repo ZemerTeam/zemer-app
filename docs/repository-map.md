@@ -499,12 +499,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibrarySongsScreen.kt` | 323 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibraryVideosScreen.kt` | 155 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/BottomNavSetupScreen.kt` | 118 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/ContentFiltersScreen.kt` | 449 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/ContentFiltersScreen.kt` | 395 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/DensityScreen.kt` | 294 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingConnectivity.kt` | 44 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingNavigation.kt` | 28 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingSearchBackupScreen.kt` | 100 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PermissionsScreen.kt` | 377 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PermissionsScreen.kt` | 350 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/WelcomeScreen.kt` | 220 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/AutoPlaylistScreen.kt` | 575 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/CachePlaylistScreen.kt` | 442 lines | `.kt` |

@@ -14,14 +14,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
@@ -44,7 +39,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.utils.PermissionHelper
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import com.jtech.zemer.ui.component.onboardingCardColors
+import com.jtech.zemer.ui.component.OnboardingInfoCard
 import com.jtech.zemer.ui.component.OnboardingStatusPill
 import com.jtech.zemer.ui.component.OnboardingStepHeader
 import com.jtech.zemer.ui.component.OnboardingActionButton
@@ -281,47 +276,25 @@ private fun PermissionCard(
     actionLabel: String,
     onAction: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth(),
-        colors = onboardingCardColors(active = granted),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
-                OnboardingStatusPill(
-                    text = if (granted) stringResource(R.string.onboarding_status_done)
-                    else stringResource(R.string.onboarding_status_needed),
-                    active = granted,
-                )
-            }
-
-            Spacer(Modifier.height(10.dp))
-
+    OnboardingInfoCard(
+        active = granted,
+        title = title,
+        description = description,
+        trailing = {
+            OnboardingStatusPill(
+                text = if (granted) stringResource(R.string.onboarding_status_done)
+                else stringResource(R.string.onboarding_status_needed),
+                active = granted,
+            )
+        },
+        action = {
             OnboardingActionButton(
                 text = actionLabel,
                 onClick = onAction,
                 modifier = Modifier.fillMaxWidth(),
             )
-        }
-    }
+        },
+    )
 }
 
 

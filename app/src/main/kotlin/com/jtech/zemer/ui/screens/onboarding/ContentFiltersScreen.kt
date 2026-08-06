@@ -8,11 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -20,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,7 +29,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -52,9 +47,10 @@ import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.launch
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
-import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.layout.ColumnScope
 import com.jtech.zemer.ui.component.onboardingCardColors
+import com.jtech.zemer.ui.component.OnboardingInfoCard
 import com.jtech.zemer.ui.component.OnboardingStatusPill
 import com.jtech.zemer.ui.component.OnboardingStepHeader
 import com.jtech.zemer.ui.component.OnboardingStepTitle
@@ -267,50 +263,33 @@ internal fun ContentFiltersScreen(
                 )
 
                 // Sign-in status card
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    colors = onboardingCardColors(active = authState is com.jtech.zemer.auth.AuthState.SignedIn),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = if (authState is com.jtech.zemer.auth.AuthState.SignedIn) stringResource(R.string.sync_account_created) else stringResource(R.string.sync_account_optional_create),
-                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = if (authState is com.jtech.zemer.auth.AuthState.SignedIn)
-                                        stringResource(R.string.sync_account_locked_backed_up)
-                                    else
-                                        stringResource(R.string.sync_account_connect_to_lock),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 2.dp)
-                                )
-                            }
-                            OnboardingStatusPill(
-                                text = if (authState is com.jtech.zemer.auth.AuthState.SignedIn) stringResource(R.string.sync_account_active) else stringResource(R.string.sync_account_optional),
-                                active = authState is com.jtech.zemer.auth.AuthState.SignedIn,
-                            )
-                        }
-
-                        if (authState !is com.jtech.zemer.auth.AuthState.SignedIn) {
-                            Spacer(Modifier.height(10.dp))
-                            OnboardingActionButton(
-                                text = stringResource(R.string.sync_account_create_title),
-                                onClick = { showSignInDialog = true },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
+                val signedIn = authState is com.jtech.zemer.auth.AuthState.SignedIn
+                val createAction: (@Composable ColumnScope.() -> Unit)? = if (signedIn) {
+                    null
+                } else {
+                    {
+                        OnboardingActionButton(
+                            text = stringResource(R.string.sync_account_create_title),
+                            onClick = { showSignInDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
+                OnboardingInfoCard(
+                    active = signedIn,
+                    title = if (signedIn) stringResource(R.string.sync_account_created)
+                    else stringResource(R.string.sync_account_optional_create),
+                    description = if (signedIn) stringResource(R.string.sync_account_locked_backed_up)
+                    else stringResource(R.string.sync_account_connect_to_lock),
+                    trailing = {
+                        OnboardingStatusPill(
+                            text = if (signedIn) stringResource(R.string.sync_account_active)
+                            else stringResource(R.string.sync_account_optional),
+                            active = signedIn,
+                        )
+                    },
+                    action = createAction,
+                )
 
                 // Action buttons (vertical stack, matching the other onboarding steps)
                 Column(
@@ -394,56 +373,23 @@ private fun FilterOptionCard(
     onToggle: (Boolean) -> Unit,
     icon: Int
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth(),
-        colors = onboardingCardColors(active = isEnabled),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        painter = painterResource(icon),
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = description,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
-                    }
-                }
-
-                Switch(
-                    checked = isEnabled,
-                    onCheckedChange = onToggle,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                        uncheckedTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                    )
+    OnboardingInfoCard(
+        active = isEnabled,
+        title = title,
+        description = description,
+        leadingIcon = icon,
+        trailing = {
+            Switch(
+                checked = isEnabled,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                    uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                 )
-            }
-        }
-    }
+            )
+        },
+    )
 }
 
