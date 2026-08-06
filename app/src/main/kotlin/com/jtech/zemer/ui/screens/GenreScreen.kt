@@ -85,7 +85,6 @@ import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.GenreWeaveLayer
 import com.jtech.zemer.ui.component.genreIcon
 import com.jtech.zemer.ui.component.NavigationTitle
-import com.jtech.zemer.ui.utils.seeAllOnClick
 import com.jtech.zemer.ui.component.YouTubeGridItem
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
@@ -521,10 +520,11 @@ private fun LazyListScope.genreAlbumShelf(
 ) {
     if (albums.isEmpty()) return
     item(key = "${key}_title") {
-        // Gate the see-all arrow behind the shared threshold (a short shelf has nothing more to reveal).
+        // The shelf is a capped section PREVIEW; the see-all opens the fuller facet list, so show it
+        // whenever the caller provides one (not gated on the preview size).
         NavigationTitle(
             title = title(),
-            onClick = onSeeAll?.let { seeAllOnClick(albums.size, it) },
+            onClick = onSeeAll,
             modifier = Modifier.animateItem(),
         )
     }

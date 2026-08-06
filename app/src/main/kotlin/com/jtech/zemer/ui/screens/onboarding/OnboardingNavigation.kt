@@ -25,4 +25,15 @@ object OnboardingNavigation {
     /** Content filters back -> Density, unless it was skipped as already-set (then Welcome). */
     fun backFromContentFilters(densityAlreadySet: Boolean): OnboardingStep =
         if (densityAlreadySet) OnboardingStep.Welcome else OnboardingStep.Density
+
+    /**
+     * Permissions back -> the last step actually shown before it: ContentFilters if it was shown, else
+     * Density if it was shown, else Welcome. Without this, Back lands on a step that was skipped as
+     * already-set and never displayed.
+     */
+    fun backFromPermissions(densityAlreadySet: Boolean, contentFiltersAlreadySet: Boolean): OnboardingStep = when {
+        !contentFiltersAlreadySet -> OnboardingStep.ContentFilters
+        !densityAlreadySet -> OnboardingStep.Density
+        else -> OnboardingStep.Welcome
+    }
 }

@@ -60,9 +60,9 @@ fun NavigationTitle(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                // Neutral, like the top-bar title (AppBarTitle inherits onSurface): the accent stays
-                // reserved for the interactive bits — the see-all arrow, chips, play buttons — instead
-                // of tinting every section header. The arrow below keeps the accent.
+                // Neutral, like the top-bar title (AppBarTitle inherits onSurface): section headers are
+                // quiet chrome, so the accent stays reserved for real content — chips, play buttons,
+                // active rows. The see-all arrow below is likewise neutral (onSurfaceVariant).
                 overflow = TextOverflow.Ellipsis,
                 maxLines = 1,
             )

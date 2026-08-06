@@ -59,4 +59,30 @@ class OnboardingNavigationTest {
         // Density was skipped as already-set, so Back must not land on a screen that was never shown.
         assertEquals(OnboardingStep.Welcome, OnboardingNavigation.backFromContentFilters(densityAlreadySet = true))
     }
+
+    @Test
+    fun backFromPermissions_filtersShown_returnsToContentFilters() {
+        assertEquals(
+            OnboardingStep.ContentFilters,
+            OnboardingNavigation.backFromPermissions(densityAlreadySet = false, contentFiltersAlreadySet = false),
+        )
+    }
+
+    @Test
+    fun backFromPermissions_filtersSkipped_returnsToDensity() {
+        // ContentFilters was skipped as already-set; Density was shown, so Back goes there.
+        assertEquals(
+            OnboardingStep.Density,
+            OnboardingNavigation.backFromPermissions(densityAlreadySet = false, contentFiltersAlreadySet = true),
+        )
+    }
+
+    @Test
+    fun backFromPermissions_densityAndFiltersSkipped_returnsToWelcome() {
+        // Both were skipped as already-set, so the only shown step before Permissions was Welcome.
+        assertEquals(
+            OnboardingStep.Welcome,
+            OnboardingNavigation.backFromPermissions(densityAlreadySet = true, contentFiltersAlreadySet = true),
+        )
+    }
 }

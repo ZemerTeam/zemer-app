@@ -60,7 +60,6 @@ import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.NavigationTitle
-import com.jtech.zemer.ui.utils.seeAllOnClick
 import com.jtech.zemer.ui.component.OfflineBackupPromoCard
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.shimmer.LoadingListPlaceholder
@@ -351,9 +350,12 @@ fun OnlineSearchResult(
                                 NavigationTitle(
                                     title = if (isVideoSection && blockVideos)
                                         stringResource(R.string.video_songs) else summary.title,
-                                    onClick = seeAllOnClick(summary.items.size) {
-                                        summaryFilter?.let {
-                                            viewModel.filter.value = summaryFilter
+                                    // Summary rows are capped PREVIEWS; the see-all switches to the full
+                                    // filtered view, so show it whenever that view exists (a resolvable
+                                    // filter) rather than gating on the preview size.
+                                    onClick = summaryFilter?.let { filter ->
+                                        {
+                                            viewModel.filter.value = filter
                                             coroutineScope.launch {
                                                 lazyListState.animateScrollToItem(0)
                                             }

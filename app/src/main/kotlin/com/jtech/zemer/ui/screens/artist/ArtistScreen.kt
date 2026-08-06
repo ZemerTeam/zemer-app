@@ -493,7 +493,9 @@ fun ArtistScreen(
                             NavigationTitle(
                                 title = stringResource(R.string.songs),
                                 modifier = Modifier.animateItem(),
-                                onClick = seeAllOnClick(librarySongs.size) {
+                                // See-all opens a full ONLINE name search, not a view of the local rows,
+                                // so it must not be gated on the local count (unrelated quantities).
+                                onClick = {
                                     navController.navigate("search/${java.net.URLEncoder.encode(artistName, "UTF-8")}?filter=songs")
                                 }
                             )
@@ -565,7 +567,9 @@ fun ArtistScreen(
                             NavigationTitle(
                                 title = stringResource(R.string.albums),
                                 modifier = Modifier.animateItem(),
-                                onClick = seeAllOnClick(libraryAlbums.size) {
+                                // See-all opens a full ONLINE name search, not a view of the local rows,
+                                // so it must not be gated on the local count (unrelated quantities).
+                                onClick = {
                                     navController.navigate("search/${java.net.URLEncoder.encode(artistName, "UTF-8")}?filter=albums")
                                 }
                             )

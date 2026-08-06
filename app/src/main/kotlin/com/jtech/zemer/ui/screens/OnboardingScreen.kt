@@ -67,7 +67,7 @@ fun OnboardingFlow(
         )
 
         OnboardingStep.Permissions -> PermissionsScreen(
-            onBack = { step = OnboardingStep.ContentFilters },
+            onBack = { step = OnboardingNavigation.backFromPermissions(densityAlreadySet, contentFiltersAlreadySet) },
             onComplete = { step = OnboardingStep.BottomNavSetup }
         )
 
