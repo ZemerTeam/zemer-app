@@ -1,4 +1,5 @@
 package com.jtech.zemer.ui.screens
+import com.jtech.zemer.ui.component.AppNameTitle
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -107,12 +108,7 @@ fun LoginGateScreen(
                     modifier = Modifier.size(80.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Text(
-                    text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Center
-                )
+                AppNameTitle(textAlign = TextAlign.Center)
                 Text(
                     text = stringResource(R.string.sign_in_to_continue),
                     style = MaterialTheme.typography.bodyMedium,

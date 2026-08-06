@@ -1,4 +1,5 @@
 package com.jtech.zemer.ui.screens
+import com.jtech.zemer.ui.component.AppNameTitle
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -92,11 +93,9 @@ fun SplashScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 32.dp)
         ) {
-            Text(
-                text = stringResource(R.string.app_name),
+            AppNameTitle(
                 style = MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary
             )
 
             Spacer(modifier = Modifier.height(48.dp))
@@ -155,6 +154,9 @@ fun SplashScreen(
                         R.string.splash_syncing_background_action
                     ),
                     style = MaterialTheme.typography.bodyMedium,
+                    // Neutral secondary action — accent stays for content (overrides the TextButton's
+                    // default primary content color).
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )

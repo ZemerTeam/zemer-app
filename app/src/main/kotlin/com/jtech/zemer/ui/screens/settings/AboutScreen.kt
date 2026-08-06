@@ -1,4 +1,5 @@
 package com.jtech.zemer.ui.screens.settings
+import com.jtech.zemer.ui.component.AppNameTitle
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
@@ -179,11 +180,7 @@ fun AboutScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Text(
-                            text = stringResource(R.string.app_name),
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                        )
+                        AppNameTitle()
                         Text(
                             text = stringResource(R.string.about_tagline),
                             style = MaterialTheme.typography.bodyMedium,

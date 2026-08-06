@@ -1,4 +1,5 @@
 package com.jtech.zemer.ui.screens
+import com.jtech.zemer.ui.component.AppNameTitle
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -351,12 +352,7 @@ private fun WelcomeScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp, vertical = 8.dp)
                 )
-                Text(
-                    text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Center
-                )
+                AppNameTitle(textAlign = TextAlign.Center)
             }
 
             Spacer(modifier = Modifier.weight(1f))
