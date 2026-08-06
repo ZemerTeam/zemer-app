@@ -87,6 +87,11 @@ fun SubsetCorpus.withLiveWhitelist(live: Map<String, Boolean>): SubsetCorpus {
             }
         },
         blocked = blocked,
+        // Podcasts ride the snapshot unchanged: they are gated by the separate podcast-CHANNEL whitelist
+        // (baked into the snapshot server-side), not the artist whitelist this overlay reconciles.
+        podcastChannels = podcastChannels,
+        podcasts = podcasts,
+        podcastEpisodes = podcastEpisodes,
     )
 }
 

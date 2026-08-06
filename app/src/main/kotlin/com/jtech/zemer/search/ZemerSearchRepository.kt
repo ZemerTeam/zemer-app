@@ -204,20 +204,31 @@ class ZemerSearchRepository @Inject constructor(
             offline = { offlineReads.artist(id, options.allowFemale, options.blockVideos) },
         )?.toArtistPage(options.hideExplicit, formatSongCount)
 
-    // --- Podcasts. Live-only (no offline snapshot, like /radio + /playlist). Playback stays InnerTube:
-    // an episode carries its YouTube videoId and plays through the existing pipeline. ---
+    // --- Podcasts. Server-first with the on-device snapshot fallback (server reply 4: the subset now
+    // carries podcast shards, pre-gated to approved channels). The browse grid + channel allow-set come
+    // from the Room-backed content mirror. Playback stays InnerTube: an episode carries its YouTube
+    // videoId and plays through the existing pipeline. `/playlist` + `/radio` remain live-only. ---
 
     /** A SHOW page (header + one episode page). Null when the show is unknown / filtered out (404). */
     suspend fun podcast(id: String, offset: Int, options: ZemerSearchOptions): PodcastPage? =
-        client.podcast(id, offset, options.allowFemale, options.blockVideos)?.toPodcastPage()
+        serverOrOffline(
+            server = { client.podcast(id, offset, options.allowFemale, options.blockVideos) },
+            offline = { offlineReads.podcast(id, offset, options.allowFemale, options.blockVideos) },
+        )?.toPodcastPage()
 
     /** A host CHANNEL as an [ArtistPage] (its shows + latest episodes). Null on 404. */
     suspend fun podcastChannel(id: String, options: ZemerSearchOptions): ArtistPage? =
-        client.podcastChannel(id, options.allowFemale, options.blockVideos)?.toArtistPage()
+        serverOrOffline(
+            server = { client.podcastChannel(id, options.allowFemale, options.blockVideos) },
+            offline = { offlineReads.podcastChannel(id, options.allowFemale, options.blockVideos) },
+        )?.toArtistPage()
 
     /** Latest episodes across all whitelisted shows (Library New Episodes), newest-first. */
     suspend fun podcastsNewEpisodes(k: Int, options: ZemerSearchOptions): List<EpisodeItem> =
-        client.podcastsNewEpisodes(k, options.allowFemale, options.blockVideos).toEpisodeItems()
+        serverOrOffline(
+            server = { client.podcastsNewEpisodes(k, options.allowFemale, options.blockVideos) },
+            offline = { offlineReads.podcastsNewEpisodes(k, options.allowFemale, options.blockVideos) },
+        ).toEpisodeItems()
 
     /**
      * Corpus-native radio (see [ZemerRadioResponse]): the first page seeded by [kind]/[seed] (`artist` /

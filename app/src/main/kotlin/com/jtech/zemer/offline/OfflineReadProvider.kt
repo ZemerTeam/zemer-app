@@ -7,6 +7,9 @@ import com.jtech.zemer.search.ZemerArtistResponse
 import com.jtech.zemer.search.ZemerCuratedPlaylistResponse
 import com.jtech.zemer.search.ZemerCuratedPlaylistsResponse
 import com.jtech.zemer.search.ZemerHomeRowsResponse
+import com.jtech.zemer.search.ZemerNewEpisodesResponse
+import com.jtech.zemer.search.ZemerPodcastChannelResponse
+import com.jtech.zemer.search.ZemerPodcastResponse
 import com.jtech.zemer.search.ZemerSearchResponse
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
@@ -99,5 +102,22 @@ class OfflineReadProvider @Inject constructor(
     suspend fun curatedPlaylist(id: String, allowFemale: Boolean, blockVideos: Boolean): ZemerCuratedPlaylistResponse? =
         withContext(Dispatchers.IO) {
             snapshot()?.let { offlineCuratedPlaylist(it.corpus, it.female, id, allowFemale, blockVideos, kidZone = false) }
+        }
+
+    // Podcasts (server reply 4 — pre-gated to approved channels in the snapshot). The browse-grid + channel
+    // allow-set come from the Room-backed content mirror, not here; these serve the drill-in reads.
+    suspend fun podcast(id: String, offset: Int, allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlinePodcast(it.corpus, id, offset, allowFemale, blockVideos, kidZone = false) }
+        }
+
+    suspend fun podcastChannel(id: String, allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastChannelResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlinePodcastChannel(it.corpus, id, allowFemale, blockVideos, kidZone = false) }
+        }
+
+    suspend fun podcastsNewEpisodes(k: Int, allowFemale: Boolean, blockVideos: Boolean): ZemerNewEpisodesResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlinePodcastsNewEpisodes(it.corpus, k, allowFemale, blockVideos, kidZone = false) }
         }
 }

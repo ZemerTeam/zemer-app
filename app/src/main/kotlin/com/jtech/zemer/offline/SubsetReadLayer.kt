@@ -9,7 +9,14 @@ import com.jtech.zemer.search.ZemerCuratedPlaylist
 import com.jtech.zemer.search.ZemerCuratedPlaylistResponse
 import com.jtech.zemer.search.ZemerCuratedPlaylistsResponse
 import com.jtech.zemer.search.ZemerHomeRowsResponse
+import com.jtech.zemer.search.ZemerNewEpisodesResponse
 import com.jtech.zemer.search.ZemerPlaylist
+import com.jtech.zemer.search.ZemerPodcastChannelHeader
+import com.jtech.zemer.search.ZemerPodcastChannelResponse
+import com.jtech.zemer.search.ZemerPodcastDetail
+import com.jtech.zemer.search.ZemerPodcastEpisode
+import com.jtech.zemer.search.ZemerPodcastResponse
+import com.jtech.zemer.search.ZemerPodcastShow
 import com.jtech.zemer.search.ZemerTrack
 import com.jtech.zemer.search.resolveZemerUrl
 import java.util.WeakHashMap
@@ -525,6 +532,144 @@ private fun zemerPlaylistTracks(
         )
     }
     return out
+}
+
+// ── podcasts ───────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The per-item podcast gate — the on-device mirror of the server's serve-time channel-membership +
+ * per-item female/KidZone rule (handoff `zemer-podcasts-whitelist-by-channel-request.md`, server reply
+ * 4). The snapshot is already pre-gated to approved channels, so membership is implicit; here we apply
+ * the flag gate a SHOW inherits from its host channel (a wholly-female/kids channel carries the flag)
+ * PLUS the per-show/episode `blocked`-shard exceptions ([idDropped], which drops `female` ids only when
+ * female is blocked and `global` ids always). Episodes are audio (played by videoId via InnerTube), so
+ * `blockVideos` never hides them — `isVideo = false` throughout. A channel-less grandfathered show has
+ * no flags to inherit (female/KidZone = false).
+ */
+private fun SubsetCorpus.podcastShowPasses(
+    show: SubPodcastShow,
+    allowFemale: Boolean,
+    blockVideos: Boolean,
+    kidZone: Boolean,
+): Boolean {
+    val ch = show.channelId?.let { podcastChannelsById[it] }
+    if (idDropped(show.id, allowFemale) || idDropped(show.channelId, allowFemale)) return false
+    return contentGatePasses(ch?.isFemale == true, ch?.isKidZone == true, isVideo = false, allowFemale, blockVideos, kidZone)
+}
+
+// newest-first: publishedAt desc (ISO dates sort lexicographically), NULLs last, then videoId asc.
+private val EPISODE_RECENCY = compareByDescending<SubPodcastEpisode> { it.publishedAt != null }
+    .thenByDescending { it.publishedAt ?: "" }
+    .thenBy { it.videoId }
+
+private fun SubPodcastEpisode.toWire(show: SubPodcastShow?): ZemerPodcastEpisode = ZemerPodcastEpisode(
+    videoId = videoId,
+    title = title,
+    podcastId = showId,
+    podcastName = show?.name,
+    channelId = show?.channelId,
+    thumbnail = thumbnail,
+    durationSeconds = durationSec ?: 0,
+    publishedAt = publishedAt,
+)
+
+private fun SubPodcastShow.toWire(): ZemerPodcastShow = ZemerPodcastShow(
+    id = id, name = name, author = author, channelId = channelId,
+    thumbnail = thumbnail, episodeCountText = episodeCountText,
+)
+
+/**
+ * `GET /podcast?id=&offset=` — the SHOW page. Null (404) for an unknown show or one whose channel fails
+ * the female/KidZone gate / is id-blocked. Offline serves the show's WHOLE gated episode list in one page
+ * (no server-side paging), newest-first, so `nextOffset` is null; a paged follow-up call (offset > 0)
+ * returns no further episodes.
+ */
+fun offlinePodcast(
+    corpus: SubsetCorpus,
+    id: String,
+    offset: Int,
+    allowFemale: Boolean,
+    blockVideos: Boolean,
+    kidZone: Boolean,
+): ZemerPodcastResponse? {
+    val show = corpus.podcastsById[id] ?: return null
+    if (!corpus.podcastShowPasses(show, allowFemale, blockVideos, kidZone)) return null
+    val episodes = if (offset > 0) emptyList() else corpus.podcastEpisodesByShow[id].orEmpty()
+        .filter { !corpus.idDropped(it.videoId, allowFemale) }
+        .sortedWith(EPISODE_RECENCY)
+        .map { it.toWire(show) }
+    return ZemerPodcastResponse(
+        podcast = ZemerPodcastDetail(
+            id = show.id,
+            name = show.name,
+            author = show.author,
+            channelId = show.channelId,
+            thumbnail = show.thumbnail,
+            // description + categories are LIVE-ONLY (not in the shard); absent offline.
+        ),
+        episodes = episodes,
+        nextOffset = null,
+    )
+}
+
+private const val PODCAST_CHANNEL_EPISODES = 50
+
+/**
+ * `GET /podcast-channel?id=UC…` — the host-channel page (shows shelf + latest loose episodes). Null (404)
+ * for an unknown/non-approved channel or one that fails the female/KidZone gate / is id-blocked. Shows are
+ * the channel's gated shows in stored order; the loose episodes are the channel's newest gated episodes
+ * (capped at [PODCAST_CHANNEL_EPISODES], a preview like the live shelf).
+ */
+fun offlinePodcastChannel(
+    corpus: SubsetCorpus,
+    id: String,
+    allowFemale: Boolean,
+    blockVideos: Boolean,
+    kidZone: Boolean,
+): ZemerPodcastChannelResponse? {
+    val ch = corpus.podcastChannelsById[id] ?: return null
+    if (corpus.idDropped(id, allowFemale)) return null
+    if (!contentGatePasses(ch.isFemale, ch.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone)) return null
+
+    val shows = corpus.podcastsByChannel[id].orEmpty()
+        .filter { corpus.podcastShowPasses(it, allowFemale, blockVideos, kidZone) }
+    val showIds = shows.mapTo(HashSet()) { it.id }
+    val episodes = corpus.podcastEpisodes.asSequence()
+        .filter { it.showId in showIds && !corpus.idDropped(it.videoId, allowFemale) }
+        .sortedWith(EPISODE_RECENCY)
+        .take(PODCAST_CHANNEL_EPISODES)
+        .map { it.toWire(corpus.podcastsById[it.showId]) }
+        .toList()
+
+    return ZemerPodcastChannelResponse(
+        channel = ZemerPodcastChannelHeader(id = ch.id, name = ch.name, thumbnail = ch.thumbnail),
+        shows = shows.map { it.toWire() },
+        episodes = episodes,
+    )
+}
+
+/**
+ * `GET /podcasts/new-episodes?k=` — the newest gated episodes across every approved channel's shows,
+ * newest-first, capped at [k].
+ */
+fun offlinePodcastsNewEpisodes(
+    corpus: SubsetCorpus,
+    k: Int,
+    allowFemale: Boolean,
+    blockVideos: Boolean,
+    kidZone: Boolean,
+): ZemerNewEpisodesResponse {
+    val episodes = corpus.podcastEpisodes.asSequence()
+        .filter { ep ->
+            val show = corpus.podcastsById[ep.showId] ?: return@filter false
+            corpus.podcastShowPasses(show, allowFemale, blockVideos, kidZone) &&
+                !corpus.idDropped(ep.videoId, allowFemale)
+        }
+        .sortedWith(EPISODE_RECENCY)
+        .take(k.coerceAtLeast(0))
+        .map { it.toWire(corpus.podcastsById[it.showId]) }
+        .toList()
+    return ZemerNewEpisodesResponse(episodes = episodes)
 }
 
 // store.mjs `zemerPlaylistDetail` album rows: the curated album items (or, for a year rule, the albums

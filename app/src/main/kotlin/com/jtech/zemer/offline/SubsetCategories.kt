@@ -4,6 +4,8 @@ import com.jtech.zemer.search.ZemerAlbum
 import com.jtech.zemer.search.ZemerArtist
 import com.jtech.zemer.search.ZemerCategories
 import com.jtech.zemer.search.ZemerPlaylist
+import com.jtech.zemer.search.ZemerPodcastEpisode
+import com.jtech.zemer.search.ZemerPodcastShow
 import com.jtech.zemer.search.ZemerSearchResponse
 import com.jtech.zemer.search.ZemerTrack
 import java.util.WeakHashMap
@@ -65,6 +67,29 @@ internal class CatCommunityDoc(
     override val sortId get() = id
 }
 
+// A podcast SHOW folded into /search: title = show name, artistName = author (the host), so a query by
+// host name affines. Female/KidZone are inherited from the host channel (per-show exceptions ride the
+// `blocked` shard, matched by blockedDoc on the id/channelId).
+internal class CatPodcastDoc(
+    val id: String, override val title: String, val author: String?, val channelId: String?,
+    val thumbnail: String?, val episodeCountText: String?,
+    val femaleInvolved: Boolean, val isKidZone: Boolean,
+) : SearchDoc {
+    override val artistName get() = author ?: ""
+    override val sortId get() = id
+}
+
+// A podcast EPISODE folded into /search: title = episode title, artistName = show name. Episodes are audio
+// (isVideo irrelevant); female/KidZone inherited from the host channel + blocked.female on the videoId.
+internal class CatEpisodeDoc(
+    val videoId: String, override val title: String, val showId: String, val showName: String?,
+    val channelId: String?, val thumbnail: String?, val durationSec: Int?, val publishedAt: String?,
+    val femaleInvolved: Boolean, val isKidZone: Boolean,
+) : SearchDoc {
+    override val artistName get() = showName ?: ""
+    override val sortId get() = videoId
+}
+
 /** One community member's filter-relevant snapshot, taken at build time (see [BuiltCategories]). */
 internal class CatCommunityMember(
     val pos: Int,
@@ -94,6 +119,8 @@ class BuiltCategories internal constructor(
     private val singles: SubsetIndex<CatAlbumDoc>,
     private val playlists: SubsetIndex<CatPlaylistDoc>,
     private val community: SubsetIndex<CatCommunityDoc>,
+    private val podcasts: SubsetIndex<CatPodcastDoc>,
+    private val episodes: SubsetIndex<CatEpisodeDoc>,
     // female-involved videoIds (primary OR credited) UNION blocked.female — matches the server's `_female`
     // set (api.mjs setFemaleSet), used by the community post-filter kept-count recompute.
     private val femaleVideoIds: Set<String>,
@@ -144,6 +171,18 @@ class BuiltCategories internal constructor(
                 ZemerPlaylist(id = d.id, title = d.title, artist = d.author, thumbnail = thumb, songCount = songCount)
             }
 
+        // Podcasts: shows + episodes folded into the same matcher (server reply 4). Both gated on the
+        // channel-inherited female/KidZone flags (isVideo=false: episodes are audio) + the blocked shard.
+        val podcastRows = pick(podcasts, k,
+            { allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
+            { listOf(it.id, it.channelId) })
+            .map { ZemerPodcastShow(id = it.id, name = it.title, author = it.author, channelId = it.channelId, thumbnail = it.thumbnail, episodeCountText = it.episodeCountText) }
+
+        val episodeRows = pick(episodes, k,
+            { allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
+            { listOf(it.videoId) })
+            .map { ZemerPodcastEpisode(videoId = it.videoId, title = it.title, podcastId = it.showId, podcastName = it.showName, channelId = it.channelId, thumbnail = it.thumbnail, durationSeconds = it.durationSec ?: 0, publishedAt = it.publishedAt) }
+
         return ZemerCategories(
             artists = artistRows,
             songs = trackRows(songs),
@@ -152,6 +191,8 @@ class BuiltCategories internal constructor(
             videos = trackRows(videos),
             playlists = playlistRows,
             community = communityRows,
+            podcasts = podcastRows,
+            episodes = episodeRows,
         )
     }
 
@@ -312,6 +353,26 @@ class BuiltCategories internal constructor(
                 }
             }
 
+            // Podcast docs: female/KidZone inherited from the host channel. Orphan episodes (no in-corpus
+            // show) are dropped — they can't render a show name or be routed.
+            val podcastDocs = corpus.podcasts.map { s ->
+                val ch = s.channelId?.let { corpus.podcastChannelsById[it] }
+                CatPodcastDoc(
+                    id = s.id, title = s.name, author = s.author, channelId = s.channelId,
+                    thumbnail = s.thumbnail, episodeCountText = s.episodeCountText,
+                    femaleInvolved = ch?.isFemale ?: false, isKidZone = ch?.isKidZone ?: false,
+                )
+            }
+            val episodeDocs = corpus.podcastEpisodes.mapNotNull { e ->
+                val s = corpus.podcastsById[e.showId] ?: return@mapNotNull null
+                val ch = s.channelId?.let { corpus.podcastChannelsById[it] }
+                CatEpisodeDoc(
+                    videoId = e.videoId, title = e.title, showId = e.showId, showName = s.name,
+                    channelId = s.channelId, thumbnail = e.thumbnail, durationSec = e.durationSec, publishedAt = e.publishedAt,
+                    femaleInvolved = ch?.isFemale ?: false, isKidZone = ch?.isKidZone ?: false,
+                )
+            }
+
             return BuiltCategories(
                 blocked = corpus.blocked,
                 communityMembers = communityMembers,
@@ -322,6 +383,8 @@ class BuiltCategories internal constructor(
                 singles = buildSubsetIndex(albumDocs.filter { it.type == "single" }),
                 playlists = buildSubsetIndex(playlistDocs),
                 community = buildSubsetIndex(communityDocs),
+                podcasts = buildSubsetIndex(podcastDocs),
+                episodes = buildSubsetIndex(episodeDocs),
                 femaleVideoIds = femaleVideoIds,
             )
         }
@@ -361,6 +424,7 @@ fun offlineSearch(
     val cats = categoriesFor(corpus, female)
     val categories = cats.search(query, kClamped, allowFemale, blockVideos, kidZone)
     val count = categories.artists.size + categories.songs.size + categories.albums.size +
-        categories.singles.size + categories.videos.size + categories.playlists.size + categories.community.size
+        categories.singles.size + categories.videos.size + categories.playlists.size + categories.community.size +
+        categories.podcasts.size + categories.episodes.size
     return ZemerSearchResponse(q = query, count = count, categories = categories)
 }

@@ -96,4 +96,47 @@ class SubsetDecoderTest {
         assertEquals(2, blocked.female.size)
         assertTrue("6V8hM6RbaAI" in blocked.female)
     }
+
+    @Test
+    fun `podcast channels decode with packed flag bits`() {
+        // Real rows sampled from live /subset/podcastchannels (flags: bit0=female, bit1=kidZone, bit2=verified).
+        val c = SubsetDecoder.decodePodcastChannels(
+            """[["UCBZlDcGaHknNIsPlmENwgdA","Aaron Benedict","https://yt3/x=w544",4,1,79],
+                ["UCfem","Fem Kid Verified","https://t",7,3,10]]""",
+        )
+        assertEquals("UCBZlDcGaHknNIsPlmENwgdA", c[0].id)
+        assertEquals("Aaron Benedict", c[0].name)
+        // flags = 4 = verified only
+        assertFalse(c[0].isFemale); assertFalse(c[0].isKidZone); assertTrue(c[0].isVerified)
+        assertEquals(1, c[0].showCount); assertEquals(79, c[0].episodeCount)
+        // flags = 7 = 1|2|4
+        assertTrue(c[1].isFemale); assertTrue(c[1].isKidZone); assertTrue(c[1].isVerified)
+    }
+
+    @Test
+    fun `podcast shows decode with nullable author and channelId`() {
+        // Real rows sampled from live /subset/podcasts.
+        val s = SubsetDecoder.decodePodcastShows(
+            """[["MPSPOLSIMs3bBf6gYi_OroS7rJPzDfCfO78ozaQ","History For The Curious",null,null,"https://i.ytimg/hq720.jpg",null],
+                ["MPSPPL-PrlHukcayUrySa1UcDHcUzA5gItQQ0R","Nexus Podcast","James Dice","UCbnQAiPQEsvAqK84-q5IHcw","https://yt3/x=w544","12 episodes"]]""",
+        )
+        assertEquals("History For The Curious", s[0].name)
+        assertNull(s[0].author); assertNull(s[0].channelId); assertNull(s[0].episodeCountText)
+        assertEquals("James Dice", s[1].author)
+        assertEquals("UCbnQAiPQEsvAqK84-q5IHcw", s[1].channelId)
+        assertEquals("12 episodes", s[1].episodeCountText)
+    }
+
+    @Test
+    fun `podcast episodes decode with nullable duration and date`() {
+        // Real rows sampled from live /subset/podcastepisodes-0.
+        val e = SubsetDecoder.decodePodcastEpisodes(
+            """[["--GGuhxdE_Y","MPSPPLtqXAoDAjg7WAPk-2uxysN3-5c_Sue-Ka","היו איומים","https://i.ytimg/hq720.jpg",null,null],
+                ["-008AC2sotc","MPSPPLJyte6gLiKcfd7DNK9f3T7lhQVrA6MPjQ","Catalina Miller","https://i.ytimg/hq720.jpg",4164,"2026-05-10"]]""",
+        )
+        assertEquals("--GGuhxdE_Y", e[0].videoId)
+        assertEquals("MPSPPLtqXAoDAjg7WAPk-2uxysN3-5c_Sue-Ka", e[0].showId)
+        assertNull(e[0].durationSec); assertNull(e[0].publishedAt)
+        assertEquals(4164, e[1].durationSec); assertEquals("2026-05-10", e[1].publishedAt)
+    }
 }

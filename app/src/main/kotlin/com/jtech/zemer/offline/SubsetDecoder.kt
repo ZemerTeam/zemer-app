@@ -42,6 +42,9 @@ object SubsetDecoder {
             val homeRank = ArrayList<SubHomeRank>()
             val zemerPlaylists = ArrayList<SubZemerPlaylist>()
             val zemerItems = ArrayList<SubZemerItem>()
+            val podcastChannels = ArrayList<SubPodcastChannel>()
+            val podcasts = ArrayList<SubPodcastShow>()
+            val podcastEpisodes = ArrayList<SubPodcastEpisode>()
             var blocked = SubBlocked(emptySet(), emptySet())
 
             for (shard in manifest.shards) {
@@ -64,6 +67,9 @@ object SubsetDecoder {
                     shard.name == "communitytracks" -> communityTracks += decodeCommunityTracks(text)
                     shard.name == "homerank" -> homeRank += decodeHomeRank(text)
                     shard.name == "zemer" -> decodeZemer(text).let { zemerPlaylists += it.first; zemerItems += it.second }
+                    shard.name == "podcastchannels" -> podcastChannels += decodePodcastChannels(text)
+                    shard.name == "podcasts" -> podcasts += decodePodcastShows(text)
+                    shard.name.startsWith("podcastepisodes-") -> podcastEpisodes += decodePodcastEpisodes(text)
                     shard.name == "blocked" -> blocked = decodeBlocked(text)
                     // Unknown shard → ignored for forward compatibility.
                 }
@@ -71,6 +77,7 @@ object SubsetDecoder {
             SubsetCorpus(
                 artists, tracks, albums, albumTracks, playlists,
                 community, communityTracks, homeRank, zemerPlaylists, zemerItems, blocked,
+                podcastChannels, podcasts, podcastEpisodes,
             )
         } catch (e: CancellationException) {
             throw e
@@ -173,6 +180,46 @@ object SubsetDecoder {
             SubZemerItem(playlistId = i["playlistId"].asString(), kind = i["kind"].asString(), refId = i["refId"].asString(), pos = i["pos"].asInt())
         }
         return playlists to items
+    }
+
+    // Podcast channel row: [ id(UC), name, thumbnail, flags, showCount, episodeCount ].
+    // flags is a bitmask: bit0=isFemale, bit1=isKidZone, bit2=isVerified.
+    fun decodePodcastChannels(text: String): List<SubPodcastChannel> = rows(text).map { r ->
+        val flags = r[3].asInt()
+        SubPodcastChannel(
+            id = r[0].asString(),
+            name = r[1].asString(),
+            thumbnail = r[2].asStringOrNull(),
+            isFemale = flags and 1 != 0,
+            isKidZone = flags and 2 != 0,
+            isVerified = flags and 4 != 0,
+            showCount = r[4].asIntOrNull() ?: 0,
+            episodeCount = r[5].asIntOrNull() ?: 0,
+        )
+    }
+
+    // Podcast show row: [ id(MPSP), name, author, channelId(UC), thumbnail, episodeCountText ].
+    fun decodePodcastShows(text: String): List<SubPodcastShow> = rows(text).map { r ->
+        SubPodcastShow(
+            id = r[0].asString(),
+            name = r[1].asString(),
+            author = r[2].asStringOrNull(),
+            channelId = r[3].asStringOrNull(),
+            thumbnail = r[4].asStringOrNull(),
+            episodeCountText = r[5].asStringOrNull(),
+        )
+    }
+
+    // Podcast episode row: [ videoId, showId(MPSP), title, thumbnail, durationSec, publishedAt ].
+    fun decodePodcastEpisodes(text: String): List<SubPodcastEpisode> = rows(text).map { r ->
+        SubPodcastEpisode(
+            videoId = r[0].asString(),
+            showId = r[1].asString(),
+            title = r[2].asString(),
+            thumbnail = r[3].asStringOrNull(),
+            durationSec = r[4].asIntOrNull(),
+            publishedAt = r[5].asStringOrNull(),
+        )
     }
 
     fun decodeBlocked(text: String): SubBlocked {
