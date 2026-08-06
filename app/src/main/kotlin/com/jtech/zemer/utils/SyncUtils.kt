@@ -15,8 +15,10 @@ import com.jtech.zemer.db.entities.PodcastEntity
 import com.jtech.zemer.db.entities.PodcastWhitelistEntity
 import com.jtech.zemer.db.entities.SetVideoIdEntity
 import com.jtech.zemer.db.entities.SongEntity
+import com.jtech.zemer.R
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toSQLiteQuery
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.sync.PodcastSyncLogic
 import com.jtech.zemer.utils.filterWhitelisted
@@ -225,17 +227,21 @@ class SyncUtils @Inject constructor(
                     }
                 }
 
-                // Cleanup: local saved episodes no longer in (the whitelisted) VLSE are cleared.
-                val localToRemove = PodcastSyncLogic.localOnly(
-                    local = database.savedEpisodes().first(),
-                    remoteIds = remoteIds,
-                    id = { it.id },
-                )
-                localToRemove.forEach { song ->
-                    try {
-                        database.transaction { update(song.song.copy(inLibrary = null)) }
-                    } catch (e: Exception) {
-                        Timber.e(e, "syncEpisodesForLater: cleanup failed for ${song.id}")
+                // Cleanup: local saved episodes no longer in (the whitelisted) VLSE are cleared. Guarded
+                // against an empty remote (a successful-but-empty fetch, or the podcast whitelist not yet
+                // populated) so it never wipes every locally-saved episode - mirrors syncPodcastSubscriptions.
+                if (remoteIds.isNotEmpty()) {
+                    val localToRemove = PodcastSyncLogic.localOnly(
+                        local = database.savedEpisodes().first(),
+                        remoteIds = remoteIds,
+                        id = { it.id },
+                    )
+                    localToRemove.forEach { song ->
+                        try {
+                            database.transaction { update(song.song.copy(inLibrary = null)) }
+                        } catch (e: Exception) {
+                            Timber.e(e, "syncEpisodesForLater: cleanup failed for ${song.id}")
+                        }
                     }
                 }
             }
@@ -250,6 +256,44 @@ class SyncUtils @Inject constructor(
         if (!isPersonalAccountSignedIn) return
         syncScope.launch {
             YouTube.likeVideo(s.id, s.liked)
+        }
+    }
+
+    /**
+     * Save/unsave a podcast episode - the episode analogue of [likeSong]. Flips `inLibrary` locally at
+     * once (optimistic, drives the heart/notification; anonymous sessions stay local-only), then, for a
+     * personal login, syncs the account and reverts the local flip + toasts on failure. The whole flow
+     * lives in one coroutine so the flip and its revert can never race. Un-save always clears locally
+     * (even without the `setVideoId` needed for server removal), so it can never stick.
+     */
+    fun toggleSaveEpisode(episode: SongEntity) {
+        val wasSaved = episode.inLibrary != null
+        syncScope.launch {
+            database.query {
+                update(episode.copy(inLibrary = if (wasSaved) null else LocalDateTime.now()))
+            }
+            // Anonymous (pooled) sessions never write the shared account (dataSyncId, not SAPISID).
+            if (!isPersonalAccountSignedIn) return@launch
+
+            val result = if (wasSaved) {
+                val setVideoId = database.getSetVideoId(episode.id)?.setVideoId
+                if (setVideoId != null) {
+                    YouTube.removeEpisodeFromSavedEpisodes(episode.id, setVideoId)
+                } else {
+                    Result.success(Unit)
+                }
+            } else {
+                YouTube.addEpisodeToSavedEpisodes(episode.id)
+            }
+            result.onFailure { e ->
+                Timber.e(e, "[EPISODE_SAVE] toggle failed for ${episode.id} - reverting")
+                database.query {
+                    update(episode.copy(inLibrary = if (wasSaved) LocalDateTime.now() else null))
+                }
+                withContext(Dispatchers.Main) {
+                    context.toast(if (wasSaved) R.string.error_episode_remove else R.string.error_episode_save)
+                }
+            }
         }
     }
 

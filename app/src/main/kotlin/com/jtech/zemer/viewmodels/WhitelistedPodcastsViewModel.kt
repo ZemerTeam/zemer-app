@@ -6,21 +6,17 @@ import androidx.lifecycle.viewModelScope
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.PodcastWhitelistEntity
 import com.jtech.zemer.search.ZemerSearchRepository
-import com.jtech.zemer.search.zemerSearchOptions
+import com.jtech.zemer.utils.NewEpisodesFeed
 import com.jtech.zemer.utils.PodcastLibrarySources
 import com.jtech.zemer.utils.SyncUtils
-import com.metrolist.innertube.models.SongItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -42,25 +38,18 @@ constructor(
     val subscribedPodcasts = PodcastLibrarySources.whitelistedSubscribedPodcasts(database)
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    // New Episodes from official API (VLRDPN)
-    private val _newEpisodes = MutableStateFlow<List<SongItem>>(emptyList())
-    val newEpisodes: StateFlow<List<SongItem>> = _newEpisodes.asStateFlow()
-
-    private val _isLoadingNewEpisodes = MutableStateFlow(false)
-    val isLoadingNewEpisodes: StateFlow<Boolean> = _isLoadingNewEpisodes.asStateFlow()
+    // New Episodes feed (shared holder so this VM and LibraryPodcastsViewModel can't drift).
+    private val newEpisodesFeed = NewEpisodesFeed(zemerRepository, context, database)
+    val newEpisodes = newEpisodesFeed.episodes
+    val isLoadingNewEpisodes = newEpisodesFeed.isLoading
 
     val allPodcasts =
         combine(
             database.allWhitelistedPodcastsByName(),
             searchQuery
         ) { podcasts: List<PodcastWhitelistEntity>, query ->
-            Timber.d("WhitelistedPodcastsVM: Total whitelisted podcasts from DB: ${podcasts.size}, Search query: '$query'")
-            val filteredByQuery =
-                if (query.isBlank()) podcasts
-                else podcasts.filter { podcast -> podcast.podcastName.contains(query, ignoreCase = true) }
-
-            Timber.d("WhitelistedPodcastsVM: Filtered result: ${filteredByQuery.size} podcasts")
-            filteredByQuery
+            if (query.isBlank()) podcasts
+            else podcasts.filter { podcast -> podcast.podcastName.contains(query, ignoreCase = true) }
         }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
@@ -70,17 +59,7 @@ constructor(
         syncSubscribedPodcasts()
     }
 
-    fun fetchNewEpisodes() {
-        viewModelScope.launch(Dispatchers.IO) {
-            _isLoadingNewEpisodes.value = true
-            _newEpisodes.value = PodcastLibrarySources.whitelistedNewEpisodes(
-                zemerRepository,
-                zemerSearchOptions(context),
-                database,
-            )
-            _isLoadingNewEpisodes.value = false
-        }
-    }
+    fun fetchNewEpisodes() = newEpisodesFeed.fetch(viewModelScope)
 
     fun syncSubscribedPodcasts() {
         viewModelScope.launch(Dispatchers.IO) {

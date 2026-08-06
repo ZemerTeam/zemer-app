@@ -29,6 +29,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import com.jtech.zemer.db.entities.PodcastEntity
+import com.jtech.zemer.ui.component.focusBorder
+import com.metrolist.innertube.models.SongItem
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -268,170 +271,32 @@ fun WhitelistedPodcastsScreen(
                         searchContent()
                     }
 
-                    // Subscribed Channels Section (from YouTube Music)
+                    // Subscribed Channels Section (the user's account subscriptions, synced + whitelist-filtered)
                     if (subscribedPodcasts.isNotEmpty()) {
-                        item(
-                            key = "subscribed_channels_header",
-                            contentType = CONTENT_TYPE_HEADER,
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.subscribed_channels),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                                Spacer(Modifier.weight(1f))
-                                IconButton(onClick = { viewModel.syncSubscribedPodcasts() }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.sync),
-                                        contentDescription = stringResource(R.string.action_sync),
-                                    )
-                                }
-                            }
-                        }
-
-                        item(
-                            key = "subscribed_channels_row",
-                            contentType = CONTENT_TYPE_HEADER,
-                        ) {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                items(
-                                    items = subscribedPodcasts,
-                                    key = { it.id }
-                                ) { podcast ->
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier
-                                            .width(100.dp)
-                                            .clickable {
-                                                navController.navigateToPodcast(podcast.id)
-                                            }
-                                            .padding(4.dp)
-                                    ) {
-                                        AsyncImage(
-                                            model = podcast.thumbnailUrl,
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier
-                                                .size(80.dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                        )
-                                        Spacer(Modifier.height(4.dp))
-                                        Text(
-                                            text = podcast.title,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Center,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        item(
-                            key = "subscribed_channels_divider",
-                            contentType = CONTENT_TYPE_HEADER,
-                        ) {
-                            Spacer(Modifier.height(8.dp))
+                        item(key = "subscribed_channels", contentType = CONTENT_TYPE_HEADER) {
+                            SubscribedChannelsSection(
+                                podcasts = subscribedPodcasts,
+                                onSync = { viewModel.syncSubscribedPodcasts() },
+                                onChannelClick = { navController.navigateToPodcast(it) },
+                            )
                         }
                     }
 
-                    // New Episodes Section (from YouTube Music API)
+                    // New Episodes Section (from the Zemer server /podcasts/new-episodes)
                     if (newEpisodes.isNotEmpty() || isLoadingNewEpisodes) {
-                        item(
-                            key = "new_episodes_header",
-                            contentType = CONTENT_TYPE_HEADER,
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.new_episodes),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                                Spacer(Modifier.weight(1f))
-                                IconButton(onClick = { viewModel.fetchNewEpisodes() }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.sync),
-                                        contentDescription = stringResource(R.string.action_sync),
+                        item(key = "new_episodes", contentType = CONTENT_TYPE_HEADER) {
+                            NewEpisodesSection(
+                                episodes = newEpisodes,
+                                onRefresh = { viewModel.fetchNewEpisodes() },
+                                onEpisodeClick = { episode ->
+                                    playerConnection.playQueue(
+                                        ListQueue(
+                                            title = episode.title,
+                                            items = listOf(episode.toMediaItem()),
+                                        ),
                                     )
-                                }
-                            }
-                        }
-
-                        item(
-                            key = "new_episodes_row",
-                            contentType = CONTENT_TYPE_HEADER,
-                        ) {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                items(
-                                    items = newEpisodes,
-                                    key = { it.id }
-                                ) { episode ->
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier
-                                            .width(140.dp)
-                                            .clickable {
-                                                playerConnection.playQueue(
-                                                    ListQueue(
-                                                        title = episode.title,
-                                                        items = listOf(episode.toMediaItem()),
-                                                    ),
-                                                )
-                                            }
-                                            .padding(4.dp)
-                                    ) {
-                                        AsyncImage(
-                                            model = episode.thumbnail,
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier
-                                                .size(120.dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                        )
-                                        Spacer(Modifier.height(4.dp))
-                                        Text(
-                                            text = episode.title,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Center,
-                                        )
-                                        Text(
-                                            text = episode.artists.joinToString { it.name },
-                                            style = MaterialTheme.typography.labelSmall,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Center,
-                                            color = MaterialTheme.colorScheme.secondary,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        item(
-                            key = "new_episodes_divider",
-                            contentType = CONTENT_TYPE_HEADER,
-                        ) {
-                            Spacer(Modifier.height(8.dp))
+                                },
+                            )
                         }
                     }
 
@@ -485,176 +350,32 @@ fun WhitelistedPodcastsScreen(
                         searchContent()
                     }
 
-                    // Subscribed Channels Section (from YouTube Music)
+                    // Subscribed Channels Section (the user's account subscriptions, synced + whitelist-filtered)
                     if (subscribedPodcasts.isNotEmpty()) {
-                        item(
-                            key = "subscribed_channels_header",
-                            span = { GridItemSpan(maxLineSpan) },
-                            contentType = CONTENT_TYPE_HEADER,
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.subscribed_channels),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                                Spacer(Modifier.weight(1f))
-                                IconButton(onClick = { viewModel.syncSubscribedPodcasts() }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.sync),
-                                        contentDescription = stringResource(R.string.action_sync),
-                                    )
-                                }
-                            }
-                        }
-
-                        item(
-                            key = "subscribed_channels_row",
-                            span = { GridItemSpan(maxLineSpan) },
-                            contentType = CONTENT_TYPE_HEADER,
-                        ) {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                items(
-                                    items = subscribedPodcasts,
-                                    key = { it.id }
-                                ) { podcast ->
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier
-                                            .width(100.dp)
-                                            .clickable {
-                                                navController.navigateToPodcast(podcast.id)
-                                            }
-                                            .padding(4.dp)
-                                    ) {
-                                        AsyncImage(
-                                            model = podcast.thumbnailUrl,
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier
-                                                .size(80.dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                        )
-                                        Spacer(Modifier.height(4.dp))
-                                        Text(
-                                            text = podcast.title,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Center,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        item(
-                            key = "subscribed_channels_divider",
-                            span = { GridItemSpan(maxLineSpan) },
-                            contentType = CONTENT_TYPE_HEADER,
-                        ) {
-                            Spacer(Modifier.height(8.dp))
+                        item(key = "subscribed_channels", span = { GridItemSpan(maxLineSpan) }, contentType = CONTENT_TYPE_HEADER) {
+                            SubscribedChannelsSection(
+                                podcasts = subscribedPodcasts,
+                                onSync = { viewModel.syncSubscribedPodcasts() },
+                                onChannelClick = { navController.navigateToPodcast(it) },
+                            )
                         }
                     }
 
-                    // New Episodes Section (from YouTube Music API)
+                    // New Episodes Section (from the Zemer server /podcasts/new-episodes)
                     if (newEpisodes.isNotEmpty() || isLoadingNewEpisodes) {
-                        item(
-                            key = "new_episodes_header",
-                            span = { GridItemSpan(maxLineSpan) },
-                            contentType = CONTENT_TYPE_HEADER,
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.new_episodes),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                                Spacer(Modifier.weight(1f))
-                                IconButton(onClick = { viewModel.fetchNewEpisodes() }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.sync),
-                                        contentDescription = stringResource(R.string.action_sync),
+                        item(key = "new_episodes", span = { GridItemSpan(maxLineSpan) }, contentType = CONTENT_TYPE_HEADER) {
+                            NewEpisodesSection(
+                                episodes = newEpisodes,
+                                onRefresh = { viewModel.fetchNewEpisodes() },
+                                onEpisodeClick = { episode ->
+                                    playerConnection.playQueue(
+                                        ListQueue(
+                                            title = episode.title,
+                                            items = listOf(episode.toMediaItem()),
+                                        ),
                                     )
-                                }
-                            }
-                        }
-
-                        item(
-                            key = "new_episodes_row",
-                            span = { GridItemSpan(maxLineSpan) },
-                            contentType = CONTENT_TYPE_HEADER,
-                        ) {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                items(
-                                    items = newEpisodes,
-                                    key = { it.id }
-                                ) { episode ->
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier
-                                            .width(140.dp)
-                                            .clickable {
-                                                playerConnection.playQueue(
-                                                    ListQueue(
-                                                        title = episode.title,
-                                                        items = listOf(episode.toMediaItem()),
-                                                    ),
-                                                )
-                                            }
-                                            .padding(4.dp)
-                                    ) {
-                                        AsyncImage(
-                                            model = episode.thumbnail,
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier
-                                                .size(120.dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                        )
-                                        Spacer(Modifier.height(4.dp))
-                                        Text(
-                                            text = episode.title,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Center,
-                                        )
-                                        Text(
-                                            text = episode.artists.joinToString { it.name },
-                                            style = MaterialTheme.typography.labelSmall,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Center,
-                                            color = MaterialTheme.colorScheme.secondary,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        item(
-                            key = "new_episodes_divider",
-                            span = { GridItemSpan(maxLineSpan) },
-                            contentType = CONTENT_TYPE_HEADER,
-                        ) {
-                            Spacer(Modifier.height(8.dp))
+                                },
+                            )
                         }
                     }
 
@@ -739,5 +460,159 @@ fun WhitelistedPodcastsScreen(
                 progressFlow = viewModel.syncProgress
             )
         }
+    }
+}
+
+/**
+ * Shared gold section header (title + a trailing sync/refresh icon), used by both podcast rows so the
+ * two can't drift.
+ */
+@Composable
+private fun PodcastSectionHeader(title: String, onSync: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.weight(1f))
+        IconButton(onClick = onSync) {
+            Icon(
+                painter = painterResource(R.drawable.sync),
+                contentDescription = stringResource(R.string.action_sync),
+            )
+        }
+    }
+}
+
+/** A subscribed-podcast avatar card (the "Subscribed Channels" row). D-pad focusable. */
+@Composable
+private fun SubscribedPodcastCard(
+    title: String,
+    thumbnailUrl: String?,
+    onClick: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(100.dp)
+            .focusBorder()
+            .clickable(onClick = onClick)
+            .padding(4.dp),
+    ) {
+        AsyncImage(
+            model = thumbnailUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(80.dp)
+                .clip(RoundedCornerShape(8.dp)),
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/** A "New Episodes" card (larger thumbnail + title + author). D-pad focusable. */
+@Composable
+private fun NewEpisodeCard(
+    episode: SongItem,
+    onClick: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(140.dp)
+            .focusBorder()
+            .clickable(onClick = onClick)
+            .padding(4.dp),
+    ) {
+        AsyncImage(
+            model = episode.thumbnail,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(120.dp)
+                .clip(RoundedCornerShape(8.dp)),
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = episode.title,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            text = episode.artists.joinToString { it.name },
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.secondary,
+        )
+    }
+}
+
+/**
+ * The "Subscribed Channels" row: gold header + sync + a horizontal strip of avatar cards. One composable
+ * shared by the LIST and GRID layouts (they differ only by the LazyGrid span on the wrapping item).
+ */
+@Composable
+private fun SubscribedChannelsSection(
+    podcasts: List<PodcastEntity>,
+    onSync: () -> Unit,
+    onChannelClick: (String) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        PodcastSectionHeader(title = stringResource(R.string.subscribed_channels), onSync = onSync)
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(items = podcasts, key = { it.id }) { podcast ->
+                SubscribedPodcastCard(
+                    title = podcast.title,
+                    thumbnailUrl = podcast.thumbnailUrl,
+                    onClick = { onChannelClick(podcast.id) },
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+/**
+ * The "New Episodes" row: gold header + refresh + a horizontal strip of episode cards. Shared by the
+ * LIST and GRID layouts.
+ */
+@Composable
+private fun NewEpisodesSection(
+    episodes: List<SongItem>,
+    onRefresh: () -> Unit,
+    onEpisodeClick: (SongItem) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        PodcastSectionHeader(title = stringResource(R.string.new_episodes), onSync = onRefresh)
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(items = episodes, key = { it.id }) { episode ->
+                NewEpisodeCard(episode = episode, onClick = { onEpisodeClick(episode) })
+            }
+        }
+        Spacer(Modifier.height(8.dp))
     }
 }

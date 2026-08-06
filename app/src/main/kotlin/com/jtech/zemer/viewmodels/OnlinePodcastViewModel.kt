@@ -131,10 +131,10 @@ class OnlinePodcastViewModel @Inject constructor(
     /**
      * Toggle saving the podcast channel to the library - OPTIMISTIC, exactly like a song like.
      * The local DB row (which drives the heart) flips immediately; the server write
-     * (YouTube.savePodcast, the like/like endpoint with playlistId) runs in the background and the
+     * (YouTube.savePodcast, the save/unsave endpoint with playlistId) runs in the background and the
      * local toggle is reverted only if it fails. Anonymous users are local-only (no server library).
      */
-    fun toggleSubscription(context: Context) {
+    fun toggleSubscription() {
         val currentPodcast = podcast.value ?: return
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -175,11 +175,6 @@ class OnlinePodcastViewModel @Inject constructor(
             }
         }
     }
-
-    /**
-     * Legacy method - now calls toggleSubscription
-     */
-    fun toggleLibrary(context: Context) = toggleSubscription(context)
 
     fun retry() {
         fetchPodcastData()

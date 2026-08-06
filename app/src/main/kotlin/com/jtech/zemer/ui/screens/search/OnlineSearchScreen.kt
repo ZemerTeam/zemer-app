@@ -71,8 +71,10 @@ import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.ui.screens.Screens
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SearchBarIconOffsetX
@@ -86,6 +88,8 @@ import com.jtech.zemer.viewmodels.OnlineSearchSuggestionViewModel
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.EpisodeItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
@@ -276,8 +280,23 @@ fun OnlineSearchScreen(
                     .combinedClickable(
                         onClick = {
                             when (item) {
-                                is com.metrolist.innertube.models.PodcastItem -> {}
-                                is com.metrolist.innertube.models.EpisodeItem -> {}
+                                // Podcast SHOW: open the host channel when known (where Subscribe lives),
+                                // else the show — the browse-grid routing (whitelistedPodcastRoute).
+                                is PodcastItem -> {
+                                    whitelistedPodcastRoute(item.id, item.channelId)?.let { navController.navigate(it) }
+                                    onDismiss()
+                                }
+                                // Episode: seed-first play by videoId through the normal pipeline.
+                                is EpisodeItem -> {
+                                    playerConnection.playQueue(
+                                        ZemerRadioQueue.song(
+                                            item.asSongItem().toMediaMetadata(),
+                                            playerConnection.service,
+                                            PlaySource.SEARCH,
+                                        )
+                                    )
+                                    onDismiss()
+                                }
                                 is SongItem -> {
                                     if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                         playerConnection.playPause()
@@ -328,8 +347,23 @@ fun OnlineSearchScreen(
                     .onKeyEvent { event ->
                         if (event.key == Key.Enter || event.key == Key.DirectionCenter) {
                             when (item) {
-                                is com.metrolist.innertube.models.PodcastItem -> {}
-                                is com.metrolist.innertube.models.EpisodeItem -> {}
+                                // Podcast SHOW: open the host channel when known (where Subscribe lives),
+                                // else the show — the browse-grid routing (whitelistedPodcastRoute).
+                                is PodcastItem -> {
+                                    whitelistedPodcastRoute(item.id, item.channelId)?.let { navController.navigate(it) }
+                                    onDismiss()
+                                }
+                                // Episode: seed-first play by videoId through the normal pipeline.
+                                is EpisodeItem -> {
+                                    playerConnection.playQueue(
+                                        ZemerRadioQueue.song(
+                                            item.asSongItem().toMediaMetadata(),
+                                            playerConnection.service,
+                                            PlaySource.SEARCH,
+                                        )
+                                    )
+                                    onDismiss()
+                                }
                                 is SongItem -> {
                                     if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                         playerConnection.playPause()

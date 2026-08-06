@@ -13,6 +13,6 @@ data class PodcastWhitelistEntity(
     val thumbnailUrl: String? = null,
     val channelId: String? = null,
     val addedAt: LocalDateTime = LocalDateTime.now(),
-    val source: String = "firestore",
+    val source: String = "mirror",
     val lastSyncedAt: LocalDateTime = LocalDateTime.now()
 )

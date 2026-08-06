@@ -2,9 +2,6 @@
 
 package com.jtech.zemer.viewmodels
 
-import androidx.compose.runtime.MutableState
-import com.jtech.zemer.constants.LibraryFilter
-import androidx.compose.runtime.mutableStateOf
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -38,6 +35,7 @@ import com.jtech.zemer.constants.SongSortTypeKey
 import com.jtech.zemer.constants.TopSize
 import com.jtech.zemer.constants.VideoDownloadsInMusicKey
 import com.jtech.zemer.db.MusicDatabase
+import com.jtech.zemer.db.entities.PodcastEntity
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.db.entities.Song
@@ -50,15 +48,14 @@ import com.jtech.zemer.playback.DownloadUtil
 import com.jtech.zemer.repositories.CachedSongsRepository
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.search.ZemerSearchRepository
-import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.utils.SyncUtils
+import com.jtech.zemer.utils.NewEpisodesFeed
 import com.jtech.zemer.utils.PodcastLibrarySources
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.ArtistItem
-import com.metrolist.innertube.models.SongItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -66,7 +63,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -476,14 +472,6 @@ class LibraryAutoPlaylistViewModel @Inject constructor(
 }
 
 @HiltViewModel
-class LibraryViewModel
-@Inject
-constructor() : ViewModel() {
-    private val curScreen = mutableStateOf(LibraryFilter.LIBRARY)
-    val filter: MutableState<LibraryFilter> = curScreen
-}
-
-@HiltViewModel
 class LibraryPodcastsViewModel
 @Inject
 constructor(
@@ -511,11 +499,10 @@ constructor(
 
     // New Episodes from the personal account's feed (VLRDPN). PERSONAL-ONLY: reading the pooled anon
     // account's feed would leak across users (the dataSyncId gate music uses, not SAPISID).
-    private val _newEpisodes = MutableStateFlow<List<SongItem>>(emptyList())
-    val newEpisodes: StateFlow<List<SongItem>> = _newEpisodes.asStateFlow()
-
-    private val _isLoadingNewEpisodes = MutableStateFlow(false)
-    val isLoadingNewEpisodes: StateFlow<Boolean> = _isLoadingNewEpisodes.asStateFlow()
+    // New Episodes feed (shared holder so this VM and WhitelistedPodcastsViewModel can't drift).
+    private val newEpisodesFeed = NewEpisodesFeed(zemerRepository, context, database)
+    val newEpisodes = newEpisodesFeed.episodes
+    val isLoadingNewEpisodes = newEpisodesFeed.isLoading
 
     // Podcast host channels. Personal accounts get them from the account library; every session also
     // gets the channels derivable from locally-subscribed shows (channelId + author). The API read is
@@ -548,17 +535,7 @@ constructor(
         syncPodcastSubscriptions()
     }
 
-    fun fetchNewEpisodes() {
-        viewModelScope.launch(Dispatchers.IO) {
-            _isLoadingNewEpisodes.value = true
-            _newEpisodes.value = PodcastLibrarySources.whitelistedNewEpisodes(
-                zemerRepository,
-                zemerSearchOptions(context),
-                database,
-            )
-            _isLoadingNewEpisodes.value = false
-        }
-    }
+    fun fetchNewEpisodes() = newEpisodesFeed.fetch(viewModelScope)
 
     fun refreshChannels() {
         if (!isPersonalAccountSignedIn) return
@@ -592,34 +569,18 @@ constructor(
      * toast) on failure. Un-save always clears local even when the setVideoId needed for the server
      * removal is unknown, so an episode can never get stuck saved. Anonymous sessions are local-only.
      */
-    fun toggleEpisodeSaved(context: Context, song: Song) {
-        val wasSaved = song.song.inLibrary != null
-        viewModelScope.launch(Dispatchers.IO) {
-            database.query {
-                update(song.song.copy(inLibrary = if (wasSaved) null else LocalDateTime.now()))
-            }
-            if (!isPersonalAccountSignedIn) return@launch
+    // Save/unsave an episode - delegates to the one shared implementation (the episode analogue of
+    // likeSong) so the optimistic-flip + account-sync + revert logic lives in exactly one place.
+    fun toggleEpisodeSaved(song: Song) {
+        syncUtils.toggleSaveEpisode(song.song)
+    }
 
-            val result = if (wasSaved) {
-                // Local is already cleared; remove from the server playlist only when we know the id.
-                val setVideoId = database.getSetVideoId(song.id)?.setVideoId
-                if (setVideoId != null) {
-                    YouTube.removeEpisodeFromSavedEpisodes(song.id, setVideoId)
-                } else {
-                    Result.success(Unit)
-                }
-            } else {
-                YouTube.addEpisodeToSavedEpisodes(song.id)
-            }
-            result.onFailure { e ->
-                Timber.e(e, "[EPISODE_SAVE] toggle failed for ${song.id} - reverting")
-                database.query {
-                    update(song.song.copy(inLibrary = if (wasSaved) LocalDateTime.now() else null))
-                }
-                withContext(Dispatchers.Main) {
-                    context.toast(if (wasSaved) R.string.error_episode_remove else R.string.error_episode_save)
-                }
-            }
+    // Remove a subscribed show from the library: clear the local bookmark, and (personal login only)
+    // unsave on the account. Anonymous sessions stay local-only.
+    fun unsubscribeShow(podcast: PodcastEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            database.query { updatePodcast(podcast.copy(bookmarkedAt = null)) }
+            if (isPersonalAccountSignedIn) YouTube.savePodcast(podcast.id, false)
         }
     }
 }

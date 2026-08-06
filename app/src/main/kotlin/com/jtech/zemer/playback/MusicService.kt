@@ -1362,44 +1362,10 @@ class MusicService :
     fun toggleLike() {
         val songData = currentSong.value ?: return
 
-        // Handle episodes differently - toggle "save for later" (inLibrary) instead of like.
+        // Episodes toggle "save for later" (inLibrary), not a like. Optimistic local flip + account
+        // sync + revert all live in SyncUtils.toggleSaveEpisode (the episode analogue of likeSong).
         if (songData.song.isEpisode) {
-            val wasSaved = songData.song.inLibrary != null
-
-            scope.launch(Dispatchers.IO) {
-                // OPTIMISTIC: flip local inLibrary at once (drives the heart/notification), then sync;
-                // un-save always clears local (even without the setVideoId needed for server removal, so
-                // it can never stick), and any server failure reverts the flip + toasts.
-                database.query {
-                    update(songData.song.copy(
-                        inLibrary = if (wasSaved) null else java.time.LocalDateTime.now()
-                    ))
-                }
-                // Anonymous (pooled) sessions never write the shared account (dataSyncId, not SAPISID).
-                if (!isPersonalAccountSignedIn) return@launch
-
-                val result = if (wasSaved) {
-                    val setVideoId = database.getSetVideoId(songData.song.id)?.setVideoId
-                    if (setVideoId != null) {
-                        YouTube.removeEpisodeFromSavedEpisodes(songData.song.id, setVideoId)
-                    } else {
-                        Result.success(Unit)
-                    }
-                } else {
-                    YouTube.addEpisodeToSavedEpisodes(songData.song.id)
-                }
-                result.onFailure { e ->
-                    timber.log.Timber.e(e, "[EPISODE_SAVE] toggle failed for ${songData.song.id} - reverting")
-                    database.query {
-                        update(songData.song.copy(
-                            inLibrary = if (wasSaved) java.time.LocalDateTime.now() else null
-                        ))
-                    }
-                    withContext(Dispatchers.Main) {
-                        toast(if (wasSaved) R.string.error_episode_remove else R.string.error_episode_save)
-                    }
-                }
-            }
+            syncUtils.toggleSaveEpisode(songData.song)
         } else {
             // Regular song - toggle like
             database.query {

@@ -260,7 +260,7 @@ fun OnlinePodcastScreen(
                                 Spacer(Modifier.height(12.dp))
 
                                 OutlinedButton(
-                                    onClick = { viewModel.toggleLibrary(context) },
+                                    onClick = { viewModel.toggleSubscription() },
                                     colors = ButtonDefaults.outlinedButtonColors(
                                         containerColor = if (inLibrary)
                                             MaterialTheme.colorScheme.secondaryContainer
@@ -289,8 +289,8 @@ fun OnlinePodcastScreen(
                                     )
                                 }
 
-                                // View channel: the host's InnerTube page (its Podcasts shelf + a
-                                // channel Subscribe), when the podcast carries a channel id.
+                                // View channel: the host's Zemer channel page (/podcast-channel — its
+                                // Podcasts shelf + a channel Subscribe), when the podcast carries a channel id.
                                 val channelId = podcast?.channelId ?: podcast?.author?.id
                                 if (!channelId.isNullOrBlank()) {
                                     Spacer(Modifier.height(8.dp))

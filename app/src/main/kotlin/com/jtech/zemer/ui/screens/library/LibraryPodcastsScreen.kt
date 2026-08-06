@@ -28,7 +28,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,7 +57,6 @@ import com.jtech.zemer.constants.PodcastSortDescendingKey
 import com.jtech.zemer.constants.PodcastSortTypeKey
 import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.ThumbnailCornerRadius
-import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.PodcastEntity
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.isPersonalAccountFlow
@@ -84,17 +82,14 @@ import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.LibraryPodcastsViewModel
 import com.jtech.zemer.viewmodels.PodcastChannel
-import com.metrolist.innertube.YouTube
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
  * Library -> Podcasts. Ported to full Metrolist parity: three sub-filter tabs (Episodes / Channels /
- * Downloaded). The account-backed pieces (New Episodes, Episodes-for-Later playlists, host channels)
- * are read from InnerTube for a PERSONAL account only - the pooled anonymous account's library must
- * never leak across users - and are structured so the Zemer server can drop in as the data source
- * later behind this same UI. The local pieces (subscribed shows, downloaded episodes, saved episodes)
- * work for every session.
+ * Downloaded). New Episodes is served whitelist-pure by the Zemer server (/podcasts/new-episodes); the
+ * account-backed pieces (Episodes-for-Later, host channels) sync from the YouTube account for a
+ * PERSONAL login only - the pooled anonymous account's library must never leak across users. The local
+ * pieces (subscribed shows, downloaded episodes, saved episodes) work for every session.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -244,7 +239,7 @@ fun LibraryPodcastsScreen(
                                     }
                                 },
                                 onBookmarkClick = {
-                                    viewModel.toggleEpisodeSaved(context, song)
+                                    viewModel.toggleEpisodeSaved(song)
                                 },
                                 modifier = Modifier.animateItem(),
                             )
@@ -263,9 +258,7 @@ fun LibraryPodcastsScreen(
                             onMenuClick = {
                                 menuState.show {
                                     PodcastEpisodePlaylistMenu(
-                                        podcast = podcast,
-                                        database = database,
-                                        isPersonalAccount = isPersonalAccount,
+                                        onRemove = { viewModel.unsubscribeShow(podcast) },
                                         onShare = { context.shareText(podcastShareUrl(podcast.id)) },
                                         onDismiss = menuState::dismiss,
                                     )
@@ -568,13 +561,10 @@ private fun PodcastEpisodePlaylistItem(
 /** Menu for a saved podcast show: remove-from-library + share. */
 @Composable
 private fun PodcastEpisodePlaylistMenu(
-    podcast: PodcastEntity,
-    database: MusicDatabase,
-    isPersonalAccount: Boolean,
+    onRemove: () -> Unit,
     onShare: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val coroutineScope = rememberCoroutineScope()
     Spacer(Modifier.size(12.dp))
     Material3MenuGroup(
         items = listOf(
@@ -582,11 +572,7 @@ private fun PodcastEpisodePlaylistMenu(
                 title = { Text(text = stringResource(R.string.remove_from_library)) },
                 icon = { Icon(painter = painterResource(R.drawable.delete), contentDescription = null) },
                 onClick = {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        database.query { updatePodcast(podcast.copy(bookmarkedAt = null)) }
-                        // Sync the unsave to the account only for a personal login (never the pooled anon one).
-                        if (isPersonalAccount) YouTube.savePodcast(podcast.id, false)
-                    }
+                    onRemove()
                     onDismiss()
                 },
             ),
