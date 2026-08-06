@@ -675,10 +675,6 @@
         <string name="no_downloaded_episodes">No downloaded episodes</string>
         <string name="close_chip">Close</string>
     <string name="action_sync">Sync</string>
-    <plurals name="n_podcast">
-        <item quantity="one">%d podcast</item>
-        <item quantity="other">%d podcasts</item>
-    </plurals>
     <plurals name="n_episode">
         <item quantity="one">%d episode</item>
         <item quantity="other">%d episodes</item>

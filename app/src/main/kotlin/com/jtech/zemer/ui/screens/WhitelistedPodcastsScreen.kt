@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import com.jtech.zemer.db.entities.PodcastEntity
+import com.jtech.zemer.ui.component.ArtistCountHeader
 import com.jtech.zemer.ui.component.ArtistSearchField
 import com.jtech.zemer.ui.component.focusBorder
 import com.metrolist.innertube.models.SongItem
@@ -57,11 +58,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -157,51 +156,16 @@ fun WhitelistedPodcastsScreen(
     }
 
     val headerContent = @Composable {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.podcasts),
-                style = MaterialTheme.typography.titleLarge,
-            )
-
-            Spacer(Modifier.weight(1f))
-
-            Text(
-                text = pluralStringResource(
-                    R.plurals.n_podcast,
-                    podcasts.size,
-                    podcasts.size
-                ),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.secondary,
-            )
-
-            IconButton(
-                onClick = {
-                    viewType = viewType.toggle()
-                },
-                modifier = Modifier
-                    .padding(start = 6.dp)
-                    .focusRequester(firstFocus)
-                    .focusProperties {
-                        up = searchFocus
-                        down = if (podcasts.isNotEmpty()) firstPodcastFocus else FocusRequester.Default
-                    },
-            ) {
-                Icon(
-                    painter =
-                    painterResource(
-                        when (viewType) {
-                            LibraryViewType.LIST -> R.drawable.list
-                            LibraryViewType.GRID -> R.drawable.grid_view
-                        },
-                    ),
-                    contentDescription = null,
-                )
-            }
-        }
+        ArtistCountHeader(
+            titleRes = R.string.podcasts,
+            count = podcasts.size,
+            countPluralRes = R.plurals.n_channel,
+            viewType = viewType,
+            onToggleViewType = { viewType = viewType.toggle() },
+            firstFocus = firstFocus,
+            searchFocus = searchFocus,
+            downTarget = if (podcasts.isNotEmpty()) firstPodcastFocus else FocusRequester.Default,
+        )
     }
 
     Box(

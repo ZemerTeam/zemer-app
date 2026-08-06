@@ -197,7 +197,7 @@ fun WhitelistedArtistsScreen(
     val headerContent = @Composable {
         ArtistCountHeader(
             titleRes = R.string.artists,
-            artistCount = artists.size,
+            count = artists.size,
             viewType = viewType,
             onToggleViewType = { viewType = viewType.toggle() },
             firstFocus = firstFocus,
