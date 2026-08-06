@@ -32,6 +32,7 @@ import com.jtech.zemer.db.entities.PodcastWhitelistEntity
 import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.ArtistMenu
 import com.jtech.zemer.ui.menu.PlaylistMenu
+import com.jtech.zemer.ui.menu.PodcastChannelMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.utils.ARTIST_AVATAR_PX
 import com.jtech.zemer.ui.utils.resize
@@ -405,6 +406,7 @@ fun LibraryPlaylistGridItem(
 @Composable
 fun WhitelistedPodcastListItem(
     navController: NavController,
+    menuState: MenuState,
     podcast: PodcastWhitelistEntity,
     onRequestThumb: () -> Unit = {},
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
@@ -435,7 +437,19 @@ fun WhitelistedPodcastListItem(
             error = painterResource(R.drawable.podcast),
         )
     },
-    trailingContent = {},
+    trailingContent = {
+        MoreVertMenuButton(
+            onClick = {
+                menuState.show {
+                    PodcastChannelMenu(
+                        podcast = podcast,
+                        navController = navController,
+                        onDismiss = menuState::dismiss,
+                    )
+                }
+            }
+        )
+    },
     modifier = modifier
         .fillMaxWidth()
         .clickable {
@@ -447,6 +461,7 @@ fun WhitelistedPodcastListItem(
 @Composable
 fun WhitelistedPodcastGridItem(
     navController: NavController,
+    menuState: MenuState,
     podcast: PodcastWhitelistEntity,
     onRequestThumb: () -> Unit = {},
     fillMaxWidth: Boolean = true,
@@ -482,6 +497,15 @@ fun WhitelistedPodcastGridItem(
         .combinedClickable(
             onClick = {
                 navController.openWhitelistedPodcast(podcast)
+            },
+            onLongClick = {
+                menuState.show {
+                    PodcastChannelMenu(
+                        podcast = podcast,
+                        navController = navController,
+                        onDismiss = menuState::dismiss,
+                    )
+                }
             }
         )
 )

@@ -1040,6 +1040,7 @@ fun HomeScreen(
                             ) { podcast ->
                                 WhitelistedPodcastGridItem(
                                     navController = navController,
+                                    menuState = menuState,
                                     podcast = podcast,
                                     fillMaxWidth = false,
                                     modifier = Modifier

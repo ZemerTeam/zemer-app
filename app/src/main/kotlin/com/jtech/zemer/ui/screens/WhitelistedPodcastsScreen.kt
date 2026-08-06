@@ -80,6 +80,7 @@ import com.jtech.zemer.constants.CONTENT_TYPE_PODCAST
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.EmptyPlaceholder
+import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.WhitelistedPodcastGridItem
 import com.jtech.zemer.ui.component.WhitelistedPodcastListItem
 import com.jtech.zemer.utils.rememberEnumPreference
@@ -107,6 +108,7 @@ fun WhitelistedPodcastsScreen(
     val newEpisodes by viewModel.newEpisodes.collectAsState()
     val isLoadingNewEpisodes by viewModel.isLoadingNewEpisodes.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+    val menuState = LocalMenuState.current
     var showSyncOverlay by remember { mutableStateOf(false) }
 
     LaunchedEffect(syncProgress.total, syncProgress.isComplete, syncProgress.current, isSyncing) {
@@ -241,6 +243,7 @@ fun WhitelistedPodcastsScreen(
                     ) { index, podcast ->
                         WhitelistedPodcastListItem(
                             navController = navController,
+                            menuState = menuState,
                             modifier = Modifier
                                 .then(if (index == 0) Modifier.focusRequester(firstPodcastFocus) else Modifier)
                                 .animateItem(),
@@ -324,6 +327,7 @@ fun WhitelistedPodcastsScreen(
                     ) { index, podcast ->
                         WhitelistedPodcastGridItem(
                             navController = navController,
+                            menuState = menuState,
                             modifier = Modifier
                                 .then(if (index == 0) Modifier.focusRequester(firstPodcastFocus) else Modifier)
                                 .animateItem(),
