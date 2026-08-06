@@ -21,7 +21,7 @@ Zemer is a "Kosher" YouTube Music client for Android (Kotlin, Jetpack Compose, M
 ## Engineering rules (non-negotiable)
 
 - **Regression tests are required** for every behavioral change or bug fix wherever a test does not demand heavy new infrastructure (plain JVM/unit tests, Robolectric, or the `tests/` streaming harness for stream/cipher/poToken work). "It builds" and "I watched it work once" are not regression protection. If a fix genuinely cannot be tested without heavy new infrastructure, say so explicitly in the change description instead of skipping silently.
-- **Keep code modular.** No new god files: split by responsibility (screen scaffolding vs. business logic vs. data access). New logic goes behind small, single-purpose functions/classes — not appended to `MainActivity.kt`, `OnboardingScreen.kt`, `MusicService.kt`, or other existing giants; shrink them when touching them.
+- **Keep code modular.** No new god files: split by responsibility (screen scaffolding vs. business logic vs. data access). New logic goes behind small, single-purpose functions/classes — not appended to `MainActivity.kt`, `MusicService.kt`, or other existing giants; shrink them when touching them (`OnboardingScreen.kt` was one such giant and is now split into per-step files under `ui/screens/onboarding/` — keep it that way).
 - **Keep it professional.** Code must pass the bar of an external staff-engineer review: layering respected (UI does not run database/network calls inline), errors handled rather than swallowed, user-facing strings localized, no copy-pasted near-duplicates, no dead code left behind.
 
 ## Build & run
@@ -194,7 +194,16 @@ circle), `StatusVideoSurface` (the full-bleed ZOOM `PlayerView`, controls/buffer
 `ui/utils/cubeFace` modifier (the cube swipe transform). `VideoModePill` (the in-player Song/Video
 toggle — a sliding-thumb segmented control overlaid on the art slot, see §Video mode) is the one
 source for that control; a screen wanting the same audio/video choice imports it, never a hand-rolled
-switch. New screens use these; a hand-rolled duplicate is a review miss.
+switch. The **onboarding flow** is fully componentized under `ui/component/`: `OnboardingStepHeader`
+(centered title + supporting text), `OnboardingStepTitle` / `AppNameTitle` (neutral step title / brand
+title, both `onSurface` — never the accent), the `OnboardingActionButton` / `OnboardingPrimaryButton` /
+`OnboardingTextButton` button family (one M3 shape, no per-screen shape overrides), `OnboardingChoiceCard`
+(radio-select), `OnboardingInfoCard` (title + description + optional leading icon + trailing control +
+optional action button — the one shell behind the content-filter toggles, the permission cards and the
+sign-in card), `OnboardingStatusPill` (the Done/Needed · Active/Optional chip), and `onboardingCardColors`
+(the shared card fill: `secondaryContainer` when active/selected, `surfaceContainer` otherwise — a tone
+below `OnboardingActionButton`'s `surfaceContainerHighest` so an in-card pill never blends into its card).
+New screens use these; a hand-rolled duplicate is a review miss.
 
 **Componentize on every touch (non-negotiable).** Whenever you touch anything in the app, first check
 whether a shared component already covers it — if one exists, use it. If you find yourself writing (or
@@ -230,6 +239,18 @@ rule covers repeated *logic*. The current shared helpers — reach for these bef
   hand-rolled `Toast.makeText(...).show()` — two overloads mirror the framework (string-resource id /
   `CharSequence`); `long = true` is `LENGTH_LONG`. Ratcheted by `R21-toast` (UI-scoped, baseline 0). Works
   from any `Context` (Activity, Service, Application, `this@MusicService`).
+- **The "See all" gate:** `seeAllOnClick(count, action)` / `SEE_ALL_MIN_ITEMS` (`ui/utils/SeeAll.kt`,
+  unit-tested `SeeAllTest`) hides a section header's see-all arrow below the shared min-items threshold.
+  Gate on the **total the arrow opens, not a truncated preview count**: a full-list row passes its real
+  size, but a PREVIEW row (artist-page local sections that open a full online search, search-summary
+  sections that switch to the full filter, genre album/singles shelves that open the facet list) shows
+  the arrow whenever a fuller view exists — gating those on the preview size wrongly hides a path to more.
+- **Onboarding step flow:** `OnboardingNavigation` (`ui/screens/onboarding/`, pure + unit-tested
+  `OnboardingNavigationTest`) holds the skip-when-already-configured transitions
+  (`afterWelcome`/`afterDensity`/`backFromContentFilters`/`backFromPermissions`) — lifted out of the flow
+  composable so Back never lands on a step skipped as already-set. `rememberOnboardingConnectivity()` is
+  the single shared internet-reachability poll the network-gated steps use (one socket-probe loop, not a
+  per-screen copy).
 
 **Never `runBlocking` on a UI path.** A composable/UI file that blocks the main thread ANRs. Collect the
 value with a suspend function + `LaunchedEffect`/`rememberCoroutineScope`, or a `Flow` (`collectAsState`);

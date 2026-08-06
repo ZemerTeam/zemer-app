@@ -350,9 +350,12 @@ fun OnlineSearchResult(
                                 NavigationTitle(
                                     title = if (isVideoSection && blockVideos)
                                         stringResource(R.string.video_songs) else summary.title,
-                                    onClick = {
-                                        summaryFilter?.let {
-                                            viewModel.filter.value = summaryFilter
+                                    // Summary rows are capped PREVIEWS; the see-all switches to the full
+                                    // filtered view, so show it whenever that view exists (a resolvable
+                                    // filter) rather than gating on the preview size.
+                                    onClick = summaryFilter?.let { filter ->
+                                        {
+                                            viewModel.filter.value = filter
                                             coroutineScope.launch {
                                                 lazyListState.animateScrollToItem(0)
                                             }

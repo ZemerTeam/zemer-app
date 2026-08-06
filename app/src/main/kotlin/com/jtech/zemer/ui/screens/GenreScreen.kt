@@ -520,7 +520,13 @@ private fun LazyListScope.genreAlbumShelf(
 ) {
     if (albums.isEmpty()) return
     item(key = "${key}_title") {
-        NavigationTitle(title = title(), onClick = onSeeAll, modifier = Modifier.animateItem())
+        // The shelf is a capped section PREVIEW; the see-all opens the fuller facet list, so show it
+        // whenever the caller provides one (not gated on the preview size).
+        NavigationTitle(
+            title = title(),
+            onClick = onSeeAll,
+            modifier = Modifier.animateItem(),
+        )
     }
     item(key = "${key}_row") {
         val haptic = LocalHapticFeedback.current

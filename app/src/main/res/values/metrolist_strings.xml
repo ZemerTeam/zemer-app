@@ -341,10 +341,7 @@
 
     <!-- Network state -->
     <string name="network_checking">Checking…</string>
-    <string name="network_checking_connection">Checking connection…</string>
     <string name="network_checking_internet">Checking internet connection…</string>
-    <string name="network_connected">Connected to internet</string>
-    <string name="network_no_connection">No internet connection</string>
     <string name="network_internet_required">Internet Required</string>
     <string name="network_required_to_continue">An internet connection is required to continue.</string>
     <string name="network_required_setup">An internet connection is required to continue with setup and save your preferences.</string>

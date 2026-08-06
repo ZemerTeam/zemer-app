@@ -124,6 +124,7 @@ import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
+import com.jtech.zemer.ui.utils.seeAllOnClick
 import com.valentinilk.shimmer.shimmer
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -492,6 +493,8 @@ fun ArtistScreen(
                             NavigationTitle(
                                 title = stringResource(R.string.songs),
                                 modifier = Modifier.animateItem(),
+                                // See-all opens a full ONLINE name search, not a view of the local rows,
+                                // so it must not be gated on the local count (unrelated quantities).
                                 onClick = {
                                     navController.navigate("search/${java.net.URLEncoder.encode(artistName, "UTF-8")}?filter=songs")
                                 }
@@ -564,6 +567,8 @@ fun ArtistScreen(
                             NavigationTitle(
                                 title = stringResource(R.string.albums),
                                 modifier = Modifier.animateItem(),
+                                // See-all opens a full ONLINE name search, not a view of the local rows,
+                                // so it must not be gated on the local count (unrelated quantities).
                                 onClick = {
                                     navController.navigate("search/${java.net.URLEncoder.encode(artistName, "UTF-8")}?filter=albums")
                                 }
@@ -650,10 +655,11 @@ fun ArtistScreen(
                                     title = if (isVideoSection && videosAsAudio)
                                         stringResource(R.string.video_songs) else section.title,
                                     modifier = Modifier.animateItem(),
-                                    // /artist returns each section's whole catalog, so every row gets the same
-                                    // "See all" arrow → a per-section view-all page (a Zemer-native list/grid,
-                                    // not the InnerTube moreEndpoint or a name search).
-                                    onClick = {
+                                    // /artist returns each section's whole catalog, so a row gets the "See all"
+                                    // arrow → a per-section view-all page (a Zemer-native list/grid, not the
+                                    // InnerTube moreEndpoint or a name search) — gated by the shared seeAllOnClick
+                                    // so a short row (nothing more to reveal) shows no arrow.
+                                    onClick = seeAllOnClick(distinctItems.size) {
                                         navController.navigate(
                                             "artist_section/${viewModel.artistId}?title=${java.net.URLEncoder.encode(section.title, "UTF-8")}",
                                         )
