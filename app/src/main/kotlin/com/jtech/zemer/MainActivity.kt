@@ -809,6 +809,7 @@ class MainActivity : ComponentActivity() {
                                 when (itemKey.trim()) {
                                     "home" -> items.add(Screens.Home)
                                     "artists" -> items.add(Screens.Artists)
+                                    "podcasts" -> items.add(Screens.Podcasts)
                                     "kid_zone" -> items.add(Screens.KidZone)
                                     "search" -> items.add(Screens.Search)
                                     "library" -> items.add(Screens.Library)
