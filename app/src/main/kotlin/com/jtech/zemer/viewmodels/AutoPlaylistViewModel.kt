@@ -60,6 +60,11 @@ constructor(
                     "downloaded" -> database.downloadedSongs(sortType, descending, videosInMusic)
                         .map { it.filterExplicit(hideExplicit) }
 
+                    // Downloaded podcast episodes (isEpisode = 1) - reuses this whole screen for the
+                    // Library -> Downloaded "Podcasts" tile, just a different song source.
+                    "downloaded_episodes" -> database.downloadedEpisodes(sortType, descending)
+                        .map { it.filterExplicit(hideExplicit) }
+
                     "uploaded" -> database.uploadedSongs(sortType, descending)
                         .map { it.filterExplicit(hideExplicit) }
 

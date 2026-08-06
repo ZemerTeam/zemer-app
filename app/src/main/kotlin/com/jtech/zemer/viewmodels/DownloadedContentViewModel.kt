@@ -3,6 +3,7 @@ package com.jtech.zemer.viewmodels
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.VideoDownloadsInMusicKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.statuses.StatusDownloadManager
@@ -39,6 +40,12 @@ class DownloadedContentViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Lazily, 0)
 
     val downloadedStatusCount = statusDownloadManager.downloads
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.Lazily, 0)
+
+    // Downloaded podcast episodes (isEpisode = 1) - excluded from the Music/Videos lists, surfaced by
+    // the "Podcasts" tile which opens the auto_playlist/downloaded_episodes screen.
+    val downloadedPodcastCount = database.downloadedEpisodes(SongSortType.CREATE_DATE, descending = true)
         .map { it.size }
         .stateIn(viewModelScope, SharingStarted.Lazily, 0)
 }

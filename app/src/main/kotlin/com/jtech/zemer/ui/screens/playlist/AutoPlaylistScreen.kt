@@ -125,6 +125,7 @@ fun AutoPlaylistScreen(
     val playlist = when (viewModel.playlist) {
         "liked" -> stringResource(R.string.liked)
         "uploaded" -> stringResource(R.string.uploaded_playlist)
+        "downloaded_episodes" -> stringResource(R.string.downloaded_episodes)
         else -> stringResource(R.string.offline)
     }
 
@@ -154,7 +155,7 @@ fun AutoPlaylistScreen(
     val playlistId = viewModel.playlist
     val playlistType = when (playlistId) {
         "liked" -> PlaylistType.LIKE
-        "downloaded" -> PlaylistType.DOWNLOAD
+        "downloaded", "downloaded_episodes" -> PlaylistType.DOWNLOAD
         "uploaded" -> PlaylistType.UPLOADED
         else -> PlaylistType.OTHER
     }
