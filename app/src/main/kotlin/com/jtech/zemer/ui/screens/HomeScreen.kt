@@ -55,6 +55,7 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.HomeContentTabKey
 import com.jtech.zemer.constants.ShowHomeGenresKey
 import com.jtech.zemer.constants.ShowHomeStatusesKey
 import com.jtech.zemer.constants.GridThumbnailHeight
@@ -82,7 +83,11 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.NavigationTitle
+import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.WhitelistedPodcastGridItem
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.ui.component.ZemerCuratedPlaylistGridItem
 import com.jtech.zemer.ui.component.SongGridItem
 import com.jtech.zemer.ui.component.SongListItem
@@ -187,6 +192,9 @@ fun HomeScreen(
     // Settings → Appearance owns these toggles (there is deliberately no in-row hide affordance).
     val (showHomeGenres, _) = rememberPreference(ShowHomeGenresKey, defaultValue = true)
     val (showHomeStatuses, _) = rememberPreference(ShowHomeStatusesKey, defaultValue = true)
+    // Home content-type tab (Music / Podcasts / Radio / Video); each renders only its own shelves.
+    // Persisted to DataStore, so the selection survives leaving and re-entering the app. Music default.
+    var homeTab by rememberEnumPreference(HomeContentTabKey, defaultValue = HomeContentTab.MUSIC)
     // The curated endpoint's freshness contract is a plain re-fetch on screen open (single-digit-ms
     // server reads) — this also picks up a card removed by curation while a detail open 404'd.
     LaunchedEffect(Unit) {
@@ -209,6 +217,12 @@ fun HomeScreen(
         }
     }
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    val homeContentChips = buildList {
+        add(HomeContentTab.MUSIC to stringResource(R.string.music))
+        add(HomeContentTab.PODCASTS to stringResource(R.string.podcasts))
+        add(HomeContentTab.RADIO to stringResource(R.string.radio))
+        if (!blockVideos) add(HomeContentTab.VIDEO to stringResource(R.string.videos))
+    }
     homeUiState.isNewUser
 
 
@@ -481,6 +495,26 @@ fun HomeScreen(
             state = lazylistState,
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
         ) {
+                // Content-type selector (Music / Podcasts / Radio / Video) — reuses the Library
+                // ChipsRow. Each tab renders only its own shelves below; Video is dropped when videos
+                // are blocked. See HomeContentTab.
+                stickyHeader(key = "home_content_tabs", contentType = "header") {
+                    // Opaque background so shelves scrolling under the pinned selector stay hidden.
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(vertical = 4.dp)
+                    ) {
+                        ChipsRow(
+                            chips = homeContentChips,
+                            currentValue = homeTab,
+                            onValueUpdate = { homeTab = it },
+                        )
+                    }
+                }
+
+                if (homeTab == HomeContentTab.MUSIC) {
                 // Genre chips carousel — the first thing on Home, above Quick Picks (owner
                 // placement). Hidden by the Appearance toggle or when the catalog is
                 // empty/unreachable (fail-soft, like every optional home row).
@@ -689,6 +723,9 @@ fun HomeScreen(
                     }
                 }
 
+                } // end MUSIC (part 1)
+
+                if (homeTab == HomeContentTab.RADIO) {
                 // "Zemer Radio" - the synchronized broadcast stations (one shared wall-clock
                 // schedule per station; tap = tune in at the live position). Live cards only;
                 // empty/unreachable hides the row (the /home-rows fail-soft convention). The Home
@@ -731,6 +768,9 @@ fun HomeScreen(
                     }
                 }
 
+                } // end RADIO
+
+                if (homeTab == HomeContentTab.MUSIC) {
                 featuredPlaylists.takeIf { it.isNotEmpty() }?.let { playlists ->
                     item(key = "featured_playlists_title", contentType = "header") {
                         NavigationTitle(
@@ -950,6 +990,9 @@ fun HomeScreen(
                 }
             }
 
+            } // end MUSIC (part 2)
+
+            if (homeTab == HomeContentTab.VIDEO) {
             // Shown to blocked-video users too — the rows play audio-first, so for them the shelf is
             // simply their "video songs" (relabelled, watch/download-video affordances gated off).
             if (featuredVideos.isNotEmpty()) {
@@ -1023,6 +1066,36 @@ fun HomeScreen(
                 }
             }
 
+            } // end VIDEO
+
+            if (homeTab == HomeContentTab.PODCASTS) {
+                // Continue Listening: in-progress episodes, most-recently-played first — the resume
+                // affordance, so it LEADS the Podcasts tab. Own isolated fail-soft VM (empty -> hidden).
+                // Tapping resumes the episode (saved position restored on load by MusicService).
+                continueEpisodes.takeIf { it.isNotEmpty() }?.let { eps ->
+                    item(key = "continue_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.continue_listening),
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                    item(key = "continue_row", contentType = "grid") {
+                        HomeContinueListeningRow(
+                            episodes = eps,
+                            onPlay = { song ->
+                                playerConnection.playQueue(
+                                    ListQueue(
+                                        title = song.song.title,
+                                        items = listOf(song.toMediaItem()),
+                                        playSource = PlaySource.podcast(song.song.albumId ?: song.id),
+                                    )
+                                )
+                            },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                }
+
                 // Podcast Genres strip: the podcast twin of the music genres chips, sitting directly
                 // above the Podcasts row. Own isolated fail-soft VM (empty -> hidden); arrow -> catalog.
                 homePodcastGenres.takeIf { it.isNotEmpty() }?.let { genres ->
@@ -1078,32 +1151,7 @@ fun HomeScreen(
                     }
                 }
 
-                // Continue Listening: in-progress podcast episodes, most-recently-played first. Own
-                // isolated fail-soft VM (empty list -> hidden). Placed BELOW the Podcasts row. Tapping
-                // resumes the episode (the saved position is restored on load by MusicService).
-                continueEpisodes.takeIf { it.isNotEmpty() }?.let { eps ->
-                    item(key = "continue_title", contentType = "header") {
-                        NavigationTitle(
-                            title = stringResource(R.string.continue_listening),
-                            modifier = Modifier.animateItem(),
-                        )
-                    }
-                    item(key = "continue_row", contentType = "grid") {
-                        HomeContinueListeningRow(
-                            episodes = eps,
-                            onPlay = { song ->
-                                playerConnection.playQueue(
-                                    ListQueue(
-                                        title = song.song.title,
-                                        items = listOf(song.toMediaItem()),
-                                        playSource = PlaySource.podcast(song.song.albumId ?: song.id),
-                                    )
-                                )
-                            },
-                            modifier = Modifier.animateItem(),
-                        )
-                    }
-                }
+            } // end PODCASTS
 
             if (shouldShowShimmer) {
                 item(key = "loading_shimmer") {
