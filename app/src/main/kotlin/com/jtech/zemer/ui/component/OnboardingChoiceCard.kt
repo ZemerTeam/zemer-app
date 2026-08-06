@@ -1,4 +1,4 @@
-package com.jtech.zemer.ui.screens.onboarding
+package com.jtech.zemer.ui.component
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,19 +20,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.CardColors
-import com.jtech.zemer.ui.component.focusBorder
 
 /**
  * The standard M3 card fill shared by every onboarding selectable/status card, so cards, buttons and
  * the search field all read as one family: a SOLID container tone (never an alpha-blended
  * `surfaceVariant` hack) — [secondaryContainer] when active/selected, [surfaceContainerHigh] otherwise
- * (the same neutral fill `OnboardingActionButton` and the shared search field use). Top-level in the
- * onboarding package so the per-screen cards reuse it with no import.
+ * (the same neutral fill `OnboardingActionButton` and the shared search field use). Lives here in
+ * `ui/component` alongside the rest of the shared onboarding pieces.
  */
 @Composable
 internal fun onboardingCardColors(active: Boolean): CardColors = CardDefaults.cardColors(
+    // surfaceContainer (not High) on purpose: a card's inner tonal action button is
+    // surfaceContainerHighest, so the pill always sits two tones above its card and stays visible.
     containerColor = if (active) MaterialTheme.colorScheme.secondaryContainer
-    else MaterialTheme.colorScheme.surfaceContainerHigh,
+    else MaterialTheme.colorScheme.surfaceContainer,
 )
 
 /**

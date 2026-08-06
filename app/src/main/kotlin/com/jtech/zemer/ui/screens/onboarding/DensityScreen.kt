@@ -38,6 +38,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.DensityScale
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.ui.component.DefaultDialog
+import com.jtech.zemer.ui.component.onboardingCardColors
 import com.jtech.zemer.ui.component.OnboardingStepHeader
 import com.jtech.zemer.ui.component.OnboardingActionButton
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton

@@ -25,7 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
-import com.jtech.zemer.ui.screens.onboarding.OnboardingChoiceCard
+import com.jtech.zemer.ui.component.OnboardingChoiceCard
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.ui.component.OnboardingStepHeader
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton

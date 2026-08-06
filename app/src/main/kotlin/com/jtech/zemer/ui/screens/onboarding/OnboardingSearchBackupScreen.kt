@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.jtech.zemer.R
 import com.jtech.zemer.viewmodels.OfflineSearchSettingsViewModel
+import com.jtech.zemer.ui.component.OnboardingChoiceCard
 import com.jtech.zemer.ui.component.OnboardingStepHeader
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton
 import com.jtech.zemer.ui.component.OnboardingTextButton

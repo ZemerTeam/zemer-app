@@ -20,7 +20,8 @@ import androidx.compose.ui.unit.dp
  *
  * - [OnboardingPrimaryButton] — the high-emphasis action (Continue / Get started): a filled [Button].
  * - [OnboardingActionButton] — a medium-emphasis action (Grant / Open settings / Create account / Skip):
- *   a [FilledTonalButton] toned to the shared search field's NEUTRAL fill (no accent border).
+ *   a neutral [FilledTonalButton] on `surfaceContainerHighest` — a tone above the cards it sits inside
+ *   (`surfaceContainer`), so the pill never blends into its card yet still reads as neutral, not accent.
  * - [OnboardingTextButton] — the low-emphasis action (Back): a neutral [TextButton].
  */
 @Composable
@@ -35,7 +36,7 @@ fun OnboardingActionButton(
         enabled = enabled,
         modifier = modifier,
         colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             contentColor = MaterialTheme.colorScheme.onSurface,
         ),
     ) {

@@ -10,7 +10,6 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -33,7 +31,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +44,8 @@ import com.jtech.zemer.R
 import com.jtech.zemer.utils.PermissionHelper
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import com.jtech.zemer.ui.component.onboardingCardColors
+import com.jtech.zemer.ui.component.OnboardingStatusPill
 import com.jtech.zemer.ui.component.OnboardingStepHeader
 import com.jtech.zemer.ui.component.OnboardingActionButton
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton
@@ -282,11 +281,6 @@ private fun PermissionCard(
     actionLabel: String,
     onAction: () -> Unit,
 ) {
-    val indicatorColor by animateColorAsState(
-        targetValue = if (granted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-        label = "perm_indicator"
-    )
-
     Card(
         modifier = Modifier
             .fillMaxWidth(),
@@ -312,25 +306,11 @@ private fun PermissionCard(
                         modifier = Modifier.padding(top = 2.dp)
                     )
                 }
-                val statusText = if (granted) {
-                    stringResource(R.string.onboarding_status_done)
-                } else {
-                    stringResource(R.string.onboarding_status_needed)
-                }
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(indicatorColor.copy(alpha = 0.12f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = statusText,
-                        color = indicatorColor,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                        textAlign = TextAlign.Center
-                    )
-                }
+                OnboardingStatusPill(
+                    text = if (granted) stringResource(R.string.onboarding_status_done)
+                    else stringResource(R.string.onboarding_status_needed),
+                    active = granted,
+                )
             }
 
             Spacer(Modifier.height(10.dp))

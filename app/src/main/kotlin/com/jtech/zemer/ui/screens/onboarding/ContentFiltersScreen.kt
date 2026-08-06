@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
@@ -34,7 +33,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -56,6 +54,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.delay
+import com.jtech.zemer.ui.component.onboardingCardColors
+import com.jtech.zemer.ui.component.OnboardingStatusPill
 import com.jtech.zemer.ui.component.OnboardingStepHeader
 import com.jtech.zemer.ui.component.OnboardingStepTitle
 import com.jtech.zemer.ui.component.OnboardingActionButton
@@ -295,25 +295,10 @@ internal fun ContentFiltersScreen(
                                     modifier = Modifier.padding(top = 2.dp)
                                 )
                             }
-                            Box(
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (authState is com.jtech.zemer.auth.AuthState.SignedIn)
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                        else
-                                            MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = if (authState is com.jtech.zemer.auth.AuthState.SignedIn) stringResource(R.string.sync_account_active) else stringResource(R.string.sync_account_optional),
-                                    color = if (authState is com.jtech.zemer.auth.AuthState.SignedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                    textAlign = TextAlign.Center
-                                )
-                            }
+                            OnboardingStatusPill(
+                                text = if (authState is com.jtech.zemer.auth.AuthState.SignedIn) stringResource(R.string.sync_account_active) else stringResource(R.string.sync_account_optional),
+                                active = authState is com.jtech.zemer.auth.AuthState.SignedIn,
+                            )
                         }
 
                         if (authState !is com.jtech.zemer.auth.AuthState.SignedIn) {
@@ -327,24 +312,24 @@ internal fun ContentFiltersScreen(
                     }
                 }
 
-                // Action buttons
-                Row(
+                // Action buttons (vertical stack, matching the other onboarding steps)
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OnboardingTextButton(
-                        text = stringResource(R.string.onboarding_back),
-                        onClick = onBack,
-                        modifier = Modifier.weight(1f),
-                    )
-
                     OnboardingPrimaryButton(
                         text = if (isCheckingNetwork) stringResource(R.string.network_checking)
                              else if (!isConnected) stringResource(R.string.network_internet_required)
                              else stringResource(R.string.onboarding_continue),
                         onClick = { onSkip() },
                         enabled = isConnected && !isCheckingNetwork,
-                        modifier = Modifier.weight(2f),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    OnboardingTextButton(
+                        text = stringResource(R.string.onboarding_back),
+                        onClick = onBack,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }

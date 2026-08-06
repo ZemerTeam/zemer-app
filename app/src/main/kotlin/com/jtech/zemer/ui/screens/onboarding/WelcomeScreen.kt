@@ -113,6 +113,7 @@ internal fun WelcomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { agreed = !agreed }
+                        .padding(horizontal = 8.dp)
                 ) {
                     Checkbox(checked = agreed, onCheckedChange = { agreed = it })
                     Column(
