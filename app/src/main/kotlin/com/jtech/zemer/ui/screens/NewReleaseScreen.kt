@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,6 +40,7 @@ import com.jtech.zemer.ui.component.YouTubeGridItem
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.GridItemPlaceHolder
+import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
@@ -74,8 +76,18 @@ fun NewReleaseScreen(
             isLoading -> {
                 item {
                     ShimmerHost {
-                        repeat(6) {
-                            GridItemPlaceHolder(fillMaxWidth = true)
+                        // Two titled horizontal rows (songs, then albums) matching the loaded layout,
+                        // not a vertical stack of full-width squares.
+                        repeat(2) {
+                            TextPlaceholder(
+                                height = 32.dp,
+                                modifier = Modifier.padding(12.dp).width(180.dp),
+                            )
+                            LazyRow(
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
+                            ) {
+                                items(6) { GridItemPlaceHolder() }
+                            }
                         }
                     }
                 }

@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` — a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline — they are not duplicated here.
 
-## `app` Kotlin files (616)
+## `app` Kotlin files (617)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -310,13 +310,14 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/StationLiveBar.kt` | 70 | `com.jtech.zemer.ui.player` | yes | 17 | 2 | androidx.compose, androidx.media3 |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 565 | `com.jtech.zemer.ui.player` | yes | 82 | 59 | androidx.compose, androidx.media3, coil3.compose, kotlin.math, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoModePill.kt` | 141 | `com.jtech.zemer.ui.player` | yes | 30 | 7 | androidx.annotation, androidx.compose |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/AccountScreen.kt` | 192 | `com.jtech.zemer.ui.screens` | yes | 40 | 8 | androidx.compose, androidx.hilt, androidx.navigation |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/AccountScreen.kt` | 194 | `com.jtech.zemer.ui.screens` | yes | 41 | 8 | androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AlbumScreen.kt` | 564 | `com.jtech.zemer.ui.screens` | yes | 100 | 43 | androidx.activity, androidx.compose, androidx.hilt, androidx.media3, androidx.navigation, coil3.compose, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/ChartsScreen.kt` | 285 | `com.jtech.zemer.ui.screens` | yes | 71 | 15 | androidx.compose, androidx.hilt, androidx.navigation |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/ChartsScreen.kt` | 327 | `com.jtech.zemer.ui.screens` | yes | 71 | 17 | androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenreScreen.kt` | 500 | `com.jtech.zemer.ui.screens` | yes | 90 | 22 | androidx.compose, androidx.hilt, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenreSectionScreen.kt` | 100 | `com.jtech.zemer.ui.screens` | yes | 29 | 3 | androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenresScreen.kt` | 208 | `com.jtech.zemer.ui.screens` | yes | 44 | 6 | androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 504 | `com.jtech.zemer.ui.screens` | yes | 78 | 30 | androidx.activity, androidx.compose, androidx.hilt, androidx.navigation, java.time |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContentTab.kt` | 9 | `com.jtech.zemer.ui.screens` | no | 0 | 1 |  |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContinueListeningRow.kt` | 105 | `com.jtech.zemer.ui.screens` | yes | 33 | 4 | androidx.compose, coil3.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeGenresRow.kt` | 118 | `com.jtech.zemer.ui.screens` | yes | 31 | 8 | androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1203 | `com.jtech.zemer.ui.screens` | yes | 132 | 82 | android.net, androidx.compose, androidx.hilt, androidx.lifecycle, androidx.navigation, kotlin.math, kotlinx.coroutines |
@@ -329,9 +330,9 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateScreen.kt` | 241 | `com.jtech.zemer.ui.screens` | yes | 52 | 23 | androidx.compose, androidx.navigation, io.ktor, kotlinx.coroutines, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 244 | `com.jtech.zemer.ui.screens` | yes | 40 | 20 | android.annotation, android.content, android.webkit, androidx.activity, androidx.compose, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/NavigationBuilder.kt` | 475 | `com.jtech.zemer.ui.screens` | no | 53 | 6 | androidx.compose, androidx.navigation |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/NewReleaseScreen.kt` | 240 | `com.jtech.zemer.ui.screens` | yes | 45 | 12 | androidx.compose, androidx.hilt, androidx.navigation |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/NewReleaseScreen.kt` | 252 | `com.jtech.zemer.ui.screens` | yes | 47 | 12 | androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 89 | `com.jtech.zemer.ui.screens` | yes | 22 | 8 | android.content, androidx.compose, androidx.hilt |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenreScreen.kt` | 141 | `com.jtech.zemer.ui.screens` | yes | 37 | 6 | androidx.compose, androidx.hilt, androidx.navigation |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenreScreen.kt` | 143 | `com.jtech.zemer.ui.screens` | yes | 37 | 6 | androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenresScreen.kt` | 162 | `com.jtech.zemer.ui.screens` | yes | 41 | 4 | androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/Screens.kt` | 62 | `com.jtech.zemer.ui.screens` | no | 4 | 12 | androidx.annotation, androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/SplashScreen.kt` | 166 | `com.jtech.zemer.ui.screens` | yes | 42 | 5 | android.graphics, androidx.compose, com.airbnb |
@@ -341,7 +342,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/ZemerPlaylistsScreen.kt` | 72 | `com.jtech.zemer.ui.screens` | yes | 26 | 2 | android.net, androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/ZemerStationsScreen.kt` | 90 | `com.jtech.zemer.ui.screens` | yes | 32 | 4 | androidx.compose, androidx.hilt, androidx.lifecycle, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistAlbumsScreen.kt` | 144 | `com.jtech.zemer.ui.screens.artist` | yes | 48 | 13 | androidx.activity, androidx.compose, androidx.hilt, androidx.navigation |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistScreen.kt` | 899 | `com.jtech.zemer.ui.screens.artist` | yes | 125 | 47 | androidx.compose, androidx.hilt, androidx.navigation, coil3.compose, com.valentinilk |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistScreen.kt` | 901 | `com.jtech.zemer.ui.screens.artist` | yes | 125 | 47 | androidx.compose, androidx.hilt, androidx.navigation, coil3.compose, com.valentinilk |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistSectionScreen.kt` | 141 | `com.jtech.zemer.ui.screens.artist` | yes | 37 | 13 | androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistSongsScreen.kt` | 197 | `com.jtech.zemer.ui.screens.artist` | yes | 51 | 14 | androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibraryAlbumsScreen.kt` | 324 | `com.jtech.zemer.ui.screens.library` | yes | 67 | 24 | androidx.compose, androidx.hilt, androidx.navigation, kotlinx.coroutines |

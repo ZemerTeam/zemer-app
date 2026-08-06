@@ -207,7 +207,7 @@ fun ArtistScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .aspectRatio(1.1f),
+                                .aspectRatio(1f),
                         ) {
                             Spacer(
                                 modifier = Modifier
@@ -267,9 +267,11 @@ fun ArtistScreen(
                                 }
                             }
 
-                            repeat(6) {
-                                ListItemPlaceHolder()
-                            }
+                        }
+                        // Song rows render full-width as top-level list items, so their placeholders
+                        // sit OUTSIDE the 16dp-padded header column (5 = the capped top-songs preview).
+                        repeat(5) {
+                            ListItemPlaceHolder()
                         }
                     }
                 }

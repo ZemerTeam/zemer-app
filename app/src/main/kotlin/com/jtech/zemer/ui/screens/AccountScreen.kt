@@ -30,6 +30,7 @@ import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.YouTubeGridItem
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
+import androidx.compose.foundation.shape.CircleShape
 import com.jtech.zemer.ui.component.shimmer.GridItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
@@ -176,7 +177,8 @@ fun AccountScreen(
                 if (artists == null) {
                     items(8) {
                         ShimmerHost {
-                            GridItemPlaceHolder(fillMaxWidth = true)
+                            // Artist cards are circular (YouTubeGridItem uses CircleShape for artists).
+                            GridItemPlaceHolder(fillMaxWidth = true, thumbnailShape = CircleShape)
                         }
                     }
                 }

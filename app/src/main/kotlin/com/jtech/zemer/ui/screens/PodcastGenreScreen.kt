@@ -67,10 +67,12 @@ fun PodcastGenreScreen(
 
     when (val uiState = state) {
         UiState.Loading -> ShimmerHost {
-            // A header slab (the mosaic) then a 2-column card grid — the shape that loads.
-            BoxPlaceholder(Modifier.fillMaxWidth().height(220.dp))
-            repeat(3) {
+            // A header slab (the mosaic; shorter than music's since the podcast header has no Play pill)
+            // then a 3-COLUMN card grid — matching the YtItemGrid(columns = 3) that loads below.
+            BoxPlaceholder(Modifier.fillMaxWidth().height(180.dp))
+            repeat(2) {
                 Row {
+                    GridItemPlaceHolder(modifier = Modifier.weight(1f), fillMaxWidth = true)
                     GridItemPlaceHolder(modifier = Modifier.weight(1f), fillMaxWidth = true)
                     GridItemPlaceHolder(modifier = Modifier.weight(1f), fillMaxWidth = true)
                 }
