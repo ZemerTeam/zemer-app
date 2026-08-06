@@ -151,6 +151,9 @@ class OnlinePodcastViewModel @Inject constructor(
                     title = currentPodcast.title,
                     author = currentPodcast.author?.name,
                     thumbnailUrl = currentPodcast.thumbnail,
+                    // The host CHANNEL is what the whitelist filter keys off (PodcastLibrarySources); without
+                    // it a freshly-subscribed show would fail that channel check until a sync backfills it.
+                    channelId = currentPodcast.channelId ?: currentPodcast.author?.id,
                     bookmarkedAt = LocalDateTime.now(),
                 )
             database.transaction { upsertPodcast(optimistic) }

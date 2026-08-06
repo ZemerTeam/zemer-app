@@ -21,7 +21,7 @@ object PodcastLibrarySources {
     /** Locally-subscribed podcasts, whitelist-filtered. A local read, so it works for anon sessions. */
     fun whitelistedSubscribedPodcasts(database: MusicDatabase): Flow<List<PodcastEntity>> =
         database.subscribedPodcasts()
-            .map { list -> list.filter { PodcastWhitelistCache.isAllowed(it.id) } }
+            .map { list -> list.filter { subscribedPodcastAllowed(it.channelId) } }
 
     /**
      * The "New Episodes" feed. DISCOVERY is now the whitelist-pure Zemer server (`/podcasts/new-episodes`,
@@ -37,7 +37,7 @@ object PodcastLibrarySources {
         database: MusicDatabase,
     ): List<SongItem> {
         val subscribedIds = database.subscribedPodcasts().first()
-            .filter { PodcastWhitelistCache.isAllowed(it.id) }
+            .filter { subscribedPodcastAllowed(it.channelId) }
             .map { it.id }
             .toSet()
         if (subscribedIds.isEmpty()) return emptyList()
@@ -47,4 +47,15 @@ object PodcastLibrarySources {
             .filter { it.podcast?.id in subscribedIds }
             .map { it.asSongItem() }
     }
+
+    /**
+     * Whether a locally-subscribed show passes the CHANNEL-level whitelist. The whitelist is keyed by the
+     * host channel (`UC…`), NOT the show id (`MPSP…`) — filtering a [PodcastEntity] by its own `id` against
+     * this cache never matches, so it must key off [channelId]. A show with no known channelId (a
+     * grandfathered channel-less show, or an optimistic subscribe not yet synced) is KEPT: it is the
+     * user's own explicit subscription and there is no channel to check; once a sync fills channelId in,
+     * membership is enforced. Pure + unit-tested ([PodcastLibrarySourcesTest]).
+     */
+    internal fun subscribedPodcastAllowed(channelId: String?): Boolean =
+        channelId == null || PodcastWhitelistCache.isAllowedByChannelId(channelId)
 }
