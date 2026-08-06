@@ -1,6 +1,5 @@
 package com.jtech.zemer.ui.component
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,9 +23,9 @@ import androidx.compose.material3.CardColors
 /**
  * The standard M3 card fill shared by every onboarding selectable/status card, so cards, buttons and
  * the search field all read as one family: a SOLID container tone (never an alpha-blended
- * `surfaceVariant` hack) — [secondaryContainer] when active/selected, [surfaceContainerHigh] otherwise
- * (the same neutral fill `OnboardingActionButton` and the shared search field use). Lives here in
- * `ui/component` alongside the rest of the shared onboarding pieces.
+ * `surfaceVariant` hack) — [secondaryContainer] when active/selected, [surfaceContainer] otherwise
+ * (a tone below the surfaceContainerHighest action button so an in-card pill stays visible). Lives here
+ * in `ui/component` alongside the rest of the shared onboarding pieces.
  */
 @Composable
 internal fun onboardingCardColors(active: Boolean): CardColors = CardDefaults.cardColors(
@@ -50,15 +49,9 @@ fun OnboardingChoiceCard(
     onSelect: () -> Unit,
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(
-                if (selected) Modifier.border(
-                    width = 1.5.dp,
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(12.dp),
-                ) else Modifier
-            ),
+        modifier = Modifier.fillMaxWidth(),
+        // Selection is shown the M3 way: the secondaryContainer fill (vs neutral surfaceContainer) plus
+        // the filled radio — no hand-drawn accent border.
         colors = onboardingCardColors(active = selected),
         shape = RoundedCornerShape(12.dp),
     ) {

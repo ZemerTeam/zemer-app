@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` — a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline — they are not duplicated here.
 
-## `app` Kotlin files (586)
+## `app` Kotlin files (587)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -241,7 +241,8 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/NewMenuComponents.kt` | 154 | `com.jtech.zemer.ui.component` | yes | 32 | 14 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/OfflineBackupPromo.kt` | 91 | `com.jtech.zemer.ui.component` | yes | 22 | 5 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/OnboardingActionButton.kt` | 83 | `com.jtech.zemer.ui.component` | yes | 11 | 3 | androidx.compose |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/OnboardingChoiceCard.kt` | 94 | `com.jtech.zemer.ui.component` | yes | 20 | 2 | androidx.compose |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/OnboardingChoiceCard.kt` | 87 | `com.jtech.zemer.ui.component` | yes | 19 | 2 | androidx.compose |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/OnboardingStatusPill.kt` | 49 | `com.jtech.zemer.ui.component` | yes | 15 | 2 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/OnboardingStepHeader.kt` | 42 | `com.jtech.zemer.ui.component` | yes | 12 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/OnboardingStepTitle.kt` | 32 | `com.jtech.zemer.ui.component` | yes | 7 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/PlayerSlider.kt` | 112 | `com.jtech.zemer.ui.component` | yes | 17 | 19 | androidx.compose |
