@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `357`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `362`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -11,7 +11,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 50 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 6 lines | text `[none]` |
-| `AGENTS.md` | 1041 lines | text `.md` |
+| `AGENTS.md` | 1066 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 19 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -45,6 +45,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/31.json` | 1151 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/32.json` | 1156 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/33.json` | 1229 lines | text `.json`; JSON keys `formatVersion, database` |
+| `app/schemas/com.jtech.zemer.db.InternalDatabase/34.json` | 1368 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/4.json` | 744 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/5.json` | 748 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/6.json` | 712 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -75,6 +76,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/artist.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/backup.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/bedtime.xml` | 9 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/bookmark.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/bookmark_filled.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/cached.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/cast.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/cast_connected.xml` | 9 lines | text `.xml`; XML root `vector` |
@@ -97,6 +100,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/explicit.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/explore_outlined.xml` | 16 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/fast_forward.xml` | 9 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/fast_rewind.xml` | 14 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/favorite.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/favorite_border.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_abc.xml` | 10 lines | text `.xml`; XML root `vector` |
@@ -170,6 +174,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/play.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/playlist_add.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/playlist_play.xml` | 9 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/podcast.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/queue_music.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/radio.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/radio_button_checked.xml` | 10 lines | text `.xml`; XML root `vector` |
@@ -243,7 +248,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 649 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 680 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 438 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
