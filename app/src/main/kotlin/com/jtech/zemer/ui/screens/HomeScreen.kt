@@ -5,7 +5,10 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -737,31 +740,28 @@ fun HomeScreen(
                 // empty/unreachable hides the row (the /home-rows fail-soft convention). The Home
                 // tab is never reachable from inside KidZone, satisfying the contract's
                 // hide-in-kidZone rule the same way the curated shelf does.
+                // Radio is a dedicated tab, not a discovery shelf: render the stations as a full 3-column
+                // grid (no "Zemer Radio" header / See-all). Chunked into Rows so the grid scrolls inside the
+                // Home LazyColumn without a nested vertical scroll.
                 zemerStations.takeIf { it.isNotEmpty() }?.let { stations ->
-                    item(key = "zemer_stations_title", contentType = "header") {
-                        NavigationTitle(
-                            title = stringResource(R.string.zemer_radio),
-                            onClick = { navController.navigate("zemer_stations") },
-                            modifier = Modifier.animateItem()
-                        )
-                    }
-
-                    item(key = "zemer_stations_list", contentType = "grid") {
-                        LazyRow(
-                            contentPadding = WindowInsets.systemBars
-                                .only(WindowInsetsSides.Horizontal)
-                                .asPaddingValues(),
-                            modifier = Modifier.animateItem()
+                    items(
+                        items = stations.chunked(3),
+                        key = { row -> "zemer_stations_row_${row.first().id}" },
+                        contentType = { "zemer_stations_grid_row" },
+                    ) { rowStations ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                .animateItem(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            items(
-                                items = stations,
-                                key = { it.id },
-                                contentType = { "zemer_station" }
-                            ) { station ->
+                            rowStations.forEach { station ->
                                 ZemerStationCard(
                                     station = station,
+                                    fillMaxWidth = true,
                                     modifier = Modifier
-                                        .animateItem()
+                                        .weight(1f)
                                         .clickable {
                                             // Tune in at the live broadcast position.
                                             playerConnection.playQueue(
@@ -770,6 +770,8 @@ fun HomeScreen(
                                         }
                                 )
                             }
+                            // Pad a short final row so 1-2 cards keep the grid's cell width.
+                            repeat(3 - rowStations.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
                 }

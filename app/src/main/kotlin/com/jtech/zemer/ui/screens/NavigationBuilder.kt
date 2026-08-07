@@ -114,9 +114,6 @@ fun NavGraphBuilder.navigationBuilder(
     composable("zemer_playlists") {
         ZemerPlaylistsScreen(navController, scrollBehavior)
     }
-    composable("zemer_stations") {
-        ZemerStationsScreen(navController, scrollBehavior)
-    }
     composable("genres") {
         GenresScreen(navController, scrollBehavior)
     }
