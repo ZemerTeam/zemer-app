@@ -513,7 +513,8 @@ constructor(
             _apiPodcastChannels,
             subscribedPodcasts,
             database.bookmarkedPodcastChannels(),
-        ) { api, local, bookmarked ->
+            ContentFilterState.state,
+        ) { api, local, bookmarked, filters ->
             // Channels the user subscribed to from a channel page (bookmarked ArtistEntity flagged
             // isPodcastChannel) - the primary source, matching Metrolist's bookmarkedPodcastChannels.
             val bookmarkedChannels = bookmarked.map {
@@ -527,9 +528,10 @@ constructor(
             }
             // Channel-whitelist gate (single chokepoint): the API source is the user's RAW YouTube-Music
             // podcast follows, which include non-whitelisted (non-kosher) host channels. Gate the whole
-            // merged list so a non-approved channel's identity can never leak into the Channels tab.
+            // merged list (membership + female) so a non-approved channel's identity can never leak into
+            // the Channels tab.
             (api + bookmarkedChannels + localChannels)
-                .filter { PodcastLibrarySources.podcastChannelAllowed(it.id) }
+                .filter { PodcastLibrarySources.podcastChannelAllowed(it.id, filters) }
                 .distinctBy { it.id }
         }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 

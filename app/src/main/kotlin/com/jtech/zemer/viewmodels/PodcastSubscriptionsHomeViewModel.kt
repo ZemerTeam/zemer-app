@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.search.ZemerSearchRepository
+import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.NewEpisodesFeed
 import com.jtech.zemer.utils.PodcastLibrarySources
 import com.metrolist.innertube.models.PodcastItem
@@ -42,7 +43,8 @@ class PodcastSubscriptionsHomeViewModel @Inject constructor(
         combine(
             PodcastLibrarySources.whitelistedSubscribedPodcasts(database),
             database.bookmarkedPodcastChannels(),
-        ) { subscribedShows, bookmarked ->
+            ContentFilterState.state,
+        ) { subscribedShows, bookmarked, filters ->
             val bookmarkedChannels = bookmarked.map {
                 PodcastChannel(id = it.id, name = it.name, thumbnailUrl = it.thumbnailUrl)
             }
@@ -52,7 +54,7 @@ class PodcastSubscriptionsHomeViewModel @Inject constructor(
                 }
             }
             (bookmarkedChannels + showChannels)
-                .filter { PodcastLibrarySources.podcastChannelAllowed(it.id) }
+                .filter { PodcastLibrarySources.podcastChannelAllowed(it.id, filters) }
                 .distinctBy { it.id }
         }
             // Publish the full list (as SQUARE PodcastItem cards) so the row's "See all" grid shows exactly

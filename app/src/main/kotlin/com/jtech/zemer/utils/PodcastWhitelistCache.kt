@@ -1,7 +1,6 @@
 package com.jtech.zemer.utils
 
 import com.jtech.zemer.db.entities.PodcastWhitelistEntity
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The podcast whitelist allow-set, keyed by CHANNEL id (`UC…`). The whitelist is channel-level: an
@@ -10,11 +9,15 @@ import java.util.concurrent.ConcurrentHashMap
  * caller does this via the local `podcast` row) before checking membership.
  */
 object PodcastWhitelistCache {
-    private val memory = ConcurrentHashMap<String, PodcastWhitelistEntity>()
+    // A @Volatile reference to an IMMUTABLE snapshot, swapped whole on each sync. Readers (channelPasses,
+    // run inside filterWhitelisted on every browse/playback pass, plus the library display gates) always
+    // see a complete map — the old clear()+repopulate exposed a transient empty window that momentarily
+    // dropped a genuinely-whitelisted podcast mid-sync.
+    @Volatile
+    private var memory: Map<String, PodcastWhitelistEntity> = emptyMap()
 
     fun updateAll(entries: List<PodcastWhitelistEntity>) {
-        memory.clear()
-        entries.forEach { memory[it.channelId] = it }
+        memory = entries.associateBy { it.channelId }
     }
 
     /** Whether [channelId] is a whitelisted host channel (`UC…`). Show ids never match — see class doc. */

@@ -1,6 +1,7 @@
 package com.jtech.zemer.ui.screens
 
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
@@ -52,6 +54,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import kotlinx.coroutines.CoroutineScope
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
@@ -1145,227 +1148,128 @@ fun HomeScreen(
                     }
                 }
 
-                // New Episodes: the newest episodes from the shows you're subscribed to (LOCAL-scoped, so
-                // it works for anon + Google). Shown only when subscribed & non-empty; a tap plays it.
-                homeNewEpisodes.takeIf { it.isNotEmpty() }?.let { episodes ->
-                    item(key = "home_new_episodes_title", contentType = "header") {
-                        NavigationTitle(
-                            title = stringResource(R.string.new_episodes),
-                            modifier = Modifier.animateItem()
+                // New Episodes: the newest episodes from the shows you're subscribed to (LOCAL-scoped, so it
+                // works for anon + Google). The row already renders the FULL feed, so it has no See-all (like
+                // Continue Listening). Tap plays the episode; long-press opens the episode menu (a SongItem
+                // with isEpisode -> YouTubeSongMenu's episode branch: save-for-later / view podcast).
+                podcastHomeRow(
+                    keyPrefix = "home_new_episodes",
+                    titleRes = R.string.new_episodes,
+                    items = homeNewEpisodes,
+                    isPlaying = isPlaying,
+                    scope = scope,
+                    activePlayingId = mediaMetadata?.id,
+                    onClick = { episode ->
+                        playerConnection.playQueue(
+                            ListQueue(
+                                title = episode.title,
+                                items = listOf(episode.toMediaItem()),
+                                playSource = PlaySource.podcast(episode.album?.id ?: episode.id),
+                            )
                         )
-                    }
-                    item(key = "home_new_episodes_list", contentType = "grid") {
-                        LazyRow(
-                            contentPadding = WindowInsets.systemBars
-                                .only(WindowInsetsSides.Horizontal)
-                                .asPaddingValues(),
-                            modifier = Modifier.animateItem()
-                        ) {
-                            items(
-                                items = episodes,
-                                key = { "home_new_ep_${it.id}" },
-                                contentType = { "episode" }
-                            ) { episode ->
-                                YouTubeGridItem(
-                                    item = episode,
-                                    isActive = mediaMetadata?.id == episode.id,
-                                    isPlaying = isPlaying,
-                                    coroutineScope = scope,
-                                    thumbnailRatio = 1f,
-                                    modifier = Modifier
-                                        .clickable {
-                                            playerConnection.playQueue(
-                                                ListQueue(
-                                                    title = episode.title,
-                                                    items = listOf(episode.toMediaItem()),
-                                                    playSource = PlaySource.podcast(episode.album?.id ?: episode.id),
-                                                )
-                                            )
-                                        }
-                                        .animateItem()
-                                )
-                            }
+                    },
+                    onLongClick = { episode ->
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        menuState.show {
+                            YouTubeSongMenu(
+                                song = episode,
+                                navController = navController,
+                                onDismiss = menuState::dismiss,
+                            )
                         }
-                    }
-                }
+                    },
+                )
 
                 // Subscribed Channels: the user's own podcast-channel subscriptions (local bookmarks +
-                // channels of subscribed shows, whitelist-gated) — anon + Google alike. Tap opens the
-                // channel page. Rendered as ArtistItem cards (circular avatar + name).
-                homeSubscribedChannels.takeIf { it.isNotEmpty() }?.let { channels ->
-                    item(key = "home_sub_channels_title", contentType = "header") {
-                        NavigationTitle(
-                            title = stringResource(R.string.subscribed_channels),
-                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.SUBSCRIBED_CHANNELS.slug}") },
-                            modifier = Modifier.animateItem()
+                // channels of subscribed shows, whitelist + female gated in the VM) — anon + Google alike.
+                // SQUARE PodcastItem cards (an ArtistItem would render a circle, off next to the others).
+                // See-all -> the home_see_all grid (like the other home rows, NOT the Library tab).
+                podcastHomeRow(
+                    keyPrefix = "home_sub_channels",
+                    titleRes = R.string.subscribed_channels,
+                    items = homeSubscribedChannels.map { channel ->
+                        com.metrolist.innertube.models.PodcastItem(
+                            id = channel.id,
+                            title = channel.name,
+                            author = null,
+                            episodeCountText = null,
+                            thumbnail = channel.thumbnailUrl,
+                            playEndpoint = null,
+                            shuffleEndpoint = null,
+                            channelId = channel.id,
                         )
-                    }
-                    item(key = "home_sub_channels_list", contentType = "grid") {
-                        LazyRow(
-                            contentPadding = WindowInsets.systemBars
-                                .only(WindowInsetsSides.Horizontal)
-                                .asPaddingValues(),
-                            modifier = Modifier.animateItem()
-                        ) {
-                            items(
-                                items = channels,
-                                key = { "home_channel_${it.id}" },
-                                contentType = { "channel" }
-                            ) { channel ->
-                                YouTubeGridItem(
-                                    // A PodcastItem renders SQUARE (like the other podcast/show cards); an
-                                    // ArtistItem would render as a circle, which looks off next to them.
-                                    item = com.metrolist.innertube.models.PodcastItem(
-                                        id = channel.id,
-                                        title = channel.name,
-                                        author = null,
-                                        episodeCountText = null,
-                                        thumbnail = channel.thumbnailUrl,
-                                        playEndpoint = null,
-                                        shuffleEndpoint = null,
-                                        channelId = channel.id,
-                                    ),
-                                    isActive = false,
-                                    isPlaying = isPlaying,
-                                    coroutineScope = scope,
-                                    thumbnailRatio = 1f,
-                                    modifier = Modifier
-                                        .clickable { navController.navigateToArtist(channel.id, isPodcastChannel = true) }
-                                        .animateItem()
-                                )
-                            }
-                        }
-                    }
-                }
+                    },
+                    isPlaying = isPlaying,
+                    scope = scope,
+                    activePlayingId = mediaMetadata?.id,
+                    onSeeAll = { navController.navigate("home_see_all/${HomeSeeAllRow.SUBSCRIBED_CHANNELS.slug}") },
+                    onClick = { channel -> navController.navigateToArtist(channel.id, isPodcastChannel = true) },
+                )
 
                 // Featured: the hand-curated editorial shows (server `featured`), the LEAD show shelf and
-                // strongest cold-start signal (zero telemetry). Same show cards + channel-first routing.
-                featuredPodcasts.takeIf { it.isNotEmpty() }?.let { shows ->
-                    item(key = "featured_podcasts_title", contentType = "header") {
-                        NavigationTitle(
-                            title = stringResource(R.string.featured_podcasts),
-                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_PODCASTS.slug}") },
-                            modifier = Modifier.animateItem()
-                        )
-                    }
-                    item(key = "featured_podcasts_list", contentType = "grid") {
-                        LazyRow(
-                            contentPadding = WindowInsets.systemBars
-                                .only(WindowInsetsSides.Horizontal)
-                                .asPaddingValues(),
-                            modifier = Modifier.animateItem()
-                        ) {
-                            items(
-                                items = shows,
-                                key = { "featured_podcast_${it.id}" },
-                                contentType = { "podcast" }
-                            ) { podcast ->
-                                YouTubeGridItem(
-                                    item = podcast,
-                                    isActive = false,
-                                    isPlaying = isPlaying,
-                                    coroutineScope = scope,
-                                    thumbnailRatio = 1f,
-                                    modifier = Modifier
-                                        .clickable {
-                                            whitelistedPodcastRoute(podcast.id, podcast.channelId)
-                                                ?.let { navController.navigate(it) }
-                                        }
-                                        .animateItem()
-                                )
-                            }
-                        }
-                    }
-                }
+                // strongest cold-start signal (zero telemetry). Channel-first routing; See-all -> ranked list.
+                podcastHomeRow(
+                    keyPrefix = "featured_podcasts",
+                    titleRes = R.string.featured_podcasts,
+                    items = featuredPodcasts,
+                    isPlaying = isPlaying,
+                    scope = scope,
+                    activePlayingId = mediaMetadata?.id,
+                    onSeeAll = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_PODCASTS.slug}") },
+                    onClick = { podcast ->
+                        whitelistedPodcastRoute(podcast.id, podcast.channelId)?.let { navController.navigate(it) }
+                    },
+                )
 
-                // Top Podcasts: the telemetry-ranked shows row (Music-tab parity with Featured Artists),
-                // See all -> the full ranked list of THESE shows (home_see_all, NOT the channel whitelist
-                // browse). Own isolated fail-soft VM (empty -> hidden). The server applies its own fallback
-                // fill while podcast telemetry is thin, so this is never empty when reachable.
-                topPodcasts.takeIf { it.isNotEmpty() }?.let { podcasts ->
-                    item(key = "top_podcasts_title", contentType = "header") {
-                        NavigationTitle(
-                            title = stringResource(R.string.top_podcasts),
-                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.TOP_PODCASTS.slug}") },
-                            modifier = Modifier.animateItem()
-                        )
-                    }
-                    item(key = "top_podcasts_list", contentType = "grid") {
-                        LazyRow(
-                            contentPadding = WindowInsets.systemBars
-                                .only(WindowInsetsSides.Horizontal)
-                                .asPaddingValues(),
-                            modifier = Modifier.animateItem()
-                        ) {
-                            items(
-                                items = podcasts,
-                                key = { "top_podcast_${it.id}" },
-                                contentType = { "podcast" }
-                            ) { podcast ->
-                                YouTubeGridItem(
-                                    item = podcast,
-                                    isActive = false,
-                                    isPlaying = isPlaying,
-                                    coroutineScope = scope,
-                                    thumbnailRatio = 1f,
-                                    modifier = Modifier
-                                        // Channel-first routing, exactly like every other show row
-                                        // (search/genre): opens the host channel when known, else the show.
-                                        .clickable {
-                                            whitelistedPodcastRoute(podcast.id, podcast.channelId)
-                                                ?.let { navController.navigate(it) }
-                                        }
-                                        .animateItem()
-                                )
-                            }
-                        }
-                    }
-                }
+                // Top Podcasts: the telemetry-ranked shows row (Music-tab parity with Featured Artists). See
+                // all -> the full ranked list of THESE shows (home_see_all, NOT the channel whitelist browse).
+                // The server fills its own fallback while podcast telemetry is thin, so it's rarely empty.
+                podcastHomeRow(
+                    keyPrefix = "top_podcasts",
+                    titleRes = R.string.top_podcasts,
+                    items = topPodcasts,
+                    isPlaying = isPlaying,
+                    scope = scope,
+                    activePlayingId = mediaMetadata?.id,
+                    onSeeAll = { navController.navigate("home_see_all/${HomeSeeAllRow.TOP_PODCASTS.slug}") },
+                    onClick = { podcast ->
+                        // Channel-first routing, like every other show row (search/genre): open the host
+                        // channel when known, else the show.
+                        whitelistedPodcastRoute(podcast.id, podcast.channelId)?.let { navController.navigate(it) }
+                    },
+                )
 
-                // Trending Episodes: the ranked episodes row (Music-tab parity with Featured Videos). A
-                // tap plays the episode by its videoId through the existing pipeline. Same fail-soft VM.
-                trendingEpisodes.takeIf { it.isNotEmpty() }?.let { episodes ->
-                    item(key = "trending_episodes_title", contentType = "header") {
-                        NavigationTitle(
-                            title = stringResource(R.string.trending_episodes),
-                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.TRENDING_EPISODES.slug}") },
-                            modifier = Modifier.animateItem()
+                // Trending Episodes: the ranked episodes row (Music-tab parity with Featured Videos). Tap
+                // plays by videoId; long-press opens the episode menu (EpisodeItem -> asSongItem() -> the
+                // episode branch of YouTubeSongMenu, wired to its episode type).
+                podcastHomeRow(
+                    keyPrefix = "trending_episodes",
+                    titleRes = R.string.trending_episodes,
+                    items = trendingEpisodes,
+                    isPlaying = isPlaying,
+                    scope = scope,
+                    activePlayingId = mediaMetadata?.id,
+                    onSeeAll = { navController.navigate("home_see_all/${HomeSeeAllRow.TRENDING_EPISODES.slug}") },
+                    onClick = { episode ->
+                        playerConnection.playQueue(
+                            ListQueue(
+                                title = episode.title,
+                                items = listOf(episode.toMediaItem()),
+                                playSource = PlaySource.podcast(episode.podcast?.id ?: episode.id),
+                            )
                         )
-                    }
-                    item(key = "trending_episodes_list", contentType = "grid") {
-                        LazyRow(
-                            contentPadding = WindowInsets.systemBars
-                                .only(WindowInsetsSides.Horizontal)
-                                .asPaddingValues(),
-                            modifier = Modifier.animateItem()
-                        ) {
-                            items(
-                                items = episodes,
-                                key = { it.id },
-                                contentType = { "episode" }
-                            ) { episode ->
-                                YouTubeGridItem(
-                                    item = episode,
-                                    isActive = mediaMetadata?.id == episode.id,
-                                    isPlaying = isPlaying,
-                                    coroutineScope = scope,
-                                    thumbnailRatio = 1f,
-                                    modifier = Modifier
-                                        .clickable {
-                                            playerConnection.playQueue(
-                                                ListQueue(
-                                                    title = episode.title,
-                                                    items = listOf(episode.toMediaItem()),
-                                                    playSource = PlaySource.podcast(episode.podcast?.id ?: episode.id),
-                                                )
-                                            )
-                                        }
-                                        .animateItem()
-                                )
-                            }
+                    },
+                    onLongClick = { episode ->
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        menuState.show {
+                            YouTubeSongMenu(
+                                song = episode.asSongItem(),
+                                navController = navController,
+                                onDismiss = menuState::dismiss,
+                            )
                         }
-                    }
-                }
+                    },
+                )
 
 
             } // end PODCASTS
@@ -1417,4 +1321,60 @@ fun HomeScreen(
 private fun <T> rememberRowImpressionIds(items: List<T>, idOf: (T) -> String?): (Any?) -> String? {
     val ids = remember(items) { items.mapNotNull(idOf).toSet() }
     return remember(ids) { { key -> (key as? String)?.takeIf(ids::contains) } }
+}
+
+/**
+ * One Podcasts-tab home row (a section header + a horizontal card row), the podcast twin of the music
+ * tab's `ytGridItem` shelves. Extracted so New Episodes / Subscribed Channels / Featured / Top Podcasts /
+ * Trending Episodes can't drift — before this, five hand-rolled copies of the same LazyRow diverged (one
+ * lacked the dedup guard, one the See-all arrow, the episode rows the long-press menu).
+ *
+ * - Items are DEDUPED by id here, unconditionally: the keyed [LazyRow] crashes on a duplicate key, and a
+ *   telemetry-ranked server row can repeat an id when its fallback fill overlaps its ranked set. The music
+ *   rows guard this with `distinctBy`; this is the single chokepoint for the podcast rows.
+ * - [onSeeAll] null hides the arrow (NavigationTitle gates it on onClick); pass it to expose the see-all.
+ * - [onLongClick] null means tap-only; the episode rows pass a menu opener typed to their OWN item so the
+ *   menu dispatches correctly (a SongItem episode vs. an EpisodeItem converted with asSongItem()).
+ * - [activePlayingId] is the currently-playing videoId; an episode card highlights when it matches, a
+ *   show/channel card never does (its id is an MPSP/UC id, not a videoId).
+ */
+@OptIn(ExperimentalFoundationApi::class)
+private fun <T : YTItem> LazyListScope.podcastHomeRow(
+    keyPrefix: String,
+    @StringRes titleRes: Int,
+    items: List<T>,
+    isPlaying: Boolean,
+    scope: CoroutineScope,
+    activePlayingId: String?,
+    onSeeAll: (() -> Unit)? = null,
+    onClick: (T) -> Unit,
+    onLongClick: ((T) -> Unit)? = null,
+) {
+    val unique = items.distinctBy { it.id }
+    if (unique.isEmpty()) return
+    item(key = "${keyPrefix}_title", contentType = "header") {
+        NavigationTitle(title = stringResource(titleRes), onClick = onSeeAll, modifier = Modifier.animateItem())
+    }
+    item(key = "${keyPrefix}_list", contentType = "grid") {
+        LazyRow(
+            contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
+            modifier = Modifier.animateItem(),
+        ) {
+            items(items = unique, key = { "${keyPrefix}_${it.id}" }, contentType = { keyPrefix }) { item ->
+                YouTubeGridItem(
+                    item = item,
+                    isActive = item.id == activePlayingId,
+                    isPlaying = isPlaying,
+                    coroutineScope = scope,
+                    thumbnailRatio = 1f,
+                    modifier = Modifier
+                        .combinedClickable(
+                            onClick = { onClick(item) },
+                            onLongClick = onLongClick?.let { open -> { open(item) } },
+                        )
+                        .animateItem(),
+                )
+            }
+        }
+    }
 }

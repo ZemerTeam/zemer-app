@@ -6,8 +6,8 @@ import com.jtech.zemer.search.ZemerSearchOptions
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.metrolist.innertube.models.SongItem
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 
 /**
  * The ONE place the podcast-library data sources (subscription scope + podcast whitelist filter) live,
@@ -18,10 +18,15 @@ object PodcastLibrarySources {
     /** How many latest episodes to pull from the (global) server feed before scoping to subscriptions. */
     private const val NEW_EPISODES_FETCH = 100
 
-    /** Locally-subscribed podcasts, whitelist-filtered. A local read, so it works for anon sessions. */
+    /**
+     * Locally-subscribed podcasts, whitelist-filtered AND female-gated. A local read, so it works for anon
+     * sessions. Combines the live [ContentFilterState] so a wholly-female host channel drops the moment
+     * "allow female" is turned off — the same gate the browse grid and the server apply.
+     */
     fun whitelistedSubscribedPodcasts(database: MusicDatabase): Flow<List<PodcastEntity>> =
-        database.subscribedPodcasts()
-            .map { list -> list.filter { subscribedPodcastAllowed(it.channelId) } }
+        combine(database.subscribedPodcasts(), ContentFilterState.state) { list, filters ->
+            list.filter { subscribedPodcastAllowed(it.channelId, filters) }
+        }
 
     /**
      * The "New Episodes" feed. DISCOVERY is now the whitelist-pure Zemer server (`/podcasts/new-episodes`,
@@ -36,8 +41,9 @@ object PodcastLibrarySources {
         options: ZemerSearchOptions,
         database: MusicDatabase,
     ): List<SongItem> {
+        val filters = ContentFilterState.state.value
         val subscribedIds = database.subscribedPodcasts().first()
-            .filter { subscribedPodcastAllowed(it.channelId) }
+            .filter { subscribedPodcastAllowed(it.channelId, filters) }
             .map { it.id }
             .toSet()
         if (subscribedIds.isEmpty()) return emptyList()
@@ -49,23 +55,32 @@ object PodcastLibrarySources {
     }
 
     /**
-     * Whether a locally-subscribed show passes the CHANNEL-level whitelist. The whitelist is keyed by the
-     * host channel (`UC…`), NOT the show id (`MPSP…`) — filtering a [PodcastEntity] by its own `id` against
-     * this cache never matches, so it must key off [channelId]. A show with no known channelId (a
-     * grandfathered channel-less show, or an optimistic subscribe not yet synced) is KEPT: it is the
-     * user's own explicit subscription and there is no channel to check; once a sync fills channelId in,
-     * membership is enforced. Pure + unit-tested ([PodcastLibrarySourcesTest]).
+     * Whether a locally-subscribed show passes the CHANNEL-level whitelist AND the female gate. The
+     * whitelist is keyed by the host channel (`UC…`), NOT the show id (`MPSP…`) — filtering a
+     * [PodcastEntity] by its own `id` against this cache never matches, so it must key off [channelId]. A
+     * show with no known channelId (a grandfathered channel-less show, or an optimistic subscribe not yet
+     * synced) is KEPT: it is the user's own explicit subscription and there is no channel to check; once a
+     * sync fills channelId in, membership is enforced. This is a DISPLAY surface, so it applies the female
+     * gate via [channelPasses] (not membership-only [isChannelWhitelisted]) — a wholly-female host is
+     * hidden when female filtering is on. Pure + unit-tested ([PodcastLibrarySourcesTest]).
      */
-    internal fun subscribedPodcastAllowed(channelId: String?): Boolean =
-        channelId == null || PodcastWhitelistCache.isChannelWhitelisted(channelId)
+    internal fun subscribedPodcastAllowed(channelId: String?, filters: ContentFilterConfig): Boolean =
+        channelId == null || PodcastWhitelistCache.channelPasses(channelId, filters.allowsFemale())
 
     /**
-     * Whether a podcast HOST CHANNEL (`UC…`) passes the channel-level whitelist. Unlike a subscribed
-     * SHOW ([subscribedPodcastAllowed]), a channel is identified by a real channel id, so there is no
-     * null-channel escape hatch: a channel that is not whitelisted is not shown. Fail-closed (an
-     * un-synced/empty whitelist hides everything) — correct for a content gate that must never leak a
-     * non-approved channel's identity into the Kosher library.
+     * Whether a podcast HOST CHANNEL (`UC…`) passes the channel-level whitelist AND the female gate.
+     * Unlike a subscribed SHOW ([subscribedPodcastAllowed]), a channel is identified by a real channel id,
+     * so there is no null-channel escape hatch: a channel that is not whitelisted is not shown. Fail-closed
+     * (an un-synced/empty whitelist hides everything) — correct for a content gate that must never leak a
+     * non-approved channel's identity into the Kosher library. A DISPLAY surface, so it female-gates too.
      */
-    internal fun podcastChannelAllowed(channelId: String): Boolean =
-        PodcastWhitelistCache.isChannelWhitelisted(channelId)
+    internal fun podcastChannelAllowed(channelId: String, filters: ContentFilterConfig): Boolean =
+        PodcastWhitelistCache.channelPasses(channelId, filters.allowsFemale())
+
+    /**
+     * Effective female allowance under the current filter state: when filtering is OFF everything passes;
+     * when ON, only if the user allows female singers. Kept here so every podcast display surface computes
+     * the gate the same way (matching the browse grid's `!isFemale || !filtersEnabled || allowFemaleSingers`).
+     */
+    private fun ContentFilterConfig.allowsFemale(): Boolean = !filtersEnabled || allowFemaleSingers
 }

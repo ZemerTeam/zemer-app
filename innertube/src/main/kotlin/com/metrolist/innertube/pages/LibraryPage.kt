@@ -7,6 +7,7 @@ import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.MusicResponsiveListItemRenderer
 import com.metrolist.innertube.models.MusicTwoRowItemRenderer
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.Run
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
@@ -66,6 +67,28 @@ data class LibraryPage(
                     radioEndpoint = renderer.menu.menuRenderer.items.find {
                         it.menuNavigationItemRenderer?.icon?.iconType == "MIX"
                     }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint ?: return null,
+                )
+
+                // A saved podcast SHOW (MPSP…) tile in the library. Without this branch the tile fell to
+                // `else -> null`, so savedPodcastShows()/libraryPodcasts() always came back empty and no
+                // saved show ever synced. Mirrors the show parse in ArtistPage.fromMusicTwoRowItemRenderer;
+                // the subtitle's first run is the host channel, so `author.id` carries the UC channelId
+                // that SyncUtils.syncPodcastSubscriptions maps to PodcastEntity.channelId.
+                renderer.isPodcast -> PodcastItem(
+                    id = renderer.navigationEndpoint.browseEndpoint?.browseId ?: return null,
+                    title = renderer.title.runs?.firstOrNull()?.text ?: return null,
+                    author = renderer.subtitle?.runs?.firstOrNull()?.let {
+                        Artist(name = it.text, id = it.navigationEndpoint?.browseEndpoint?.browseId)
+                    },
+                    episodeCountText = renderer.subtitle?.runs?.lastOrNull()?.text,
+                    thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl(),
+                    playEndpoint = renderer.thumbnailOverlay
+                        ?.musicItemThumbnailOverlayRenderer?.content
+                        ?.musicPlayButtonRenderer?.playNavigationEndpoint
+                        ?.watchPlaylistEndpoint,
+                    shuffleEndpoint = renderer.menu?.menuRenderer?.items?.find {
+                        it.menuNavigationItemRenderer?.icon?.iconType == "MUSIC_SHUFFLE"
+                    }?.menuNavigationItemRenderer?.navigationEndpoint?.watchPlaylistEndpoint,
                 )
 
                 else -> null

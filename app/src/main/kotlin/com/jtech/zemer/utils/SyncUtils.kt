@@ -35,6 +35,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -222,19 +223,35 @@ class SyncUtils @Inject constructor(
                 // owning SHOW (MPSP…) is served by `/podcast` (whitelisted under the current flags). Never
                 // adds non-whitelisted content, and — unlike a local-only show→channel resolve — DOES let a
                 // whitelisted episode through even when its show isn't locally subscribed. Each unique show
-                // is resolved once; a lookup FAILURE drops the episode this run (never add on doubt) and
-                // disables the cleanup below so a transient outage can't wipe genuine local saves.
+                // is resolved ONCE, and the independent lookups run CONCURRENTLY (async/awaitAll) rather
+                // than one sequential /podcast round-trip per show.
+                //
+                // A lookup that does NOT positively confirm the show (a thrown error, a network outage, OR a
+                // 404 — `repo.podcast` returns null on 404 without throwing) drops the episode this run
+                // (never add on doubt) AND sets anyLookupFailed, which disables the cleanup below. This
+                // mirrors syncPodcastSubscriptions' `channelPage != null` guard: a transient/partial failure
+                // must never be read as "removed on YTM" and wipe a genuine local save.
                 val repo = context.zemerSearchRepository()
                 val options = zemerSearchOptions(context)
-                val showAllowed = mutableMapOf<String, Boolean>()
-                var anyLookupFailed = false
-                val remoteEpisodes = rawEpisodes.filter { ep ->
-                    val showId = ep.artists.mapNotNull { it.id }.firstOrNull { it.startsWith("MPSP") }
+                val showIdOf: (SongItem) -> String? = { ep ->
+                    ep.artists.mapNotNull { it.id }.firstOrNull { it.startsWith("MPSP") }
                         ?: ep.artists.firstOrNull()?.id
-                    showId != null && showAllowed.getOrPut(showId) {
-                        runCatching { repo.podcast(showId, 0, options) != null }
-                            .getOrElse { anyLookupFailed = true; false }
-                    }
+                }
+                val distinctShowIds = rawEpisodes.mapNotNull(showIdOf).distinct()
+                val lookups = coroutineScope {
+                    distinctShowIds.map { showId ->
+                        async {
+                            // getOrNull folds a thrown error into null; null (error / outage / 404) = "not
+                            // confirmed" = both dropped AND a failure that disables cleanup.
+                            val served = runCatching { repo.podcast(showId, 0, options) }.getOrNull() != null
+                            showId to served
+                        }
+                    }.awaitAll()
+                }
+                val showAllowed = lookups.toMap()
+                val anyLookupFailed = showAllowed.values.any { !it }
+                val remoteEpisodes = rawEpisodes.filter { ep ->
+                    showIdOf(ep)?.let { showAllowed[it] } == true
                 }
                 val remoteIds = remoteEpisodes.map { it.id }.toSet()
 

@@ -18,7 +18,8 @@ import androidx.navigation.NavController
  */
 fun artistRoute(artistId: String?, isPodcastChannel: Boolean = false): String? =
     artistId?.takeIf { it.isNotBlank() }?.let {
-        // Podcast host channels load via InnerTube (not the corpus) - the flag rides the route.
+        // A podcast host channel reuses ArtistScreen; the flag rides the route so ArtistViewModel loads it
+        // from the Zemer server (/podcast-channel), whitelist-pure - not the deleted InnerTube artist path.
         if (isPodcastChannel) "artist/$it?isPodcastChannel=true" else "artist/$it"
     }
 
