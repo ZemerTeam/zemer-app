@@ -481,7 +481,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContentTab.kt` | 9 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContinueListeningRow.kt` | 105 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeGenresRow.kt` | 118 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1341 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1342 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeSeeAllScreen.kt` | 347 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeStatusesRow.kt` | 58 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 235 lines | `.kt` |
@@ -597,7 +597,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/CoverArtEmbedder.kt` | 170 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/CoverArtNative.kt` | 47 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/CrashReportingTree.kt` | 35 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/DataStore.kt` | 193 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/DataStore.kt` | 200 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/DeviceIdGenerator.kt` | 198 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/EnvironmentPaths.kt` | 25 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/FirestoreUtils.kt` | 41 lines | `.kt` |

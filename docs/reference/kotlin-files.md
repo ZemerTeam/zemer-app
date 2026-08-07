@@ -321,7 +321,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContentTab.kt` | 9 | `com.jtech.zemer.ui.screens` | no | 0 | 1 |  |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContinueListeningRow.kt` | 105 | `com.jtech.zemer.ui.screens` | yes | 33 | 4 | androidx.compose, coil3.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeGenresRow.kt` | 118 | `com.jtech.zemer.ui.screens` | yes | 31 | 8 | androidx.compose, androidx.navigation |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1341 | `com.jtech.zemer.ui.screens` | yes | 132 | 85 | android.net, androidx.compose, androidx.hilt, androidx.lifecycle, androidx.navigation, kotlin.math, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1342 | `com.jtech.zemer.ui.screens` | yes | 132 | 85 | android.net, androidx.compose, androidx.hilt, androidx.lifecycle, androidx.navigation, kotlin.math, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeSeeAllScreen.kt` | 347 | `com.jtech.zemer.ui.screens` | yes | 66 | 30 | androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeStatusesRow.kt` | 58 | `com.jtech.zemer.ui.screens` | yes | 18 | 2 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 235 | `com.jtech.zemer.ui.screens` | yes | 43 | 18 | androidx.compose, androidx.hilt, androidx.navigation |
@@ -437,7 +437,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/utils/CoverArtEmbedder.kt` | 170 | `com.jtech.zemer.utils` | no | 9 | 22 | android.content, android.util, java.io, kotlinx.coroutines, okhttp3.OkHttpClient, okhttp3.Request |
 | `app/src/main/kotlin/com/jtech/zemer/utils/CoverArtNative.kt` | 47 | `com.jtech.zemer.utils` | no | 0 | 3 |  |
 | `app/src/main/kotlin/com/jtech/zemer/utils/CrashReportingTree.kt` | 35 | `com.jtech.zemer.utils` | no | 2 | 6 | android.util, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/utils/DataStore.kt` | 193 | `com.jtech.zemer.utils` | yes | 21 | 13 | android.content, androidx.compose, androidx.datastore, kotlin.properties, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/utils/DataStore.kt` | 200 | `com.jtech.zemer.utils` | yes | 21 | 14 | android.content, androidx.compose, androidx.datastore, kotlin.properties, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/utils/DeviceIdGenerator.kt` | 198 | `com.jtech.zemer.utils` | no | 15 | 30 | android.content, android.os, android.provider, android.util, androidx.datastore, dagger.hilt, java.util, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/utils/EnvironmentPaths.kt` | 25 | `com.jtech.zemer.utils` | no | 4 | 6 | android.net, android.os, android.provider, java.io |
 | `app/src/main/kotlin/com/jtech/zemer/utils/FirestoreUtils.kt` | 41 | `com.jtech.zemer.utils` | no | 0 | 2 |  |

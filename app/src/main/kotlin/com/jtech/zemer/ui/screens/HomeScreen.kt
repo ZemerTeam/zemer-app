@@ -197,7 +197,8 @@ fun HomeScreen(
     val (showHomeStatuses, _) = rememberPreference(ShowHomeStatusesKey, defaultValue = true)
     // Home content-type tab (Music / Podcasts / Radio / Video); each renders only its own shelves.
     // Persisted to DataStore, so the selection survives leaving and re-entering the app. Music default.
-    var homeTab by rememberEnumPreference(HomeContentTabKey, defaultValue = HomeContentTab.MUSIC)
+    // seedFromDisk: open directly on the remembered tab instead of flashing Music while DataStore loads.
+    var homeTab by rememberEnumPreference(HomeContentTabKey, defaultValue = HomeContentTab.MUSIC, seedFromDisk = true)
     // The curated endpoint's freshness contract is a plain re-fetch on screen open (single-digit-ms
     // server reads) — this also picks up a card removed by curation while a detail open 404'd.
     LaunchedEffect(Unit) {
