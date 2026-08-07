@@ -71,7 +71,6 @@ import com.jtech.zemer.ui.component.SelectArtistDialog
 import com.jtech.zemer.ui.utils.ShowMediaInfo
 import com.jtech.zemer.ui.utils.resize
 import com.jtech.zemer.ui.utils.navigateToArtist
-import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.utils.rememberPreference
@@ -479,18 +478,7 @@ fun YouTubeSongMenu(
                             )
                         )
                     }
-                    song.album?.takeIf { !it.id.isNullOrBlank() }?.let { album ->
-                        add(
-                            Material3MenuItemData(
-                                icon = { Icon(painterResource(R.drawable.album), null, Modifier.size(24.dp)) },
-                                title = { Text(stringResource(R.string.view_album)) },
-                                onClick = {
-                                    navController.navigateToAlbum(album.id)
-                                    onDismiss()
-                                },
-                            )
-                        )
-                    }
+                    viewCollectionMenuItem(song.isEpisode, song.album?.id, navController, onDismiss)?.let { add(it) }
                     add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.info), null, Modifier.size(24.dp)) },

@@ -663,6 +663,7 @@
         <string name="error_podcast_subscribe">Failed to subscribe to podcast</string>
         <string name="error_podcast_unsubscribe">Failed to unsubscribe from podcast</string>
         <string name="view_channel">View channel</string>
+        <string name="view_podcast">View podcast</string>
         <string name="episode_time_left">%s left</string>
         <string name="continue_listening">Continue Listening</string>
         <string name="featured_podcasts">Featured</string>

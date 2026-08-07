@@ -73,7 +73,6 @@ import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.utils.ShowMediaInfo
 import com.jtech.zemer.ui.utils.navigateToArtist
-import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.PermissionHelper
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.CachePlaylistViewModel
@@ -498,16 +497,7 @@ fun SongMenu(
                             },
                         )
                     )
-                    if (!song.song.albumId.isNullOrBlank()) add(
-                        Material3MenuItemData(
-                            icon = { Icon(painterResource(R.drawable.album), null, Modifier.size(24.dp)) },
-                            title = { Text(stringResource(R.string.view_album)) },
-                            onClick = {
-                                onDismiss()
-                                navController.navigateToAlbum(song.song.albumId)
-                            },
-                        )
-                    )
+                    viewCollectionMenuItem(song.song.isEpisode, song.song.albumId, navController, onDismiss)?.let { add(it) }
                     add(
                         Material3MenuItemData(
                             icon = {
