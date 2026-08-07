@@ -364,3 +364,20 @@ data class ZemerPodcastChannelResponse(
 data class ZemerNewEpisodesResponse(
     val episodes: List<ZemerPodcastEpisode> = emptyList(),
 )
+
+/**
+ * `GET /podcast-home-rows?k=` — the telemetry-ranked Podcasts-tab rows (the podcast analogue of
+ * `/home-rows`, contract: `handoff-docs/zemer-app-podcast-home-rows-request.md`). [topPodcasts] are
+ * shows ranked by completion-weighted distinct-device listening (server-side alphabetical fallback
+ * while telemetry is thin, so the row is never empty); [trendingEpisodes] are episodes by recent
+ * completion-weighted reach. Whitelist-pure + content-filtered server-side; an empty row → the app
+ * hides it (per-row fail-soft). The server's bonus `genres` on a show is ignored (ignoreUnknownKeys).
+ */
+@Serializable
+data class ZemerPodcastHomeRowsResponse(
+    val topPodcasts: List<ZemerPodcastShow> = emptyList(),
+    val trendingEpisodes: List<ZemerPodcastEpisode> = emptyList(),
+    // Recently-arrived shows (by the server's `firstSeenAt` new-arrivals signal). Same show-card shape
+    // as [topPodcasts]; the "Featured / New shows" third row (Music parity). Server reply 2, 2026-08-06.
+    val newShows: List<ZemerPodcastShow> = emptyList(),
+)

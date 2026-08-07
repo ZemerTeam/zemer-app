@@ -65,6 +65,7 @@ import com.jtech.zemer.ui.utils.navigateToPodcast
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeSeeAllStore
+import com.jtech.zemer.viewmodels.PodcastHomeSeeAllStore
 
 /**
  * The generic "See all" page for a Home row: the row's full, already-filtered list as a vertical page
@@ -84,6 +85,7 @@ fun HomeSeeAllScreen(
     row: HomeSeeAllRow,
 ) {
     val data by HomeSeeAllStore.data.collectAsState()
+    val podcastData by PodcastHomeSeeAllStore.data.collectAsState()
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
 
     val rowIsEmpty = when (row) {
@@ -94,6 +96,9 @@ fun HomeSeeAllScreen(
         HomeSeeAllRow.QUICK_PICKS -> data.quickPicks.isEmpty()
         HomeSeeAllRow.FORGOTTEN_FAVORITES -> data.forgottenFavorites.isEmpty()
         HomeSeeAllRow.KEEP_LISTENING -> data.keepListening.isEmpty()
+        HomeSeeAllRow.TOP_PODCASTS -> podcastData.topPodcasts.isEmpty()
+        HomeSeeAllRow.TRENDING_EPISODES -> podcastData.trendingEpisodes.isEmpty()
+        HomeSeeAllRow.NEW_SHOWS -> podcastData.newShows.isEmpty()
     }
 
     if (rowIsEmpty) {
@@ -115,6 +120,10 @@ fun HomeSeeAllScreen(
             HomeSeeAllRow.QUICK_PICKS -> SongList(data.quickPicks, navController)
             HomeSeeAllRow.FORGOTTEN_FAVORITES -> SongList(data.forgottenFavorites, navController)
             HomeSeeAllRow.KEEP_LISTENING -> LocalItemList(data.keepListening, navController)
+            // Podcast rows: PodcastItem shows open their show, EpisodeItem plays — YtItemGrid handles both.
+            HomeSeeAllRow.TOP_PODCASTS -> YtItemGrid(podcastData.topPodcasts, navController)
+            HomeSeeAllRow.TRENDING_EPISODES -> YtItemGrid(podcastData.trendingEpisodes, navController)
+            HomeSeeAllRow.NEW_SHOWS -> YtItemGrid(podcastData.newShows, navController)
         }
     }
 

@@ -358,6 +358,25 @@ object ZemerResultMapper {
     private fun List<ZemerPodcastShow>.toPodcastItems(): List<PodcastItem> =
         filter { it.id.isNotBlank() }.map { it.toPodcastItem() }.distinctBy { it.id }.dropBlocked()
 
+    /** The telemetry-ranked Podcasts-tab rows in native item types (see [podcastHomeRows]). */
+    data class PodcastHomeRows(
+        val topPodcasts: List<PodcastItem>,
+        val trendingEpisodes: List<EpisodeItem>,
+        val newShows: List<PodcastItem>,
+    )
+
+    /**
+     * `GET /podcast-home-rows` → the Podcasts-tab ranked rows as the InnerTube item types the podcast UI
+     * already consumes (the podcast analogue of [homeRows]). Whitelist-pure server-side; only the surgical
+     * id-overrides ([dropBlocked], applied inside [toPodcastItems]/[toEpisodeItems]) run client-side.
+     */
+    fun podcastHomeRows(resp: ZemerPodcastHomeRowsResponse): PodcastHomeRows =
+        PodcastHomeRows(
+            topPodcasts = resp.topPodcasts.toPodcastItems(),
+            trendingEpisodes = resp.trendingEpisodes.toEpisodeItems(),
+            newShows = resp.newShows.toPodcastItems(),
+        )
+
     /**
      * A `/podcast` response as the [PodcastPage] the SHOW screen already consumes. Null when the header
      * is missing (treated as a 404 → the screen backs out). `continuation` carries the server's

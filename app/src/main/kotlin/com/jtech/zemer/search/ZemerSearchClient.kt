@@ -558,6 +558,28 @@ class ZemerSearchClient @Inject constructor() {
         return zemerResponseJson.decodeFromString(ZemerHomeRowsResponse.serializer(), response.bodyAsText())
     }
 
+    /**
+     * The telemetry-ranked PODCAST home rows (`GET /podcast-home-rows`) — Top Podcasts + Trending
+     * Episodes, the podcast analogue of [homeRows]. Same fail-closed flag contract; `kidZone=0` is sent
+     * (the home tab is never reachable from inside the KidZone tab). Whitelist-pure + content-filtered
+     * server-side. The server applies an alphabetical fallback while podcast telemetry is thin, so
+     * `topPodcasts` is never empty when the server is reachable.
+     */
+    suspend fun podcastHomeRows(
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+    ): ZemerPodcastHomeRowsResponse {
+        val response: HttpResponse = client.get("$BASE_URL/podcast-home-rows") {
+            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
+                parameter(name, value)
+            }
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer podcast-home-rows returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerPodcastHomeRowsResponse.serializer(), response.bodyAsText())
+    }
+
     companion object {
         const val BASE_URL = "https://search.zemer.io"
         private const val REQUEST_TIMEOUT_MS = 8_000L

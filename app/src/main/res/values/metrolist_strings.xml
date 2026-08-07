@@ -666,6 +666,9 @@
         <string name="view_channel">View channel</string>
         <string name="episode_time_left">%s left</string>
         <string name="continue_listening">Continue Listening</string>
+        <string name="top_podcasts">Top Podcasts</string>
+        <string name="trending_episodes">Trending Episodes</string>
+        <string name="new_shows">New Shows</string>
         <string name="mark_as_played">Mark as played</string>
         <string name="mark_as_unplayed">Mark as unplayed</string>
         <string name="filter_episodes">Episodes</string>

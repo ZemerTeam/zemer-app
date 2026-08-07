@@ -224,6 +224,14 @@ class ZemerSearchRepository @Inject constructor(
             offline = { offlineReads.podcastChannel(id, options.allowFemale, options.blockVideos) },
         )?.toArtistPage()
 
+    /**
+     * The telemetry-ranked Podcasts-tab rows (Top Podcasts + Trending Episodes). Live-only (discovery,
+     * like `/playlist`/`/radio`) — no offline snapshot; the caller's fail-soft VM hides the rows on a
+     * failure. The server applies an alphabetical fallback for `topPodcasts` while telemetry is thin.
+     */
+    suspend fun podcastHomeRows(options: ZemerSearchOptions): ZemerResultMapper.PodcastHomeRows =
+        ZemerResultMapper.podcastHomeRows(client.podcastHomeRows(options.allowFemale, options.blockVideos))
+
     /** Latest episodes across all whitelisted shows (Library New Episodes), newest-first. */
     suspend fun podcastsNewEpisodes(k: Int, options: ZemerSearchOptions): List<EpisodeItem> =
         serverOrOffline(

@@ -6,7 +6,9 @@ import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Song
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +27,10 @@ enum class HomeSeeAllRow(val slug: String, @StringRes val titleRes: Int) {
     KEEP_LISTENING("keep-listening", R.string.keep_listening),
     FORGOTTEN_FAVORITES("forgotten-favorites", R.string.forgotten_favorites),
     QUICK_PICKS("quick-picks", R.string.quick_picks),
+    // Podcasts-tab ranked rows (backed by [PodcastHomeSeeAllStore], not the music [HomeSeeAllStore]).
+    TOP_PODCASTS("top-podcasts", R.string.top_podcasts),
+    TRENDING_EPISODES("trending-episodes", R.string.trending_episodes),
+    NEW_SHOWS("new-shows", R.string.new_shows),
     ;
 
     companion object {
@@ -60,6 +66,27 @@ object HomeSeeAllStore {
     val data: StateFlow<HomeSeeAllData> = _data.asStateFlow()
 
     fun publish(data: HomeSeeAllData) {
+        _data.value = data
+    }
+}
+
+/** The full Podcasts-tab ranked rows that back their See-all screens (see [PodcastHomeSeeAllStore]). */
+data class PodcastHomeSeeAllData(
+    val topPodcasts: List<PodcastItem> = emptyList(),
+    val trendingEpisodes: List<EpisodeItem> = emptyList(),
+    val newShows: List<PodcastItem> = emptyList(),
+)
+
+/**
+ * The podcast twin of [HomeSeeAllStore], kept SEPARATE so the two publishers (HomeViewModel for music,
+ * [PodcastHomeRowsViewModel] for podcasts) never clobber each other's snapshot. Published on every
+ * successful `/podcast-home-rows` load; the See-all screen reads it so what it shows is exactly the row.
+ */
+object PodcastHomeSeeAllStore {
+    private val _data = MutableStateFlow(PodcastHomeSeeAllData())
+    val data: StateFlow<PodcastHomeSeeAllData> = _data.asStateFlow()
+
+    fun publish(data: PodcastHomeSeeAllData) {
         _data.value = data
     }
 }

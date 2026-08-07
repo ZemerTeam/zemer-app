@@ -84,7 +84,7 @@ import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.ChipsRow
-import com.jtech.zemer.ui.component.WhitelistedPodcastGridItem
+import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import com.jtech.zemer.utils.rememberEnumPreference
@@ -121,7 +121,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.jtech.zemer.viewmodels.STATION_ROW_REFRESH_MS
 import com.jtech.zemer.viewmodels.ZemerGenresViewModel
-import com.jtech.zemer.viewmodels.PodcastsHomeViewModel
+import com.jtech.zemer.viewmodels.PodcastHomeRowsViewModel
 import com.jtech.zemer.viewmodels.ZemerStatusesViewModel
 import com.jtech.zemer.viewmodels.ZemerStationsViewModel
 import com.metrolist.innertube.models.AlbumItem
@@ -181,8 +181,10 @@ fun HomeScreen(
     // Passed to the row so each ring counts only statuses the user can view under their content filter
     // (the ring never over-counts hidden kinds). Creators are NOT dropped - only the ring reflects it.
     val statusContentFilter by zemerStatusesViewModel.contentFilter.collectAsState()
-    val podcastsHomeViewModel: PodcastsHomeViewModel = hiltViewModel()
-    val homePodcasts by podcastsHomeViewModel.podcasts.collectAsState()
+    val podcastHomeRowsViewModel: PodcastHomeRowsViewModel = hiltViewModel()
+    val topPodcasts by podcastHomeRowsViewModel.topPodcasts.collectAsState()
+    val trendingEpisodes by podcastHomeRowsViewModel.trendingEpisodes.collectAsState()
+    val newPodcastShows by podcastHomeRowsViewModel.newShows.collectAsState()
     // The Home "Podcast Genres" chips strip, above the Podcasts row. Isolated + fail-soft like the
     // music genres strip: an outage leaves the list empty and the strip hides.
     val podcastGenresHomeViewModel: com.jtech.zemer.viewmodels.PodcastGenresHomeViewModel = hiltViewModel()
@@ -201,6 +203,7 @@ fun HomeScreen(
         zemerPlaylistsViewModel.refresh()
         zemerGenresViewModel.refresh()
         podcastGenresHomeViewModel.refresh()
+        podcastHomeRowsViewModel.refresh()
         zemerStatusesViewModel.refresh()
     }
     val stationsLifecycleOwner = LocalLifecycleOwner.current
@@ -454,6 +457,7 @@ fun HomeScreen(
                     zemerStationsViewModel.refresh()
                     zemerGenresViewModel.refresh()
                     podcastGenresHomeViewModel.refresh()
+                    podcastHomeRowsViewModel.refresh()
                     zemerStatusesViewModel.refresh(force = true) // pull-to-refresh always re-fetches
                 }
             ),
@@ -1115,17 +1119,19 @@ fun HomeScreen(
                     }
                 }
 
-                // Podcasts row: the whitelisted podcasts, opening the full browse via "See all". Own
-                // isolated fail-soft VM (empty list -> hidden), like the Stations/Genres rows.
-                homePodcasts.takeIf { it.isNotEmpty() }?.let { podcasts ->
-                    item(key = "podcasts_title", contentType = "header") {
+                // Top Podcasts: the telemetry-ranked shows row (Music-tab parity with Featured Artists),
+                // See all -> the full ranked list of THESE shows (home_see_all, NOT the channel whitelist
+                // browse). Own isolated fail-soft VM (empty -> hidden). The server applies its own fallback
+                // fill while podcast telemetry is thin, so this is never empty when reachable.
+                topPodcasts.takeIf { it.isNotEmpty() }?.let { podcasts ->
+                    item(key = "top_podcasts_title", contentType = "header") {
                         NavigationTitle(
-                            title = stringResource(R.string.podcasts),
-                            onClick = { navController.navigate(Screens.Podcasts.route) },
+                            title = stringResource(R.string.top_podcasts),
+                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.TOP_PODCASTS.slug}") },
                             modifier = Modifier.animateItem()
                         )
                     }
-                    item(key = "podcasts_row", contentType = "grid") {
+                    item(key = "top_podcasts_list", contentType = "grid") {
                         LazyRow(
                             contentPadding = WindowInsets.systemBars
                                 .only(WindowInsetsSides.Horizontal)
@@ -1134,17 +1140,108 @@ fun HomeScreen(
                         ) {
                             items(
                                 items = podcasts,
-                                key = { it.channelId },
+                                key = { "top_podcast_${it.id}" },
                                 contentType = { "podcast" }
                             ) { podcast ->
-                                WhitelistedPodcastGridItem(
-                                    navController = navController,
-                                    menuState = menuState,
-                                    podcast = podcast,
-                                    fillMaxWidth = false,
+                                YouTubeGridItem(
+                                    item = podcast,
+                                    isActive = false,
+                                    isPlaying = isPlaying,
+                                    coroutineScope = scope,
+                                    thumbnailRatio = 1f,
                                     modifier = Modifier
-                                        .width(GridThumbnailHeight + 24.dp)
-                                        .animateItem(),
+                                        // Channel-first routing, exactly like every other show row
+                                        // (search/genre): opens the host channel when known, else the show.
+                                        .clickable {
+                                            whitelistedPodcastRoute(podcast.id, podcast.channelId)
+                                                ?.let { navController.navigate(it) }
+                                        }
+                                        .animateItem()
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Trending Episodes: the ranked episodes row (Music-tab parity with Featured Videos). A
+                // tap plays the episode by its videoId through the existing pipeline. Same fail-soft VM.
+                trendingEpisodes.takeIf { it.isNotEmpty() }?.let { episodes ->
+                    item(key = "trending_episodes_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.trending_episodes),
+                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.TRENDING_EPISODES.slug}") },
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+                    item(key = "trending_episodes_list", contentType = "grid") {
+                        LazyRow(
+                            contentPadding = WindowInsets.systemBars
+                                .only(WindowInsetsSides.Horizontal)
+                                .asPaddingValues(),
+                            modifier = Modifier.animateItem()
+                        ) {
+                            items(
+                                items = episodes,
+                                key = { it.id },
+                                contentType = { "episode" }
+                            ) { episode ->
+                                YouTubeGridItem(
+                                    item = episode,
+                                    isActive = mediaMetadata?.id == episode.id,
+                                    isPlaying = isPlaying,
+                                    coroutineScope = scope,
+                                    thumbnailRatio = 1f,
+                                    modifier = Modifier
+                                        .clickable {
+                                            playerConnection.playQueue(
+                                                ListQueue(
+                                                    title = episode.title,
+                                                    items = listOf(episode.toMediaItem()),
+                                                    playSource = PlaySource.podcast(episode.podcast?.id ?: episode.id),
+                                                )
+                                            )
+                                        }
+                                        .animateItem()
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // New Shows: recently-arrived shows (server `firstSeenAt`), the third featured row for
+                // fuller Music parity. Same show cards + channel-first routing as Top Podcasts.
+                newPodcastShows.takeIf { it.isNotEmpty() }?.let { shows ->
+                    item(key = "new_shows_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.new_shows),
+                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.NEW_SHOWS.slug}") },
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+                    item(key = "new_shows_list", contentType = "grid") {
+                        LazyRow(
+                            contentPadding = WindowInsets.systemBars
+                                .only(WindowInsetsSides.Horizontal)
+                                .asPaddingValues(),
+                            modifier = Modifier.animateItem()
+                        ) {
+                            items(
+                                items = shows,
+                                key = { "new_show_${it.id}" },
+                                contentType = { "podcast" }
+                            ) { podcast ->
+                                YouTubeGridItem(
+                                    item = podcast,
+                                    isActive = false,
+                                    isPlaying = isPlaying,
+                                    coroutineScope = scope,
+                                    thumbnailRatio = 1f,
+                                    modifier = Modifier
+                                        .clickable {
+                                            whitelistedPodcastRoute(podcast.id, podcast.channelId)
+                                                ?.let { navController.navigate(it) }
+                                        }
+                                        .animateItem()
                                 )
                             }
                         }
