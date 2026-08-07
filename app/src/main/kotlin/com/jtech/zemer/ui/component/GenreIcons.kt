@@ -60,11 +60,11 @@ internal fun genreIcon(slug: String): Int = when (slug) {
 @DrawableRes
 internal fun podcastGenreIcon(slug: String): Int = when (slug) {
     "gemara" -> R.drawable.genre_menu_book
-    "parsha" -> R.drawable.genre_alef
-    "chassidus" -> R.drawable.genre_menorah
+    "parsha" -> R.drawable.genre_parsha
+    "chassidus" -> R.drawable.genre_chassidus
     "mussar" -> R.drawable.genre_self_improvement
     "halacha" -> R.drawable.security
-    "machshava" -> R.drawable.explore_outlined
+    "machshava" -> R.drawable.genre_machshava
     "tefilla" -> R.drawable.genre_wb_sunny
     "stories" -> R.drawable.genre_theater_comedy
     "history" -> R.drawable.history
@@ -76,7 +76,7 @@ internal fun podcastGenreIcon(slug: String): Int = when (slug) {
     "people" -> R.drawable.person
     "music" -> R.drawable.genre_music_note
     "chizuk" -> R.drawable.genre_local_fire_department
-    "shiur" -> R.drawable.genre_mic
+    "shiur", "shiurim" -> R.drawable.genre_shiurim
     "moadim" -> R.drawable.genre_celebration
     "women" -> R.drawable.account
     else -> R.drawable.genre_music_note

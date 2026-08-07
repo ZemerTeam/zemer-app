@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `362`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `366`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -107,6 +107,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/genre_alef.xml` | 12 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_campaign.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_celebration.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_chassidus.xml` | 16 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_chazzan.xml` | 109 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_dark_mode.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_diamond.xml` | 10 lines | text `.xml`; XML root `vector` |
@@ -116,14 +117,17 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/genre_heart_broken.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_landscape.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_local_fire_department.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_machshava.xml` | 16 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_menorah.xml` | 12 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_menu_book.xml` | 11 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_mic.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_music_note.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_nightlife.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_park.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_parsha.xml` | 16 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_piano.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_self_improvement.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_shiurim.xml` | 16 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_star.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_sukkah.xml` | 12 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_theater_comedy.xml` | 10 lines | text `.xml`; XML root `vector` |
