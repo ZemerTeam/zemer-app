@@ -270,12 +270,13 @@ interface DatabaseDao {
                 WHERE songId = song.id
                   AND timestamp > :fromTimeStamp AND timestamp <= :toTimeStamp) AS timeListened
         FROM song
-        JOIN (SELECT songId
-                     FROM event
-                     WHERE timestamp > :fromTimeStamp
-                     AND timestamp <= :toTimeStamp
-                     GROUP BY songId
-                     ORDER BY SUM(playTime) DESC
+        JOIN (SELECT event.songId AS songId
+                     FROM event JOIN song s ON s.id = event.songId
+                     WHERE event.timestamp > :fromTimeStamp
+                     AND event.timestamp <= :toTimeStamp
+                     AND s.isEpisode = 0
+                     GROUP BY event.songId
+                     ORDER BY SUM(event.playTime) DESC
                      LIMIT :limit)
         ON song.id = songId
         WHERE song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist))
@@ -304,12 +305,13 @@ interface DatabaseDao {
                 WHERE songId = song.id
                   AND timestamp > :fromTimeStamp AND timestamp <= :toTimeStamp) AS timeListened
         FROM song
-        JOIN (SELECT songId
-                     FROM event
-                     WHERE timestamp > :fromTimeStamp
-                     AND timestamp <= :toTimeStamp
-                     GROUP BY songId
-                     ORDER BY SUM(playTime) DESC
+        JOIN (SELECT event.songId AS songId
+                     FROM event JOIN song s ON s.id = event.songId
+                     WHERE event.timestamp > :fromTimeStamp
+                     AND event.timestamp <= :toTimeStamp
+                     AND s.isEpisode = 0
+                     GROUP BY event.songId
+                     ORDER BY SUM(event.playTime) DESC
                      LIMIT :limit)
         ON song.id = songId
         LIMIT :limit

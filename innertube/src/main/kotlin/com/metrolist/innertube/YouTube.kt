@@ -915,13 +915,15 @@ object YouTube {
     }
 
     suspend fun subscribeChannel(channelId: String, subscribe: Boolean, params: String? = null) = runCatching {
-        // Default params from the YouTube Music API - REQUIRED for the subscribe to actually take;
-        // without it the endpoint returns 200 but the subscription never happens (Metrolist parity).
-        val subscribeParams = params ?: "EgIIAhgA"
         if (subscribe)
-            innerTube.subscribeChannel(WEB_REMIX, channelId, subscribeParams)
+            // Default params from the YouTube Music API - REQUIRED for the subscribe to actually take;
+            // without it the endpoint returns 200 but the subscription never happens (Metrolist parity).
+            innerTube.subscribeChannel(WEB_REMIX, channelId, params ?: "EgIIAhgA")
         else
-            innerTube.unsubscribeChannel(WEB_REMIX, channelId, subscribeParams)
+            // Unsubscribe uses its own params (none for the music callers); never forward the
+            // subscribe-intent default here, or an un-bookmark posts a subscribe intent and the
+            // account stays subscribed (the local bookmark and the account would disagree).
+            innerTube.unsubscribeChannel(WEB_REMIX, channelId, params)
     }
 
     suspend fun getChannelId(browseId: String): String {

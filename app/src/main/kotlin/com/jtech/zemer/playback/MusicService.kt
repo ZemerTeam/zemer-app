@@ -229,6 +229,12 @@ class MusicService :
     // scoped like the cast control plane so its cast/block auto-revert works even with no UI bound.
     val videoModeController by lazy { VideoModeController(this, scope) }
 
+    // Podcast-episode resume (persist position + seek back on the next open). Extracted from this service
+    // so the resume policy lives in one place; no-ops for songs and while casting.
+    private val episodePositionTracker by lazy {
+        EpisodePositionTracker(player, scope, database) { discoveryHandler.isConnected }
+    }
+
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
     private var lastAudioFocusState = AudioManager.AUDIOFOCUS_NONE
@@ -899,70 +905,10 @@ class MusicService :
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         if (isPlaying) {
             startWidgetTicker()
-            startEpisodePositionSaver()
         } else {
             updateWidget()
-            saveEpisodePositionIfNeeded()
-            episodePositionSaverJob?.cancel()
         }
-    }
-
-    // Episode resume edges + decision live in the pure, unit-tested [EpisodeResume].
-    private var episodePositionSaverJob: Job? = null
-    // The episode currently being tracked and its most recent known position. A track-to-track
-    // SWITCH fires no pause, so the periodic/pause saves never capture the outgoing episode's final
-    // position - onMediaItemTransition flushes this remembered value before moving on (Metrolist's
-    // approach: "always save" the episode you are leaving).
-    private var previousEpisodeId: String? = null
-    private var previousEpisodePosition = 0L
-
-    /**
-     * Persist the current EPISODE's resume position while it plays (podcast episodes only, local
-     * playback only - the cast receiver owns its own position). Songs never write this, so their
-     * behaviour is unchanged. Runs on Main because it reads the player.
-     */
-    private fun startEpisodePositionSaver() {
-        if (episodePositionSaverJob?.isActive == true) return
-        // Episodes only - never wake every 15s on the common music path (the loop would just no-op).
-        if (player.currentMediaItem?.metadata?.isEpisode != true) return
-        episodePositionSaverJob = scope.launch(Dispatchers.Main) {
-            while (isActive && player.isPlaying) {
-                saveEpisodePositionIfNeeded()
-                delay(15.seconds)
-            }
-        }
-    }
-
-    /** Save the CURRENT item's position if it is an episode. Reads the player on the caller's
-     *  (main) thread, remembers it for the on-switch flush, then persists off-thread. */
-    private fun saveEpisodePositionIfNeeded() {
-        if (discoveryHandler.isConnected) return
-        val item = player.currentMediaItem ?: return
-        val meta = item.metadata ?: return
-        if (!meta.isEpisode) return
-        val id = item.mediaId
-        val positionMs = player.currentPosition
-        previousEpisodeId = id
-        previousEpisodePosition = positionMs
-        persistEpisodePosition(id, positionMs, meta)
-    }
-
-    /**
-     * Write an episode's resume position. Skips the "at the beginning" edge. The `song` row is
-     * normally created by recoverSong at stream-resolve time, but that runs async and may not have
-     * landed for the first save(s); if the UPDATE hits no row and we have the metadata, seed the row
-     * so the position is never silently dropped. The position value is captured by the CALLER on the
-     * player's thread - never read the player from inside database.query {} (background executor -
-     * "Player is accessed on the wrong thread").
-     */
-    private fun persistEpisodePosition(episodeId: String, positionMs: Long, meta: MediaMetadata? = null) {
-        if (!EpisodeResume.shouldSave(positionMs)) return
-        database.query {
-            val rows = updateEpisodePosition(episodeId, positionMs)
-            if (rows == 0 && meta != null) {
-                insert(meta.toSongEntity().copy(lastPositionMs = positionMs))
-            }
-        }
+        episodePositionTracker.onIsPlayingChanged(isPlaying)
     }
 
     private fun updateNotification() {
@@ -1573,46 +1519,14 @@ class MusicService :
         // receiver is loaded exactly once per transition.
         castController.onMediaItemTransition(mediaItem, reason)
 
-        // ALWAYS SAVE the episode we are LEAVING. A track-to-track switch fires no pause, so this
-        // flush of the last-known position is the only chance to persist the outgoing episode.
-        previousEpisodeId?.let { outgoing ->
-            persistEpisodePosition(outgoing, previousEpisodePosition)
-        }
-        previousEpisodeId = null
-        previousEpisodePosition = 0L
-
         // Episode playback speed must never leak into music: reset to 1x whenever a non-episode starts.
         if (mediaItem?.metadata?.isEpisode != true && player.playbackParameters.speed != 1f) {
             player.setPlaybackSpeed(1f)
         }
 
-        // Podcast episodes resume where the user left off (local playback only). Read the saved
-        // position off the main thread, then seek once - guarded so a user seek or a fast next-tap
-        // isn't overridden (only seek if still on this item and still near the start).
-        if (!discoveryHandler.isConnected && mediaItem?.metadata?.isEpisode == true) {
-            val id = mediaItem.mediaId
-            previousEpisodeId = id // start tracking the incoming episode
-            // Kick the position saver here too: a song -> episode switch keeps isPlaying true, so
-            // onIsPlayingChanged never fires to start it (the saver is episode-gated + idempotent).
-            startEpisodePositionSaver()
-            // Known episode length (seconds -> ms), if the metadata carries it, for the completion check.
-            val durationMs = mediaItem.metadata?.duration?.takeIf { it > 0 }?.times(1000L)
-            scope.launch {
-                delay(100) // let playback start before seeking (Metrolist)
-                val saved = database.episodePosition(id) ?: 0L
-                if (EpisodeResume.shouldResume(saved, durationMs)) {
-                    withContext(Dispatchers.Main) {
-                        // Only seek if still on this item and still near the start (a user seek or a
-                        // fast next-tap must not be overridden).
-                        if (player.currentMediaItem?.mediaId == id &&
-                            player.currentPosition < EpisodeResume.RESUME_EDGE_MS
-                        ) {
-                            player.seekTo(saved)
-                        }
-                    }
-                }
-            }
-        }
+        // Episode resume: flush the outgoing episode's position and, for an incoming episode, seek back
+        // to where the user left off (local playback only). All the resume policy lives in the tracker.
+        episodePositionTracker.onTransition(mediaItem)
 
         // Station boundary sync (handoff par. 4): the ONLY place broadcast drift is corrected -
         // bidirectional (seek forward when behind, wait when ahead, re-tune when nothing queued is
@@ -2497,14 +2411,8 @@ class MusicService :
 
     override fun onDestroy() {
         // ALWAYS SAVE: flush the current episode's position before the player is released, so a
-        // swipe-kill still resumes next time. Capture on this (main) thread, then block briefly on
-        // the write since the player is about to go away.
-        player.currentMediaItem?.metadata?.takeIf { it.isEpisode && !discoveryHandler.isConnected }?.let { meta ->
-            val positionMs = player.currentPosition
-            if (EpisodeResume.shouldSave(positionMs)) {
-                runBlocking(Dispatchers.IO) { database.updateEpisodePosition(meta.id, positionMs) }
-            }
-        }
+        // swipe-kill still resumes next time.
+        episodePositionTracker.onDestroyFlush()
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
         }

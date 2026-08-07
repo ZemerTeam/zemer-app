@@ -48,28 +48,29 @@ class PodcastSyncLogicTest {
         assertTrue(PodcastSyncLogic.localOnly(local, setOf("a", "b", "z"), id = { it }).isEmpty())
     }
 
-    // --- episodePassesPodcastWhitelist: podcast whitelist, never the artist whitelist ---
+    // --- episodePassesPodcastWhitelist: channel-keyed podcast whitelist, never the artist whitelist.
+    // The caller resolves show ids (MPSP) to their host channel BEFORE calling, so this receives the
+    // item's effective host-channel ids. ---
 
     @Test
     fun `episode passes when filters are off regardless of ids`() {
         assertTrue(
             PodcastSyncLogic.episodePassesPodcastWhitelist(
-                artistIds = listOf(null, "UCnope"),
+                channelIds = listOf(null, "UCnope"),
                 filtersEnabled = false,
-                isAllowedPodcastId = { false },
-                isAllowedChannelId = { false },
+                isWhitelistedChannel = { false },
             )
         )
     }
 
     @Test
-    fun `episode passes when a show id (MPSP) is whitelisted`() {
+    fun `episode passes when a show resolved to its whitelisted host channel`() {
+        // The caller resolved MPSPshow -> UChost and passes the host channel in.
         assertTrue(
             PodcastSyncLogic.episodePassesPodcastWhitelist(
-                artistIds = listOf("MPSPshow", "UCother"),
+                channelIds = listOf("UChost", "UCother"),
                 filtersEnabled = true,
-                isAllowedPodcastId = { it == "MPSPshow" },
-                isAllowedChannelId = { false },
+                isWhitelistedChannel = { it == "UChost" },
             )
         )
     }
@@ -78,34 +79,32 @@ class PodcastSyncLogicTest {
     fun `episode passes when a host channel id (UC) is whitelisted`() {
         assertTrue(
             PodcastSyncLogic.episodePassesPodcastWhitelist(
-                artistIds = listOf("UChost"),
+                channelIds = listOf("UChost"),
                 filtersEnabled = true,
-                isAllowedPodcastId = { false },
-                isAllowedChannelId = { it == "UChost" },
+                isWhitelistedChannel = { it == "UChost" },
             )
         )
     }
 
     @Test
-    fun `episode is dropped when no id is podcast-whitelisted and filters on`() {
+    fun `episode is dropped when no channel is whitelisted and filters on`() {
+        // An unresolved show id (MPSPnope, no local row) never matches the channel-keyed whitelist.
         assertFalse(
             PodcastSyncLogic.episodePassesPodcastWhitelist(
-                artistIds = listOf(null, "UCnope", "MPSPnope"),
+                channelIds = listOf(null, "UCnope", "MPSPnope"),
                 filtersEnabled = true,
-                isAllowedPodcastId = { false },
-                isAllowedChannelId = { false },
+                isWhitelistedChannel = { false },
             )
         )
     }
 
     @Test
-    fun `episode with no artist ids is dropped when filters on`() {
+    fun `episode with no channel ids is dropped when filters on`() {
         assertFalse(
             PodcastSyncLogic.episodePassesPodcastWhitelist(
-                artistIds = emptyList(),
+                channelIds = emptyList(),
                 filtersEnabled = true,
-                isAllowedPodcastId = { true },
-                isAllowedChannelId = { true },
+                isWhitelistedChannel = { true },
             )
         )
     }

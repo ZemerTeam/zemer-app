@@ -11,7 +11,6 @@ import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
-import com.jtech.zemer.utils.PodcastWhitelistCache
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.EpisodeItem
@@ -65,10 +64,6 @@ class OnlinePodcastViewModel @Inject constructor(
     // Server paging cursor (`nextOffset`): the offset of the NEXT episode page, or null at the end.
     private var nextOffset: Int? = null
     private var isLoadingMore = false
-
-    // Check if podcast is in our whitelist
-    val isWhitelisted: Boolean
-        get() = PodcastWhitelistCache.isAllowed(podcastId)
 
     init {
         Timber.d("OnlinePodcastViewModel init with podcastId: $podcastId")

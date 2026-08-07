@@ -184,12 +184,7 @@ suspend fun List<YTItem>.filterWhitelisted(
                 // drop every one.
                 if (item.isEpisode) {
                     ArtistFilterDecision(
-                        allowed = com.jtech.zemer.sync.PodcastSyncLogic.episodePassesPodcastWhitelist(
-                            artistIds = item.artists.map { it.id },
-                            filtersEnabled = config.filtersEnabled,
-                            isAllowedPodcastId = { PodcastWhitelistCache.isAllowed(it) },
-                            isAllowedChannelId = { PodcastWhitelistCache.isAllowedByChannelId(it) },
-                        ),
+                        allowed = database.podcastPasses(item.artists.map { it.id }, config),
                         isChasidish = false,
                     )
                 } else item.isWhitelisted(
@@ -222,17 +217,16 @@ suspend fun List<YTItem>.filterWhitelisted(
             // not the music artist whitelist. Enforce it HERE too so this chokepoint stays the single
             // content gate for any mixed list routed through it (filters-off passes everything).
             is com.metrolist.innertube.models.PodcastItem ->
+                // item.id is the SHOW (MPSP…); item.channelId is the host channel (UC…). Both resolve
+                // to an effective host channel and are checked against the channel-keyed whitelist.
                 ArtistFilterDecision(
-                    allowed = !config.filtersEnabled ||
-                        PodcastWhitelistCache.isAllowed(item.id) ||
-                        (item.channelId?.let { PodcastWhitelistCache.isAllowedByChannelId(it) } == true),
+                    allowed = database.podcastPasses(listOf(item.id, item.channelId), config),
                     isChasidish = false,
                 )
             is com.metrolist.innertube.models.EpisodeItem ->
+                // item.podcast?.id is the SHOW (MPSP…); item.author?.id is the host channel (UC…).
                 ArtistFilterDecision(
-                    allowed = !config.filtersEnabled ||
-                        (item.podcast?.id?.let { PodcastWhitelistCache.isAllowed(it) } == true) ||
-                        (item.author?.id?.let { PodcastWhitelistCache.isAllowedByChannelId(it) } == true),
+                    allowed = database.podcastPasses(listOf(item.podcast?.id, item.author?.id), config),
                     isChasidish = false,
                 )
         }
@@ -288,6 +282,29 @@ suspend fun List<SongItem>.filterWhitelistedWithLocalArtists(
     val remoteIds = song.artists.mapNotNull { it.id }
     val localIds = database.song(song.id).firstOrNull()?.artists?.map { it.id } ?: emptyList()
     shouldKeepPlaylistSong(remoteIds, localIds, allowedArtistIds)
+}
+
+/**
+ * Whether a podcast/episode passes the SEPARATE (channel-keyed) podcast whitelist. [ids] are the item's
+ * raw artist ids — a mix of host-channel ids (`UC…`) and show ids (`MPSP…`). The whitelist only knows
+ * channels, so each id is expanded to its EFFECTIVE host channel(s): the id itself (matches iff it is a
+ * whitelisted channel) plus, for a show id, the host channel from the local `podcast` row (a
+ * subscribed/opened show carries `channelId`). An unknown show resolves to no channel and is therefore
+ * dropped when filters are on (kosher-safe). Filters-off passes everything, like the music path.
+ */
+private suspend fun MusicDatabase.podcastPasses(
+    ids: List<String?>,
+    config: ContentFilterConfig,
+): Boolean {
+    if (!config.filtersEnabled) return true
+    val effectiveChannelIds = ids.filterNotNull().flatMap { id ->
+        listOfNotNull(id, podcast(id).firstOrNull()?.channelId)
+    }
+    return com.jtech.zemer.sync.PodcastSyncLogic.episodePassesPodcastWhitelist(
+        channelIds = effectiveChannelIds,
+        filtersEnabled = true,
+        isWhitelistedChannel = { PodcastWhitelistCache.isChannelWhitelisted(it) },
+    )
 }
 
 private suspend fun MusicDatabase.artistMatchesFilters(

@@ -57,5 +57,15 @@ object PodcastLibrarySources {
      * membership is enforced. Pure + unit-tested ([PodcastLibrarySourcesTest]).
      */
     internal fun subscribedPodcastAllowed(channelId: String?): Boolean =
-        channelId == null || PodcastWhitelistCache.isAllowedByChannelId(channelId)
+        channelId == null || PodcastWhitelistCache.isChannelWhitelisted(channelId)
+
+    /**
+     * Whether a podcast HOST CHANNEL (`UC…`) passes the channel-level whitelist. Unlike a subscribed
+     * SHOW ([subscribedPodcastAllowed]), a channel is identified by a real channel id, so there is no
+     * null-channel escape hatch: a channel that is not whitelisted is not shown. Fail-closed (an
+     * un-synced/empty whitelist hides everything) — correct for a content gate that must never leak a
+     * non-approved channel's identity into the Kosher library.
+     */
+    internal fun podcastChannelAllowed(channelId: String): Boolean =
+        PodcastWhitelistCache.isChannelWhitelisted(channelId)
 }

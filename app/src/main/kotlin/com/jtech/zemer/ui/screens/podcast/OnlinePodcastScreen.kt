@@ -40,10 +40,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +60,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
+import com.jtech.zemer.ui.screens.shouldPrefetchNearEnd
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.size.Scale
@@ -118,6 +123,23 @@ fun OnlinePodcastScreen(
         derivedStateOf {
             lazyListState.firstVisibleItemIndex > 0
         }
+    }
+
+    // Near-edge prefetch: append the next episode page while ~a screenful of rows remains, so the
+    // server's paging cursor is actually consumed and episodes past the first page become reachable.
+    // Keyed on episodes.size so the flow RESTARTS after each landed page (immediately chaining the next
+    // if still near the now-longer end); loadMoreEpisodes() is idempotent (in-flight guard + a no-op
+    // once the server reports no more), so the one extra call after the final page is harmless.
+    LaunchedEffect(lazyListState, episodes.size) {
+        snapshotFlow {
+            shouldPrefetchNearEnd(
+                lastVisibleIndex = lazyListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index,
+                totalItemsCount = lazyListState.layoutInfo.totalItemsCount,
+            )
+        }
+            .distinctUntilChanged()
+            .filter { it }
+            .collect { viewModel.loadMoreEpisodes() }
     }
 
     Box(

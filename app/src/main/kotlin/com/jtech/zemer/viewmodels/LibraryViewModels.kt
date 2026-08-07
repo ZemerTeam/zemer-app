@@ -525,7 +525,12 @@ constructor(
                     PodcastChannel(id = it, name = p.author ?: p.title, thumbnailUrl = p.thumbnailUrl)
                 }
             }
-            (api + bookmarkedChannels + localChannels).distinctBy { it.id }
+            // Channel-whitelist gate (single chokepoint): the API source is the user's RAW YouTube-Music
+            // podcast follows, which include non-whitelisted (non-kosher) host channels. Gate the whole
+            // merged list so a non-approved channel's identity can never leak into the Channels tab.
+            (api + bookmarkedChannels + localChannels)
+                .filter { PodcastLibrarySources.podcastChannelAllowed(it.id) }
+                .distinctBy { it.id }
         }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {

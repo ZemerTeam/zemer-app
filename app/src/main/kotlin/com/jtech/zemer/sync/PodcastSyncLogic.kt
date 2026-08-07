@@ -44,21 +44,19 @@ object PodcastSyncLogic {
         local.filterNot { id(it) in remoteIds }
 
     /**
-     * Whether an episode returned as a `SongItem(isEpisode = true)` passes the SEPARATE podcast
-     * whitelist (never the music artist whitelist). Filters-off passes everything, exactly like the
-     * music path. An episode's artist ids are either the show id (MPSP...) or the host channel id
-     * (UC...), so both predicates are tried against every artist id.
+     * Whether a podcast/episode passes the SEPARATE podcast whitelist (never the music artist
+     * whitelist). Filters-off passes everything, exactly like the music path. The whitelist is
+     * CHANNEL-keyed (`UC…`), so [channelIds] must already be the item's EFFECTIVE host-channel ids: a
+     * raw channel id is itself, and a SHOW id (`MPSP…`) must be resolved to its host channel by the
+     * caller (via the local `podcast` row) BEFORE it lands here — an unresolved show id will never
+     * match and is correctly dropped with filters on (kosher-safe).
      */
     inline fun episodePassesPodcastWhitelist(
-        artistIds: List<String?>,
+        channelIds: List<String?>,
         filtersEnabled: Boolean,
-        isAllowedPodcastId: (String) -> Boolean,
-        isAllowedChannelId: (String) -> Boolean,
+        isWhitelistedChannel: (String) -> Boolean,
     ): Boolean {
         if (!filtersEnabled) return true
-        return artistIds.any { raw ->
-            val id = raw ?: return@any false
-            isAllowedPodcastId(id) || isAllowedChannelId(id)
-        }
+        return channelIds.any { id -> id != null && isWhitelistedChannel(id) }
     }
 }

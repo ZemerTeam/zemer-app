@@ -373,12 +373,16 @@ fun ArtistScreen(
                                                             // Key by the NAV artistId (what the state watches) so the
                                                             // button reflects the toggle - for a podcast channel the
                                                             // page's artist.id can differ from the channel id we opened
-                                                            // with. channelId falls back to artistId so the server
-                                                            // subscribe (subscribeChannel) has an id to hit.
+                                                            // with. For a podcast channel the nav artistId IS the UC
+                                                            // host channel, so it is a valid subscribe target; a MUSIC
+                                                            // artist keeps a null channelId (its browseId is not a
+                                                            // subscribable channel) so toggleLike() resolves the real
+                                                            // channel via getChannelId() before subscribing.
                                                             ArtistEntity(
                                                                 id = viewModel.artistId,
                                                                 name = it.title,
-                                                                channelId = it.channelId ?: viewModel.artistId,
+                                                                channelId = it.channelId
+                                                                    ?: viewModel.artistId.takeIf { viewModel.isPodcastChannel },
                                                                 thumbnailUrl = it.thumbnail,
                                                                 isPodcastChannel = viewModel.isPodcastChannel,
                                                             ).toggleLike()

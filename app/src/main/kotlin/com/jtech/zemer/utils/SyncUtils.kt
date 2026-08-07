@@ -32,6 +32,8 @@ import com.metrolist.innertube.utils.completed
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -102,9 +104,14 @@ class SyncUtils @Inject constructor(
             // Whitelisted remote ids across BOTH surfaces - drives the cleanup, no second fetch.
             val remoteIds = mutableSetOf<String>()
 
-            // Saved podcast shows (saved via likePlaylist) + subscribed podcast channels.
-            val savedShows = YouTube.savedPodcastShows().getOrNull().orEmpty()
-            val channelPage = YouTube.libraryPodcastChannels().getOrNull()
+            // Saved podcast shows (saved via likePlaylist) + subscribed podcast channels. The two
+            // fetches are independent (merged below), so run them concurrently - the sync then costs
+            // the slower round-trip, not the sum of both.
+            val (savedShows, channelPage) = coroutineScope {
+                val savedShowsAsync = async { YouTube.savedPodcastShows().getOrNull().orEmpty() }
+                val channelPageAsync = async { YouTube.libraryPodcastChannels().getOrNull() }
+                savedShowsAsync.await() to channelPageAsync.await()
+            }
             val remotePodcasts = (savedShows + (channelPage?.items?.filterIsInstance<PodcastItem>().orEmpty()))
                 .filterWhitelisted(database)
                 .filterIsInstance<PodcastItem>()
