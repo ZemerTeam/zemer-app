@@ -32,6 +32,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -185,7 +187,8 @@ fun LibraryPodcastsScreen(
                         item(key = "rdpn", contentType = CONTENT_TYPE_HEADER) {
                             AutoPlaylistCard(
                                 title = stringResource(R.string.new_episodes),
-                                thumbnailUrl = newEpisodes.firstOrNull()?.thumbnail,
+                                thumbnailUrl = null,
+                                gradientCover = true,
                                 subtitleCount = pluralStringResource(R.plurals.n_episode, newEpisodes.size, newEpisodes.size),
                                 onClick = { navController.navigate("online_playlist/RDPN") },
                             )
@@ -478,12 +481,34 @@ private fun AutoPlaylistCard(
     subtitleCount: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // A generated Zemer-brand gradient cover with a podcast glyph (the YouTube-Music "New Episodes"
+    // look), instead of the first episode's thumbnail — theme-aware (seeded from the chosen accent).
+    gradientCover: Boolean = false,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier.fillMaxWidth().focusBorder().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
-        PodcastRowThumbnail(thumbnailUrl)
+        if (gradientCover) {
+            Box(
+                modifier = Modifier.size(56.dp).clip(RoundedCornerShape(ThumbnailCornerRadius))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary),
+                        ),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.podcast),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(30.dp),
+                )
+            }
+        } else {
+            PodcastRowThumbnail(thumbnailUrl)
+        }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(text = title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)

@@ -125,6 +125,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.jtech.zemer.viewmodels.STATION_ROW_REFRESH_MS
 import com.jtech.zemer.viewmodels.ZemerGenresViewModel
 import com.jtech.zemer.viewmodels.PodcastHomeRowsViewModel
+import com.jtech.zemer.viewmodels.PodcastSubscriptionsHomeViewModel
 import com.jtech.zemer.viewmodels.ZemerStatusesViewModel
 import com.jtech.zemer.viewmodels.ZemerStationsViewModel
 import com.metrolist.innertube.models.AlbumItem
@@ -189,6 +190,11 @@ fun HomeScreen(
     val topPodcasts by podcastHomeRowsViewModel.topPodcasts.collectAsState()
     val trendingEpisodes by podcastHomeRowsViewModel.trendingEpisodes.collectAsState()
     val newPodcastShows by podcastHomeRowsViewModel.newShows.collectAsState()
+    // Subscription-driven podcast rows (New Episodes + Subscribed Channels) — LOCAL sources, so identical
+    // for anon + Google login. Own isolated fail-soft VM; each row hides when empty.
+    val podcastSubscriptionsViewModel: PodcastSubscriptionsHomeViewModel = hiltViewModel()
+    val homeNewEpisodes by podcastSubscriptionsViewModel.newEpisodes.collectAsState()
+    val homeSubscribedChannels by podcastSubscriptionsViewModel.subscribedChannels.collectAsState()
     // The Home "Podcast Genres" chips strip, above the Podcasts row. Isolated + fail-soft like the
     // music genres strip: an outage leaves the list empty and the strip hides.
     val podcastGenresHomeViewModel: com.jtech.zemer.viewmodels.PodcastGenresHomeViewModel = hiltViewModel()
@@ -209,6 +215,7 @@ fun HomeScreen(
         zemerGenresViewModel.refresh()
         podcastGenresHomeViewModel.refresh()
         podcastHomeRowsViewModel.refresh()
+        podcastSubscriptionsViewModel.fetchNewEpisodes()
         zemerStatusesViewModel.refresh()
     }
     val stationsLifecycleOwner = LocalLifecycleOwner.current
@@ -463,6 +470,7 @@ fun HomeScreen(
                     zemerGenresViewModel.refresh()
                     podcastGenresHomeViewModel.refresh()
                     podcastHomeRowsViewModel.refresh()
+                    podcastSubscriptionsViewModel.fetchNewEpisodes()
                     zemerStatusesViewModel.refresh(force = true) // pull-to-refresh always re-fetches
                 }
             ),
@@ -1130,6 +1138,93 @@ fun HomeScreen(
                             },
                             modifier = Modifier.animateItem(),
                         )
+                    }
+                }
+
+                // New Episodes: the newest episodes from the shows you're subscribed to (LOCAL-scoped, so
+                // it works for anon + Google). Shown only when subscribed & non-empty; a tap plays it.
+                homeNewEpisodes.takeIf { it.isNotEmpty() }?.let { episodes ->
+                    item(key = "home_new_episodes_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.new_episodes),
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+                    item(key = "home_new_episodes_list", contentType = "grid") {
+                        LazyRow(
+                            contentPadding = WindowInsets.systemBars
+                                .only(WindowInsetsSides.Horizontal)
+                                .asPaddingValues(),
+                            modifier = Modifier.animateItem()
+                        ) {
+                            items(
+                                items = episodes,
+                                key = { "home_new_ep_${it.id}" },
+                                contentType = { "episode" }
+                            ) { episode ->
+                                YouTubeGridItem(
+                                    item = episode,
+                                    isActive = mediaMetadata?.id == episode.id,
+                                    isPlaying = isPlaying,
+                                    coroutineScope = scope,
+                                    thumbnailRatio = 1f,
+                                    modifier = Modifier
+                                        .clickable {
+                                            playerConnection.playQueue(
+                                                ListQueue(
+                                                    title = episode.title,
+                                                    items = listOf(episode.toMediaItem()),
+                                                    playSource = PlaySource.podcast(episode.album?.id ?: episode.id),
+                                                )
+                                            )
+                                        }
+                                        .animateItem()
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Subscribed Channels: the user's own podcast-channel subscriptions (local bookmarks +
+                // channels of subscribed shows, whitelist-gated) — anon + Google alike. Tap opens the
+                // channel page. Rendered as ArtistItem cards (circular avatar + name).
+                homeSubscribedChannels.takeIf { it.isNotEmpty() }?.let { channels ->
+                    item(key = "home_sub_channels_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.subscribed_channels),
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+                    item(key = "home_sub_channels_list", contentType = "grid") {
+                        LazyRow(
+                            contentPadding = WindowInsets.systemBars
+                                .only(WindowInsetsSides.Horizontal)
+                                .asPaddingValues(),
+                            modifier = Modifier.animateItem()
+                        ) {
+                            items(
+                                items = channels,
+                                key = { "home_channel_${it.id}" },
+                                contentType = { "channel" }
+                            ) { channel ->
+                                YouTubeGridItem(
+                                    item = ArtistItem(
+                                        id = channel.id,
+                                        title = channel.name,
+                                        thumbnail = channel.thumbnailUrl,
+                                        shuffleEndpoint = null,
+                                        radioEndpoint = null,
+                                    ),
+                                    isActive = false,
+                                    isPlaying = isPlaying,
+                                    coroutineScope = scope,
+                                    thumbnailRatio = 1f,
+                                    modifier = Modifier
+                                        .clickable { navController.navigateToArtist(channel.id, isPodcastChannel = true) }
+                                        .animateItem()
+                                )
+                            }
+                        }
                     }
                 }
 
