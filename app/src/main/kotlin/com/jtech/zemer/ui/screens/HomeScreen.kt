@@ -740,10 +740,16 @@ fun HomeScreen(
                 // empty/unreachable hides the row (the /home-rows fail-soft convention). The Home
                 // tab is never reachable from inside KidZone, satisfying the contract's
                 // hide-in-kidZone rule the same way the curated shelf does.
-                // Radio is a dedicated tab, not a discovery shelf: render the stations as a full 3-column
-                // grid (no "Zemer Radio" header / See-all). Chunked into Rows so the grid scrolls inside the
-                // Home LazyColumn without a nested vertical scroll.
+                // Radio is a dedicated tab, not a discovery shelf: a shared-title header (no See-all arrow)
+                // over a full 3-column grid. Chunked into Rows so the grid scrolls inside the Home
+                // LazyColumn without a nested vertical scroll.
                 zemerStations.takeIf { it.isNotEmpty() }?.let { stations ->
+                    item(key = "zemer_stations_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.zemer_radio_stations),
+                            modifier = Modifier.animateItem()
+                        )
+                    }
                     items(
                         items = stations.chunked(3),
                         key = { row -> "zemer_stations_row_${row.first().id}" },
