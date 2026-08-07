@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
@@ -187,8 +188,7 @@ fun OnlinePodcastScreen(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
                                     .size(AlbumThumbnailSize)
-                                    .clip(RoundedCornerShape(ThumbnailCornerRadius))
-                                    .fillMaxWidth(),
+                                    .clip(RoundedCornerShape(ThumbnailCornerRadius)),
                             ) {
                                 AsyncImage(
                                     model = ImageRequest.Builder(LocalContext.current)
@@ -201,8 +201,9 @@ fun OnlinePodcastScreen(
                                     contentDescription = null,
                                     placeholder = painterResource(R.drawable.podcast),
                                     error = painterResource(R.drawable.podcast),
+                                    contentScale = ContentScale.Crop,
                                     modifier = Modifier
-                                        .fillMaxWidth()
+                                        .fillMaxSize()
                                         .clip(RoundedCornerShape(ThumbnailCornerRadius)),
                                 )
                             }
