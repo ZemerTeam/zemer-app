@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `358`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `357`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -11,7 +11,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 50 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 6 lines | text `[none]` |
-| `AGENTS.md` | 955 lines | text `.md` |
+| `AGENTS.md` | 976 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 19 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -212,7 +212,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/warning.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/widget_background.xml` | 6 lines | text `.xml`; XML root `shape` |
 | `app/src/main/res/drawable/widget_preview.xml` | 18 lines | text `.xml`; XML root `layer-list` |
-| `app/src/main/res/drawable/wifi_proxy.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/font/heebo_bold.ttf` | 44304 bytes | binary `.ttf` |
 | `app/src/main/res/font/heebo_extrabold.ttf` | 44528 bytes | binary `.ttf` |
 | `app/src/main/res/layout/widget_loading.xml` | 45 lines | text `.xml`; XML root `LinearLayout` |
@@ -244,7 +243,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 645 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 642 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 438 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
