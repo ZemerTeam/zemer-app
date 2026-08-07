@@ -1065,6 +1065,9 @@ fun HomeScreen(
                                 // crop hides most of the title text YouTube bakes into the 16:9 video
                                 // thumbnail, which is illegible behind the card. See issue #84.
                                 thumbnailRatio = 1f,
+                                // All-videos row, already labelled "Video Songs" — the per-card badge
+                                // is redundant and would crowd the subtitle onto a second line.
+                                showVideoBadge = false,
                                 modifier = Modifier
                                     .combinedClickable(
                                         onClick = {

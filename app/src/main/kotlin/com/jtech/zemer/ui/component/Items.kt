@@ -941,6 +941,11 @@ fun YouTubeGridItem(
     item: YTItem,
     modifier: Modifier = Modifier,
     coroutineScope: CoroutineScope? = null,
+    // The per-card video badge is redundant (and steals subtitle width, forcing an ugly
+    // "Artist •" / "duration" wrap) in a row that is ALREADY all-videos and labelled as such
+    // (Home Featured Videos, its see-all, the artist Videos section). Pass false there; leave it
+    // on for mixed contexts like search where the badge distinguishes a video from a song.
+    showVideoBadge: Boolean = true,
     badges: @Composable RowScope.() -> Unit = {
         val database = LocalDatabase.current
         val song by produceState<Song?>(initialValue = null, item.id) {
@@ -961,7 +966,7 @@ fun YouTubeGridItem(
             Icon.Favorite()
         }
         if (item.explicit) Icon.Explicit()
-        if (item is SongItem && item.isVideo) Icon.Video()
+        if (showVideoBadge && item is SongItem && item.isVideo) Icon.Video()
         if (item is SongItem && song?.song?.inLibrary != null) Icon.Library()
         when (item) {
             is SongItem -> SongDownloadBadge(item.id, song?.song?.isDownloaded == true)
@@ -1011,7 +1016,9 @@ fun YouTubeGridItem(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary,
-                maxLines = 2,
+                // One line, ellipsized — a 2-line subtitle on a narrow card orphans the " • " bullet
+                // ("Artist •" / "3:49"). Matches the string GridItem overload; keeps card heights uniform.
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }

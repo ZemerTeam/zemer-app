@@ -783,6 +783,9 @@ fun ArtistScreen(
                                             // and the clean title shows below. Albums/artists/playlists
                                             // are square anyway. See issue #84.
                                             thumbnailRatio = 1f,
+                                            // A Videos section is all-videos + labelled, so the
+                                            // per-card video badge is redundant and crowds the subtitle.
+                                            showVideoBadge = !isVideoSection,
                                             modifier = Modifier
                                                 .combinedClickable(
                                                     onClick = {

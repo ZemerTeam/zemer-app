@@ -116,7 +116,7 @@ fun HomeSeeAllScreen(
             HomeSeeAllRow.FEATURED_ARTISTS ->
                 YtItemGrid(data.featuredArtists, navController)
             HomeSeeAllRow.FEATURED_VIDEOS ->
-                YtItemGrid(data.featuredVideos, navController)
+                YtItemGrid(data.featuredVideos, navController, showVideoBadge = false)
             HomeSeeAllRow.FEATURED_PLAYLISTS ->
                 YtItemGrid(data.featuredPlaylists, navController, zemerPlaylists = data.featuredPlaylistsAreZemer)
             HomeSeeAllRow.QUICK_PICKS -> SongList(data.quickPicks, navController)
@@ -169,6 +169,9 @@ internal fun <T : YTItem> YtItemGrid(
     // otherwise loop back to the channel). The HOME podcast see-alls pass true so a tapped show routes
     // CHANNEL-first, exactly like the Home rows they open from (whitelistedPodcastRoute).
     podcastChannelFirst: Boolean = false,
+    // All-videos grid (the Featured Videos see-all) suppresses the redundant per-card video badge,
+    // matching its Home row.
+    showVideoBadge: Boolean = true,
 ) {
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -195,6 +198,7 @@ internal fun <T : YTItem> YtItemGrid(
                 isPlaying = isPlaying,
                 coroutineScope = scope,
                 thumbnailRatio = 1f,
+                showVideoBadge = showVideoBadge,
                 fillMaxWidth = true,
                 modifier = Modifier.combinedClickable(
                     onClick = {
