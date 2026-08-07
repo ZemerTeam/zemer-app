@@ -235,7 +235,9 @@ fun HomeScreen(
         add(HomeContentTab.MUSIC to stringResource(R.string.music))
         add(HomeContentTab.RADIO to stringResource(R.string.radio))
         add(HomeContentTab.PODCASTS to stringResource(R.string.podcasts))
-        if (!blockVideos) add(HomeContentTab.VIDEO to stringResource(R.string.videos))
+        // Always show the Video tab; blocked-video users still get it, relabeled "Video songs" — its rows
+        // play audio-first (the Featured Videos shelf follows the same relabel), so it's never hidden.
+        add(HomeContentTab.VIDEO to stringResource(if (blockVideos) R.string.video_songs else R.string.videos))
     }
     homeUiState.isNewUser
 
