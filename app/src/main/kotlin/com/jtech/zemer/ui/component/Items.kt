@@ -1024,7 +1024,15 @@ fun YouTubeGridItem(
         val scope = rememberCoroutineScope()
 
         ItemThumbnail(
-            thumbnailUrl = item.thumbnail,
+            // A video's derived thumbnail is `.../hqdefault.jpg` (4:3, letterboxed) so the square
+            // center-crop shows black bars. For the CARD only, swap to mqdefault (clean 16:9, no bars);
+            // item.thumbnail (hence the 544px now-playing / lockscreen art) stays hqdefault so it doesn't
+            // degrade. Only rewrites the derived ytimg URL — real server art passes through unchanged.
+            thumbnailUrl = if (item is SongItem && item.isVideo) {
+                item.thumbnail?.replace("/hqdefault.jpg", "/mqdefault.jpg")
+            } else {
+                item.thumbnail
+            },
             isActive = isActive,
             isPlaying = isPlaying,
             shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
