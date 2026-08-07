@@ -227,8 +227,8 @@ fun HomeScreen(
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     val homeContentChips = buildList {
         add(HomeContentTab.MUSIC to stringResource(R.string.music))
-        add(HomeContentTab.PODCASTS to stringResource(R.string.podcasts))
         add(HomeContentTab.RADIO to stringResource(R.string.radio))
+        add(HomeContentTab.PODCASTS to stringResource(R.string.podcasts))
         if (!blockVideos) add(HomeContentTab.VIDEO to stringResource(R.string.videos))
     }
     homeUiState.isNewUser
@@ -498,7 +498,11 @@ fun HomeScreen(
                 featuredVideos.isNotEmpty() ||
                 latestReleases.isNotEmpty() ||
                 zemerPlaylists.isNotEmpty()
-        val shouldShowShimmer = isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent)
+        // MUST stay scoped to HomeContentTab.MUSIC: this skeleton matches the MUSIC home layout (title +
+        // card row). isLoading + the has*HomeContent flags are all music-VM state, so on Radio/Podcasts/
+        // Videos it would paint a music-shaped skeleton that never resolves into anything on that tab.
+        // Ratcheted by R22-home-shimmer (scripts/ui-audit.sh).
+        val shouldShowShimmer = homeTab == HomeContentTab.MUSIC && (isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent))
 
         LazyColumn(
             state = lazylistState,

@@ -65,6 +65,11 @@
 #                  (extensions/ContextExt.kt), which also shows the confirmation toast. Baseline 0.
 #   R21-toast      hand-rolled `Toast.makeText(...).show()` -> use Context.toast(text|resId, long)
 #                  (extensions/ContextExt.kt). Baseline 0.
+#   R22-home-shimmer (positive assertion, not a shrink-count) the Home loading skeleton is shaped like
+#                  the MUSIC home (title + card row) and is driven by music-VM state, so it MUST be
+#                  scoped to `homeTab == HomeContentTab.MUSIC` — else it paints an inaccurate skeleton
+#                  on Radio/Podcasts/Videos that never resolves. Loading skeletons must match the real
+#                  content that replaces them; a per-tab skeleton never renders on another tab.
 #
 # Genuine fixed-value exceptions (AMOLED pure-black, the lyric-image *export*, color-picker
 # swatches) are allowed: they live in the baseline. Keep them minimal; --update records them.
@@ -161,6 +166,21 @@ fi
 if [ ! -f "$BASELINE" ]; then
   echo "No baseline at $BASELINE. Create it with: bash scripts/ui-audit.sh --update"
   exit 2
+fi
+
+# R22-home-shimmer: positive assertion (not a shrink-count). The Home loading skeleton matches the
+# MUSIC home layout and is driven by music-VM state, so `shouldShowShimmer` MUST be gated on
+# HomeContentTab.MUSIC (kept on one line so this stays greppable) — otherwise it paints a music-shaped
+# skeleton on the Radio/Podcasts/Videos tabs that never resolves. See docs/ui/standards.md + AGENTS.md.
+HOME_SCREEN="$UI/screens/HomeScreen.kt"
+if [ -f "$HOME_SCREEN" ] && grep -q 'shouldShowShimmer' "$HOME_SCREEN" \
+    && ! grep -Eq 'shouldShowShimmer[[:space:]]*=.*HomeContentTab\.MUSIC' "$HOME_SCREEN"; then
+  echo "UI audit FAILED — R22-home-shimmer: the Home loading skeleton is not scoped to the Music tab."
+  echo "  $HOME_SCREEN"
+  echo "  'val shouldShowShimmer = ...' must include 'homeTab == HomeContentTab.MUSIC &&' (on one line)"
+  echo "  so the music-shaped skeleton never renders on the Radio / Podcasts / Videos tabs. A loading"
+  echo "  skeleton must match the content that replaces it; a per-tab skeleton never shows on another tab."
+  exit 1
 fi
 
 cur="$(current_counts)"

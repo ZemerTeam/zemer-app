@@ -324,6 +324,14 @@ exception and must run OFF the main thread. Ratcheted by `R18-runblocking` (UI-s
 legitimate blocking sites live outside `ui/` and are deliberate — ExoPlayer's `createDataSourceFactory`
 (a Media3 contract that must return synchronously), the download thread, the DataStore primitives.
 
+**Loading skeletons must match the real content that replaces them, and a per-tab skeleton must never
+render on another tab.** The Home content-type tabs share one `LazyColumn`, so a skeleton placed at the
+top level shows on every tab: the Home loading shimmer is shaped like the MUSIC home (title + card row)
+and is driven entirely by music-VM state (`isLoading` + the `has*HomeContent` flags), so `shouldShowShimmer`
+**must** stay gated on `homeTab == HomeContentTab.MUSIC` (kept on one line) — otherwise it paints a
+music-shaped skeleton on Radio/Podcasts/Videos that never resolves. Ratcheted by `R22-home-shimmer`
+(`scripts/ui-audit.sh`, a positive assertion, not a shrink-count).
+
 Enforcement lives in `scripts/ui-audit.sh` (see the rule list at the top of that file) + `docs/ui/standards.md`;
 when you add a new shared helper with a greppable anti-pattern, add a ratchet rule there in the same pass.
 

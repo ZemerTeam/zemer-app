@@ -115,7 +115,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
-| `AGENTS.md` | 1066 lines | `.md` |
+| `AGENTS.md` | 1074 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 19 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -482,7 +482,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContentTab.kt` | 9 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContinueListeningRow.kt` | 105 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeGenresRow.kt` | 118 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1350 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1354 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeSeeAllScreen.kt` | 347 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeStatusesRow.kt` | 58 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 235 lines | `.kt` |
@@ -1161,7 +1161,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `scripts/dead-resources-baseline.txt` | 9 lines | `.txt` |
 | `scripts/telegram-chats.sh` | 38 lines | `.sh` |
 | `scripts/ui-audit-baseline.tsv` | 24 lines | `.tsv` |
-| `scripts/ui-audit.sh` | 203 lines | `.sh` |
+| `scripts/ui-audit.sh` | 223 lines | `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | `.py` |
 | `settings.gradle.kts` | 56 lines | `.kts` |
 | `simpmusic/build.gradle.kts` | 15 lines | `.kts` |
