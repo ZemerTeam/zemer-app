@@ -13,6 +13,7 @@ import com.metrolist.innertube.models.SongItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Which Home row a "See all" screen is showing. The [slug] is the nav argument (stable, route-safe)
@@ -31,6 +32,7 @@ enum class HomeSeeAllRow(val slug: String, @StringRes val titleRes: Int) {
     FEATURED_PODCASTS("featured-podcasts", R.string.featured_podcasts),
     TOP_PODCASTS("top-podcasts", R.string.top_podcasts),
     TRENDING_EPISODES("trending-episodes", R.string.trending_episodes),
+    SUBSCRIBED_CHANNELS("subscribed-channels", R.string.subscribed_channels),
     ;
 
     companion object {
@@ -75,18 +77,24 @@ data class PodcastHomeSeeAllData(
     val featured: List<PodcastItem> = emptyList(),
     val topPodcasts: List<PodcastItem> = emptyList(),
     val trendingEpisodes: List<EpisodeItem> = emptyList(),
+    val subscribedChannels: List<PodcastItem> = emptyList(),
 )
 
 /**
- * The podcast twin of [HomeSeeAllStore], kept SEPARATE so the two publishers (HomeViewModel for music,
- * [PodcastHomeRowsViewModel] for podcasts) never clobber each other's snapshot. Published on every
- * successful `/podcast-home-rows` load; the See-all screen reads it so what it shows is exactly the row.
+ * The podcast twin of [HomeSeeAllStore], kept SEPARATE from the music store. Two DIFFERENT VMs publish
+ * into it — [PodcastHomeRowsViewModel] (the ranked discovery rows) and PodcastSubscriptionsHomeViewModel
+ * (the subscribed-channels row) — so each writes only its OWN fields via a copy-update, never clobbering
+ * the other's. The See-all screen reads it so what it shows is exactly the row.
  */
 object PodcastHomeSeeAllStore {
     private val _data = MutableStateFlow(PodcastHomeSeeAllData())
     val data: StateFlow<PodcastHomeSeeAllData> = _data.asStateFlow()
 
-    fun publish(data: PodcastHomeSeeAllData) {
-        _data.value = data
+    fun publishRows(featured: List<PodcastItem>, topPodcasts: List<PodcastItem>, trendingEpisodes: List<EpisodeItem>) {
+        _data.update { it.copy(featured = featured, topPodcasts = topPodcasts, trendingEpisodes = trendingEpisodes) }
+    }
+
+    fun publishSubscribedChannels(subscribedChannels: List<PodcastItem>) {
+        _data.update { it.copy(subscribedChannels = subscribedChannels) }
     }
 }

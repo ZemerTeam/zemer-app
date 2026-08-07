@@ -62,12 +62,10 @@ class PodcastHomeRowsViewModel @Inject constructor(
                     _topPodcasts.value = fetched.topPodcasts
                     _trendingEpisodes.value = fetched.trendingEpisodes
                     // Publish the full rows so their "See all" screens show exactly what the rows show.
-                    PodcastHomeSeeAllStore.publish(
-                        PodcastHomeSeeAllData(
-                            featured = fetched.featured,
-                            topPodcasts = fetched.topPodcasts,
-                            trendingEpisodes = fetched.trendingEpisodes,
-                        )
+                    PodcastHomeSeeAllStore.publishRows(
+                        featured = fetched.featured,
+                        topPodcasts = fetched.topPodcasts,
+                        trendingEpisodes = fetched.trendingEpisodes,
                     )
                 }
             }

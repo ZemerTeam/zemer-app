@@ -1191,6 +1191,7 @@ fun HomeScreen(
                     item(key = "home_sub_channels_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.subscribed_channels),
+                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.SUBSCRIBED_CHANNELS.slug}") },
                             modifier = Modifier.animateItem()
                         )
                     }

@@ -7,12 +7,14 @@ import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.utils.NewEpisodesFeed
 import com.jtech.zemer.utils.PodcastLibrarySources
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -52,7 +54,26 @@ class PodcastSubscriptionsHomeViewModel @Inject constructor(
             (bookmarkedChannels + showChannels)
                 .filter { PodcastLibrarySources.podcastChannelAllowed(it.id) }
                 .distinctBy { it.id }
-        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        }
+            // Publish the full list (as SQUARE PodcastItem cards) so the row's "See all" grid shows exactly
+            // these channels; channel-first routing opens each channel page.
+            .onEach { channels ->
+                PodcastHomeSeeAllStore.publishSubscribedChannels(
+                    channels.map {
+                        PodcastItem(
+                            id = it.id,
+                            title = it.name,
+                            author = null,
+                            episodeCountText = null,
+                            thumbnail = it.thumbnailUrl,
+                            playEndpoint = null,
+                            shuffleEndpoint = null,
+                            channelId = it.id,
+                        )
+                    },
+                )
+            }
+            .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun fetchNewEpisodes() = newEpisodesFeed.fetch(viewModelScope)
 }
