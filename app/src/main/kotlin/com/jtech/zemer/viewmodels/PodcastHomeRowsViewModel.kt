@@ -34,6 +34,9 @@ class PodcastHomeRowsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: ZemerSearchRepository,
 ) : ViewModel() {
+    private val _featured = MutableStateFlow<List<PodcastItem>>(emptyList())
+    val featured: StateFlow<List<PodcastItem>> = _featured.asStateFlow()
+
     private val _topPodcasts = MutableStateFlow<List<PodcastItem>>(emptyList())
     val topPodcasts: StateFlow<List<PodcastItem>> = _topPodcasts.asStateFlow()
 
@@ -58,12 +61,14 @@ class PodcastHomeRowsViewModel @Inject constructor(
         runCatching { repository.podcastHomeRows(options) }
             .onSuccess { fetched: ZemerResultMapper.PodcastHomeRows ->
                 if (zemerOptionsStillCurrent(options, ContentFilterState.current)) {
+                    _featured.value = fetched.featured
                     _topPodcasts.value = fetched.topPodcasts
                     _trendingEpisodes.value = fetched.trendingEpisodes
                     _newShows.value = fetched.newShows
                     // Publish the full rows so their "See all" screens show exactly what the rows show.
                     PodcastHomeSeeAllStore.publish(
                         PodcastHomeSeeAllData(
+                            featured = fetched.featured,
                             topPodcasts = fetched.topPodcasts,
                             trendingEpisodes = fetched.trendingEpisodes,
                             newShows = fetched.newShows,

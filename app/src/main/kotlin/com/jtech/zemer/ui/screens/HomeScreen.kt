@@ -182,6 +182,7 @@ fun HomeScreen(
     // (the ring never over-counts hidden kinds). Creators are NOT dropped - only the ring reflects it.
     val statusContentFilter by zemerStatusesViewModel.contentFilter.collectAsState()
     val podcastHomeRowsViewModel: PodcastHomeRowsViewModel = hiltViewModel()
+    val featuredPodcasts by podcastHomeRowsViewModel.featured.collectAsState()
     val topPodcasts by podcastHomeRowsViewModel.topPodcasts.collectAsState()
     val trendingEpisodes by podcastHomeRowsViewModel.trendingEpisodes.collectAsState()
     val newPodcastShows by podcastHomeRowsViewModel.newShows.collectAsState()
@@ -1116,6 +1117,46 @@ fun HomeScreen(
                             navController = navController,
                             modifier = Modifier.animateItem(),
                         )
+                    }
+                }
+
+                // Featured: the hand-curated editorial shows (server `featured`), the LEAD show shelf and
+                // strongest cold-start signal (zero telemetry). Same show cards + channel-first routing.
+                featuredPodcasts.takeIf { it.isNotEmpty() }?.let { shows ->
+                    item(key = "featured_podcasts_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.featured_podcasts),
+                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_PODCASTS.slug}") },
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+                    item(key = "featured_podcasts_list", contentType = "grid") {
+                        LazyRow(
+                            contentPadding = WindowInsets.systemBars
+                                .only(WindowInsetsSides.Horizontal)
+                                .asPaddingValues(),
+                            modifier = Modifier.animateItem()
+                        ) {
+                            items(
+                                items = shows,
+                                key = { "featured_podcast_${it.id}" },
+                                contentType = { "podcast" }
+                            ) { podcast ->
+                                YouTubeGridItem(
+                                    item = podcast,
+                                    isActive = false,
+                                    isPlaying = isPlaying,
+                                    coroutineScope = scope,
+                                    thumbnailRatio = 1f,
+                                    modifier = Modifier
+                                        .clickable {
+                                            whitelistedPodcastRoute(podcast.id, podcast.channelId)
+                                                ?.let { navController.navigate(it) }
+                                        }
+                                        .animateItem()
+                                )
+                            }
+                        }
                     }
                 }
 

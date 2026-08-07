@@ -375,9 +375,12 @@ data class ZemerNewEpisodesResponse(
  */
 @Serializable
 data class ZemerPodcastHomeRowsResponse(
+    // Hand-curated editorial shows (server `data/podcast-featured.json`), served in order — the strongest
+    // cold-start signal (zero telemetry), rendered as the LEAD row. Server reply 3, 2026-08-07.
+    val featured: List<ZemerPodcastShow> = emptyList(),
     val topPodcasts: List<ZemerPodcastShow> = emptyList(),
     val trendingEpisodes: List<ZemerPodcastEpisode> = emptyList(),
     // Recently-arrived shows (by the server's `firstSeenAt` new-arrivals signal). Same show-card shape
-    // as [topPodcasts]; the "Featured / New shows" third row (Music parity). Server reply 2, 2026-08-06.
+    // as [topPodcasts]; the "New shows" row (Music parity). Server reply 2, 2026-08-06.
     val newShows: List<ZemerPodcastShow> = emptyList(),
 )

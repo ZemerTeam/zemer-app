@@ -28,6 +28,7 @@ enum class HomeSeeAllRow(val slug: String, @StringRes val titleRes: Int) {
     FORGOTTEN_FAVORITES("forgotten-favorites", R.string.forgotten_favorites),
     QUICK_PICKS("quick-picks", R.string.quick_picks),
     // Podcasts-tab ranked rows (backed by [PodcastHomeSeeAllStore], not the music [HomeSeeAllStore]).
+    FEATURED_PODCASTS("featured-podcasts", R.string.featured_podcasts),
     TOP_PODCASTS("top-podcasts", R.string.top_podcasts),
     TRENDING_EPISODES("trending-episodes", R.string.trending_episodes),
     NEW_SHOWS("new-shows", R.string.new_shows),
@@ -72,6 +73,7 @@ object HomeSeeAllStore {
 
 /** The full Podcasts-tab ranked rows that back their See-all screens (see [PodcastHomeSeeAllStore]). */
 data class PodcastHomeSeeAllData(
+    val featured: List<PodcastItem> = emptyList(),
     val topPodcasts: List<PodcastItem> = emptyList(),
     val trendingEpisodes: List<EpisodeItem> = emptyList(),
     val newShows: List<PodcastItem> = emptyList(),

@@ -96,6 +96,7 @@ fun HomeSeeAllScreen(
         HomeSeeAllRow.QUICK_PICKS -> data.quickPicks.isEmpty()
         HomeSeeAllRow.FORGOTTEN_FAVORITES -> data.forgottenFavorites.isEmpty()
         HomeSeeAllRow.KEEP_LISTENING -> data.keepListening.isEmpty()
+        HomeSeeAllRow.FEATURED_PODCASTS -> podcastData.featured.isEmpty()
         HomeSeeAllRow.TOP_PODCASTS -> podcastData.topPodcasts.isEmpty()
         HomeSeeAllRow.TRENDING_EPISODES -> podcastData.trendingEpisodes.isEmpty()
         HomeSeeAllRow.NEW_SHOWS -> podcastData.newShows.isEmpty()
@@ -121,6 +122,7 @@ fun HomeSeeAllScreen(
             HomeSeeAllRow.FORGOTTEN_FAVORITES -> SongList(data.forgottenFavorites, navController)
             HomeSeeAllRow.KEEP_LISTENING -> LocalItemList(data.keepListening, navController)
             // Podcast rows: PodcastItem shows open their show, EpisodeItem plays — YtItemGrid handles both.
+            HomeSeeAllRow.FEATURED_PODCASTS -> YtItemGrid(podcastData.featured, navController)
             HomeSeeAllRow.TOP_PODCASTS -> YtItemGrid(podcastData.topPodcasts, navController)
             HomeSeeAllRow.TRENDING_EPISODES -> YtItemGrid(podcastData.trendingEpisodes, navController)
             HomeSeeAllRow.NEW_SHOWS -> YtItemGrid(podcastData.newShows, navController)
