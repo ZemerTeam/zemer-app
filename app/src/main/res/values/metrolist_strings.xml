@@ -558,7 +558,6 @@
     <string name="onboarding_backup_skip_desc">You can enable it any time in Settings → Search backup</string>
     <!-- Genres (song-level genre layer: catalog, detail pages, genre radio) -->
     <string name="genres">Genres</string>
-    <string name="podcast_genres">Podcast Genres</string>
     <string name="genre_kind_style">Styles</string>
     <string name="genre_kind_occasion">Occasions</string>
     <string name="show_genres_row">Show genres on home</string>

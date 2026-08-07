@@ -1106,7 +1106,7 @@ fun HomeScreen(
                 homePodcastGenres.takeIf { it.isNotEmpty() }?.let { genres ->
                     item(key = "podcast_genre_chips_title", contentType = "header") {
                         NavigationTitle(
-                            title = stringResource(R.string.podcast_genres),
+                            title = stringResource(R.string.genres),
                             onClick = { navController.navigate(zemerPodcastGenresRoute()) },
                             modifier = Modifier.animateItem(),
                         )
