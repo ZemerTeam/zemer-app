@@ -1087,9 +1087,28 @@ fun HomeScreen(
             } // end VIDEO
 
             if (homeTab == HomeContentTab.PODCASTS) {
+                // Podcast Genres strip: the podcast twin of the music genres chips — LEADS the Podcasts
+                // tab. Own isolated fail-soft VM (empty -> hidden); arrow -> catalog.
+                homePodcastGenres.takeIf { it.isNotEmpty() }?.let { genres ->
+                    item(key = "podcast_genre_chips_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.genres),
+                            onClick = { navController.navigate(zemerPodcastGenresRoute()) },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                    item(key = "podcast_genre_chips_list", contentType = "grid") {
+                        HomePodcastGenresRow(
+                            genres = genres,
+                            navController = navController,
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                }
+
                 // Continue Listening: in-progress episodes, most-recently-played first — the resume
-                // affordance, so it LEADS the Podcasts tab. Own isolated fail-soft VM (empty -> hidden).
-                // Tapping resumes the episode (saved position restored on load by MusicService).
+                // affordance, sitting directly UNDER the Genres strip. Own isolated fail-soft VM (empty ->
+                // hidden). Tapping resumes the episode (saved position restored on load by MusicService).
                 continueEpisodes.takeIf { it.isNotEmpty() }?.let { eps ->
                     item(key = "continue_title", contentType = "header") {
                         NavigationTitle(
@@ -1109,25 +1128,6 @@ fun HomeScreen(
                                     )
                                 )
                             },
-                            modifier = Modifier.animateItem(),
-                        )
-                    }
-                }
-
-                // Podcast Genres strip: the podcast twin of the music genres chips, sitting directly
-                // above the Podcasts row. Own isolated fail-soft VM (empty -> hidden); arrow -> catalog.
-                homePodcastGenres.takeIf { it.isNotEmpty() }?.let { genres ->
-                    item(key = "podcast_genre_chips_title", contentType = "header") {
-                        NavigationTitle(
-                            title = stringResource(R.string.genres),
-                            onClick = { navController.navigate(zemerPodcastGenresRoute()) },
-                            modifier = Modifier.animateItem(),
-                        )
-                    }
-                    item(key = "podcast_genre_chips_list", contentType = "grid") {
-                        HomePodcastGenresRow(
-                            genres = genres,
-                            navController = navController,
                             modifier = Modifier.animateItem(),
                         )
                     }
