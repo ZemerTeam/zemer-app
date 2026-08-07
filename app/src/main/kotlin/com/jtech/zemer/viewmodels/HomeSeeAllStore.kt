@@ -31,7 +31,6 @@ enum class HomeSeeAllRow(val slug: String, @StringRes val titleRes: Int) {
     FEATURED_PODCASTS("featured-podcasts", R.string.featured_podcasts),
     TOP_PODCASTS("top-podcasts", R.string.top_podcasts),
     TRENDING_EPISODES("trending-episodes", R.string.trending_episodes),
-    NEW_SHOWS("new-shows", R.string.new_shows),
     ;
 
     companion object {
@@ -76,7 +75,6 @@ data class PodcastHomeSeeAllData(
     val featured: List<PodcastItem> = emptyList(),
     val topPodcasts: List<PodcastItem> = emptyList(),
     val trendingEpisodes: List<EpisodeItem> = emptyList(),
-    val newShows: List<PodcastItem> = emptyList(),
 )
 
 /**

@@ -73,7 +73,9 @@ private fun ContinueListeningCard(
         modifier = modifier
             .focusBorder(RoundedCornerShape(ThumbnailCornerRadius))
             .clickable(onClick = onClick)
-            .padding(6.dp),
+            // 12dp to match the shared GridItem card inset, so this row's cards are flush with the
+            // other home rows (Top/Trending/etc.) instead of sitting ~6dp further left.
+            .padding(12.dp),
     ) {
         AsyncImage(
             model = song.song.thumbnailUrl,

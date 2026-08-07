@@ -380,7 +380,4 @@ data class ZemerPodcastHomeRowsResponse(
     val featured: List<ZemerPodcastShow> = emptyList(),
     val topPodcasts: List<ZemerPodcastShow> = emptyList(),
     val trendingEpisodes: List<ZemerPodcastEpisode> = emptyList(),
-    // Recently-arrived shows (by the server's `firstSeenAt` new-arrivals signal). Same show-card shape
-    // as [topPodcasts]; the "New shows" row (Music parity). Server reply 2, 2026-08-06.
-    val newShows: List<ZemerPodcastShow> = emptyList(),
 )

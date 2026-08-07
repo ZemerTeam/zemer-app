@@ -100,7 +100,6 @@ fun HomeSeeAllScreen(
         HomeSeeAllRow.FEATURED_PODCASTS -> podcastData.featured.isEmpty()
         HomeSeeAllRow.TOP_PODCASTS -> podcastData.topPodcasts.isEmpty()
         HomeSeeAllRow.TRENDING_EPISODES -> podcastData.trendingEpisodes.isEmpty()
-        HomeSeeAllRow.NEW_SHOWS -> podcastData.newShows.isEmpty()
     }
 
     if (rowIsEmpty) {
@@ -126,7 +125,6 @@ fun HomeSeeAllScreen(
             HomeSeeAllRow.FEATURED_PODCASTS -> YtItemGrid(podcastData.featured, navController, podcastChannelFirst = true)
             HomeSeeAllRow.TOP_PODCASTS -> YtItemGrid(podcastData.topPodcasts, navController, podcastChannelFirst = true)
             HomeSeeAllRow.TRENDING_EPISODES -> YtItemGrid(podcastData.trendingEpisodes, navController)
-            HomeSeeAllRow.NEW_SHOWS -> YtItemGrid(podcastData.newShows, navController, podcastChannelFirst = true)
         }
     }
 

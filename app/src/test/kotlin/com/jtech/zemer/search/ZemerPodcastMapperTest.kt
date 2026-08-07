@@ -133,7 +133,6 @@ class ZemerPodcastMapperTest {
                 featured = listOf(show("MPSPf")),
                 topPodcasts = listOf(show("MPSPa"), show("MPSPb")),
                 trendingEpisodes = listOf(episode("ep1"), episode("ep2")),
-                newShows = listOf(show("MPSPn")),
             )
         )
         assertEquals(listOf("MPSPf"), rows.featured.map { it.id })
@@ -141,7 +140,6 @@ class ZemerPodcastMapperTest {
         assertTrue(rows.topPodcasts.all { it is PodcastItem })
         assertEquals(listOf("ep1", "ep2"), rows.trendingEpisodes.map { it.id })
         assertTrue(rows.trendingEpisodes.all { it is EpisodeItem })
-        assertEquals(listOf("MPSPn"), rows.newShows.map { it.id })
     }
 
     @Test
@@ -157,12 +155,11 @@ class ZemerPodcastMapperTest {
     }
 
     @Test
-    fun `an empty podcast-home-rows response yields four empty rows`() {
+    fun `an empty podcast-home-rows response yields empty rows`() {
         val rows = ZemerResultMapper.podcastHomeRows(ZemerPodcastHomeRowsResponse())
         assertTrue(rows.featured.isEmpty())
         assertTrue(rows.topPodcasts.isEmpty())
         assertTrue(rows.trendingEpisodes.isEmpty())
-        assertTrue(rows.newShows.isEmpty())
     }
 
     @Test

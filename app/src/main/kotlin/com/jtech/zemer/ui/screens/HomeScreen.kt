@@ -189,7 +189,6 @@ fun HomeScreen(
     val featuredPodcasts by podcastHomeRowsViewModel.featured.collectAsState()
     val topPodcasts by podcastHomeRowsViewModel.topPodcasts.collectAsState()
     val trendingEpisodes by podcastHomeRowsViewModel.trendingEpisodes.collectAsState()
-    val newPodcastShows by podcastHomeRowsViewModel.newShows.collectAsState()
     // Subscription-driven podcast rows (New Episodes + Subscribed Channels) — LOCAL sources, so identical
     // for anon + Google login. Own isolated fail-soft VM; each row hides when empty.
     val podcastSubscriptionsViewModel: PodcastSubscriptionsHomeViewModel = hiltViewModel()
@@ -1208,12 +1207,17 @@ fun HomeScreen(
                                 contentType = { "channel" }
                             ) { channel ->
                                 YouTubeGridItem(
-                                    item = ArtistItem(
+                                    // A PodcastItem renders SQUARE (like the other podcast/show cards); an
+                                    // ArtistItem would render as a circle, which looks off next to them.
+                                    item = com.metrolist.innertube.models.PodcastItem(
                                         id = channel.id,
                                         title = channel.name,
+                                        author = null,
+                                        episodeCountText = null,
                                         thumbnail = channel.thumbnailUrl,
+                                        playEndpoint = null,
                                         shuffleEndpoint = null,
-                                        radioEndpoint = null,
+                                        channelId = channel.id,
                                     ),
                                     isActive = false,
                                     isPlaying = isPlaying,
@@ -1357,45 +1361,6 @@ fun HomeScreen(
                     }
                 }
 
-                // New Shows: recently-arrived shows (server `firstSeenAt`), the third featured row for
-                // fuller Music parity. Same show cards + channel-first routing as Top Podcasts.
-                newPodcastShows.takeIf { it.isNotEmpty() }?.let { shows ->
-                    item(key = "new_shows_title", contentType = "header") {
-                        NavigationTitle(
-                            title = stringResource(R.string.new_shows),
-                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.NEW_SHOWS.slug}") },
-                            modifier = Modifier.animateItem()
-                        )
-                    }
-                    item(key = "new_shows_list", contentType = "grid") {
-                        LazyRow(
-                            contentPadding = WindowInsets.systemBars
-                                .only(WindowInsetsSides.Horizontal)
-                                .asPaddingValues(),
-                            modifier = Modifier.animateItem()
-                        ) {
-                            items(
-                                items = shows,
-                                key = { "new_show_${it.id}" },
-                                contentType = { "podcast" }
-                            ) { podcast ->
-                                YouTubeGridItem(
-                                    item = podcast,
-                                    isActive = false,
-                                    isPlaying = isPlaying,
-                                    coroutineScope = scope,
-                                    thumbnailRatio = 1f,
-                                    modifier = Modifier
-                                        .clickable {
-                                            whitelistedPodcastRoute(podcast.id, podcast.channelId)
-                                                ?.let { navController.navigate(it) }
-                                        }
-                                        .animateItem()
-                                )
-                            }
-                        }
-                    }
-                }
 
             } // end PODCASTS
 

@@ -43,9 +43,6 @@ class PodcastHomeRowsViewModel @Inject constructor(
     private val _trendingEpisodes = MutableStateFlow<List<EpisodeItem>>(emptyList())
     val trendingEpisodes: StateFlow<List<EpisodeItem>> = _trendingEpisodes.asStateFlow()
 
-    private val _newShows = MutableStateFlow<List<PodcastItem>>(emptyList())
-    val newShows: StateFlow<List<PodcastItem>> = _newShows.asStateFlow()
-
     private val refreshMutex = Mutex()
 
     init {
@@ -64,14 +61,12 @@ class PodcastHomeRowsViewModel @Inject constructor(
                     _featured.value = fetched.featured
                     _topPodcasts.value = fetched.topPodcasts
                     _trendingEpisodes.value = fetched.trendingEpisodes
-                    _newShows.value = fetched.newShows
                     // Publish the full rows so their "See all" screens show exactly what the rows show.
                     PodcastHomeSeeAllStore.publish(
                         PodcastHomeSeeAllData(
                             featured = fetched.featured,
                             topPodcasts = fetched.topPodcasts,
                             trendingEpisodes = fetched.trendingEpisodes,
-                            newShows = fetched.newShows,
                         )
                     )
                 }

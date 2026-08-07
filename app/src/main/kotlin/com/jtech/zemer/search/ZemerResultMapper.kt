@@ -363,7 +363,6 @@ object ZemerResultMapper {
         val featured: List<PodcastItem>,
         val topPodcasts: List<PodcastItem>,
         val trendingEpisodes: List<EpisodeItem>,
-        val newShows: List<PodcastItem>,
     )
 
     /**
@@ -376,7 +375,6 @@ object ZemerResultMapper {
             featured = resp.featured.toPodcastItems(),
             topPodcasts = resp.topPodcasts.toPodcastItems(),
             trendingEpisodes = resp.trendingEpisodes.toEpisodeItems(),
-            newShows = resp.newShows.toPodcastItems(),
         )
 
     /**
