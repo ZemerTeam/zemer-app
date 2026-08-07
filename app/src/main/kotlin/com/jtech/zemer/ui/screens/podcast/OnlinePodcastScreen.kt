@@ -127,10 +127,13 @@ fun OnlinePodcastScreen(
 
     // Near-edge prefetch: append the next episode page while ~a screenful of rows remains, so the
     // server's paging cursor is actually consumed and episodes past the first page become reachable.
-    // Keyed on episodes.size so the flow RESTARTS after each landed page (immediately chaining the next
-    // if still near the now-longer end); loadMoreEpisodes() is idempotent (in-flight guard + a no-op
-    // once the server reports no more), so the one extra call after the final page is harmless.
-    LaunchedEffect(lazyListState, episodes.size) {
+    // Keyed on the paging cursor (nextOffset) so the flow RESTARTS after each landed page — a page that
+    // adds only DUPLICATE ids still advances the cursor, so paging can't stall there (keying on
+    // episodes.size would). Stops once the cursor is null; loadMoreEpisodes() is idempotent (in-flight
+    // guard + null-cursor no-op), so the one extra call after the final page is harmless.
+    val nextOffset by viewModel.nextOffset.collectAsState()
+    LaunchedEffect(lazyListState, nextOffset) {
+        if (nextOffset == null) return@LaunchedEffect
         snapshotFlow {
             shouldPrefetchNearEnd(
                 lastVisibleIndex = lazyListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index,

@@ -343,11 +343,12 @@ interface DatabaseDao {
         FROM artist
                  JOIN(SELECT song_artist_map.artistId AS aid, SUM(songTotalPlayTime) AS totalPlayTime
                       FROM song_artist_map
-                               JOIN (SELECT songId, SUM(playTime) AS songTotalPlayTime
-                                     FROM event
-                                     WHERE timestamp > :fromTimeStamp
-                                     AND timestamp <= :toTimeStamp
-                                     GROUP BY songId) AS e
+                               JOIN (SELECT event.songId AS songId, SUM(event.playTime) AS songTotalPlayTime
+                                     FROM event JOIN song s ON s.id = event.songId
+                                     WHERE event.timestamp > :fromTimeStamp
+                                     AND event.timestamp <= :toTimeStamp
+                                     AND s.isEpisode = 0
+                                     GROUP BY event.songId) AS e
                                     ON song_artist_map.songId = e.songId
                       GROUP BY song_artist_map.artistId
                       ORDER BY totalPlayTime DESC

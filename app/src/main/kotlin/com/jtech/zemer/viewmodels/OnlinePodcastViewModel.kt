@@ -22,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -61,8 +62,11 @@ class OnlinePodcastViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
-    // Server paging cursor (`nextOffset`): the offset of the NEXT episode page, or null at the end.
-    private var nextOffset: Int? = null
+    // Server paging cursor: the offset of the NEXT episode page, or null at the end. Exposed as a flow so
+    // the screen keys its near-end prefetch on it (not on episodes.size) — a page that adds only duplicate
+    // ids still advances the cursor, so paging can't stall on a fully-duplicate page.
+    private val _nextOffset = MutableStateFlow<Int?>(null)
+    val nextOffset: StateFlow<Int?> = _nextOffset.asStateFlow()
     private var isLoadingMore = false
 
     init {
@@ -75,7 +79,7 @@ class OnlinePodcastViewModel @Inject constructor(
             Timber.d("fetchPodcastData called for: $podcastId")
             _isLoading.value = true
             _error.value = null
-            nextOffset = null
+            _nextOffset.value = null
 
             // Discovery is now the whitelist-pure Zemer server (`/podcast`), not InnerTube. Playback is
             // unchanged: each episode plays by its YouTube videoId through the existing pipeline. A null
@@ -88,7 +92,7 @@ class OnlinePodcastViewModel @Inject constructor(
                 } else {
                     podcast.value = page.podcast
                     episodes.value = page.episodes
-                    nextOffset = page.continuation?.toIntOrNull()
+                    _nextOffset.value = page.continuation?.toIntOrNull()
                 }
             } catch (throwable: Throwable) {
                 if (throwable is CancellationException) throw throwable
@@ -106,14 +110,14 @@ class OnlinePodcastViewModel @Inject constructor(
      * (`nextOffset == null`) or while a page is already in flight (single-in-flight guard).
      */
     fun loadMoreEpisodes() {
-        val offset = nextOffset ?: return
+        val offset = _nextOffset.value ?: return
         if (isLoadingMore) return
         isLoadingMore = true
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val page = zemerRepository.podcast(podcastId, offset, zemerSearchOptions(context)) ?: return@launch
                 episodes.value = (episodes.value + page.episodes).distinctBy { it.id }
-                nextOffset = page.continuation?.toIntOrNull()
+                _nextOffset.value = page.continuation?.toIntOrNull()
             } catch (throwable: Throwable) {
                 if (throwable is CancellationException) throw throwable
                 reportException(throwable)

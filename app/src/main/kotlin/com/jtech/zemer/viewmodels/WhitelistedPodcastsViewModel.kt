@@ -7,6 +7,7 @@ import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.PodcastWhitelistEntity
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.utils.NewEpisodesFeed
+import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.PodcastLibrarySources
 import com.jtech.zemer.utils.SyncUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,10 +47,16 @@ constructor(
     val allPodcasts =
         combine(
             database.allWhitelistedPodcastsByName(),
-            searchQuery
-        ) { podcasts: List<PodcastWhitelistEntity>, query ->
-            if (query.isBlank()) podcasts
-            else podcasts.filter { podcast -> podcast.name.contains(query, ignoreCase = true) }
+            searchQuery,
+            ContentFilterState.state,
+        ) { podcasts: List<PodcastWhitelistEntity>, query, filters ->
+            podcasts
+                // Female gate: hide a wholly-female host channel when female filtering is on, matching the
+                // server, the offline snapshot, and the artist browse. (kidZone is always off for podcast
+                // surfaces.) This browse grid reads the mirror whitelist directly, so it is the one podcast
+                // discovery surface with no server filter in front of it — the gate must run here.
+                .filter { !it.isFemale || !filters.filtersEnabled || filters.allowFemaleSingers }
+                .filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
         }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {

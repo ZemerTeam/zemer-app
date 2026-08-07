@@ -300,10 +300,12 @@ private suspend fun MusicDatabase.podcastPasses(
     val effectiveChannelIds = ids.filterNotNull().flatMap { id ->
         listOfNotNull(id, podcast(id).firstOrNull()?.channelId)
     }
+    // channelPasses gates a wholly-female host channel when female filtering is on (defense-in-depth over
+    // the server, which already filters it) — a female podcast must not slip through this chokepoint.
     return com.jtech.zemer.sync.PodcastSyncLogic.episodePassesPodcastWhitelist(
         channelIds = effectiveChannelIds,
         filtersEnabled = true,
-        isWhitelistedChannel = { PodcastWhitelistCache.isChannelWhitelisted(it) },
+        isWhitelistedChannel = { PodcastWhitelistCache.channelPasses(it, config.allowFemaleSingers) },
     )
 }
 

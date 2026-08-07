@@ -62,6 +62,7 @@ import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.ui.utils.navigateToPodcast
+import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeSeeAllStore
@@ -122,10 +123,10 @@ fun HomeSeeAllScreen(
             HomeSeeAllRow.FORGOTTEN_FAVORITES -> SongList(data.forgottenFavorites, navController)
             HomeSeeAllRow.KEEP_LISTENING -> LocalItemList(data.keepListening, navController)
             // Podcast rows: PodcastItem shows open their show, EpisodeItem plays — YtItemGrid handles both.
-            HomeSeeAllRow.FEATURED_PODCASTS -> YtItemGrid(podcastData.featured, navController)
-            HomeSeeAllRow.TOP_PODCASTS -> YtItemGrid(podcastData.topPodcasts, navController)
+            HomeSeeAllRow.FEATURED_PODCASTS -> YtItemGrid(podcastData.featured, navController, podcastChannelFirst = true)
+            HomeSeeAllRow.TOP_PODCASTS -> YtItemGrid(podcastData.topPodcasts, navController, podcastChannelFirst = true)
             HomeSeeAllRow.TRENDING_EPISODES -> YtItemGrid(podcastData.trendingEpisodes, navController)
-            HomeSeeAllRow.NEW_SHOWS -> YtItemGrid(podcastData.newShows, navController)
+            HomeSeeAllRow.NEW_SHOWS -> YtItemGrid(podcastData.newShows, navController, podcastChannelFirst = true)
         }
     }
 
@@ -164,6 +165,10 @@ internal fun <T : YTItem> YtItemGrid(
     // Column count. Default 2 (album/artist titles run long); the podcast-genre shows grid passes 3
     // (square art + short titles pack tighter).
     columns: Int = 2,
+    // Podcast SHOW routing. Default false = open the show (the channel page's own see-all, which would
+    // otherwise loop back to the channel). The HOME podcast see-alls pass true so a tapped show routes
+    // CHANNEL-first, exactly like the Home rows they open from (whitelistedPodcastRoute).
+    podcastChannelFirst: Boolean = false,
 ) {
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -199,7 +204,11 @@ internal fun <T : YTItem> YtItemGrid(
                             // NOT the browse-grid channel routing, which (a show carries its channelId)
                             // would loop straight back to the channel you're already on.
                             is com.metrolist.innertube.models.PodcastItem ->
-                                navController.navigateToPodcast(item.id)
+                                if (podcastChannelFirst) {
+                                    whitelistedPodcastRoute(item.id, item.channelId)?.let { navController.navigate(it) }
+                                } else {
+                                    navController.navigateToPodcast(item.id)
+                                }
                             // Episode: play it alone by videoId through the normal pipeline.
                             is com.metrolist.innertube.models.EpisodeItem ->
                                 playerConnection.playQueue(
