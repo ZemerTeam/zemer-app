@@ -123,6 +123,48 @@ class ZemerPodcastMapperTest {
         assertEquals(listOf("a", "b"), eps.map { it.id })
     }
 
+    private fun show(id: String, name: String = "Show $id") =
+        ZemerPodcastShow(id = id, name = name, channelId = "UC$id", thumbnail = "t")
+
+    @Test
+    fun `podcast home rows map each row to its item type`() {
+        val rows = ZemerResultMapper.podcastHomeRows(
+            ZemerPodcastHomeRowsResponse(
+                featured = listOf(show("MPSPf")),
+                topPodcasts = listOf(show("MPSPa"), show("MPSPb")),
+                trendingEpisodes = listOf(episode("ep1"), episode("ep2")),
+                newShows = listOf(show("MPSPn")),
+            )
+        )
+        assertEquals(listOf("MPSPf"), rows.featured.map { it.id })
+        assertEquals(listOf("MPSPa", "MPSPb"), rows.topPodcasts.map { it.id })
+        assertTrue(rows.topPodcasts.all { it is PodcastItem })
+        assertEquals(listOf("ep1", "ep2"), rows.trendingEpisodes.map { it.id })
+        assertTrue(rows.trendingEpisodes.all { it is EpisodeItem })
+        assertEquals(listOf("MPSPn"), rows.newShows.map { it.id })
+    }
+
+    @Test
+    fun `podcast home rows drop blank ids and dedupe within a row`() {
+        val rows = ZemerResultMapper.podcastHomeRows(
+            ZemerPodcastHomeRowsResponse(
+                topPodcasts = listOf(show("MPSPa"), show(""), show("MPSPa")),
+                trendingEpisodes = listOf(episode("ep1"), episode(""), episode("ep1")),
+            )
+        )
+        assertEquals(listOf("MPSPa"), rows.topPodcasts.map { it.id })
+        assertEquals(listOf("ep1"), rows.trendingEpisodes.map { it.id })
+    }
+
+    @Test
+    fun `an empty podcast-home-rows response yields four empty rows`() {
+        val rows = ZemerResultMapper.podcastHomeRows(ZemerPodcastHomeRowsResponse())
+        assertTrue(rows.featured.isEmpty())
+        assertTrue(rows.topPodcasts.isEmpty())
+        assertTrue(rows.trendingEpisodes.isEmpty())
+        assertTrue(rows.newShows.isEmpty())
+    }
+
     @Test
     fun `search folds podcast shows and episodes into their own summary sections`() {
         val resp = ZemerSearchResponse(

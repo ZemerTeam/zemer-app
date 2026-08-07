@@ -10,8 +10,16 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.Material3MenuItemData
-import com.jtech.zemer.ui.utils.navigateToAlbum
-import com.jtech.zemer.ui.utils.navigateToPodcast
+import com.jtech.zemer.ui.utils.albumRoute
+import com.jtech.zemer.ui.utils.podcastRoute
+
+/**
+ * Where the "view collection" row navigates: an EPISODE opens its owning podcast SHOW
+ * (`online_podcast/<MPSP>`), a regular song its ALBUM (`album/<id>`). Pure so the decision is unit-tested
+ * (see ViewCollectionMenuItemTest); null for a blank id (the caller renders no row / the nav is skipped).
+ */
+internal fun viewCollectionRoute(isEpisode: Boolean, collectionId: String?): String? =
+    if (isEpisode) podcastRoute(collectionId) else albumRoute(collectionId)
 
 /**
  * The song-menu row that opens the item's owning collection, shared by the three song menus (player /
@@ -41,8 +49,7 @@ fun viewCollectionMenuItem(
         title = { Text(stringResource(if (isEpisode) R.string.view_podcast else R.string.view_album)) },
         onClick = {
             beforeNavigate()
-            if (isEpisode) navController.navigateToPodcast(collectionId)
-            else navController.navigateToAlbum(collectionId)
+            viewCollectionRoute(isEpisode, collectionId)?.let { navController.navigate(it) }
             onDismiss()
         },
     )
