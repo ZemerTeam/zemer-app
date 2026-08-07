@@ -322,7 +322,12 @@ class SyncUtils @Inject constructor(
             if (!isPersonalAccountSignedIn) return@launch
 
             val result = if (wasSaved) {
+                // Removal needs the playlist-scoped setVideoId. We store it on the PULL sync, but an
+                // episode saved in Zemer (pushed via addToPlaylist, which doesn't return it) has none until
+                // then — so if it's missing, fetch it live from the SE playlist so the un-save reaches
+                // YouTube Music instead of silently staying saved there.
                 val setVideoId = database.getSetVideoId(episode.id)?.setVideoId
+                    ?: YouTube.episodesForLater().getOrNull()?.firstOrNull { it.id == episode.id }?.setVideoId
                 if (setVideoId != null) {
                     YouTube.removeEpisodeFromSavedEpisodes(episode.id, setVideoId)
                 } else {
