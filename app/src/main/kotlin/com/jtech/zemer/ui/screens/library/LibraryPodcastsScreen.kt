@@ -180,33 +180,23 @@ fun LibraryPodcastsScreen(
                         }
                     }
 
-                    // Personal account: the two YT auto-playlist cards (open the full playlist screen).
-                    if (isPersonalAccount) {
-                        if (newEpisodes.isNotEmpty()) {
-                            item(key = "rdpn", contentType = CONTENT_TYPE_HEADER) {
-                                AutoPlaylistCard(
-                                    title = stringResource(R.string.new_episodes),
-                                    thumbnailUrl = newEpisodes.firstOrNull()?.thumbnail,
-                                    subtitleCount = pluralStringResource(R.plurals.n_episode, newEpisodes.size, newEpisodes.size),
-                                    onClick = { navController.navigate("online_playlist/RDPN") },
-                                )
-                            }
-                        }
-                        item(key = "se", contentType = CONTENT_TYPE_HEADER) {
+                    // New Episodes card (personal only): the account's new-episodes feed.
+                    if (isPersonalAccount && newEpisodes.isNotEmpty()) {
+                        item(key = "rdpn", contentType = CONTENT_TYPE_HEADER) {
                             AutoPlaylistCard(
-                                title = stringResource(R.string.episodes_for_later),
-                                thumbnailUrl = savedEpisodes.firstOrNull()?.song?.thumbnailUrl,
-                                subtitleCount = if (savedEpisodes.isNotEmpty()) {
-                                    pluralStringResource(R.plurals.n_episode, savedEpisodes.size, savedEpisodes.size)
-                                } else {
-                                    null
-                                },
-                                onClick = { navController.navigate("online_playlist/SE") },
+                                title = stringResource(R.string.new_episodes),
+                                thumbnailUrl = newEpisodes.firstOrNull()?.thumbnail,
+                                subtitleCount = pluralStringResource(R.plurals.n_episode, newEpisodes.size, newEpisodes.size),
+                                onClick = { navController.navigate("online_playlist/RDPN") },
                             )
                         }
-                    } else if (savedEpisodes.isNotEmpty()) {
-                        // Anonymous session: saved episodes are LOCAL, so render them inline (never open
-                        // the pooled account's online SE playlist).
+                    }
+
+                    // Episodes for Later: ALWAYS the LOCAL saved episodes (whitelist-filtered on sync,
+                    // covering both local saves and YTM-synced ones) — never the raw online YTM "SE"
+                    // playlist, which is unfiltered (a kosher leak) AND misses local-only saves (so it
+                    // opened empty whenever a save had not reached YouTube Music). Same for anon + personal.
+                    if (savedEpisodes.isNotEmpty()) {
                         item(key = "se_header", contentType = CONTENT_TYPE_HEADER) {
                             SectionHeader(stringResource(R.string.episodes_for_later))
                         }

@@ -20,6 +20,8 @@ import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toSQLiteQuery
 import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.di.zemerSearchRepository
+import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.sync.PodcastSyncLogic
 import com.jtech.zemer.utils.filterWhitelisted
 import com.metrolist.innertube.YouTube
@@ -173,6 +175,25 @@ class SyncUtils @Inject constructor(
                     }
                 }
             }
+
+            // Reconcile bookmarked CHANNELS (ArtistEntity isPodcastChannel) against the remote subscribed
+            // channels — a channel unsubscribed on YouTube Music must disappear locally too. The remote
+            // channels are ArtistItems (NOT PodcastItems, so they're absent from `remoteIds` above), so
+            // this is the ONLY place the Channels tab reconciles. Runs only when the channel fetch
+            // SUCCEEDED (channelPage != null): a failed fetch must never wipe local subscriptions; an
+            // empty success is valid (the user unsubscribed from every channel).
+            if (channelPage != null) {
+                val remoteChannelIds = channelPage.items.filterIsInstance<ArtistItem>().map { it.id }.toSet()
+                database.bookmarkedPodcastChannels().first()
+                    .filterNot { it.id in remoteChannelIds }
+                    .forEach { channel ->
+                        try {
+                            database.transaction { update(channel.copy(bookmarkedAt = null)) }
+                        } catch (e: Exception) {
+                            Timber.e(e, "syncPodcastSubscriptions: channel cleanup failed for ${channel.id}")
+                        }
+                    }
+            }
         } catch (e: Exception) {
             Timber.e(e, "syncPodcastSubscriptions failed")
         } finally {
@@ -187,8 +208,9 @@ class SyncUtils @Inject constructor(
      * each episode's `setVideoId` so an un-save can call `removeEpisodeFromSavedEpisodes`. Episodes the
      * user removed from VLSE on YouTube are cleared locally.
      *
-     * Whitelisted exactly like music: `filterWhitelisted` routes an `isEpisode` SongItem through the
-     * podcast whitelist (never the artist whitelist).
+     * Whitelisted exactly like music (never sync non-whitelisted content, always allow whitelisted): the
+     * SERVER is the podcast-whitelist authority, so an episode is kept only if its owning SHOW is served
+     * by `/podcast` under the current flags — see the filter below.
      */
     suspend fun syncEpisodesForLater() {
         if (!isPersonalAccountSignedIn) return
@@ -196,9 +218,24 @@ class SyncUtils @Inject constructor(
         isSyncingEpisodes.value = true
         try {
             YouTube.episodesForLater().onSuccess { rawEpisodes ->
-                val remoteEpisodes = rawEpisodes
-                    .filterWhitelisted(database)
-                    .filterIsInstance<SongItem>()
+                // Kosher gate via the SERVER, not the local podcast table: keep an episode only if its
+                // owning SHOW (MPSP…) is served by `/podcast` (whitelisted under the current flags). Never
+                // adds non-whitelisted content, and — unlike a local-only show→channel resolve — DOES let a
+                // whitelisted episode through even when its show isn't locally subscribed. Each unique show
+                // is resolved once; a lookup FAILURE drops the episode this run (never add on doubt) and
+                // disables the cleanup below so a transient outage can't wipe genuine local saves.
+                val repo = context.zemerSearchRepository()
+                val options = zemerSearchOptions(context)
+                val showAllowed = mutableMapOf<String, Boolean>()
+                var anyLookupFailed = false
+                val remoteEpisodes = rawEpisodes.filter { ep ->
+                    val showId = ep.artists.mapNotNull { it.id }.firstOrNull { it.startsWith("MPSP") }
+                        ?: ep.artists.firstOrNull()?.id
+                    showId != null && showAllowed.getOrPut(showId) {
+                        runCatching { repo.podcast(showId, 0, options) != null }
+                            .getOrElse { anyLookupFailed = true; false }
+                    }
+                }
                 val remoteIds = remoteEpisodes.map { it.id }.toSet()
 
                 remoteEpisodes.forEach { episode ->
@@ -235,9 +272,10 @@ class SyncUtils @Inject constructor(
                 }
 
                 // Cleanup: local saved episodes no longer in (the whitelisted) VLSE are cleared. Guarded
-                // against an empty remote (a successful-but-empty fetch, or the podcast whitelist not yet
-                // populated) so it never wipes every locally-saved episode - mirrors syncPodcastSubscriptions.
-                if (remoteIds.isNotEmpty()) {
+                // against an empty remote (a successful-but-empty fetch) AND against any failed show lookup
+                // (a transient server/network failure must never be read as "removed on YTM" and wipe a
+                // genuine local save) - mirrors syncPodcastSubscriptions.
+                if (remoteIds.isNotEmpty() && !anyLookupFailed) {
                     val localToRemove = PodcastSyncLogic.localOnly(
                         local = database.savedEpisodes().first(),
                         remoteIds = remoteIds,
@@ -276,9 +314,10 @@ class SyncUtils @Inject constructor(
     fun toggleSaveEpisode(episode: SongEntity) {
         val wasSaved = episode.inLibrary != null
         syncScope.launch {
-            database.query {
-                update(episode.copy(inLibrary = if (wasSaved) null else LocalDateTime.now()))
-            }
+            // UPSERT in one transaction (insert-if-missing + full-row update) so saving a NOT-YET-persisted
+            // episode (e.g. from the song menu) creates its row stamped isEpisode = true — otherwise the
+            // save sets nothing (update no-ops on a missing row) and it never appears in Episodes-for-Later.
+            saveEpisodeLocal(episode, inLibrary = if (wasSaved) null else LocalDateTime.now())
             // Anonymous (pooled) sessions never write the shared account (dataSyncId, not SAPISID).
             if (!isPersonalAccountSignedIn) return@launch
 
@@ -294,13 +333,25 @@ class SyncUtils @Inject constructor(
             }
             result.onFailure { e ->
                 Timber.e(e, "[EPISODE_SAVE] toggle failed for ${episode.id} - reverting")
-                database.query {
-                    update(episode.copy(inLibrary = if (wasSaved) LocalDateTime.now() else null))
-                }
+                saveEpisodeLocal(episode, inLibrary = if (wasSaved) LocalDateTime.now() else null)
                 withContext(Dispatchers.Main) {
                     context.toast(if (wasSaved) R.string.error_episode_remove else R.string.error_episode_save)
                 }
             }
+        }
+    }
+
+    /**
+     * Upsert an episode's saved-for-later state in ONE transaction: insert-if-missing then a full-row
+     * update, both stamping `isEpisode = true`. Doing it in a single transaction (not two `query {}`
+     * blocks) avoids the split-mutation race, and the insert makes saving a not-yet-persisted episode
+     * actually land a row — so it appears in `savedEpisodes()` / Library → Podcasts → Episodes.
+     */
+    private suspend fun saveEpisodeLocal(episode: SongEntity, inLibrary: LocalDateTime?) {
+        val row = episode.copy(inLibrary = inLibrary, isEpisode = true)
+        database.transaction {
+            insert(row)
+            update(row)
         }
     }
 

@@ -354,35 +354,44 @@ fun YouTubeSongMenu(
                         libraryMenuItem(
                             inLibrary = librarySong?.song?.inLibrary != null,
                             onToggle = {
-                                val isInLibrary = librarySong?.song?.inLibrary != null
-                                val token = if (isInLibrary) song.libraryRemoveToken else song.libraryAddToken
-
-                                // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
-                                if (isPersonalAccountSignedIn) {
-                                    token?.let {
-                                        coroutineScope.launch {
-                                            YouTube.feedback(listOf(it))
-                                        }
-                                    }
-                                }
-
-                                if (isInLibrary) {
-                                    database.query {
-                                        inLibrary(song.id, null)
-                                    }
+                                // An EPISODE saves via the VLSE episode endpoint (toggleSaveEpisode: local
+                                // upsert stamped isEpisode + addEpisodeToSavedEpisodes / remove), NOT the
+                                // music library feedback token — episodes carry no library token, so the
+                                // music path pushed nothing to YouTube Music and never stamped isEpisode.
+                                if (song.isEpisode) {
+                                    val entity = librarySong?.song ?: song.toMediaMetadata().toSongEntity()
+                                    syncUtils.toggleSaveEpisode(entity)
                                 } else {
-                                    // Set isVideo flag when adding video to library
-                                    val metadata = song.toMediaMetadata().let {
-                                        if (isVideo) it.copy(isVideo = true) else it
-                                    }
-                                    database.transaction {
-                                        insert(metadata)
-                                        // Ensure isVideo is set even if song already exists (insert uses IGNORE)
-                                        if (isVideo) {
-                                            setIsVideo(song.id, true)
+                                    val isInLibrary = librarySong?.song?.inLibrary != null
+                                    val token = if (isInLibrary) song.libraryRemoveToken else song.libraryAddToken
+
+                                    // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+                                    if (isPersonalAccountSignedIn) {
+                                        token?.let {
+                                            coroutineScope.launch {
+                                                YouTube.feedback(listOf(it))
+                                            }
                                         }
-                                        inLibrary(song.id, LocalDateTime.now())
-                                        addLibraryTokens(song.id, song.libraryAddToken, song.libraryRemoveToken)
+                                    }
+
+                                    if (isInLibrary) {
+                                        database.query {
+                                            inLibrary(song.id, null)
+                                        }
+                                    } else {
+                                        // Set isVideo flag when adding video to library
+                                        val metadata = song.toMediaMetadata().let {
+                                            if (isVideo) it.copy(isVideo = true) else it
+                                        }
+                                        database.transaction {
+                                            insert(metadata)
+                                            // Ensure isVideo is set even if song already exists (insert uses IGNORE)
+                                            if (isVideo) {
+                                                setIsVideo(song.id, true)
+                                            }
+                                            inLibrary(song.id, LocalDateTime.now())
+                                            addLibraryTokens(song.id, song.libraryAddToken, song.libraryRemoveToken)
+                                        }
                                     }
                                 }
                             },
