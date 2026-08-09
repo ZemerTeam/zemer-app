@@ -66,9 +66,10 @@ fun ShowMediaInfo(videoId: String) {
     val playerConnection = LocalPlayerConnection.current
     val context = LocalContext.current
 
-    // RELAY mode: playback resolves server-side, so there is no local FormatEntity (stream client / itag /
-    // cipher rows), and on a truly filtered device getMediaInfo() (a YouTube call) won't load either. Show
-    // the relay streaming info instead, and don't hang on the shimmer waiting for info that won't arrive.
+    // RELAY mode is YouTube-free: playback resolves server-side (no local FormatEntity for stream client /
+    // itag / cipher rows), and getMediaInfo() is an InnerTube call whose Views/Likes/Dislikes/Subscribers/
+    // Description are all YouTube-sourced. A filtered relay session must neither request nor show them, so we
+    // skip the call entirely and render from the local `song` + a "Zemer Relay" source row instead.
     val playbackMode by rememberEnumPreference(PlaybackModeKey, PlaybackMode.DIRECT)
     val relayMode = playbackMode == PlaybackMode.RELAY
 
@@ -76,7 +77,7 @@ fun ShowMediaInfo(videoId: String) {
     var song by remember { mutableStateOf<Song?>(null) }
     var currentFormat by remember { mutableStateOf<FormatEntity?>(null) }
 
-    LaunchedEffect(videoId) { info = YouTube.getMediaInfo(videoId).getOrNull() }
+    LaunchedEffect(videoId, relayMode) { info = if (relayMode) null else YouTube.getMediaInfo(videoId).getOrNull() }
     LaunchedEffect(videoId) { database.song(videoId).collect { song = it } }
     LaunchedEffect(videoId) { database.format(videoId).collect { currentFormat = it } }
 
@@ -170,7 +171,7 @@ fun ShowMediaInfo(videoId: String) {
                     add(field(R.drawable.lock, stringResource(R.string.format_player_hash), playerHash))
                     add(field(R.drawable.lock_open, stringResource(R.string.format_cipher_support_added), cipherSupportAdded))
                 }
-                // YouTube stats — only when the media info actually loaded (it may not on a filtered device).
+                // YouTube stats — DIRECT only (never requested in relay mode, so `info` stays null there).
                 info?.let { i ->
                     add(field(R.drawable.stats, stringResource(R.string.views), i.viewCount?.let(::numberFormatter)))
                     add(field(R.drawable.favorite, stringResource(R.string.likes), i.like?.let(::numberFormatter)))

@@ -77,6 +77,11 @@ source** onto the whitelisted relay host `stream.zemer.io`. Full contract + the 
   back to Opus/webm, which the sniff saves as `.opus` since MediaStore.Audio rejects `.webm`), verify
   completeness against `Content-Length`, and play offline from the local file. **Video** re-uses the normal
   `VideoModeLogic` path pointing at the relay's 360p `&kind=video`; an audio-only id 404s → revert to audio.
+- **The song-details sheet stays YouTube-free in relay** (`ui/utils/ShowMediaInfo.kt`): `getMediaInfo()` is
+  an InnerTube call whose Views/Likes/Dislikes/Subscribers/Description are YouTube-sourced, so it is **not
+  requested** when `relayMode` (not merely hidden if the filtered device happens to fail the call — an
+  unfiltered relay session would otherwise show YouTube stats). The sheet renders from the local `song` + a
+  "Zemer Relay" source row; the YouTube stat/description sections are gated on `info` and stay absent.
 - **Errors** surface the contracted copy (404 "not available", 502/503 "try again"); the relay's egress pool
   is server-side, so a transient 502 is retried, not the app's bug.
 - **Streaming is still the danger zone:** any change here is proven with `tests/` (the DIRECT resolver
