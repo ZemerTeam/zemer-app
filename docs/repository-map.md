@@ -292,7 +292,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 816 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 938 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 302 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2442 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2453 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 356 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogic.kt` | 49 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/RemoteVolumeTracker.kt` | 54 lines | `.kt` |
@@ -310,8 +310,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/StationQueue.kt` | 160 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/YouTubeQueue.kt` | 75 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/ZemerRadioQueue.kt` | 126 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayDataSourceFactory.kt` | 51 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayDeviceId.kt` | 68 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayDataSourceFactory.kt` | 62 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayDeviceId.kt` | 72 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayDownload.kt` | 46 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayStream.kt` | 30 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/recognition/AudioResampler.kt` | 118 lines | `.kt` |
