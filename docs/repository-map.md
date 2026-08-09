@@ -115,7 +115,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
-| `AGENTS.md` | 1020 lines | `.md` |
+| `AGENTS.md` | 1028 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 19 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -290,7 +290,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/FCastDiscoveryHandler.kt` | 390 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/ListenAccumulator.kt` | 69 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 816 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 931 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 936 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 302 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2439 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 356 lines | `.kt` |
@@ -310,9 +310,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/StationQueue.kt` | 160 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/YouTubeQueue.kt` | 75 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/ZemerRadioQueue.kt` | 126 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayDataSourceFactory.kt` | 42 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayDataSourceFactory.kt` | 45 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayDownload.kt` | 46 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayStream.kt` | 26 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayStream.kt` | 30 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/recognition/AudioResampler.kt` | 118 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/recognition/RecognitionAudioCapture.kt` | 147 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/recognition/RecognitionHistoryFilter.kt` | 25 lines | `.kt` |
