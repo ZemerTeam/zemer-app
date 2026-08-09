@@ -537,7 +537,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/PrivacySettings.kt` | 205 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/SettingsScreen.kt` | 266 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/StorageSettings.kt` | 446 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/StreamSourceSettings.kt` | 245 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/StreamSourceSettings.kt` | 265 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ThemeScreen.kt` | 593 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/UpdaterSettings.kt` | 410 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/integrations/IntegrationScreen.kt` | 40 lines | `.kt` |

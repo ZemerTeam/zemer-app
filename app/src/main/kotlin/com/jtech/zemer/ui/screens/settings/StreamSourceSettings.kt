@@ -35,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.constants.StreamSourceAndroidCreatorKey
@@ -53,6 +54,7 @@ import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
+import com.metrolist.innertube.utils.parseCookieString
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,6 +76,18 @@ fun StreamSourceSettings(
     var playbackMode by rememberEnumPreference(PlaybackModeKey, defaultValue = PlaybackMode.DIRECT)
     val relayEnabled = playbackMode == PlaybackMode.RELAY
 
+    // The relay toggle is ONLY for the login-less "filtered device" session. A normal Google or Anonymous
+    // login (both carry a SAPISID cookie) has working direct playback, so it must not see or flip this
+    // switch — the whole "Filtered devices" group is hidden for them, leaving just the client list.
+    val (loginCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
+    val loggedInNormally = remember(loginCookie) { parseCookieString(loginCookie).containsKey("SAPISID") }
+
+    // A normal login forces DIRECT: if a relay session later logs in (Google/Anonymous), reset the mode so
+    // it is never stranded in relay with the toggle hidden (and so direct playback resumes).
+    LaunchedEffect(loggedInNormally, relayEnabled) {
+        if (loggedInNormally && relayEnabled) playbackMode = PlaybackMode.DIRECT
+    }
+
     // Effective stream order shown to the user: WEB_REMIX is the primary client; the rest mirror
     // YTPlayerUtils.ALL_FALLBACK_CLIENTS (ANDROID_VR variants deduped). Only enabled toggles appear.
     val streamOrder = listOf(
@@ -91,7 +105,9 @@ fun StreamSourceSettings(
     val firstFocus = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        firstFocus.requestFocus()
+        // firstFocus is attached to whichever first row is visible (the relay toggle for a login-less
+        // session, the web-remix toggle otherwise); guard in case neither is composed yet.
+        runCatching { firstFocus.requestFocus() }
     }
 
     Column(
@@ -101,6 +117,8 @@ fun StreamSourceSettings(
     ) {
         // The RELAY toggle leads: it is the one switch that changes WHERE audio comes from. When on, the
         // on-device client fallback list below no longer applies (playback goes through the Zemer relay).
+        // Shown ONLY for a login-less session — a normal Google/Anonymous login never sees it.
+        if (!loggedInNormally) {
         PreferenceGroupTitle(
             title = stringResource(R.string.stream_relay_group)
         )
@@ -110,10 +128,10 @@ fun StreamSourceSettings(
             icon = { Icon(painterResource(R.drawable.security), null) },
             checked = relayEnabled,
             onCheckedChange = { on -> playbackMode = if (on) PlaybackMode.RELAY else PlaybackMode.DIRECT },
-            // The relay toggle is always visible, so it (not the DIRECT-only web-remix row, which hides in
-            // RELAY mode) carries the initial D-pad focus — requesting focus on a hidden row would crash.
+            // When shown (login-less), the relay toggle carries the initial D-pad focus.
             modifier = Modifier.focusRequester(firstFocus),
         )
+        } // end if (!loggedInNormally)
 
         // The per-client fallback list only governs DIRECT playback; in RELAY mode the relay resolves the
         // stream server-side, so these toggles do nothing. Hide the whole section so it is not available.
@@ -161,6 +179,8 @@ fun StreamSourceSettings(
             icon = { Icon(painterResource(R.drawable.play), null) },
             checked = webRemixEnabled,
             onCheckedChange = onWebRemixChange,
+            // When the relay group is hidden (a normal login), this is the first row, so it takes focus.
+            modifier = if (loggedInNormally) Modifier.focusRequester(firstFocus) else Modifier,
         )
 
         SwitchPreference(
