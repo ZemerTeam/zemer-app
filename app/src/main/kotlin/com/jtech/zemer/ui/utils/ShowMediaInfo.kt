@@ -38,8 +38,12 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.PlaybackMode
+import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.db.entities.FormatEntity
 import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.playback.relay.RelayStream
+import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
@@ -63,6 +67,12 @@ fun ShowMediaInfo(videoId: String) {
     val playerConnection = LocalPlayerConnection.current
     val context = LocalContext.current
 
+    // RELAY mode: playback resolves server-side, so there is no local FormatEntity (stream client / itag /
+    // cipher rows), and on a truly filtered device getMediaInfo() (a YouTube call) won't load either. Show
+    // the relay streaming info instead, and don't hang on the shimmer waiting for info that won't arrive.
+    val playbackMode by rememberEnumPreference(PlaybackModeKey, PlaybackMode.DIRECT)
+    val relayMode = playbackMode == PlaybackMode.RELAY
+
     var info by remember { mutableStateOf<MediaInfo?>(null) }
     var song by remember { mutableStateOf<Song?>(null) }
     var currentFormat by remember { mutableStateOf<FormatEntity?>(null) }
@@ -81,7 +91,9 @@ fun ShowMediaInfo(videoId: String) {
             .padding(horizontal = 16.dp)
             .padding(top = 8.dp, bottom = 16.dp),
     ) {
-        if (info == null) {
+        // In DIRECT mode wait for the YouTube media info; in RELAY mode it may never load (filtered
+        // device), so render from local `song` + the relay info rather than shimmering forever.
+        if (info == null && !relayMode) {
             ShimmerHost {
                 Row(
                     horizontalArrangement = Arrangement.Center,
@@ -144,16 +156,26 @@ fun ShowMediaInfo(videoId: String) {
         SectionTitle(stringResource(R.string.information))
         Material3MenuGroup(
             items = buildList {
-                // Stream/cipher details first (most relevant for diagnosing playback).
+                // RELAY: the audio is streamed through the Zemer relay, so surface that (and the exact
+                // stream URL, tap to copy) in place of the on-device stream/cipher details, which don't
+                // exist in this mode. The URL carries the videoId to correlate with the relay's logs.
+                if (relayMode) {
+                    add(field(R.drawable.security, stringResource(R.string.relay_info_source), stringResource(R.string.relay_info_source_value)))
+                    add(field(R.drawable.link, stringResource(R.string.relay_info_stream), RelayStream.streamUrl(song?.id ?: videoId)))
+                }
+                // Stream/cipher details first (most relevant for diagnosing playback). Absent in relay mode.
                 currentFormat?.let { f ->
                     add(field(R.drawable.info, stringResource(R.string.format_stream_client), f.streamClient))
                     add(field(R.drawable.lock, stringResource(R.string.format_player_hash), playerHash))
                     add(field(R.drawable.lock_open, stringResource(R.string.format_cipher_support_added), cipherSupportAdded))
                 }
-                add(field(R.drawable.stats, stringResource(R.string.views), info?.viewCount?.let(::numberFormatter)))
-                add(field(R.drawable.favorite, stringResource(R.string.likes), info?.like?.let(::numberFormatter)))
-                add(field(R.drawable.favorite_border, stringResource(R.string.dislikes), info?.dislike?.let(::numberFormatter)))
-                add(field(R.drawable.person, stringResource(R.string.subscribers), info?.subscribers))
+                // YouTube stats — only when the media info actually loaded (it may not on a filtered device).
+                info?.let { i ->
+                    add(field(R.drawable.stats, stringResource(R.string.views), i.viewCount?.let(::numberFormatter)))
+                    add(field(R.drawable.favorite, stringResource(R.string.likes), i.like?.let(::numberFormatter)))
+                    add(field(R.drawable.favorite_border, stringResource(R.string.dislikes), i.dislike?.let(::numberFormatter)))
+                    add(field(R.drawable.person, stringResource(R.string.subscribers), i.subscribers))
+                }
                 currentFormat?.let { f ->
                     add(field(R.drawable.tune, stringResource(R.string.format_itag), f.itag?.toString()))
                     add(field(R.drawable.info, stringResource(R.string.mime_type), f.mimeType))

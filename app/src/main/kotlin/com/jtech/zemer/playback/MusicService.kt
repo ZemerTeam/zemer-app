@@ -75,6 +75,9 @@ import com.jtech.zemer.MainActivity
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AndroidAutoTargetPlaylistKey
 import com.jtech.zemer.constants.AudioNormalizationKey
+import com.jtech.zemer.constants.PlaybackMode
+import com.jtech.zemer.constants.PlaybackModeKey
+import com.jtech.zemer.playback.relay.RelayStream
 import com.jtech.zemer.constants.AudioOffload
 import com.jtech.zemer.constants.AudioQualityKey
 import com.jtech.zemer.constants.AutoDownloadOnLikeKey
@@ -485,6 +488,15 @@ class MusicService :
         scope.launch {
             audioQualityFlow.collect { quality ->
                 audioQuality = quality
+            }
+        }
+
+        // Mirror the RELAY playback-mode flag into a synchronous field read by the data-source dispatcher.
+        // DIRECT (every normal user) is the seed and the default, so the relay path is inert until a user
+        // explicitly opts in; this collector only ever flips the one boolean.
+        scope.launch {
+            enumPreferenceFlow(this@MusicService, PlaybackModeKey, PlaybackMode.DIRECT).collect {
+                relayModeNow = it == PlaybackMode.RELAY
             }
         }
 
@@ -2059,13 +2071,54 @@ class MusicService :
         createDataSourceFactory()
     }
 
+    // ---- RELAY playback mode (opt-in, login-less; see RelayStream / the handoff doc). Fully isolated ----
+    // from the DIRECT path above: when RELAY is off (every normal user) none of this code runs, and the
+    // DIRECT factory is used verbatim. RELAY bypasses /player resolution, the cipher, googlevideo AND the
+    // shared player/download caches entirely (a filtered device can't reach YouTube, and staying off the
+    // shared cache means the relay can never touch a normal user's cached bytes). It simply rewrites each
+    // open to the whitelisted relay URL for the track's videoId and lets ExoPlayer stream it with Range.
+    @Volatile
+    private var relayModeNow = false
+
+    private val relayDataSourceFactory: DataSource.Factory by lazy { createRelayDataSourceFactory() }
+
+    private fun createRelayDataSourceFactory(): DataSource.Factory {
+        val upstream = DefaultDataSource.Factory(
+            this,
+            OkHttpDataSource.Factory(OkHttpClient.Builder().dns(ResilientDns()).build()),
+        )
+        return ResolvingDataSource.Factory(upstream) { dataSpec ->
+            val mediaId = dataSpec.key ?: dataSpec.uri.toString()
+            // A downloaded file plays from disk — essential on a filtered device, which cannot reach the
+            // relay (or anything) offline. Mirrors the DIRECT resolver's local-file check; only stream from
+            // the relay when there is no openable local file. DefaultDataSource handles the content:// uri.
+            val localUri = runBlocking(Dispatchers.IO) {
+                database.song(mediaId).first()?.song?.mediaStoreUri
+            }
+            if (localUri != null && downloadedFileOpens(localUri)) {
+                playbackSourceIsLocal[mediaId] = true
+                dataSpec.withUri(localUri.toUri())
+            } else {
+                dataSpec.withUri(RelayStream.streamUrl(mediaId).toUri())
+            }
+        }
+    }
+
+    // Per-open selector: RELAY users get the isolated relay factory, everyone else gets the DIRECT factory
+    // verbatim. Reading relayModeNow per createDataSource() gives the "takes effect on the next track"
+    // behavior the toggle promises without rebuilding the player.
+    private val playbackDataSourceFactory = DataSource.Factory {
+        if (relayModeNow) relayDataSourceFactory.createDataSource() else dataSourceFactory.createDataSource()
+    }
+
     private fun createMediaSourceFactory() =
         DefaultMediaSourceFactory(
-            dataSourceFactory,
+            playbackDataSourceFactory,
             ExtractorsFactory {
                 // Mp4Extractor added for the video-mode progressive muxed MP4 (plain-moov container the
                 // fragmented/mkv extractors can't parse); purely additive (sniffing tries in order), and
                 // it also lets a downloaded muxed video file play inside the music queue.
+                // MatroskaExtractor also decodes the relay's webm/opus (itag 251) audio.
                 arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor())
             },
         )

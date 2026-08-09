@@ -262,6 +262,15 @@
     <!-- Stream sources -->
     <string name="stream_sources">Stream sources</string>
     <string name="stream_sources_description">Enable/Disable streaming clients</string>
+    <!-- Relay playback mode (for kosher-filtered devices) -->
+    <string name="stream_relay_group">Filtered devices</string>
+    <string name="stream_relay_title">Stream through Zemer</string>
+    <string name="stream_relay_desc">For devices whose content filter blocks YouTube.</string>
+    <string name="login_filter_blocks_playback">My filter blocks playback</string>
+    <string name="login_filter_blocks_playback_subtitle">Enter without signing in.</string>
+    <string name="relay_info_source">Playback source</string>
+    <string name="relay_info_source_value">Zemer relay</string>
+    <string name="relay_info_stream">Relay stream</string>
     <string name="stream_source_order">Current order</string>
     <string name="stream_source_web_clients">Web clients</string>
     <string name="stream_source_native_clients">Native clients</string>

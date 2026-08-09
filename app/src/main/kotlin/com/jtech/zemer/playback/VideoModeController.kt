@@ -8,6 +8,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.PlaybackMode
+import com.jtech.zemer.constants.PlaybackModeKey
+import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.playback.VideoModeLogic.RenditionKind
 import com.jtech.zemer.playback.VideoModeLogic.TransitionClass
 import com.jtech.zemer.utils.BlockedIdsCache
@@ -86,6 +89,12 @@ class VideoModeController(
     @Volatile
     private var blockVideosNow: Boolean? = null
 
+    // Latest RELAY playback-mode value, mirrored like [blockVideosNow] (same null-seed rationale: a
+    // restored queue can compute availability synchronously before the flow's first emission). Unknown is
+    // read fail-safe as RELAY so a video pill can never flash for a relay user before the value lands.
+    @Volatile
+    private var relayModeNow: Boolean? = null
+
     private val _isVideoMode = MutableStateFlow(false)
     val isVideoMode: StateFlow<Boolean> = _isVideoMode.asStateFlow()
 
@@ -99,6 +108,10 @@ class VideoModeController(
 
     private val blockVideosFlow =
         service.dataStore.data.map { it[BlockVideosKey] ?: false }.distinctUntilChanged()
+
+    private val relayModeFlow =
+        service.dataStore.data.map { it[PlaybackModeKey].toEnum(PlaybackMode.DIRECT) == PlaybackMode.RELAY }
+            .distinctUntilChanged()
 
     private val _videoModeAvailable = MutableStateFlow(false)
 
@@ -141,8 +154,9 @@ class VideoModeController(
                     blockVideosFlow,
                     availabilityCache.revision,
                     // A station broadcast starting/ending must re-evaluate (the toggle is never offered
-                    // during a broadcast); recompute covers local-file source resolution.
-                    combine(service.isStationBroadcast, recompute) { _, _ -> },
+                    // during a broadcast); recompute covers local-file source resolution; relayModeFlow so
+                    // the pill disappears the moment RELAY mode is turned on.
+                    combine(service.isStationBroadcast, recompute, relayModeFlow) { _, _, _ -> },
                 ) { _, _, _, _, _ -> },
                 // Connectivity gates the streaming renditions (a downloaded LOCAL file stays available offline).
                 service.isNetworkConnected,
@@ -162,6 +176,14 @@ class VideoModeController(
                 if (blocked && _isVideoMode.value) revertToAudio()
             }
         }
+        // RELAY is audio-only: turning it on mid-playback must drop video mode immediately (else the
+        // surface draws a blank frame over audio, as in the reported bug).
+        scope.launch {
+            relayModeFlow.collect { relay ->
+                relayModeNow = relay
+                if (relay && _isVideoMode.value) revertToAudio()
+            }
+        }
     }
 
     /** Pure availability for the CURRENT item (null ⇒ no toggle). Recomputed by [videoModeAvailable]. */
@@ -176,6 +198,8 @@ class VideoModeController(
             // preference value hasn't arrived yet (see the field's kdoc).
             blockVideos = blockVideosNow ?: true,
             stationBroadcast = service.isStationBroadcast.value,
+            // Unknown reads as RELAY (fail-safe hide) — never flash a blank-video pill for a relay user.
+            relayMode = relayModeNow ?: true,
             localVideoFile = meta.isVideo && service.playbackSourceIsLocalFile(id),
             online = service.isNetworkConnected.value,
             musicVideoType = avail?.musicVideoType,
@@ -240,6 +264,7 @@ class VideoModeController(
                     blockVideos = blockVideosNow ?: true,
                     musicVideoType = availabilityCache.get(mediaId)?.musicVideoType,
                     counterpartResolved = availabilityCache.get(mediaId)?.counterpartResolved == true,
+                    relayMode = relayModeNow ?: true,
                 )
             ) {
                 return@launch

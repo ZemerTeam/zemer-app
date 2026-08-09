@@ -6,6 +6,10 @@ import android.net.Uri
 import androidx.core.content.getSystemService
 import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.AudioQualityKey
+import com.jtech.zemer.constants.PlaybackMode
+import com.jtech.zemer.constants.PlaybackModeKey
+import com.jtech.zemer.extensions.toEnum
+import com.jtech.zemer.playback.relay.RelayStream
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.tracking.Tracker
@@ -13,6 +17,8 @@ import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.db.entities.SongAlbumMap
 import com.jtech.zemer.db.entities.SongArtistMap
 import com.jtech.zemer.utils.CoverArtEmbedder
+import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.MediaStoreHelper
 import com.jtech.zemer.utils.UrlValidator
 import com.jtech.zemer.utils.YTPlayerUtils
@@ -31,6 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.TimeUnit
 import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -79,6 +86,17 @@ constructor(
                     .build()
             } ?: response.request
         }
+        .build()
+
+    // RELAY downloads hit the whitelisted relay host directly (NOT through YouTube.proxy — that proxy is
+    // for googlevideo) and carry a read timeout: the relay pulls the whole file through a rotating
+    // residential-proxy pool whose tail can stall, and the default client has NO read timeout, so a
+    // stalled last chunk hangs the download at ~99% forever. The timeout turns that into a retriable
+    // failure instead. Isolated from the DIRECT client so normal downloads are unchanged.
+    private val relayHttpClient = OkHttpClient.Builder()
+        .dns(ResilientDns())
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
     // Concurrent download limiter (max 3 simultaneous downloads)
@@ -403,18 +421,25 @@ constructor(
                 )
             )
 
-            // Get playback URL from YouTube using YTPlayerUtils
-            // For videos, request video stream with preferVideo=true
-            Timber.d("Starting download for ${if (isVideoDownload) "video" else "song"} ${song.id}: ${song.song.title}, preferVideo=${isVideoDownload}")
-            val playbackData = YTPlayerUtils.playerResponseForPlayback(
+            // RELAY mode: a kosher-filtered device can't reach googlevideo, so skip on-device /player
+            // resolution entirely and pull the audio from the whitelisted relay (webm/opus, itag 251).
+            // The relay serves audio only, so a relay download is always audio regardless of the requested
+            // rendition (a filtered device could not fetch a muxed video file anyway).
+            val relayMode =
+                context.dataStore.getSuspend(PlaybackModeKey).toEnum(PlaybackMode.DIRECT) == PlaybackMode.RELAY
+            val videoDownload = isVideoDownload && !relayMode
+
+            // Get playback URL. DIRECT: resolve via YTPlayerUtils (video stream when preferVideo=true).
+            Timber.d("Starting download for ${if (videoDownload) "video" else "song"} ${song.id}: ${song.song.title}, relay=$relayMode")
+            val playbackData = if (relayMode) null else YTPlayerUtils.playerResponseForPlayback(
                 videoId = song.id,
                 audioQuality = audioQuality,
                 connectivityManager = connectivityManager,
-                preferVideo = isVideoDownload,
+                preferVideo = videoDownload,
                 // An explicit per-download cap survives retries (requestedVideoBitrate); without one,
                 // the shared metered-aware default applies — a video download must never silently
                 // fetch the largest available file on a metered connection.
-                maxVideoBitrateKbps = if (isVideoDownload) {
+                maxVideoBitrateKbps = if (videoDownload) {
                     requestedVideoBitrate[song.id]
                         ?: VideoRendition.defaultMaxBitrateKbps(connectivityManager?.isActiveNetworkMetered == true)
                 } else {
@@ -423,37 +448,42 @@ constructor(
                 forDownload = true,
             ).getOrThrow()
 
-            val format = playbackData.format
-            val downloadUrl = playbackData.streamUrl
-
-            // NEVER write this URL into the shared playback URL cache: it is a forDownload format
+            // NEVER write the DIRECT URL into the shared playback URL cache: it is a forDownload format
             // (muxed MP4 for videos, and generally a different itag than what's streaming), and
             // downloads never read the cache themselves (this resolution is always fresh). Writing
             // it — even into an absent/expired slot — poisoned mid-play seeks: a download started
             // while a song was playing from cached spans left this URL as the seek's stream source,
             // and the already-initialized extractor read a foreign container ("No valid varint
-            // length mask found" / Source error).
-            Timber.d("Got format: ${format.mimeType}, URL length: ${downloadUrl.length}")
+            // length mask found" / Source error). (Relay does not use this cache either.)
+            // Relay: the dedicated /download endpoint (NOT /stream) resolves + pulls the whole file
+            // server-side and returns one clean response (accurate Content-Length, clean close), so a plain
+            // one-shot GET -> save works reliably where a full pull of the range-based /stream did not.
+            val downloadUrl = if (relayMode) RelayStream.downloadUrl(song.id) else playbackData!!.streamUrl
+            Timber.d("Download URL length: ${downloadUrl.length}, relay=$relayMode")
 
             // Create temporary file for download
-            val mimeTypeRaw = format.mimeType.substringBefore(";").trim()
-            val extension = if (isVideoDownload) {
-                // For video downloads, keep video extensions
-                when {
-                    mimeTypeRaw.contains("webm") -> "webm"
-                    mimeTypeRaw.contains("mp4") -> "mp4"
-                    mimeTypeRaw.contains("3gp") -> "3gp"
-                    else -> "mp4" // Default to mp4 for videos
-                }
+            val extension = if (relayMode) {
+                "webm" // relay audio is webm/opus (itag 251)
             } else {
-                // For audio downloads, convert to audio extensions
-                when {
-                    mimeTypeRaw.contains("webm") -> "webm"
-                    mimeTypeRaw.contains("mp4") -> "m4a"
-                    mimeTypeRaw.contains("ogg") -> "ogg"
-                    mimeTypeRaw.contains("opus") -> "opus"
-                    mimeTypeRaw.contains("mpeg") -> "mp3"
-                    else -> mimeTypeRaw.substringAfterLast("/")
+                val mimeTypeRaw = playbackData!!.format.mimeType.substringBefore(";").trim()
+                if (videoDownload) {
+                    // For video downloads, keep video extensions
+                    when {
+                        mimeTypeRaw.contains("webm") -> "webm"
+                        mimeTypeRaw.contains("mp4") -> "mp4"
+                        mimeTypeRaw.contains("3gp") -> "3gp"
+                        else -> "mp4" // Default to mp4 for videos
+                    }
+                } else {
+                    // For audio downloads, convert to audio extensions
+                    when {
+                        mimeTypeRaw.contains("webm") -> "webm"
+                        mimeTypeRaw.contains("mp4") -> "m4a"
+                        mimeTypeRaw.contains("ogg") -> "ogg"
+                        mimeTypeRaw.contains("opus") -> "opus"
+                        mimeTypeRaw.contains("mpeg") -> "mp3"
+                        else -> mimeTypeRaw.substringAfterLast("/")
+                    }
                 }
             }
             val tempFile = File(context.cacheDir, "temp_${song.id}.$extension")
@@ -465,6 +495,13 @@ constructor(
                 if (!tempFile.exists() || tempFile.length() == 0L) {
                     throw Exception("Download failed - temp file not created or empty")
                 }
+
+                // The extension/MIME used for the MediaStore entry. The relay serves Opus in a WebM
+                // container (or occasionally MP4); `.webm` is REJECTED by MediaStore.Audio (Android maps
+                // .webm to video/webm, inconsistent with an audio entry -> insert returns null -> "Failed
+                // to save file to MediaStore"). Sniff the real container and label WebM as .opus / MP4 as
+                // .m4a — both MediaStore-accepted, and in-app playback sniffs the real container regardless.
+                val saveExtension = if (relayMode) sniffAudioExtension(tempFile) else extension
 
                 // Get metadata for embedding and file naming
                 val title = song.song.title
@@ -485,11 +522,11 @@ constructor(
                 // "0:00" in the Downloaded list — backfill it from the playback response so the saved
                 // file's metadata AND the DB row get a real length.
                 val effectiveDurationSec = song.song.duration.takeIf { it > 0 }
-                    ?: playbackData.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0
+                    ?: playbackData?.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0
                 val duration = effectiveDurationSec.takeIf { it > 0 }?.times(1000L) // ms for MediaStore
 
                 // Embed metadata if format supports it (audio only)
-                if (!isVideoDownload && CoverArtEmbedder.supportsEmbedding(extension)) {
+                if (!videoDownload && CoverArtEmbedder.supportsEmbedding(extension)) {
                     CoverArtEmbedder.embedMetadataIntoFile(
                         context = context,
                         audioFile = tempFile,
@@ -502,13 +539,13 @@ constructor(
                     )
                 }
 
-                val fileName = "$title.$extension"
+                val fileName = "$title.$saveExtension"
                 val uri: Uri?
 
-                if (isVideoDownload) {
+                if (videoDownload) {
                     // Save video to Movies/Zemer folder
-                    val mimeType = mediaStoreHelper.getVideoMimeType(extension)
-                    Timber.d("VIDEO DOWNLOAD PATH: Saving to Movies/Zemer: $fileName, mimeType: $mimeType, extension: $extension, tempFile size: ${tempFile.length()}")
+                    val mimeType = mediaStoreHelper.getVideoMimeType(saveExtension)
+                    Timber.d("VIDEO DOWNLOAD PATH: Saving to Movies/Zemer: $fileName, mimeType: $mimeType, extension: $saveExtension, tempFile size: ${tempFile.length()}")
                     uri = mediaStoreHelper.saveVideoFileToMediaStore(
                         tempFile = tempFile,
                         fileName = fileName,
@@ -519,8 +556,8 @@ constructor(
                     )
                 } else {
                     // Save audio to Music/Zemer folder
-                    val mimeType = mediaStoreHelper.getMimeType(extension)
-                    Timber.d("AUDIO DOWNLOAD PATH: Saving to Music/Zemer: $fileName, mimeType: $mimeType, extension: $extension, tempFile size: ${tempFile.length()}")
+                    val mimeType = mediaStoreHelper.getMimeType(saveExtension)
+                    Timber.d("AUDIO DOWNLOAD PATH: Saving to Music/Zemer: $fileName, mimeType: $mimeType, extension: $saveExtension, tempFile size: ${tempFile.length()}")
                     uri = mediaStoreHelper.saveFileToMediaStore(
                         tempFile = tempFile,
                         fileName = fileName,
@@ -551,7 +588,7 @@ constructor(
                     // time and artwork — a standalone video opened from the Video player is built with
                     // neither, and the old per-screen download set the thumbnail explicitly.
                     val effectiveThumbnailUrl = song.song.thumbnailUrl?.takeIf { it.isNotBlank() }
-                        ?: playbackData.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url
+                        ?: playbackData?.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url
                     val songWithMeta = song.copy(
                         song = song.song.copy(
                             duration = if (song.song.duration > 0) song.song.duration else effectiveDurationSec,
@@ -608,12 +645,45 @@ constructor(
     }
 
     /**
+     * Sniff a downloaded audio file's container from its magic bytes and return a MediaStore-friendly
+     * extension. The relay serves Opus in a WebM container (itag 251) or occasionally MP4; `.webm` is
+     * rejected by MediaStore.Audio, so WebM -> "opus" (audio/opus) and MP4 -> "m4a" (audio/mp4). In-app
+     * playback sniffs the real container (Matroska/Mp4 extractors), so the label is only for MediaStore.
+     */
+    private fun sniffAudioExtension(file: File): String =
+        try {
+            val head = ByteArray(12)
+            val n = file.inputStream().use { it.read(head) }
+            when {
+                // EBML header (1A 45 DF A3) = WebM/Matroska, i.e. the Opus audio the relay serves.
+                n >= 4 && head[0] == 0x1A.toByte() && head[1] == 0x45.toByte() &&
+                    head[2] == 0xDF.toByte() && head[3] == 0xA3.toByte() -> "opus"
+                // "ftyp" at offset 4 = MP4/M4A.
+                n >= 8 && head[4] == 'f'.code.toByte() && head[5] == 't'.code.toByte() &&
+                    head[6] == 'y'.code.toByte() && head[7] == 'p'.code.toByte() -> "m4a"
+                // "OggS" = Ogg (also Opus); label the same as WebM opus.
+                n >= 4 && head[0] == 'O'.code.toByte() && head[1] == 'g'.code.toByte() &&
+                    head[2] == 'g'.code.toByte() && head[3] == 'S'.code.toByte() -> "opus"
+                else -> "opus"
+            }
+        } catch (e: Exception) {
+            "opus"
+        }
+
+    /**
      * Download a file from a URL to a temp file with progress tracking
      */
     private suspend fun downloadFile(url: String, outputFile: File, songId: String) = withContext(Dispatchers.IO) {
         // Validate URL before attempting to build request
         val validatedUrl = UrlValidator.validateAndParseUrl(url)
             ?: throw Exception("Invalid download URL: $url")
+
+        // Relay downloads use the direct, read-timeout client (no YouTube proxy) and hit the dedicated
+        // /download endpoint, which resolves + buffers the whole file server-side and returns ONE clean
+        // response (accurate Content-Length, clean close). So a plain one-shot GET -> save is reliable — no
+        // client-side chunking needed (a full pull of the range-based /stream was what stalled at the tail).
+        val isRelay = validatedUrl.toString().startsWith(RelayStream.BASE)
+        val client = if (isRelay) relayHttpClient else httpClient
 
         val request = try {
             Request.Builder()
@@ -622,13 +692,15 @@ constructor(
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
                 .header("Accept", "*/*")
                 .header("Accept-Language", "en-US,en;q=0.9")
-                .header("Range", "bytes=0-")
+                // /download returns the full file as a plain response; only the DIRECT googlevideo path
+                // needs the open-ended range request.
+                .apply { if (!isRelay) header("Range", "bytes=0-") }
                 .build()
         } catch (e: Exception) {
             throw Exception("Failed to build download request for URL: $url", e)
         }
 
-        val response = httpClient.newCall(request).execute()
+        val response = client.newCall(request).execute()
         val responseCode = response.code
 
         if (!response.isSuccessful) {

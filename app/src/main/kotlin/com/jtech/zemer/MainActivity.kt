@@ -184,6 +184,8 @@ import com.jtech.zemer.constants.NavigationBarHeight
 import com.jtech.zemer.constants.RecognizeMusicFabKey
 import com.jtech.zemer.constants.SlimNavBarHeight
 import com.jtech.zemer.constants.OnboardingCompleteKey
+import com.jtech.zemer.constants.PlaybackMode
+import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.constants.PauseListenHistoryKey
 import com.jtech.zemer.constants.PauseSearchHistoryKey
 import com.jtech.zemer.constants.PureBlackKey
@@ -733,10 +735,16 @@ class MainActivity : ComponentActivity() {
                         val isYouTubeLoggedIn = remember(loginGateCookie) {
                             parseCookieString(loginGateCookie).containsKey("SAPISID")
                         }
+                        // RELAY is a deliberately login-less mode (no SAPISID cookie), so it must NOT be
+                        // bounced back to the login gate. Every other user still gates on the cookie exactly
+                        // as before.
+                        val playbackMode by rememberEnumPreference(PlaybackModeKey, PlaybackMode.DIRECT)
                         val currentRoute = navBackStackEntry?.destination?.route
-                        LaunchedEffect(preferencesLoaded, isYouTubeLoggedIn, currentRoute) {
+                        LaunchedEffect(preferencesLoaded, isYouTubeLoggedIn, playbackMode, currentRoute) {
                             // Only redirect after preferences are loaded
-                            if (preferencesLoaded && !isYouTubeLoggedIn && currentRoute != "login_gate" && currentRoute != "login") {
+                            if (preferencesLoaded && !isYouTubeLoggedIn && playbackMode != PlaybackMode.RELAY &&
+                                currentRoute != "login_gate" && currentRoute != "login"
+                            ) {
                                 navController.navigate("login_gate") {
                                     popUpTo(0) { inclusive = true }
                                 }

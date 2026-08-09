@@ -12,6 +12,10 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
+// Audio source mode. Absent/DIRECT for every normal user (Google + anonymous login); RELAY only when the
+// user opts into the login-less "My filter blocks playback" mode. Read as an enum via [PlaybackMode].
+val PlaybackModeKey = stringPreferencesKey("playbackMode")
+
 val DynamicThemeKey = booleanPreferencesKey("dynamicTheme")
 val SelectedThemeColorKey = intPreferencesKey("selectedThemeColor")
 val DarkModeKey = stringPreferencesKey("darkMode")
