@@ -77,7 +77,7 @@ import com.jtech.zemer.constants.AndroidAutoTargetPlaylistKey
 import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
-import com.jtech.zemer.playback.relay.RelayStream
+import com.jtech.zemer.playback.relay.RelayDataSourceFactory
 import com.jtech.zemer.constants.AudioOffload
 import com.jtech.zemer.constants.AudioQualityKey
 import com.jtech.zemer.constants.AutoDownloadOnLikeKey
@@ -2078,27 +2078,11 @@ class MusicService :
     @Volatile
     private var relayModeNow: Boolean? = null
 
-    private val relayDataSourceFactory: DataSource.Factory by lazy { createRelayDataSourceFactory() }
-
-    private fun createRelayDataSourceFactory(): DataSource.Factory {
-        val upstream = DefaultDataSource.Factory(
-            this,
-            OkHttpDataSource.Factory(OkHttpClient.Builder().dns(ResilientDns()).build()),
-        )
-        return ResolvingDataSource.Factory(upstream) { dataSpec ->
-            val mediaId = dataSpec.key ?: dataSpec.uri.toString()
-            // A downloaded file plays from disk (offline on a filtered device), decided ONCE at position 0
-            // via the SAME [resolveDownloadedFileUri] the DIRECT resolver uses — so relay gets the identical
-            // no-mid-track-switch guard, self-repair, recoverSong and video-mode nudge. A `video:` rendition
-            // key is never a downloaded file in relay (audio-only downloads), so skip the check and stream.
-            if (!VideoRendition.isVideoKey(mediaId)) {
-                resolveDownloadedFileUri(mediaId, dataSpec.position)?.let {
-                    return@Factory dataSpec.withUri(it.toUri())
-                }
-            }
-            // Audio for a plain id, 360p muxed video for a `video:` rendition key.
-            dataSpec.withUri(RelayStream.playbackUrl(mediaId).toUri())
-        }
+    // The relay factory construction lives in RelayDataSourceFactory (keeps this file from growing); it
+    // shares the DIRECT local-file decision via ::resolveDownloadedFileUri, so downloads play from disk and
+    // never mid-track-switch, exactly like DIRECT.
+    private val relayDataSourceFactory: DataSource.Factory by lazy {
+        RelayDataSourceFactory.create(this) { mediaId, position -> resolveDownloadedFileUri(mediaId, position) }
     }
 
     // Per-open selector: RELAY users get the isolated relay factory, everyone else gets the DIRECT factory

@@ -55,6 +55,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -162,6 +163,25 @@ class App : Application(), SingletonImageLoader.Factory {
                 val persisted = BlockedIdsCache.parse(dataStore.get(BlockedContentIdsKey, ""))
                 if (persisted.isNotEmpty()) BlockedIdsCache.updateAll(persisted)
             }
+        }
+
+        // RELAY is the login-less "filtered device" playback mode. A normal login (Google or Anonymous —
+        // both set a SAPISID cookie) must never remain in RELAY: reset PlaybackModeKey to DIRECT the moment
+        // a login cookie appears, from ANY entry point (the login gate, account settings, a re-login), so
+        // playback and downloads leave the degraded relay path. Global by design — it must not depend on the
+        // user opening a particular settings screen (that was the only place doing it before).
+        applicationScope.launch(Dispatchers.IO) {
+            dataStore.data
+                .map {
+                    parseCookieString(it[InnerTubeCookieKey] ?: "").containsKey("SAPISID") to
+                        (it[PlaybackModeKey] == PlaybackMode.RELAY.name)
+                }
+                .distinctUntilChanged()
+                .collect { (loggedIn, relay) ->
+                    if (loggedIn && relay) {
+                        runCatching { dataStore.edit { it[PlaybackModeKey] = PlaybackMode.DIRECT.name } }
+                    }
+                }
         }
 
         // Load the persisted Music Status source config so the last-good (server-driven) categories/keywords

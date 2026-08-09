@@ -670,12 +670,6 @@ constructor(
         }
     }
 
-    /**
-     * Sniff a downloaded audio file's container from its magic bytes and return a MediaStore-friendly
-     * extension. The relay serves Opus in a WebM container (itag 251) or occasionally MP4; `.webm` is
-     * rejected by MediaStore.Audio, so WebM -> "opus" (audio/opus) and MP4 -> "m4a" (audio/mp4). In-app
-     * playback sniffs the real container (Matroska/Mp4 extractors), so the label is only for MediaStore.
-     */
     /** A relay /download returned 404: the track is genuinely unavailable, so the download must fail fast
      *  (no retry) with the contracted message rather than the generic retry-then-fail path. */
     private class RelayUnavailableException : Exception("Relay: track unavailable (404)")
@@ -705,8 +699,16 @@ constructor(
     private fun sniffAudioExtension(file: File): String =
         try {
             val head = ByteArray(12)
-            val n = file.inputStream().use { it.read(head) }
-            RelayDownload.audioExtensionFromMagic(head, n.coerceAtLeast(0))
+            var off = 0
+            file.inputStream().use { input ->
+                // A single read() may return fewer than 12 bytes; loop so ftyp (offset 4-7) is never missed.
+                while (off < head.size) {
+                    val r = input.read(head, off, head.size - off)
+                    if (r < 0) break
+                    off += r
+                }
+            }
+            RelayDownload.audioExtensionFromMagic(head, off)
         } catch (e: Exception) {
             RelayDownload.DEFAULT_AUDIO_EXTENSION
         }
@@ -801,11 +803,18 @@ constructor(
             }
         }
 
-        // Relay /download promises an accurate Content-Length and a clean close, so a short read means the
-        // server dropped mid-file: fail (retryable) instead of committing a truncated file as complete.
-        // Scoped to relay — the DIRECT range path is unchanged.
-        if (isRelay && contentLength > 0 && totalBytesRead < contentLength) {
-            throw Exception("Relay download incomplete: $totalBytesRead/$contentLength bytes")
+        // Relay /download promises an accurate Content-Length and a clean close, so verify completeness
+        // instead of committing a truncated file. Scoped to relay — the DIRECT range path is unchanged.
+        if (isRelay) {
+            if (contentLength <= 0) {
+                // No Content-Length means we cannot prove the file is whole (a `contentLength > 0` guard
+                // alone would silently accept a mid-file drop on a chunked/close-delimited response). The
+                // endpoint always sends one, so its absence is itself a (retryable) failure.
+                throw Exception("Relay download: missing Content-Length, cannot verify completeness")
+            }
+            if (totalBytesRead < contentLength) {
+                throw Exception("Relay download incomplete: $totalBytesRead/$contentLength bytes")
+            }
         }
     }
 

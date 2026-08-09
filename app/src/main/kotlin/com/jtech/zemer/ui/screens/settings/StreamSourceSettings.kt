@@ -81,12 +81,9 @@ fun StreamSourceSettings(
     // switch — the whole "Filtered devices" group is hidden for them, leaving just the client list.
     val (loginCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
     val loggedInNormally = remember(loginCookie) { parseCookieString(loginCookie).containsKey("SAPISID") }
-
-    // A normal login forces DIRECT: if a relay session later logs in (Google/Anonymous), reset the mode so
-    // it is never stranded in relay with the toggle hidden (and so direct playback resumes).
-    LaunchedEffect(loggedInNormally, relayEnabled) {
-        if (loggedInNormally && relayEnabled) playbackMode = PlaybackMode.DIRECT
-    }
+    // The "a normal login forces DIRECT" reset lives globally in App.kt (so it fires from ANY login entry
+    // point), not here — a screen-local reset stranded users who logged in elsewhere and also flashed an
+    // empty settings screen with no focused row.
 
     // Effective stream order shown to the user: WEB_REMIX is the primary client; the rest mirror
     // YTPlayerUtils.ALL_FALLBACK_CLIENTS (ANDROID_VR variants deduped). Only enabled toggles appear.
@@ -104,9 +101,11 @@ fun StreamSourceSettings(
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
 
-    LaunchedEffect(Unit) {
-        // firstFocus is attached to whichever first row is visible (the relay toggle for a login-less
-        // session, the web-remix toggle otherwise); guard in case neither is composed yet.
+    // firstFocus is attached to whichever first row is visible (the relay toggle for a login-less session,
+    // the web-remix toggle otherwise). Keyed on the visibility inputs so it re-requests once a row is
+    // actually composed (e.g. after the global relay reset makes the client list appear); guarded in case
+    // neither is composed yet.
+    LaunchedEffect(loggedInNormally, relayEnabled) {
         runCatching { firstFocus.requestFocus() }
     }
 
