@@ -21,7 +21,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -33,6 +35,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.InnerTubeCookieKey
+import com.jtech.zemer.constants.PlaybackMode
+import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.constants.StreamSourceAndroidCreatorKey
 import com.jtech.zemer.constants.StreamSourceAndroidVRKey
 import com.jtech.zemer.constants.StreamSourceIOSKey
@@ -47,7 +52,9 @@ import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
+import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
+import com.metrolist.innertube.utils.parseCookieString
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,6 +70,20 @@ fun StreamSourceSettings(
     val (visionosEnabled, onVisionOSChange)     = rememberPreference(StreamSourceVisionOSKey,   defaultValue = true)
     val (webCreatorEnabled, onWebCreatorChange) = rememberPreference(StreamSourceWebCreatorKey, defaultValue = true)
     val (androidCreatorEnabled, onAndroidCreatorChange) = rememberPreference(StreamSourceAndroidCreatorKey, defaultValue = false)
+
+    // RELAY playback mode: stream audio through the Zemer relay instead of resolving YouTube on-device.
+    // Off (DIRECT) for every normal user. When ON, the per-client fallback list below is bypassed entirely.
+    var playbackMode by rememberEnumPreference(PlaybackModeKey, defaultValue = PlaybackMode.DIRECT)
+    val relayEnabled = playbackMode == PlaybackMode.RELAY
+
+    // The relay toggle is ONLY for the login-less "filtered device" session. A normal Google or Anonymous
+    // login (both carry a SAPISID cookie) has working direct playback, so it must not see or flip this
+    // switch — the whole "Filtered devices" group is hidden for them, leaving just the client list.
+    val (loginCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
+    val loggedInNormally = remember(loginCookie) { parseCookieString(loginCookie).containsKey("SAPISID") }
+    // The "a normal login forces DIRECT" reset lives globally in App.kt (so it fires from ANY login entry
+    // point), not here — a screen-local reset stranded users who logged in elsewhere and also flashed an
+    // empty settings screen with no focused row.
 
     // Effective stream order shown to the user: WEB_REMIX is the primary client; the rest mirror
     // YTPlayerUtils.ALL_FALLBACK_CLIENTS (ANDROID_VR variants deduped). Only enabled toggles appear.
@@ -80,8 +101,12 @@ fun StreamSourceSettings(
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
 
-    LaunchedEffect(Unit) {
-        firstFocus.requestFocus()
+    // firstFocus is attached to whichever first row is visible (the relay toggle for a login-less session,
+    // the web-remix toggle otherwise). Keyed on the visibility inputs so it re-requests once a row is
+    // actually composed (e.g. after the global relay reset makes the client list appear); guarded in case
+    // neither is composed yet.
+    LaunchedEffect(loggedInNormally, relayEnabled) {
+        runCatching { firstFocus.requestFocus() }
     }
 
     Column(
@@ -89,6 +114,28 @@ fun StreamSourceSettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState()),
     ) {
+        // The RELAY toggle leads: it is the one switch that changes WHERE audio comes from. When on, the
+        // on-device client fallback list below no longer applies (playback goes through the Zemer relay).
+        // Shown ONLY for a login-less session — a normal Google/Anonymous login never sees it.
+        if (!loggedInNormally) {
+        PreferenceGroupTitle(
+            title = stringResource(R.string.stream_relay_group)
+        )
+        SwitchPreference(
+            title = { Text(stringResource(R.string.stream_relay_title)) },
+            description = stringResource(R.string.stream_relay_desc),
+            icon = { Icon(painterResource(R.drawable.security), null) },
+            checked = relayEnabled,
+            onCheckedChange = { on -> playbackMode = if (on) PlaybackMode.RELAY else PlaybackMode.DIRECT },
+            // When shown (login-less), the relay toggle carries the initial D-pad focus.
+            modifier = Modifier.focusRequester(firstFocus),
+        )
+        } // end if (!loggedInNormally)
+
+        // The per-client fallback list only governs DIRECT playback; in RELAY mode the relay resolves the
+        // stream server-side, so these toggles do nothing. Hide the whole section so it is not available.
+        if (!relayEnabled) {
+
         Column(
             Modifier
                 .fillMaxWidth()
@@ -131,7 +178,8 @@ fun StreamSourceSettings(
             icon = { Icon(painterResource(R.drawable.play), null) },
             checked = webRemixEnabled,
             onCheckedChange = onWebRemixChange,
-            modifier = Modifier.focusRequester(firstFocus),
+            // When the relay group is hidden (a normal login), this is the first row, so it takes focus.
+            modifier = if (loggedInNormally) Modifier.focusRequester(firstFocus) else Modifier,
         )
 
         SwitchPreference(
@@ -197,6 +245,7 @@ fun StreamSourceSettings(
             checked = androidCreatorEnabled,
             onCheckedChange = onAndroidCreatorChange,
         )
+        } // end if (!relayEnabled): DIRECT-only client list
     }
 
     TopAppBar(

@@ -64,7 +64,9 @@ object VideoModeLogic {
     ): Rendition? {
         // I5 + I1: no video while casting or when videos are blocked. A Zemer Station broadcast is
         // play/stop only — the toggle would mutate the synchronized timeline behind every station
-        // transport guard, so it is simply never offered there.
+        // transport guard, so it is simply never offered there. (RELAY mode DOES offer video: the relay
+        // serves a 360p muxed stream; a video-mode swap points at its `&kind=video` URL, and an audio-only
+        // id 404s -> the player error path reverts to audio.)
         if (casting || blockVideos || stationBroadcast) return null
 
         // LOCAL first: a downloaded muxed file plays the video track with no swap and works offline.

@@ -40,8 +40,12 @@ import com.jtech.zemer.constants.AccountEmailKey
 import com.jtech.zemer.constants.AccountNameKey
 import com.jtech.zemer.constants.DataSyncIdKey
 import com.jtech.zemer.constants.InnerTubeCookieKey
+import com.jtech.zemer.constants.PlaybackMode
+import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.constants.VisitorDataKey
+import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.rememberPreference
+import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.extensions.toast
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.utils.parseCookieString
@@ -232,6 +236,36 @@ fun LoginGateScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (isAnonymousLoading) stringResource(R.string.login_progress) else stringResource(R.string.login_as_anonymous),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+
+                // "My filter blocks playback": a login-less RELAY-mode entry for kosher-filtered devices
+                // that block music.youtube.com / googlevideo.com. No Google, no pooled cookie — just set the
+                // relay flag and enter; playback then streams over the whitelisted relay host instead of the
+                // device resolving YouTube directly. Everything else already flows through *.zemer.io.
+                OutlinedButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            context.dataStore.edit { it[PlaybackModeKey] = PlaybackMode.RELAY.name }
+                            navController.navigate("home") {
+                                popUpTo("login_gate") { inclusive = true }
+                            }
+                        }
+                    },
+                    enabled = !isAnonymousLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.security),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.login_filter_blocks_playback),
                         style = MaterialTheme.typography.labelLarge
                     )
                 }

@@ -4,8 +4,16 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Uri
 import androidx.core.content.getSystemService
+import com.jtech.zemer.BuildConfig
+import com.jtech.zemer.R
 import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.AudioQualityKey
+import com.jtech.zemer.constants.PlaybackMode
+import com.jtech.zemer.constants.PlaybackModeKey
+import com.jtech.zemer.extensions.toEnum
+import com.jtech.zemer.playback.relay.RelayDeviceId
+import com.jtech.zemer.playback.relay.RelayDownload
+import com.jtech.zemer.playback.relay.RelayStream
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.tracking.Tracker
@@ -13,6 +21,8 @@ import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.db.entities.SongAlbumMap
 import com.jtech.zemer.db.entities.SongArtistMap
 import com.jtech.zemer.utils.CoverArtEmbedder
+import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.MediaStoreHelper
 import com.jtech.zemer.utils.UrlValidator
 import com.jtech.zemer.utils.YTPlayerUtils
@@ -30,7 +40,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
+import android.media.MediaMetadataRetriever
 import java.io.File
+import java.util.concurrent.TimeUnit
 import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -79,6 +91,19 @@ constructor(
                     .build()
             } ?: response.request
         }
+        .build()
+
+    // RELAY downloads hit the whitelisted relay host directly (NOT through YouTube.proxy — that proxy is
+    // for googlevideo) and carry a read timeout: the relay buffers the whole file server-side, and the
+    // default client has NO read timeout, so a truly stalled pull would hang forever. The timeout turns a
+    // dead connection into a retriable failure. It is the INTER-read gap — INCLUDING time-to-first-byte,
+    // which scales with file size here (the server buffers before the first byte) — so it must comfortably
+    // clear a LONG file's buffering: a 60-90 min podcast over the residential-proxy tail. 60s was too
+    // aggressive and could kill a slow long download mid-buffer. Isolated from the DIRECT client.
+    private val relayHttpClient = OkHttpClient.Builder()
+        .dns(ResilientDns())
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(3, TimeUnit.MINUTES)
         .build()
 
     // Concurrent download limiter (max 3 simultaneous downloads)
@@ -403,18 +428,25 @@ constructor(
                 )
             )
 
-            // Get playback URL from YouTube using YTPlayerUtils
-            // For videos, request video stream with preferVideo=true
-            Timber.d("Starting download for ${if (isVideoDownload) "video" else "song"} ${song.id}: ${song.song.title}, preferVideo=${isVideoDownload}")
-            val playbackData = YTPlayerUtils.playerResponseForPlayback(
+            // RELAY mode: a kosher-filtered device can't reach googlevideo, so skip on-device /player
+            // resolution entirely and pull the audio from the whitelisted relay (webm/opus, itag 251).
+            // The relay serves audio only, so a relay download is always audio regardless of the requested
+            // rendition (a filtered device could not fetch a muxed video file anyway).
+            val relayMode =
+                context.dataStore.getSuspend(PlaybackModeKey).toEnum(PlaybackMode.DIRECT) == PlaybackMode.RELAY
+            val videoDownload = isVideoDownload && !relayMode
+
+            // Get playback URL. DIRECT: resolve via YTPlayerUtils (video stream when preferVideo=true).
+            Timber.d("Starting download for ${if (videoDownload) "video" else "song"} ${song.id}: ${song.song.title}, relay=$relayMode")
+            val playbackData = if (relayMode) null else YTPlayerUtils.playerResponseForPlayback(
                 videoId = song.id,
                 audioQuality = audioQuality,
                 connectivityManager = connectivityManager,
-                preferVideo = isVideoDownload,
+                preferVideo = videoDownload,
                 // An explicit per-download cap survives retries (requestedVideoBitrate); without one,
                 // the shared metered-aware default applies — a video download must never silently
                 // fetch the largest available file on a metered connection.
-                maxVideoBitrateKbps = if (isVideoDownload) {
+                maxVideoBitrateKbps = if (videoDownload) {
                     requestedVideoBitrate[song.id]
                         ?: VideoRendition.defaultMaxBitrateKbps(connectivityManager?.isActiveNetworkMetered == true)
                 } else {
@@ -423,37 +455,42 @@ constructor(
                 forDownload = true,
             ).getOrThrow()
 
-            val format = playbackData.format
-            val downloadUrl = playbackData.streamUrl
-
-            // NEVER write this URL into the shared playback URL cache: it is a forDownload format
+            // NEVER write the DIRECT URL into the shared playback URL cache: it is a forDownload format
             // (muxed MP4 for videos, and generally a different itag than what's streaming), and
             // downloads never read the cache themselves (this resolution is always fresh). Writing
             // it — even into an absent/expired slot — poisoned mid-play seeks: a download started
             // while a song was playing from cached spans left this URL as the seek's stream source,
             // and the already-initialized extractor read a foreign container ("No valid varint
-            // length mask found" / Source error).
-            Timber.d("Got format: ${format.mimeType}, URL length: ${downloadUrl.length}")
+            // length mask found" / Source error). (Relay does not use this cache either.)
+            // Relay: the dedicated /download endpoint (NOT /stream) resolves + pulls the whole file
+            // server-side and returns one clean response (accurate Content-Length, clean close), so a plain
+            // one-shot GET -> save works reliably where a full pull of the range-based /stream did not.
+            val downloadUrl = if (relayMode) RelayStream.downloadUrl(song.id) else playbackData!!.streamUrl
+            Timber.d("Download URL length: ${downloadUrl.length}, relay=$relayMode")
 
             // Create temporary file for download
-            val mimeTypeRaw = format.mimeType.substringBefore(";").trim()
-            val extension = if (isVideoDownload) {
-                // For video downloads, keep video extensions
-                when {
-                    mimeTypeRaw.contains("webm") -> "webm"
-                    mimeTypeRaw.contains("mp4") -> "mp4"
-                    mimeTypeRaw.contains("3gp") -> "3gp"
-                    else -> "mp4" // Default to mp4 for videos
-                }
+            val extension = if (relayMode) {
+                "webm" // relay audio is webm/opus (itag 251)
             } else {
-                // For audio downloads, convert to audio extensions
-                when {
-                    mimeTypeRaw.contains("webm") -> "webm"
-                    mimeTypeRaw.contains("mp4") -> "m4a"
-                    mimeTypeRaw.contains("ogg") -> "ogg"
-                    mimeTypeRaw.contains("opus") -> "opus"
-                    mimeTypeRaw.contains("mpeg") -> "mp3"
-                    else -> mimeTypeRaw.substringAfterLast("/")
+                val mimeTypeRaw = playbackData!!.format.mimeType.substringBefore(";").trim()
+                if (videoDownload) {
+                    // For video downloads, keep video extensions
+                    when {
+                        mimeTypeRaw.contains("webm") -> "webm"
+                        mimeTypeRaw.contains("mp4") -> "mp4"
+                        mimeTypeRaw.contains("3gp") -> "3gp"
+                        else -> "mp4" // Default to mp4 for videos
+                    }
+                } else {
+                    // For audio downloads, convert to audio extensions
+                    when {
+                        mimeTypeRaw.contains("webm") -> "webm"
+                        mimeTypeRaw.contains("mp4") -> "m4a"
+                        mimeTypeRaw.contains("ogg") -> "ogg"
+                        mimeTypeRaw.contains("opus") -> "opus"
+                        mimeTypeRaw.contains("mpeg") -> "mp3"
+                        else -> mimeTypeRaw.substringAfterLast("/")
+                    }
                 }
             }
             val tempFile = File(context.cacheDir, "temp_${song.id}.$extension")
@@ -465,6 +502,13 @@ constructor(
                 if (!tempFile.exists() || tempFile.length() == 0L) {
                     throw Exception("Download failed - temp file not created or empty")
                 }
+
+                // The extension/MIME used for the MediaStore entry. The relay serves Opus in a WebM
+                // container (or occasionally MP4); `.webm` is REJECTED by MediaStore.Audio (Android maps
+                // .webm to video/webm, inconsistent with an audio entry -> insert returns null -> "Failed
+                // to save file to MediaStore"). Sniff the real container and label WebM as .opus / MP4 as
+                // .m4a — both MediaStore-accepted, and in-app playback sniffs the real container regardless.
+                val saveExtension = if (relayMode) sniffAudioExtension(tempFile) else extension
 
                 // Get metadata for embedding and file naming
                 val title = song.song.title
@@ -483,13 +527,18 @@ constructor(
                 }
                 // Songs reached via an album/playlist page often carry no duration (0), which shows as
                 // "0:00" in the Downloaded list — backfill it from the playback response so the saved
-                // file's metadata AND the DB row get a real length.
+                // file's metadata AND the DB row get a real length. In relay mode there is no playback
+                // response (playbackData is null), so read the length straight off the downloaded file.
                 val effectiveDurationSec = song.song.duration.takeIf { it > 0 }
-                    ?: playbackData.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0
+                    ?: playbackData?.videoDetails?.lengthSeconds?.toIntOrNull()
+                    ?: (if (relayMode) durationSecFromFile(tempFile) else null)
+                    ?: 0
                 val duration = effectiveDurationSec.takeIf { it > 0 }?.times(1000L) // ms for MediaStore
 
-                // Embed metadata if format supports it (audio only)
-                if (!isVideoDownload && CoverArtEmbedder.supportsEmbedding(extension)) {
+                // Embed metadata if format supports it (audio only). Keyed on the SNIFFED saveExtension,
+                // not the pre-download `extension` (which is the hardcoded "webm" in relay mode) — else a
+                // relay m4a audio download would never get its title/artist/cover art embedded.
+                if (!videoDownload && CoverArtEmbedder.supportsEmbedding(saveExtension)) {
                     CoverArtEmbedder.embedMetadataIntoFile(
                         context = context,
                         audioFile = tempFile,
@@ -502,13 +551,13 @@ constructor(
                     )
                 }
 
-                val fileName = "$title.$extension"
+                val fileName = "$title.$saveExtension"
                 val uri: Uri?
 
-                if (isVideoDownload) {
+                if (videoDownload) {
                     // Save video to Movies/Zemer folder
-                    val mimeType = mediaStoreHelper.getVideoMimeType(extension)
-                    Timber.d("VIDEO DOWNLOAD PATH: Saving to Movies/Zemer: $fileName, mimeType: $mimeType, extension: $extension, tempFile size: ${tempFile.length()}")
+                    val mimeType = mediaStoreHelper.getVideoMimeType(saveExtension)
+                    Timber.d("VIDEO DOWNLOAD PATH: Saving to Movies/Zemer: $fileName, mimeType: $mimeType, extension: $saveExtension, tempFile size: ${tempFile.length()}")
                     uri = mediaStoreHelper.saveVideoFileToMediaStore(
                         tempFile = tempFile,
                         fileName = fileName,
@@ -519,8 +568,8 @@ constructor(
                     )
                 } else {
                     // Save audio to Music/Zemer folder
-                    val mimeType = mediaStoreHelper.getMimeType(extension)
-                    Timber.d("AUDIO DOWNLOAD PATH: Saving to Music/Zemer: $fileName, mimeType: $mimeType, extension: $extension, tempFile size: ${tempFile.length()}")
+                    val mimeType = mediaStoreHelper.getMimeType(saveExtension)
+                    Timber.d("AUDIO DOWNLOAD PATH: Saving to Music/Zemer: $fileName, mimeType: $mimeType, extension: $saveExtension, tempFile size: ${tempFile.length()}")
                     uri = mediaStoreHelper.saveFileToMediaStore(
                         tempFile = tempFile,
                         fileName = fileName,
@@ -551,11 +600,16 @@ constructor(
                     // time and artwork — a standalone video opened from the Video player is built with
                     // neither, and the old per-screen download set the thumbnail explicitly.
                     val effectiveThumbnailUrl = song.song.thumbnailUrl?.takeIf { it.isNotBlank() }
-                        ?: playbackData.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url
+                        ?: playbackData?.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url
                     val songWithMeta = song.copy(
                         song = song.song.copy(
                             duration = if (song.song.duration > 0) song.song.duration else effectiveDurationSec,
                             thumbnailUrl = effectiveThumbnailUrl,
+                            // A relay download is always audio (relay serves no muxed video), so a
+                            // video-song saves an audio-only file. Persist isVideo=false so the LOCAL video
+                            // toggle is never offered over a file with no video track (black video) and the
+                            // track is not hidden from the downloaded-music list.
+                            isVideo = if (relayMode) false else song.song.isVideo,
                         ),
                     )
                     markSongAsDownloaded(songWithMeta, uri.toString())
@@ -574,6 +628,19 @@ constructor(
             // Must rethrow — otherwise the retry branch below would swallow it, resurrect the download,
             // overwrite the CANCELLED state, and pin the foreground notification service open forever.
             throw e
+        } catch (e: RelayUnavailableException) {
+            // A relay 404: the track is genuinely unavailable. Fail immediately (no 3x retry) with the
+            // same contracted message the playback path surfaces.
+            Timber.w("Relay download unavailable (404) for ${song.id}")
+            updateDownloadState(
+                song.id,
+                DownloadState(
+                    songId = song.id,
+                    status = DownloadState.Status.FAILED,
+                    error = context.getString(R.string.relay_error_unavailable),
+                    retryAttempt = retryAttempt,
+                ),
+            )
         } catch (e: Exception) {
             Timber.e(e, "Download failed for song ${song.id}: ${e.message}")
             // Retry logic with exponential backoff
@@ -607,6 +674,49 @@ constructor(
         }
     }
 
+    /** A relay /download returned 404: the track is genuinely unavailable, so the download must fail fast
+     *  (no retry) with the contracted message rather than the generic retry-then-fail path. */
+    private class RelayUnavailableException : Exception("Relay: track unavailable (404)")
+
+    /**
+     * Best-effort media duration in seconds from a downloaded file, for RELAY downloads where there is no
+     * /player response to read `lengthSeconds` from. Returns null on any failure (the caller falls back to
+     * 0, i.e. unchanged behavior). Not on a UI thread (performDownload runs on the download coroutine).
+     */
+    private fun durationSecFromFile(file: File): Int? {
+        val mmr = MediaMetadataRetriever()
+        return try {
+            mmr.setDataSource(file.absolutePath)
+            mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull()
+                ?.let { (it / 1000).toInt() }
+                ?.takeIf { it > 0 }
+        } catch (e: Exception) {
+            null
+        } finally {
+            runCatching { mmr.release() }
+        }
+    }
+
+    /** Reads a downloaded file's container magic bytes and delegates the (pure, unit-tested) mapping to
+     *  [RelayDownload.audioExtensionFromMagic]. See there for why `.webm` can't go straight to MediaStore. */
+    private fun sniffAudioExtension(file: File): String =
+        try {
+            val head = ByteArray(12)
+            var off = 0
+            file.inputStream().use { input ->
+                // A single read() may return fewer than 12 bytes; loop so ftyp (offset 4-7) is never missed.
+                while (off < head.size) {
+                    val r = input.read(head, off, head.size - off)
+                    if (r < 0) break
+                    off += r
+                }
+            }
+            RelayDownload.audioExtensionFromMagic(head, off)
+        } catch (e: Exception) {
+            RelayDownload.DEFAULT_AUDIO_EXTENSION
+        }
+
     /**
      * Download a file from a URL to a temp file with progress tracking
      */
@@ -615,6 +725,15 @@ constructor(
         val validatedUrl = UrlValidator.validateAndParseUrl(url)
             ?: throw Exception("Invalid download URL: $url")
 
+        // Relay downloads use the direct, read-timeout client (no YouTube proxy) and hit the dedicated
+        // /download endpoint, which resolves + buffers the whole file server-side and returns ONE clean
+        // response (accurate Content-Length, clean close). So a plain one-shot GET -> save is reliable — no
+        // client-side chunking needed (a full pull of the range-based /stream was what stalled at the tail).
+        val isRelay = validatedUrl.toString().startsWith(RelayStream.BASE)
+        val client = if (isRelay) relayHttpClient else httpClient
+        // Relay-only device id (null in debug / DIRECT) so /download counts toward distinct relay users.
+        val relayDeviceId = if (isRelay) RelayDeviceId.get(context) else null
+
         val request = try {
             Request.Builder()
                 .url(validatedUrl)
@@ -622,18 +741,33 @@ constructor(
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
                 .header("Accept", "*/*")
                 .header("Accept-Language", "en-US,en;q=0.9")
-                .header("Range", "bytes=0-")
+                // /download returns the full file as a plain response; only the DIRECT googlevideo path
+                // needs the open-ended range request.
+                .apply {
+                    if (!isRelay) header("Range", "bytes=0-")
+                    // DEBUG marks the request so the relay serves but does not count it; release instead
+                    // carries the relay-only device id so the relay can attribute the download to a filter.
+                    else if (BuildConfig.DEBUG) header(RelayStream.DEBUG_HEADER, "1")
+                    else relayDeviceId?.let { header(RelayDeviceId.HEADER, it) }
+                }
                 .build()
         } catch (e: Exception) {
             throw Exception("Failed to build download request for URL: $url", e)
         }
 
-        val response = httpClient.newCall(request).execute()
+        val response = client.newCall(request).execute()
         val responseCode = response.code
 
         if (!response.isSuccessful) {
             response.close()
-            throw Exception("HTTP error $responseCode: ${response.message}")
+            when (RelayDownload.classifyHttpError(isRelay, responseCode)) {
+                // Genuinely unavailable: fail fast (no 3x retry) with the contracted message.
+                RelayDownload.HttpErrorAction.UNAVAILABLE -> throw RelayUnavailableException()
+                // Transient relay/upstream error: retryable, but the message the user finally sees should be
+                // the contracted one, not a raw "HTTP error 502" — it rides the exception to the FAILED state.
+                RelayDownload.HttpErrorAction.TRANSIENT -> throw Exception(context.getString(R.string.relay_error_retry))
+                RelayDownload.HttpErrorAction.GENERIC -> throw Exception("HTTP error $responseCode: ${response.message}")
+            }
         }
 
         val body = response.body ?: throw Exception("Empty response body")
@@ -679,6 +813,15 @@ constructor(
                     }
                 }
             }
+        }
+
+        // Relay /download promises an accurate Content-Length and a clean close. When it's present, verify
+        // completeness rather than commit a truncated file. When it's ABSENT (a chunked/gzip response makes
+        // OkHttp report -1), accept the clean-closed stream instead of hard-failing EVERY relay download —
+        // a rare truncation on a hypothetical future server config is far better than making relay downloads
+        // impossible. Scoped to relay — the DIRECT range path is unchanged.
+        if (isRelay && contentLength > 0 && totalBytesRead < contentLength) {
+            throw Exception("Relay download incomplete: $totalBytesRead/$contentLength bytes")
         }
     }
 

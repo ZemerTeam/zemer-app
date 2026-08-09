@@ -38,8 +38,11 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.PlaybackMode
+import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.db.entities.FormatEntity
 import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
@@ -63,11 +66,18 @@ fun ShowMediaInfo(videoId: String) {
     val playerConnection = LocalPlayerConnection.current
     val context = LocalContext.current
 
+    // RELAY mode is YouTube-free: playback resolves server-side (no local FormatEntity for stream client /
+    // itag / cipher rows), and getMediaInfo() is an InnerTube call whose Views/Likes/Dislikes/Subscribers/
+    // Description are all YouTube-sourced. A filtered relay session must neither request nor show them, so we
+    // skip the call entirely and render from the local `song` + a "Zemer Relay" source row instead.
+    val playbackMode by rememberEnumPreference(PlaybackModeKey, PlaybackMode.DIRECT)
+    val relayMode = playbackMode == PlaybackMode.RELAY
+
     var info by remember { mutableStateOf<MediaInfo?>(null) }
     var song by remember { mutableStateOf<Song?>(null) }
     var currentFormat by remember { mutableStateOf<FormatEntity?>(null) }
 
-    LaunchedEffect(videoId) { info = YouTube.getMediaInfo(videoId).getOrNull() }
+    LaunchedEffect(videoId, relayMode) { info = if (relayMode) null else YouTube.getMediaInfo(videoId).getOrNull() }
     LaunchedEffect(videoId) { database.song(videoId).collect { song = it } }
     LaunchedEffect(videoId) { database.format(videoId).collect { currentFormat = it } }
 
@@ -81,7 +91,9 @@ fun ShowMediaInfo(videoId: String) {
             .padding(horizontal = 16.dp)
             .padding(top = 8.dp, bottom = 16.dp),
     ) {
-        if (info == null) {
+        // In DIRECT mode wait for the YouTube media info; in RELAY mode it may never load (filtered
+        // device), so render from local `song` + the relay info rather than shimmering forever.
+        if (info == null && !relayMode) {
             ShimmerHost {
                 Row(
                     horizontalArrangement = Arrangement.Center,
@@ -141,31 +153,38 @@ fun ShowMediaInfo(videoId: String) {
             ),
         )
 
-        SectionTitle(stringResource(R.string.information))
-        Material3MenuGroup(
-            items = buildList {
-                // Stream/cipher details first (most relevant for diagnosing playback).
-                currentFormat?.let { f ->
-                    add(field(R.drawable.info, stringResource(R.string.format_stream_client), f.streamClient))
-                    add(field(R.drawable.lock, stringResource(R.string.format_player_hash), playerHash))
-                    add(field(R.drawable.lock_open, stringResource(R.string.format_cipher_support_added), cipherSupportAdded))
-                }
-                add(field(R.drawable.stats, stringResource(R.string.views), info?.viewCount?.let(::numberFormatter)))
-                add(field(R.drawable.favorite, stringResource(R.string.likes), info?.like?.let(::numberFormatter)))
-                add(field(R.drawable.favorite_border, stringResource(R.string.dislikes), info?.dislike?.let(::numberFormatter)))
-                add(field(R.drawable.person, stringResource(R.string.subscribers), info?.subscribers))
-                currentFormat?.let { f ->
-                    add(field(R.drawable.tune, stringResource(R.string.format_itag), f.itag?.toString()))
-                    add(field(R.drawable.info, stringResource(R.string.mime_type), f.mimeType))
-                    add(field(R.drawable.graphic_eq, stringResource(R.string.codecs), f.codecs))
-                    add(field(R.drawable.speed, stringResource(R.string.bitrate), f.bitrate?.let { "${it / 1000} Kbps" }))
-                    add(field(R.drawable.equalizer, stringResource(R.string.sample_rate), f.sampleRate?.let { "$it Hz" }))
-                    add(field(R.drawable.volume_up, stringResource(R.string.loudness), f.loudnessDb?.let { "$it dB" }))
-                    add(field(R.drawable.volume_up, stringResource(R.string.volume), playerConnection?.let { "${(it.player.volume * 100).toInt()}%" }))
-                    add(field(R.drawable.storage, stringResource(R.string.file_size), f.contentLength?.let { Formatter.formatShortFileSize(context, it) }))
-                }
-            },
-        )
+        // Information: stream/cipher + format rows and YouTube stats — all DIRECT-mode data. In relay mode
+        // there is no local FormatEntity and no YouTube `info`, so the list is empty and the ENTIRE section
+        // (title included) is omitted. Relay deliberately surfaces nothing about how it resolves playback.
+        val informationItems = buildList {
+            // Stream/cipher details first (most relevant for diagnosing playback).
+            currentFormat?.let { f ->
+                add(field(R.drawable.info, stringResource(R.string.format_stream_client), f.streamClient))
+                add(field(R.drawable.lock, stringResource(R.string.format_player_hash), playerHash))
+                add(field(R.drawable.lock_open, stringResource(R.string.format_cipher_support_added), cipherSupportAdded))
+            }
+            // YouTube stats — DIRECT only (never requested in relay mode, so `info` stays null there).
+            info?.let { i ->
+                add(field(R.drawable.stats, stringResource(R.string.views), i.viewCount?.let(::numberFormatter)))
+                add(field(R.drawable.favorite, stringResource(R.string.likes), i.like?.let(::numberFormatter)))
+                add(field(R.drawable.favorite_border, stringResource(R.string.dislikes), i.dislike?.let(::numberFormatter)))
+                add(field(R.drawable.person, stringResource(R.string.subscribers), i.subscribers))
+            }
+            currentFormat?.let { f ->
+                add(field(R.drawable.tune, stringResource(R.string.format_itag), f.itag?.toString()))
+                add(field(R.drawable.info, stringResource(R.string.mime_type), f.mimeType))
+                add(field(R.drawable.graphic_eq, stringResource(R.string.codecs), f.codecs))
+                add(field(R.drawable.speed, stringResource(R.string.bitrate), f.bitrate?.let { "${it / 1000} Kbps" }))
+                add(field(R.drawable.equalizer, stringResource(R.string.sample_rate), f.sampleRate?.let { "$it Hz" }))
+                add(field(R.drawable.volume_up, stringResource(R.string.loudness), f.loudnessDb?.let { "$it dB" }))
+                add(field(R.drawable.volume_up, stringResource(R.string.volume), playerConnection?.let { "${(it.player.volume * 100).toInt()}%" }))
+                add(field(R.drawable.storage, stringResource(R.string.file_size), f.contentLength?.let { Formatter.formatShortFileSize(context, it) }))
+            }
+        }
+        if (informationItems.isNotEmpty()) {
+            SectionTitle(stringResource(R.string.information))
+            Material3MenuGroup(items = informationItems)
+        }
 
         if (!info?.description.isNullOrBlank()) {
             SectionTitle(stringResource(R.string.description))

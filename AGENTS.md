@@ -46,6 +46,64 @@ Two hard-won facts that govern this area — always verify against the live CDN 
 - **googlevideo serves the first 1 MiB of a stream free, then 403s every new connection** unless the URL's `&pot=` is bound to the **videoId** (not visitorData). Clients whose attestation the web poToken can't satisfy (IOS/IPADOS — and MWEB, which was removed for this reason) 403 past the wall under every binding.
 - **`validateStatus` does a HEAD that false-negatives** (403 on URLs that GET fine), so WEB_REMIX intentionally skips it.
 
+### RELAY playback mode (`playback/relay/` — the filtered-device bypass)
+
+An **opt-in, login-less** mode for devices whose kosher filter blocks `music.youtube.com` / `googlevideo.com`.
+Discovery already rides `*.zemer.io`, so only playback breaks behind a filter; RELAY moves **only the media
+source** onto the whitelisted relay host `stream.zemer.io`. Full contract + the app↔server thread live in
+`handoff-docs/zemer-app-filtered-playback-relay-request.md`. The rules that must not regress:
+
+- **One flag, default off, DIRECT is untouched.** `PlaybackModeKey` → `constants/PlaybackMode` (`DIRECT`/
+  `RELAY`), default `DIRECT`. Every relay branch is gated on it; a normal Google/anonymous login runs zero
+  relay code. **Isolation is the whole point — never let a relay change touch the DIRECT path.**
+- **The seam is `MusicService`.** `createDataSourceFactory()` (DIRECT) is unchanged; a per-open dispatcher
+  (`playbackDataSourceFactory`) picks the separate, **cache-free** `RelayDataSourceFactory` only when the
+  flag is on. `relayModeNow` mirrors the flag but is seeded **null** and resolved with a one-time
+  synchronous DataStore read on the first open, so a relay user's cold-start play is never mis-routed to
+  DIRECT. Both factories share **`resolveDownloadedFileUri`** (the DIRECT local-file logic extracted to a
+  method): a downloaded song plays from disk, decided once at position 0, with self-repair + `recoverSong`
+  + video-mode nudge — so relay never mid-track-switches (the 1f48d89 class of bug).
+- **`playback/relay/` holds the pure/isolated pieces:** `RelayStream` (URL builder — `/stream?v=` audio,
+  `&kind=video` 360p mp4, `/download?v=`), `RelayDownload` (container-sniff → extension + HTTP-status
+  classification, unit-tested), `RelayDataSourceFactory` (the isolated factory). Keep logic here, not in the
+  giants.
+- **Onboarding + gating.** The login gate has a third option **"I have a filter"** (login-less: sets
+  `RELAY`, no cookie). `MainActivity`'s gate must NOT bounce a relay session (it derives login + relay from
+  one DataStore snapshot via `produceState`). A **normal login globally resets `RELAY`→`DIRECT`** in
+  `App.kt` (from ANY entry point), and the **Settings toggle + the nav-drawer Account entry are hidden when
+  not login-less** (relay is accountless). These gates key off the cookie's `SAPISID` (true for anon too),
+  the codebase's standard "has a session" idiom.
+- **Downloads** pull `/download` (m4a/itag140 → embeds cover art like a normal download; the relay may fall
+  back to Opus/webm, which the sniff saves as `.opus` since MediaStore.Audio rejects `.webm`), verify
+  completeness against `Content-Length`, and play offline from the local file. **Video** re-uses the normal
+  `VideoModeLogic` path pointing at the relay's 360p `&kind=video`; an audio-only id 404s → revert to audio.
+- **The song-details sheet stays YouTube-free AND source-opaque in relay** (`ui/utils/ShowMediaInfo.kt`):
+  `getMediaInfo()` is an InnerTube call whose Views/Likes/Dislikes/Subscribers/Description are YouTube-sourced,
+  so it is **not requested** when `relayMode` (not merely hidden if a filtered device happens to fail the
+  call — an unfiltered relay session would otherwise show YouTube stats). Relay also has no local
+  `FormatEntity`, so the whole **Information** section is built into a list and rendered only when non-empty
+  (`informationItems.isNotEmpty()`) — in relay it is empty, so the section title and rows are omitted
+  entirely. The relay sheet shows only General (title/artists/media-id from the local `song`); it never
+  surfaces a "playback source" / relay row — the mode is deliberately opaque about how it resolves playback.
+- **Relay device counting + debug exclusion (two mutually-exclusive headers by build type).** On every
+  RELAY media request — `/stream` (audio and the `&kind=video` variant; a default request property on the
+  isolated relay OkHttp factory) and `/download` — the app sends exactly one of:
+  - **Release:** `x-zemer-device: <RelayDeviceIdKey>` (`RelayDeviceId.HEADER`) — a per-install random UUID
+    **separate** from the zemer-stats `TrackingDeviceIdKey`. The relay pairs it with the request's
+    filter-egress IP to count distinct devices per content-filter (Gentech/Techloq/…); the pairing is a
+    filter-choice fact, relay-only, and never joined to the PII-free telemetry. `RelayDeviceId.get*` return
+    the id only in release.
+  - **Debug:** `x-zemer-debug: 1` (`RelayStream.DEBUG_HEADER`) — the relay serves the bytes but does NOT
+    count the request, so debug streaming never inflates the relay gauge (`RelayDeviceId.get*` return null
+    in debug, so no id is sent then).
+  Both are default request properties on the relay OkHttp factory (playback) / the `/download` request, so
+  they ride relay hosts only and never leak to googlevideo or DIRECT. The header is the only per-device
+  relay signal: zemer-stats stores no IP, so telemetry alone cannot attribute a device to a filter.
+- **Errors** surface the contracted copy (404 "not available", 502/503 "try again"); the relay's egress pool
+  is server-side, so a transient 502 is retried, not the app's bug.
+- **Streaming is still the danger zone:** any change here is proven with `tests/` (the DIRECT resolver
+  refactor was), and app↔relay contract changes travel as handoff-doc edits, never as guesses.
+
 ### Cipher / player rotation (the most common future break)
 
 The `cipher` submodule (package `com.zemer.cipher`, repo `ZemerTeam/zemer-cipher`) deciphers YouTube's `player_ias` signatures in an Android WebView and mints poTokens. It's wired **two ways**: a git submodule *and* a Gradle composite build — `includeBuild("cipher")` in `settings.gradle.kts` substitutes `com.zemer:cipher` → the local `:library`, so the app always builds the working tree.
