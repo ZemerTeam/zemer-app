@@ -42,7 +42,6 @@ import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.db.entities.FormatEntity
 import com.jtech.zemer.db.entities.Song
-import com.jtech.zemer.playback.relay.RelayStream
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
@@ -156,12 +155,14 @@ fun ShowMediaInfo(videoId: String) {
         SectionTitle(stringResource(R.string.information))
         Material3MenuGroup(
             items = buildList {
-                // RELAY: the audio is streamed through the Zemer relay, so surface that (and the exact
-                // stream URL, tap to copy) in place of the on-device stream/cipher details, which don't
-                // exist in this mode. The URL carries the videoId to correlate with the relay's logs.
+                // RELAY: a DOWNLOADED song plays from its local file and shows the same on-device details
+                // (the currentFormat rows below) as any normal login, so add nothing special here. A song
+                // STREAMING through the relay has no on-device format/cipher rows, so just note the source.
                 if (relayMode) {
-                    add(field(R.drawable.security, stringResource(R.string.relay_info_source), stringResource(R.string.relay_info_source_value)))
-                    add(field(R.drawable.link, stringResource(R.string.relay_info_stream), RelayStream.streamUrl(song?.id ?: videoId)))
+                    val playedFromDownload = song?.song?.let { it.isDownloaded && it.mediaStoreUri != null } == true
+                    if (!playedFromDownload) {
+                        add(field(R.drawable.security, stringResource(R.string.relay_info_source), stringResource(R.string.relay_info_source_value)))
+                    }
                 }
                 // Stream/cipher details first (most relevant for diagnosing playback). Absent in relay mode.
                 currentFormat?.let { f ->
