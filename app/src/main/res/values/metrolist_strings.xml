@@ -266,8 +266,7 @@
     <string name="stream_relay_group">Filtered devices</string>
     <string name="stream_relay_title">Stream through Zemer</string>
     <string name="stream_relay_desc">For devices whose content filter blocks YouTube.</string>
-    <string name="login_filter_blocks_playback">My filter blocks playback</string>
-    <string name="login_filter_blocks_playback_subtitle">Enter without signing in.</string>
+    <string name="login_filter_blocks_playback">I have a filter</string>
     <string name="relay_info_source">Playback source</string>
     <string name="relay_info_source_value">Zemer relay</string>
     <string name="relay_info_stream">Relay stream</string>

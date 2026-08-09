@@ -269,14 +269,6 @@ fun LoginGateScreen(
                         style = MaterialTheme.typography.labelLarge
                     )
                 }
-
-                Text(
-                    text = stringResource(R.string.login_filter_blocks_playback_subtitle),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         }
     }
