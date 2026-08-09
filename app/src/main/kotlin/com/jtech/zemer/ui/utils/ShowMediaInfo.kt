@@ -153,43 +153,38 @@ fun ShowMediaInfo(videoId: String) {
             ),
         )
 
-        SectionTitle(stringResource(R.string.information))
-        Material3MenuGroup(
-            items = buildList {
-                // RELAY: a DOWNLOADED song plays from its local file and shows the same on-device details
-                // (the currentFormat rows below) as any normal login, so add nothing special here. A song
-                // STREAMING through the relay has no on-device format/cipher rows, so just note the source.
-                if (relayMode) {
-                    val playedFromDownload = song?.song?.let { it.isDownloaded && it.mediaStoreUri != null } == true
-                    if (!playedFromDownload) {
-                        add(field(R.drawable.security, stringResource(R.string.relay_info_source), stringResource(R.string.relay_info_source_value)))
-                    }
-                }
-                // Stream/cipher details first (most relevant for diagnosing playback). Absent in relay mode.
-                currentFormat?.let { f ->
-                    add(field(R.drawable.info, stringResource(R.string.format_stream_client), f.streamClient))
-                    add(field(R.drawable.lock, stringResource(R.string.format_player_hash), playerHash))
-                    add(field(R.drawable.lock_open, stringResource(R.string.format_cipher_support_added), cipherSupportAdded))
-                }
-                // YouTube stats — DIRECT only (never requested in relay mode, so `info` stays null there).
-                info?.let { i ->
-                    add(field(R.drawable.stats, stringResource(R.string.views), i.viewCount?.let(::numberFormatter)))
-                    add(field(R.drawable.favorite, stringResource(R.string.likes), i.like?.let(::numberFormatter)))
-                    add(field(R.drawable.favorite_border, stringResource(R.string.dislikes), i.dislike?.let(::numberFormatter)))
-                    add(field(R.drawable.person, stringResource(R.string.subscribers), i.subscribers))
-                }
-                currentFormat?.let { f ->
-                    add(field(R.drawable.tune, stringResource(R.string.format_itag), f.itag?.toString()))
-                    add(field(R.drawable.info, stringResource(R.string.mime_type), f.mimeType))
-                    add(field(R.drawable.graphic_eq, stringResource(R.string.codecs), f.codecs))
-                    add(field(R.drawable.speed, stringResource(R.string.bitrate), f.bitrate?.let { "${it / 1000} Kbps" }))
-                    add(field(R.drawable.equalizer, stringResource(R.string.sample_rate), f.sampleRate?.let { "$it Hz" }))
-                    add(field(R.drawable.volume_up, stringResource(R.string.loudness), f.loudnessDb?.let { "$it dB" }))
-                    add(field(R.drawable.volume_up, stringResource(R.string.volume), playerConnection?.let { "${(it.player.volume * 100).toInt()}%" }))
-                    add(field(R.drawable.storage, stringResource(R.string.file_size), f.contentLength?.let { Formatter.formatShortFileSize(context, it) }))
-                }
-            },
-        )
+        // Information: stream/cipher + format rows and YouTube stats — all DIRECT-mode data. In relay mode
+        // there is no local FormatEntity and no YouTube `info`, so the list is empty and the ENTIRE section
+        // (title included) is omitted. Relay deliberately surfaces nothing about how it resolves playback.
+        val informationItems = buildList {
+            // Stream/cipher details first (most relevant for diagnosing playback).
+            currentFormat?.let { f ->
+                add(field(R.drawable.info, stringResource(R.string.format_stream_client), f.streamClient))
+                add(field(R.drawable.lock, stringResource(R.string.format_player_hash), playerHash))
+                add(field(R.drawable.lock_open, stringResource(R.string.format_cipher_support_added), cipherSupportAdded))
+            }
+            // YouTube stats — DIRECT only (never requested in relay mode, so `info` stays null there).
+            info?.let { i ->
+                add(field(R.drawable.stats, stringResource(R.string.views), i.viewCount?.let(::numberFormatter)))
+                add(field(R.drawable.favorite, stringResource(R.string.likes), i.like?.let(::numberFormatter)))
+                add(field(R.drawable.favorite_border, stringResource(R.string.dislikes), i.dislike?.let(::numberFormatter)))
+                add(field(R.drawable.person, stringResource(R.string.subscribers), i.subscribers))
+            }
+            currentFormat?.let { f ->
+                add(field(R.drawable.tune, stringResource(R.string.format_itag), f.itag?.toString()))
+                add(field(R.drawable.info, stringResource(R.string.mime_type), f.mimeType))
+                add(field(R.drawable.graphic_eq, stringResource(R.string.codecs), f.codecs))
+                add(field(R.drawable.speed, stringResource(R.string.bitrate), f.bitrate?.let { "${it / 1000} Kbps" }))
+                add(field(R.drawable.equalizer, stringResource(R.string.sample_rate), f.sampleRate?.let { "$it Hz" }))
+                add(field(R.drawable.volume_up, stringResource(R.string.loudness), f.loudnessDb?.let { "$it dB" }))
+                add(field(R.drawable.volume_up, stringResource(R.string.volume), playerConnection?.let { "${(it.player.volume * 100).toInt()}%" }))
+                add(field(R.drawable.storage, stringResource(R.string.file_size), f.contentLength?.let { Formatter.formatShortFileSize(context, it) }))
+            }
+        }
+        if (informationItems.isNotEmpty()) {
+            SectionTitle(stringResource(R.string.information))
+            Material3MenuGroup(items = informationItems)
+        }
 
         if (!info?.description.isNullOrBlank()) {
             SectionTitle(stringResource(R.string.description))

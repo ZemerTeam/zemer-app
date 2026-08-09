@@ -267,8 +267,6 @@
     <string name="stream_relay_title">Stream through Zemer</string>
     <string name="stream_relay_desc">For devices whose content filter blocks YouTube.</string>
     <string name="login_filter_blocks_playback">I have a filter</string>
-    <string name="relay_info_source">Playback source</string>
-    <string name="relay_info_source_value">Zemer Relay</string>
     <string name="relay_error_unavailable">This track is not available.</string>
     <string name="relay_error_retry">Trouble finding a stream, try again.</string>
     <string name="stream_source_order">Current order</string>
