@@ -16,12 +16,19 @@ object RelayStream {
     /** The relay host. Whitelisted, served over the same Cloudflare tunnel as the other *.zemer.io hosts. */
     const val BASE = "https://stream.zemer.io"
 
-    /**
-     * The stream URL for [rawMediaId]. The media id is the videoId (MediaItems set customCacheKey = id);
-     * a `video:<id>` rendition key is reduced to its base id because the relay serves audio only, so an
-     * accidental video-mode open degrades to audio rather than failing.
-     */
+    /** The AUDIO stream URL for [rawMediaId] (a `video:` rendition key is reduced to its base id). */
     fun streamUrl(rawMediaId: String): String = "$BASE/stream?v=${videoId(rawMediaId)}"
+
+    /**
+     * The playback URL for a media key: the AUDIO stream for a plain id, or the 360p muxed VIDEO stream
+     * (`&kind=video`, itag 18 mp4) for a `video:<id>` rendition key. The relay `404`s a video URL for an
+     * audio-only id, which the player's error path reverts to audio. This is what the relay data-source
+     * resolves each open to when streaming.
+     */
+    fun playbackUrl(rawMediaId: String): String {
+        val id = videoId(rawMediaId)
+        return if (VideoRendition.isVideoKey(rawMediaId)) "$BASE/stream?v=$id&kind=video" else "$BASE/stream?v=$id"
+    }
 
     /**
      * The DOWNLOAD URL for [rawMediaId]. Distinct from [streamUrl]: `/download` resolves and pulls the

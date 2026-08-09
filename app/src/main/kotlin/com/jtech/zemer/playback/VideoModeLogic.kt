@@ -55,7 +55,6 @@ object VideoModeLogic {
         casting: Boolean,
         blockVideos: Boolean,
         stationBroadcast: Boolean = false,
-        relayMode: Boolean = false,
         localVideoFile: Boolean,
         online: Boolean,
         musicVideoType: String?,
@@ -65,9 +64,10 @@ object VideoModeLogic {
     ): Rendition? {
         // I5 + I1: no video while casting or when videos are blocked. A Zemer Station broadcast is
         // play/stop only — the toggle would mutate the synchronized timeline behind every station
-        // transport guard, so it is simply never offered there. RELAY playback is audio-only (the relay
-        // serves audio bytes for a videoId), so a video rendition would draw a blank surface — hide it.
-        if (casting || blockVideos || stationBroadcast || relayMode) return null
+        // transport guard, so it is simply never offered there. (RELAY mode DOES offer video: the relay
+        // serves a 360p muxed stream; a video-mode swap points at its `&kind=video` URL, and an audio-only
+        // id 404s -> the player error path reverts to audio.)
+        if (casting || blockVideos || stationBroadcast) return null
 
         // LOCAL first: a downloaded muxed file plays the video track with no swap and works offline.
         if (localVideoFile && !isBlockedRendition(mediaId)) {
@@ -112,9 +112,8 @@ object VideoModeLogic {
         blockVideos: Boolean,
         musicVideoType: String?,
         counterpartResolved: Boolean,
-        relayMode: Boolean = false,
     ): Boolean {
-        if (casting || blockVideos || counterpartResolved || relayMode) return false
+        if (casting || blockVideos || counterpartResolved) return false
         // A known self-video needs no counterpart lookup; only ATV/unknown items do.
         return musicVideoType == null || musicVideoType == MUSIC_VIDEO_TYPE_ATV
     }

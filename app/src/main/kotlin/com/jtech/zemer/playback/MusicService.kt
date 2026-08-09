@@ -2099,7 +2099,8 @@ class MusicService :
                 playbackSourceIsLocal[mediaId] = true
                 dataSpec.withUri(localUri.toUri())
             } else {
-                dataSpec.withUri(RelayStream.streamUrl(mediaId).toUri())
+                // Audio for a plain id, 360p muxed video for a `video:` rendition key.
+                dataSpec.withUri(RelayStream.playbackUrl(mediaId).toUri())
             }
         }
     }
