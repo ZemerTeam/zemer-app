@@ -9,6 +9,7 @@ import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import com.jtech.zemer.playback.VideoRendition
 import com.metrolist.innertube.utils.ResilientDns
+import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
 
 /**
@@ -26,7 +27,17 @@ object RelayDataSourceFactory {
         deviceId: String?,
         resolveLocalFile: (mediaId: String, position: Long) -> String?,
     ): DataSource.Factory {
-        val http = OkHttpDataSource.Factory(OkHttpClient.Builder().dns(ResilientDns()).build())
+        // The relay streams FRESH (cache-free) over the same slow rotating residential-proxy egress as
+        // relay downloads. OkHttp's default 10s connect/read timeouts throw SocketTimeoutException on a
+        // proxy hiccup or a slow fresh resolve mid-stream, which surfaces as a player error and STOPS
+        // playback — recurring per track in the background reads as "playback keeps stopping". Match the
+        // download client's tolerance so a slow proxy buffers instead of erroring. DIRECT is unaffected.
+        val client = OkHttpClient.Builder()
+            .dns(ResilientDns())
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .build()
+        val http = OkHttpDataSource.Factory(client)
         // Default headers on the relay OkHttp factory ride relay hosts only (local files bypass OkHttp) and
         // never leak elsewhere. DEBUG marks the request so the relay serves it but does not count it; a
         // release build instead carries the relay-only [deviceId] (null in debug) so the relay can count

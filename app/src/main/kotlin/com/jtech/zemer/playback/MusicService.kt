@@ -500,6 +500,11 @@ class MusicService :
                 relayModeNow = it == PlaybackMode.RELAY
             }
         }
+        scope.launch {
+            dataStore.data.map { it[AutoSkipNextOnErrorKey] ?: false }.distinctUntilChanged().collect {
+                autoSkipOnErrorNow = it
+            }
+        }
 
         // Keep YTPlayerUtils in sync with the stream source toggles
         scope.launch {
@@ -1722,7 +1727,7 @@ class MusicService :
             return
         }
 
-        if (dataStore.get(AutoSkipNextOnErrorKey, false)) {
+        if (autoSkipOnErrorNow) {
             skipOnError()
         } else {
             stopOnError()
@@ -2071,6 +2076,12 @@ class MusicService :
     // Mirror of PlaybackModeKey; null = not yet observed (the dispatcher resolves that below).
     @Volatile
     private var relayModeNow: Boolean? = null
+
+    // Synchronous mirror of AutoSkipNextOnErrorKey. onPlayerError is a main-thread Player callback; reading
+    // the pref there via a blocking DataStore get on every error is a main-thread stall, and the relay path
+    // (network-dependent, cache-free) routes far more errors through it, so a burst could trip an ANR.
+    @Volatile
+    private var autoSkipOnErrorNow = false
 
     private val relayDataSourceFactory: DataSource.Factory by lazy {
         RelayDataSourceFactory.create(this, RelayDeviceId.getSync(this)) { mediaId, position ->
