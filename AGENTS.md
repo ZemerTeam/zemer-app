@@ -101,6 +101,13 @@ source** onto the whitelisted relay host `stream.zemer.io`. Full contract + the 
   relay signal: zemer-stats stores no IP, so telemetry alone cannot attribute a device to a filter.
 - **Errors** surface the contracted copy (404 "not available", 502/503 "try again"); the relay's egress pool
   is server-side, so a transient 502 is retried, not the app's bug.
+- **The relay PLAYBACK OkHttpClient carries generous timeouts, NOT OkHttp's default 10s**
+  (`RelayDataSourceFactory`): the cache-free relay streams fresh over the same slow rotating-proxy egress as
+  downloads, so the 10s default throws `SocketTimeoutException` mid-stream on a hiccup or slow fresh resolve
+  → player error → stop, recurring per track in the background (the "keeps stopping" bug). Matched to the
+  download client (connect 30s / read 60s) so a slow proxy buffers instead of erroring. Relatedly,
+  `onPlayerError` reads `AutoSkipNextOnErrorKey` from a synchronous `@Volatile` mirror (like `relayModeNow`),
+  never a main-thread blocking DataStore read, so a relay error burst can't ANR the main thread.
 - **Streaming is still the danger zone:** any change here is proven with `tests/` (the DIRECT resolver
   refactor was), and app↔relay contract changes travel as handoff-doc edits, never as guesses.
 
