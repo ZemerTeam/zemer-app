@@ -94,14 +94,16 @@ constructor(
         .build()
 
     // RELAY downloads hit the whitelisted relay host directly (NOT through YouTube.proxy — that proxy is
-    // for googlevideo) and carry a read timeout: the relay pulls the whole file through a rotating
-    // residential-proxy pool whose tail can stall, and the default client has NO read timeout, so a
-    // stalled last chunk hangs the download at ~99% forever. The timeout turns that into a retriable
-    // failure instead. Isolated from the DIRECT client so normal downloads are unchanged.
+    // for googlevideo) and carry a read timeout: the relay buffers the whole file server-side, and the
+    // default client has NO read timeout, so a truly stalled pull would hang forever. The timeout turns a
+    // dead connection into a retriable failure. It is the INTER-read gap — INCLUDING time-to-first-byte,
+    // which scales with file size here (the server buffers before the first byte) — so it must comfortably
+    // clear a LONG file's buffering: a 60-90 min podcast over the residential-proxy tail. 60s was too
+    // aggressive and could kill a slow long download mid-buffer. Isolated from the DIRECT client.
     private val relayHttpClient = OkHttpClient.Builder()
         .dns(ResilientDns())
         .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(3, TimeUnit.MINUTES)
         .build()
 
     // Concurrent download limiter (max 3 simultaneous downloads)
@@ -813,18 +815,13 @@ constructor(
             }
         }
 
-        // Relay /download promises an accurate Content-Length and a clean close, so verify completeness
-        // instead of committing a truncated file. Scoped to relay — the DIRECT range path is unchanged.
-        if (isRelay) {
-            if (contentLength <= 0) {
-                // No Content-Length means we cannot prove the file is whole (a `contentLength > 0` guard
-                // alone would silently accept a mid-file drop on a chunked/close-delimited response). The
-                // endpoint always sends one, so its absence is itself a (retryable) failure.
-                throw Exception("Relay download: missing Content-Length, cannot verify completeness")
-            }
-            if (totalBytesRead < contentLength) {
-                throw Exception("Relay download incomplete: $totalBytesRead/$contentLength bytes")
-            }
+        // Relay /download promises an accurate Content-Length and a clean close. When it's present, verify
+        // completeness rather than commit a truncated file. When it's ABSENT (a chunked/gzip response makes
+        // OkHttp report -1), accept the clean-closed stream instead of hard-failing EVERY relay download —
+        // a rare truncation on a hypothetical future server config is far better than making relay downloads
+        // impossible. Scoped to relay — the DIRECT range path is unchanged.
+        if (isRelay && contentLength > 0 && totalBytesRead < contentLength) {
+            throw Exception("Relay download incomplete: $totalBytesRead/$contentLength bytes")
         }
     }
 
