@@ -49,6 +49,8 @@ import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.PlaybackMode
+import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.copyToClipboard
 import com.jtech.zemer.extensions.toast
@@ -67,6 +69,7 @@ import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
+import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
@@ -104,6 +107,9 @@ fun PlayerMenu(
     val librarySong by database.song(mediaMetadata.id).collectAsState(initial = null)
 
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    // Relay is source-opaque: the details sheet is DIRECT-only info (see ShowMediaInfo), so hide the row
+    // entirely for a relay session. Normal (Google/anonymous) logins are unaffected.
+    val playbackMode by rememberEnumPreference(PlaybackModeKey, PlaybackMode.DIRECT)
 
     val artists =
         remember(mediaMetadata.artists) {
@@ -354,16 +360,18 @@ fun PlayerMenu(
                         onRetry = { downloadUtil.retryMediaStoreDownload(mediaMetadata.id) },
                         onRemove = { coroutineScope.launch { downloadUtil.removeDownload(mediaMetadata.id) } },
                     )?.let { add(it) }
-                    add(
-                        Material3MenuItemData(
-                            icon = { Icon(painterResource(R.drawable.info), null, Modifier.size(24.dp)) },
-                            title = { Text(stringResource(R.string.details)) },
-                            onClick = {
-                                onShowDetailsDialog()
-                                onDismiss()
-                            },
+                    if (playbackMode != PlaybackMode.RELAY) {
+                        add(
+                            Material3MenuItemData(
+                                icon = { Icon(painterResource(R.drawable.info), null, Modifier.size(24.dp)) },
+                                title = { Text(stringResource(R.string.details)) },
+                                onClick = {
+                                    onShowDetailsDialog()
+                                    onDismiss()
+                                },
+                            )
                         )
-                    )
+                    }
                     if (isQueueTrigger != true) {
                         add(
                             Material3MenuItemData(
