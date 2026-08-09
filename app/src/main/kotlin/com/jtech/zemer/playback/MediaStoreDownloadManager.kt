@@ -11,6 +11,7 @@ import com.jtech.zemer.constants.AudioQualityKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.extensions.toEnum
+import com.jtech.zemer.playback.relay.RelayDeviceId
 import com.jtech.zemer.playback.relay.RelayDownload
 import com.jtech.zemer.playback.relay.RelayStream
 import com.jtech.zemer.db.MusicDatabase
@@ -728,6 +729,8 @@ constructor(
         // client-side chunking needed (a full pull of the range-based /stream was what stalled at the tail).
         val isRelay = validatedUrl.toString().startsWith(RelayStream.BASE)
         val client = if (isRelay) relayHttpClient else httpClient
+        // Relay-only device id (null in debug / DIRECT) so /download counts toward distinct relay users.
+        val relayDeviceId = if (isRelay) RelayDeviceId.get(context) else null
 
         val request = try {
             Request.Builder()
@@ -740,8 +743,10 @@ constructor(
                 // needs the open-ended range request.
                 .apply {
                     if (!isRelay) header("Range", "bytes=0-")
-                    // DEBUG-only marker so the relay serves but does not count this download in its gauge.
+                    // DEBUG marks the request so the relay serves but does not count it; release instead
+                    // carries the relay-only device id so the relay can attribute the download to a filter.
                     else if (BuildConfig.DEBUG) header(RelayStream.DEBUG_HEADER, "1")
+                    else relayDeviceId?.let { header(RelayDeviceId.HEADER, it) }
                 }
                 .build()
         } catch (e: Exception) {

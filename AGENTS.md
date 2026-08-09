@@ -85,14 +85,20 @@ source** onto the whitelisted relay host `stream.zemer.io`. Full contract + the 
   (`informationItems.isNotEmpty()`) — in relay it is empty, so the section title and rows are omitted
   entirely. The relay sheet shows only General (title/artists/media-id from the local `song`); it never
   surfaces a "playback source" / relay row — the mode is deliberately opaque about how it resolves playback.
-- **Debug builds don't pollute the relay adoption gauge.** Relay usage is counted two ways: per-device via
-  the normal zemer-stats `play` events (already debug-clean — the server dry-runs any `debug:true` batch),
-  and a raw serve-gauge on the relay's `/health` that increments on bytes served and has no telemetry
-  envelope. So DEBUG builds send `x-zemer-debug: 1` (`RelayStream.DEBUG_HEADER`) on every RELAY media
-  request — `/stream` (audio and the `&kind=video` variant; a default request property on the relay OkHttp
-  factory) and `/download`; the relay then serves the bytes but does not count them. Release builds send
-  nothing; the app never sends `x-zemer-device` (so relay `distinctDevices` stays 0 by design — per-device
-  counts come from telemetry).
+- **Relay device counting + debug exclusion (two mutually-exclusive headers by build type).** On every
+  RELAY media request — `/stream` (audio and the `&kind=video` variant; a default request property on the
+  isolated relay OkHttp factory) and `/download` — the app sends exactly one of:
+  - **Release:** `x-zemer-device: <RelayDeviceIdKey>` (`RelayDeviceId.HEADER`) — a per-install random UUID
+    **separate** from the zemer-stats `TrackingDeviceIdKey`. The relay pairs it with the request's
+    filter-egress IP to count distinct devices per content-filter (Gentech/Techloq/…); the pairing is a
+    filter-choice fact, relay-only, and never joined to the PII-free telemetry. `RelayDeviceId.get*` return
+    the id only in release.
+  - **Debug:** `x-zemer-debug: 1` (`RelayStream.DEBUG_HEADER`) — the relay serves the bytes but does NOT
+    count the request, so debug streaming never inflates the relay gauge (`RelayDeviceId.get*` return null
+    in debug, so no id is sent then).
+  Both are default request properties on the relay OkHttp factory (playback) / the `/download` request, so
+  they ride relay hosts only and never leak to googlevideo or DIRECT. The header is the only per-device
+  relay signal: zemer-stats stores no IP, so telemetry alone cannot attribute a device to a filter.
 - **Errors** surface the contracted copy (404 "not available", 502/503 "try again"); the relay's egress pool
   is server-side, so a transient 502 is retried, not the app's bug.
 - **Streaming is still the danger zone:** any change here is proven with `tests/` (the DIRECT resolver

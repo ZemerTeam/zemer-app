@@ -23,13 +23,19 @@ import okhttp3.OkHttpClient
 object RelayDataSourceFactory {
     fun create(
         context: Context,
+        deviceId: String?,
         resolveLocalFile: (mediaId: String, position: Long) -> String?,
     ): DataSource.Factory {
         val http = OkHttpDataSource.Factory(OkHttpClient.Builder().dns(ResilientDns()).build())
-        // DEBUG builds mark relay media requests so the relay serves but does not count them (see
-        // RelayStream.DEBUG_HEADER). Every request from this factory goes to the relay, so it rides
-        // relay hosts only; release builds add nothing.
-        if (BuildConfig.DEBUG) http.setDefaultRequestProperties(mapOf(RelayStream.DEBUG_HEADER to "1"))
+        // Default headers on the relay OkHttp factory ride relay hosts only (local files bypass OkHttp) and
+        // never leak elsewhere. DEBUG marks the request so the relay serves it but does not count it; a
+        // release build instead carries the relay-only [deviceId] (null in debug) so the relay can count
+        // distinct devices per filter. The two are mutually exclusive by build type.
+        val headers = buildMap {
+            if (BuildConfig.DEBUG) put(RelayStream.DEBUG_HEADER, "1")
+            deviceId?.let { put(RelayDeviceId.HEADER, it) }
+        }
+        if (headers.isNotEmpty()) http.setDefaultRequestProperties(headers)
         val upstream = DefaultDataSource.Factory(context, http)
         return ResolvingDataSource.Factory(upstream) { dataSpec ->
             val mediaId = dataSpec.key ?: dataSpec.uri.toString()

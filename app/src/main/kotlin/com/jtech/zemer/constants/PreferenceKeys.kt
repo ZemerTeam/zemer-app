@@ -16,6 +16,12 @@ import java.time.ZoneOffset
 // user opts into the login-less "My filter blocks playback" mode. Read as an enum via [PlaybackMode].
 val PlaybackModeKey = stringPreferencesKey("playbackMode")
 
+// A random per-install id sent ONLY to the relay (header `x-zemer-device`) so it can count distinct relay
+// users per filter. Deliberately SEPARATE from TrackingDeviceIdKey: the relay pairs it with the request's
+// filter-egress IP, and keeping it relay-only means that pairing can never join the PII-free zemer-stats
+// listening history. See handoff-docs/zemer-app-relay-device-id-request.md (option B).
+val RelayDeviceIdKey = stringPreferencesKey("relayDeviceId")
+
 val DynamicThemeKey = booleanPreferencesKey("dynamicTheme")
 val SelectedThemeColorKey = intPreferencesKey("selectedThemeColor")
 val DarkModeKey = stringPreferencesKey("darkMode")

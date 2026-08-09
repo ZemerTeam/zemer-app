@@ -78,6 +78,7 @@ import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.playback.relay.RelayDataSourceFactory
+import com.jtech.zemer.playback.relay.RelayDeviceId
 import com.jtech.zemer.constants.AudioOffload
 import com.jtech.zemer.constants.AudioQualityKey
 import com.jtech.zemer.constants.AutoDownloadOnLikeKey
@@ -2072,7 +2073,9 @@ class MusicService :
     private var relayModeNow: Boolean? = null
 
     private val relayDataSourceFactory: DataSource.Factory by lazy {
-        RelayDataSourceFactory.create(this) { mediaId, position -> resolveDownloadedFileUri(mediaId, position) }
+        RelayDataSourceFactory.create(this, RelayDeviceId.getSync(this)) { mediaId, position ->
+            resolveDownloadedFileUri(mediaId, position)
+        }
     }
 
     // Per-open selector: RELAY -> the isolated relay factory, everyone else -> the DIRECT factory verbatim.
