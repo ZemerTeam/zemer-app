@@ -10,6 +10,7 @@ import com.jtech.zemer.constants.AudioQualityKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.extensions.toEnum
+import com.jtech.zemer.playback.relay.RelayDownload
 import com.jtech.zemer.playback.relay.RelayStream
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
@@ -699,24 +700,15 @@ constructor(
         }
     }
 
+    /** Reads a downloaded file's container magic bytes and delegates the (pure, unit-tested) mapping to
+     *  [RelayDownload.audioExtensionFromMagic]. See there for why `.webm` can't go straight to MediaStore. */
     private fun sniffAudioExtension(file: File): String =
         try {
             val head = ByteArray(12)
             val n = file.inputStream().use { it.read(head) }
-            when {
-                // EBML header (1A 45 DF A3) = WebM/Matroska, i.e. the Opus audio the relay serves.
-                n >= 4 && head[0] == 0x1A.toByte() && head[1] == 0x45.toByte() &&
-                    head[2] == 0xDF.toByte() && head[3] == 0xA3.toByte() -> "opus"
-                // "ftyp" at offset 4 = MP4/M4A.
-                n >= 8 && head[4] == 'f'.code.toByte() && head[5] == 't'.code.toByte() &&
-                    head[6] == 'y'.code.toByte() && head[7] == 'p'.code.toByte() -> "m4a"
-                // "OggS" = Ogg (also Opus); label the same as WebM opus.
-                n >= 4 && head[0] == 'O'.code.toByte() && head[1] == 'g'.code.toByte() &&
-                    head[2] == 'g'.code.toByte() && head[3] == 'S'.code.toByte() -> "opus"
-                else -> "opus"
-            }
+            RelayDownload.audioExtensionFromMagic(head, n.coerceAtLeast(0))
         } catch (e: Exception) {
-            "opus"
+            RelayDownload.DEFAULT_AUDIO_EXTENSION
         }
 
     /**
@@ -754,17 +746,14 @@ constructor(
 
         if (!response.isSuccessful) {
             response.close()
-            if (isRelay && responseCode == 404) {
+            when (RelayDownload.classifyHttpError(isRelay, responseCode)) {
                 // Genuinely unavailable: fail fast (no 3x retry) with the contracted message.
-                throw RelayUnavailableException()
+                RelayDownload.HttpErrorAction.UNAVAILABLE -> throw RelayUnavailableException()
+                // Transient relay/upstream error: retryable, but the message the user finally sees should be
+                // the contracted one, not a raw "HTTP error 502" — it rides the exception to the FAILED state.
+                RelayDownload.HttpErrorAction.TRANSIENT -> throw Exception(context.getString(R.string.relay_error_retry))
+                RelayDownload.HttpErrorAction.GENERIC -> throw Exception("HTTP error $responseCode: ${response.message}")
             }
-            if (isRelay && (responseCode == 502 || responseCode == 503)) {
-                // Transient relay/upstream error: retryable, but the final message the user sees should be
-                // the contracted one, not a raw "HTTP error 502". The message rides the exception so the
-                // max-retries-reached FAILED state shows it.
-                throw Exception(context.getString(R.string.relay_error_retry))
-            }
-            throw Exception("HTTP error $responseCode: ${response.message}")
         }
 
         val body = response.body ?: throw Exception("Empty response body")
