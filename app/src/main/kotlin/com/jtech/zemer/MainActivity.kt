@@ -1270,6 +1270,10 @@ class MainActivity : ComponentActivity() {
                                     }
 
                                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                                    // The Account entry is meaningless in the login-less RELAY mode (there
+                                    // is no account), so hide it there.
+                                    val playbackMode by rememberEnumPreference(PlaybackModeKey, PlaybackMode.DIRECT)
+                                    if (playbackMode != PlaybackMode.RELAY) {
                                     val statusText = stringResource(R.string.account_status_logged_in)
                                     val statusColor = when {
                                         isLoggedIn -> MaterialTheme.colorScheme.primary
@@ -1338,6 +1342,7 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             }
                                     )
+                                    } // end if (not RELAY): Account entry hidden in login-less relay mode
                                     navigationItems.fastForEachIndexed { index, screen ->
                                         val isSelected =
                                             navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true
