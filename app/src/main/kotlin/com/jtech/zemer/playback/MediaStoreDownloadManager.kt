@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Uri
 import androidx.core.content.getSystemService
+import com.jtech.zemer.R
 import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.AudioQualityKey
 import com.jtech.zemer.constants.PlaybackMode
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
+import android.media.MediaMetadataRetriever
 import java.io.File
 import java.util.concurrent.TimeUnit
 import java.time.LocalDateTime
@@ -520,13 +522,18 @@ constructor(
                 }
                 // Songs reached via an album/playlist page often carry no duration (0), which shows as
                 // "0:00" in the Downloaded list — backfill it from the playback response so the saved
-                // file's metadata AND the DB row get a real length.
+                // file's metadata AND the DB row get a real length. In relay mode there is no playback
+                // response (playbackData is null), so read the length straight off the downloaded file.
                 val effectiveDurationSec = song.song.duration.takeIf { it > 0 }
-                    ?: playbackData?.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0
+                    ?: playbackData?.videoDetails?.lengthSeconds?.toIntOrNull()
+                    ?: (if (relayMode) durationSecFromFile(tempFile) else null)
+                    ?: 0
                 val duration = effectiveDurationSec.takeIf { it > 0 }?.times(1000L) // ms for MediaStore
 
-                // Embed metadata if format supports it (audio only)
-                if (!videoDownload && CoverArtEmbedder.supportsEmbedding(extension)) {
+                // Embed metadata if format supports it (audio only). Keyed on the SNIFFED saveExtension,
+                // not the pre-download `extension` (which is the hardcoded "webm" in relay mode) — else a
+                // relay m4a audio download would never get its title/artist/cover art embedded.
+                if (!videoDownload && CoverArtEmbedder.supportsEmbedding(saveExtension)) {
                     CoverArtEmbedder.embedMetadataIntoFile(
                         context = context,
                         audioFile = tempFile,
@@ -593,6 +600,11 @@ constructor(
                         song = song.song.copy(
                             duration = if (song.song.duration > 0) song.song.duration else effectiveDurationSec,
                             thumbnailUrl = effectiveThumbnailUrl,
+                            // A relay download is always audio (relay serves no muxed video), so a
+                            // video-song saves an audio-only file. Persist isVideo=false so the LOCAL video
+                            // toggle is never offered over a file with no video track (black video) and the
+                            // track is not hidden from the downloaded-music list.
+                            isVideo = if (relayMode) false else song.song.isVideo,
                         ),
                     )
                     markSongAsDownloaded(songWithMeta, uri.toString())
@@ -611,6 +623,19 @@ constructor(
             // Must rethrow — otherwise the retry branch below would swallow it, resurrect the download,
             // overwrite the CANCELLED state, and pin the foreground notification service open forever.
             throw e
+        } catch (e: RelayUnavailableException) {
+            // A relay 404: the track is genuinely unavailable. Fail immediately (no 3x retry) with the
+            // same contracted message the playback path surfaces.
+            Timber.w("Relay download unavailable (404) for ${song.id}")
+            updateDownloadState(
+                song.id,
+                DownloadState(
+                    songId = song.id,
+                    status = DownloadState.Status.FAILED,
+                    error = context.getString(R.string.relay_error_unavailable),
+                    retryAttempt = retryAttempt,
+                ),
+            )
         } catch (e: Exception) {
             Timber.e(e, "Download failed for song ${song.id}: ${e.message}")
             // Retry logic with exponential backoff
@@ -650,6 +675,30 @@ constructor(
      * rejected by MediaStore.Audio, so WebM -> "opus" (audio/opus) and MP4 -> "m4a" (audio/mp4). In-app
      * playback sniffs the real container (Matroska/Mp4 extractors), so the label is only for MediaStore.
      */
+    /** A relay /download returned 404: the track is genuinely unavailable, so the download must fail fast
+     *  (no retry) with the contracted message rather than the generic retry-then-fail path. */
+    private class RelayUnavailableException : Exception("Relay: track unavailable (404)")
+
+    /**
+     * Best-effort media duration in seconds from a downloaded file, for RELAY downloads where there is no
+     * /player response to read `lengthSeconds` from. Returns null on any failure (the caller falls back to
+     * 0, i.e. unchanged behavior). Not on a UI thread (performDownload runs on the download coroutine).
+     */
+    private fun durationSecFromFile(file: File): Int? {
+        val mmr = MediaMetadataRetriever()
+        return try {
+            mmr.setDataSource(file.absolutePath)
+            mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull()
+                ?.let { (it / 1000).toInt() }
+                ?.takeIf { it > 0 }
+        } catch (e: Exception) {
+            null
+        } finally {
+            runCatching { mmr.release() }
+        }
+    }
+
     private fun sniffAudioExtension(file: File): String =
         try {
             val head = ByteArray(12)
@@ -705,6 +754,16 @@ constructor(
 
         if (!response.isSuccessful) {
             response.close()
+            if (isRelay && responseCode == 404) {
+                // Genuinely unavailable: fail fast (no 3x retry) with the contracted message.
+                throw RelayUnavailableException()
+            }
+            if (isRelay && (responseCode == 502 || responseCode == 503)) {
+                // Transient relay/upstream error: retryable, but the final message the user sees should be
+                // the contracted one, not a raw "HTTP error 502". The message rides the exception so the
+                // max-retries-reached FAILED state shows it.
+                throw Exception(context.getString(R.string.relay_error_retry))
+            }
             throw Exception("HTTP error $responseCode: ${response.message}")
         }
 
@@ -751,6 +810,13 @@ constructor(
                     }
                 }
             }
+        }
+
+        // Relay /download promises an accurate Content-Length and a clean close, so a short read means the
+        // server dropped mid-file: fail (retryable) instead of committing a truncated file as complete.
+        // Scoped to relay — the DIRECT range path is unchanged.
+        if (isRelay && contentLength > 0 && totalBytesRead < contentLength) {
+            throw Exception("Relay download incomplete: $totalBytesRead/$contentLength bytes")
         }
     }
 

@@ -271,6 +271,8 @@
     <string name="relay_info_source">Playback source</string>
     <string name="relay_info_source_value">Zemer relay</string>
     <string name="relay_info_stream">Relay stream</string>
+    <string name="relay_error_unavailable">This track is not available.</string>
+    <string name="relay_error_retry">Trouble finding a stream, try again.</string>
     <string name="stream_source_order">Current order</string>
     <string name="stream_source_web_clients">Web clients</string>
     <string name="stream_source_native_clients">Native clients</string>

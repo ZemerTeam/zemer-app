@@ -724,25 +724,28 @@ class MainActivity : ComponentActivity() {
                         // Use a state that tracks whether preferences have been loaded
                         val context = LocalContext.current
                         var preferencesLoaded by remember { mutableStateOf(false) }
+                        // RELAY is a deliberately login-less mode (no SAPISID cookie), so it must NOT be
+                        // bounced to the login gate. Read it from the SAME settled snapshot that flips
+                        // preferencesLoaded (not a separate collectAsState default) — otherwise the gate can
+                        // fire while playbackMode is still the stale DIRECT default and strand a relay user
+                        // on login_gate (popUpTo(0) then the currentRoute guard blocks navigating back).
+                        var settledIsRelay by remember { mutableStateOf(false) }
                         var loginGateCookie by rememberPreference(InnerTubeCookieKey, defaultValue = "")
 
                         // Mark preferences as loaded after first emission from DataStore
                         LaunchedEffect(Unit) {
-                            context.dataStore.data.first()
+                            val prefs = context.dataStore.data.first()
+                            settledIsRelay = prefs[PlaybackModeKey] == PlaybackMode.RELAY.name
                             preferencesLoaded = true
                         }
 
                         val isYouTubeLoggedIn = remember(loginGateCookie) {
                             parseCookieString(loginGateCookie).containsKey("SAPISID")
                         }
-                        // RELAY is a deliberately login-less mode (no SAPISID cookie), so it must NOT be
-                        // bounced back to the login gate. Every other user still gates on the cookie exactly
-                        // as before.
-                        val playbackMode by rememberEnumPreference(PlaybackModeKey, PlaybackMode.DIRECT)
                         val currentRoute = navBackStackEntry?.destination?.route
-                        LaunchedEffect(preferencesLoaded, isYouTubeLoggedIn, playbackMode, currentRoute) {
+                        LaunchedEffect(preferencesLoaded, isYouTubeLoggedIn, currentRoute) {
                             // Only redirect after preferences are loaded
-                            if (preferencesLoaded && !isYouTubeLoggedIn && playbackMode != PlaybackMode.RELAY &&
+                            if (preferencesLoaded && !isYouTubeLoggedIn && !settledIsRelay &&
                                 currentRoute != "login_gate" && currentRoute != "login"
                             ) {
                                 navController.navigate("login_gate") {

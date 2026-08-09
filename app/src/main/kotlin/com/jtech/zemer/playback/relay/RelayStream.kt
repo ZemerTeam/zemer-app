@@ -6,8 +6,9 @@ import com.jtech.zemer.playback.VideoRendition
  * The Zemer playback relay (see handoff-docs/zemer-app-filtered-playback-relay-request.md). In RELAY mode
  * the app hands ExoPlayer a URL on this whitelisted host instead of resolving `/player` + fetching from
  * `googlevideo` on-device, so playback works on kosher-filtered devices that block YouTube. The relay does
- * the resolution and the `googlevideo` fetch server-side and streams the audio (Opus/webm, itag 251, or
- * occasionally mp4) back over `zemer.io`, honoring Range requests.
+ * the resolution and the `googlevideo` fetch server-side and streams the media back over `zemer.io`,
+ * honoring Range requests: audio (Opus/webm itag 251, occasionally mp4) by default, or 360p muxed mp4
+ * video for a `video:` rendition key ([playbackUrl] with `&kind=video`).
  *
  * This object is deliberately tiny and pure so it is unit-testable and carries no Android dependency; the
  * MusicService relay data-source factory is the only consumer.

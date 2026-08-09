@@ -1690,6 +1690,16 @@ class MusicService :
 
     /** The shared tail of [onPlayerError] once no local-file recovery is possible or found. */
     private fun handleUnrecoverablePlayerError(error: PlaybackException) {
+        // RELAY: surface the relay's own HTTP errors with the contracted user messages (server doc §4).
+        // A video-URL 404 for an audio-only id is handled earlier by videoModeController.onPlayerError
+        // (revert to audio), so it never reaches here. Runs on the main thread (see onPlayerError).
+        if (relayModeNow == true) {
+            when (getHttpResponseCode(error)) {
+                404 -> toast(R.string.relay_error_unavailable)
+                502, 503 -> toast(R.string.relay_error_retry)
+            }
+        }
+
         val isConnectionError = (error.cause?.cause is PlaybackException) &&
                 (error.cause?.cause as PlaybackException).errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
 
@@ -1846,6 +1856,50 @@ class MusicService :
             false
         }
 
+    /**
+     * The shared "should this open play the downloaded LOCAL file?" decision, used by BOTH the DIRECT and
+     * RELAY resolvers so they behave identically. Returns the local MediaStore uri to play, or null to
+     * stream. Decides the source ONCE at position 0 and honors it on later opens (no mid-track switch to a
+     * just-completed download — the corruption commit 1f48d89 fixed), purges the id's cached span, nudges
+     * video-mode availability, backfills via recoverSong, and self-repairs a stale/missing downloaded file
+     * by re-enqueueing its download while streaming this play. Blocking read: ResolvingDataSource requires
+     * synchronous code and this runs on ExoPlayer's loading thread, not the main thread.
+     */
+    private fun resolveDownloadedFileUri(mediaId: String, position: Long): String? {
+        val song = runBlocking(Dispatchers.IO) { database.song(mediaId).first() }
+        val mediaStoreUri = song?.song?.mediaStoreUri ?: return null
+        val fileOpens = downloadedFileOpens(mediaStoreUri)
+        if (position == 0L) {
+            playbackSourceIsLocal[mediaId] = fileOpens
+            videoModeController.onPlaybackSourceResolved()
+            if (fileOpens) {
+                runCatching { playerCache.removeResource(mediaId) }
+                scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
+                return mediaStoreUri
+            }
+            // Stale "downloaded" row (file gone): stream this play and self-repair, unless a re-download
+            // already FAILED this session (else a permanently-dead source re-downloads on every play).
+            val liveStatus = downloadUtil.mediaStoreDownloadState(mediaId)?.status
+            if (liveStatus == MediaStoreDownloadManager.DownloadState.Status.FAILED) {
+                Timber.w("Downloaded file missing for $mediaId but its re-download already FAILED this session; streaming without re-enqueueing")
+            } else {
+                Timber.w("Downloaded file missing for $mediaId; re-downloading to self-repair and streaming this play")
+                scope.launch(Dispatchers.IO) {
+                    runCatching {
+                        if (song.song.isVideo) downloadUtil.downloadVideoToMediaStore(song, fromUser = false)
+                        else downloadUtil.downloadToMediaStore(song, fromUser = false)
+                    }
+                }
+            }
+            return null
+        } else if (fileOpens && playbackSourceIsLocal[mediaId] == true) {
+            // Later open (seek / cache-span re-open) of an item that STARTED local -> keep the file.
+            scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
+            return mediaStoreUri
+        }
+        return null
+    }
+
     private fun createDataSourceFactory(): DataSource.Factory {
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
@@ -1889,70 +1943,10 @@ class MusicService :
                 return@Factory dataSpec.withUri(videoUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
 
-            // Check for MediaStore URI first (local playback).
-            // Use a blocking call here because ResolvingDataSource.Factory requires synchronous code.
-            val song = runBlocking(Dispatchers.IO) {
-                database.song(mediaId).first()
-            }
-
-            // Source selection for a downloaded song. We must satisfy BOTH:
-            //  (a) seeking a downloaded song must use its LOCAL file (it's random-access; a googlevideo
-            //      range request from a byte offset has no moov/init atom and the mp4 extractor dies —
-            //      "Skipping atom with length > … unsupported" → Source error), AND
-            //  (b) a song that STARTED streaming (not yet downloaded) must NOT switch to the local file
-            //      mid-playback when its download finishes — that mid-stream source switch is the bug
-            //      commit 1f48d89 fixed with a blanket `position == 0L` guard (which broke (a)).
-            // So we decide the source ONCE, at the position-0 open that begins playback of this item,
-            // remember it, and honor that decision for every later open (seek or cache-span re-open).
-            val mediaStoreUri = song?.song?.mediaStoreUri
-            if (mediaStoreUri != null) {
-                val fileOpens = downloadedFileOpens(mediaStoreUri)
-                if (dataSpec.position == 0L) {
-                    // Start of playback for this item: pick the source and record it.
-                    playbackSourceIsLocal[mediaId] = fileOpens
-                    // A downloaded muxed video file just became the source → the LOCAL video rendition may
-                    // now be available; nudge the availability flow (it can't observe this map directly).
-                    videoModeController.onPlaybackSourceResolved()
-                    if (fileOpens) {
-                        // The local file is about to be read THROUGH the playerCache (the CacheDataSource
-                        // serves cached spans regardless of the resolved URI, keyed by this mediaId).
-                        // Any spans cached from STREAMING this id are a different container/byte layout
-                        // than the file (Option A muxed downloads; itag drift), and mixing them corrupts
-                        // the extractor mid-track (negative-offset arraycopy / varint errors, black
-                        // video). Purge the id's resource so this play reads ONLY file bytes.
-                        runCatching { playerCache.removeResource(mediaId) }
-                        scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                        return@Factory dataSpec.withUri(mediaStoreUri.toUri())
-                    }
-                    // The file is gone (a stale "downloaded" row — interrupted download or an older
-                    // build that deleted the file). Self-repair: re-download so it's local next time,
-                    // and stream THIS play instead of crashing with ENOENT. We don't clear the flag
-                    // (no vanishing); the re-download replaces the dead URI on success. Skip re-enqueue
-                    // if a download for this id already FAILED this session (the manager only no-ops
-                    // active/complete, not FAILED), else a permanently-unrecoverable source would
-                    // re-download on every play; a new session (state cleared) gets one fresh attempt.
-                    val liveStatus = downloadUtil.mediaStoreDownloadState(mediaId)?.status
-                    if (liveStatus == MediaStoreDownloadManager.DownloadState.Status.FAILED) {
-                        Timber.w("Downloaded file missing for $mediaId but its re-download already FAILED this session; streaming without re-enqueueing")
-                    } else {
-                        Timber.w("Downloaded file missing for $mediaId; re-downloading to self-repair and streaming this play")
-                        song?.let { stale ->
-                            scope.launch(Dispatchers.IO) {
-                                runCatching {
-                                    if (stale.song.isVideo) downloadUtil.downloadVideoToMediaStore(stale, fromUser = false)
-                                    else downloadUtil.downloadToMediaStore(stale, fromUser = false)
-                                }
-                            }
-                        }
-                    }
-                } else if (fileOpens && playbackSourceIsLocal[mediaId] == true) {
-                    // A later open (a SEEK, or a cache-span re-open) for an item that STARTED on the
-                    // local file → keep using the local file so seeks work. An item that started
-                    // streaming (playbackSourceIsLocal == false/absent) deliberately falls through to
-                    // the cache/stream path below — no mid-stream switch when its download completes.
-                    scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                    return@Factory dataSpec.withUri(mediaStoreUri.toUri())
-                }
+            // Downloaded local file? Decide once at position 0 and honor it later; self-repair a stale
+            // file. Shared with the RELAY resolver via [resolveDownloadedFileUri].
+            resolveDownloadedFileUri(mediaId, dataSpec.position)?.let {
+                return@Factory dataSpec.withUri(it.toUri())
             }
 
             if (downloadCache.isCached(
@@ -2077,8 +2071,12 @@ class MusicService :
     // shared player/download caches entirely (a filtered device can't reach YouTube, and staying off the
     // shared cache means the relay can never touch a normal user's cached bytes). It simply rewrites each
     // open to the whitelisted relay URL for the track's videoId and lets ExoPlayer stream it with Range.
+    // null = not yet observed from DataStore. Seeding false would let a relay user's FIRST open on a cold
+    // start (e.g. auto-resume of the last queue) fall through to the DIRECT googlevideo path before the
+    // async mirror emits — unreachable on a filtered device. The dispatcher resolves null with a one-time
+    // synchronous read so the very first open is always correct.
     @Volatile
-    private var relayModeNow = false
+    private var relayModeNow: Boolean? = null
 
     private val relayDataSourceFactory: DataSource.Factory by lazy { createRelayDataSourceFactory() }
 
@@ -2089,19 +2087,17 @@ class MusicService :
         )
         return ResolvingDataSource.Factory(upstream) { dataSpec ->
             val mediaId = dataSpec.key ?: dataSpec.uri.toString()
-            // A downloaded file plays from disk — essential on a filtered device, which cannot reach the
-            // relay (or anything) offline. Mirrors the DIRECT resolver's local-file check; only stream from
-            // the relay when there is no openable local file. DefaultDataSource handles the content:// uri.
-            val localUri = runBlocking(Dispatchers.IO) {
-                database.song(mediaId).first()?.song?.mediaStoreUri
+            // A downloaded file plays from disk (offline on a filtered device), decided ONCE at position 0
+            // via the SAME [resolveDownloadedFileUri] the DIRECT resolver uses — so relay gets the identical
+            // no-mid-track-switch guard, self-repair, recoverSong and video-mode nudge. A `video:` rendition
+            // key is never a downloaded file in relay (audio-only downloads), so skip the check and stream.
+            if (!VideoRendition.isVideoKey(mediaId)) {
+                resolveDownloadedFileUri(mediaId, dataSpec.position)?.let {
+                    return@Factory dataSpec.withUri(it.toUri())
+                }
             }
-            if (localUri != null && downloadedFileOpens(localUri)) {
-                playbackSourceIsLocal[mediaId] = true
-                dataSpec.withUri(localUri.toUri())
-            } else {
-                // Audio for a plain id, 360p muxed video for a `video:` rendition key.
-                dataSpec.withUri(RelayStream.playbackUrl(mediaId).toUri())
-            }
+            // Audio for a plain id, 360p muxed video for a `video:` rendition key.
+            dataSpec.withUri(RelayStream.playbackUrl(mediaId).toUri())
         }
     }
 
@@ -2109,7 +2105,14 @@ class MusicService :
     // verbatim. Reading relayModeNow per createDataSource() gives the "takes effect on the next track"
     // behavior the toggle promises without rebuilding the player.
     private val playbackDataSourceFactory = DataSource.Factory {
-        if (relayModeNow) relayDataSourceFactory.createDataSource() else dataSourceFactory.createDataSource()
+        // Resolve null (mirror not yet emitted) with a one-time synchronous read so a relay user's first
+        // open is never mis-routed to DIRECT. createDataSource() runs on ExoPlayer's loading thread, so the
+        // blocking read is off the main thread (same as the DIRECT resolver's runBlocking).
+        val relay = relayModeNow ?: run {
+            (dataStore.get(PlaybackModeKey, PlaybackMode.DIRECT.name) == PlaybackMode.RELAY.name)
+                .also { relayModeNow = it }
+        }
+        if (relay) relayDataSourceFactory.createDataSource() else dataSourceFactory.createDataSource()
     }
 
     private fun createMediaSourceFactory() =
