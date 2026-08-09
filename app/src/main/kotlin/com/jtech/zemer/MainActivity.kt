@@ -94,6 +94,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -720,32 +721,28 @@ class MainActivity : ComponentActivity() {
                         val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
                         val drawerState = rememberDrawerState(DrawerValue.Closed)
 
-                        // Login gate - redirect to login_gate if not logged in
-                        // Use a state that tracks whether preferences have been loaded
                         val context = LocalContext.current
-                        var preferencesLoaded by remember { mutableStateOf(false) }
-                        // RELAY is a deliberately login-less mode (no SAPISID cookie), so it must NOT be
-                        // bounced to the login gate. Read it from the SAME settled snapshot that flips
-                        // preferencesLoaded (not a separate collectAsState default) — otherwise the gate can
-                        // fire while playbackMode is still the stale DIRECT default and strand a relay user
-                        // on login_gate (popUpTo(0) then the currentRoute guard blocks navigating back).
-                        var settledIsRelay by remember { mutableStateOf(false) }
-                        var loginGateCookie by rememberPreference(InnerTubeCookieKey, defaultValue = "")
-
-                        // Mark preferences as loaded after first emission from DataStore
-                        LaunchedEffect(Unit) {
-                            val prefs = context.dataStore.data.first()
-                            settledIsRelay = prefs[PlaybackModeKey] == PlaybackMode.RELAY.name
-                            preferencesLoaded = true
-                        }
-
-                        val isYouTubeLoggedIn = remember(loginGateCookie) {
-                            parseCookieString(loginGateCookie).containsKey("SAPISID")
-                        }
                         val currentRoute = navBackStackEntry?.destination?.route
-                        LaunchedEffect(preferencesLoaded, isYouTubeLoggedIn, currentRoute) {
-                            // Only redirect after preferences are loaded
-                            if (preferencesLoaded && !isYouTubeLoggedIn && !settledIsRelay &&
+
+                        // Login gate: redirect to login_gate when NOT logged in AND NOT in RELAY mode (RELAY
+                        // is a deliberately login-less mode with no SAPISID cookie). Both signals are derived
+                        // from the SAME DataStore snapshot via one produceState, which gives us two things at
+                        // once: (a) NO cold-start race — there is no second collector that could flip "loaded"
+                        // while the mode is still a stale default and bounce a relay user to the gate (the
+                        // value is null until the first real emission, so the gate never fires on a default),
+                        // and (b) it stays REACTIVE — toggling "Stream through Zemer" OFF flips relay to false
+                        // and re-runs the effect, returning a login-less user to the login page, exactly as
+                        // before. Pair = (isYouTubeLoggedIn, isRelay).
+                        val loginGate by produceState<Pair<Boolean, Boolean>?>(initialValue = null) {
+                            context.dataStore.data.collect { prefs ->
+                                val loggedIn = parseCookieString(prefs[InnerTubeCookieKey] ?: "").containsKey("SAPISID")
+                                val relay = prefs[PlaybackModeKey] == PlaybackMode.RELAY.name
+                                value = loggedIn to relay
+                            }
+                        }
+                        LaunchedEffect(loginGate, currentRoute) {
+                            val (loggedIn, relay) = loginGate ?: return@LaunchedEffect
+                            if (!loggedIn && !relay &&
                                 currentRoute != "login_gate" && currentRoute != "login"
                             ) {
                                 navController.navigate("login_gate") {
