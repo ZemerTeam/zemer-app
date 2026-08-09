@@ -1,22 +1,13 @@
 package com.jtech.zemer.playback.relay
 
-/**
- * Pure decision logic for RELAY downloads, extracted from MediaStoreDownloadManager so it is unit-testable
- * without Android (the manager itself needs Robolectric, which this project does not have). Two decisions
- * live here:
- *  - which MediaStore-friendly extension a downloaded audio file should be saved as, from its container
- *    magic bytes (the relay serves Opus in a WebM container, or occasionally MP4; `.webm` is rejected by
- *    MediaStore.Audio, so WebM -> `.opus`, MP4 -> `.m4a`), and
- *  - how a non-2xx HTTP status from the relay `/download` endpoint should be handled.
- */
+/** Pure, unit-testable RELAY download decisions extracted from MediaStoreDownloadManager. */
 object RelayDownload {
-    /** Fallback audio extension when the container can't be identified (itag 251 Opus is the common case). */
     const val DEFAULT_AUDIO_EXTENSION = "opus"
 
     /**
-     * A MediaStore-friendly audio extension for a file whose first [length] bytes are in [head]. WebM/Ogg
-     * (Opus) -> "opus", MP4 -> "m4a", otherwise the default. In-app playback sniffs the real container
-     * regardless of the label, so this only needs to satisfy the MediaStore Audio collection.
+     * A MediaStore-friendly audio extension for a file whose first [length] bytes are in [head]. `.webm` is
+     * REJECTED by MediaStore.Audio (Android maps it to video/webm), so WebM/Ogg (Opus) -> "opus" and MP4 ->
+     * "m4a"; in-app playback sniffs the real container regardless of the label.
      */
     fun audioExtensionFromMagic(head: ByteArray, length: Int): String = when {
         // EBML header (1A 45 DF A3) = WebM/Matroska, i.e. the Opus audio the relay serves.

@@ -2065,29 +2065,18 @@ class MusicService :
         createDataSourceFactory()
     }
 
-    // ---- RELAY playback mode (opt-in, login-less; see RelayStream / the handoff doc). Fully isolated ----
-    // from the DIRECT path above: when RELAY is off (every normal user) none of this code runs, and the
-    // DIRECT factory is used verbatim. RELAY bypasses /player resolution, the cipher, googlevideo AND the
-    // shared player/download caches entirely (a filtered device can't reach YouTube, and staying off the
-    // shared cache means the relay can never touch a normal user's cached bytes). It simply rewrites each
-    // open to the whitelisted relay URL for the track's videoId and lets ExoPlayer stream it with Range.
-    // null = not yet observed from DataStore. Seeding false would let a relay user's FIRST open on a cold
-    // start (e.g. auto-resume of the last queue) fall through to the DIRECT googlevideo path before the
-    // async mirror emits — unreachable on a filtered device. The dispatcher resolves null with a one-time
-    // synchronous read so the very first open is always correct.
+    // ---- RELAY playback mode (opt-in; see RelayDataSourceFactory / the handoff doc). Isolated: none of
+    // this runs when RELAY is off, and the DIRECT factory is used verbatim.
+    // Mirror of PlaybackModeKey; null = not yet observed (the dispatcher resolves that below).
     @Volatile
     private var relayModeNow: Boolean? = null
 
-    // The relay factory construction lives in RelayDataSourceFactory (keeps this file from growing); it
-    // shares the DIRECT local-file decision via ::resolveDownloadedFileUri, so downloads play from disk and
-    // never mid-track-switch, exactly like DIRECT.
     private val relayDataSourceFactory: DataSource.Factory by lazy {
         RelayDataSourceFactory.create(this) { mediaId, position -> resolveDownloadedFileUri(mediaId, position) }
     }
 
-    // Per-open selector: RELAY users get the isolated relay factory, everyone else gets the DIRECT factory
-    // verbatim. Reading relayModeNow per createDataSource() gives the "takes effect on the next track"
-    // behavior the toggle promises without rebuilding the player.
+    // Per-open selector: RELAY -> the isolated relay factory, everyone else -> the DIRECT factory verbatim.
+    // Reading the flag per open gives the "takes effect on the next track" toggle behavior.
     private val playbackDataSourceFactory = DataSource.Factory {
         // Resolve null (mirror not yet emitted) with a one-time synchronous read so a relay user's first
         // open is never mis-routed to DIRECT. createDataSource() runs on ExoPlayer's loading thread, so the
