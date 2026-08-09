@@ -2,6 +2,7 @@ package com.jtech.zemer.playback.relay
 
 import android.content.Context
 import androidx.core.net.toUri
+import com.jtech.zemer.BuildConfig
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.ResolvingDataSource
@@ -24,10 +25,12 @@ object RelayDataSourceFactory {
         context: Context,
         resolveLocalFile: (mediaId: String, position: Long) -> String?,
     ): DataSource.Factory {
-        val upstream = DefaultDataSource.Factory(
-            context,
-            OkHttpDataSource.Factory(OkHttpClient.Builder().dns(ResilientDns()).build()),
-        )
+        val http = OkHttpDataSource.Factory(OkHttpClient.Builder().dns(ResilientDns()).build())
+        // DEBUG builds mark relay media requests so the relay serves but does not count them (see
+        // RelayStream.DEBUG_HEADER). Every request from this factory goes to the relay, so it rides
+        // relay hosts only; release builds add nothing.
+        if (BuildConfig.DEBUG) http.setDefaultRequestProperties(mapOf(RelayStream.DEBUG_HEADER to "1"))
+        val upstream = DefaultDataSource.Factory(context, http)
         return ResolvingDataSource.Factory(upstream) { dataSpec ->
             val mediaId = dataSpec.key ?: dataSpec.uri.toString()
             if (!VideoRendition.isVideoKey(mediaId)) {

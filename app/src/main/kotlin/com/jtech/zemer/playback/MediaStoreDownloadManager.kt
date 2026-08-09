@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Uri
 import androidx.core.content.getSystemService
+import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.AudioQualityKey
@@ -737,7 +738,11 @@ constructor(
                 .header("Accept-Language", "en-US,en;q=0.9")
                 // /download returns the full file as a plain response; only the DIRECT googlevideo path
                 // needs the open-ended range request.
-                .apply { if (!isRelay) header("Range", "bytes=0-") }
+                .apply {
+                    if (!isRelay) header("Range", "bytes=0-")
+                    // DEBUG-only marker so the relay serves but does not count this download in its gauge.
+                    else if (BuildConfig.DEBUG) header(RelayStream.DEBUG_HEADER, "1")
+                }
                 .build()
         } catch (e: Exception) {
             throw Exception("Failed to build download request for URL: $url", e)

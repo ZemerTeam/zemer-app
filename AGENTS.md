@@ -85,6 +85,14 @@ source** onto the whitelisted relay host `stream.zemer.io`. Full contract + the 
   (`informationItems.isNotEmpty()`) — in relay it is empty, so the section title and rows are omitted
   entirely. The relay sheet shows only General (title/artists/media-id from the local `song`); it never
   surfaces a "playback source" / relay row — the mode is deliberately opaque about how it resolves playback.
+- **Debug builds don't pollute the relay adoption gauge.** Relay usage is counted two ways: per-device via
+  the normal zemer-stats `play` events (already debug-clean — the server dry-runs any `debug:true` batch),
+  and a raw serve-gauge on the relay's `/health` that increments on bytes served and has no telemetry
+  envelope. So DEBUG builds send `x-zemer-debug: 1` (`RelayStream.DEBUG_HEADER`) on every RELAY media
+  request — `/stream` (audio and the `&kind=video` variant; a default request property on the relay OkHttp
+  factory) and `/download`; the relay then serves the bytes but does not count them. Release builds send
+  nothing; the app never sends `x-zemer-device` (so relay `distinctDevices` stays 0 by design — per-device
+  counts come from telemetry).
 - **Errors** surface the contracted copy (404 "not available", 502/503 "try again"); the relay's egress pool
   is server-side, so a transient 502 is retried, not the app's bug.
 - **Streaming is still the danger zone:** any change here is proven with `tests/` (the DIRECT resolver
