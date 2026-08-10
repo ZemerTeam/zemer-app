@@ -15,9 +15,7 @@ import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -410,9 +408,10 @@ fun Thumbnail(
                                             contentAlignment = Alignment.Center,
                                         ) {
                                             PlayerVideoSurface(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .aspectRatio(16f / 9f),
+                                                // Fill the square art slot; PlayerVideoSurface fits the
+                                                // video to its real aspect within (16:9 for DIRECT, so this
+                                                // is visually unchanged there).
+                                                modifier = Modifier.fillMaxSize(),
                                             )
                                             IconButton(
                                                 onClick = onEnterFullscreen,

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -124,9 +123,9 @@ fun PlayerVideoFullscreen(onExit: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         PlayerVideoSurface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f),
+            // Fill the screen; PlayerVideoSurface fits the video to its real aspect within (16:9 for
+            // DIRECT, so this is visually unchanged there).
+            modifier = Modifier.fillMaxSize(),
         )
 
         AnimatedVisibility(
