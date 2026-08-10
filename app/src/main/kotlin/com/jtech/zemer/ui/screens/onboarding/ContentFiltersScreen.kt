@@ -196,11 +196,13 @@ internal fun ContentFiltersScreen(
                         textAlign = TextAlign.Center
                     )
 
-                    // Show what's being restored
+                    // Show what's being restored. Neutral surfaceContainer fill (active = false) so it
+                    // matches the other onboarding cards (permissions, sign-in) instead of the brand-tinted
+                    // secondaryContainer, which reads as off-theme against the AMOLED background.
                     Card(
                         modifier = Modifier
                             .fillMaxWidth(),
-                        colors = onboardingCardColors(active = true),
+                        colors = onboardingCardColors(active = false),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
