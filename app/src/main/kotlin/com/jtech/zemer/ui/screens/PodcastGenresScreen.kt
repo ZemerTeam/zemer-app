@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -87,13 +88,18 @@ fun PodcastGenresScreen(
                             maxItemsInEachRow = 2,
                         ) {
                             uiState.genres.forEach { genre ->
-                                GenreCard(
-                                    title = genre.title,
-                                    slug = genre.id,
-                                    onClick = { navController.navigate(zemerPodcastGenreRoute(genre.id)) },
-                                    modifier = Modifier.weight(1f),
-                                    iconOverride = podcastGenreIcon(genre.id),
-                                )
+                                // Stable per-genre key so a list update (re-sync reorders by count) keeps
+                                // each genre's card - its cached motif tile + running weave - instead of
+                                // reusing a slot for a different genre and re-inflating (the update flicker).
+                                key(genre.id) {
+                                    GenreCard(
+                                        title = genre.title,
+                                        slug = genre.id,
+                                        onClick = { navController.navigate(zemerPodcastGenreRoute(genre.id)) },
+                                        modifier = Modifier.weight(1f),
+                                        iconOverride = podcastGenreIcon(genre.id),
+                                    )
+                                }
                             }
                             // Keep a lone trailing card at exact cell width (see the music catalog).
                             if (uiState.genres.size % 2 == 1) {

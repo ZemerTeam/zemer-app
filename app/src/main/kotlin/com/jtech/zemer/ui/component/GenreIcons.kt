@@ -79,5 +79,10 @@ internal fun podcastGenreIcon(slug: String): Int = when (slug) {
     "shiur", "shiurim" -> R.drawable.genre_shiurim
     "moadim" -> R.drawable.genre_celebration
     "women" -> R.drawable.account
+    "marriage" -> R.drawable.genre_rings
+    // Mental Health reuses the self-improvement/wellness motif (shared with mussar); a bespoke icon can
+    // replace this later without touching callers.
+    "mentalhealth" -> R.drawable.genre_self_improvement
+    "comedy" -> R.drawable.genre_theater_comedy
     else -> R.drawable.genre_music_note
 }

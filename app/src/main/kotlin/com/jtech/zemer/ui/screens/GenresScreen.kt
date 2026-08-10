@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -191,12 +192,16 @@ private fun GenreSectionBlock(
             maxItemsInEachRow = 2,
         ) {
             genres.forEach { genre ->
-                GenreCard(
-                    title = genre.title,
-                    slug = genre.id,
-                    onClick = { navController.navigate(zemerGenreRoute(genre.id)) },
-                    modifier = Modifier.weight(1f),
-                )
+                // Stable per-genre key so a list update keeps each genre's card (cached motif + running
+                // weave) instead of reusing a slot for a different genre and re-inflating.
+                key(genre.id) {
+                    GenreCard(
+                        title = genre.title,
+                        slug = genre.id,
+                        onClick = { navController.navigate(zemerGenreRoute(genre.id)) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
             // An odd count leaves the last card alone on its row; without a weighted partner it
             // would stretch to the full width. The invisible spacer keeps it at exact cell width.

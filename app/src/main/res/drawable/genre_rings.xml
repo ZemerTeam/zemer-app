@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960"
+    android:tint="?attr/colorControlNormal">
+  <!-- Two interlocking wedding rings (the Marriage podcast genre). Stroked circles rather than filled
+       so they read as rings; tinted like every other genre motif by the Icon/weave layer. -->
+  <path
+      android:strokeColor="@android:color/white"
+      android:strokeWidth="70"
+      android:pathData="M240,540 a170,170 0 1,0 340,0 a170,170 0 1,0 -340,0" />
+  <path
+      android:strokeColor="@android:color/white"
+      android:strokeWidth="70"
+      android:pathData="M380,540 a170,170 0 1,0 340,0 a170,170 0 1,0 -340,0" />
+</vector>
