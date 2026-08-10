@@ -498,6 +498,10 @@ class MusicService :
         scope.launch {
             enumPreferenceFlow(this@MusicService, PlaybackModeKey, PlaybackMode.DIRECT).collect {
                 relayModeNow = it == PlaybackMode.RELAY
+                // Close the cold-start race: if relay resolves AFTER the first track's metadata event
+                // already fired, persist the current song now so an immediate like/history write finds
+                // its row. Idempotent (guarded by lastRelayPersistedId); a no-op in DIRECT.
+                if (relayModeNow == true) persistRelaySongIfNeeded(currentMediaMetadata.value)
             }
         }
         scope.launch {
@@ -1547,6 +1551,13 @@ class MusicService :
         // race) - re-tune to the live schedule instead of parking in silence.
         if (playbackState == Player.STATE_ENDED) {
             (currentQueue as? StationQueue)?.let { resyncStationPlayback(it) }
+        }
+        // RELAY: a track that reaches READY has played, which breaks any error streak — so the
+        // runaway-skip guard (skipOnError) counts only CONSECUTIVE failures, its intent. Without this
+        // the counter accumulates across scattered flaky-egress errors and would eventually pause a
+        // healthy relay queue, defeating the auto-advance fix. Relay-gated so DIRECT's guard is unchanged.
+        if (playbackState == Player.STATE_READY && relayModeNow == true) {
+            consecutivePlaybackErr = 0
         }
         // Save state when playback state changes
         if (dataStore.get(PersistentQueueKey, true)) {
