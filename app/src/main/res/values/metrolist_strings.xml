@@ -394,7 +394,7 @@
     <string name="onboarding_block_videos_title">Block Videos</string>
     <string name="onboarding_block_videos_desc">Hide video content from results</string>
     <string name="onboarding_block_podcasts_title">Block Podcasts</string>
-    <string name="onboarding_block_podcasts_desc">Hide all podcast content from the app</string>
+    <string name="onboarding_block_podcasts_desc">Hide podcast content</string>
     <string name="block_podcasts">Block podcasts</string>
     <string name="onboarding_nav_setup">Navigation Setup</string>
     <string name="onboarding_nav_question">Would you like to enable the bottom navigation bar for quick access to your favorite screens?</string>
