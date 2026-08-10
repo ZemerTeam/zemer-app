@@ -34,6 +34,12 @@ import com.jtech.zemer.utils.ContentFilterState
  * Zemer results are already whitelist-scoped server-side, so the local whitelist filter is NOT applied
  * here; only `hideExplicit` is honored (on the song/video lists — the other types are never explicit).
  */
+// Zemer-only search chips — podcasts and episodes have no YouTube [SearchFilter] equivalent. The value
+// is a private key used ONLY client-side to pick the `/search` response's podcast/episode category in
+// [ZemerResultMapper.filtered]; it is never sent to any server (Zemer filtering is response-side).
+val ZEMER_FILTER_PODCAST = SearchFilter("zemer_podcast")
+val ZEMER_FILTER_EPISODE = SearchFilter("zemer_episode")
+
 object ZemerResultMapper {
 
     /**
@@ -585,6 +591,8 @@ object ZemerResultMapper {
             SearchFilter.FILTER_ALBUM.value -> albumItems(resp)
             SearchFilter.FILTER_COMMUNITY_PLAYLIST.value -> playlistItems(resp.categories.community, formatSongCount)
             SearchFilter.FILTER_FEATURED_PLAYLIST.value -> playlistItems(resp.categories.playlists, formatSongCount)
+            ZEMER_FILTER_PODCAST.value -> resp.podcastShowItems()
+            ZEMER_FILTER_EPISODE.value -> resp.podcastEpisodeItems()
             else -> emptyList()
         }
         return SearchResult(items = items, continuation = null)

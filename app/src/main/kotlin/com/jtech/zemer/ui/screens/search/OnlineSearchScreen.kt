@@ -125,9 +125,10 @@ fun OnlineSearchScreen(
     val coroutineScope = rememberCoroutineScope()
     val viewState by viewModel.viewState.collectAsState()
     val (blockPodcasts) = rememberPreference(BlockPodcastsKey, defaultValue = false)
-    // Blocked podcasts are hidden as a content type, so drop podcast results (and the browse shortcut).
+    // Blocked podcasts are hidden as a content type, so drop podcast results (shows AND episodes) plus
+    // the browse shortcut.
     val displayItems = remember(viewState.items, blockPodcasts) {
-        if (blockPodcasts) viewState.items.filterNot { it is PodcastItem } else viewState.items
+        if (blockPodcasts) viewState.items.filterNot { it is PodcastItem || it is EpisodeItem } else viewState.items
     }
     // The dropdown follows the active engine (see OnlineSearchSuggestionViewModel), so a Zemer playlist
     // shown here must open through the server path — route on the same provider preference.

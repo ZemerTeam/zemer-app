@@ -53,6 +53,8 @@ import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.BlockPodcastsKey
+import com.jtech.zemer.search.ZEMER_FILTER_PODCAST
+import com.jtech.zemer.search.ZEMER_FILTER_EPISODE
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.utils.rememberPreference
@@ -284,6 +286,12 @@ fun OnlineSearchResult(
                     add(FILTER_ARTIST to stringResource(R.string.filter_artists))
                     add(FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists))
                     add(FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists))
+                    // Podcasts + episodes are corpus content with no YouTube filter. Hidden entirely
+                    // when podcasts are blocked (same content type as the gated summary sections).
+                    if (!blockPodcasts) {
+                        add(ZEMER_FILTER_PODCAST to stringResource(R.string.filter_podcasts))
+                        add(ZEMER_FILTER_EPISODE to stringResource(R.string.filter_episodes))
+                    }
                 },
                 currentValue = searchFilter,
                 onValueUpdate = {
@@ -356,8 +364,9 @@ fun OnlineSearchResult(
 
                 else -> {
                     searchSummary?.summaries?.forEach { summary ->
-                        // Blocked podcasts hide the whole content type — skip a podcast summary section.
-                        val isPodcastSection = summary.items.firstOrNull() is PodcastItem
+                        // Blocked podcasts hide the whole content type — both the podcast SHOWS section
+                        // and the EPISODES section (episodes are podcast content too).
+                        val isPodcastSection = summary.items.firstOrNull().let { it is PodcastItem || it is EpisodeItem }
                         if (summary.items.isNotEmpty() && !(blockPodcasts && isPodcastSection)) {
                             item {
                                 val summaryFilter =
@@ -489,7 +498,7 @@ private fun mapItemToFilter(item: YTItem): com.metrolist.innertube.YouTube.Searc
         is AlbumItem -> FILTER_ALBUM
         is ArtistItem -> FILTER_ARTIST
         is PlaylistItem -> FILTER_COMMUNITY_PLAYLIST
-        // Podcasts/episodes have no Zemer search chip (they come from a separate podcast path).
-        is PodcastItem,
-        is EpisodeItem -> null
+        // Podcasts/episodes have their own Zemer chips, so a summary section's "see all" switches to them.
+        is PodcastItem -> ZEMER_FILTER_PODCAST
+        is EpisodeItem -> ZEMER_FILTER_EPISODE
     }
