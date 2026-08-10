@@ -1595,7 +1595,28 @@ class MusicService :
             // Same-stack availability republish: the Song/Video pill state must change atomically with
             // the current item — the async combine's dispatch hops flashed it in mid player-open.
             videoModeController.recomputeNow()
+            persistRelaySongIfNeeded(player.currentMetadata)
         }
+    }
+
+    /**
+     * RELAY isolation fix. A corpus song played in RELAY mode was never browsed/saved, so it has no
+     * local `song` row — which silently breaks every per-song action that reads/writes that row (like,
+     * library, download-mark all no-op on the absent row) and FK-crashes the play-history `Event` /
+     * add-to-playlist inserts. Persist a minimal row (insert-if-missing) the moment a relay track
+     * becomes current, so those SHARED paths work exactly as in DIRECT without any change to them.
+     *
+     * Strictly isolated: gated on `relayModeNow == true`, so DIRECT / anonymous-login playback never
+     * reaches here. The write is `insert(MediaMetadata)` whose `SongEntity` insert is
+     * `OnConflictStrategy.IGNORE`, so it NEVER clobbers an existing row's liked/inLibrary/download
+     * state — it only fills in the parent row a relay song lacks. It carries no account/login state
+     * (liked stays false; the remote like-sync is separately gated on a personal account).
+     */
+    private fun persistRelaySongIfNeeded(metadata: com.jtech.zemer.models.MediaMetadata?) {
+        if (relayModeNow != true || metadata == null) return
+        if (metadata.id == lastRelayPersistedId) return
+        lastRelayPersistedId = metadata.id
+        database.query { insert(metadata) }
     }
 
     override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
@@ -2076,6 +2097,10 @@ class MusicService :
     // Mirror of PlaybackModeKey; null = not yet observed (the dispatcher resolves that below).
     @Volatile
     private var relayModeNow: Boolean? = null
+
+    // Last relay song id whose local `song` row was ensured (see persistRelaySongIfNeeded) — so the
+    // insert-if-missing runs once per relay track, not on every metadata-changed event.
+    private var lastRelayPersistedId: String? = null
 
     // Synchronous mirror of AutoSkipNextOnErrorKey. onPlayerError is a main-thread Player callback; reading
     // the pref there via a blocking DataStore get on every error is a main-thread stall, and the relay path
