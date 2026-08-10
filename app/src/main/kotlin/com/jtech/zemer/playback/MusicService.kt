@@ -1667,8 +1667,11 @@ class MusicService :
         // invalidate the wrong (audio) cache entry and loop.
         if (videoModeController.onPlayerError(error)) return
 
-        // Check for expired URL (403 error) - needs immediate URL refresh
-        if (isExpiredUrlError(error)) {
+        // Check for expired URL (403 error) - needs immediate URL refresh. RELAY is excluded: a relay URL
+        // is deterministic, so the YouTube cipher/URL-refresh path would re-resolve to the SAME url and 403
+        // again, looping forever instead of advancing. A relay 403 falls through to the relay skip in
+        // handleUnrecoverablePlayerError.
+        if (isExpiredUrlError(error) && relayModeNow != true) {
             Timber.d("Expired URL detected (403), refreshing stream URL")
             handleExpiredUrlError()
             return
@@ -1745,6 +1748,17 @@ class MusicService :
             player.currentMediaItem?.mediaId?.let(station::markUnplayable)
             skipOnError()
             resyncStationPlayback(station)
+            return
+        }
+
+        // RELAY: streams are cache-free over a flaky rotating-proxy egress, so an unavailable (404) or
+        // transiently-failing (502/503/timeout) track must never halt the queue - continuous playback
+        // is the whole point of a radio. Advance to the next song (the shared skipOnError carries the
+        // consecutive-error runaway guard, so a bad batch still pauses eventually) instead of pausing on
+        // the AutoSkip-off default - the same "never stop for one bad slot" policy stations use above.
+        // Isolated: DIRECT still honors the AutoSkip preference below.
+        if (relayModeNow == true) {
+            skipOnError()
             return
         }
 
