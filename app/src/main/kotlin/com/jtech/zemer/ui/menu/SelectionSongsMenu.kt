@@ -533,14 +533,15 @@ fun SelectionMediaMetadataMenu(
                             title = { Text(stringResource(R.string.like_all)) },
                             onClick = {
                                 database.query {
-                                    if (allLiked) {
-                                        songSelection.forEach { song ->
-                                            update(song.toSongEntity().toggleLike())
-                                        }
-                                    } else {
-                                        songSelection.filter { !it.liked }.forEach { song ->
-                                            update(song.toSongEntity().toggleLike())
-                                        }
+                                    // Queue multi-select holds rowless MediaMetadata (a relay corpus song
+                                    // is never in the local DB), so a bare update() would no-op. insert()
+                                    // is OnConflictStrategy.IGNORE, so it only fills in a missing parent row
+                                    // (never clobbers an existing one) before we flip liked.
+                                    val toToggle =
+                                        if (allLiked) songSelection else songSelection.filter { !it.liked }
+                                    toToggle.forEach { song ->
+                                        insert(song)
+                                        update(song.toSongEntity().toggleLike())
                                     }
                                 }
                             },

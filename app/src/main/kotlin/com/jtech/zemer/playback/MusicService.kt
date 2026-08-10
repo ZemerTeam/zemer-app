@@ -498,6 +498,10 @@ class MusicService :
         scope.launch {
             enumPreferenceFlow(this@MusicService, PlaybackModeKey, PlaybackMode.DIRECT).collect {
                 relayModeNow = it == PlaybackMode.RELAY
+                // Close the cold-start race: if relay resolves AFTER the first track's metadata event
+                // already fired, persist the current song now so an immediate like/history write finds
+                // its row. Idempotent (guarded by lastRelayPersistedId); a no-op in DIRECT.
+                if (relayModeNow == true) persistRelaySongIfNeeded(currentMediaMetadata.value)
             }
         }
         scope.launch {
@@ -1548,6 +1552,13 @@ class MusicService :
         if (playbackState == Player.STATE_ENDED) {
             (currentQueue as? StationQueue)?.let { resyncStationPlayback(it) }
         }
+        // RELAY: a track that reaches READY has played, which breaks any error streak — so the
+        // runaway-skip guard (skipOnError) counts only CONSECUTIVE failures, its intent. Without this
+        // the counter accumulates across scattered flaky-egress errors and would eventually pause a
+        // healthy relay queue, defeating the auto-advance fix. Relay-gated so DIRECT's guard is unchanged.
+        if (playbackState == Player.STATE_READY && relayModeNow == true) {
+            consecutivePlaybackErr = 0
+        }
         // Save state when playback state changes
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
@@ -1595,7 +1606,28 @@ class MusicService :
             // Same-stack availability republish: the Song/Video pill state must change atomically with
             // the current item — the async combine's dispatch hops flashed it in mid player-open.
             videoModeController.recomputeNow()
+            persistRelaySongIfNeeded(player.currentMetadata)
         }
+    }
+
+    /**
+     * RELAY isolation fix. A corpus song played in RELAY mode was never browsed/saved, so it has no
+     * local `song` row — which silently breaks every per-song action that reads/writes that row (like,
+     * library, download-mark all no-op on the absent row) and FK-crashes the play-history `Event` /
+     * add-to-playlist inserts. Persist a minimal row (insert-if-missing) the moment a relay track
+     * becomes current, so those SHARED paths work exactly as in DIRECT without any change to them.
+     *
+     * Strictly isolated: gated on `relayModeNow == true`, so DIRECT / anonymous-login playback never
+     * reaches here. The write is `insert(MediaMetadata)` whose `SongEntity` insert is
+     * `OnConflictStrategy.IGNORE`, so it NEVER clobbers an existing row's liked/inLibrary/download
+     * state — it only fills in the parent row a relay song lacks. It carries no account/login state
+     * (liked stays false; the remote like-sync is separately gated on a personal account).
+     */
+    private fun persistRelaySongIfNeeded(metadata: com.jtech.zemer.models.MediaMetadata?) {
+        if (relayModeNow != true || metadata == null) return
+        if (metadata.id == lastRelayPersistedId) return
+        lastRelayPersistedId = metadata.id
+        database.query { insert(metadata) }
     }
 
     override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
@@ -1646,8 +1678,11 @@ class MusicService :
         // invalidate the wrong (audio) cache entry and loop.
         if (videoModeController.onPlayerError(error)) return
 
-        // Check for expired URL (403 error) - needs immediate URL refresh
-        if (isExpiredUrlError(error)) {
+        // Check for expired URL (403 error) - needs immediate URL refresh. RELAY is excluded: a relay URL
+        // is deterministic, so the YouTube cipher/URL-refresh path would re-resolve to the SAME url and 403
+        // again, looping forever instead of advancing. A relay 403 falls through to the relay skip in
+        // handleUnrecoverablePlayerError.
+        if (isExpiredUrlError(error) && relayModeNow != true) {
             Timber.d("Expired URL detected (403), refreshing stream URL")
             handleExpiredUrlError()
             return
@@ -1724,6 +1759,17 @@ class MusicService :
             player.currentMediaItem?.mediaId?.let(station::markUnplayable)
             skipOnError()
             resyncStationPlayback(station)
+            return
+        }
+
+        // RELAY: streams are cache-free over a flaky rotating-proxy egress, so an unavailable (404) or
+        // transiently-failing (502/503/timeout) track must never halt the queue - continuous playback
+        // is the whole point of a radio. Advance to the next song (the shared skipOnError carries the
+        // consecutive-error runaway guard, so a bad batch still pauses eventually) instead of pausing on
+        // the AutoSkip-off default - the same "never stop for one bad slot" policy stations use above.
+        // Isolated: DIRECT still honors the AutoSkip preference below.
+        if (relayModeNow == true) {
+            skipOnError()
             return
         }
 
@@ -2076,6 +2122,10 @@ class MusicService :
     // Mirror of PlaybackModeKey; null = not yet observed (the dispatcher resolves that below).
     @Volatile
     private var relayModeNow: Boolean? = null
+
+    // Last relay song id whose local `song` row was ensured (see persistRelaySongIfNeeded) — so the
+    // insert-if-missing runs once per relay track, not on every metadata-changed event.
+    private var lastRelayPersistedId: String? = null
 
     // Synchronous mirror of AutoSkipNextOnErrorKey. onPlayerError is a main-thread Player callback; reading
     // the pref there via a blocking DataStore get on every error is a main-thread stall, and the relay path
