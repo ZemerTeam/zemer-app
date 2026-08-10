@@ -51,24 +51,10 @@ fun SongItem.toMediaItem() =
                 .build(),
         ).build()
 
-fun EpisodeItem.toMediaItem() =
-    MediaItem
-        .Builder()
-        .setMediaId(id)
-        .setUri(id)
-        .setCustomCacheKey(id)
-        .setTag(toMediaMetadata())
-        .setMediaMetadata(
-            androidx.media3.common.MediaMetadata
-                .Builder()
-                .setTitle(title)
-                .setSubtitle(author?.name ?: "")
-                .setArtist(author?.name ?: "")
-                .setArtworkUri(thumbnail.resize(544, 544).toUri())
-                .setAlbumTitle(podcast?.name)
-                .setMediaType(MEDIA_TYPE_MUSIC)
-                .build(),
-        ).build()
+// EpisodeItem.toMediaMetadata() already produces the same fields (id, title, listOfNotNull(author) ->
+// subtitle/artist, thumbnail.resize(544,544), podcast?.name -> albumTitle), so build the item through it
+// rather than keeping a second hand-rolled copy that could drift.
+fun EpisodeItem.toMediaItem() = toMediaMetadata().toMediaItem()
 
 fun MediaMetadata.toMediaItem() =
     MediaItem

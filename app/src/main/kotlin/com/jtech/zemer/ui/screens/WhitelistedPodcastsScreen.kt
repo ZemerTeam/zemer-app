@@ -170,6 +170,18 @@ fun WhitelistedPodcastsScreen(
         )
     }
 
+    // Shared header-section wiring, so the LIST and GRID branches build the identical Subscribed-Channels
+    // + New-Episodes header without copy-pasting the section blocks (only the grid's `span` differs).
+    val onSyncSubscribed: () -> Unit = { viewModel.syncSubscribedPodcasts() }
+    val onChannelClick: (String) -> Unit = { navController.navigateToPodcast(it) }
+    val onRefreshEpisodes: () -> Unit = { viewModel.fetchNewEpisodes() }
+    val onEpisodeClick: (SongItem) -> Unit = { episode ->
+        playerConnection.playQueue(
+            ListQueue(title = episode.title, items = listOf(episode.toMediaItem())),
+        )
+    }
+    val hasHeaderSections = subscribedPodcasts.isNotEmpty() || newEpisodes.isNotEmpty() || isLoadingNewEpisodes
+
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -186,31 +198,16 @@ fun WhitelistedPodcastsScreen(
                         searchContent()
                     }
 
-                    // Subscribed Channels Section (the user's account subscriptions, synced + whitelist-filtered)
-                    if (subscribedPodcasts.isNotEmpty()) {
-                        item(key = "subscribed_channels", contentType = CONTENT_TYPE_HEADER) {
-                            SubscribedChannelsSection(
-                                podcasts = subscribedPodcasts,
-                                onSync = { viewModel.syncSubscribedPodcasts() },
-                                onChannelClick = { navController.navigateToPodcast(it) },
-                            )
-                        }
-                    }
-
-                    // New Episodes Section (from the Zemer server /podcasts/new-episodes)
-                    if (newEpisodes.isNotEmpty() || isLoadingNewEpisodes) {
-                        item(key = "new_episodes", contentType = CONTENT_TYPE_HEADER) {
-                            NewEpisodesSection(
-                                episodes = newEpisodes,
-                                onRefresh = { viewModel.fetchNewEpisodes() },
-                                onEpisodeClick = { episode ->
-                                    playerConnection.playQueue(
-                                        ListQueue(
-                                            title = episode.title,
-                                            items = listOf(episode.toMediaItem()),
-                                        ),
-                                    )
-                                },
+                    if (hasHeaderSections) {
+                        item(key = "podcast_header_sections", contentType = CONTENT_TYPE_HEADER) {
+                            PodcastLibraryHeaderSections(
+                                subscribedPodcasts = subscribedPodcasts,
+                                newEpisodes = newEpisodes,
+                                isLoadingNewEpisodes = isLoadingNewEpisodes,
+                                onSync = onSyncSubscribed,
+                                onChannelClick = onChannelClick,
+                                onRefresh = onRefreshEpisodes,
+                                onEpisodeClick = onEpisodeClick,
                             )
                         }
                     }
@@ -266,31 +263,16 @@ fun WhitelistedPodcastsScreen(
                         searchContent()
                     }
 
-                    // Subscribed Channels Section (the user's account subscriptions, synced + whitelist-filtered)
-                    if (subscribedPodcasts.isNotEmpty()) {
-                        item(key = "subscribed_channels", span = { GridItemSpan(maxLineSpan) }, contentType = CONTENT_TYPE_HEADER) {
-                            SubscribedChannelsSection(
-                                podcasts = subscribedPodcasts,
-                                onSync = { viewModel.syncSubscribedPodcasts() },
-                                onChannelClick = { navController.navigateToPodcast(it) },
-                            )
-                        }
-                    }
-
-                    // New Episodes Section (from the Zemer server /podcasts/new-episodes)
-                    if (newEpisodes.isNotEmpty() || isLoadingNewEpisodes) {
-                        item(key = "new_episodes", span = { GridItemSpan(maxLineSpan) }, contentType = CONTENT_TYPE_HEADER) {
-                            NewEpisodesSection(
-                                episodes = newEpisodes,
-                                onRefresh = { viewModel.fetchNewEpisodes() },
-                                onEpisodeClick = { episode ->
-                                    playerConnection.playQueue(
-                                        ListQueue(
-                                            title = episode.title,
-                                            items = listOf(episode.toMediaItem()),
-                                        ),
-                                    )
-                                },
+                    if (hasHeaderSections) {
+                        item(key = "podcast_header_sections", span = { GridItemSpan(maxLineSpan) }, contentType = CONTENT_TYPE_HEADER) {
+                            PodcastLibraryHeaderSections(
+                                subscribedPodcasts = subscribedPodcasts,
+                                newEpisodes = newEpisodes,
+                                isLoadingNewEpisodes = isLoadingNewEpisodes,
+                                onSync = onSyncSubscribed,
+                                onChannelClick = onChannelClick,
+                                onRefresh = onRefreshEpisodes,
+                                onEpisodeClick = onEpisodeClick,
                             )
                         }
                     }
@@ -478,6 +460,37 @@ private fun NewEpisodeCard(
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.secondary,
+        )
+    }
+}
+
+/**
+ * The two library header sections (Subscribed Channels — the account's synced + whitelist-filtered
+ * subscriptions; New Episodes — the Zemer server `/podcasts/new-episodes` feed), rendered once and shared
+ * by the LIST and GRID branches so they can't drift. Each inner section hides itself when empty.
+ */
+@Composable
+private fun PodcastLibraryHeaderSections(
+    subscribedPodcasts: List<PodcastEntity>,
+    newEpisodes: List<SongItem>,
+    isLoadingNewEpisodes: Boolean,
+    onSync: () -> Unit,
+    onChannelClick: (String) -> Unit,
+    onRefresh: () -> Unit,
+    onEpisodeClick: (SongItem) -> Unit,
+) {
+    if (subscribedPodcasts.isNotEmpty()) {
+        SubscribedChannelsSection(
+            podcasts = subscribedPodcasts,
+            onSync = onSync,
+            onChannelClick = onChannelClick,
+        )
+    }
+    if (newEpisodes.isNotEmpty() || isLoadingNewEpisodes) {
+        NewEpisodesSection(
+            episodes = newEpisodes,
+            onRefresh = onRefresh,
+            onEpisodeClick = onEpisodeClick,
         )
     }
 }

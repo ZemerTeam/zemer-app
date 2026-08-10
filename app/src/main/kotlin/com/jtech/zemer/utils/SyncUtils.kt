@@ -226,11 +226,14 @@ class SyncUtils @Inject constructor(
                 // is resolved ONCE, and the independent lookups run CONCURRENTLY (async/awaitAll) rather
                 // than one sequential /podcast round-trip per show.
                 //
-                // A lookup that does NOT positively confirm the show (a thrown error, a network outage, OR a
-                // 404 — `repo.podcast` returns null on 404 without throwing) drops the episode this run
-                // (never add on doubt) AND sets anyLookupFailed, which disables the cleanup below. This
-                // mirrors syncPodcastSubscriptions' `channelPage != null` guard: a transient/partial failure
-                // must never be read as "removed on YTM" and wipe a genuine local save.
+                // A lookup that does not positively confirm the show drops the episode this run (never add
+                // on doubt), but only a lookup that could NOT complete disables the cleanup below. A clean
+                // 404 (`repo.podcast` returns null WITHOUT throwing — a reachable server saying "not
+                // whitelisted") is a definitive negative, NOT a failure, so a user's non-kosher saves don't
+                // permanently disable cleanup. Only a thrown error (a genuine outage with no snapshot, or a
+                // non-network error) sets anyLookupFailed — mirroring syncPodcastSubscriptions' `channelPage
+                // != null` guard: a transient/partial failure must never be read as "removed on YTM" and
+                // wipe a genuine local save.
                 val repo = context.zemerSearchRepository()
                 val options = zemerSearchOptions(context)
                 val showIdOf: (SongItem) -> String? = { ep ->
@@ -241,15 +244,17 @@ class SyncUtils @Inject constructor(
                 val lookups = coroutineScope {
                     distinctShowIds.map { showId ->
                         async {
-                            // getOrNull folds a thrown error into null; null (error / outage / 404) = "not
-                            // confirmed" = both dropped AND a failure that disables cleanup.
-                            val served = runCatching { repo.podcast(showId, 0, options) }.getOrNull() != null
-                            showId to served
+                            // serverOrOffline returns null ONLY on a clean 404 (reachable server, show not
+                            // whitelisted); an outage without a snapshot, or any non-network error, THROWS.
+                            // So success(null) = definitively not whitelisted → drop the episode but NOT a
+                            // failure; only isFailure = "couldn't verify" → disables the cleanup below.
+                            val result = runCatching { repo.podcast(showId, 0, options) }
+                            Triple(showId, result.getOrNull() != null, result.isFailure)
                         }
                     }.awaitAll()
                 }
-                val showAllowed = lookups.toMap()
-                val anyLookupFailed = showAllowed.values.any { !it }
+                val showAllowed = lookups.associate { (showId, allowed, _) -> showId to allowed }
+                val anyLookupFailed = lookups.any { (_, _, failed) -> failed }
                 val remoteEpisodes = rawEpisodes.filter { ep ->
                     showIdOf(ep)?.let { showAllowed[it] } == true
                 }
@@ -364,16 +369,19 @@ class SyncUtils @Inject constructor(
     }
 
     /**
-     * Upsert an episode's saved-for-later state in ONE transaction: insert-if-missing then a full-row
-     * update, both stamping `isEpisode = true`. Doing it in a single transaction (not two `query {}`
-     * blocks) avoids the split-mutation race, and the insert makes saving a not-yet-persisted episode
-     * actually land a row — so it appears in `savedEpisodes()` / Library → Podcasts → Episodes.
+     * Upsert an episode's saved-for-later state, overwriting ONLY the save-owned columns (`inLibrary` +
+     * `isEpisode`). Base the row on the EXISTING DB row (read first) — a full-row write of the caller's
+     * possibly-stale [SongEntity] snapshot would clobber download/resume columns the user set elsewhere
+     * (`isDownloaded`, `mediaStoreUri`, `lastPositionMs`, `totalPlayTime`), the same clobber
+     * [MediaStoreDownloadManager.markSongAsDownloaded] is careful to avoid. Falling back to the caller's
+     * entity when no row exists still lands a row for a not-yet-persisted episode, so it appears in
+     * `savedEpisodes()` / Library → Podcasts → Episodes. The single upsert keeps it a one-statement
+     * mutation (no split-mutation race).
      */
     private suspend fun saveEpisodeLocal(episode: SongEntity, inLibrary: LocalDateTime?) {
-        val row = episode.copy(inLibrary = inLibrary, isEpisode = true)
+        val existing = database.song(episode.id).firstOrNull()?.song
         database.transaction {
-            insert(row)
-            update(row)
+            upsert((existing ?: episode).copy(inLibrary = inLibrary, isEpisode = true))
         }
     }
 

@@ -61,8 +61,6 @@ import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.PodcastEntity
 import com.jtech.zemer.db.entities.Song
-import com.jtech.zemer.extensions.isPersonalAccountFlow
-import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
@@ -108,8 +106,6 @@ fun LibraryPodcastsScreen(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val downloadedEpisodesStr = stringResource(R.string.downloaded_episodes)
 
-    val isPersonalAccount by context.isPersonalAccountFlow()
-        .collectAsState(initial = isPersonalAccountSignedIn)
 
     var podcastFilter by rememberEnumPreference(PodcastFilterKey, PodcastFilter.EPISODES)
     val (sortType, onSortTypeChange) = rememberEnumPreference(PodcastSortTypeKey, SongSortType.CREATE_DATE)
@@ -182,15 +178,26 @@ fun LibraryPodcastsScreen(
                         }
                     }
 
-                    // New Episodes card (personal only): the account's new-episodes feed.
-                    if (isPersonalAccount && newEpisodes.isNotEmpty()) {
-                        item(key = "rdpn", contentType = CONTENT_TYPE_HEADER) {
+                    // New Episodes card: the whitelist-pure server /podcasts/new-episodes feed (the same
+                    // feed the count reflects, anon-capable). Tapping PLAYS that feed — never opens the raw
+                    // InnerTube RDPN playlist, which is a different, unfiltered content set (a kosher leak)
+                    // that also never matched the shown count.
+                    if (newEpisodes.isNotEmpty()) {
+                        item(key = "new_episodes", contentType = CONTENT_TYPE_HEADER) {
+                            val newEpisodesTitle = stringResource(R.string.new_episodes)
                             AutoPlaylistCard(
-                                title = stringResource(R.string.new_episodes),
+                                title = newEpisodesTitle,
                                 thumbnailUrl = null,
                                 gradientCover = true,
                                 subtitleCount = pluralStringResource(R.plurals.n_episode, newEpisodes.size, newEpisodes.size),
-                                onClick = { navController.navigate("online_playlist/RDPN") },
+                                onClick = {
+                                    playerConnection.playQueue(
+                                        ListQueue(
+                                            title = newEpisodesTitle,
+                                            items = newEpisodes.map { it.toMediaItem() },
+                                        ),
+                                    )
+                                },
                             )
                         }
                     }

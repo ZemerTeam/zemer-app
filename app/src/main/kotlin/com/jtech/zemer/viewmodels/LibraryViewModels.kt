@@ -497,9 +497,9 @@ constructor(
             .flatMapLatest { (sortType, descending) -> database.downloadedEpisodes(sortType, descending) }
             .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    // New Episodes from the personal account's feed (VLRDPN). PERSONAL-ONLY: reading the pooled anon
-    // account's feed would leak across users (the dataSyncId gate music uses, not SAPISID).
-    // New Episodes feed (shared holder so this VM and WhitelistedPodcastsViewModel can't drift).
+    // New Episodes feed (shared holder so this VM and WhitelistedPodcastsViewModel can't drift): the
+    // whitelist-pure server /podcasts/new-episodes feed, filtered to subscribed shows. Anon-capable (it
+    // is NOT the personal-account RDPN InnerTube feed), so the Library card shows for every session.
     private val newEpisodesFeed = NewEpisodesFeed(zemerRepository, context, database)
     val newEpisodes = newEpisodesFeed.episodes
     val isLoadingNewEpisodes = newEpisodesFeed.isLoading

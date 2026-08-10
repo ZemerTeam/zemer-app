@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.timeout
+import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.statement.HttpResponse
@@ -46,6 +47,10 @@ internal val zemerResponseJson = Json {
  * [includeKidZone] adds `kidZone=0` for the endpoints that take it: those surfaces are never
  * reachable from inside the KidZone tab, but the flag is still sent explicitly.
  */
+/** Apply a name->value param list to a request, replacing the repeated `forEach { parameter(..) }`. */
+private fun HttpRequestBuilder.applyParams(params: List<Pair<String, String>>) =
+    params.forEach { (name, value) -> parameter(name, value) }
+
 internal fun zemerContentFlagParameters(
     allowFemale: Boolean,
     blockVideos: Boolean,
@@ -143,9 +148,7 @@ class ZemerSearchClient @Inject constructor() {
         k: Int,
     ): ZemerSearchResponse {
         val response: HttpResponse = client.get("$BASE_URL/search") {
-            zemerSearchParameters(query, allowFemale, blockVideos, k).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerSearchParameters(query, allowFemale, blockVideos, k))
             // The Community chip asks for a large k (a few hundred rows); give that heavier response more
             // headroom than the default ceiling, while the as-you-type / filter calls keep the tighter
             // default so a genuinely hung request still fails fast.
@@ -172,9 +175,7 @@ class ZemerSearchClient @Inject constructor() {
     ): ZemerPlaylistResponse {
         val response: HttpResponse = client.get("$BASE_URL/playlist") {
             parameter("id", id)
-            zemerContentFlagParameters(allowFemale, blockVideos).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerContentFlagParameters(allowFemale, blockVideos))
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
         if (!response.status.isSuccess()) {
@@ -199,9 +200,7 @@ class ZemerSearchClient @Inject constructor() {
     ): ZemerAlbumResponse? {
         val response: HttpResponse = client.get("$BASE_URL/album") {
             parameter("id", id)
-            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true))
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
         if (response.status == HttpStatusCode.NotFound) return null
@@ -225,9 +224,7 @@ class ZemerSearchClient @Inject constructor() {
     ): ZemerArtistResponse? {
         val response: HttpResponse = client.get("$BASE_URL/artist") {
             parameter("id", id)
-            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true))
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
         if (response.status == HttpStatusCode.NotFound) return null
@@ -252,9 +249,7 @@ class ZemerSearchClient @Inject constructor() {
         val response: HttpResponse = client.get("$BASE_URL/podcast") {
             parameter("id", id)
             parameter("offset", offset.toString())
-            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true))
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
         if (response.status == HttpStatusCode.NotFound) return null
@@ -272,9 +267,7 @@ class ZemerSearchClient @Inject constructor() {
     ): ZemerPodcastChannelResponse? {
         val response: HttpResponse = client.get("$BASE_URL/podcast-channel") {
             parameter("id", id)
-            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true))
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
         if (response.status == HttpStatusCode.NotFound) return null
@@ -292,9 +285,7 @@ class ZemerSearchClient @Inject constructor() {
     ): ZemerNewEpisodesResponse {
         val response: HttpResponse = client.get("$BASE_URL/podcasts/new-episodes") {
             parameter("k", k.toString())
-            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true))
         }
         if (!response.status.isSuccess()) {
             throw IOException("Zemer podcasts/new-episodes returned HTTP ${response.status.value}")
@@ -311,9 +302,7 @@ class ZemerSearchClient @Inject constructor() {
         blockVideos: Boolean,
     ): ZemerPodcastGenresResponse {
         val response: HttpResponse = client.get("$BASE_URL/podcast-genres") {
-            zemerGenresParameters(id = null, allowFemale, blockVideos).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerGenresParameters(id = null, allowFemale, blockVideos))
         }
         if (!response.status.isSuccess()) {
             throw IOException("Zemer podcast-genres returned HTTP ${response.status.value}")
@@ -331,9 +320,7 @@ class ZemerSearchClient @Inject constructor() {
         blockVideos: Boolean,
     ): ZemerPodcastGenrePageResponse? {
         val response: HttpResponse = client.get("$BASE_URL/podcast-genres") {
-            zemerGenresParameters(id, allowFemale, blockVideos).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerGenresParameters(id, allowFemale, blockVideos))
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
         if (response.status == HttpStatusCode.NotFound) return null
@@ -388,9 +375,7 @@ class ZemerSearchClient @Inject constructor() {
         val response: HttpResponse = client.get("$BASE_URL/radio") {
             parameter("kind", kind)
             seed?.let { parameter("seed", it) }
-            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true))
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
         if (!response.status.isSuccess()) {
@@ -459,9 +444,7 @@ class ZemerSearchClient @Inject constructor() {
         blockVideos: Boolean,
     ): HttpResponse =
         client.get("$BASE_URL/zemer-playlists") {
-            zemerCuratedPlaylistsParameters(id, allowFemale, blockVideos).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerCuratedPlaylistsParameters(id, allowFemale, blockVideos))
         }
 
     /**
@@ -475,9 +458,7 @@ class ZemerSearchClient @Inject constructor() {
         blockVideos: Boolean,
     ): ZemerGenresResponse {
         val response: HttpResponse = client.get("$BASE_URL/genres") {
-            zemerGenresParameters(id = null, allowFemale, blockVideos).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerGenresParameters(id = null, allowFemale, blockVideos))
         }
         if (!response.status.isSuccess()) {
             throw IOException("Zemer genres returned HTTP ${response.status.value}")
@@ -499,9 +480,7 @@ class ZemerSearchClient @Inject constructor() {
         offset: Int = 0,
     ): ZemerGenrePageResponse? {
         val response: HttpResponse = client.get("$BASE_URL/genres") {
-            zemerGenresParameters(id, allowFemale, blockVideos, offset).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerGenresParameters(id, allowFemale, blockVideos, offset))
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
         if (response.status == HttpStatusCode.NotFound) return null
@@ -525,9 +504,7 @@ class ZemerSearchClient @Inject constructor() {
         limit: Int = GENRE_FACET_LIMIT,
     ): ZemerGenreFacetResponse? {
         val response: HttpResponse = client.get("$BASE_URL/genres") {
-            zemerGenreFacetParameters(id, facet, allowFemale, blockVideos, offset, limit).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerGenreFacetParameters(id, facet, allowFemale, blockVideos, offset, limit))
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
         if (response.status == HttpStatusCode.NotFound) return null
@@ -548,9 +525,7 @@ class ZemerSearchClient @Inject constructor() {
         blockVideos: Boolean,
     ): ZemerHomeRowsResponse {
         val response: HttpResponse = client.get("$BASE_URL/home-rows") {
-            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true))
         }
         if (!response.status.isSuccess()) {
             throw IOException("Zemer home-rows returned HTTP ${response.status.value}")
@@ -570,9 +545,7 @@ class ZemerSearchClient @Inject constructor() {
         blockVideos: Boolean,
     ): ZemerPodcastHomeRowsResponse {
         val response: HttpResponse = client.get("$BASE_URL/podcast-home-rows") {
-            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
-                parameter(name, value)
-            }
+            applyParams(zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true))
         }
         if (!response.status.isSuccess()) {
             throw IOException("Zemer podcast-home-rows returned HTTP ${response.status.value}")

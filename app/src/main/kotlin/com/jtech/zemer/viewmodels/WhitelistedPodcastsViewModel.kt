@@ -8,6 +8,7 @@ import com.jtech.zemer.db.entities.PodcastWhitelistEntity
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.utils.NewEpisodesFeed
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.allowsFemale
 import com.jtech.zemer.utils.PodcastLibrarySources
 import com.jtech.zemer.utils.SyncUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -55,7 +56,7 @@ constructor(
                 // server, the offline snapshot, and the artist browse. (kidZone is always off for podcast
                 // surfaces.) This browse grid reads the mirror whitelist directly, so it is the one podcast
                 // discovery surface with no server filter in front of it — the gate must run here.
-                .filter { !it.isFemale || !filters.filtersEnabled || filters.allowFemaleSingers }
+                .filter { !it.isFemale || filters.allowsFemale() }
                 .filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
         }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 

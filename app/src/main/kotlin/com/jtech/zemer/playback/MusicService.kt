@@ -313,6 +313,10 @@ class MusicService :
     private var loudnessEnhancer: LoudnessEnhancer? = null
 
     private var lastPlaybackSpeed = 1.0f
+    // Tracks whether the item that just finished was a podcast episode, so episode playback speed can be
+    // reset ONLY when leaving an episode — never on an ordinary music-to-music transition (which would
+    // wipe a tempo the user set via the player's Tempo & Pitch dialog).
+    private var previousItemWasEpisode = false
 
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
 
@@ -1519,10 +1523,14 @@ class MusicService :
         // receiver is loaded exactly once per transition.
         castController.onMediaItemTransition(mediaItem, reason)
 
-        // Episode playback speed must never leak into music: reset to 1x whenever a non-episode starts.
-        if (mediaItem?.metadata?.isEpisode != true && player.playbackParameters.speed != 1f) {
+        // Episode playback speed must never leak into music, but a music tempo set via Tempo & Pitch must
+        // persist across music tracks. So reset to 1x ONLY when leaving an episode for a non-episode —
+        // never on every non-episode transition.
+        val nowEpisode = mediaItem?.metadata?.isEpisode == true
+        if (previousItemWasEpisode && !nowEpisode && player.playbackParameters.speed != 1f) {
             player.setPlaybackSpeed(1f)
         }
+        previousItemWasEpisode = nowEpisode
 
         // Episode resume: flush the outgoing episode's position and, for an incoming episode, seek back
         // to where the user left off (local playback only). All the resume policy lives in the tracker.

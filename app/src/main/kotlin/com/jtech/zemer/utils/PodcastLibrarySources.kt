@@ -76,11 +76,4 @@ object PodcastLibrarySources {
      */
     internal fun podcastChannelAllowed(channelId: String, filters: ContentFilterConfig): Boolean =
         PodcastWhitelistCache.channelPasses(channelId, filters.allowsFemale())
-
-    /**
-     * Effective female allowance under the current filter state: when filtering is OFF everything passes;
-     * when ON, only if the user allows female singers. Kept here so every podcast display surface computes
-     * the gate the same way (matching the browse grid's `!isFemale || !filtersEnabled || allowFemaleSingers`).
-     */
-    private fun ContentFilterConfig.allowsFemale(): Boolean = !filtersEnabled || allowFemaleSingers
 }
