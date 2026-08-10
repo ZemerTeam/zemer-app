@@ -66,6 +66,7 @@ data class UserPreferencesEntity(
                 enableContentFilters = config.filtersEnabled,
                 allowFemaleSingers = config.allowFemaleSingers,
                 blockVideos = config.blockVideos,
+                blockPodcasts = config.blockPodcasts,
                 femalePasscodeHash = config.femalePasscodeHash
             ),
                 currentDevice = currentDeviceMetadata,
@@ -85,6 +86,8 @@ data class UserPreferencesEntity(
             filtersEnabled = contentFilters.enableContentFilters,
             allowFemaleSingers = contentFilters.allowFemaleSingers,
             blockVideos = contentFilters.blockVideos,
+            // Unset podcast field couples to blockVideos (see DeviceContentFilters.toConfig).
+            blockPodcasts = contentFilters.blockPodcasts ?: contentFilters.blockVideos,
             femalePasscodeHash = contentFilters.femalePasscodeHash,
             isSynced = true
         )

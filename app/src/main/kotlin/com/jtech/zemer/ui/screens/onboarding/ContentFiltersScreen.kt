@@ -43,6 +43,7 @@ import androidx.datastore.core.DataStore
 import com.jtech.zemer.constants.EnableContentFiltersKey
 import com.jtech.zemer.constants.AllowFemaleSingersKey
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.launch
 import androidx.compose.material3.Switch
@@ -75,6 +76,7 @@ internal fun ContentFiltersScreen(
     val (enableContentFilters, onEnableContentFiltersChange) = rememberPreference(key = EnableContentFiltersKey, defaultValue = true)
     val (allowFemaleSingers, onAllowFemaleSingersChange) = rememberPreference(key = AllowFemaleSingersKey, defaultValue = false)
     val (blockVideos, onBlockVideosChange) = rememberPreference(key = BlockVideosKey, defaultValue = false)
+    val (blockPodcasts, onBlockPodcastsChange) = rememberPreference(key = BlockPodcastsKey, defaultValue = false)
     var signInDelaySeconds by remember { mutableStateOf(0) }
     var showSignInDialog by remember { mutableStateOf(false) }
 
@@ -227,6 +229,12 @@ internal fun ContentFiltersScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+
+                            Text(
+                                text = stringResource(R.string.onboarding_restored_podcasts, stringResource(if (config?.blockPodcasts == true) R.string.blocked else R.string.allowed)),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         }
                     }
 
@@ -260,6 +268,15 @@ internal fun ContentFiltersScreen(
                     isEnabled = blockVideos,
                     onToggle = { onBlockVideosChange(it) },
                     icon = R.drawable.ic_video_hd
+                )
+
+                // Block Podcasts toggle
+                FilterOptionCard(
+                    title = stringResource(R.string.onboarding_block_podcasts_title),
+                    description = stringResource(R.string.onboarding_block_podcasts_desc),
+                    isEnabled = blockPodcasts,
+                    onToggle = { onBlockPodcastsChange(it) },
+                    icon = R.drawable.podcast
                 )
 
                 // Sign-in status card

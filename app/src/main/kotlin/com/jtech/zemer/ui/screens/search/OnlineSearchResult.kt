@@ -44,12 +44,15 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.utils.rememberPreference
@@ -111,6 +114,7 @@ fun OnlineSearchResult(
 
     val searchFilter by viewModel.filter.collectAsState()
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    val (blockPodcasts, _) = rememberPreference(BlockPodcastsKey, false)
     val searchSummary = viewModel.summaryPage
     val isSummaryLoading by viewModel.isSummaryLoading.collectAsState()
     val summaryError by viewModel.summaryError.collectAsState()
@@ -162,13 +166,14 @@ fun OnlineSearchResult(
                     val route = whitelistedPodcastRoute(item.id, item.channelId)
                     if (route != null) navController.navigate(route)
                 }
-                // Episode: play it (by videoId, through the normal pipeline), seed-first like a song tap.
+                // Episode: play the single episode via a plain ListQueue. A podcast episode must NOT seed
+                // music song-radio around its videoId (that fills the queue with unrelated corpus songs) —
+                // mirrors the artist-page episode tap.
                 is EpisodeItem ->
                     playerConnection.playQueue(
-                        ZemerRadioQueue.song(
-                            item.asSongItem().toMediaMetadata(),
-                            playerConnection.service,
-                            PlaySource.SEARCH,
+                        ListQueue(
+                            title = item.title,
+                            items = listOf(item.toMediaItem()),
                         )
                     )
                 is SongItem -> {
@@ -351,7 +356,9 @@ fun OnlineSearchResult(
 
                 else -> {
                     searchSummary?.summaries?.forEach { summary ->
-                        if (summary.items.isNotEmpty()) {
+                        // Blocked podcasts hide the whole content type — skip a podcast summary section.
+                        val isPodcastSection = summary.items.firstOrNull() is PodcastItem
+                        if (summary.items.isNotEmpty() && !(blockPodcasts && isPodcastSection)) {
                             item {
                                 val summaryFilter =
                                     summary.items.firstOrNull()?.let(::mapItemToFilter)

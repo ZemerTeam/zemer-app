@@ -185,6 +185,11 @@ val AllowFemaleSingersKey = booleanPreferencesKey("allowFemaleSingers")
 val FemalePasscodeHashKey = stringPreferencesKey("femalePasscodeHash")
 val AllowChasidishKey = booleanPreferencesKey("allowChasidish")
 val BlockVideosKey = booleanPreferencesKey("blockVideos")
+val BlockPodcastsKey = booleanPreferencesKey("blockPodcasts")
+// One-time seed guard: on first run after podcast-blocking shipped, blockPodcasts is seeded from
+// blockVideos (a video-blocker gets podcasts blocked too) exactly once, after which the two toggles
+// are independent. See App.kt.
+val BlockPodcastsSeededKey = booleanPreferencesKey("blockPodcastsSeeded")
 
 // Downloaded video-songs also appear (as ordinary audio-first song rows) in the downloaded MUSIC
 // surfaces — the Option A muxed file serves both renditions, so hiding it from music was arbitrary.

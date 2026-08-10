@@ -59,6 +59,7 @@ import com.jtech.zemer.auth.UserAuthManager
 import com.jtech.zemer.constants.AllowChasidishKey
 import com.jtech.zemer.constants.AllowFemaleSingersKey
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.ContentCountryKey
 import com.jtech.zemer.constants.ContentLanguageKey
@@ -202,13 +203,15 @@ fun ContentSettings(
     val (allowFemaleSingers, onAllowFemaleSingersChange) = rememberPreference(key = AllowFemaleSingersKey, defaultValue = false)
     val (allowChasidish, onAllowChasidishChange) = rememberPreference(key = AllowChasidishKey, defaultValue = false)
     val (blockVideos, onBlockVideosChange) = rememberPreference(key = BlockVideosKey, defaultValue = false)
+    val (blockPodcasts, onBlockPodcastsChange) = rememberPreference(key = BlockPodcastsKey, defaultValue = false)
 
     // Update ContentFilterState when preferences change (excluding chasidish since it's for recommendations only)
-    LaunchedEffect(enableContentFilters, allowFemaleSingers, blockVideos) {
+    LaunchedEffect(enableContentFilters, allowFemaleSingers, blockVideos, blockPodcasts) {
         ContentFilterState.updateContentFilters(
             filtersEnabled = enableContentFilters,
             allowFemaleSingers = allowFemaleSingers,
-            blockVideos = blockVideos
+            blockVideos = blockVideos,
+            blockPodcasts = blockPodcasts
         )
     }
 
@@ -354,6 +357,13 @@ fun ContentSettings(
             icon = { Icon(painterResource(R.drawable.ic_video_hd), null) },
             checked = blockVideos,
             onCheckedChange = onBlockVideosChange,
+            isEnabled = enableContentFilters && togglesEnabled
+        )
+        SwitchPreference(
+            title = { Text(stringResource(R.string.block_podcasts)) },
+            icon = { Icon(painterResource(R.drawable.podcast), null) },
+            checked = blockPodcasts,
+            onCheckedChange = onBlockPodcastsChange,
             isEnabled = enableContentFilters && togglesEnabled
         )
 

@@ -11,6 +11,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.ChipSortTypeKey
 import com.jtech.zemer.constants.LibraryFilter
 import com.jtech.zemer.ui.component.ChipsRow
@@ -21,11 +22,16 @@ import com.jtech.zemer.utils.rememberPreference
 fun LibraryScreen(navController: NavController) {
     var filterType by rememberEnumPreference(ChipSortTypeKey, LibraryFilter.LIBRARY)
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    val (blockPodcasts, _) = rememberPreference(BlockPodcastsKey, false)
 
-    val availableFilters = if (blockVideos) {
-        listOf(LibraryFilter.SONGS, LibraryFilter.ARTISTS, LibraryFilter.ALBUMS, LibraryFilter.PLAYLISTS, LibraryFilter.PODCASTS, LibraryFilter.LIBRARY)
-    } else {
-        listOf(LibraryFilter.SONGS, LibraryFilter.VIDEOS, LibraryFilter.ARTISTS, LibraryFilter.ALBUMS, LibraryFilter.PLAYLISTS, LibraryFilter.PODCASTS, LibraryFilter.LIBRARY)
+    val availableFilters = buildList {
+        add(LibraryFilter.SONGS)
+        if (!blockVideos) add(LibraryFilter.VIDEOS)
+        add(LibraryFilter.ARTISTS)
+        add(LibraryFilter.ALBUMS)
+        add(LibraryFilter.PLAYLISTS)
+        if (!blockPodcasts) add(LibraryFilter.PODCASTS)
+        add(LibraryFilter.LIBRARY)
     }
 
     val filterContent = @Composable {
@@ -84,9 +90,14 @@ fun LibraryScreen(navController: NavController) {
                 LibraryMixScreen(navController, filterContent)
             }
 
-            LibraryFilter.PODCASTS -> LibraryPodcastsScreen(
-                navController,
-                { filterType = LibraryFilter.LIBRARY })
+            LibraryFilter.PODCASTS -> if (!blockPodcasts) {
+                LibraryPodcastsScreen(
+                    navController,
+                    { filterType = LibraryFilter.LIBRARY })
+            } else {
+                // Fallback to LIBRARY if podcasts are blocked
+                LibraryMixScreen(navController, filterContent)
+            }
         }
     }
 }

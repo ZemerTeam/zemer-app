@@ -62,6 +62,7 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.theme.rememberPureBlack
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.ChipSortTypeKey
 import com.jtech.zemer.constants.CropAlbumArtKey
 import com.jtech.zemer.constants.CustomDensityScaleKey
@@ -294,6 +295,7 @@ fun AppearanceSettings(
     // Music Status is a video-first feature, and its Home row is already hidden when videos are blocked,
     // so the whole settings section is pointless then - hide it too.
     val (blockVideos, _) = rememberPreference(BlockVideosKey, defaultValue = false)
+    val (blockPodcasts, _) = rememberPreference(BlockPodcastsKey, defaultValue = false)
     val (showLikedPlaylist, onShowLikedPlaylistChange) = rememberPreference(
         ShowLikedPlaylistKey,
         defaultValue = true
@@ -719,10 +721,10 @@ fun AppearanceSettings(
             title = { Text(stringResource(R.string.default_lib_chips)) },
             icon = { Icon(painterResource(R.drawable.tab), null) },
             selectedValue = defaultChip,
-            values = listOf(
+            values = listOfNotNull(
                 LibraryFilter.LIBRARY, LibraryFilter.PLAYLISTS, LibraryFilter.SONGS,
                 LibraryFilter.VIDEOS, LibraryFilter.ALBUMS, LibraryFilter.ARTISTS,
-                LibraryFilter.PODCASTS
+                LibraryFilter.PODCASTS.takeIf { !blockPodcasts }
             ),
             valueText = {
                 when (it) {
@@ -973,7 +975,7 @@ fun AppearanceSettings(
                 TextButton(
                     onClick = {
                         // Build the selected items string
-                        val selectedScreens = listOf("home", "artists", "podcasts", "kid_zone", "search", "library")
+                        val selectedScreens = listOfNotNull("home", "artists", "podcasts".takeIf { !blockPodcasts }, "kid_zone", "search", "library")
                             .filter { it in currentSelectedItems }
                             .joinToString(",")
                         onBottomNavigationItemsChange(selectedScreens)
@@ -1005,10 +1007,10 @@ fun AppearanceSettings(
                 )
 
                 // Available navigation items
-                val availableItems = listOf(
+                val availableItems = listOfNotNull(
                     "home" to stringResource(R.string.home),
                     "artists" to stringResource(R.string.artists),
-                    "podcasts" to stringResource(R.string.podcasts),
+                    ("podcasts" to stringResource(R.string.podcasts)).takeIf { !blockPodcasts },
                     "kid_zone" to stringResource(R.string.kid_zone),
                     "search" to stringResource(R.string.search),
                     "library" to stringResource(R.string.filter_library)

@@ -12,12 +12,18 @@ data class DeviceContentFilters(
     val enableContentFilters: Boolean = true,
     val allowFemaleSingers: Boolean = false,
     val blockVideos: Boolean = false,
+    // Nullable so an UNSET podcast field (a doc written before podcast-blocking shipped, or by an authority
+    // who never touched it) is distinguishable from an explicit false. When unset, toConfig() derives it
+    // from blockVideos — so a sync-account video-blocker is locked out of podcasts too. Once a client
+    // writes an explicit value it is respected.
+    val blockPodcasts: Boolean? = null,
     val femalePasscodeHash: String? = null
 ) {
     companion object {
         const val FIELD_ENABLE_CONTENT_FILTERS = "enableContentFilters"
         const val FIELD_ALLOW_FEMALE_SINGERS = "allowFemaleSingers"
         const val FIELD_BLOCK_VIDEOS = "blockVideos"
+        const val FIELD_BLOCK_PODCASTS = "blockPodcasts"
         const val FIELD_FEMALE_PASSCODE_HASH = "femalePasscodeHash"
     }
 
@@ -29,18 +35,21 @@ data class DeviceContentFilters(
             enableContentFilters = config.filtersEnabled,
             allowFemaleSingers = config.allowFemaleSingers,
             blockVideos = config.blockVideos,
+            blockPodcasts = config.blockPodcasts,
             femalePasscodeHash = config.femalePasscodeHash
         )
     }
 
     /**
-     * Convert to local ContentFilterConfig
+     * Convert to local ContentFilterConfig. An unset blockPodcasts is coupled to blockVideos so a
+     * video-blocking account restores with podcasts blocked without needing the server field backfilled.
      */
     fun toConfig(): com.jtech.zemer.utils.ContentFilterConfig {
         return com.jtech.zemer.utils.ContentFilterConfig(
             filtersEnabled = enableContentFilters,
             allowFemaleSingers = allowFemaleSingers,
             blockVideos = blockVideos,
+            blockPodcasts = blockPodcasts ?: blockVideos,
             femalePasscodeHash = femalePasscodeHash
         )
     }

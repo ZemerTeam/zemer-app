@@ -8,10 +8,18 @@ data class ContentFilterConfig(
     val filtersEnabled: Boolean = true,
     val allowFemaleSingers: Boolean = false,
     val blockVideos: Boolean = false,
+    val blockPodcasts: Boolean = false,
     val femalePasscodeHash: String? = null,
     val lastSyncTime: Long = -1L,
     val isSynced: Boolean = false
 )
+
+/**
+ * Whether female singers are currently allowed: either filtering is off entirely, or the female toggle
+ * is on. The single source for the podcast female gate — used by [ContentFilterState]-driven podcast
+ * surfaces (library sources, the whitelisted-podcasts browse VM) so they can't drift apart.
+ */
+fun ContentFilterConfig.allowsFemale(): Boolean = !filtersEnabled || allowFemaleSingers
 
 object ContentFilterState {
     private val _state = kotlinx.coroutines.flow.MutableStateFlow(ContentFilterConfig())
@@ -30,6 +38,7 @@ object ContentFilterState {
         filtersEnabled: Boolean? = null,
         allowFemaleSingers: Boolean? = null,
         blockVideos: Boolean? = null,
+        blockPodcasts: Boolean? = null,
         femalePasscodeHash: String? = null,
         lastSyncTime: Long? = null,
         isSynced: Boolean? = null
@@ -39,6 +48,7 @@ object ContentFilterState {
             filtersEnabled = filtersEnabled ?: currentConfig.filtersEnabled,
             allowFemaleSingers = allowFemaleSingers ?: currentConfig.allowFemaleSingers,
             blockVideos = blockVideos ?: currentConfig.blockVideos,
+            blockPodcasts = blockPodcasts ?: currentConfig.blockPodcasts,
             femalePasscodeHash = femalePasscodeHash ?: currentConfig.femalePasscodeHash,
             lastSyncTime = lastSyncTime ?: currentConfig.lastSyncTime,
             isSynced = isSynced ?: currentConfig.isSynced
@@ -52,13 +62,14 @@ object ContentFilterState {
         filtersEnabled: Boolean? = null,
         allowFemaleSingers: Boolean? = null,
         blockVideos: Boolean? = null,
+        blockPodcasts: Boolean? = null,
         femalePasscodeHash: String? = null
     ) {
-        val currentConfig = current
         updateConfig(
             filtersEnabled = filtersEnabled,
             allowFemaleSingers = allowFemaleSingers,
             blockVideos = blockVideos,
+            blockPodcasts = blockPodcasts,
             femalePasscodeHash = femalePasscodeHash
         )
     }
@@ -103,6 +114,7 @@ object ContentFilterState {
         get() = current.filtersEnabled && (
             current.allowFemaleSingers.not() ||
             current.blockVideos ||
+            current.blockPodcasts ||
             current.femalePasscodeHash != null
         )
 }

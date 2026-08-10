@@ -64,7 +64,9 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.SuggestionItemHeight
+import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.extensions.togglePlayPause
@@ -122,6 +124,11 @@ fun OnlineSearchScreen(
 
     val coroutineScope = rememberCoroutineScope()
     val viewState by viewModel.viewState.collectAsState()
+    val (blockPodcasts) = rememberPreference(BlockPodcastsKey, defaultValue = false)
+    // Blocked podcasts are hidden as a content type, so drop podcast results (and the browse shortcut).
+    val displayItems = remember(viewState.items, blockPodcasts) {
+        if (blockPodcasts) viewState.items.filterNot { it is PodcastItem } else viewState.items
+    }
     // The dropdown follows the active engine (see OnlineSearchSuggestionViewModel), so a Zemer playlist
     // shown here must open through the server path — route on the same provider preference.
 
@@ -175,17 +182,19 @@ fun OnlineSearchScreen(
                     modifier = Modifier.animateItem(),
                 )
             }
-            item(key = "browse_podcasts") {
-                BrowseAllItem(
-                    onClick = {
-                        navController.navigate(Screens.Podcasts.route)
-                        onDismiss()
-                    },
-                    pureBlack = pureBlack,
-                    iconRes = R.drawable.podcast,
-                    labelRes = R.string.browse_podcasts,
-                    modifier = Modifier.animateItem(),
-                )
+            if (!blockPodcasts) {
+                item(key = "browse_podcasts") {
+                    BrowseAllItem(
+                        onClick = {
+                            navController.navigate(Screens.Podcasts.route)
+                            onDismiss()
+                        },
+                        pureBlack = pureBlack,
+                        iconRes = R.drawable.podcast,
+                        labelRes = R.string.browse_podcasts,
+                        modifier = Modifier.animateItem(),
+                    )
+                }
             }
         }
 
@@ -242,7 +251,7 @@ fun OnlineSearchScreen(
             )
         }
 
-        if (viewState.items.isNotEmpty() && viewState.history.size + viewState.suggestions.size > 0) {
+        if (displayItems.isNotEmpty() && viewState.history.size + viewState.suggestions.size > 0) {
             item(key = "search_divider") {
                 HorizontalDivider(
                     modifier = Modifier.animateItem()
@@ -250,7 +259,7 @@ fun OnlineSearchScreen(
             }
         }
 
-        items(viewState.items, key = { "item_${it.id}" }) { item ->
+        items(displayItems, key = { "item_${it.id}" }) { item ->
             YouTubeListItem(
                 item = item,
                 isActive = when (item) {

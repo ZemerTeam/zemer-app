@@ -24,6 +24,7 @@ import com.jtech.zemer.constants.EnableContentFiltersKey
 import com.jtech.zemer.constants.AllowFemaleSingersKey
 import com.jtech.zemer.constants.AllowChasidishKey
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.FemalePasscodeHashKey
 import com.jtech.zemer.constants.ContentFiltersAutoRestoredKey
 import com.jtech.zemer.constants.ContentFiltersRestoredEmailKey
@@ -46,6 +47,7 @@ private fun ContentFilterConfig.toDeviceContentFilters(): DeviceContentFilters {
         enableContentFilters = filtersEnabled,
         allowFemaleSingers = allowFemaleSingers,
         blockVideos = blockVideos,
+        blockPodcasts = blockPodcasts,
         femalePasscodeHash = femalePasscodeHash
     )
 }
@@ -458,6 +460,7 @@ class UserPreferencesRepository @Inject constructor(
                 filtersEnabled = prefs[EnableContentFiltersKey] ?: true,
                 allowFemaleSingers = prefs[AllowFemaleSingersKey] ?: false,
                 blockVideos = prefs[BlockVideosKey] ?: false,
+                blockPodcasts = prefs[BlockPodcastsKey] ?: false,
                 femalePasscodeHash = prefs[FemalePasscodeHashKey]
             )
 
@@ -564,6 +567,7 @@ class UserPreferencesRepository @Inject constructor(
             preferences[EnableContentFiltersKey] = config.filtersEnabled
             preferences[AllowFemaleSingersKey] = config.allowFemaleSingers
             preferences[BlockVideosKey] = config.blockVideos
+            preferences[BlockPodcastsKey] = config.blockPodcasts
             config.femalePasscodeHash?.let { hash ->
                 preferences[FemalePasscodeHashKey] = hash
             }

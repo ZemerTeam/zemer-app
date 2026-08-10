@@ -167,6 +167,7 @@ import coil3.request.crossfade
 import coil3.toBitmap
 import com.google.firebase.auth.FirebaseAuth
 import com.jtech.zemer.constants.AppBarHeight
+import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.CheckForUpdatesKey
 import com.jtech.zemer.constants.LastNightlyAnnouncedKey
@@ -802,14 +803,17 @@ class MainActivity : ComponentActivity() {
                             context.dataStore.edit { it[BottomNavArtistsRemovedKey] = true }
                         }
 
-                        // Create bottom navigation items dynamically from preferences
-                        val bottomNavigationItems = remember(bottomNavItemsString) {
+                        // Create bottom navigation items dynamically from preferences.
+                        // A blocked-podcasts user never gets the Podcasts nav item, even if it was
+                        // added to the persisted bar earlier.
+                        val (blockPodcastsNav) = rememberPreference(BlockPodcastsKey, defaultValue = false)
+                        val bottomNavigationItems = remember(bottomNavItemsString, blockPodcastsNav) {
                             val items = mutableListOf<Screens>()
                             bottomNavItemsString.split(",").forEach { itemKey ->
                                 when (itemKey.trim()) {
                                     "home" -> items.add(Screens.Home)
                                     "artists" -> items.add(Screens.Artists)
-                                    "podcasts" -> items.add(Screens.Podcasts)
+                                    "podcasts" -> if (!blockPodcastsNav) items.add(Screens.Podcasts)
                                     "kid_zone" -> items.add(Screens.KidZone)
                                     "search" -> items.add(Screens.Search)
                                     "library" -> items.add(Screens.Library)

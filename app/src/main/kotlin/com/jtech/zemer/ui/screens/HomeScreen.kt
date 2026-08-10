@@ -61,6 +61,7 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.HomeContentTabKey
 import com.jtech.zemer.constants.ShowHomeGenresKey
 import com.jtech.zemer.constants.ShowHomeStatusesKey
@@ -234,10 +235,20 @@ fun HomeScreen(
         }
     }
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    val (blockPodcasts, _) = rememberPreference(BlockPodcastsKey, false)
+    // Blocking podcasts hides the whole content type (unlike videos, which relabel to audio) — drop the
+    // tab and, if it was the persisted selection, fall back to Music so a blocked user never lands on it.
+    LaunchedEffect(blockPodcasts) {
+        if (blockPodcasts && homeTab == HomeContentTab.PODCASTS) {
+            homeTab = HomeContentTab.MUSIC
+        }
+    }
     val homeContentChips = buildList {
         add(HomeContentTab.MUSIC to stringResource(R.string.music))
         add(HomeContentTab.RADIO to stringResource(R.string.radio))
-        add(HomeContentTab.PODCASTS to stringResource(R.string.podcasts))
+        if (!blockPodcasts) {
+            add(HomeContentTab.PODCASTS to stringResource(R.string.podcasts))
+        }
         // Always show the Video tab; blocked-video users still get it, relabeled "Video songs" — its rows
         // play audio-first (the Featured Videos shelf follows the same relabel), so it's never hidden.
         add(HomeContentTab.VIDEO to stringResource(if (blockVideos) R.string.video_songs else R.string.videos))
@@ -1101,7 +1112,7 @@ fun HomeScreen(
 
             } // end VIDEO
 
-            if (homeTab == HomeContentTab.PODCASTS) {
+            if (homeTab == HomeContentTab.PODCASTS && !blockPodcasts) {
                 // Podcast Genres strip: the podcast twin of the music genres chips — LEADS the Podcasts
                 // tab. Own isolated fail-soft VM (empty -> hidden); arrow -> catalog.
                 homePodcastGenres.takeIf { it.isNotEmpty() }?.let { genres ->
