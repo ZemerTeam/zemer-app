@@ -252,7 +252,10 @@ ArtistScreen's over-header transparent state; the in-player fullscreen video ove
 `shimmer/BoxPlaceholder` (the base shimmer slab under `ButtonPlaceholder`/`GridItemPlaceholder`),
 `ArtistBrowseComponents` (KidZone/whitelist browse header), `IconCategoryCard` (the square category
 tile — centered gold icon + bold title + count subtitle on one neutral `surfaceContainerHigh` box, with
-the D-pad focus treatment; the Downloaded library's Music/Videos/Status tiles all render through it). The
+the D-pad focus treatment; the Downloaded library's Music/Videos/Status tiles all render through it),
+`GenreCardGrid` (one genre-catalog section — optional bold title over the two-column `GenreCard` grid
+with the odd-card spacer; BOTH the music and podcast genre catalogs render through it, with the shared
+`GenreCatalogTopSpacing`/`GenreSectionGap` constants owning the catalog spacing). The
 **status viewers** share a family so the live (`StoryScreen`) and saved (`SavedStatusScreen`) viewers
 can't drift: `StatusStoryTopOverlay` (segment bars + avatar/name/date), `ExpandableStatusCaption` (the
 WhatsApp Read-more caption with clickable links + inline copy), `StatusCopyButton` (icon-only themed copy
@@ -312,6 +315,14 @@ rule covers repeated *logic*. The current shared helpers — reach for these bef
   size, but a PREVIEW row (artist-page local sections that open a full online search, search-summary
   sections that switch to the full filter, genre album/singles shelves that open the facet list) shows
   the arrow whenever a fuller view exists — gating those on the preview size wrongly hides a path to more.
+- **Playing a single tapped episode:** `ListQueue.episode(item, playSource)` (`playback/queues/ListQueue.kt`)
+  — the ONE way an episode tap builds its queue: a plain one-item ListQueue with the surface's declared
+  source, never `ZemerRadioQueue.song` (an episode must not seed music radio around its videoId; two call
+  sites drifted exactly that way once).
+- **Channel deep links:** `channelDeepLinkRoute(channelId, artistWhitelisted, podcastWhitelisted)`
+  (`ui/utils/AppNavigation.kt`, unit-tested) — a `channel/UC…` link opens the music artist page when
+  artist-whitelisted, the podcast channel page when podcast-whitelisted, else silently no-ops. Share
+  links build via `VideoLinkBuilder.channelLink` so the link-out format and this parser live together.
 - **Onboarding step flow:** `OnboardingNavigation` (`ui/screens/onboarding/`, pure + unit-tested
   `OnboardingNavigationTest`) holds the skip-when-already-configured transitions
   (`afterWelcome`/`afterDensity`/`backFromContentFilters`/`backFromPermissions`) — lifted out of the flow
@@ -343,6 +354,14 @@ when you add a new shared helper with a greppable anti-pattern, add a ratchet ru
 from the Zemer `/home-rows` endpoint, local Room, or the flipphoneguy Latest-Releases feed. The **only**
 `YouTube.*` call left in `HomeViewModel` is the account-card identity lookup (`accountInfo()` for a
 signed-in user's name/avatar); do not add others. Full detail in `docs/home_rows/README.md`.
+
+**The content-type selector (Music / Radio / Podcasts / Video)** is driven by the pure, unit-tested
+`visibleHomeTabs`/`effectiveHomeTab` (`ui/screens/HomeContentTab.kt`): Block Podcasts is the ONE filter
+that removes a tab (a persisted PODCASTS selection falls back to MUSIC); VIDEO is ALWAYS shown, relabeled
+"Video songs" for blocked-video users (a visibility gate is a regression). The selected tab is seeded
+from ONE async DataStore snapshot reading the tab AND Block Podcasts together (null until it lands, one
+frame of background) — never a main-thread `dataStore[key]` read in composition, never a flash of Music
+or of a blocked Podcasts tab. R22 (the MUSIC-gated shimmer) rides this selector — see §Loading skeletons.
 
 **Project direction (a real, ongoing goal):** progressively **replace as much InnerTube as we can across
 the app** with Zemer-served, whitelist-pure data. The home tab migrated first; since then **artist opens
@@ -494,6 +513,17 @@ non-obvious rules:
   their playlistId back to the browseId, and persisting that MPRE as `AlbumEntity.playlistId`
   dead-presses album radio and mis-ids share links; the server's real OLAK id (or the browseId
   fallback, whose only consumer is the disabled automix) is used instead.
+- **Artist credits resolve by ID, and name resolution prefers a whitelisted row** (the stuck-skeleton
+  fix, handoff `zemer-app-album-open-stuck-skeleton.md`): `/album`, `/artist` cards and `/search`
+  album rows carry `artistId` (live 2026-08-11) and `toAlbumPage` threads it into the album + matching
+  track credits, so Zemer inserts never hit the name lookup. For id-less credits (account-sync paths),
+  `artistByName` deterministically prefers a whitelisted row over a generated local one — devices held
+  BOTH under one name, and resolving to the generated row starved every whitelist-JOINed query (the
+  infinite album skeleton, the doubled artist credit). `insert(AlbumPage)` deliberately does NOT
+  early-return on an existing row: every caller reaches it only when the whitelist-visible album read
+  was null (absent OR poisoned), so it recreates the artist maps — the self-heal for poisoned rows.
+  Diagnostic "AlbumOpen" Timber breadcrumbs stay in (client + ViewModel + post-insert map dump) for
+  the in-app Log viewer workflow that confirmed this.
 
 ### Music Status (the Home "Music Status" row + story viewer; third-party sourced)
 
@@ -650,9 +680,16 @@ mirror-first with a Firestore `podcastChannelsWhitelist` fallback — exactly li
 (`ZemerContentClient` / `WhitelistFetcher`): each mirror doc carries `thumbnailUrl` + `channelId`, so the
 grid renders straight from the mirror (the app does NOT call `zemer-search /podcasts`). All are wired in
 `ZemerSearchClient`/`ZemerResultMapper`/`ZemerSearchRepository`, server-first with the offline-snapshot
-fallback (`OfflineReadProvider` podcast reads; only `/podcast-home-rows` is live-only). **NOTE: as of 2026-08-01 the server endpoints are BUILT but NOT YET DEPLOYED**
-— `syncPodcastWhitelist` preserves the last-good table on fetch failure, so existing installs degrade
-gracefully until deploy; live integration testing waits on the deploy.
+fallback (`OfflineReadProvider` podcast reads; only `/podcast-home-rows` is live-only). The endpoints are
+**LIVE on `search.zemer.io`** (deployed + device-verified 2026-08-11); `syncPodcastWhitelist` still
+preserves the last-good table on any fetch failure (never unblocks). **Podcast genre catalog sections
+are SERVER-OWNED** (`zemer-app-podcast-genre-kinds-request.md`, live 2026-08-11): `/podcast-genres`
+carries a per-row `kind` slug plus an ordered `kinds: [{id,title}]` catalog, grouped by the pure
+`podcastGenreSections` (unit-tested) and rendered through the shared `GenreCardGrid`. Unlike music's
+fail-closed kind drop, an unknown/blank podcast kind falls to a trailing headerless section (everything
+here is already whitelisted podcast content); no `kinds` (older server / offline snapshot) = flat grid.
+Per-genre icons are an owner-reviewed set in `podcastGenreIcon` (bespoke motifs + Material Symbols +
+two owner-supplied traced figures for tefilla/comedy).
 **Two things stay InnerTube:** (1) **PLAYBACK NEVER MOVES** — an episode is a YouTube video with a real
 `videoId`, played through the existing InnerTube + cipher pipeline exactly like a song/video (the
 irreducible core); (2) **ACCOUNT SYNC** — subscriptions + episodes-for-later sync bidirectionally to the
