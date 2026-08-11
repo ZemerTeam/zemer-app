@@ -24,6 +24,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -37,8 +38,10 @@ import com.jtech.zemer.ui.theme.HeaderFontFamily
 
 /**
  * The shared WhatsApp/Stories top overlay: segment progress bars at the very top, then a compact creator
- * header (back button, avatar, name, timestamp), all forced white over a media scrim. Used by BOTH the
- * live story viewer and the saved-status viewer so they present identically. There is deliberately NO
+ * header (back button, avatar, name, timestamp), all forced white over a fade-to-transparent gradient —
+ * the WhatsApp look (#394): the media runs full-bleed to the top with the header floating over it, no
+ * opaque band with a hard bottom edge. Used by BOTH the live story viewer and the saved-status viewer
+ * so they present identically. There is deliberately NO
  * "Music Status" app-bar title row - it only stole vertical space from the (now full-bleed) media; the
  * creator avatar/name identifies the content the stories way. [currentSegment] is the active segment
  * (0-based) and [progress] fills it; earlier segments are full, later ones empty.
@@ -55,7 +58,16 @@ fun StatusStoryTopOverlay(
     modifier: Modifier = Modifier,
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val scrim = colorScheme.scrim.copy(alpha = 0.8f)
+    // A top-down fade, not a flat band: dark enough at the very top for the segment bars + white text,
+    // dissolving into the media below (the extra bottom padding is the visible fade tail). The gradient
+    // paints through the status-bar strip too (background BEFORE the insets padding — keep that order).
+    val scrim = Brush.verticalGradient(
+        colors = listOf(
+            colorScheme.scrim.copy(alpha = 0.7f),
+            colorScheme.scrim.copy(alpha = 0.35f),
+            Color.Transparent,
+        ),
+    )
     val context = LocalContext.current
 
     Column(
@@ -63,7 +75,7 @@ fun StatusStoryTopOverlay(
             .fillMaxWidth()
             .background(scrim)
             .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 28.dp),
     ) {
         // Segment progress bars at the very top (stories convention), the active one filling with `progress`.
         Row(Modifier.fillMaxWidth()) {

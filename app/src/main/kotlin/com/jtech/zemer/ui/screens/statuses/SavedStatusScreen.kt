@@ -56,6 +56,7 @@ import com.jtech.zemer.ui.component.StatusCopyButton
 import com.jtech.zemer.ui.component.StatusLoadingIndicator
 import com.jtech.zemer.ui.component.StatusStoryTopOverlay
 import com.jtech.zemer.ui.component.StatusVideoSurface
+import com.jtech.zemer.ui.utils.ForceLightStatusBarIcons
 import com.jtech.zemer.ui.utils.PauseMusicWhileActive
 import com.jtech.zemer.ui.utils.cubeFace
 import com.jtech.zemer.viewmodels.SavedCreatorStatuses
@@ -94,6 +95,10 @@ fun SavedStatusScreen(
     }
     DisposableEffect(Unit) { onDispose { exoPlayer.release() } }
     PauseMusicWhileActive()
+
+    // Full-bleed media runs behind the status bar and the top overlay is now a fade, not an opaque band
+    // (#394) — keep the system clock/battery icons white for the viewer's lifetime, light theme included.
+    ForceLightStatusBarIcons()
 
     // Hold a poster over the video until its first frame draws, so switching status (or creator) never
     // flashes a black / stale-previous surface. Reset per status by the driver.
