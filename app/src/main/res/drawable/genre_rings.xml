@@ -4,14 +4,23 @@
     android:viewportWidth="960"
     android:viewportHeight="960"
     android:tint="?attr/colorControlNormal">
-  <!-- Two interlocking wedding rings (the Marriage podcast genre). Stroked circles rather than filled
-       so they read as rings; tinted like every other genre motif by the Icon/weave layer. -->
+  <!-- Two interlocking wedding rings, the right one crowned with the Material Symbols diamond
+       (Apache-2.0). Stroked circles rather than filled so they read as rings. -->
   <path
       android:strokeColor="@android:color/white"
       android:strokeWidth="70"
-      android:pathData="M240,540 a170,170 0 1,0 340,0 a170,170 0 1,0 -340,0" />
+      android:pathData="M240,560 a170,170 0 1,0 340,0 a170,170 0 1,0 -340,0" />
   <path
       android:strokeColor="@android:color/white"
       android:strokeWidth="70"
-      android:pathData="M380,540 a170,170 0 1,0 340,0 a170,170 0 1,0 -340,0" />
+      android:pathData="M380,560 a170,170 0 1,0 340,0 a170,170 0 1,0 -340,0" />
+  <group
+      android:scaleX="0.32"
+      android:scaleY="0.32"
+      android:translateX="396"
+      android:translateY="409">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M480-120 80-600l120-240h560l120 240-400 480Zm-95-520h190l-60-120h-70l-60 120Zm55 347v-267H218l222 267Zm80 0 222-267H520v267Zm144-347h106l-60-120H604l60 120Zm-474 0h106l60-120H250l-60 120Z"/>
+  </group>
 </vector>

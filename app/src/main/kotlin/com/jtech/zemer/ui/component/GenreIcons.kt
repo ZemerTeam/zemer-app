@@ -62,27 +62,25 @@ internal fun podcastGenreIcon(slug: String): Int = when (slug) {
     "gemara" -> R.drawable.genre_menu_book
     "parsha" -> R.drawable.genre_parsha
     "chassidus" -> R.drawable.genre_chassidus
-    "mussar" -> R.drawable.genre_self_improvement
+    "mussar" -> R.drawable.genre_balance // weighing one's conduct
     "halacha" -> R.drawable.security
     "machshava" -> R.drawable.genre_machshava
-    "tefilla" -> R.drawable.genre_wb_sunny
-    "stories" -> R.drawable.genre_theater_comedy
+    "tefilla" -> R.drawable.genre_shul // prayer: a shul
+    "stories" -> R.drawable.genre_quill // storytelling, distinct from comedy's masks
     "history" -> R.drawable.history
-    "kiruv" -> R.drawable.subscribe
-    "family" -> R.drawable.genre_dinner_dining
-    "parnassah" -> R.drawable.genre_diamond
+    "kiruv" -> R.drawable.genre_kiruv // bringing people in (group + add)
+    "family" -> R.drawable.genre_family // house with a heart
+    "parnassah" -> R.drawable.genre_coins // dollar coin (livelihood)
     "health" -> R.drawable.favorite
     "news" -> R.drawable.genre_campaign
     "people" -> R.drawable.person
-    "music" -> R.drawable.genre_music_note
+    "music" -> R.drawable.genre_zemer_note // the app's own launcher note
     "chizuk" -> R.drawable.genre_local_fire_department
     "shiur", "shiurim" -> R.drawable.genre_shiurim
-    "moadim" -> R.drawable.genre_celebration
-    "women" -> R.drawable.account
+    "moadim" -> R.drawable.genre_moadim // calendar + Magen David, distinct from Freilach's popper
+    "women" -> R.drawable.genre_candles // Shabbos candles
     "marriage" -> R.drawable.genre_rings
-    // Mental Health reuses the self-improvement/wellness motif (shared with mussar); a bespoke icon can
-    // replace this later without touching callers.
-    "mentalhealth" -> R.drawable.genre_self_improvement
-    "comedy" -> R.drawable.genre_theater_comedy
+    "mentalhealth" -> R.drawable.genre_self_improvement // meditation, now unique in this catalog
+    "comedy" -> R.drawable.genre_standup // a performer speaking (closest stand-up glyph in the set)
     else -> R.drawable.genre_music_note
 }
