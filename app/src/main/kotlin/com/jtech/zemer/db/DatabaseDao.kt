@@ -1279,8 +1279,16 @@ interface DatabaseDao {
     @Query("DELETE FROM playlist_song_map WHERE playlistId = :playlistId")
     fun clearPlaylist(playlistId: String)
 
+    // Resolves an id-less artist credit (Zemer wire responses carry only the name). PREFERS a
+    // whitelisted row: devices can hold a generated local row AND the whitelisted channel row under
+    // the same name, and resolving to the local one maps content outside every whitelist-joined
+    // query — the confirmed cause of the infinite album skeleton (zemer-app-album-open-stuck-skeleton).
     @Transaction
-    @Query("SELECT * FROM artist WHERE artist.name = :name")
+    @Query(
+        "SELECT artist.* FROM artist LEFT JOIN artist_whitelist ON artist.id = artist_whitelist.artistId " +
+            "WHERE artist.name = :name " +
+            "ORDER BY CASE WHEN artist_whitelist.artistId IS NULL THEN 1 ELSE 0 END, artist.rowid LIMIT 1"
+    )
     fun artistByName(name: String): ArtistEntity?
 
     // The bare artist row, WITHOUT the whitelist INNER JOIN that artist(id) applies. Needed for the
@@ -1368,21 +1376,23 @@ interface DatabaseDao {
 
     @Transaction
     fun insert(albumPage: AlbumPage) {
-        if (insert(
-                AlbumEntity(
-                    id = albumPage.album.browseId,
-                    playlistId = albumPage.album.playlistId,
-                    title = albumPage.album.title,
-                    year = albumPage.album.year,
-                    thumbnailUrl = albumPage.album.thumbnail,
-                    songCount = albumPage.songs.size,
-                    duration = albumPage.songs.sumOf { it.duration ?: 0 },
-                    explicit = albumPage.album.explicit || albumPage.songs.any { it.explicit },
-                ),
-            ) == -1L
-        ) {
-            return
-        }
+        // IGNORE conflict: an existing row keeps its metadata (the update() overload owns refresh).
+        // Deliberately NO early-return on conflict: every caller reaches here when the
+        // whitelist-JOINED album read was null, which means the row is either absent or exists with
+        // its artist map pointing at a non-whitelisted row (the stuck-skeleton state) — the
+        // song/artist mapping below is idempotent for the former and the REPAIR for the latter.
+        insert(
+            AlbumEntity(
+                id = albumPage.album.browseId,
+                playlistId = albumPage.album.playlistId,
+                title = albumPage.album.title,
+                year = albumPage.album.year,
+                thumbnailUrl = albumPage.album.thumbnail,
+                songCount = albumPage.songs.size,
+                duration = albumPage.songs.sumOf { it.duration ?: 0 },
+                explicit = albumPage.album.explicit || albumPage.songs.any { it.explicit },
+            ),
+        )
         albumPage.songs
             .map(SongItem::toMediaMetadata)
             .onEach { song ->
@@ -1395,21 +1405,26 @@ interface DatabaseDao {
                     index = index,
                 )
             }.forEach(::upsert)
-        albumPage.album.artists
-            ?.map { artist ->
-                ArtistEntity(
-                    id = artist.id ?: artistByName(artist.name)?.id
-                    ?: ArtistEntity.generateArtistId(),
-                    name = artist.name,
-                )
-            }?.onEach(::insert)
-            ?.mapIndexed { index, artist ->
-                AlbumArtistMap(
-                    albumId = albumPage.album.browseId,
-                    artistId = artist.id,
-                    order = index,
-                )
-            }?.forEach(::insert)
+        albumPage.album.artists?.let { artists ->
+            // Recreate rather than add: a stale map to a generated non-whitelisted artist row must
+            // not survive next to the corrected one (mirrors the update() overload).
+            albumArtistMaps(albumPage.album.browseId).forEach(::delete)
+            artists
+                .map { artist ->
+                    ArtistEntity(
+                        id = artist.id ?: artistByName(artist.name)?.id
+                        ?: ArtistEntity.generateArtistId(),
+                        name = artist.name,
+                    )
+                }.onEach(::insert)
+                .mapIndexed { index, artist ->
+                    AlbumArtistMap(
+                        albumId = albumPage.album.browseId,
+                        artistId = artist.id,
+                        order = index,
+                    )
+                }.forEach(::insert)
+        }
     }
 
     @Transaction
@@ -1647,6 +1662,13 @@ interface DatabaseDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM artist_whitelist WHERE artistId = :artistId)")
     suspend fun isArtistWhitelisted(artistId: String): Boolean
+
+    // Sync variants for the album-open diagnostics (callable inside a transaction block).
+    @Query("SELECT artistId FROM artist_whitelist WHERE artistId IN (:ids)")
+    fun whitelistedArtistIdsSync(ids: List<String>): List<String>
+
+    @Query("SELECT * FROM artist WHERE name = :name")
+    fun artistsByNameSync(name: String): List<ArtistEntity>
 
     @Query(
         """

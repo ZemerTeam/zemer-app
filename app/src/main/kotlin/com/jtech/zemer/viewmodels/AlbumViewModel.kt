@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 /**
@@ -56,8 +57,22 @@ constructor(
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     init {
+        // Diagnostic breadcrumbs for the stuck-skeleton report (handoff
+        // zemer-app-album-open-stuck-skeleton.md) — filter the Log viewer on "AlbumOpen".
+        viewModelScope.launch {
+            albumWithSongs.collect {
+                Timber.d(
+                    "AlbumOpen: albumWithSongs emit albumId=%s value=%s songs=%s",
+                    albumId, if (it == null) "null" else "row", it?.songs?.size,
+                )
+            }
+        }
         viewModelScope.launch {
             val album = database.album(albumId).first()
+            Timber.d(
+                "AlbumOpen: open albumId=%s openerPlaylistId=%s localWhitelistedRow=%s",
+                albumId, zemerPlaylistId, album != null,
+            )
             val options = zemerSearchOptions(context)
             runCatching { zemerRepository.album(albumId, zemerPlaylistId, options) }
                 .onSuccess { page ->
@@ -85,17 +100,47 @@ constructor(
                     }
                     playlistId.value = page.album.playlistId
                     notFound.value = page.songs.isEmpty()
-                    database.transaction {
-                        if (album == null) {
-                            insert(page)
-                        } else {
-                            update(album.album, page, album.artists)
+                    Timber.d(
+                        "AlbumOpen: page routeAlbumId=%s pageAlbumId=%s songs=%d artists=%s",
+                        albumId, page.album.browseId, page.songs.size,
+                        page.album.artists?.joinToString { "${it.name}/${it.id}" },
+                    )
+                    runCatching {
+                        database.transaction {
+                            if (album == null) {
+                                insert(page)
+                            } else {
+                                update(album.album, page, album.artists)
+                            }
+                            // What did the insert actually key? The screen's albumWithSongs query
+                            // INNER-JOINs artist_whitelist through album_artist_map, so a map row on a
+                            // non-whitelisted artist id starves it forever with no error.
+                            val maps = albumArtistMaps(albumId)
+                            val whitelisted = whitelistedArtistIdsSync(maps.map { it.artistId }).toSet()
+                            Timber.d(
+                                "AlbumOpen: maps=%s",
+                                maps.joinToString { "${it.artistId}(wl=${it.artistId in whitelisted})" },
+                            )
+                            page.album.artists?.forEach { a ->
+                                Timber.d(
+                                    "AlbumOpen: artist rows named '%s': %s",
+                                    a.name,
+                                    artistsByNameSync(a.name).joinToString { "${it.id}(ch=${it.channelId})" },
+                                )
+                            }
                         }
+                    }.onFailure { e ->
+                        if (e is java.util.concurrent.CancellationException) throw e
+                        // Log-and-rethrow: preserves today's behavior, but the failure is no longer
+                        // invisible (H3 in the handoff doc).
+                        Timber.e(e, "AlbumOpen: insert/update FAILED albumId=%s", albumId)
+                        throw e
                     }
                 }.onFailure {
                     if (it is java.util.concurrent.CancellationException) throw it
                     // Transient failure (network / server): show not-found but keep the local copy —
                     // only a definitive 404 above deletes it.
+                    Timber.e(it, "AlbumOpen: fetch FAILED albumId=%s", albumId)
                     notFound.value = true
                     reportException(it)
                 }

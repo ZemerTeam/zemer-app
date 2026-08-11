@@ -2,6 +2,7 @@ package com.jtech.zemer.search
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
+import timber.log.Timber
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.HttpRequestBuilder
@@ -198,16 +199,22 @@ class ZemerSearchClient @Inject constructor() {
         allowFemale: Boolean,
         blockVideos: Boolean,
     ): ZemerAlbumResponse? {
+        Timber.d("AlbumOpen: GET /album id=%s", id)
         val response: HttpResponse = client.get("$BASE_URL/album") {
             parameter("id", id)
             applyParams(zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true))
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
-        if (response.status == HttpStatusCode.NotFound) return null
+        if (response.status == HttpStatusCode.NotFound) {
+            Timber.d("AlbumOpen: /album id=%s -> 404", id)
+            return null
+        }
         if (!response.status.isSuccess()) {
             throw IOException("Zemer album returned HTTP ${response.status.value}")
         }
-        return zemerResponseJson.decodeFromString(ZemerAlbumResponse.serializer(), response.bodyAsText())
+        return zemerResponseJson.decodeFromString(ZemerAlbumResponse.serializer(), response.bodyAsText()).also {
+            Timber.d("AlbumOpen: /album id=%s -> 200 albumId=%s tracks=%d", id, it.album.id, it.tracks.size)
+        }
     }
 
     /**
