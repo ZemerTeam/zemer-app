@@ -30,6 +30,11 @@ object PlaySource {
      * per-show aggregation into phantom one-episode shows.
      */
     fun podcast(id: String?) = if (id.isNullOrBlank()) "podcast" else "podcast:$id"
+
+    // Direct plays from the Videos-tab ranked rows (append-only, contract:
+    // handoff zemer-app-video-home-rows-tracking-request.md — the New -> Trending funnel).
+    const val HOME_VIDEO_TRENDING = "home:video-trending"
+    const val HOME_VIDEO_NEW = "home:video-new"
 }
 
 /**

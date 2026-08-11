@@ -561,6 +561,24 @@ class ZemerSearchClient @Inject constructor() {
         return zemerResponseJson.decodeFromString(ZemerPodcastHomeRowsResponse.serializer(), response.bodyAsText())
     }
 
+    /**
+     * `GET /video-home-rows` — the Videos tab's ranked rows (live-only, like `/podcast-home-rows`).
+     * Throws on any non-2xx (including 404 while the endpoint is not yet deployed); the ViewModel is
+     * fail-soft, so the tab just keeps its lead row.
+     */
+    suspend fun videoHomeRows(
+        allowFemale: Boolean,
+        blockVideos: Boolean,
+    ): ZemerVideoHomeRowsResponse {
+        val response: HttpResponse = client.get("$BASE_URL/video-home-rows") {
+            applyParams(zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true))
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer video-home-rows returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerVideoHomeRowsResponse.serializer(), response.bodyAsText())
+    }
+
     companion object {
         const val BASE_URL = "https://search.zemer.io"
         private const val REQUEST_TIMEOUT_MS = 8_000L

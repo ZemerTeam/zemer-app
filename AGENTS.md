@@ -362,6 +362,14 @@ that removes a tab (a persisted PODCASTS selection falls back to MUSIC); VIDEO i
 from ONE async DataStore snapshot reading the tab AND Block Podcasts together (null until it lands, one
 frame of background) — never a main-thread `dataStore[key]` read in composition, never a flash of Music
 or of a blocked Podcasts tab. R22 (the MUSIC-gated shimmer) rides this selector — see §Loading skeletons.
+The **Videos tab's ranked rows** (`/video-home-rows` → Trending Videos / New Videos / Top Video Artists;
+handoff `zemer-app-video-home-rows-request.md`) ride the isolated fail-soft `VideoHomeRowsViewModel`
+(PodcastHomeRows pattern, see-all via `VideoHomeSeeAllStore`): an absent endpoint leaves the tab on its
+`topVideos` lead row. Direct plays declare `PlaySource.HOME_VIDEO_TRENDING`/`HOME_VIDEO_NEW` and the rows
+emit impressions on the matching `home:video-*` surfaces (append-only tracking contract:
+`zemer-app-video-home-rows-tracking-request.md`); the artists row needs neither (its plays attribute
+`artist:UC…` from the artist page). Blocked-video users get both video rows relabeled + audio-gated,
+never hidden, like every video shelf.
 
 **Project direction (a real, ongoing goal):** progressively **replace as much InnerTube as we can across
 the app** with Zemer-served, whitelist-pure data. The home tab migrated first; since then **artist opens

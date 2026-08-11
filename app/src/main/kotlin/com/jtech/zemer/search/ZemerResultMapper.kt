@@ -392,6 +392,28 @@ object ZemerResultMapper {
             trendingEpisodes = resp.trendingEpisodes.toEpisodeItems(),
         )
 
+    data class VideoHomeRows(
+        val trending: List<SongItem>,
+        val newVideos: List<SongItem>,
+        val artists: List<ArtistItem>,
+    )
+
+    /**
+     * The `/video-home-rows` rows as the item types the Videos tab already renders. Both track rows are
+     * video-classified (`isVideo = true` — the badge/menu/toggle flag, set once at this mapper boundary);
+     * `hideExplicit = false` matches the `/home-rows` topVideos treatment. Blocked-id overrides run
+     * inside [songItems]; artists drop blank ids like every artist row.
+     */
+    fun videoHomeRows(resp: ZemerVideoHomeRowsResponse): VideoHomeRows =
+        VideoHomeRows(
+            trending = songItems(resp.trendingVideos, hideExplicit = false, isVideo = true),
+            newVideos = songItems(resp.newVideos, hideExplicit = false, isVideo = true),
+            artists = resp.topVideoArtists.filter { it.id.isNotBlank() }
+                .map { it.toArtistItem() }
+                .distinctBy { it.id }
+                .dropBlocked(),
+        )
+
     /**
      * A `/podcast` response as the [PodcastPage] the SHOW screen already consumes. Null when the header
      * is missing (treated as a 404 → the screen backs out). `continuation` carries the server's

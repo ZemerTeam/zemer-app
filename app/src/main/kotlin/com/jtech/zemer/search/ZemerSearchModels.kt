@@ -386,3 +386,19 @@ data class ZemerPodcastHomeRowsResponse(
     val topPodcasts: List<ZemerPodcastShow> = emptyList(),
     val trendingEpisodes: List<ZemerPodcastEpisode> = emptyList(),
 )
+
+/**
+ * Wire model for `GET /video-home-rows` (handoff `zemer-app-video-home-rows-request.md`) — the Videos
+ * tab's ranked rows beyond the `topVideos` lead row `/home-rows` already serves. Reuses the exact
+ * `/home-rows` row shapes so the existing mappers work unchanged. Every list defaults empty (each row
+ * is independently fail-soft; the endpoint being absent hides all three).
+ */
+@Serializable
+data class ZemerVideoHomeRowsResponse(
+    /** 14d completion-weighted distinct-device reach — deliberately shorter than topVideos' 30d. */
+    val trendingVideos: List<ZemerTrack> = emptyList(),
+    /** Newest corpus video releases (no telemetry — new videos have no other home surface). */
+    val newVideos: List<ZemerTrack> = emptyList(),
+    /** Artists ranked by distinct-device video listening; cards open the artist page. */
+    val topVideoArtists: List<ZemerArtist> = emptyList(),
+)

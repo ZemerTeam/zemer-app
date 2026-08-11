@@ -522,6 +522,46 @@ class ZemerResultMapperTest {
         assertTrue(videos.single().isVideo)
     }
 
+    // --- /video-home-rows mapping (the Videos tab's ranked rows) ---
+
+    @Test
+    fun `video home rows are video-classified, deduped, blocked-id filtered`() {
+        BlockedIdsCache.updateAll(mapOf("blockedVid" to "global"))
+        val resp = ZemerVideoHomeRowsResponse(
+            trendingVideos = listOf(
+                ZemerTrack(videoId = "v1", title = "T1", artist = "A", artistId = "UCa"),
+                ZemerTrack(videoId = "v1", title = "T1 dup", artist = "A"),
+                ZemerTrack(videoId = "blockedVid", title = "Nope", artist = "B"),
+            ),
+            newVideos = listOf(
+                ZemerTrack(videoId = "v2", title = "T2", artist = "B"),
+                ZemerTrack(videoId = "", title = "No id", artist = "C"),
+            ),
+            topVideoArtists = listOf(
+                ZemerArtist("UCa", "A", "art"),
+                ZemerArtist("", "Blank", null),
+                ZemerArtist("UCa", "A dup", null),
+                // A blocked-id override must drop an ARTIST card too, not just track videoIds.
+                ZemerArtist("blockedVid", "Blocked Channel", null),
+            ),
+        )
+        val rows = ZemerResultMapper.videoHomeRows(resp)
+        // Both track rows carry the video classification (the one isVideo flag, set at this boundary).
+        assertEquals(listOf("v1"), rows.trending.map { it.id })
+        assertTrue(rows.trending.single().isVideo)
+        assertEquals("UCa", rows.trending.single().artists.single().id)
+        assertEquals(listOf("v2"), rows.newVideos.map { it.id })
+        assertTrue(rows.newVideos.single().isVideo)
+        assertEquals(listOf("UCa"), rows.artists.map { it.id })
+    }
+
+    @Test
+    fun `videos tab play source slugs are pinned to the tracking contract`() {
+        // handoff zemer-app-video-home-rows-tracking-request.md - append-only wire values.
+        assertEquals("home:video-trending", com.jtech.zemer.tracking.PlaySource.HOME_VIDEO_TRENDING)
+        assertEquals("home:video-new", com.jtech.zemer.tracking.PlaySource.HOME_VIDEO_NEW)
+    }
+
     // --- /home-rows mapping (telemetry-ranked home tab rows) ---
 
     @Test

@@ -23,6 +23,7 @@ import com.jtech.zemer.playback.queues.Queue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.utils.ContentWhitelistDoc
 import com.jtech.zemer.utils.IsraeliArtistRegistry
+import com.jtech.zemer.utils.RankedContentGate
 import com.jtech.zemer.utils.ZemerContentClient
 import com.jtech.zemer.utils.mirrorFirst
 import com.jtech.zemer.utils.ContentFilterState
@@ -604,16 +605,17 @@ class HomeViewModel @Inject constructor(
             // better signal than the proxy, and applying it here cut the ranked rows to near-empty
             // (handoff REPLY 3). Blocked-ids already dropped in the mapper; this is defence-in-depth over
             // the server's own female/blocked filtering, so it needs each card's real artist channel id.
-            fun isBlockedRanked(ids: List<String>): Boolean {
-                if (ids.any { IsraeliArtistRegistry.isIsraeli(it) }) return true
-                val profiles = ids.mapNotNull { profileById[it] }
-                if (!allowFemale && profiles.any { it.isFemale == true }) return true
-                // Kids-only artists belong in KidZone, not the adult Home — restore the pre-teardown
-                // exclusion (selectWeightedArtists' `isKids != true`). isKids is a per-artist flag, distinct
-                // from the whitelist's isKidZone that the server's kidZone filter keys on.
-                if (profiles.any { it.isKids == true }) return true
-                return false
-            }
+            // The rule itself lives in the shared RankedContentGate (VideoHomeRowsViewModel applies the
+            // same one to the /video-home-rows rows); only the profile lookup is this ViewModel's.
+            fun isBlockedRanked(ids: List<String>): Boolean = RankedContentGate.isBlockedRanked(
+                ids = ids,
+                allowFemale = allowFemale,
+                flagsOf = { id ->
+                    profileById[id]?.let {
+                        RankedContentGate.Flags(isFemale = it.isFemale == true, isKids = it.isKids == true)
+                    }
+                },
+            )
 
             fun SongItem.isAllowedRanked(): Boolean = !isBlockedRanked(this.artists?.mapNotNull { it.id } ?: emptyList())
             fun AlbumItem.isAllowedRanked(): Boolean = !isBlockedRanked(this.artists?.mapNotNull { it.id } ?: emptyList())
