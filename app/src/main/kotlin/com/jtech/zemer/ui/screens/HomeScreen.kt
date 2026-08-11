@@ -62,6 +62,7 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.BlockPodcastsKey
+import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.constants.HomeContentTabKey
 import com.jtech.zemer.constants.ShowHomeGenresKey
 import com.jtech.zemer.constants.ShowHomeStatusesKey
@@ -94,7 +95,8 @@ import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import com.jtech.zemer.utils.rememberEnumPreference
+import com.jtech.zemer.extensions.toEnum
+import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.ui.component.ZemerCuratedPlaylistGridItem
 import com.jtech.zemer.ui.component.SongGridItem
 import com.jtech.zemer.ui.component.SongListItem
@@ -208,9 +210,22 @@ fun HomeScreen(
     val (showHomeGenres, _) = rememberPreference(ShowHomeGenresKey, defaultValue = true)
     val (showHomeStatuses, _) = rememberPreference(ShowHomeStatusesKey, defaultValue = true)
     // Home content-type tab (Music / Podcasts / Radio / Video); each renders only its own shelves.
-    // Persisted to DataStore, so the selection survives leaving and re-entering the app. Music default.
-    // seedFromDisk: open directly on the remembered tab instead of flashing Music while DataStore loads.
-    var homeTab by rememberEnumPreference(HomeContentTabKey, defaultValue = HomeContentTab.MUSIC, seedFromDisk = true)
+    // Persisted to DataStore. Seeded from ONE async snapshot that reads the tab AND Block Podcasts
+    // together: no main-thread disk read, no flash of Music, and no flash of a blocked Podcasts tab.
+    // Null = snapshot not landed yet (first frame renders no tab content).
+    var homeTab by remember { mutableStateOf<HomeContentTab?>(null) }
+    LaunchedEffect(Unit) {
+        val prefs = context.dataStore.data.first()
+        homeTab = effectiveHomeTab(
+            persisted = prefs[HomeContentTabKey].toEnum(HomeContentTab.MUSIC),
+            blockPodcasts = prefs[BlockPodcastsKey] == true,
+        )
+    }
+    val tabWriteScope = rememberCoroutineScope()
+    val setHomeTab: (HomeContentTab) -> Unit = { tab ->
+        homeTab = tab
+        tabWriteScope.launch { context.dataStore.edit { it[HomeContentTabKey] = tab.name } }
+    }
     // The curated endpoint's freshness contract is a plain re-fetch on screen open (single-digit-ms
     // server reads) — this also picks up a card removed by curation while a detail open 404'd.
     LaunchedEffect(Unit) {
@@ -238,20 +253,24 @@ fun HomeScreen(
     val (blockPodcasts, _) = rememberPreference(BlockPodcastsKey, false)
     // Blocking podcasts hides the whole content type (unlike videos, which relabel to audio) — drop the
     // tab and, if it was the persisted selection, fall back to Music so a blocked user never lands on it.
-    LaunchedEffect(blockPodcasts) {
-        if (blockPodcasts && homeTab == HomeContentTab.PODCASTS) {
-            homeTab = HomeContentTab.MUSIC
+    LaunchedEffect(blockPodcasts, homeTab) {
+        val current = homeTab
+        if (current != null && effectiveHomeTab(current, blockPodcasts) != current) {
+            setHomeTab(effectiveHomeTab(current, blockPodcasts))
         }
     }
-    val homeContentChips = buildList {
-        add(HomeContentTab.MUSIC to stringResource(R.string.music))
-        add(HomeContentTab.RADIO to stringResource(R.string.radio))
-        if (!blockPodcasts) {
-            add(HomeContentTab.PODCASTS to stringResource(R.string.podcasts))
-        }
-        // Always show the Video tab; blocked-video users still get it, relabeled "Video songs" — its rows
-        // play audio-first (the Featured Videos shelf follows the same relabel), so it's never hidden.
-        add(HomeContentTab.VIDEO to stringResource(if (blockVideos) R.string.video_songs else R.string.videos))
+    // Chip order/visibility is the pure, unit-tested visibleHomeTabs; only labels are resolved here.
+    // The Video tab is ALWAYS shown; blocked-video users get it relabeled "Video songs" — its rows play
+    // audio-first (the Featured Videos shelf follows the same relabel), so it's never hidden.
+    val homeContentChips = visibleHomeTabs(blockPodcasts).map { tab ->
+        tab to stringResource(
+            when (tab) {
+                HomeContentTab.MUSIC -> R.string.music
+                HomeContentTab.RADIO -> R.string.radio
+                HomeContentTab.PODCASTS -> R.string.podcasts
+                HomeContentTab.VIDEO -> if (blockVideos) R.string.video_songs else R.string.videos
+            }
+        )
     }
     homeUiState.isNewUser
 
@@ -545,7 +564,7 @@ fun HomeScreen(
                         ChipsRow(
                             chips = homeContentChips,
                             currentValue = homeTab,
-                            onValueUpdate = { homeTab = it },
+                            onValueUpdate = { it?.let(setHomeTab) },
                         )
                     }
                 }
@@ -1150,7 +1169,7 @@ fun HomeScreen(
                                     ListQueue(
                                         title = song.song.title,
                                         items = listOf(song.toMediaItem()),
-                                        playSource = PlaySource.podcast(song.song.albumId ?: song.id),
+                                        playSource = PlaySource.podcast(song.song.albumId),
                                     )
                                 )
                             },
@@ -1175,7 +1194,7 @@ fun HomeScreen(
                             ListQueue(
                                 title = episode.title,
                                 items = listOf(episode.toMediaItem()),
-                                playSource = PlaySource.podcast(episode.album?.id ?: episode.id),
+                                playSource = PlaySource.podcast(episode.album?.id),
                             )
                         )
                     },
@@ -1266,7 +1285,7 @@ fun HomeScreen(
                             ListQueue(
                                 title = episode.title,
                                 items = listOf(episode.toMediaItem()),
-                                playSource = PlaySource.podcast(episode.podcast?.id ?: episode.id),
+                                playSource = PlaySource.podcast(episode.podcast?.id),
                             )
                         )
                     },

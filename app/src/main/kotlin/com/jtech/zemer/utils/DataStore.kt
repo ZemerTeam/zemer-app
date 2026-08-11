@@ -162,23 +162,16 @@ fun <T> rememberPreference(
 inline fun <reified T : Enum<T>> rememberEnumPreference(
     key: Preferences.Key<String>,
     defaultValue: T,
-    // When true, the FIRST frame is seeded from the persisted value instead of [defaultValue], so a
-    // screen bound to this opens on the remembered value rather than flashing the default while
-    // DataStore's async flow loads (e.g. the Home content-type tab flashing Music -> remembered on
-    // return). Opt-in: it is a one-time synchronous read (cached in practice, since DataStore is warm by
-    // the time any screen composes), so most call sites keep the plain async default.
-    seedFromDisk: Boolean = false,
 ): MutableState<T> {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    val initialValue = remember { if (seedFromDisk) context.dataStore[key].toEnum(defaultValue) else defaultValue }
     val state =
         remember {
             context.dataStore.data
                 .map { it[key].toEnum(defaultValue = defaultValue) }
                 .distinctUntilChanged()
-        }.collectAsState(initialValue)
+        }.collectAsState(defaultValue)
 
     return remember {
         object : MutableState<T> {
