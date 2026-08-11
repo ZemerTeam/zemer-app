@@ -55,7 +55,7 @@ node --test tests/recent-releases/self-test.mjs            # parsers/helpers, no
 
 The deployed job is a self-contained copy in the **vps repo** (`~/github/private/my-vps` →
 `flask_app/apps/api/zemer/`), run by a systemd timer hourly and served (with ETag) at
-`https://api.flipphoneguy.duckdns.org/zemer/recent-releases.json`. Keep `build.mjs` / `lib.mjs` /
+`https://flipphoneguy.duckdns.org/?page=zemer_releases`. Keep `build.mjs` / `lib.mjs` /
 `whitelist.mjs` there in sync with the algorithm here. The app fetches that JSON via
 `com.jtech.zemer.latestreleases.LatestReleasesStore` (+ `LatestReleasesViewModel` and the Home
 "Latest Releases" section); the store's resilience logic is unit-tested in

@@ -32,7 +32,7 @@ simply makes the shelf empty.
 
 | Where | File |
 |---|---|
-| Feed URL | `https://api.flipphoneguy.duckdns.org/zemer/recent-releases.json` (`LatestReleasesStore.FEED_URL`) |
+| Feed URL | `https://flipphoneguy.duckdns.org/?page=zemer_releases` (`LatestReleasesStore.FEED_URL`) |
 | Runtime store | `app/.../latestreleases/LatestReleasesStore.kt` |
 | ViewModel | `app/.../viewmodels/LatestReleasesViewModel.kt` |
 | Feed -> AlbumItem adapter | `app/.../latestreleases/LatestReleaseMapping.kt` |

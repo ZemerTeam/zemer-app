@@ -11,7 +11,7 @@ vps repo job (4x/day, systemd)  --writes-->  recent-releases.json  --ETag-->  FE
 app: LatestReleasesStore (fetch + cache)  ->  LatestReleasesViewModel (filter)  -> UI shelf + See-all
 ```
 
-- **Feed URL:** `https://api.flipphoneguy.duckdns.org/zemer/recent-releases.json`
+- **Feed URL:** `https://flipphoneguy.duckdns.org/?page=zemer_releases`
   (`LatestReleasesStore.FEED_URL`).
 - **App refresh cadence:** once per launch, up to 3 attempts, then give up until next launch
   (doc 03). There is no in-session re-poll.
@@ -27,7 +27,7 @@ The header/list are only emitted when the **filtered** list is non-empty
 
 1. **Is the feed reachable and non-empty?**
    ```bash
-   curl -s https://api.flipphoneguy.duckdns.org/zemer/recent-releases.json | head -c 400
+   curl -s "https://flipphoneguy.duckdns.org/?page=zemer_releases" | head -c 400
    ```
    Expect a JSON with a non-empty `releases`. If it errors or `count` is 0, it's the **server
    job** (vps repo), not the app.
