@@ -9,7 +9,7 @@ package com.jtech.zemer.offline
  * Raw tables are plain lists; the maps/groupings the reads need are built lazily on first use so a
  * corpus that is loaded but never queried (e.g. app start with offline search off) costs only the parse.
  */
-class SubsetCorpus(
+data class SubsetCorpus(
     val artists: List<SubArtist>,
     val tracks: List<SubTrack>,
     val albums: List<SubAlbum>,
@@ -21,6 +21,13 @@ class SubsetCorpus(
     val zemerPlaylists: List<SubZemerPlaylist>,
     val zemerItems: List<SubZemerItem>,
     val blocked: SubBlocked,
+    // Podcasts (server reply 4 — the on-device subset). Defaulted empty so a pre-podcast snapshot (or a
+    // test corpus) needs no podcast shards; the reads below just return nothing. Pre-gated to approved
+    // channels server-side (a show is present iff its host UC is approved, or it is grandfathered
+    // channel-less); female/KidZone stay per item (channel flag + the `blocked` shard exceptions).
+    val podcastChannels: List<SubPodcastChannel> = emptyList(),
+    val podcasts: List<SubPodcastShow> = emptyList(),
+    val podcastEpisodes: List<SubPodcastEpisode> = emptyList(),
 ) {
     val artistsById: Map<String, SubArtist> by lazy { artists.associateBy { it.id } }
     val tracksById: Map<String, SubTrack> by lazy { tracks.associateBy { it.videoId } }
@@ -57,6 +64,20 @@ class SubsetCorpus(
 
     val homeRankByRow: Map<String, List<SubHomeRank>> by lazy {
         homeRank.groupBy { it.row }.mapValues { (_, v) -> v.sortedBy { it.pos } }
+    }
+
+    // --- podcasts ---
+    val podcastChannelsById: Map<String, SubPodcastChannel> by lazy { podcastChannels.associateBy { it.id } }
+    val podcastsById: Map<String, SubPodcastShow> by lazy { podcasts.associateBy { it.id } }
+
+    /** Shows grouped by host channel (UC…), stored shard order preserved. */
+    val podcastsByChannel: Map<String, List<SubPodcastShow>> by lazy {
+        podcasts.filter { it.channelId != null }.groupBy { it.channelId!! }
+    }
+
+    /** Episodes grouped by owning show (MPSP…), stored shard order preserved. */
+    val podcastEpisodesByShow: Map<String, List<SubPodcastEpisode>> by lazy {
+        podcastEpisodes.groupBy { it.showId }
     }
 }
 
@@ -132,3 +153,39 @@ data class SubZemerPlaylist(val id: String, val title: String, val pos: Int, val
 data class SubZemerItem(val playlistId: String, val kind: String, val refId: String, val pos: Int)
 
 data class SubBlocked(val global: Set<String>, val female: Set<String>)
+
+// --- podcasts (shard rows pinned to build-subset.mjs; see [SubsetDecoder]) ---
+
+/** A host podcast channel (UC…) — the browse-grid row. `flags` bit0=female, bit1=kidZone, bit2=verified. */
+data class SubPodcastChannel(
+    val id: String,
+    val name: String,
+    val thumbnail: String?,
+    val isFemale: Boolean,
+    val isKidZone: Boolean,
+    val isVerified: Boolean,
+    val showCount: Int,
+    val episodeCount: Int,
+)
+
+/** A podcast SHOW (MPSP…) on an approved channel. `channelId` null for a grandfathered channel-less show. */
+data class SubPodcastShow(
+    val id: String,
+    val name: String,
+    val author: String?,
+    val channelId: String?,
+    val thumbnail: String?,
+    val episodeCountText: String?,
+    /** The show's genre slugs (appended shard column; empty on a pre-genres snapshot). */
+    val genres: List<String> = emptyList(),
+)
+
+/** A podcast EPISODE (played by `videoId` via InnerTube). `durationSec`/`publishedAt` may be absent. */
+data class SubPodcastEpisode(
+    val videoId: String,
+    val showId: String,
+    val title: String,
+    val thumbnail: String?,
+    val durationSec: Int?,
+    val publishedAt: String?,
+)

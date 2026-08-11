@@ -45,3 +45,12 @@ fun zemerGenreSectionRoute(id: String, section: String): String = "genre_section
 
 const val GENRE_SECTION_ALBUMS = "albums"
 const val GENRE_SECTION_SINGLES = "singles"
+
+/** The podcast-genre catalog screen. */
+fun zemerPodcastGenresRoute(): String = "podcast_genres"
+
+/**
+ * One podcast genre's detail screen (its flat list of shows). [id] is the server genre slug
+ * ([\w-] only, URL- and nav-safe as-is, so no encoding — keeps the builder pure for the JVM tests).
+ */
+fun zemerPodcastGenreRoute(id: String): String = "podcast_genre/$id"

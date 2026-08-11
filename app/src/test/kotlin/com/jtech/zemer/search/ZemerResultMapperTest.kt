@@ -418,6 +418,26 @@ class ZemerResultMapperTest {
     }
 
     @Test
+    fun `album artistId resolves the credit by id and threads into matching track credits only`() {
+        val resp = ZemerAlbumResponse(
+            album = ZemerAlbumHeader(id = "MPRE1", title = "T", artist = "Sruly Green", artistId = "UCsruly"),
+            tracks = listOf(
+                ZemerTrack("v1", "Own", "Sruly Green", trackNumber = 1),
+                ZemerTrack("v2", "Feat", "Someone Else", trackNumber = 2),
+            ),
+        )
+        val page = resp.toAlbumPage(playlistId = null)
+        assertEquals("UCsruly", page.album.artists?.single()?.id)
+        // Matching track credit gets the id; a different (feat) credit stays name-only.
+        assertEquals("UCsruly", page.songs.first { it.id == "v1" }.artists.single().id)
+        assertNull(page.songs.first { it.id == "v2" }.artists.single().id)
+        // Absent artistId (older server) = today's name-only behavior, nothing invented.
+        val without = resp.copy(album = resp.album.copy(artistId = null)).toAlbumPage(playlistId = null)
+        assertNull(without.album.artists?.single()?.id)
+        assertNull(without.songs.first().artists.single().id)
+    }
+
+    @Test
     fun `album playlistId falls back to the browseId and untagged tracks keep server order`() {
         val resp = ZemerAlbumResponse(
             album = ZemerAlbumHeader(id = "MPRE1", title = "T", artist = ""),

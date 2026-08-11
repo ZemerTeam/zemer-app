@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,14 +20,19 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.size.Scale
+import com.jtech.zemer.constants.ThumbnailCornerRadius
+import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListThumbnailSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.db.entities.Playlist
+import com.jtech.zemer.db.entities.PodcastWhitelistEntity
 import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.ArtistMenu
 import com.jtech.zemer.ui.menu.PlaylistMenu
+import com.jtech.zemer.ui.menu.PodcastChannelMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.utils.ARTIST_AVATAR_PX
 import com.jtech.zemer.ui.utils.resize
@@ -125,7 +131,7 @@ fun WhitelistedArtistListItem(
     },
     modifier = modifier
         .fillMaxWidth()
-
+        .focusBorder()
         .clickable {
             navController.navigateToArtist(artist.id)
         }
@@ -192,7 +198,7 @@ fun WhitelistedArtistGridItem(
     fillMaxWidth = true,
     modifier = modifier
         .fillMaxWidth()
-
+        .focusBorder()
         .combinedClickable(
             onClick = {
                 navController.navigateToArtist(artist.id)
@@ -396,3 +402,121 @@ fun LibraryPlaylistGridItem(
             }
         )
 )
+
+@Composable
+fun WhitelistedPodcastListItem(
+    navController: NavController,
+    menuState: MenuState,
+    podcast: PodcastWhitelistEntity,
+    onRequestThumb: () -> Unit = {},
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
+) = ListItem(
+    title = podcast.name,
+    subtitle = "",
+    badges = {},
+    thumbnailContent = {
+        if (podcast.thumbnailUrl.isNullOrBlank()) {
+            LaunchedEffect(podcast.channelId) { onRequestThumb() }
+        }
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(podcast.thumbnailUrl)
+                .scale(Scale.FILL)
+                .size(ListThumbnailSize.value.toInt())
+                .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .build(),
+            contentDescription = null,
+            modifier = Modifier
+                .size(ListThumbnailSize)
+                .clip(RoundedCornerShape(ThumbnailCornerRadius)),
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.Center,
+            placeholder = painterResource(R.drawable.podcast),
+            error = painterResource(R.drawable.podcast),
+        )
+    },
+    trailingContent = {
+        MoreVertMenuButton(
+            onClick = {
+                menuState.show {
+                    PodcastChannelMenu(
+                        podcast = podcast,
+                        navController = navController,
+                        onDismiss = menuState::dismiss,
+                    )
+                }
+            }
+        )
+    },
+    modifier = modifier
+        .fillMaxWidth()
+        .focusBorder()
+        .clickable {
+            navController.openWhitelistedPodcast(podcast)
+        }
+)
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun WhitelistedPodcastGridItem(
+    navController: NavController,
+    menuState: MenuState,
+    podcast: PodcastWhitelistEntity,
+    onRequestThumb: () -> Unit = {},
+    fillMaxWidth: Boolean = true,
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
+) = GridItem(
+    title = podcast.name,
+    subtitle = "",
+    badges = {},
+    thumbnailContent = {
+        if (podcast.thumbnailUrl.isNullOrBlank()) {
+            LaunchedEffect(podcast.channelId) { onRequestThumb() }
+        }
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(podcast.thumbnailUrl)
+                .scale(Scale.FILL)
+                .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
+                .build(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(ThumbnailCornerRadius)),
+            placeholder = painterResource(R.drawable.podcast),
+            error = painterResource(R.drawable.podcast),
+        )
+    },
+    fillMaxWidth = fillMaxWidth,
+    modifier = modifier
+        .then(if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier)
+        .focusBorder()
+        .combinedClickable(
+            onClick = {
+                navController.openWhitelistedPodcast(podcast)
+            },
+            onLongClick = {
+                menuState.show {
+                    PodcastChannelMenu(
+                        podcast = podcast,
+                        navController = navController,
+                        onDismiss = menuState::dismiss,
+                    )
+                }
+            }
+        )
+)
+
+/**
+ * Open a browsed whitelisted podcast CHANNEL: the whitelist is channel-level, so every entry opens the
+ * host channel page (ArtistScreen, isPodcastChannel) where Subscribe + the channel's shows live. Shared
+ * by the list + grid rows so the destination can't drift.
+ */
+private fun NavController.openWhitelistedPodcast(podcast: PodcastWhitelistEntity) {
+    whitelistedPodcastRoute(null, podcast.channelId)?.let(::navigate)
+}

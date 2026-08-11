@@ -87,6 +87,26 @@ object ZemerContentClient {
     }
 
     /**
+     * `/podcastChannelsWhitelist/version` → the podcast CHANNEL allow-set gate (the direct parallel to
+     * `/whitelist/version`). The whitelist is channel-level now; the mirror is the authoritative allow-set
+     * + version gate, same as the artist whitelist.
+     */
+    suspend fun podcastsWhitelistVersion(): Long {
+        val dto = json.decodeFromString(ContentVersionDto.serializer(), getText("/podcastChannelsWhitelist/version", SMALL_TIMEOUT_MS))
+        val gate = dto.gate ?: error("content mirror: missing gate in /podcastChannelsWhitelist/version")
+        Timber.d("ZemerContentClient: /podcastChannelsWhitelist/version gate=%d", gate)
+        return gate
+    }
+
+    /** `/podcastChannelsWhitelist` → the whitelisted host-channel docs. Throws on empty so [mirrorFirst] falls back. */
+    suspend fun podcastsWhitelist(): List<ContentPodcastDoc> {
+        val docs = json.decodeFromString(ListSerializer(ContentPodcastDoc.serializer()), getText("/podcastChannelsWhitelist", WHITELIST_TIMEOUT_MS))
+        if (docs.isEmpty()) error("content mirror: empty /podcastChannelsWhitelist")
+        Timber.d("ZemerContentClient: /podcastChannelsWhitelist %d docs", docs.size)
+        return docs
+    }
+
+    /**
      * `/blockedContentIds` → id→reason map, rebuilt from the server's pre-bucketed `{global, female}`
      * (disabled entries already dropped, unknown reasons already folded into `global` — which the app
      * already treats as "hide for everyone", so this is behavior-preserving). Empty is a legitimate state.
@@ -194,6 +214,23 @@ data class ContentWhitelistDoc(
     val isGroup: Boolean? = null,
     // Per-artist channel image (yt3/lh3 URL), resolved once server-side so devices don't each fetch it.
     val thumbnail: String? = null,
+)
+
+/**
+ * One `/podcastChannelsWhitelist` document (the mirror's copy of a Firestore `podcastChannelsWhitelist`
+ * doc) — a whitelisted podcast HOST CHANNEL. `id` is the `UC…` channel id; `thumbnailUrl` is the durable
+ * channel avatar; `isFemale`/`isKidZone` are the wholly-female/kids channel flags; `showCount` is how
+ * many of the channel's shows are known.
+ */
+@Serializable
+data class ContentPodcastDoc(
+    val id: String = "",
+    val name: String? = null,
+    val thumbnailUrl: String? = null,
+    val isFemale: Boolean = false,
+    val isKidZone: Boolean = false,
+    val isVerified: Boolean = false,
+    val showCount: Int = 0,
 )
 
 /**

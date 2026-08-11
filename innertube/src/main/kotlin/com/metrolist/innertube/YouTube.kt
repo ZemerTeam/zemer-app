@@ -12,6 +12,9 @@ import com.metrolist.innertube.models.MusicResponsiveListItemRenderer
 import com.metrolist.innertube.models.MusicShelfRenderer
 import com.metrolist.innertube.models.MusicTwoRowItemRenderer
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.PodcastItem
+import com.metrolist.innertube.models.EpisodeItem
+import com.metrolist.innertube.models.Album
 import com.metrolist.innertube.models.SearchSuggestions
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
@@ -25,6 +28,7 @@ import com.metrolist.innertube.models.getContinuation
 import com.metrolist.innertube.models.getItems
 import com.metrolist.innertube.models.oddElements
 import com.metrolist.innertube.models.response.AccountMenuResponse
+import com.metrolist.innertube.models.response.AddItemYouTubePlaylistResponse
 import com.metrolist.innertube.models.response.BrowseResponse
 import com.metrolist.innertube.models.response.CreatePlaylistResponse
 import com.metrolist.innertube.models.response.EditPlaylistResponse
@@ -910,11 +914,16 @@ object YouTube {
             innerTube.unlikePlaylist(WEB_REMIX, playlistId)
     }
 
-    suspend fun subscribeChannel(channelId: String, subscribe: Boolean) = runCatching {
+    suspend fun subscribeChannel(channelId: String, subscribe: Boolean, params: String? = null) = runCatching {
         if (subscribe)
-            innerTube.subscribeChannel(WEB_REMIX, channelId)
+            // Default params from the YouTube Music API - REQUIRED for the subscribe to actually take;
+            // without it the endpoint returns 200 but the subscription never happens (Metrolist parity).
+            innerTube.subscribeChannel(WEB_REMIX, channelId, params ?: "EgIIAhgA")
         else
-            innerTube.unsubscribeChannel(WEB_REMIX, channelId)
+            // Unsubscribe uses its own params (none for the music callers); never forward the
+            // subscribe-intent default here, or an un-bookmark posts a subscribe intent and the
+            // account stays subscribed (the local bookmark and the account would disagree).
+            innerTube.unsubscribeChannel(WEB_REMIX, channelId, params)
     }
 
     suspend fun getChannelId(browseId: String): String {
@@ -1069,6 +1078,8 @@ object YouTube {
                     is AlbumItem -> albums.add(item)
                     is ArtistItem -> artists.add(item)
                     is PlaylistItem -> playlists.add(item)
+                    is PodcastItem -> {} // Ignore podcasts in related page
+                    is EpisodeItem -> {} // Ignore episodes in related page
                     null -> {}
                 }
             }
@@ -1137,4 +1148,214 @@ object YouTube {
 
     const val MAX_GET_QUEUE_SIZE = 1000
 
+
+
+    /**
+     * Save a podcast show to library.
+     * Uses likePlaylist API. Podcast IDs are "MPSP<playlistId>".
+     */
+    suspend fun savePodcast(podcastId: String, save: Boolean) = runCatching {
+        val playlistId = podcastId.removePrefix("MPSP")
+        if (save)
+            innerTube.likePlaylist(WEB_REMIX, playlistId)
+        else
+            innerTube.unlikePlaylist(WEB_REMIX, playlistId)
+    }
+
+    /**
+     * Add episode to "Episodes for Later" playlist (SE).
+     * Note: setVideoId is obtained from sync via episodesForLater(), NOT from this response.
+     */
+    suspend fun addEpisodeToSavedEpisodes(videoId: String) = runCatching {
+        innerTube.addToPlaylist(WEB_REMIX, "SE", videoId)
+    }
+
+    /**
+     * Remove episode from "Episodes for Later" playlist (SE).
+     * Note: setVideoId is required for removal and must be obtained from the playlist response.
+     */
+    suspend fun removeEpisodeFromSavedEpisodes(videoId: String, setVideoId: String) = runCatching {
+        innerTube.removeFromPlaylist(WEB_REMIX, "SE", videoId, setVideoId)
+    }
+
+
+    /**
+     * Fetch saved podcast shows from library.
+     * Uses FEmusic_library_non_music_audio_list and filters to only PodcastItem.
+     */
+    suspend fun libraryPodcasts(): Result<List<PodcastItem>> = runCatching {
+        val response = innerTube.browse(
+            client = WEB_REMIX,
+            browseId = "FEmusic_library_non_music_audio_list",
+            setLogin = true
+        ).body<BrowseResponse>()
+
+        val contents = response.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
+            ?.tabRenderer?.content?.sectionListRenderer?.contents?.firstOrNull()
+
+        val items = when {
+            contents?.gridRenderer != null -> {
+                contents.gridRenderer.items
+                    .mapNotNull(GridRenderer.Item::musicTwoRowItemRenderer)
+                    .mapNotNull { LibraryPage.fromMusicTwoRowItemRenderer(it) }
+            }
+            contents?.musicShelfRenderer != null -> {
+                contents.musicShelfRenderer.contents
+                    ?.mapNotNull(MusicShelfRenderer.Content::musicResponsiveListItemRenderer)
+                    ?.mapNotNull { LibraryPage.fromMusicResponsiveListItemRenderer(it) }
+                    ?: emptyList()
+            }
+            else -> emptyList()
+        }
+
+        items.filterIsInstance<PodcastItem>()
+    }
+
+    /**
+     * Fetch subscribed podcast channels from library.
+     * Uses FEmusic_library_non_music_audio_channels_list.
+     */
+    suspend fun libraryPodcastChannels(): Result<LibraryPage> = runCatching {
+        val response = innerTube.browse(
+            client = WEB_REMIX,
+            browseId = "FEmusic_library_non_music_audio_channels_list",
+            setLogin = true
+        ).body<BrowseResponse>()
+
+        val contents = response.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
+            ?.tabRenderer?.content?.sectionListRenderer?.contents?.firstOrNull()
+
+        val items = when {
+            contents?.gridRenderer != null -> {
+                contents.gridRenderer.items
+                    .mapNotNull(GridRenderer.Item::musicTwoRowItemRenderer)
+                    .mapNotNull { LibraryPage.fromMusicTwoRowItemRenderer(it) }
+            }
+            contents?.musicShelfRenderer != null -> {
+                contents.musicShelfRenderer.contents
+                    ?.mapNotNull(MusicShelfRenderer.Content::musicResponsiveListItemRenderer)
+                    ?.mapNotNull { LibraryPage.fromMusicResponsiveListItemRenderer(it) }
+                    ?: emptyList()
+            }
+            else -> emptyList()
+        }
+
+        LibraryPage(
+            items = items,
+            continuation = null
+        )
+    }
+
+    /**
+     * Fetch library podcast episodes page.
+     * Uses FEmusic_library_non_music_audio_list and returns full LibraryPage.
+     */
+    suspend fun libraryPodcastEpisodes(): Result<LibraryPage> = runCatching {
+        val response = innerTube.browse(
+            client = WEB_REMIX,
+            browseId = "FEmusic_library_non_music_audio_list",
+            setLogin = true
+        ).body<BrowseResponse>()
+
+        val contents = response.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
+            ?.tabRenderer?.content?.sectionListRenderer?.contents?.firstOrNull()
+
+        val items = when {
+            contents?.gridRenderer != null -> {
+                contents.gridRenderer.items
+                    .mapNotNull(GridRenderer.Item::musicTwoRowItemRenderer)
+                    .mapNotNull { LibraryPage.fromMusicTwoRowItemRenderer(it) }
+            }
+            contents?.musicShelfRenderer != null -> {
+                contents.musicShelfRenderer.contents
+                    ?.mapNotNull(MusicShelfRenderer.Content::musicResponsiveListItemRenderer)
+                    ?.mapNotNull { LibraryPage.fromMusicResponsiveListItemRenderer(it) }
+                    ?: emptyList()
+            }
+            else -> emptyList()
+        }
+
+        LibraryPage(
+            items = items,
+            continuation = null
+        )
+    }
+
+    /**
+     * Fetch saved podcast shows from library.
+     * Uses libraryPodcastEpisodes and filters to only PodcastItem.
+     */
+    suspend fun savedPodcastShows(): Result<List<PodcastItem>> = runCatching {
+        val libraryPage = libraryPodcastEpisodes().getOrThrow()
+        libraryPage.items.filterIsInstance<PodcastItem>()
+    }
+
+    /**
+     * Fetch "Episodes for Later" playlist (VLSE).
+     * Returns manually saved episodes with setVideoId for removal.
+     */
+    suspend fun episodesForLater(): Result<List<SongItem>> = runCatching {
+        val response = innerTube.browse(
+            client = WEB_REMIX,
+            browseId = "VLSE",
+            setLogin = true
+        ).body<BrowseResponse>()
+
+        // VLSE uses musicPlaylistShelfRenderer, not musicShelfRenderer
+        val contents = response.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer
+            ?.contents?.firstOrNull()
+
+        val shelfContents = contents?.musicPlaylistShelfRenderer?.contents
+            ?: contents?.musicShelfRenderer?.contents
+
+        // Parse musicResponsiveListItemRenderer (standard playlist format)
+        shelfContents?.mapNotNull { it.musicResponsiveListItemRenderer }
+            ?.mapNotNull { renderer ->
+                val videoId = renderer.playlistItemData?.videoId ?: return@mapNotNull null
+                val setVideoId = renderer.playlistItemData?.playlistSetVideoId
+                val title = renderer.flexColumns.firstOrNull()
+                    ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()?.text
+                    ?: return@mapNotNull null
+
+                // For VLSE episodes, try to find podcast info from menu items
+                // Look for "Go to podcast" or similar menu navigation with MPSP browseId
+                val podcastFromMenu = renderer.menu?.menuRenderer?.items
+                    ?.mapNotNull { it.menuNavigationItemRenderer }
+                    ?.find { item ->
+                        item.navigationEndpoint.browseEndpoint?.browseId?.startsWith("MPSP") == true
+                    }?.let { item ->
+                        item.navigationEndpoint.browseEndpoint?.let { endpoint ->
+                            Artist(name = item.text.runs?.firstOrNull()?.text ?: "", id = endpoint.browseId)
+                        }
+                    }
+
+                // Fallback: try to find any MPSP or UC (channel) browseEndpoint in flexColumns
+                val artists = if (podcastFromMenu != null) {
+                    listOf(podcastFromMenu)
+                } else {
+                    renderer.flexColumns.flatMap { col ->
+                        col.musicResponsiveListItemFlexColumnRenderer?.text?.runs
+                            ?.mapNotNull { run ->
+                                run.navigationEndpoint?.browseEndpoint?.let { endpoint ->
+                                    // Only include if it's a podcast (MPSP) or channel (UC), not episode (MPED)
+                                    if (endpoint.browseId.startsWith("MPSP") || endpoint.browseId.startsWith("UC")) {
+                                        Artist(name = run.text, id = endpoint.browseId)
+                                    } else null
+                                }
+                            } ?: emptyList()
+                    }.takeIf { it.isNotEmpty() } ?: emptyList()
+                }
+
+                SongItem(
+                    id = videoId,
+                    title = title,
+                    artists = artists,
+                    album = null,
+                    duration = null,
+                    thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: "",
+                    setVideoId = setVideoId,
+                    isEpisode = true,
+                )
+            } ?: emptyList()
+    }
 }

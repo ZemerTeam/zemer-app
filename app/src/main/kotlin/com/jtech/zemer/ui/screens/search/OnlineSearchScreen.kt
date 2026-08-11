@@ -64,15 +64,20 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.SuggestionItemHeight
+import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.ui.screens.Screens
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SearchBarIconOffsetX
@@ -86,6 +91,8 @@ import com.jtech.zemer.viewmodels.OnlineSearchSuggestionViewModel
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.EpisodeItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
@@ -118,6 +125,12 @@ fun OnlineSearchScreen(
 
     val coroutineScope = rememberCoroutineScope()
     val viewState by viewModel.viewState.collectAsState()
+    val (blockPodcasts) = rememberPreference(BlockPodcastsKey, defaultValue = false)
+    // Blocked podcasts are hidden as a content type, so drop podcast results (shows AND episodes) plus
+    // the browse shortcut.
+    val displayItems = remember(viewState.items, blockPodcasts) {
+        dropBlockedPodcastItems(viewState.items, blockPodcasts)
+    }
     // The dropdown follows the active engine (see OnlineSearchSuggestionViewModel), so a Zemer playlist
     // shown here must open through the server path — route on the same provider preference.
 
@@ -160,14 +173,30 @@ fun OnlineSearchScreen(
         // sits among live suggestions/results.
         if (query.isBlank()) {
             item(key = "browse_artists") {
-                BrowseArtistsItem(
+                BrowseAllItem(
                     onClick = {
                         navController.navigate(Screens.Artists.route)
                         onDismiss()
                     },
                     pureBlack = pureBlack,
+                    iconRes = R.drawable.artist,
+                    labelRes = R.string.browse_artists,
                     modifier = Modifier.animateItem(),
                 )
+            }
+            if (!blockPodcasts) {
+                item(key = "browse_podcasts") {
+                    BrowseAllItem(
+                        onClick = {
+                            navController.navigate(Screens.Podcasts.route)
+                            onDismiss()
+                        },
+                        pureBlack = pureBlack,
+                        iconRes = R.drawable.podcast,
+                        labelRes = R.string.browse_podcasts,
+                        modifier = Modifier.animateItem(),
+                    )
+                }
             }
         }
 
@@ -224,7 +253,7 @@ fun OnlineSearchScreen(
             )
         }
 
-        if (viewState.items.isNotEmpty() && viewState.history.size + viewState.suggestions.size > 0) {
+        if (displayItems.isNotEmpty() && viewState.history.size + viewState.suggestions.size > 0) {
             item(key = "search_divider") {
                 HorizontalDivider(
                     modifier = Modifier.animateItem()
@@ -232,7 +261,46 @@ fun OnlineSearchScreen(
             }
         }
 
-        items(viewState.items, key = { "item_${it.id}" }) { item ->
+        items(displayItems, key = { "item_${it.id}" }) { item ->
+            // ONE activation path for tap and D-pad select (the results screen's convention) — the
+            // previous duplicated when-blocks drifted once already (episode routing).
+            val activate = {
+                when (item) {
+                    // Podcast SHOW: open the host channel when known (where Subscribe lives),
+                    // else the show — the browse-grid routing (whitelistedPodcastRoute).
+                    is PodcastItem -> {
+                        whitelistedPodcastRoute(item.id, item.channelId)?.let { navController.navigate(it) }
+                        onDismiss()
+                    }
+                    // Episode taps go through the shared single-episode queue (never song radio).
+                    is EpisodeItem -> {
+                        playerConnection.playQueue(ListQueue.episode(item, PlaySource.SEARCH))
+                        onDismiss()
+                    }
+                    is SongItem -> {
+                        if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
+                            playerConnection.playPause()
+                        } else {
+                            playerConnection.playQueue(
+                                ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service)
+                            )
+                            onDismiss()
+                        }
+                    }
+                    is AlbumItem -> {
+                        navController.navigate(zemerAlbumRoute(item))
+                        onDismiss()
+                    }
+                    is ArtistItem -> {
+                        navController.navigateToArtist(item.id)
+                        onDismiss()
+                    }
+                    is PlaylistItem -> {
+                        navController.navigate(zemerPlaylistRoute(item.id))
+                        onDismiss()
+                    }
+                }
+            }
             YouTubeListItem(
                 item = item,
                 isActive = when (item) {
@@ -260,32 +328,7 @@ fun OnlineSearchScreen(
                 },
                 modifier = Modifier
                     .combinedClickable(
-                        onClick = {
-                            when (item) {
-                                is SongItem -> {
-                                    if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
-                                        playerConnection.playPause()
-                                    } else {
-                                        playerConnection.playQueue(
-                                            ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service)
-                                        )
-                                        onDismiss()
-                                    }
-                                }
-                                is AlbumItem -> {
-                                    navController.navigate(zemerAlbumRoute(item))
-                                    onDismiss()
-                                }
-                                is ArtistItem -> {
-                                    navController.navigateToArtist(item.id)
-                                    onDismiss()
-                                }
-                                is PlaylistItem -> {
-                                    navController.navigate(zemerPlaylistRoute(item.id))
-                                    onDismiss()
-                                }
-                            }
-                        },
+                        onClick = activate,
                         onLongClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             menuState.show(
@@ -311,30 +354,7 @@ fun OnlineSearchScreen(
                     }
                     .onKeyEvent { event ->
                         if (event.key == Key.Enter || event.key == Key.DirectionCenter) {
-                            when (item) {
-                                is SongItem -> {
-                                    if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
-                                        playerConnection.playPause()
-                                    } else {
-                                        playerConnection.playQueue(
-                                            ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service)
-                                        )
-                                        onDismiss()
-                                    }
-                                }
-                                is AlbumItem -> {
-                                    navController.navigate(zemerAlbumRoute(item))
-                                    onDismiss()
-                                }
-                                is ArtistItem -> {
-                                    navController.navigateToArtist(item.id)
-                                    onDismiss()
-                                }
-                                is PlaylistItem -> {
-                                    navController.navigate(zemerPlaylistRoute(item.id))
-                                    onDismiss()
-                                }
-                            }
+                            activate()
                             true
                         } else {
                             false
@@ -347,13 +367,16 @@ fun OnlineSearchScreen(
 }
 
 /**
- * A "Browse all artists" shortcut styled to match [SuggestionItem] (same height, focus border, D-pad
- * focusability). Shown at the top of the pre-typing search list; opens the whitelisted-artists screen.
+ * A "Browse all X" shortcut styled to match [SuggestionItem] (same height, focus border, D-pad
+ * focusability). Shown at the top of the pre-typing search list; opens a whitelisted-browse screen
+ * (artists or podcasts).
  */
 @Composable
-fun BrowseArtistsItem(
+fun BrowseAllItem(
     onClick: () -> Unit,
     pureBlack: Boolean,
+    @androidx.annotation.DrawableRes iconRes: Int,
+    @androidx.annotation.StringRes labelRes: Int,
     modifier: Modifier = Modifier,
 ) {
     var focusState by remember { mutableStateOf<FocusState?>(null) }
@@ -397,13 +420,13 @@ fun BrowseArtistsItem(
             .focusable(),
     ) {
         Icon(
-            painterResource(R.drawable.artist),
+            painterResource(iconRes),
             contentDescription = null,
             modifier = Modifier.padding(horizontal = 16.dp).alpha(iconAlpha)
         )
 
         Text(
-            text = stringResource(R.string.browse_artists),
+            text = stringResource(labelRes),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),

@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="432"
+    android:viewportHeight="432"
+    android:tint="?attr/colorControlNormal">
+  <!-- The app's own eighth-note silhouette (same path as ic_launcher_monochrome / small_icon),
+       scaled to fill the glyph box for the Music podcast genre. -->
+  <group
+      android:translateX="-148.7"
+      android:translateY="-138"
+      android:scaleX="1.65"
+      android:scaleY="1.65">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M 224.4,103 c -5.6,2.3 -5.4,-0 -5.4,70.2 l 0,64.8 -4,-2 c -9.1,-4.7 -21.4,-6.1 -32.2,-3.9 -19.8,4.1 -38.8,22.6 -42.9,41.9 -0.6,2.9 -0.9,8.8 -0.7,13.1 0.8,14.5 8.7,25.6 22.6,32.2 6.3,3 7.4,3.2 17.7,3.2 8.6,-0 12.5,-0.5 18.2,-2.3 8.6,-2.7 20.6,-10.5 26.3,-17 5.7,-6.5 11.7,-19.3 13,-27.2 0.6,-3.8 1,-29.6 1,-61.8 0,-30.3 0.4,-55.2 0.8,-55.2 1.9,-0 12,3.9 17.8,6.8 19.6,9.9 29.1,23.7 28.2,41 -0.2,5.2 0,6.7 1.1,6.7 2.1,-0 7.9,-11.2 9.6,-18.7 5.6,-24.6 -4.8,-45.9 -31,-63.3 -4.9,-3.3 -14.2,-11.1 -20.6,-17.2 -11.9,-11.5 -14.9,-13.3 -19.5,-11.3 Z" />
+  </group>
+</vector>

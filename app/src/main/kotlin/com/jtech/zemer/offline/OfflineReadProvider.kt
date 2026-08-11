@@ -7,7 +7,13 @@ import com.jtech.zemer.search.ZemerArtistResponse
 import com.jtech.zemer.search.ZemerCuratedPlaylistResponse
 import com.jtech.zemer.search.ZemerCuratedPlaylistsResponse
 import com.jtech.zemer.search.ZemerHomeRowsResponse
+import com.jtech.zemer.search.ZemerNewEpisodesResponse
+import com.jtech.zemer.search.ZemerPodcastChannelResponse
+import com.jtech.zemer.search.ZemerPodcastGenrePageResponse
+import com.jtech.zemer.search.ZemerPodcastGenresResponse
+import com.jtech.zemer.search.ZemerPodcastResponse
 import com.jtech.zemer.search.ZemerSearchResponse
+import com.jtech.zemer.utils.PodcastWhitelistCache
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -60,11 +66,13 @@ class OfflineReadProvider @Inject constructor(
         val lastSyncedAt = context.dataStore.data.first()[OfflineSubsetLastSyncedAtKey] ?: 0L
         if (!subsetSnapshotIsFresh(lastSyncedAt, System.currentTimeMillis())) return null
         val live = WhitelistCache.snapshot().associate { it.artistId to it.isFemale }
+        val livePodcastChannels = PodcastWhitelistCache.channelIds()
         return synchronized(lock) {
             val manifest = store.localManifest() ?: run { cache = null; return null }
-            val fingerprint = liveWhitelistFingerprint(live)
+            val fingerprint = liveWhitelistFingerprint(live, livePodcastChannels)
             cache?.get()?.let { if (it.version == manifest.v && it.whitelistFingerprint == fingerprint) return it }
             val corpus = SubsetDecoder.loadCorpus(store)?.withLiveWhitelist(live)
+                ?.withLivePodcastWhitelist(livePodcastChannels)
                 ?: run { cache = null; return null }
             Loaded(manifest.v, fingerprint, corpus, buildFemaleMatcher(corpus.artists))
                 .also { cache = SoftReference(it) }
@@ -99,5 +107,32 @@ class OfflineReadProvider @Inject constructor(
     suspend fun curatedPlaylist(id: String, allowFemale: Boolean, blockVideos: Boolean): ZemerCuratedPlaylistResponse? =
         withContext(Dispatchers.IO) {
             snapshot()?.let { offlineCuratedPlaylist(it.corpus, it.female, id, allowFemale, blockVideos, kidZone = false) }
+        }
+
+    // Podcasts (server reply 4 — pre-gated to approved channels in the snapshot). The browse-grid + channel
+    // allow-set come from the Room-backed content mirror, not here; these serve the drill-in reads.
+    suspend fun podcast(id: String, offset: Int, allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlinePodcast(it.corpus, id, offset, allowFemale, blockVideos, kidZone = false) }
+        }
+
+    suspend fun podcastChannel(id: String, allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastChannelResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlinePodcastChannel(it.corpus, id, allowFemale, blockVideos, kidZone = false) }
+        }
+
+    suspend fun podcastsNewEpisodes(k: Int, allowFemale: Boolean, blockVideos: Boolean): ZemerNewEpisodesResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlinePodcastsNewEpisodes(it.corpus, k, allowFemale, blockVideos, kidZone = false) }
+        }
+
+    suspend fun podcastGenres(allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastGenresResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlinePodcastGenres(it.corpus, allowFemale, blockVideos, kidZone = false) }
+        }
+
+    suspend fun podcastGenre(id: String, allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastGenrePageResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlinePodcastGenre(it.corpus, id, allowFemale, blockVideos, kidZone = false) }
         }
 }

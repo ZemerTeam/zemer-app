@@ -23,6 +23,7 @@ import java.time.LocalDateTime
         Index(value = ["inLibrary"]),
         Index(value = ["liked"]),
         Index(value = ["isVideo"]),
+        Index(value = ["isEpisode"]),
     ]
 )
 data class SongEntity(
@@ -40,6 +41,10 @@ data class SongEntity(
     val liked: Boolean = false,
     val likedDate: LocalDateTime? = null,
     val totalPlayTime: Long = 0, // in milliseconds
+    // Last playback position for RESUME (podcast episodes only - long content the user leaves mid-way).
+    // 0 = start from the beginning. Songs never write this, so their behavior is unchanged.
+    @ColumnInfo(name = "lastPositionMs", defaultValue = "0")
+    val lastPositionMs: Long = 0,
     val inLibrary: LocalDateTime? = null,
     val dateDownload: LocalDateTime? = null,
     @ColumnInfo(name = "isLocal", defaultValue = false.toString())
@@ -55,8 +60,18 @@ data class SongEntity(
     @ColumnInfo(name = "isUploaded", defaultValue = false.toString())
     val isUploaded: Boolean = false,
     @ColumnInfo(name = "isVideo", defaultValue = "0")
-    val isVideo: Boolean = false
+    val isVideo: Boolean = false,
+    @ColumnInfo(name = "isEpisode", defaultValue = "0")
+    val isEpisode: Boolean = false,
 ) {
+    /**
+     * The player heart's "on" state. An episode is never `liked` - its saved-for-later state is
+     * `inLibrary` (that is what `MusicService.toggleLike` flips for episodes) - so the heart must read
+     * inLibrary for episodes and `liked` for songs, or it never reflects a saved episode.
+     */
+    val isSavedForPlayer: Boolean
+        get() = if (isEpisode) inLibrary != null else liked
+
     fun localToggleLike() = copy(
         liked = !liked,
         likedDate = if (!liked) LocalDateTime.now() else null,

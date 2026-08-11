@@ -48,6 +48,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedIconButton
@@ -105,6 +106,8 @@ import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.playback.PlayerConnection
+import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.constants.PlayerBackgroundStyle
@@ -770,7 +773,7 @@ fun BottomSheetPlayer(
                         ) {
                             Image(
                                 painter = painterResource(
-                                    if (currentSong?.song?.liked == true)
+                                    if (currentSong?.song?.isSavedForPlayer == true)
                                         R.drawable.favorite
                                     else R.drawable.favorite_border
                                 ),
@@ -969,6 +972,16 @@ fun BottomSheetPlayer(
             }
 
             Spacer(Modifier.height(12.dp))
+
+            // Episode-only controls (podcasts are long): playback speed + 30s skip back/forward.
+            // Hidden for music so the normal transport is unchanged.
+            if (mediaMetadata.isEpisode) {
+                EpisodePlaybackControls(
+                    playerConnection = playerConnection,
+                    contentColor = TextBackgroundColor,
+                )
+                Spacer(Modifier.height(12.dp))
+            }
 
             if (isLandscape) {
                 Spacer(modifier = Modifier.weight(1f))
@@ -1180,8 +1193,8 @@ fun BottomSheetPlayer(
 
                     Box(modifier = Modifier.weight(1f)) {
                         ResizableIconButton(
-                            icon = if (currentSong?.song?.liked == true) R.drawable.favorite else R.drawable.favorite_border,
-                            color = if (currentSong?.song?.liked == true) MaterialTheme.colorScheme.error else TextBackgroundColor,
+                            icon = if (currentSong?.song?.isSavedForPlayer == true) R.drawable.favorite else R.drawable.favorite_border,
+                            color = if (currentSong?.song?.isSavedForPlayer == true) MaterialTheme.colorScheme.error else TextBackgroundColor,
                             modifier =
                             Modifier
                                 .size(32.dp)
@@ -1317,6 +1330,67 @@ fun BottomSheetPlayer(
         // re-parented). Only while expanded + in video mode + fullscreen requested.
         if (PlayerVideoUiLogic.showFullscreenVideo(state.isExpanded, isVideoMode, isFullscreen)) {
             PlayerVideoFullscreen(onExit = { isFullscreen = false })
+        }
+    }
+}
+
+/**
+ * Episode-only transport extras (podcasts are long): a playback-speed pill that cycles
+ * 1×→1.25×→1.5×→1.75×→2× and 30-second skip-back / skip-forward. Shown only when an episode is
+ * playing; music keeps its normal transport, and MusicService resets speed to 1× when a non-episode
+ * starts so episode speed never leaks into songs.
+ */
+@Composable
+private fun EpisodePlaybackControls(
+    playerConnection: PlayerConnection,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    // Live speed, not a one-shot snapshot: the Tempo & Pitch dialog writes playbackParameters too,
+    // and a stale cached value made the pill label lie and the next tap override the user's choice.
+    val playbackParameters by playerConnection.playbackParameters.collectAsState()
+    val speed = playbackParameters.speed
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .focusBorder(RoundedCornerShape(50))
+                .clickable {
+                    playerConnection.player.setPlaybackSpeed(nextEpisodeSpeed(speed))
+                }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.speed),
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(text = episodeSpeedLabel(speed), color = contentColor, style = MaterialTheme.typography.labelLarge)
+        }
+        IconButton(
+            onClick = {
+                val p = playerConnection.player
+                p.seekTo((p.currentPosition - 30_000).coerceAtLeast(0))
+            },
+            modifier = Modifier.focusBorder(RoundedCornerShape(50)),
+        ) {
+            Icon(painter = painterResource(R.drawable.fast_rewind), contentDescription = null, tint = contentColor)
+        }
+        IconButton(
+            onClick = {
+                val p = playerConnection.player
+                val target = p.currentPosition + 30_000
+                p.seekTo(if (p.duration > 0) target.coerceAtMost(p.duration) else target)
+            },
+            modifier = Modifier.focusBorder(RoundedCornerShape(50)),
+        ) {
+            Icon(painter = painterResource(R.drawable.fast_forward), contentDescription = null, tint = contentColor)
         }
     }
 }

@@ -117,6 +117,7 @@ import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.fadingEdge
 import com.jtech.zemer.ui.utils.resize
 import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.navigateToPodcast
 import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.ArtistViewModel
@@ -146,6 +147,8 @@ fun ArtistScreen(
     val artistPage = viewModel.artistPage
     val isLoadingArtist = viewModel.isLoading
     val libraryArtist by viewModel.libraryArtist.collectAsState()
+    // Bare artist row for the subscribe/bookmark state (works for non-whitelisted podcast channels).
+    val libraryArtistEntity by viewModel.libraryArtistEntity.collectAsState()
     val librarySongs by viewModel.librarySongs.collectAsState()
     val libraryAlbums by viewModel.libraryAlbums.collectAsState()
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
@@ -204,7 +207,7 @@ fun ArtistScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .aspectRatio(1.1f),
+                                .aspectRatio(1f),
                         ) {
                             Spacer(
                                 modifier = Modifier
@@ -264,9 +267,11 @@ fun ArtistScreen(
                                 }
                             }
 
-                            repeat(6) {
-                                ListItemPlaceHolder()
-                            }
+                        }
+                        // Song rows render full-width as top-level list items, so their placeholders
+                        // sit OUTSIDE the 16dp-padded header column (5 = the capped top-songs preview).
+                        repeat(5) {
+                            ListItemPlaceHolder()
                         }
                     }
                 }
@@ -351,17 +356,35 @@ fun ArtistScreen(
                                     OutlinedButton(
                                         onClick = {
                                             database.transaction {
-                                                val artist = libraryArtist?.artist
+                                                // Use the BARE artist row (no whitelist join) so this works
+                                                // for podcast host channels, which are never whitelisted.
+                                                val artist = libraryArtistEntity
                                                 if (artist != null) {
-                                                    update(artist.toggleLike())
+                                                    // Preserve/raise the podcast-channel flag so a channel
+                                                    // subscribed here lands in the Channels library tab.
+                                                    update(
+                                                        artist.copy(
+                                                            isPodcastChannel = artist.isPodcastChannel || viewModel.isPodcastChannel,
+                                                        ).toggleLike()
+                                                    )
                                                 } else {
                                                     artistPage?.artist?.let {
                                                         insert(
+                                                            // Key by the NAV artistId (what the state watches) so the
+                                                            // button reflects the toggle - for a podcast channel the
+                                                            // page's artist.id can differ from the channel id we opened
+                                                            // with. For a podcast channel the nav artistId IS the UC
+                                                            // host channel, so it is a valid subscribe target; a MUSIC
+                                                            // artist keeps a null channelId (its browseId is not a
+                                                            // subscribable channel) so toggleLike() resolves the real
+                                                            // channel via getChannelId() before subscribing.
                                                             ArtistEntity(
-                                                                id = it.id,
+                                                                id = viewModel.artistId,
                                                                 name = it.title,
-                                                                channelId = it.channelId,
+                                                                channelId = it.channelId
+                                                                    ?: viewModel.artistId.takeIf { viewModel.isPodcastChannel },
                                                                 thumbnailUrl = it.thumbnail,
+                                                                isPodcastChannel = viewModel.isPodcastChannel,
                                                             ).toggleLike()
                                                         )
                                                     }
@@ -369,7 +392,7 @@ fun ArtistScreen(
                                             }
                                         },
                                         colors = ButtonDefaults.outlinedButtonColors(
-                                            containerColor = if (libraryArtist?.artist?.bookmarkedAt != null)
+                                            containerColor = if (libraryArtistEntity?.bookmarkedAt != null)
                                                 MaterialTheme.colorScheme.surface
                                             else
                                                 Color.Transparent
@@ -379,7 +402,7 @@ fun ArtistScreen(
                                             .height(40.dp)
                                             .focusRequester(firstFocus)
                                     ) {
-                                        val isSubscribed = libraryArtist?.artist?.bookmarkedAt != null
+                                        val isSubscribed = libraryArtistEntity?.bookmarkedAt != null
                                         Text(
                                             text = stringResource(if (isSubscribed) R.string.subscribed else R.string.subscribe),
                                             color = if (!isSubscribed) MaterialTheme.colorScheme.error else LocalContentColor.current
@@ -394,7 +417,10 @@ fun ArtistScreen(
                                     ) {
                                         // Radio Button — corpus-native Zemer radio (`/radio?kind=artist`),
                                         // whitelist-pure and InnerTube-free. Shown once the artist page loads.
-                                        if (!showLocal && artistPage != null) {
+                                        // Hidden for podcast channels: they aren't in the corpus, so a Zemer
+                                        // artist-radio seeded with a channel id returns nothing (Metrolist shows
+                                        // no radio there either).
+                                        if (!showLocal && artistPage != null && !viewModel.isPodcastChannel) {
                                             OutlinedButton(
                                                 onClick = {
                                                     playerConnection.playQueue(viewModel.radioQueue())
@@ -661,7 +687,7 @@ fun ArtistScreen(
                                     // so a short row (nothing more to reveal) shows no arrow.
                                     onClick = seeAllOnClick(distinctItems.size) {
                                         navController.navigate(
-                                            "artist_section/${viewModel.artistId}?title=${java.net.URLEncoder.encode(section.title, "UTF-8")}",
+                                            "artist_section/${viewModel.artistId}?title=${java.net.URLEncoder.encode(section.title, "UTF-8")}&isPodcastChannel=${viewModel.isPodcastChannel}",
                                         )
                                     },
                                 )
@@ -742,6 +768,8 @@ fun ArtistScreen(
                                         YouTubeGridItem(
                                             item = item,
                                             isActive = when (item) {
+                                                is com.metrolist.innertube.models.PodcastItem -> false
+                                                is com.metrolist.innertube.models.EpisodeItem -> false
                                                 is SongItem -> mediaMetadata?.id == item.id
                                                 is AlbumItem -> mediaMetadata?.album?.id == item.id
                                                 is ArtistItem -> false
@@ -755,11 +783,26 @@ fun ArtistScreen(
                                             // and the clean title shows below. Albums/artists/playlists
                                             // are square anyway. See issue #84.
                                             thumbnailRatio = 1f,
+                                            // A Videos section is all-videos + labelled, so the
+                                            // per-card video badge is redundant and crowds the subtitle.
+                                            showVideoBadge = !isVideoSection,
                                             modifier = Modifier
                                                 .combinedClickable(
                                                     onClick = {
                                                         // Audio-first always (I2); video is a per-play in-player toggle, not an entry point (D3).
                                                         when (item) {
+                                                            // A podcast channel's shelves: open the show, or play the
+                                                            // episode alone (NOT YouTubeQueue - that whitelist-filters
+                                                            // via YouTube.next and would clip a non-corpus episode).
+                                                            is com.metrolist.innertube.models.PodcastItem ->
+                                                                navController.navigateToPodcast(item.id)
+                                                            is com.metrolist.innertube.models.EpisodeItem ->
+                                                                playerConnection.playQueue(
+                                                                    ListQueue(
+                                                                        title = item.title,
+                                                                        items = listOf(item.toMediaItem()),
+                                                                    ),
+                                                                )
                                                             is SongItem -> {
                                                                 playerConnection.playQueue(
                                                                     ZemerRadioQueue.song(

@@ -3,6 +3,7 @@ package com.jtech.zemer.extensions
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_MUSIC
+import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.SongItem
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.MediaMetadata
@@ -49,6 +50,11 @@ fun SongItem.toMediaItem() =
                 .setMediaType(MEDIA_TYPE_MUSIC)
                 .build(),
         ).build()
+
+// EpisodeItem.toMediaMetadata() already produces the same fields (id, title, listOfNotNull(author) ->
+// subtitle/artist, thumbnail.resize(544,544), podcast?.name -> albumTitle), so build the item through it
+// rather than keeping a second hand-rolled copy that could drift.
+fun EpisodeItem.toMediaItem() = toMediaMetadata().toMediaItem()
 
 fun MediaMetadata.toMediaItem() =
     MediaItem

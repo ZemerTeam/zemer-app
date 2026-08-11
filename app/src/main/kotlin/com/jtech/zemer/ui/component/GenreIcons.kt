@@ -44,3 +44,42 @@ internal fun genreIcon(slug: String): Int = when (slug) {
     "melave-malka" -> R.drawable.genre_nightlife
     else -> R.drawable.genre_music_note
 }
+
+/**
+ * The per-genre motif for PODCAST genres (server vocab: zemer-app-podcasts-request.md §genres note) —
+ * the podcast twin of [genreIcon]. Podcast topics (gemara/mussar/halacha/…) don't match the music
+ * motifs, so each slug maps to its own distinct drawable from the shared set: a book for study, a
+ * shield for halacha, a flame for chizuk, and so on — never the plain note for everything. Keyed off
+ * the stable slug; an unknown/new slug falls back to the note so a server addition still renders.
+ *
+ * Owner-reviewed set (2026-08-11): bespoke motifs (balance/candles/family/quill/Zemer note) plus
+ * Material Symbols glyphs; the stock reuses that read wrong were replaced. Slugs are the contract,
+ * so swapping a drawable touches only this map.
+ */
+@DrawableRes
+internal fun podcastGenreIcon(slug: String): Int = when (slug) {
+    "gemara" -> R.drawable.genre_menu_book
+    "parsha" -> R.drawable.genre_parsha
+    "chassidus" -> R.drawable.genre_chassidus
+    "mussar" -> R.drawable.genre_balance // weighing one's conduct
+    "halacha" -> R.drawable.security
+    "machshava" -> R.drawable.genre_machshava
+    "tefilla" -> R.drawable.genre_tefilla // davening figure (owner-supplied art, traced)
+    "stories" -> R.drawable.genre_quill // storytelling, distinct from comedy's masks
+    "history" -> R.drawable.history
+    "kiruv" -> R.drawable.genre_kiruv // bringing people in (group + add)
+    "family" -> R.drawable.genre_family // house with a heart
+    "parnassah" -> R.drawable.genre_coins // dollar coin (livelihood)
+    "health" -> R.drawable.genre_health // ECG heart - medical, not the app's like-heart
+    "news" -> R.drawable.genre_campaign
+    "people" -> R.drawable.person
+    "music" -> R.drawable.genre_zemer_note // the app's own launcher note
+    "chizuk" -> R.drawable.genre_local_fire_department
+    "shiur", "shiurim" -> R.drawable.genre_shiurim
+    "moadim" -> R.drawable.genre_moadim // calendar with a marked festival date
+    "women" -> R.drawable.genre_candles // Shabbos candles
+    "marriage" -> R.drawable.genre_rings
+    "mentalhealth" -> R.drawable.genre_self_improvement // meditation, now unique in this catalog
+    "comedy" -> R.drawable.genre_comedian // stand-up comedian (owner-supplied art, traced)
+    else -> R.drawable.genre_music_note
+}

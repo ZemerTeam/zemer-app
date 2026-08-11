@@ -5,13 +5,16 @@ import com.metrolist.innertube.models.Album
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
 import com.metrolist.innertube.models.filterExplicit
 import com.metrolist.innertube.pages.AlbumPage
 import com.metrolist.innertube.pages.ArtistPage
 import com.metrolist.innertube.pages.ArtistSection
+import com.metrolist.innertube.pages.PodcastPage
 import com.metrolist.innertube.pages.SearchResult
 import com.metrolist.innertube.pages.SearchSummary
 import com.metrolist.innertube.pages.SearchSummaryPage
@@ -31,6 +34,12 @@ import com.jtech.zemer.utils.ContentFilterState
  * Zemer results are already whitelist-scoped server-side, so the local whitelist filter is NOT applied
  * here; only `hideExplicit` is honored (on the song/video lists — the other types are never explicit).
  */
+// Zemer-only search chips — podcasts and episodes have no YouTube [SearchFilter] equivalent. The value
+// is a private key used ONLY client-side to pick the `/search` response's podcast/episode category in
+// [ZemerResultMapper.filtered]; it is never sent to any server (Zemer filtering is response-side).
+val ZEMER_FILTER_PODCAST = SearchFilter("zemer_podcast")
+val ZEMER_FILTER_EPISODE = SearchFilter("zemer_episode")
+
 object ZemerResultMapper {
 
     /**
@@ -255,7 +264,9 @@ object ZemerResultMapper {
             // and mis-id share links. Then the server's own playlistId, then the browseId fallback.
             playlistId = playlistId?.takeIf { it != album.id } ?: album.playlistId ?: album.id,
             title = album.title,
-            artists = if (album.artist.isBlank()) null else listOf(Artist(name = album.artist, id = null)),
+            // `artistId` (when the server sends it) makes the insert resolve the credit by ID —
+            // the name-only fallback is what collided with generated artist rows (stuck-skeleton).
+            artists = if (album.artist.isBlank()) null else listOf(Artist(name = album.artist, id = album.artistId)),
             year = album.year,
             thumbnail = album.thumbnail.orEmpty(),
         )
@@ -264,7 +275,14 @@ object ZemerResultMapper {
             // sortedBy is stable, so untagged tracks keep server order (after the numbered ones).
             .sortedBy { it.trackNumber ?: Int.MAX_VALUE }
             .map { track ->
-                track.toSongItem().copy(
+                track.toSongItem().let { song ->
+                    // Thread the album's artistId into track credits matching the album artist —
+                    // the wire tracks are name-only, and this covers the song-map side of the same
+                    // generated-row collision.
+                    if (album.artistId != null && song.artists.singleOrNull()?.name == album.artist) {
+                        song.copy(artists = listOf(Artist(name = album.artist, id = album.artistId)))
+                    } else song
+                }.copy(
                     album = Album(name = albumItem.title, id = albumItem.browseId),
                     // Prefer the square album art over the derived (letterboxed) video frame.
                     thumbnail = album.thumbnail ?: thumbnailFor(track.videoId),
@@ -303,6 +321,137 @@ object ZemerResultMapper {
                 ?.let { add(ArtistSection(TITLE_PLAYLISTS, it, null)) }
         }
         return ArtistPage(artist = artist.toArtistItem(), sections = sections, description = null)
+    }
+
+    // --- Podcasts. The server serves discovery ready-to-render (whitelist-pure, art guaranteed); these
+    // adapt the wire rows into the SAME InnerTube item/page types the podcast UI already consumes, so
+    // playback (episode = videoId via InnerTube) and the screens are unchanged. ---
+
+    private fun ZemerPodcastShow.toPodcastItem(): PodcastItem =
+        PodcastItem(
+            id = id,
+            title = name,
+            author = author?.takeIf { it.isNotBlank() }?.let { Artist(name = it, id = channelId) },
+            episodeCountText = episodeCountText,
+            thumbnail = thumbnail,
+            playEndpoint = null,
+            shuffleEndpoint = null,
+            channelId = channelId,
+        )
+
+    private fun ZemerPodcastDetail.toPodcastItem(): PodcastItem =
+        PodcastItem(
+            id = id,
+            title = name,
+            author = author?.takeIf { it.isNotBlank() }?.let { Artist(name = it, id = channelId) },
+            episodeCountText = null,
+            thumbnail = thumbnail,
+            playEndpoint = null,
+            shuffleEndpoint = null,
+            channelId = channelId,
+            categories = categories,
+        )
+
+    private fun ZemerPodcastEpisode.toEpisodeItem(): EpisodeItem =
+        EpisodeItem(
+            id = videoId,
+            title = title,
+            // The episode's "author" is its show/host — carries the channelId so an episode row can reach
+            // the host channel, and the podcast name shows under the title.
+            author = podcastName?.takeIf { it.isNotBlank() }?.let { Artist(name = it, id = channelId) },
+            // The owning SHOW ({id, name}) — powers the song menu's "View podcast".
+            podcast = podcastId?.takeIf { it.isNotBlank() }?.let { Album(name = podcastName.orEmpty(), id = it) },
+            duration = durationSeconds.takeIf { it > 0 },
+            publishDateText = publishedAt,
+            // REQUIRED non-null: fall back to the derived video frame when the server omits per-episode art.
+            thumbnail = thumbnail?.takeIf { it.isNotBlank() } ?: thumbnailFor(videoId),
+        )
+
+    private fun List<ZemerPodcastEpisode>.toEpisodeItems(): List<EpisodeItem> =
+        filter { it.videoId.isNotBlank() }.map { it.toEpisodeItem() }.distinctBy { it.id }.dropBlocked()
+
+    private fun List<ZemerPodcastShow>.toPodcastItems(): List<PodcastItem> =
+        filter { it.id.isNotBlank() }.map { it.toPodcastItem() }.distinctBy { it.id }.dropBlocked()
+
+    /** The telemetry-ranked Podcasts-tab rows in native item types (see [podcastHomeRows]). */
+    data class PodcastHomeRows(
+        val featured: List<PodcastItem>,
+        val topPodcasts: List<PodcastItem>,
+        val trendingEpisodes: List<EpisodeItem>,
+    )
+
+    /**
+     * `GET /podcast-home-rows` → the Podcasts-tab ranked rows as the InnerTube item types the podcast UI
+     * already consumes (the podcast analogue of [homeRows]). Whitelist-pure server-side; only the surgical
+     * id-overrides ([dropBlocked], applied inside [toPodcastItems]/[toEpisodeItems]) run client-side.
+     */
+    fun podcastHomeRows(resp: ZemerPodcastHomeRowsResponse): PodcastHomeRows =
+        PodcastHomeRows(
+            featured = resp.featured.toPodcastItems(),
+            topPodcasts = resp.topPodcasts.toPodcastItems(),
+            trendingEpisodes = resp.trendingEpisodes.toEpisodeItems(),
+        )
+
+    /**
+     * A `/podcast` response as the [PodcastPage] the SHOW screen already consumes. Null when the header
+     * is missing (treated as a 404 → the screen backs out). `continuation` carries the server's
+     * `nextOffset` so the screen can page more episodes.
+     */
+    fun ZemerPodcastResponse.toPodcastPage(): PodcastPage? {
+        val detail = podcast?.takeIf { it.id.isNotBlank() } ?: return null
+        return PodcastPage(
+            podcast = detail.toPodcastItem(),
+            episodes = episodes.toEpisodeItems(),
+            continuation = nextOffset?.toString(),
+        )
+    }
+
+    /**
+     * A `/podcast-channel` response as the [ArtistPage] the host-channel screen (ArtistScreen, opened
+     * with `isPodcastChannel=true`) already consumes — the shows shelf becomes a "Podcasts" section and
+     * the loose latest episodes an "Episodes" section. Null when the channel header is missing (404).
+     */
+    fun ZemerPodcastChannelResponse.toArtistPage(): ArtistPage? {
+        val ch = channel?.takeIf { it.id.isNotBlank() } ?: return null
+        val sections = buildList {
+            shows.toPodcastItems().takeIf { it.isNotEmpty() }
+                ?.let { add(ArtistSection(TITLE_PODCASTS, it, null)) }
+            episodes.toEpisodeItems().takeIf { it.isNotEmpty() }
+                ?.let { add(ArtistSection(TITLE_EPISODES, it, null)) }
+        }
+        return ArtistPage(
+            artist = ArtistItem(
+                id = ch.id,
+                title = ch.name,
+                thumbnail = ch.thumbnail,
+                channelId = ch.id,
+                playEndpoint = null,
+                shuffleEndpoint = null,
+                radioEndpoint = null,
+            ),
+            sections = sections,
+            description = ch.description,
+        )
+    }
+
+    /** New Episodes (`/podcasts/new-episodes`) as the episode rows the library feed renders. */
+    fun ZemerNewEpisodesResponse.toEpisodeItems(): List<EpisodeItem> = episodes.toEpisodeItems()
+
+    /** Search-folded podcast shows / episodes (the `podcasts` + `episodes` categories). */
+    fun ZemerSearchResponse.podcastShowItems(): List<PodcastItem> = categories.podcasts.toPodcastItems()
+    fun ZemerSearchResponse.podcastEpisodeItems(): List<EpisodeItem> = categories.episodes.toEpisodeItems()
+
+    /** One podcast genre's page: the display title + its member shows as the standard podcast show cards. */
+    data class PodcastGenrePage(val title: String, val shows: List<PodcastItem>)
+
+    /**
+     * A `/podcast-genres?id=` response as a [PodcastGenrePage] (title + shows). Null when the header is
+     * missing (treated as a 404 → the screen backs out). Shows reuse the existing show mapping, so they
+     * render + route through the same podcast show card as the browse grid / channel shelf.
+     */
+    fun ZemerPodcastGenrePageResponse.toPodcastGenrePage(): PodcastGenrePage? {
+        val g = genre.takeIf { it.id.isNotBlank() } ?: return null
+        return PodcastGenrePage(title = g.title, shows = shows.toPodcastItems())
     }
 
     /**
@@ -426,6 +575,11 @@ object ZemerResultMapper {
             section(TITLE_VIDEOS, videoSongItems(resp, hideExplicit))
             section(TITLE_ARTISTS, artistItems(resp))
             section(TITLE_PLAYLISTS, playlists)
+            // Podcast SHOWS + EPISODES folded in (server reply 2026-08-01). No filter chip, so these
+            // sections render with a non-interactive header (NavigationTitle no-ops without a chip) —
+            // the rows themselves open the show / play the episode.
+            section(TITLE_PODCASTS, resp.podcastShowItems())
+            section(TITLE_EPISODES, resp.podcastEpisodeItems())
         }
         return SearchSummaryPage(summaries = summaries)
     }
@@ -446,6 +600,8 @@ object ZemerResultMapper {
             SearchFilter.FILTER_ALBUM.value -> albumItems(resp)
             SearchFilter.FILTER_COMMUNITY_PLAYLIST.value -> playlistItems(resp.categories.community, formatSongCount)
             SearchFilter.FILTER_FEATURED_PLAYLIST.value -> playlistItems(resp.categories.playlists, formatSongCount)
+            ZEMER_FILTER_PODCAST.value -> resp.podcastShowItems()
+            ZEMER_FILTER_EPISODE.value -> resp.podcastEpisodeItems()
             else -> emptyList()
         }
         return SearchResult(items = items, continuation = null)
@@ -470,7 +626,9 @@ object ZemerResultMapper {
                 albumItems(resp) +
                 songItems(resp.categories.videos, hideExplicit, isVideo = true) +
                 playlistItems(resp.categories.playlists, formatSongCount) +
-                playlistItems(resp.categories.community, formatSongCount))
+                playlistItems(resp.categories.community, formatSongCount) +
+                resp.podcastShowItems() +
+                resp.podcastEpisodeItems())
                 .distinctBy { it.id }
 
         // Drop explicit-flagged songs from the completion strings too (not just the result rows) so an
@@ -498,4 +656,6 @@ object ZemerResultMapper {
     private const val TITLE_VIDEOS = "Videos"
     private const val TITLE_ARTISTS = "Artists"
     private const val TITLE_PLAYLISTS = "Playlists"
+    private const val TITLE_PODCASTS = "Podcasts"
+    private const val TITLE_EPISODES = "Episodes"
 }

@@ -29,6 +29,7 @@ val PureBlackKey = booleanPreferencesKey("pureBlack")
 val DensityScaleKey = floatPreferencesKey("density_scale_factor")
 val CustomDensityScaleKey = floatPreferencesKey("custom_density_scale_value")
 val DefaultOpenTabKey = stringPreferencesKey("defaultOpenTab")
+val HomeContentTabKey = stringPreferencesKey("homeContentTab")
 val BottomNavigationBarEnabledKey = booleanPreferencesKey("bottomNavigationBarEnabled")
 val SlimNavBarKey = booleanPreferencesKey("slimNavBar")
 val BottomNavigationItemsKey = stringPreferencesKey("bottomNavigationItems")
@@ -100,6 +101,8 @@ val LastNightlyAnnouncedKey = stringPreferencesKey("lastNightlyAnnounced")
 val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 val InstallerTypeKey = intPreferencesKey("installerType") // InstallerType ordinal
 val LastWhitelistVersionKey = longPreferencesKey("lastWhitelistVersion")
+val LastPodcastWhitelistSyncTimeKey = longPreferencesKey("lastPodcastWhitelistSyncTime")
+val LastPodcastWhitelistVersionKey = longPreferencesKey("lastPodcastWhitelistVersion")
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")
 
@@ -141,6 +144,10 @@ val DisableScreenshotKey = booleanPreferencesKey("disableScreenshot")
 val ChipSortTypeKey = stringPreferencesKey("chipSortType")
 val SongSortTypeKey = stringPreferencesKey("songSortType")
 val SongSortDescendingKey = booleanPreferencesKey("songSortDescending")
+val PodcastFilterKey = stringPreferencesKey("podcastFilter")
+// Podcast downloaded-episode sort - its OWN keys so it never rewrites the main Songs library sort.
+val PodcastSortTypeKey = stringPreferencesKey("podcastSortType")
+val PodcastSortDescendingKey = booleanPreferencesKey("podcastSortDescending")
 val PlaylistSongSortTypeKey = stringPreferencesKey("playlistSongSortType")
 val PlaylistSongSortDescendingKey = booleanPreferencesKey("playlistSongSortDescending")
 val ArtistSortTypeKey = stringPreferencesKey("artistSortType")
@@ -169,6 +176,7 @@ val ArtistProfilesCacheTimestampKey = longPreferencesKey("artist_profiles_cache_
 val ArtistViewTypeKey = stringPreferencesKey("artistViewType")
 val AlbumViewTypeKey = stringPreferencesKey("albumViewType")
 val PlaylistViewTypeKey = stringPreferencesKey("playlistViewType")
+val PodcastViewTypeKey = stringPreferencesKey("podcastViewType")
 
 val PlaylistEditLockKey = booleanPreferencesKey("playlistEditLock")
 val QuickPicksKey = stringPreferencesKey("discover")
@@ -177,6 +185,11 @@ val AllowFemaleSingersKey = booleanPreferencesKey("allowFemaleSingers")
 val FemalePasscodeHashKey = stringPreferencesKey("femalePasscodeHash")
 val AllowChasidishKey = booleanPreferencesKey("allowChasidish")
 val BlockVideosKey = booleanPreferencesKey("blockVideos")
+val BlockPodcastsKey = booleanPreferencesKey("blockPodcasts")
+// One-time seed guard: on first run after podcast-blocking shipped, blockPodcasts is seeded from
+// blockVideos (a video-blocker gets podcasts blocked too) exactly once, after which the two toggles
+// are independent. See App.kt.
+val BlockPodcastsSeededKey = booleanPreferencesKey("blockPodcastsSeeded")
 
 // Downloaded video-songs also appear (as ordinary audio-first song rows) in the downloaded MUSIC
 // surfaces — the Option A muxed file serves both renditions, so hiding it from music was arbitrary.
@@ -250,6 +263,13 @@ enum class SongSortType {
     NAME,
     ARTIST,
     PLAY_TIME,
+}
+
+/** Sub-filter within the Library -> Podcasts screen (mirrors Metrolist's podcast library tabs). */
+enum class PodcastFilter {
+    EPISODES,
+    CHANNELS,
+    DOWNLOADED,
 }
 
 enum class PlaylistSongSortType {

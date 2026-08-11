@@ -103,7 +103,7 @@ fun KidZoneScreen(
     val headerContent = @Composable {
         ArtistCountHeader(
             titleRes = R.string.kid_zone,
-            artistCount = artists.size,
+            count = artists.size,
             viewType = viewType,
             onToggleViewType = { viewType = viewType.toggle() },
             firstFocus = firstFocus,

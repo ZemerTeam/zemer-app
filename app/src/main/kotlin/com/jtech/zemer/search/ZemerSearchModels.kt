@@ -28,6 +28,10 @@ data class ZemerCategories(
     // (older server build) and then defaults to empty.
     val playlists: List<ZemerPlaylist> = emptyList(),
     val community: List<ZemerPlaylist> = emptyList(),
+    // Podcast SHOWS + EPISODES folded into search (server reply 2026-08-01). Absent on an older
+    // server build → empty. Shows open the podcast SHOW screen; episodes play by videoId.
+    val podcasts: List<ZemerPodcastShow> = emptyList(),
+    val episodes: List<ZemerPodcastEpisode> = emptyList(),
 )
 
 // id/videoId default to "" rather than being required: kotlinx throws MissingFieldException for the
@@ -127,7 +131,8 @@ data class ZemerAlbum(
     val playlistId: String? = null,
     val title: String = "",
     val artist: String = "",
-    // Present on `/home-rows` cards (see [ZemerTrack.artistId]); absent on the search categories.
+    // The primary artist's whitelisted UC… channel id. Present on `/home-rows` cards and (since
+    // 2026-08-11) on `/artist` + `/search` album/single rows — id-based credit resolution.
     val artistId: String? = null,
     val year: Int? = null,
     val thumbnail: String? = null,
@@ -250,6 +255,10 @@ data class ZemerAlbumHeader(
     val playlistId: String? = null,
     val title: String = "",
     val artist: String = "",
+    // The primary artist's whitelisted UC… channel id (live 2026-08-11, stuck-skeleton handoff): lets
+    // the insert resolve the credit by ID instead of the fragile name lookup. Optional — absent falls
+    // back to today's name-only behavior.
+    val artistId: String? = null,
     val year: Int? = null,
     val thumbnail: String? = null,
 )
@@ -282,4 +291,98 @@ data class ZemerArtistResponse(
 data class ZemerRadioResponse(
     val tracks: List<ZemerTrack> = emptyList(),
     val continuation: String? = null,
+)
+
+// ---------------------------------------------------------------------------------------------------
+// Podcasts — server discovery contract (handoff `zemer-app-podcasts-request.md`, server reply
+// 2026-08-01). Every id/videoId defaults to "" (a single sparse row must never blank the whole
+// response — the mapper drops blank-id rows), and durationSeconds defaults to 0 (server sends 0 only
+// when YouTube truly has no length; the client resume math degrades gracefully).
+// ---------------------------------------------------------------------------------------------------
+
+/** A podcast SHOW row (browse grid, search, host-channel shelf). Keyed/routed on the `MPSP…` id. */
+@Serializable
+data class ZemerPodcastShow(
+    val id: String = "",
+    val name: String = "",
+    val author: String? = null,
+    // The host CHANNEL (UC…) the show belongs to — tapping opens the channel (§4) when present, else
+    // the show (§3). Resolved server-side for 167/169 shows; rare misses fall back to the show.
+    val channelId: String? = null,
+    val thumbnail: String? = null,
+    val episodeCountText: String? = null,
+)
+
+/** An episode row (search, show, channel, new-episodes). `videoId` is the YouTube id the app plays. */
+@Serializable
+data class ZemerPodcastEpisode(
+    val videoId: String = "",
+    val title: String = "",
+    val podcastId: String? = null,
+    val podcastName: String? = null,
+    val channelId: String? = null,
+    val thumbnail: String? = null,
+    val durationSeconds: Int = 0,
+    val publishedAt: String? = null,
+)
+
+/** The SHOW header on `GET /podcast?id=` (adds description + categories over the browse row). */
+@Serializable
+data class ZemerPodcastDetail(
+    val id: String = "",
+    val name: String = "",
+    val author: String? = null,
+    val channelId: String? = null,
+    val thumbnail: String? = null,
+    val description: String? = null,
+    val categories: List<String> = emptyList(),
+)
+
+/** `GET /podcast?id=MPSP…&offset=` — the SHOW page. `nextOffset` is null at the end. */
+@Serializable
+data class ZemerPodcastResponse(
+    val podcast: ZemerPodcastDetail? = null,
+    val episodes: List<ZemerPodcastEpisode> = emptyList(),
+    val nextOffset: Int? = null,
+)
+
+/** The host-CHANNEL header on `GET /podcast-channel?id=`. `banner` is currently always absent. */
+@Serializable
+data class ZemerPodcastChannelHeader(
+    val id: String = "",
+    val name: String = "",
+    val thumbnail: String? = null,
+    val banner: String? = null,
+    val description: String? = null,
+)
+
+/** `GET /podcast-channel?id=UC…` — the host-channel page (replaces InnerTube `YouTube.artist`). */
+@Serializable
+data class ZemerPodcastChannelResponse(
+    val channel: ZemerPodcastChannelHeader? = null,
+    val shows: List<ZemerPodcastShow> = emptyList(),
+    val episodes: List<ZemerPodcastEpisode> = emptyList(),
+)
+
+/** `GET /podcasts/new-episodes?k=` — latest episodes across all whitelisted shows, newest-first. */
+@Serializable
+data class ZemerNewEpisodesResponse(
+    val episodes: List<ZemerPodcastEpisode> = emptyList(),
+)
+
+/**
+ * `GET /podcast-home-rows?k=` — the telemetry-ranked Podcasts-tab rows (the podcast analogue of
+ * `/home-rows`, contract: `handoff-docs/zemer-app-podcast-home-rows-request.md`). [topPodcasts] are
+ * shows ranked by completion-weighted distinct-device listening (server-side alphabetical fallback
+ * while telemetry is thin, so the row is never empty); [trendingEpisodes] are episodes by recent
+ * completion-weighted reach. Whitelist-pure + content-filtered server-side; an empty row → the app
+ * hides it (per-row fail-soft). The server's bonus `genres` on a show is ignored (ignoreUnknownKeys).
+ */
+@Serializable
+data class ZemerPodcastHomeRowsResponse(
+    // Hand-curated editorial shows (server `data/podcast-featured.json`), served in order — the strongest
+    // cold-start signal (zero telemetry), rendered as the LEAD row. Server reply 3, 2026-08-07.
+    val featured: List<ZemerPodcastShow> = emptyList(),
+    val topPodcasts: List<ZemerPodcastShow> = emptyList(),
+    val trendingEpisodes: List<ZemerPodcastEpisode> = emptyList(),
 )

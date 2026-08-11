@@ -5,8 +5,11 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBar
@@ -36,6 +39,8 @@ import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
@@ -56,9 +61,12 @@ import com.jtech.zemer.ui.menu.ytItemMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
+import com.jtech.zemer.ui.utils.navigateToPodcast
+import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeSeeAllStore
+import com.jtech.zemer.viewmodels.PodcastHomeSeeAllStore
 
 /**
  * The generic "See all" page for a Home row: the row's full, already-filtered list as a vertical page
@@ -78,6 +86,7 @@ fun HomeSeeAllScreen(
     row: HomeSeeAllRow,
 ) {
     val data by HomeSeeAllStore.data.collectAsState()
+    val podcastData by PodcastHomeSeeAllStore.data.collectAsState()
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
 
     val rowIsEmpty = when (row) {
@@ -88,6 +97,10 @@ fun HomeSeeAllScreen(
         HomeSeeAllRow.QUICK_PICKS -> data.quickPicks.isEmpty()
         HomeSeeAllRow.FORGOTTEN_FAVORITES -> data.forgottenFavorites.isEmpty()
         HomeSeeAllRow.KEEP_LISTENING -> data.keepListening.isEmpty()
+        HomeSeeAllRow.FEATURED_PODCASTS -> podcastData.featured.isEmpty()
+        HomeSeeAllRow.TOP_PODCASTS -> podcastData.topPodcasts.isEmpty()
+        HomeSeeAllRow.TRENDING_EPISODES -> podcastData.trendingEpisodes.isEmpty()
+        HomeSeeAllRow.SUBSCRIBED_CHANNELS -> podcastData.subscribedChannels.isEmpty()
     }
 
     if (rowIsEmpty) {
@@ -103,12 +116,17 @@ fun HomeSeeAllScreen(
             HomeSeeAllRow.FEATURED_ARTISTS ->
                 YtItemGrid(data.featuredArtists, navController)
             HomeSeeAllRow.FEATURED_VIDEOS ->
-                YtItemGrid(data.featuredVideos, navController)
+                YtItemGrid(data.featuredVideos, navController, showVideoBadge = false)
             HomeSeeAllRow.FEATURED_PLAYLISTS ->
                 YtItemGrid(data.featuredPlaylists, navController, zemerPlaylists = data.featuredPlaylistsAreZemer)
             HomeSeeAllRow.QUICK_PICKS -> SongList(data.quickPicks, navController)
             HomeSeeAllRow.FORGOTTEN_FAVORITES -> SongList(data.forgottenFavorites, navController)
             HomeSeeAllRow.KEEP_LISTENING -> LocalItemList(data.keepListening, navController)
+            // Podcast rows: PodcastItem shows open their show, EpisodeItem plays — YtItemGrid handles both.
+            HomeSeeAllRow.FEATURED_PODCASTS -> YtItemGrid(podcastData.featured, navController, podcastChannelFirst = true)
+            HomeSeeAllRow.TOP_PODCASTS -> YtItemGrid(podcastData.topPodcasts, navController, podcastChannelFirst = true)
+            HomeSeeAllRow.TRENDING_EPISODES -> YtItemGrid(podcastData.trendingEpisodes, navController)
+            HomeSeeAllRow.SUBSCRIBED_CHANNELS -> YtItemGrid(podcastData.subscribedChannels, navController, podcastChannelFirst = true)
         }
     }
 
@@ -138,6 +156,22 @@ internal fun <T : YTItem> YtItemGrid(
     // Zemer playlists tag their plays community:<id> by default (the Home community row); the artist
     // page's own playlists are artist-owned, so it passes false to keep them plain playlist:<id>.
     communityPlaylists: Boolean = true,
+    // Optional full-width content above the grid (e.g. the podcast-genre GenreDetailHeader), scrolling
+    // with it as a single list.
+    header: (@Composable () -> Unit)? = null,
+    // Exposed so a caller can drive a scroll-reveal top bar (item 0 is the header, so
+    // firstVisibleItemIndex > 0 means the header has scrolled off).
+    gridState: LazyGridState = rememberLazyGridState(),
+    // Column count. Default 2 (album/artist titles run long); the podcast-genre shows grid passes 3
+    // (square art + short titles pack tighter).
+    columns: Int = 2,
+    // Podcast SHOW routing. Default false = open the show (the channel page's own see-all, which would
+    // otherwise loop back to the channel). The HOME podcast see-alls pass true so a tapped show routes
+    // CHANNEL-first, exactly like the Home rows they open from (whitelistedPodcastRoute).
+    podcastChannelFirst: Boolean = false,
+    // All-videos grid (the Featured Videos see-all) suppresses the redundant per-card video badge,
+    // matching its Home row.
+    showVideoBadge: Boolean = true,
 ) {
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -150,9 +184,13 @@ internal fun <T : YTItem> YtItemGrid(
     LazyVerticalGrid(
         // Two across, not three: album/artist titles here run long (full Hebrew + English names), and a
         // third-of-screen cell chops them mid-word. Two columns give the title + "artist · year" room.
-        columns = GridCells.Fixed(2),
+        state = gridState,
+        columns = GridCells.Fixed(columns),
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) {
+        header?.let {
+            item(span = { GridItemSpan(maxLineSpan) }, key = "yt_grid_header") { it() }
+        }
         items(items = items, key = { it.id }) { item ->
             YouTubeGridItem(
                 item = item,
@@ -160,10 +198,29 @@ internal fun <T : YTItem> YtItemGrid(
                 isPlaying = isPlaying,
                 coroutineScope = scope,
                 thumbnailRatio = 1f,
+                showVideoBadge = showVideoBadge,
                 fillMaxWidth = true,
                 modifier = Modifier.combinedClickable(
                     onClick = {
                         when (item) {
+                            // Podcast SHOW: open the show itself. This grid is a channel page's
+                            // "See all", so it matches the channel page's own tap (navigateToPodcast) -
+                            // NOT the browse-grid channel routing, which (a show carries its channelId)
+                            // would loop straight back to the channel you're already on.
+                            is com.metrolist.innertube.models.PodcastItem ->
+                                if (podcastChannelFirst) {
+                                    whitelistedPodcastRoute(item.id, item.channelId)?.let { navController.navigate(it) }
+                                } else {
+                                    navController.navigateToPodcast(item.id)
+                                }
+                            // Episode: play it alone by videoId through the normal pipeline.
+                            is com.metrolist.innertube.models.EpisodeItem ->
+                                playerConnection.playQueue(
+                                    ListQueue(
+                                        title = item.title,
+                                        items = listOf(item.toMediaItem()),
+                                    ),
+                                )
                             // The only SongItems in this grid are the Featured Videos row. Audio-first
                             // always (I2); video is a per-play in-player toggle, not an entry point (D3).
                             is SongItem -> playerConnection.playQueue(

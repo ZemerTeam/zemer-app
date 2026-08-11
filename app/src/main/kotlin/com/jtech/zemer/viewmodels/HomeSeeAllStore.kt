@@ -6,11 +6,14 @@ import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Song
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Which Home row a "See all" screen is showing. The [slug] is the nav argument (stable, route-safe)
@@ -25,6 +28,11 @@ enum class HomeSeeAllRow(val slug: String, @StringRes val titleRes: Int) {
     KEEP_LISTENING("keep-listening", R.string.keep_listening),
     FORGOTTEN_FAVORITES("forgotten-favorites", R.string.forgotten_favorites),
     QUICK_PICKS("quick-picks", R.string.quick_picks),
+    // Podcasts-tab ranked rows (backed by [PodcastHomeSeeAllStore], not the music [HomeSeeAllStore]).
+    FEATURED_PODCASTS("featured-podcasts", R.string.featured_podcasts),
+    TOP_PODCASTS("top-podcasts", R.string.top_podcasts),
+    TRENDING_EPISODES("trending-episodes", R.string.trending_episodes),
+    SUBSCRIBED_CHANNELS("subscribed-channels", R.string.subscribed_channels),
     ;
 
     companion object {
@@ -61,5 +69,32 @@ object HomeSeeAllStore {
 
     fun publish(data: HomeSeeAllData) {
         _data.value = data
+    }
+}
+
+/** The full Podcasts-tab ranked rows that back their See-all screens (see [PodcastHomeSeeAllStore]). */
+data class PodcastHomeSeeAllData(
+    val featured: List<PodcastItem> = emptyList(),
+    val topPodcasts: List<PodcastItem> = emptyList(),
+    val trendingEpisodes: List<EpisodeItem> = emptyList(),
+    val subscribedChannels: List<PodcastItem> = emptyList(),
+)
+
+/**
+ * The podcast twin of [HomeSeeAllStore], kept SEPARATE from the music store. Two DIFFERENT VMs publish
+ * into it — [PodcastHomeRowsViewModel] (the ranked discovery rows) and PodcastSubscriptionsHomeViewModel
+ * (the subscribed-channels row) — so each writes only its OWN fields via a copy-update, never clobbering
+ * the other's. The See-all screen reads it so what it shows is exactly the row.
+ */
+object PodcastHomeSeeAllStore {
+    private val _data = MutableStateFlow(PodcastHomeSeeAllData())
+    val data: StateFlow<PodcastHomeSeeAllData> = _data.asStateFlow()
+
+    fun publishRows(featured: List<PodcastItem>, topPodcasts: List<PodcastItem>, trendingEpisodes: List<EpisodeItem>) {
+        _data.update { it.copy(featured = featured, topPodcasts = topPodcasts, trendingEpisodes = trendingEpisodes) }
+    }
+
+    fun publishSubscribedChannels(subscribedChannels: List<PodcastItem>) {
+        _data.update { it.copy(subscribedChannels = subscribedChannels) }
     }
 }

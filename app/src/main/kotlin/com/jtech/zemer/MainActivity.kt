@@ -167,6 +167,7 @@ import coil3.request.crossfade
 import coil3.toBitmap
 import com.google.firebase.auth.FirebaseAuth
 import com.jtech.zemer.constants.AppBarHeight
+import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.CheckForUpdatesKey
 import com.jtech.zemer.constants.LastNightlyAnnouncedKey
@@ -243,6 +244,8 @@ import com.jtech.zemer.ui.theme.extractThemeColor
 import com.jtech.zemer.ui.theme.rememberPureBlack
 import com.jtech.zemer.ui.utils.HOME_EASTER_EGG_TAPS
 import com.jtech.zemer.ui.utils.appBarScrollBehavior
+import com.jtech.zemer.ui.utils.channelDeepLinkRoute
+import com.jtech.zemer.utils.PodcastWhitelistCache
 import com.jtech.zemer.ui.utils.easterEggTapCount
 import com.jtech.zemer.ui.utils.playHomeEasterEgg
 import com.jtech.zemer.ui.utils.backToMain
@@ -680,10 +683,12 @@ class MainActivity : ComponentActivity() {
                         DisposableEffect(lifecycleOwner, true) {
 
                             syncScope.launch { syncUtils.syncArtistWhitelist() }
+                        syncScope.launch { syncUtils.syncPodcastWhitelist() }
 
                             val observer = LifecycleEventObserver { _, event ->
                                 if (event == Lifecycle.Event.ON_START) {
                                     syncScope.launch { syncUtils.syncArtistWhitelist() }
+                        syncScope.launch { syncUtils.syncPodcastWhitelist() }
                                 }
                             }
                             lifecycleOwner.lifecycle.addObserver(observer)
@@ -695,6 +700,7 @@ class MainActivity : ComponentActivity() {
                             if (!syncProgress.isComplete && !isWhitelistSyncing && !launchSyncOnce) {
                                 setLaunchSyncOnce(true)
                                 syncScope.launch { syncUtils.syncArtistWhitelist() }
+                        syncScope.launch { syncUtils.syncPodcastWhitelist() }
                             }
                             if (alreadySyncedLocally && !initialSyncHandled) {
                                 setInitialSyncHandled(true)
@@ -799,13 +805,17 @@ class MainActivity : ComponentActivity() {
                             context.dataStore.edit { it[BottomNavArtistsRemovedKey] = true }
                         }
 
-                        // Create bottom navigation items dynamically from preferences
-                        val bottomNavigationItems = remember(bottomNavItemsString) {
+                        // Create bottom navigation items dynamically from preferences.
+                        // A blocked-podcasts user never gets the Podcasts nav item, even if it was
+                        // added to the persisted bar earlier.
+                        val (blockPodcastsNav) = rememberPreference(BlockPodcastsKey, defaultValue = false)
+                        val bottomNavigationItems = remember(bottomNavItemsString, blockPodcastsNav) {
                             val items = mutableListOf<Screens>()
                             bottomNavItemsString.split(",").forEach { itemKey ->
                                 when (itemKey.trim()) {
                                     "home" -> items.add(Screens.Home)
                                     "artists" -> items.add(Screens.Artists)
+                                    "podcasts" -> if (!blockPodcastsNav) items.add(Screens.Podcasts)
                                     "kid_zone" -> items.add(Screens.KidZone)
                                     "search" -> items.add(Screens.Search)
                                     "library" -> items.add(Screens.Library)
@@ -927,6 +937,7 @@ class MainActivity : ComponentActivity() {
                             listOf(
                                 Screens.Home.route,
                                 Screens.Artists.route,
+                                Screens.Podcasts.route,
                                 Screens.KidZone.route,
                                 Screens.Search.route,
                                 Screens.Library.route,
@@ -1198,6 +1209,7 @@ class MainActivity : ComponentActivity() {
                         when (navBackStackEntry?.destination?.route) {
                             Screens.Home.route -> R.string.home
                             Screens.Artists.route -> R.string.artists
+                            Screens.Podcasts.route -> R.string.podcasts
                             Screens.KidZone.route -> R.string.kid_zone
                             Screens.Search.route -> R.string.search
                             Screens.Library.route -> R.string.filter_library
@@ -2108,16 +2120,20 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            "channel", "c" -> uri.lastPathSegment?.let { artistId ->
+            "channel", "c" -> uri.lastPathSegment?.let { channelId ->
                 coroutineScope.launch(Dispatchers.IO) {
-                    // Check if artist is whitelisted before navigating
-                    val isWhitelisted = database.isArtistWhitelisted(artistId)
-                    if (isWhitelisted) {
+                    // Artist-whitelisted opens the music artist page; podcast-whitelisted opens the
+                    // podcast channel page (its Share links point here); otherwise silently ignore.
+                    val route = channelDeepLinkRoute(
+                        channelId = channelId,
+                        artistWhitelisted = database.isArtistWhitelisted(channelId),
+                        podcastWhitelisted = PodcastWhitelistCache.isChannelWhitelisted(channelId),
+                    )
+                    if (route != null) {
                         withContext(Dispatchers.Main) {
-                            navController.navigate("artist/$artistId")
+                            navController.navigate(route)
                         }
                     }
-                    // Silently ignore if not whitelisted
                 }
             }
 

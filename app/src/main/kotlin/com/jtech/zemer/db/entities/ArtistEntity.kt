@@ -26,7 +26,11 @@ data class ArtistEntity(
     val lastUpdateTime: LocalDateTime = LocalDateTime.now(),
     val bookmarkedAt: LocalDateTime? = null,
     @ColumnInfo(name = "isLocal", defaultValue = false.toString())
-    val isLocal: Boolean = false
+    val isLocal: Boolean = false,
+    // Marks a bookmarked artist row as a PODCAST HOST channel (subscribed from a podcast channel page)
+    // so the Library -> Podcasts -> Channels tab can list them (Metrolist parity).
+    @ColumnInfo(name = "isPodcastChannel", defaultValue = "0")
+    val isPodcastChannel: Boolean = false,
 ) {
     val isYouTubeArtist: Boolean
         get() = id.startsWith("UC") || id.startsWith("FEmusic_library_privately_owned_artist")

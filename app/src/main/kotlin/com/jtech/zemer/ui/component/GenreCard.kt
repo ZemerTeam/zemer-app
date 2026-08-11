@@ -24,12 +24,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -48,13 +50,16 @@ private const val WEAVE_DRIFT_MS = 24_000
  * faint in the ONE theme accent. Shared by the catalog [GenreCard] and the genre detail header so
  * the card→page background is one continuous fabric.
  *
- * The motion is a GPU-composited translation, NOT a per-frame redraw: the tile grid is drawn ONCE
- * in [drawBehind] (nothing animated is read there — it only re-draws on a size change), extended a
- * couple of cells past both edges, and a `graphicsLayer` slides the whole rasterized layer by up to
- * one cell. Because the grid period is exactly one cell, the `Restart` at the loop's end is
- * seamless. This is why ~20 of these can animate on the catalog at once without the full-grid
- * per-frame redraw the first cut caused. Always render as a matchParentSize/fillMaxSize child
- * BEHIND the content.
+ * The motion re-issues the tiled blit EVERY frame in [drawWithCache]'s `onDrawBehind` (which reads
+ * the animated `phase`), but the expensive part — rasterizing the vector motif — happens ONCE into a
+ * tiny cached [ImageBitmap] (the cache block re-runs only on a size/motif change). Each frame just
+ * blits that ~16dp tile across a brick-staggered grid at a `phase`-driven x offset in [0, cell], so
+ * the drift loops seamlessly (grid period == one cell). This deliberately REPLACES an earlier
+ * "rasterize the whole grid once into a `graphicsLayer` and slide the cached layer" trick: that
+ * cached layer could be silently evicted when several coexist on the catalog, leaving a card's weave
+ * blank with no input change to trigger a redraw. Blitting a cached tile is cheap enough that ~20 of
+ * these stay smooth without depending on a persistent GPU layer. Always render as a
+ * matchParentSize/fillMaxSize child BEHIND the content.
  */
 @Composable
 fun GenreWeaveLayer(
@@ -78,26 +83,30 @@ fun GenreWeaveLayer(
     Spacer(
         modifier
             .clipToBounds()
-            // Motion lives here: the layer is rasterized once and only re-composited at a new
-            // offset each frame (no redraw). translationX in [0, cell] loops seamlessly.
-            .graphicsLayer { translationX = phase * WEAVE_CELL.toPx() }
-            .drawBehind {
+            .drawWithCache {
                 val cell = WEAVE_CELL.toPx()
                 val small = WEAVE_MOTIF.toPx()
-                var row = 0
-                var y = cell / 4
-                while (y < size.height) {
-                    val stagger = if (row % 2 == 0) 0f else cell / 2
-                    // Start two cells before the left edge so the drift never reveals a gap.
-                    var x = -2 * cell + stagger
-                    while (x < size.width + cell) {
-                        translate(left = x, top = y) {
-                            with(motif) { draw(Size(small, small), alpha = alpha, colorFilter = filter) }
+                // Rasterize the tinted, faint motif ONCE into a small tile; every frame just blits it.
+                val px = small.toInt().coerceAtLeast(1)
+                val tile = ImageBitmap(px, px)
+                CanvasDrawScope().draw(this, layoutDirection, Canvas(tile), Size(px.toFloat(), px.toFloat())) {
+                    with(motif) { draw(Size(small, small), alpha = alpha, colorFilter = filter) }
+                }
+                onDrawBehind {
+                    val drift = phase * cell
+                    var row = 0
+                    var y = cell / 4
+                    while (y < size.height) {
+                        val stagger = if (row % 2 == 0) 0f else cell / 2
+                        // Start two cells before the left edge so the drift never reveals a gap.
+                        var x = -2 * cell + stagger + drift
+                        while (x < size.width + cell) {
+                            drawImage(tile, topLeft = Offset(x, y))
+                            x += cell
                         }
-                        x += cell
+                        y += cell
+                        row++
                     }
-                    y += cell
-                    row++
                 }
             },
     )
@@ -115,9 +124,11 @@ fun GenreCard(
     slug: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // Overrides the slug→motif lookup (music by default) so podcast genres get their own icons.
+    @androidx.annotation.DrawableRes iconOverride: Int? = null,
 ) {
     val shape = RoundedCornerShape(20.dp)
-    val motif = painterResource(genreIcon(slug))
+    val motif = painterResource(iconOverride ?: genreIcon(slug))
     val accent = MaterialTheme.colorScheme.primary
     Box(
         modifier = modifier

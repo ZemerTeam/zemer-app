@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.jtech.zemer.LocalDatabase
+import com.jtech.zemer.playback.EpisodeResume
 import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.LocalSyncUtils
@@ -70,7 +71,6 @@ import com.jtech.zemer.ui.component.SelectArtistDialog
 import com.jtech.zemer.ui.utils.ShowMediaInfo
 import com.jtech.zemer.ui.utils.resize
 import com.jtech.zemer.ui.utils.navigateToArtist
-import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.utils.rememberPreference
@@ -354,35 +354,44 @@ fun YouTubeSongMenu(
                         libraryMenuItem(
                             inLibrary = librarySong?.song?.inLibrary != null,
                             onToggle = {
-                                val isInLibrary = librarySong?.song?.inLibrary != null
-                                val token = if (isInLibrary) song.libraryRemoveToken else song.libraryAddToken
-
-                                // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
-                                if (isPersonalAccountSignedIn) {
-                                    token?.let {
-                                        coroutineScope.launch {
-                                            YouTube.feedback(listOf(it))
-                                        }
-                                    }
-                                }
-
-                                if (isInLibrary) {
-                                    database.query {
-                                        inLibrary(song.id, null)
-                                    }
+                                // An EPISODE saves via the VLSE episode endpoint (toggleSaveEpisode: local
+                                // upsert stamped isEpisode + addEpisodeToSavedEpisodes / remove), NOT the
+                                // music library feedback token — episodes carry no library token, so the
+                                // music path pushed nothing to YouTube Music and never stamped isEpisode.
+                                if (song.isEpisode) {
+                                    val entity = librarySong?.song ?: song.toMediaMetadata().toSongEntity()
+                                    syncUtils.toggleSaveEpisode(entity)
                                 } else {
-                                    // Set isVideo flag when adding video to library
-                                    val metadata = song.toMediaMetadata().let {
-                                        if (isVideo) it.copy(isVideo = true) else it
-                                    }
-                                    database.transaction {
-                                        insert(metadata)
-                                        // Ensure isVideo is set even if song already exists (insert uses IGNORE)
-                                        if (isVideo) {
-                                            setIsVideo(song.id, true)
+                                    val isInLibrary = librarySong?.song?.inLibrary != null
+                                    val token = if (isInLibrary) song.libraryRemoveToken else song.libraryAddToken
+
+                                    // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+                                    if (isPersonalAccountSignedIn) {
+                                        token?.let {
+                                            coroutineScope.launch {
+                                                YouTube.feedback(listOf(it))
+                                            }
                                         }
-                                        inLibrary(song.id, LocalDateTime.now())
-                                        addLibraryTokens(song.id, song.libraryAddToken, song.libraryRemoveToken)
+                                    }
+
+                                    if (isInLibrary) {
+                                        database.query {
+                                            inLibrary(song.id, null)
+                                        }
+                                    } else {
+                                        // Set isVideo flag when adding video to library
+                                        val metadata = song.toMediaMetadata().let {
+                                            if (isVideo) it.copy(isVideo = true) else it
+                                        }
+                                        database.transaction {
+                                            insert(metadata)
+                                            // Ensure isVideo is set even if song already exists (insert uses IGNORE)
+                                            if (isVideo) {
+                                                setIsVideo(song.id, true)
+                                            }
+                                            inLibrary(song.id, LocalDateTime.now())
+                                            addLibraryTokens(song.id, song.libraryAddToken, song.libraryRemoveToken)
+                                        }
                                     }
                                 }
                             },
@@ -426,6 +435,38 @@ fun YouTubeSongMenu(
                         onRetry = { downloadUtil.retryMediaStoreDownload(song.id) },
                         onRemove = { coroutineScope.launch { downloadUtil.removeDownload(song.id) } },
                     )?.let { add(it) }
+                    // Episode-only: mark played (position -> end) / unplayed (position -> 0), local.
+                    if (song.isEpisode) {
+                        song.duration?.takeIf { it > 0 }?.times(1000L)?.let { durationMs ->
+                            val positionMs = librarySong?.song?.lastPositionMs ?: 0L
+                            val isPlayed = positionMs > EpisodeResume.RESUME_EDGE_MS &&
+                                !EpisodeResume.shouldResume(positionMs, durationMs)
+                            add(
+                                Material3MenuItemData(
+                                    icon = {
+                                        Icon(
+                                            painterResource(if (isPlayed) R.drawable.replay else R.drawable.check),
+                                            null,
+                                            Modifier.size(24.dp),
+                                        )
+                                    },
+                                    title = {
+                                        Text(stringResource(if (isPlayed) R.string.mark_as_unplayed else R.string.mark_as_played))
+                                    },
+                                    onClick = {
+                                        val target = if (isPlayed) 0L else durationMs
+                                        database.query {
+                                            val rows = updateEpisodePosition(song.id, target)
+                                            if (rows == 0) {
+                                                insert(song.toMediaMetadata().toSongEntity().copy(lastPositionMs = target, isEpisode = true))
+                                            }
+                                        }
+                                        onDismiss()
+                                    },
+                                )
+                            )
+                        }
+                    }
                     if (artists.isNotEmpty()) {
                         add(
                             Material3MenuItemData(
@@ -446,18 +487,7 @@ fun YouTubeSongMenu(
                             )
                         )
                     }
-                    song.album?.takeIf { !it.id.isNullOrBlank() }?.let { album ->
-                        add(
-                            Material3MenuItemData(
-                                icon = { Icon(painterResource(R.drawable.album), null, Modifier.size(24.dp)) },
-                                title = { Text(stringResource(R.string.view_album)) },
-                                onClick = {
-                                    navController.navigateToAlbum(album.id)
-                                    onDismiss()
-                                },
-                            )
-                        )
-                    }
+                    viewCollectionMenuItem(song.isEpisode, song.album?.id, navController, onDismiss)?.let { add(it) }
                     add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.info), null, Modifier.size(24.dp)) },

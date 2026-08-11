@@ -1,11 +1,15 @@
 package com.jtech.zemer.ui.screens
 
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -17,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
@@ -49,12 +54,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import kotlinx.coroutines.CoroutineScope
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.BlockPodcastsKey
+import androidx.datastore.preferences.core.edit
+import com.jtech.zemer.constants.HomeContentTabKey
 import com.jtech.zemer.constants.ShowHomeGenresKey
 import com.jtech.zemer.constants.ShowHomeStatusesKey
 import com.jtech.zemer.constants.GridThumbnailHeight
@@ -68,6 +77,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerGenresRoute
+import com.jtech.zemer.search.zemerPodcastGenresRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.tracking.TrackImpressionsByKey
@@ -77,7 +87,16 @@ import com.jtech.zemer.ui.component.ArtistGridItem
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
+import com.jtech.zemer.extensions.toMediaItem
+import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.NavigationTitle
+import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import com.jtech.zemer.extensions.toEnum
+import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.ui.component.ZemerCuratedPlaylistGridItem
 import com.jtech.zemer.ui.component.SongGridItem
 import com.jtech.zemer.ui.component.SongListItem
@@ -111,6 +130,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.jtech.zemer.viewmodels.STATION_ROW_REFRESH_MS
 import com.jtech.zemer.viewmodels.ZemerGenresViewModel
+import com.jtech.zemer.viewmodels.PodcastHomeRowsViewModel
+import com.jtech.zemer.viewmodels.PodcastSubscriptionsHomeViewModel
 import com.jtech.zemer.viewmodels.ZemerStatusesViewModel
 import com.jtech.zemer.viewmodels.ZemerStationsViewModel
 import com.metrolist.innertube.models.AlbumItem
@@ -170,14 +191,49 @@ fun HomeScreen(
     // Passed to the row so each ring counts only statuses the user can view under their content filter
     // (the ring never over-counts hidden kinds). Creators are NOT dropped - only the ring reflects it.
     val statusContentFilter by zemerStatusesViewModel.contentFilter.collectAsState()
+    val podcastHomeRowsViewModel: PodcastHomeRowsViewModel = hiltViewModel()
+    val featuredPodcasts by podcastHomeRowsViewModel.featured.collectAsState()
+    val topPodcasts by podcastHomeRowsViewModel.topPodcasts.collectAsState()
+    val trendingEpisodes by podcastHomeRowsViewModel.trendingEpisodes.collectAsState()
+    // Subscription-driven podcast rows (New Episodes + Subscribed Channels) — LOCAL sources, so identical
+    // for anon + Google login. Own isolated fail-soft VM; each row hides when empty.
+    val podcastSubscriptionsViewModel: PodcastSubscriptionsHomeViewModel = hiltViewModel()
+    val homeNewEpisodes by podcastSubscriptionsViewModel.newEpisodes.collectAsState()
+    val homeSubscribedChannels by podcastSubscriptionsViewModel.subscribedChannels.collectAsState()
+    // The Home "Podcast Genres" chips strip, above the Podcasts row. Isolated + fail-soft like the
+    // music genres strip: an outage leaves the list empty and the strip hides.
+    val podcastGenresHomeViewModel: com.jtech.zemer.viewmodels.PodcastGenresHomeViewModel = hiltViewModel()
+    val homePodcastGenres by podcastGenresHomeViewModel.genres.collectAsState()
+    val continueListeningViewModel: com.jtech.zemer.viewmodels.ContinueListeningViewModel = hiltViewModel()
+    val continueEpisodes by continueListeningViewModel.episodes.collectAsState()
     // Settings → Appearance owns these toggles (there is deliberately no in-row hide affordance).
     val (showHomeGenres, _) = rememberPreference(ShowHomeGenresKey, defaultValue = true)
     val (showHomeStatuses, _) = rememberPreference(ShowHomeStatusesKey, defaultValue = true)
+    // Home content-type tab (Music / Podcasts / Radio / Video); each renders only its own shelves.
+    // Persisted to DataStore. Seeded from ONE async snapshot that reads the tab AND Block Podcasts
+    // together: no main-thread disk read, no flash of Music, and no flash of a blocked Podcasts tab.
+    // Null = snapshot not landed yet (first frame renders no tab content).
+    var homeTab by remember { mutableStateOf<HomeContentTab?>(null) }
+    LaunchedEffect(Unit) {
+        val prefs = context.dataStore.data.first()
+        homeTab = effectiveHomeTab(
+            persisted = prefs[HomeContentTabKey].toEnum(HomeContentTab.MUSIC),
+            blockPodcasts = prefs[BlockPodcastsKey] == true,
+        )
+    }
+    val tabWriteScope = rememberCoroutineScope()
+    val setHomeTab: (HomeContentTab) -> Unit = { tab ->
+        homeTab = tab
+        tabWriteScope.launch { context.dataStore.edit { it[HomeContentTabKey] = tab.name } }
+    }
     // The curated endpoint's freshness contract is a plain re-fetch on screen open (single-digit-ms
     // server reads) — this also picks up a card removed by curation while a detail open 404'd.
     LaunchedEffect(Unit) {
         zemerPlaylistsViewModel.refresh()
         zemerGenresViewModel.refresh()
+        podcastGenresHomeViewModel.refresh()
+        podcastHomeRowsViewModel.refresh()
+        podcastSubscriptionsViewModel.fetchNewEpisodes()
         zemerStatusesViewModel.refresh()
     }
     val stationsLifecycleOwner = LocalLifecycleOwner.current
@@ -194,6 +250,27 @@ fun HomeScreen(
         }
     }
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    val (blockPodcasts, _) = rememberPreference(BlockPodcastsKey, false)
+    // Blocking podcasts hides the whole content type (unlike videos, which relabel to audio) — drop the
+    // tab and, if it was the persisted selection, fall back to Music so a blocked user never lands on it.
+    LaunchedEffect(blockPodcasts, homeTab) {
+        val current = homeTab ?: return@LaunchedEffect
+        val effective = effectiveHomeTab(current, blockPodcasts)
+        if (effective != current) setHomeTab(effective)
+    }
+    // Chip order/visibility is the pure, unit-tested visibleHomeTabs; only labels are resolved here.
+    // The Video tab is ALWAYS shown; blocked-video users get it relabeled "Video songs" — its rows play
+    // audio-first (the Featured Videos shelf follows the same relabel), so it's never hidden.
+    val homeContentChips = visibleHomeTabs(blockPodcasts).map { tab ->
+        tab to stringResource(
+            when (tab) {
+                HomeContentTab.MUSIC -> R.string.music
+                HomeContentTab.RADIO -> R.string.radio
+                HomeContentTab.PODCASTS -> R.string.podcasts
+                HomeContentTab.VIDEO -> if (blockVideos) R.string.video_songs else R.string.videos
+            }
+        )
+    }
     homeUiState.isNewUser
 
 
@@ -363,6 +440,8 @@ fun HomeScreen(
                 .combinedClickable(
                     onClick = {
                         when (item) {
+                            is com.metrolist.innertube.models.PodcastItem -> {}
+                            is com.metrolist.innertube.models.EpisodeItem -> {}
                             is SongItem -> playerConnection.playQueue(
                                 ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service)
                             )
@@ -422,6 +501,9 @@ fun HomeScreen(
                     zemerPlaylistsViewModel.refresh()
                     zemerStationsViewModel.refresh()
                     zemerGenresViewModel.refresh()
+                    podcastGenresHomeViewModel.refresh()
+                    podcastHomeRowsViewModel.refresh()
+                    podcastSubscriptionsViewModel.fetchNewEpisodes()
                     zemerStatusesViewModel.refresh(force = true) // pull-to-refresh always re-fetches
                 }
             ),
@@ -457,12 +539,36 @@ fun HomeScreen(
                 featuredVideos.isNotEmpty() ||
                 latestReleases.isNotEmpty() ||
                 zemerPlaylists.isNotEmpty()
-        val shouldShowShimmer = isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent)
+        // MUST stay scoped to HomeContentTab.MUSIC: this skeleton matches the MUSIC home layout (title +
+        // card row). isLoading + the has*HomeContent flags are all music-VM state, so on Radio/Podcasts/
+        // Videos it would paint a music-shaped skeleton that never resolves into anything on that tab.
+        // Ratcheted by R22-home-shimmer (scripts/ui-audit.sh).
+        val shouldShowShimmer = homeTab == HomeContentTab.MUSIC && (isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent))
 
         LazyColumn(
             state = lazylistState,
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
         ) {
+                // Content-type selector (Music / Podcasts / Radio / Video) — reuses the Library
+                // ChipsRow. Each tab renders only its own shelves below; Video is dropped when videos
+                // are blocked. See HomeContentTab.
+                stickyHeader(key = "home_content_tabs", contentType = "header") {
+                    // Opaque background so shelves scrolling under the pinned selector stay hidden.
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(vertical = 4.dp)
+                    ) {
+                        ChipsRow(
+                            chips = homeContentChips,
+                            currentValue = homeTab,
+                            onValueUpdate = { it?.let(setHomeTab) },
+                        )
+                    }
+                }
+
+                if (homeTab == HomeContentTab.MUSIC) {
                 // Genre chips carousel — the first thing on Home, above Quick Picks (owner
                 // placement). Hidden by the Appearance toggle or when the catalog is
                 // empty/unreachable (fail-soft, like every optional home row).
@@ -671,36 +777,42 @@ fun HomeScreen(
                     }
                 }
 
+                } // end MUSIC (part 1)
+
+                if (homeTab == HomeContentTab.RADIO) {
                 // "Zemer Radio" - the synchronized broadcast stations (one shared wall-clock
                 // schedule per station; tap = tune in at the live position). Live cards only;
                 // empty/unreachable hides the row (the /home-rows fail-soft convention). The Home
                 // tab is never reachable from inside KidZone, satisfying the contract's
                 // hide-in-kidZone rule the same way the curated shelf does.
+                // Radio is a dedicated tab, not a discovery shelf: a shared-title header (no See-all arrow)
+                // over a full 3-column grid. Chunked into Rows so the grid scrolls inside the Home
+                // LazyColumn without a nested vertical scroll.
                 zemerStations.takeIf { it.isNotEmpty() }?.let { stations ->
                     item(key = "zemer_stations_title", contentType = "header") {
                         NavigationTitle(
-                            title = stringResource(R.string.zemer_radio),
-                            onClick = { navController.navigate("zemer_stations") },
+                            title = stringResource(R.string.zemer_radio_stations),
                             modifier = Modifier.animateItem()
                         )
                     }
-
-                    item(key = "zemer_stations_list", contentType = "grid") {
-                        LazyRow(
-                            contentPadding = WindowInsets.systemBars
-                                .only(WindowInsetsSides.Horizontal)
-                                .asPaddingValues(),
-                            modifier = Modifier.animateItem()
+                    items(
+                        items = stations.chunked(3),
+                        key = { row -> "zemer_stations_row_${row.first().id}" },
+                        contentType = { "zemer_stations_grid_row" },
+                    ) { rowStations ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                .animateItem(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            items(
-                                items = stations,
-                                key = { it.id },
-                                contentType = { "zemer_station" }
-                            ) { station ->
+                            rowStations.forEach { station ->
                                 ZemerStationCard(
                                     station = station,
+                                    fillMaxWidth = true,
                                     modifier = Modifier
-                                        .animateItem()
+                                        .weight(1f)
                                         .clickable {
                                             // Tune in at the live broadcast position.
                                             playerConnection.playQueue(
@@ -709,10 +821,15 @@ fun HomeScreen(
                                         }
                                 )
                             }
+                            // Pad a short final row so 1-2 cards keep the grid's cell width.
+                            repeat(3 - rowStations.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
                 }
 
+                } // end RADIO
+
+                if (homeTab == HomeContentTab.MUSIC) {
                 featuredPlaylists.takeIf { it.isNotEmpty() }?.let { playlists ->
                     item(key = "featured_playlists_title", contentType = "header") {
                         NavigationTitle(
@@ -932,6 +1049,9 @@ fun HomeScreen(
                 }
             }
 
+            } // end MUSIC (part 2)
+
+            if (homeTab == HomeContentTab.VIDEO) {
             // Shown to blocked-video users too — the rows play audio-first, so for them the shelf is
             // simply their "video songs" (relabelled, watch/download-video affordances gated off).
             if (featuredVideos.isNotEmpty()) {
@@ -977,6 +1097,9 @@ fun HomeScreen(
                                 // crop hides most of the title text YouTube bakes into the 16:9 video
                                 // thumbnail, which is illegible behind the card. See issue #84.
                                 thumbnailRatio = 1f,
+                                // All-videos row, already labelled "Video Songs" — the per-card badge
+                                // is redundant and would crowd the subtitle onto a second line.
+                                showVideoBadge = false,
                                 modifier = Modifier
                                     .combinedClickable(
                                         onClick = {
@@ -1004,6 +1127,181 @@ fun HomeScreen(
                     }
                 }
             }
+
+            } // end VIDEO
+
+            if (homeTab == HomeContentTab.PODCASTS && !blockPodcasts) {
+                // Podcast Genres strip: the podcast twin of the music genres chips — LEADS the Podcasts
+                // tab. Own isolated fail-soft VM (empty -> hidden); arrow -> catalog.
+                homePodcastGenres.takeIf { it.isNotEmpty() }?.let { genres ->
+                    item(key = "podcast_genre_chips_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.genres),
+                            onClick = { navController.navigate(zemerPodcastGenresRoute()) },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                    item(key = "podcast_genre_chips_list", contentType = "grid") {
+                        HomePodcastGenresRow(
+                            genres = genres,
+                            navController = navController,
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                }
+
+                // Continue Listening: in-progress episodes, most-recently-played first — the resume
+                // affordance, sitting directly UNDER the Genres strip. Own isolated fail-soft VM (empty ->
+                // hidden). Tapping resumes the episode (saved position restored on load by MusicService).
+                continueEpisodes.takeIf { it.isNotEmpty() }?.let { eps ->
+                    item(key = "continue_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.continue_listening),
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                    item(key = "continue_row", contentType = "grid") {
+                        HomeContinueListeningRow(
+                            episodes = eps,
+                            onPlay = { song ->
+                                playerConnection.playQueue(
+                                    ListQueue(
+                                        title = song.song.title,
+                                        items = listOf(song.toMediaItem()),
+                                        playSource = PlaySource.podcast(song.song.albumId),
+                                    )
+                                )
+                            },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                }
+
+                // New Episodes: the newest episodes from the shows you're subscribed to (LOCAL-scoped, so it
+                // works for anon + Google). The row already renders the FULL feed, so it has no See-all (like
+                // Continue Listening). Tap plays the episode; long-press opens the episode menu (a SongItem
+                // with isEpisode -> YouTubeSongMenu's episode branch: save-for-later / view podcast).
+                podcastHomeRow(
+                    keyPrefix = "home_new_episodes",
+                    titleRes = R.string.new_episodes,
+                    items = homeNewEpisodes,
+                    isPlaying = isPlaying,
+                    scope = scope,
+                    activePlayingId = mediaMetadata?.id,
+                    onClick = { episode ->
+                        playerConnection.playQueue(
+                            ListQueue(
+                                title = episode.title,
+                                items = listOf(episode.toMediaItem()),
+                                playSource = PlaySource.podcast(episode.album?.id),
+                            )
+                        )
+                    },
+                    onLongClick = { episode ->
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        menuState.show {
+                            YouTubeSongMenu(
+                                song = episode,
+                                navController = navController,
+                                onDismiss = menuState::dismiss,
+                            )
+                        }
+                    },
+                )
+
+                // Subscribed Channels: the user's own podcast-channel subscriptions (local bookmarks +
+                // channels of subscribed shows, whitelist + female gated in the VM) — anon + Google alike.
+                // SQUARE PodcastItem cards (an ArtistItem would render a circle, off next to the others).
+                // See-all -> the home_see_all grid (like the other home rows, NOT the Library tab).
+                podcastHomeRow(
+                    keyPrefix = "home_sub_channels",
+                    titleRes = R.string.subscribed_channels,
+                    items = homeSubscribedChannels.map { channel ->
+                        com.metrolist.innertube.models.PodcastItem(
+                            id = channel.id,
+                            title = channel.name,
+                            author = null,
+                            episodeCountText = null,
+                            thumbnail = channel.thumbnailUrl,
+                            playEndpoint = null,
+                            shuffleEndpoint = null,
+                            channelId = channel.id,
+                        )
+                    },
+                    isPlaying = isPlaying,
+                    scope = scope,
+                    activePlayingId = mediaMetadata?.id,
+                    onSeeAll = { navController.navigate("home_see_all/${HomeSeeAllRow.SUBSCRIBED_CHANNELS.slug}") },
+                    onClick = { channel -> navController.navigateToArtist(channel.id, isPodcastChannel = true) },
+                )
+
+                // Featured: the hand-curated editorial shows (server `featured`), the LEAD show shelf and
+                // strongest cold-start signal (zero telemetry). Channel-first routing; See-all -> ranked list.
+                podcastHomeRow(
+                    keyPrefix = "featured_podcasts",
+                    titleRes = R.string.featured_podcasts,
+                    items = featuredPodcasts,
+                    isPlaying = isPlaying,
+                    scope = scope,
+                    activePlayingId = mediaMetadata?.id,
+                    onSeeAll = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_PODCASTS.slug}") },
+                    onClick = { podcast ->
+                        whitelistedPodcastRoute(podcast.id, podcast.channelId)?.let { navController.navigate(it) }
+                    },
+                )
+
+                // Top Podcasts: the telemetry-ranked shows row (Music-tab parity with Featured Artists). See
+                // all -> the full ranked list of THESE shows (home_see_all, NOT the channel whitelist browse).
+                // The server fills its own fallback while podcast telemetry is thin, so it's rarely empty.
+                podcastHomeRow(
+                    keyPrefix = "top_podcasts",
+                    titleRes = R.string.top_podcasts,
+                    items = topPodcasts,
+                    isPlaying = isPlaying,
+                    scope = scope,
+                    activePlayingId = mediaMetadata?.id,
+                    onSeeAll = { navController.navigate("home_see_all/${HomeSeeAllRow.TOP_PODCASTS.slug}") },
+                    onClick = { podcast ->
+                        // Channel-first routing, like every other show row (search/genre): open the host
+                        // channel when known, else the show.
+                        whitelistedPodcastRoute(podcast.id, podcast.channelId)?.let { navController.navigate(it) }
+                    },
+                )
+
+                // Trending Episodes: the ranked episodes row (Music-tab parity with Featured Videos). Tap
+                // plays by videoId; long-press opens the episode menu (EpisodeItem -> asSongItem() -> the
+                // episode branch of YouTubeSongMenu, wired to its episode type).
+                podcastHomeRow(
+                    keyPrefix = "trending_episodes",
+                    titleRes = R.string.trending_episodes,
+                    items = trendingEpisodes,
+                    isPlaying = isPlaying,
+                    scope = scope,
+                    activePlayingId = mediaMetadata?.id,
+                    onSeeAll = { navController.navigate("home_see_all/${HomeSeeAllRow.TRENDING_EPISODES.slug}") },
+                    onClick = { episode ->
+                        playerConnection.playQueue(
+                            ListQueue(
+                                title = episode.title,
+                                items = listOf(episode.toMediaItem()),
+                                playSource = PlaySource.podcast(episode.podcast?.id),
+                            )
+                        )
+                    },
+                    onLongClick = { episode ->
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        menuState.show {
+                            YouTubeSongMenu(
+                                song = episode.asSongItem(),
+                                navController = navController,
+                                onDismiss = menuState::dismiss,
+                            )
+                        }
+                    },
+                )
+
+
+            } // end PODCASTS
 
             if (shouldShowShimmer) {
                 item(key = "loading_shimmer") {
@@ -1052,4 +1350,60 @@ fun HomeScreen(
 private fun <T> rememberRowImpressionIds(items: List<T>, idOf: (T) -> String?): (Any?) -> String? {
     val ids = remember(items) { items.mapNotNull(idOf).toSet() }
     return remember(ids) { { key -> (key as? String)?.takeIf(ids::contains) } }
+}
+
+/**
+ * One Podcasts-tab home row (a section header + a horizontal card row), the podcast twin of the music
+ * tab's `ytGridItem` shelves. Extracted so New Episodes / Subscribed Channels / Featured / Top Podcasts /
+ * Trending Episodes can't drift — before this, five hand-rolled copies of the same LazyRow diverged (one
+ * lacked the dedup guard, one the See-all arrow, the episode rows the long-press menu).
+ *
+ * - Items are DEDUPED by id here, unconditionally: the keyed [LazyRow] crashes on a duplicate key, and a
+ *   telemetry-ranked server row can repeat an id when its fallback fill overlaps its ranked set. The music
+ *   rows guard this with `distinctBy`; this is the single chokepoint for the podcast rows.
+ * - [onSeeAll] null hides the arrow (NavigationTitle gates it on onClick); pass it to expose the see-all.
+ * - [onLongClick] null means tap-only; the episode rows pass a menu opener typed to their OWN item so the
+ *   menu dispatches correctly (a SongItem episode vs. an EpisodeItem converted with asSongItem()).
+ * - [activePlayingId] is the currently-playing videoId; an episode card highlights when it matches, a
+ *   show/channel card never does (its id is an MPSP/UC id, not a videoId).
+ */
+@OptIn(ExperimentalFoundationApi::class)
+private fun <T : YTItem> LazyListScope.podcastHomeRow(
+    keyPrefix: String,
+    @StringRes titleRes: Int,
+    items: List<T>,
+    isPlaying: Boolean,
+    scope: CoroutineScope,
+    activePlayingId: String?,
+    onSeeAll: (() -> Unit)? = null,
+    onClick: (T) -> Unit,
+    onLongClick: ((T) -> Unit)? = null,
+) {
+    val unique = items.distinctBy { it.id }
+    if (unique.isEmpty()) return
+    item(key = "${keyPrefix}_title", contentType = "header") {
+        NavigationTitle(title = stringResource(titleRes), onClick = onSeeAll, modifier = Modifier.animateItem())
+    }
+    item(key = "${keyPrefix}_list", contentType = "grid") {
+        LazyRow(
+            contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
+            modifier = Modifier.animateItem(),
+        ) {
+            items(items = unique, key = { "${keyPrefix}_${it.id}" }, contentType = { keyPrefix }) { item ->
+                YouTubeGridItem(
+                    item = item,
+                    isActive = item.id == activePlayingId,
+                    isPlaying = isPlaying,
+                    coroutineScope = scope,
+                    thumbnailRatio = 1f,
+                    modifier = Modifier
+                        .combinedClickable(
+                            onClick = { onClick(item) },
+                            onLongClick = onLongClick?.let { open -> { open(item) } },
+                        )
+                        .animateItem(),
+                )
+            }
+        }
+    }
 }

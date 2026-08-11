@@ -54,6 +54,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackingActionKind
+import com.jtech.zemer.utils.VideoLinkBuilder
 
 @Composable
 fun ArtistMenu(
@@ -214,7 +215,7 @@ fun ArtistMenu(
                                 onClick = {
                                     onDismiss()
                                     Tracker.action(TrackingActionKind.SHARE, artist.id)
-                                    context.shareText("https://music.zemer.io/channel/${artist.id}")
+                                    context.shareText(VideoLinkBuilder.channelLink(artist.id))
                                 }
                             )
                         )

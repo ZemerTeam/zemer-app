@@ -2,7 +2,8 @@ package com.jtech.zemer.ui.screens.playlist
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,13 +25,14 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.IconCategoryCard
 import com.jtech.zemer.viewmodels.DownloadedContentViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DownloadedContentScreen(
     navController: NavController,
@@ -38,9 +40,11 @@ fun DownloadedContentScreen(
     viewModel: DownloadedContentViewModel = hiltViewModel(),
 ) {
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    val (blockPodcasts, _) = rememberPreference(BlockPodcastsKey, false)
     val musicCount by viewModel.downloadedMusicCount.collectAsState()
     val videoCount by viewModel.downloadedVideoCount.collectAsState()
     val statusCount by viewModel.downloadedStatusCount.collectAsState()
+    val podcastCount by viewModel.downloadedPodcastCount.collectAsState()
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -54,14 +58,17 @@ fun DownloadedContentScreen(
             }
 
             item {
-                Row(
+                // Two-per-row so the tiles stay readable now that there are four download types; each
+                // shares the one neutral IconCategoryCard box (color/shape/typography identical), the
+                // caller only varies icon/labels/destination.
+                FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    maxItemsInEachRow = 2,
                 ) {
-                    // All three category tiles share one neutral box (IconCategoryCard) so their color,
-                    // shape and typography stay identical - the caller only varies icon/labels/destination.
                     IconCategoryCard(
                         iconRes = R.drawable.music_note,
                         title = stringResource(R.string.music),
@@ -82,6 +89,20 @@ fun DownloadedContentScreen(
                         onClick = { navController.navigate("downloaded_videos") },
                         modifier = Modifier.weight(1f),
                     )
+
+                    // Downloaded podcast episodes. Reuses the auto-playlist screen (same as Music) with a
+                    // downloaded_episodes source; a video episode keeps its in-player video toggle there.
+                    // Hidden when podcasts are blocked (podcasts are a hidden content type, unlike videos).
+                    if (!blockPodcasts) {
+                        IconCategoryCard(
+                            iconRes = R.drawable.podcast,
+                            title = stringResource(R.string.podcasts),
+                            subtitle = pluralStringResource(R.plurals.n_episode, podcastCount, podcastCount),
+                            onClick = { navController.navigate("auto_playlist/downloaded_episodes") },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+
                     // The Status tile stays gated: Music Status is genuinely video-first/watchable
                     // content, unlike the Videos tile above (see AGENTS.md §Music Status).
                     if (!blockVideos) {

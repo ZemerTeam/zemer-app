@@ -44,17 +44,22 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.BlockPodcastsKey
+import com.jtech.zemer.search.ZEMER_FILTER_PODCAST
+import com.jtech.zemer.search.ZEMER_FILTER_EPISODE
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -78,6 +83,8 @@ import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_VIDEO
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.EpisodeItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
 import kotlinx.coroutines.delay
@@ -108,6 +115,17 @@ fun OnlineSearchResult(
 
     val searchFilter by viewModel.filter.collectAsState()
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
+    val (blockPodcasts, _) = rememberPreference(BlockPodcastsKey, false)
+    // Block Podcasts must also evict an ALREADY-SELECTED podcast/episode chip: the chip row below
+    // hides those chips reactively, but the retained ViewModel keeps its selected filter and the
+    // fetched page — without this reset a results screen left on the Podcasts chip keeps rendering
+    // blocked content after a Settings round-trip (HomeScreen's PODCASTS -> MUSIC snap is the same
+    // rule for the home tabs).
+    LaunchedEffect(blockPodcasts) {
+        if (!searchFilterAllowed(viewModel.filter.value, blockPodcasts)) {
+            viewModel.filter.value = null
+        }
+    }
     val searchSummary = viewModel.summaryPage
     val isSummaryLoading by viewModel.isSummaryLoading.collectAsState()
     val summaryError by viewModel.summaryError.collectAsState()
@@ -153,6 +171,16 @@ fun OnlineSearchResult(
         val activate = {
             Tracker.click(viewModel.query, item.id, clickKind(item, searchFilter?.value), rank)
             when (item) {
+                // Podcast SHOW: open the host channel when known (where Subscribe lives), else the show —
+                // exactly the browse-grid routing (whitelistedPodcastRoute).
+                is PodcastItem -> {
+                    val route = whitelistedPodcastRoute(item.id, item.channelId)
+                    if (route != null) navController.navigate(route)
+                }
+                // Episode taps go through the shared single-episode queue (never song radio), with
+                // the same declared source as the sibling song taps.
+                is EpisodeItem ->
+                    playerConnection.playQueue(ListQueue.episode(item, PlaySource.SEARCH))
                 is SongItem -> {
                     // Audio-first always (I2): every result plays as a normal song; video is a per-play
                     // in-player toggle, never a separate watch entry point (D3).
@@ -261,6 +289,12 @@ fun OnlineSearchResult(
                     add(FILTER_ARTIST to stringResource(R.string.filter_artists))
                     add(FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists))
                     add(FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists))
+                    // Podcasts + episodes are corpus content with no YouTube filter. Hidden entirely
+                    // when podcasts are blocked (same content type as the gated summary sections).
+                    if (!blockPodcasts) {
+                        add(ZEMER_FILTER_PODCAST to stringResource(R.string.filter_podcasts))
+                        add(ZEMER_FILTER_EPISODE to stringResource(R.string.filter_episodes))
+                    }
                 },
                 currentValue = searchFilter,
                 onValueUpdate = {
@@ -333,7 +367,10 @@ fun OnlineSearchResult(
 
                 else -> {
                     searchSummary?.summaries?.forEach { summary ->
-                        if (summary.items.isNotEmpty()) {
+                        // Blocked podcasts hide the whole content type — both the podcast SHOWS section
+                        // and the EPISODES section (episodes are podcast content too).
+                        val isPodcastSection = summary.items.firstOrNull().let { it is PodcastItem || it is EpisodeItem }
+                        if (summary.items.isNotEmpty() && !(blockPodcasts && isPodcastSection)) {
                             item {
                                 val summaryFilter =
                                     summary.items.firstOrNull()?.let(::mapItemToFilter)
@@ -411,10 +448,14 @@ fun OnlineSearchResult(
                 }
 
                 else -> {
-                    itemsIndexed(
-                        items = itemsPage?.items.orEmpty().distinctBy { it.id },
-                        key = { _, it -> filteredItemKey(it.id) },
-                    ) { index, it -> ytItemContent(it, index) }
+                    // Belt-and-braces for the frame(s) before the LaunchedEffect above resets a
+                    // now-disallowed podcast/episode filter: never render its page.
+                    if (searchFilterAllowed(searchFilter, blockPodcasts)) {
+                        itemsIndexed(
+                            items = itemsPage?.items.orEmpty().distinctBy { it.id },
+                            key = { _, it -> filteredItemKey(it.id) },
+                        ) { index, it -> ytItemContent(it, index) }
+                    }
                 }
             }
         }
@@ -441,6 +482,8 @@ private fun clickKind(item: YTItem, filterValue: String?): String = when (item) 
     is SongItem -> if (item.isVideo) "video" else "song"
     is AlbumItem -> "album"
     is ArtistItem -> "artist"
+    is PodcastItem -> "podcast"
+    is EpisodeItem -> "episode"
     is PlaylistItem -> if (playlistIsCommunity(filterValue)) "community" else "playlist"
 }
 
@@ -462,4 +505,7 @@ private fun mapItemToFilter(item: YTItem): com.metrolist.innertube.YouTube.Searc
         is AlbumItem -> FILTER_ALBUM
         is ArtistItem -> FILTER_ARTIST
         is PlaylistItem -> FILTER_COMMUNITY_PLAYLIST
+        // Podcasts/episodes have their own Zemer chips, so a summary section's "see all" switches to them.
+        is PodcastItem -> ZEMER_FILTER_PODCAST
+        is EpisodeItem -> ZEMER_FILTER_EPISODE
     }

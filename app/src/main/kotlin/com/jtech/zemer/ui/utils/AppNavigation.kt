@@ -16,16 +16,47 @@ import androidx.navigation.NavController
  * The route strings are built by the pure [artistRoute] / [albumRoute] so the blank-id guard is
  * unit-tested without an Android runtime (see AppNavigationTest).
  */
-fun artistRoute(artistId: String?): String? =
-    artistId?.takeIf { it.isNotBlank() }?.let { "artist/$it" }
+fun artistRoute(artistId: String?, isPodcastChannel: Boolean = false): String? =
+    artistId?.takeIf { it.isNotBlank() }?.let {
+        // A podcast host channel reuses ArtistScreen; the flag rides the route so ArtistViewModel loads it
+        // from the Zemer server (/podcast-channel), whitelist-pure - not the deleted InnerTube artist path.
+        if (isPodcastChannel) "artist/$it?isPodcastChannel=true" else "artist/$it"
+    }
 
 fun albumRoute(albumId: String?): String? =
     albumId?.takeIf { it.isNotBlank() }?.let { "album/$it" }
 
-fun NavController.navigateToArtist(artistId: String?) {
-    artistRoute(artistId)?.let(::navigate)
+fun podcastRoute(podcastId: String?): String? =
+    podcastId?.takeIf { it.isNotBlank() }?.let { "online_podcast/$it" }
+
+/**
+ * Where a browsed whitelisted podcast opens: the host CHANNEL page when a channelId is known (that is
+ * where Subscribe + the host's shows live), otherwise the show's own episode list. Pure so the routing
+ * decision is unit-tested (see AppNavigationTest).
+ */
+fun whitelistedPodcastRoute(podcastId: String?, channelId: String?): String? =
+    channelId?.takeIf { it.isNotBlank() }?.let { artistRoute(it, isPodcastChannel = true) }
+        ?: podcastRoute(podcastId)
+
+/**
+ * Where a `channel/<UC…>` deep link opens: the music artist page for an artist-whitelisted channel,
+ * the podcast channel page for a podcast-whitelisted one, null (silently ignored) otherwise. A
+ * podcast-only channel must not dead-end — its Share links point here.
+ */
+fun channelDeepLinkRoute(channelId: String?, artistWhitelisted: Boolean, podcastWhitelisted: Boolean): String? = when {
+    artistWhitelisted -> artistRoute(channelId)
+    podcastWhitelisted -> artistRoute(channelId, isPodcastChannel = true)
+    else -> null
+}
+
+fun NavController.navigateToArtist(artistId: String?, isPodcastChannel: Boolean = false) {
+    artistRoute(artistId, isPodcastChannel)?.let(::navigate)
 }
 
 fun NavController.navigateToAlbum(albumId: String?) {
     albumRoute(albumId)?.let(::navigate)
+}
+
+fun NavController.navigateToPodcast(podcastId: String?) {
+    podcastRoute(podcastId)?.let(::navigate)
 }

@@ -329,6 +329,16 @@ class App : Application(), SingletonImageLoader.Factory {
         if (!settings.contains(AllowChasidishKey)) {
             dataStore.edit { it[AllowChasidishKey] = false }
         }
+        // One-time seed: whoever already blocks videos gets podcasts blocked too. Runs exactly once
+        // (fresh installs seed false=false, matching the default-off parity); after this the two are
+        // independent toggles. See BlockPodcastsSeededKey.
+        if (settings[BlockPodcastsSeededKey] != true) {
+            val seededBlockPodcasts = settings[BlockVideosKey] ?: false
+            dataStore.edit {
+                it[BlockPodcastsKey] = seededBlockPodcasts
+                it[BlockPodcastsSeededKey] = true
+            }
+        }
         // Auto-enable update checks on fresh install
         if (!settings.contains(CheckForUpdatesKey)) {
             dataStore.edit { it[CheckForUpdatesKey] = true }
@@ -412,6 +422,7 @@ class App : Application(), SingletonImageLoader.Factory {
                         filtersEnabled = prefs[EnableContentFiltersKey] ?: true,
                         allowFemaleSingers = prefs[AllowFemaleSingersKey] ?: false,
                         blockVideos = prefs[BlockVideosKey] ?: false,
+                        blockPodcasts = prefs[BlockPodcastsKey] ?: false,
                     )
                 }
                 .distinctUntilChanged()

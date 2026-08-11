@@ -1,6 +1,7 @@
 package com.jtech.zemer.models
 
 import androidx.compose.runtime.Immutable
+import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.SongItem
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.db.entities.SongEntity
@@ -25,6 +26,7 @@ data class MediaMetadata(
     val libraryAddToken: String? = null,
     val libraryRemoveToken: String? = null,
     val isVideo: Boolean = false,
+    val isEpisode: Boolean = false,
 ) : Serializable {
     data class Artist(
         val id: String?,
@@ -50,7 +52,8 @@ data class MediaMetadata(
             inLibrary = inLibrary,
             libraryAddToken = libraryAddToken,
             libraryRemoveToken = libraryRemoveToken,
-            isVideo = isVideo
+            isVideo = isVideo,
+            isEpisode = isEpisode
         )
 }
 
@@ -80,6 +83,7 @@ fun Song.toMediaMetadata() =
             )
         },
         isVideo = song.isVideo,
+        isEpisode = song.isEpisode,
     )
 
 fun SongItem.toMediaMetadata(): MediaMetadata {
@@ -109,6 +113,31 @@ fun SongItem.toMediaMetadata(): MediaMetadata {
         explicit = explicit,
         setVideoId = setVideoId,
         libraryAddToken = libraryAddToken,
-        libraryRemoveToken = libraryRemoveToken
+        libraryRemoveToken = libraryRemoveToken,
+        isEpisode = isEpisode
     )
 }
+
+fun EpisodeItem.toMediaMetadata() =
+    MediaMetadata(
+        id = id,
+        title = title,
+        artists = listOfNotNull(author).map {
+            MediaMetadata.Artist(
+                id = it.id,
+                name = it.name,
+            )
+        },
+        duration = duration ?: -1,
+        thumbnailUrl = thumbnail.resize(544, 544),
+        album = podcast?.let {
+            MediaMetadata.Album(
+                id = it.id,
+                title = it.name,
+            )
+        },
+        explicit = explicit,
+        libraryAddToken = libraryAddToken,
+        libraryRemoveToken = libraryRemoveToken,
+        isEpisode = true
+    )

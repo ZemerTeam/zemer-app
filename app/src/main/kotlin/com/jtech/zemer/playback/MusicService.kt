@@ -120,6 +120,7 @@ import com.jtech.zemer.extensions.toPersistQueue
 import com.jtech.zemer.extensions.toQueue
 import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.lyrics.LyricsHelper
+import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.PersistPlayerState
 import com.jtech.zemer.models.PersistQueue
 import com.jtech.zemer.models.toMediaMetadata
@@ -227,6 +228,12 @@ class MusicService :
     // scoped like the cast control plane so its cast/block auto-revert works even with no UI bound.
     val videoModeController by lazy { VideoModeController(this, scope) }
 
+    // Podcast-episode resume (persist position + seek back on the next open). Extracted from this service
+    // so the resume policy lives in one place; no-ops for songs and while casting.
+    private val episodePositionTracker by lazy {
+        EpisodePositionTracker(player, scope, database) { discoveryHandler.isConnected }
+    }
+
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
     private var lastAudioFocusState = AudioManager.AUDIOFOCUS_NONE
@@ -305,6 +312,10 @@ class MusicService :
     private var loudnessEnhancer: LoudnessEnhancer? = null
 
     private var lastPlaybackSpeed = 1.0f
+    // Tracks whether the item that just finished was a podcast episode, so episode playback speed can be
+    // reset ONLY when leaving an episode — never on an ordinary music-to-music transition (which would
+    // wipe a tempo the user set via the player's Tempo & Pitch dialog).
+    private var previousItemWasEpisode = false
 
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
 
@@ -895,7 +906,12 @@ class MusicService :
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
-        if (isPlaying) startWidgetTicker() else updateWidget()
+        if (isPlaying) {
+            startWidgetTicker()
+        } else {
+            updateWidget()
+        }
+        episodePositionTracker.onIsPlayingChanged(isPlaying)
     }
 
     private fun updateNotification() {
@@ -1293,19 +1309,26 @@ class MusicService :
     }
 
     fun toggleLike() {
-        database.query {
-            currentSong.value?.let {
-                val song = it.song.toggleLike()
+        val songData = currentSong.value ?: return
+
+        // Episodes toggle "save for later" (inLibrary), not a like. Optimistic local flip + account
+        // sync + revert all live in SyncUtils.toggleSaveEpisode (the episode analogue of likeSong).
+        if (songData.song.isEpisode) {
+            syncUtils.toggleSaveEpisode(songData.song)
+        } else {
+            // Regular song - toggle like
+            database.query {
+                val song = songData.song.toggleLike()
                 update(song)
                 syncUtils.likeSong(song)
 
                 // Check if auto-download on like is enabled and the song is now liked
                 if (dataStore.get(AutoDownloadOnLikeKey, false) && song.liked) {
                     // Trigger download for the liked song (use video download if isVideo)
-                    if (it.song.isVideo) {
-                        downloadUtil.downloadVideoToMediaStore(it, fromUser = false)
+                    if (songData.song.isVideo) {
+                        downloadUtil.downloadVideoToMediaStore(songData, fromUser = false)
                     } else {
-                        downloadUtil.downloadToMediaStore(it, fromUser = false)
+                        downloadUtil.downloadToMediaStore(songData, fromUser = false)
                     }
                 }
             }
@@ -1498,6 +1521,19 @@ class MusicService :
         // being destroyed mid-cast. It is the single owner (PlayerConnection no longer reloads), so the
         // receiver is loaded exactly once per transition.
         castController.onMediaItemTransition(mediaItem, reason)
+
+        // Episode playback speed must never leak into music, but a music tempo set via Tempo & Pitch must
+        // persist across music tracks. So reset to 1x ONLY when leaving an episode for a non-episode —
+        // never on every non-episode transition.
+        val nowEpisode = mediaItem?.metadata?.isEpisode == true
+        if (previousItemWasEpisode && !nowEpisode && player.playbackParameters.speed != 1f) {
+            player.setPlaybackSpeed(1f)
+        }
+        previousItemWasEpisode = nowEpisode
+
+        // Episode resume: flush the outgoing episode's position and, for an incoming episode, seek back
+        // to where the user left off (local playback only). All the resume policy lives in the tracker.
+        episodePositionTracker.onTransition(mediaItem)
 
         // Station boundary sync (handoff par. 4): the ONLY place broadcast drift is corrected -
         // bidirectional (seek forward when behind, wait when ahead, re-tune when nothing queued is
@@ -2381,6 +2417,9 @@ class MusicService :
     }
 
     override fun onDestroy() {
+        // ALWAYS SAVE: flush the current episode's position before the player is released, so a
+        // swipe-kill still resumes next time.
+        episodePositionTracker.onDestroyFlush()
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
         }

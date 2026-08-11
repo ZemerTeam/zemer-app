@@ -28,6 +28,7 @@ import com.jtech.zemer.ui.screens.playlist.DownloadedContentScreen
 import com.jtech.zemer.ui.screens.playlist.DownloadedVideosScreen
 import com.jtech.zemer.ui.screens.playlist.LocalPlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.OnlinePlaylistScreen
+import com.jtech.zemer.ui.screens.podcast.OnlinePodcastScreen
 import com.jtech.zemer.ui.screens.playlist.TopPlaylistScreen
 import com.jtech.zemer.ui.screens.playlist.ZemerCuratedPlaylistScreen
 import com.jtech.zemer.ui.screens.recognition.RecognitionHistoryScreen
@@ -68,6 +69,19 @@ fun NavGraphBuilder.navigationBuilder(
     composable(Screens.Artists.route) {
         WhitelistedArtistsScreen(navController, searchBarScrollBehavior)
     }
+    composable(Screens.Podcasts.route) {
+        WhitelistedPodcastsScreen(navController, searchBarScrollBehavior)
+    }
+    composable(
+        route = "online_podcast/{podcastId}",
+        arguments = listOf(
+            navArgument("podcastId") {
+                type = NavType.StringType
+            },
+        ),
+    ) {
+        OnlinePodcastScreen(navController, scrollBehavior)
+    }
     composable(Screens.KidZone.route) {
         KidZoneScreen(navController)
     }
@@ -100,9 +114,6 @@ fun NavGraphBuilder.navigationBuilder(
     composable("zemer_playlists") {
         ZemerPlaylistsScreen(navController, scrollBehavior)
     }
-    composable("zemer_stations") {
-        ZemerStationsScreen(navController, scrollBehavior)
-    }
     composable("genres") {
         GenresScreen(navController, scrollBehavior)
     }
@@ -133,6 +144,19 @@ fun NavGraphBuilder.navigationBuilder(
         if (genreId.isNullOrBlank()) LaunchedEffect(Unit) { navController.navigateUp() }
         else GenreSectionScreen(navController, scrollBehavior)
     }
+    composable("podcast_genres") {
+        PodcastGenresScreen(navController, scrollBehavior)
+    }
+    composable(
+        // One podcast genre's flat show list. {genreId} is the server slug; blank = broken deep link,
+        // pop back; unknown 404s and the screen backs itself out.
+        route = "podcast_genre/{genreId}",
+        arguments = listOf(navArgument("genreId") { type = NavType.StringType }),
+    ) {
+        val genreId = it.arguments?.getString("genreId")
+        if (genreId.isNullOrBlank()) LaunchedEffect(Unit) { navController.navigateUp() }
+        else PodcastGenreScreen(navController, scrollBehavior)
+    }
     composable(
         route = "home_see_all/{row}",
         arguments = listOf(navArgument("row") { type = NavType.StringType }),
@@ -143,12 +167,18 @@ fun NavGraphBuilder.navigationBuilder(
         else HomeSeeAllScreen(navController, scrollBehavior, row)
     }
     composable(
-        route = "artist_section/{artistId}?title={title}",
+        route = "artist_section/{artistId}?title={title}&isPodcastChannel={isPodcastChannel}",
         arguments = listOf(
             navArgument("artistId") { type = NavType.StringType },
             navArgument("title") {
                 type = NavType.StringType
                 defaultValue = ""
+            },
+            // Carried through so the section's ArtistViewModel loads the podcast-channel endpoint
+            // (/podcast-channel) rather than the music /artist path for a UC... channel id.
+            navArgument("isPodcastChannel") {
+                type = NavType.BoolType
+                defaultValue = false
             },
         ),
     ) {
@@ -216,11 +246,15 @@ fun NavGraphBuilder.navigationBuilder(
         AlbumScreen(navController, scrollBehavior)
     }
     composable(
-        route = "artist/{artistId}",
+        route = "artist/{artistId}?isPodcastChannel={isPodcastChannel}",
         arguments =
         listOf(
             navArgument("artistId") {
                 type = NavType.StringType
+            },
+            navArgument("isPodcastChannel") {
+                type = NavType.BoolType
+                defaultValue = false
             },
         ),
     ) {

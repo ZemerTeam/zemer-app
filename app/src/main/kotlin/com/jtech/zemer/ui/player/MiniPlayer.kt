@@ -627,8 +627,10 @@ private fun NewMiniPlayer(
                 // Subscribe/Subscribed button
                 mediaMetadata?.let { metadata ->
                     metadata.artists.firstOrNull()?.id?.let { artistId ->
-                        val libraryArtist by database.artist(artistId).collectAsState(initial = null)
-                        val isSubscribed = libraryArtist?.artist?.bookmarkedAt != null
+                        // Bare artist row (no whitelist JOIN) so this reflects for a podcast HOST
+                        // channel too - the whitelist-scoped artist(id) is always null for them.
+                        val libraryArtist by database.artistEntity(artistId).collectAsState(initial = null)
+                        val isSubscribed = libraryArtist?.bookmarkedAt != null
 
                         Box(
                             contentAlignment = Alignment.Center,
@@ -663,7 +665,7 @@ private fun NewMiniPlayer(
                                 .focusable()
                                 .clickable {
                                     database.transaction {
-                                        val artist = libraryArtist?.artist
+                                        val artist = libraryArtist
                                         if (artist != null) {
                                             update(artist.toggleLike())
                                         } else {
@@ -672,8 +674,12 @@ private fun NewMiniPlayer(
                                                     ArtistEntity(
                                                         id = artistInfo.id ?: "",
                                                         name = artistInfo.name,
-                                                        channelId = null,
+                                                        // For a podcast episode the "artist" is the host
+                                                        // channel: mark it so it lands in the Channels tab
+                                                        // and the server subscribe hits the right id.
+                                                        channelId = if (metadata.isEpisode) artistInfo.id else null,
                                                         thumbnailUrl = null,
+                                                        isPodcastChannel = metadata.isEpisode,
                                                     ).toggleLike()
                                                 )
                                             }
@@ -701,7 +707,7 @@ private fun NewMiniPlayer(
                 // Favorite button (right side)
                 mediaMetadata?.let { metadata ->
                     val librarySong by database.song(metadata.id).collectAsState(initial = null)
-                    val isLiked = librarySong?.song?.liked == true
+                    val isLiked = librarySong?.song?.isSavedForPlayer == true
 
                     Box(
                         contentAlignment = Alignment.Center,

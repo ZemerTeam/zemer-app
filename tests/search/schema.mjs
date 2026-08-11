@@ -80,11 +80,11 @@ export const SCHEMA = {
   ItemSectionRenderer: { contents: optList("ISR_Content") }, // header unencoded (cosmetic)
   ISR_Content: { musicResponsiveListItemRenderer: opt("MRLIR") },
 
-  // ---- the filter chip cloud (zemer declares isSelected + navigationEndpoint NON-NULL) ----
+  // ---- the filter chip cloud (zemer declares navigationEndpoint NON-NULL) ----
   ChipCloudRenderer: { chips: reqList("Chip") },
   Chip: { chipCloudChipRenderer: req("ChipCloudChipRenderer") },
   ChipCloudChipRenderer: {
-    isSelected: req(),                         // <- zemer-strict (Metrolist made these nullable)
+    isSelected: opt(),                         // defaulted false in SectionListRenderer.kt (podcast branch)
     navigationEndpoint: req("NavigationEndpoint"),
     onDeselectedCommand: opt("NavigationEndpoint"),
     text: opt("Runs"),

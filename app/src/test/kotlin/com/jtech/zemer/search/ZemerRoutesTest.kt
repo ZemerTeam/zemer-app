@@ -50,6 +50,13 @@ class ZemerRoutesTest {
     }
 
     @Test
+    fun `podcast genre routes are the raw slugs, matching the registered destinations`() {
+        assertEquals("podcast_genres", zemerPodcastGenresRoute())
+        assertEquals("podcast_genre/parsha", zemerPodcastGenreRoute("parsha"))
+        assertEquals("podcast_genre/machshava-mussar", zemerPodcastGenreRoute("machshava-mussar"))
+    }
+
+    @Test
     fun `the search telemetry provider wire value is pinned`() {
         assertEquals("zemer", com.jtech.zemer.viewmodels.SEARCH_TRACKED_PROVIDER)
     }

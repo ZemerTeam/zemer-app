@@ -68,7 +68,6 @@ import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.utils.navigateToArtist
-import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.metrolist.innertube.YouTube
@@ -309,19 +308,13 @@ fun PlayerMenu(
                             },
                         )
                     )
-                    mediaMetadata.album?.takeIf { !it.id.isNullOrBlank() }?.let { album ->
-                        add(
-                            Material3MenuItemData(
-                                icon = { Icon(painterResource(R.drawable.album), null, Modifier.size(24.dp)) },
-                                title = { Text(stringResource(R.string.view_album)) },
-                                onClick = {
-                                    navController.navigateToAlbum(album.id)
-                                    playerBottomSheetState.collapseSoft()
-                                    onDismiss()
-                                },
-                            )
-                        )
-                    }
+                    viewCollectionMenuItem(
+                        isEpisode = mediaMetadata.isEpisode,
+                        collectionId = mediaMetadata.album?.id,
+                        navController = navController,
+                        onDismiss = onDismiss,
+                        beforeNavigate = { playerBottomSheetState.collapseSoft() },
+                    )?.let { add(it) }
                     // Unified download row: persisted-or-live state, live progress, video-aware, and the
                     // menu stays open so it animates Download -> progress -> Remove. (DownloadMenuItems.kt)
                     // Option A: a video-capable item downloads its MUXED video (audio+video) so the

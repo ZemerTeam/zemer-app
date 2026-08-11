@@ -103,7 +103,9 @@ import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
+import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
 import kotlinx.coroutines.CoroutineScope
@@ -856,6 +858,8 @@ fun YouTubeListItem(
                 is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
                 is ArtistItem -> null
                 is PlaylistItem -> joinByBullet(item.author?.name, item.songCountText)
+                is PodcastItem -> joinByBullet(item.author?.name, item.episodeCountText)
+                is EpisodeItem -> joinByBullet(item.publishDateText, item.duration?.let { makeTimeString(it.times(1000L)) })
             },
             badges = badges,
             thumbnailContent = {
@@ -894,10 +898,54 @@ fun YouTubeListItem(
 }
 
 @Composable
+fun EpisodeListItem(
+    episode: EpisodeItem,
+    modifier: Modifier = Modifier,
+    isActive: Boolean = false,
+    isPlaying: Boolean = false,
+    resumePositionMs: Long? = null,
+    trailingContent: @Composable RowScope.() -> Unit = {},
+) {
+    // For an in-progress (not finished, not just-started) episode, show how much time is left.
+    val durationMs = episode.duration?.times(1000L)
+    val timeLeft = resumePositionMs
+        ?.takeIf { com.jtech.zemer.playback.EpisodeResume.shouldResume(it, durationMs) }
+        ?.let { pos -> durationMs?.let { d -> makeTimeString((d - pos).coerceAtLeast(0)) } }
+    ListItem(
+        title = episode.title,
+        subtitle = joinByBullet(
+            episode.publishDateText,
+            if (timeLeft != null) stringResource(R.string.episode_time_left, timeLeft)
+            else episode.duration?.let { makeTimeString(it.times(1000L)) }
+        ),
+        badges = {
+            if (episode.explicit) Icon.Explicit()
+        },
+        thumbnailContent = {
+            ItemThumbnail(
+                thumbnailUrl = episode.thumbnail,
+                isActive = isActive,
+                isPlaying = isPlaying,
+                shape = RoundedCornerShape(ThumbnailCornerRadius),
+                modifier = Modifier.size(ListThumbnailSize)
+            )
+        },
+        trailingContent = trailingContent,
+        modifier = modifier,
+        isActive = isActive
+    )
+}
+
+@Composable
 fun YouTubeGridItem(
     item: YTItem,
     modifier: Modifier = Modifier,
     coroutineScope: CoroutineScope? = null,
+    // The per-card video badge is redundant (and steals subtitle width, forcing an ugly
+    // "Artist •" / "duration" wrap) in a row that is ALREADY all-videos and labelled as such
+    // (Home Featured Videos, its see-all, the artist Videos section). Pass false there; leave it
+    // on for mixed contexts like search where the badge distinguishes a video from a song.
+    showVideoBadge: Boolean = true,
     badges: @Composable RowScope.() -> Unit = {
         val database = LocalDatabase.current
         val song by produceState<Song?>(initialValue = null, item.id) {
@@ -918,7 +966,7 @@ fun YouTubeGridItem(
             Icon.Favorite()
         }
         if (item.explicit) Icon.Explicit()
-        if (item is SongItem && item.isVideo) Icon.Video()
+        if (showVideoBadge && item is SongItem && item.isVideo) Icon.Video()
         if (item is SongItem && song?.song?.inLibrary != null) Icon.Library()
         when (item) {
             is SongItem -> SongDownloadBadge(item.id, song?.song?.isDownloaded == true)
@@ -960,13 +1008,17 @@ fun YouTubeGridItem(
             is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
             is ArtistItem -> null
             is PlaylistItem -> joinByBullet(item.author?.name, item.songCountText)
+            is PodcastItem -> joinByBullet(item.author?.name, item.episodeCountText)
+            is EpisodeItem -> joinByBullet(item.publishDateText, item.duration?.let { makeTimeString(it.times(1000L)) })
         }
         if (subtitle != null) {
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary,
-                maxLines = 2,
+                // One line, ellipsized — a 2-line subtitle on a narrow card orphans the " • " bullet
+                // ("Artist •" / "3:49"). Matches the string GridItem overload; keeps card heights uniform.
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
@@ -979,7 +1031,15 @@ fun YouTubeGridItem(
         val scope = rememberCoroutineScope()
 
         ItemThumbnail(
-            thumbnailUrl = item.thumbnail,
+            // A video's derived thumbnail is `.../hqdefault.jpg` (4:3, letterboxed) so the square
+            // center-crop shows black bars. For the CARD only, swap to mqdefault (clean 16:9, no bars);
+            // item.thumbnail (hence the 544px now-playing / lockscreen art) stays hqdefault so it doesn't
+            // degrade. Only rewrites the derived ytimg URL — real server art passes through unchanged.
+            thumbnailUrl = if (item is SongItem && item.isVideo) {
+                item.thumbnail?.replace("/hqdefault.jpg", "/mqdefault.jpg")
+            } else {
+                item.thumbnail
+            },
             isActive = isActive,
             isPlaying = isPlaying,
             shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),

@@ -176,16 +176,27 @@ suspend fun List<YTItem>.filterWhitelisted(
             return@forEach
         }
         val decision = when (item) {
-            is SongItem -> item.isWhitelisted(
-                database,
-                allowedIds,
-                artistCache,
-                config,
-                requireAllArtists,
-                fallbackArtistId
-            ).also {
-                Timber.d("WhitelistFilter: SongItem '${item.title}' by ${item.artists.joinToString { it -> it.name }} - allowed=${it.allowed}")
-            }
+            is SongItem ->
+                // An episode routed through here arrives as a SongItem(isEpisode = true) (e.g. the
+                // Episodes-for-Later sync, newEpisodes). It must be gated by the SEPARATE podcast
+                // whitelist, never the music artist whitelist - podcast hosts are not
+                // artist-whitelisted, so running an episode through isWhitelisted() would wrongly
+                // drop every one.
+                if (item.isEpisode) {
+                    ArtistFilterDecision(
+                        allowed = database.podcastPasses(item.artists.map { it.id }, config),
+                        isChasidish = false,
+                    )
+                } else item.isWhitelisted(
+                    database,
+                    allowedIds,
+                    artistCache,
+                    config,
+                    requireAllArtists,
+                    fallbackArtistId
+                ).also {
+                    Timber.d("WhitelistFilter: SongItem '${item.title}' by ${item.artists.joinToString { it -> it.name }} - allowed=${it.allowed}")
+                }
             is AlbumItem -> item.isWhitelisted(
                 database,
                 allowedIds,
@@ -202,6 +213,22 @@ suspend fun List<YTItem>.filterWhitelisted(
             is PlaylistItem -> item.isWhitelisted(database, allowedIds, artistCache, config).also {
                 Timber.d("WhitelistFilter: PlaylistItem '${item.title}' - allowed=${it.allowed}")
             }
+            // Podcasts/episodes are gated by the SEPARATE podcast whitelist (PodcastWhitelistCache),
+            // not the music artist whitelist. Enforce it HERE too so this chokepoint stays the single
+            // content gate for any mixed list routed through it (filters-off passes everything).
+            is com.metrolist.innertube.models.PodcastItem ->
+                // item.id is the SHOW (MPSP…); item.channelId is the host channel (UC…). Both resolve
+                // to an effective host channel and are checked against the channel-keyed whitelist.
+                ArtistFilterDecision(
+                    allowed = database.podcastPasses(listOf(item.id, item.channelId), config),
+                    isChasidish = false,
+                )
+            is com.metrolist.innertube.models.EpisodeItem ->
+                // item.podcast?.id is the SHOW (MPSP…); item.author?.id is the host channel (UC…).
+                ArtistFilterDecision(
+                    allowed = database.podcastPasses(listOf(item.podcast?.id, item.author?.id), config),
+                    isChasidish = false,
+                )
         }
         if (decision.allowed) {
             filtered.add(item to decision.isChasidish)
@@ -255,6 +282,31 @@ suspend fun List<SongItem>.filterWhitelistedWithLocalArtists(
     val remoteIds = song.artists.mapNotNull { it.id }
     val localIds = database.song(song.id).firstOrNull()?.artists?.map { it.id } ?: emptyList()
     shouldKeepPlaylistSong(remoteIds, localIds, allowedArtistIds)
+}
+
+/**
+ * Whether a podcast/episode passes the SEPARATE (channel-keyed) podcast whitelist. [ids] are the item's
+ * raw artist ids — a mix of host-channel ids (`UC…`) and show ids (`MPSP…`). The whitelist only knows
+ * channels, so each id is expanded to its EFFECTIVE host channel(s): the id itself (matches iff it is a
+ * whitelisted channel) plus, for a show id, the host channel from the local `podcast` row (a
+ * subscribed/opened show carries `channelId`). An unknown show resolves to no channel and is therefore
+ * dropped when filters are on (kosher-safe). Filters-off passes everything, like the music path.
+ */
+private suspend fun MusicDatabase.podcastPasses(
+    ids: List<String?>,
+    config: ContentFilterConfig,
+): Boolean {
+    if (!config.filtersEnabled) return true
+    val effectiveChannelIds = ids.filterNotNull().flatMap { id ->
+        listOfNotNull(id, podcast(id).firstOrNull()?.channelId)
+    }
+    // channelPasses gates a wholly-female host channel when female filtering is on (defense-in-depth over
+    // the server, which already filters it) — a female podcast must not slip through this chokepoint.
+    return com.jtech.zemer.sync.PodcastSyncLogic.episodePassesPodcastWhitelist(
+        channelIds = effectiveChannelIds,
+        filtersEnabled = true,
+        isWhitelistedChannel = { PodcastWhitelistCache.channelPasses(it, config.allowFemaleSingers) },
+    )
 }
 
 private suspend fun MusicDatabase.artistMatchesFilters(

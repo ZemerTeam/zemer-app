@@ -26,6 +26,13 @@ class AppNavigationTest {
     }
 
     @Test
+    fun artistRoute_podcastChannel_addsFlag() {
+        assertEquals("artist/UC123?isPodcastChannel=true", artistRoute("UC123", isPodcastChannel = true))
+        // The flag never resurrects a blank id (still a no-op route).
+        assertNull(artistRoute("", isPodcastChannel = true))
+    }
+
+    @Test
     fun albumRoute_realId_buildsRoute() {
         assertEquals("album/MPREb_abc", albumRoute("MPREb_abc"))
     }
@@ -35,5 +42,50 @@ class AppNavigationTest {
         assertNull(albumRoute(null))
         assertNull(albumRoute(""))
         assertNull(albumRoute("  "))
+    }
+
+    @Test
+    fun podcastRoute_realId_buildsRoute() {
+        assertEquals("online_podcast/MPSPabc123", podcastRoute("MPSPabc123"))
+    }
+
+    @Test
+    fun podcastRoute_nullOrBlank_isNull() {
+        assertNull(podcastRoute(null))
+        assertNull(podcastRoute(""))
+        assertNull(podcastRoute("   "))
+    }
+
+    @Test
+    fun whitelistedPodcastRoute_prefersChannelWhenKnown() {
+        // A known channel opens the host CHANNEL page (with the podcast-channel flag)...
+        assertEquals(
+            "artist/UChost?isPodcastChannel=true",
+            whitelistedPodcastRoute("MPSPshow", "UChost"),
+        )
+    }
+
+    @Test
+    fun whitelistedPodcastRoute_fallsBackToShowWithoutChannel() {
+        // ...and falls back to the show's episode list when there is no channel.
+        assertEquals("online_podcast/MPSPshow", whitelistedPodcastRoute("MPSPshow", null))
+        assertEquals("online_podcast/MPSPshow", whitelistedPodcastRoute("MPSPshow", "  "))
+    }
+
+    @Test
+    fun whitelistedPodcastRoute_bothBlankIsNull() {
+        assertNull(whitelistedPodcastRoute(null, null))
+        assertNull(whitelistedPodcastRoute("", ""))
+    }
+
+    @Test
+    fun channelDeepLink_artistWhitelistWinsThenPodcastThenNothing() {
+        assertEquals("artist/UC1", channelDeepLinkRoute("UC1", artistWhitelisted = true, podcastWhitelisted = true))
+        assertEquals(
+            "artist/UC1?isPodcastChannel=true",
+            channelDeepLinkRoute("UC1", artistWhitelisted = false, podcastWhitelisted = true),
+        )
+        assertNull(channelDeepLinkRoute("UC1", artistWhitelisted = false, podcastWhitelisted = false))
+        assertNull(channelDeepLinkRoute("", artistWhitelisted = true, podcastWhitelisted = true))
     }
 }

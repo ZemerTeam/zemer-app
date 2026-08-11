@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `357`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `378`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -11,7 +11,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 50 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 6 lines | text `[none]` |
-| `AGENTS.md` | 1041 lines | text `.md` |
+| `AGENTS.md` | 1179 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 19 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -45,6 +45,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/31.json` | 1151 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/32.json` | 1156 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/33.json` | 1229 lines | text `.json`; JSON keys `formatVersion, database` |
+| `app/schemas/com.jtech.zemer.db.InternalDatabase/34.json` | 1368 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/4.json` | 744 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/5.json` | 748 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/6.json` | 712 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -75,6 +76,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/artist.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/backup.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/bedtime.xml` | 9 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/bookmark.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/bookmark_filled.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/cached.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/cast.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/cast_connected.xml` | 9 lines | text `.xml`; XML root `vector` |
@@ -97,34 +100,51 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/explicit.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/explore_outlined.xml` | 16 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/fast_forward.xml` | 9 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/fast_rewind.xml` | 14 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/favorite.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/favorite_border.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_abc.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_alef.xml` | 12 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_balance.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_campaign.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_candles.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_celebration.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_chassidus.xml` | 16 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_chazzan.xml` | 109 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_coins.xml` | 13 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_comedian.xml` | 17 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_dark_mode.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_diamond.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_dinner_dining.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_family.xml` | 11 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_flag.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_graphic_eq.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_health.xml` | 14 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_heart_broken.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_kiruv.xml` | 13 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_landscape.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_local_fire_department.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_machshava.xml` | 16 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_menorah.xml` | 12 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_menu_book.xml` | 11 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_mic.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_moadim.xml` | 13 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_music_note.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_nightlife.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_park.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_parsha.xml` | 16 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_piano.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_quill.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_rings.xml` | 26 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_self_improvement.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_shiurim.xml` | 16 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_star.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_sukkah.xml` | 12 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_tefilla.xml` | 17 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_theater_comedy.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_wb_sunny.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/genre_wine_bar.xml` | 10 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/genre_zemer_note.xml` | 18 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/github.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/google_webview.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/gradient.xml` | 10 lines | text `.xml`; XML root `vector` |
@@ -170,6 +190,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/play.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/playlist_add.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/playlist_play.xml` | 9 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/podcast.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/queue_music.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/radio.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/radio_button_checked.xml` | 10 lines | text `.xml`; XML root `vector` |
@@ -243,7 +264,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 649 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 694 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 438 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
@@ -275,7 +296,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `scripts/dead-resources-baseline.txt` | 9 lines | text `.txt` |
 | `scripts/telegram-chats.sh` | 38 lines | text `.sh` |
 | `scripts/ui-audit-baseline.tsv` | 24 lines | text `.tsv` |
-| `scripts/ui-audit.sh` | 203 lines | text `.sh` |
+| `scripts/ui-audit.sh` | 223 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 56 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
 | `simpmusic/build.gradle.kts` | 15 lines | text `.kts`; plugins `kotlin.serialization, jvm` |

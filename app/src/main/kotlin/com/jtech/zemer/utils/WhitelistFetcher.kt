@@ -3,6 +3,7 @@ package com.jtech.zemer.utils
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.QuerySnapshot
 import com.jtech.zemer.db.entities.ArtistWhitelistEntity
+import com.jtech.zemer.db.entities.PodcastWhitelistEntity
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDateTime
 import timber.log.Timber
@@ -141,6 +142,84 @@ object WhitelistFetcher {
                     }.toMap()
                     Timber.d("WhitelistFetcher: fetched ${entries.size} blocked content overrides")
                     entries
+                },
+            )
+        }
+
+    // The podcast whitelist is the authoritative allow-set + version gate, read MIRROR-FIRST from
+    // content.zemer.io (already live) with the Firestore collection as fallback — exactly like the artist
+    // whitelist (fetchVersion/fetchWhitelist). `zemer-search /podcasts` is the rich browse catalog, NOT
+    // the gate (it enriches art in SyncUtils); the gate lives here.
+
+    suspend fun fetchPodcastVersion(): Result<Long> =
+        runCatching {
+            mirrorFirst<Long>(
+                "podcastVersion",
+                mirror = { ZemerContentClient.podcastsWhitelistVersion() },
+                firebase = {
+                    val doc = firestore.collection("podcastDatabaseNumber").document("latest").get().await()
+                    val updatedAt = doc.getTimestamp("updatedAt")?.toDate()?.time
+                    val update = doc.getString("update") ?: doc.getLong("update")
+                    (updatedAt ?: update)?.toString()?.toLongOrNull()
+                        ?: error("Missing or invalid update value in podcastDatabaseNumber/latest")
+                },
+            )
+        }
+
+    suspend fun fetchPodcastWhitelist(onProgress: (current: Int, total: Int) -> Unit = { _, _ -> }): Result<List<PodcastWhitelistEntity>> =
+        runCatching {
+            mirrorFirst<List<PodcastWhitelistEntity>>(
+                "podcastWhitelist",
+                mirror = {
+                    val now = LocalDateTime.now()
+                    val docs = ZemerContentClient.podcastsWhitelist()
+                    val total = docs.size
+                    Timber.d("WhitelistFetcher: mapping %d podcast channels from content mirror", total)
+                    val entities = ArrayList<PodcastWhitelistEntity>(total)
+                    docs.forEachIndexed { index, doc ->
+                        onProgress(index + 1, total)
+                        val channelId = doc.id.takeIf { it.isNotBlank() } ?: return@forEachIndexed
+                        val name = doc.name?.takeIf { it.isNotBlank() } ?: return@forEachIndexed
+                        entities.add(
+                            PodcastWhitelistEntity(
+                                channelId = channelId,
+                                name = name,
+                                thumbnailUrl = doc.thumbnailUrl,
+                                isFemale = doc.isFemale,
+                                isKidZone = doc.isKidZone,
+                                isVerified = doc.isVerified,
+                                showCount = doc.showCount,
+                                lastSyncedAt = now,
+                            )
+                        )
+                    }
+                    entities
+                },
+                firebase = {
+                    val now = LocalDateTime.now()
+                    val whitelistEntities = mutableListOf<PodcastWhitelistEntity>()
+                    val snapshot: QuerySnapshot = firestore.collection("podcastChannelsWhitelist").get().await()
+                    val total = snapshot.size()
+                    var processed = 0
+                    snapshot.documents.forEach { doc ->
+                        val channelId = (doc.getString("id") ?: doc.id).takeIf { it.isNotBlank() } ?: return@forEach
+                        val name = doc.getString("name")?.takeIf { it.isNotBlank() } ?: return@forEach
+                        whitelistEntities.add(
+                            PodcastWhitelistEntity(
+                                channelId = channelId,
+                                name = name,
+                                thumbnailUrl = doc.getString("thumbnailUrl"),
+                                isFemale = doc.getBoolean("isFemale") ?: false,
+                                isKidZone = doc.getBoolean("isKidZone") ?: false,
+                                isVerified = doc.getBoolean("isVerified") ?: false,
+                                showCount = (doc.getLong("showCount") ?: 0L).toInt(),
+                                lastSyncedAt = now,
+                            )
+                        )
+                        processed++
+                        onProgress(processed, total)
+                    }
+                    whitelistEntities
                 },
             )
         }

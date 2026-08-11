@@ -140,20 +140,21 @@ fun ArtistSearchField(
 }
 
 /**
- * Title + artist count + list/grid view-toggle header shared by the KidZone and
- * Whitelisted-Artists browse screens. The title uses the shared [AppBarTitle] so it matches the app-bar
- * back+title and Home-row titles.
+ * Title + item count + list/grid view-toggle header shared by the KidZone / Whitelisted-Artists /
+ * Whitelisted-Podcasts browse screens. The title uses the shared [AppBarTitle] so it matches the app-bar
+ * back+title and Home-row titles. [countPluralRes] labels the count per caller (artists vs channels).
  */
 @Composable
 fun ArtistCountHeader(
     titleRes: Int,
-    artistCount: Int,
+    count: Int,
     viewType: LibraryViewType,
     onToggleViewType: () -> Unit,
     firstFocus: FocusRequester,
     searchFocus: FocusRequester,
     downTarget: FocusRequester,
     modifier: Modifier = Modifier,
+    countPluralRes: Int = R.plurals.n_artist,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -165,9 +166,9 @@ fun ArtistCountHeader(
 
         Text(
             text = pluralStringResource(
-                R.plurals.n_artist,
-                artistCount,
-                artistCount
+                countPluralRes,
+                count,
+                count
             ),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.secondary,
