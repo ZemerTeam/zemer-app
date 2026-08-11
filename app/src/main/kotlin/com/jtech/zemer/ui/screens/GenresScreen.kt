@@ -83,18 +83,18 @@ fun GenresScreen(
                     listOf(
                         GenreKind.STYLE to R.string.genre_kind_style,
                         GenreKind.OCCASION to R.string.genre_kind_occasion,
-                    ).forEach { (kind, titleRes) ->
-                        val genres = uiState.groups[kind].orEmpty()
-                        if (genres.isNotEmpty()) {
+                    ).filter { (kind, _) -> uiState.groups[kind].orEmpty().isNotEmpty() }
+                        .forEachIndexed { index, (kind, titleRes) ->
+                            val genres = uiState.groups[kind].orEmpty()
                             item(key = "section_$kind") {
                                 GenreCardGrid(
                                     title = stringResource(titleRes),
                                     genres = genres.map { it.id to it.title },
                                     onGenreClick = { navController.navigate(zemerGenreRoute(it)) },
+                                    firstInList = index == 0,
                                 )
                             }
                         }
-                    }
                 }
             }
 

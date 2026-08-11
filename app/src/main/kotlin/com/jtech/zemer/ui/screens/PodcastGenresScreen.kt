@@ -84,6 +84,7 @@ fun PodcastGenresScreen(
                                 genres = section.genres.map { it.id to it.title },
                                 onGenreClick = { navController.navigate(zemerPodcastGenreRoute(it)) },
                                 iconOverride = ::podcastGenreIcon,
+                                firstInList = index == 0,
                             )
                         }
                     }

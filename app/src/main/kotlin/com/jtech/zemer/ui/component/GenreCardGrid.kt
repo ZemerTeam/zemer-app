@@ -29,12 +29,18 @@ fun GenreCardGrid(
     modifier: Modifier = Modifier,
     title: String? = null,
     iconOverride: ((String) -> Int)? = null,
+    // True for every section AFTER the first: adds the larger between-section gap above the title
+    // (the first section's gap to the top bar is the screen's [GenreCatalogTopSpacing] spacer).
+    firstInList: Boolean = true,
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
+        if (!firstInList) {
+            Spacer(Modifier.height(GenreSectionGap))
+        }
         if (title != null) {
             Text(
                 text = title,
@@ -42,7 +48,7 @@ fun GenreCardGrid(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 4.dp),
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
         }
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -71,5 +77,8 @@ fun GenreCardGrid(
     }
 }
 
-/** The catalogs' shared gap between the top bar and the first section title (owner ask: roomy). */
-val GenreCatalogTopSpacing = 24.dp
+/** The catalogs' shared gap between the top bar and the first section title. */
+val GenreCatalogTopSpacing = 16.dp
+
+/** The extra gap above every section title after the first (between-section separation). */
+val GenreSectionGap = 16.dp
