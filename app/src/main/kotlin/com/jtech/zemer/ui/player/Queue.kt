@@ -19,6 +19,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -96,6 +97,8 @@ import com.jtech.zemer.constants.QueueEditLockKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.extensions.metadata
 import com.jtech.zemer.extensions.move
+import com.jtech.zemer.extensions.repeatModeIconRes
+import com.jtech.zemer.extensions.shuffleIconRes
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.models.MediaMetadata
@@ -147,6 +150,7 @@ fun Queue(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
     val repeatMode by playerConnection.repeatMode.collectAsState()
+    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
 
     val currentWindowIndex by playerConnection.currentWindowIndex.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
@@ -215,33 +219,26 @@ fun Queue(
                             ),
                         ),
                 ) {
-                    val buttonSize = 42.dp
                     val iconSize = 24.dp
                     val borderColor = TextBackgroundColor.copy(alpha = 0.35f)
+                    val startCapShape = RoundedCornerShape(
+                        topStart = 50.dp,
+                        bottomStart = 50.dp,
+                        topEnd = 5.dp,
+                        bottomEnd = 5.dp
+                    )
+                    val middleShape = RoundedCornerShape(5.dp)
+                    val endCapShape = RoundedCornerShape(
+                        topStart = 5.dp,
+                        bottomStart = 5.dp,
+                        topEnd = 50.dp,
+                        bottomEnd = 50.dp
+                    )
 
-                    Box(
-                        modifier = Modifier
-                            .size(buttonSize)
-                            .clip(
-                                RoundedCornerShape(
-                                    topStart = 50.dp,
-                                    bottomStart = 50.dp,
-                                    topEnd = 5.dp,
-                                    bottomEnd = 5.dp
-                                )
-                            )
-                            .border(
-                                1.dp,
-                                borderColor,
-                                RoundedCornerShape(
-                                    topStart = 50.dp,
-                                    bottomStart = 50.dp,
-                                    topEnd = 5.dp,
-                                    bottomEnd = 5.dp
-                                )
-                            )
-                            .clickable { state.expandSoft() },
-                        contentAlignment = Alignment.Center
+                    QueuePillButton(
+                        shape = startCapShape,
+                        borderColor = borderColor,
+                        onClick = { state.expandSoft() },
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.queue_music),
@@ -251,19 +248,16 @@ fun Queue(
                         )
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .size(buttonSize)
-                            .clip(RoundedCornerShape(5.dp))
-                            .border(1.dp, borderColor, RoundedCornerShape(5.dp))
-                            .clickable {
-                                if (sleepTimerEnabled) {
-                                    playerConnection.service.sleepTimer.clear()
-                                } else {
-                                    showSleepTimerDialog = true
-                                }
-                            },
-                        contentAlignment = Alignment.Center
+                    QueuePillButton(
+                        shape = middleShape,
+                        borderColor = borderColor,
+                        onClick = {
+                            if (sleepTimerEnabled) {
+                                playerConnection.service.sleepTimer.clear()
+                            } else {
+                                showSleepTimerDialog = true
+                            }
+                        },
                     ) {
                         AnimatedContent(
                             label = "sleepTimer",
@@ -292,15 +286,10 @@ fun Queue(
                         }
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .size(buttonSize)
-                            .clip(RoundedCornerShape(5.dp))
-                            .border(1.dp, borderColor, RoundedCornerShape(5.dp))
-                            .clickable {
-                                onShowLyrics()
-                            },
-                        contentAlignment = Alignment.Center
+                    QueuePillButton(
+                        shape = middleShape,
+                        borderColor = borderColor,
+                        onClick = onShowLyrics,
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.lyrics),
@@ -310,40 +299,37 @@ fun Queue(
                         )
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .size(buttonSize)
-                            .clip(
-                                RoundedCornerShape(
-                                    topStart = 5.dp,
-                                    bottomStart = 5.dp,
-                                    topEnd = 50.dp,
-                                    bottomEnd = 50.dp
-                                )
-                            )
-                            .border(
-                                1.dp,
-                                borderColor,
-                                RoundedCornerShape(
-                                    topStart = 5.dp,
-                                    bottomStart = 5.dp,
-                                    topEnd = 50.dp,
-                                    bottomEnd = 50.dp
-                                )
-                            )
-                            .clickable {
-                                if (!isStationBroadcast) playerConnection.player.toggleRepeatMode()
-                            },
-                        contentAlignment = Alignment.Center
+                    QueuePillButton(
+                        shape = middleShape,
+                        borderColor = borderColor,
+                        onClick = {
+                            // Station broadcasts mask shuffle/repeat (synchronized timeline) — same
+                            // gate as every transport surface.
+                            if (!isStationBroadcast) {
+                                playerConnection.player.shuffleModeEnabled =
+                                    !playerConnection.player.shuffleModeEnabled
+                            }
+                        },
                     ) {
                         Icon(
-                            painter = painterResource(
-                                id = when (repeatMode) {
-                                    Player.REPEAT_MODE_OFF, Player.REPEAT_MODE_ALL -> R.drawable.repeat
-                                    Player.REPEAT_MODE_ONE -> R.drawable.repeat_one
-                                    else -> R.drawable.repeat
-                                }
-                            ),
+                            painter = painterResource(id = shuffleIconRes(shuffleModeEnabled)),
+                            contentDescription = stringResource(R.string.shuffle),
+                            modifier = Modifier
+                                .size(iconSize)
+                                .alpha(if (shuffleModeEnabled) 1f else 0.5f),
+                            tint = TextBackgroundColor
+                        )
+                    }
+
+                    QueuePillButton(
+                        shape = endCapShape,
+                        borderColor = borderColor,
+                        onClick = {
+                            if (!isStationBroadcast) playerConnection.player.toggleRepeatMode()
+                        },
+                    ) {
+                        Icon(
+                            painter = painterResource(id = repeatModeIconRes(repeatMode)),
                             contentDescription = null,
                             modifier = Modifier
                                 .size(iconSize)
@@ -355,7 +341,7 @@ fun Queue(
 
                     Box(
                         modifier = Modifier
-                            .size(buttonSize)
+                            .size(42.dp)
                             .clip(CircleShape)
                             .background(textButtonColor)
                             .clickable {
@@ -1039,8 +1025,6 @@ fun Queue(
             }
         }
 
-        val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
-
         Box(
             modifier =
             Modifier
@@ -1082,7 +1066,7 @@ fun Queue(
                 },
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.shuffle),
+                    painter = painterResource(shuffleIconRes(shuffleModeEnabled)),
                     contentDescription = null,
                     modifier = Modifier.alpha(if (shuffleModeEnabled) 1f else 0.5f),
                 )
@@ -1099,14 +1083,7 @@ fun Queue(
                 onClick = { if (!isStationBroadcast) playerConnection.player.toggleRepeatMode() },
             ) {
                 Icon(
-                    painter =
-                    painterResource(
-                        when (repeatMode) {
-                            Player.REPEAT_MODE_OFF, Player.REPEAT_MODE_ALL -> R.drawable.repeat
-                            Player.REPEAT_MODE_ONE -> R.drawable.repeat_one
-                            else -> throw IllegalStateException()
-                        },
-                    ),
+                    painter = painterResource(repeatModeIconRes(repeatMode)),
                     contentDescription = null,
                     modifier = Modifier.alpha(if (repeatMode == Player.REPEAT_MODE_OFF) 0.5f else 1f),
                 )
@@ -1127,4 +1104,27 @@ fun Queue(
                 .align(Alignment.BottomCenter),
         )
     }
+}
+
+/**
+ * One collapsed-queue action pill (the queue/sleep/lyrics/shuffle/repeat row under the new player
+ * design): a 42.dp bordered box whose [shape] rounds the row's end caps. Every pill in that row
+ * renders through this so the treatment can't drift per button.
+ */
+@Composable
+private fun QueuePillButton(
+    shape: RoundedCornerShape,
+    borderColor: Color,
+    onClick: () -> Unit,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .clip(shape)
+            .border(1.dp, borderColor, shape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+        content = content,
+    )
 }

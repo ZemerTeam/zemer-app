@@ -6,8 +6,10 @@ import androidx.media3.common.Player
 import androidx.media3.common.Player.REPEAT_MODE_ALL
 import androidx.media3.common.Player.REPEAT_MODE_OFF
 import androidx.media3.common.Player.REPEAT_MODE_ONE
+import androidx.annotation.DrawableRes
 import androidx.media3.common.Timeline
 import androidx.media3.common.TrackSelectionParameters
+import com.jtech.zemer.R
 import com.jtech.zemer.models.MediaMetadata
 import java.util.ArrayDeque
 
@@ -27,6 +29,27 @@ fun Player.toggleRepeatMode() {
             else -> throw IllegalStateException()
         }
 }
+
+/**
+ * The ONE repeat-mode icon mapping (every repeat button — player, queue sheet, lyrics, notification —
+ * renders through this): an active mode gets the distinct filled-badge glyph, so OFF is visually
+ * different from ON rather than the same icon a few shades lighter (#400).
+ */
+@DrawableRes
+fun repeatModeIconRes(repeatMode: Int): Int =
+    when (repeatMode) {
+        REPEAT_MODE_ONE -> R.drawable.repeat_one_on
+        REPEAT_MODE_ALL -> R.drawable.repeat_on
+        else -> R.drawable.repeat
+    }
+
+/**
+ * The ONE shuffle icon mapping — the filled-badge glyph while shuffle is on, the plain glyph when off,
+ * matching [repeatModeIconRes]'s on/off language.
+ */
+@DrawableRes
+fun shuffleIconRes(shuffleEnabled: Boolean): Int =
+    if (shuffleEnabled) R.drawable.shuffle_on else R.drawable.shuffle
 
 fun Player.getQueueWindows(): List<Timeline.Window> {
     val timeline = currentTimeline
