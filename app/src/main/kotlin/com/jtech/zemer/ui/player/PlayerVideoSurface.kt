@@ -1,17 +1,25 @@
 package com.jtech.zemer.ui.player
 
 import android.view.TextureView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
@@ -82,5 +90,21 @@ fun PlayerVideoSurface(modifier: Modifier = Modifier) {
             // in both dimensions regardless of aspect, letterboxing/pillarboxing rather than overflowing.
             modifier = Modifier.aspectRatio(aspect, matchHeightConstraintsFirst = aspect < 1f),
         )
+
+        // Buffering indicator — built into the ONE shared surface so the inline art slot and the
+        // fullscreen overlay show the identical treatment (prepare after a video-mode entry, a
+        // quality switch, or a mid-play stall). White over the scrim/video, the over-media idiom.
+        val playbackState by playerConnection.playbackState.collectAsState()
+        AnimatedVisibility(
+            visible = playbackState == Player.STATE_BUFFERING,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            CircularProgressIndicator(
+                color = Color.White,
+                trackColor = Color.White.copy(alpha = 0.2f),
+                modifier = Modifier.size(44.dp),
+            )
+        }
     }
 }

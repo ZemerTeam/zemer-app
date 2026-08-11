@@ -1585,6 +1585,9 @@ class MusicService :
     override fun onPlaybackStateChanged(
         @Player.State playbackState: Int,
     ) {
+        // Video-mode rebuffer guard: repeated mid-play stalls on a streaming rendition downgrade one
+        // quality rung (the controller ignores seeks and non-video playback).
+        videoModeController.onPlaybackStateChanged(playbackState)
         // A broadcast never ends: reaching STATE_ENDED means the runway ran out (top-up lost a
         // race) - re-tune to the live schedule instead of parking in silence.
         if (playbackState == Player.STATE_ENDED) {
@@ -1602,6 +1605,17 @@ class MusicService :
             saveQueueToDisk()
         }
         updateWidget()
+    }
+
+    override fun onPositionDiscontinuity(
+        oldPosition: Player.PositionInfo,
+        newPosition: Player.PositionInfo,
+        reason: Int,
+    ) {
+        // A user seek legitimately buffers — the rebuffer guard must not count it as a stall.
+        if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
+            videoModeController.onSeekDiscontinuity()
+        }
     }
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -2043,6 +2057,9 @@ class MusicService :
                 val videoUrl = nonNullVideo.streamUrl
                 songUrlCache[mediaId] =
                     videoUrl to System.currentTimeMillis() + (nonNullVideo.streamExpiresInSeconds * 1000L)
+                // One resolution seeds EVERY rung's URL + the merge-audio partner, so a quality
+                // switch (and the adaptive rung's audio track) never pays another round-trip.
+                seedVideoUrlCaches(renditionId, nonNullVideo)
                 return@Factory dataSpec.withUri(videoUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
 
@@ -2221,6 +2238,72 @@ class MusicService :
     // The last-resolved audio itag per `videoaudio:<id>` merge key — drives the container-drift purge
     // in the merge-audio resolver branch (see createDataSourceFactory).
     private val mergeAudioItagCache = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+    // Video renditions currently being prefetched (dedupe) — see prefetchVideoRendition.
+    private val videoPrefetchInFlight =
+        java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
+
+    /**
+     * Seed the shared URL cache with EVERY quality rung's URL + the merge-audio partner from one
+     * video resolution — the fast-switch backbone: a quality swap (or the adaptive rung's audio
+     * track) then resolves entirely from cache, no second player round-trip. The merge-audio seed
+     * runs the same itag-drift purge as the live merge branch so cached spans can never mix
+     * containers.
+     */
+    private fun seedVideoUrlCaches(renditionId: String, data: YTPlayerUtils.PlaybackData) {
+        val expiry = System.currentTimeMillis() + (data.streamExpiresInSeconds * 1000L)
+        data.videoRungUrls.forEach { (itag, url) ->
+            val rung = data.videoQualities.firstOrNull { it.itag == itag } ?: return@forEach
+            songUrlCache[VideoRendition.key(renditionId, itag, rung.progressive)] = url to expiry
+        }
+        val audioUrl = data.mergeAudioUrl
+        val audioItag = data.mergeAudioItag
+        if (audioUrl != null && audioItag != null) {
+            val audioKey = VideoRendition.mergeAudioKey(renditionId)
+            val previous = mergeAudioItagCache.put(audioKey, audioItag)
+            if (previous != audioItag) {
+                runCatching { playerCache.removeResource(audioKey) }
+            }
+            songUrlCache[audioKey] = audioUrl to expiry
+        }
+    }
+
+    /**
+     * Background warm-up of a video-capable item's rendition — fired when the expanded player shows
+     * the Song/Video pill, so a Video tap (and the quality ladder behind the switcher) is already
+     * resolved by the time the user reaches for it. Skips when RELAY (fixed rendition), when a fresh
+     * URL is already cached, or when a prefetch for the id is in flight; failures are silent (the
+     * ordinary on-demand resolution path is untouched and runs on the actual tap).
+     */
+    fun prefetchVideoRendition(videoId: String) {
+        if (isRelayPlaybackMode()) return
+        val plainKey = VideoRendition.key(videoId)
+        if (songUrlCache[plainKey]?.let { it.second > System.currentTimeMillis() } == true) return
+        if (!videoPrefetchInFlight.add(videoId)) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                YTPlayerUtils.playerResponseForPlayback(
+                    videoId,
+                    audioQuality = audioQuality,
+                    connectivityManager = connectivityManager,
+                    preferVideo = true,
+                    maxVideoBitrateKbps =
+                        VideoRendition.defaultMaxBitrateKbps(connectivityManager.isActiveNetworkMetered),
+                ).onSuccess { data ->
+                    videoModeController.onVideoQualitiesResolved(
+                        videoId, data.videoQualities, data.format.itag,
+                    )
+                    songUrlCache[plainKey] =
+                        data.streamUrl to System.currentTimeMillis() + (data.streamExpiresInSeconds * 1000L)
+                    seedVideoUrlCaches(videoId, data)
+                }.onFailure {
+                    Timber.tag("MusicService").d(it, "Video rendition prefetch failed for %s", videoId)
+                }
+            } finally {
+                videoPrefetchInFlight.remove(videoId)
+            }
+        }
+    }
 
     // Last relay song id whose local `song` row was ensured (see persistRelaySongIfNeeded) — so the
     // insert-if-missing runs once per relay track, not on every metadata-changed event.

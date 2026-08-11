@@ -48,6 +48,25 @@ object VideoQualityLogic {
      */
     val TARGET_HEIGHTS = listOf(2160, 1440, 1080, 720, 480, 360)
 
+    /** Mid-play stalls within this window that trigger a one-rung downgrade — see [shouldDowngradeForRebuffer]. */
+    const val REBUFFER_DOWNGRADE_COUNT = 2
+    const val REBUFFER_WINDOW_MS = 45_000L
+
+    /**
+     * The rebuffer guard's decision: [stallTimesMs] are mid-play stall timestamps (seek-caused
+     * buffering excluded by the caller); reaching [REBUFFER_DOWNGRADE_COUNT] stalls within
+     * [REBUFFER_WINDOW_MS] means the connection cannot sustain the current rung's bitrate — playback
+     * should drop one rung rather than keep stalling.
+     */
+    fun shouldDowngradeForRebuffer(stallTimesMs: List<Long>, nowMs: Long): Boolean =
+        stallTimesMs.count { nowMs - it <= REBUFFER_WINDOW_MS } >= REBUFFER_DOWNGRADE_COUNT
+
+    /** The next rung DOWN from [currentLabel] in a high→low ladder, or null at the bottom/unknown. */
+    fun rungBelow(rungs: List<VideoQualityRung>, currentLabel: String): VideoQualityRung? {
+        val index = rungs.indexOfFirst { it.label == currentLabel }
+        return if (index >= 0 && index + 1 < rungs.size) rungs[index + 1] else null
+    }
+
     /** A muxed progressive video format (video mime + its own audio) — plays/downloads as one stream. */
     fun isProgressiveVideo(format: PlayerResponse.StreamingData.Format): Boolean =
         format.mimeType.startsWith("video") && (format.audioQuality != null || format.audioChannels != null)

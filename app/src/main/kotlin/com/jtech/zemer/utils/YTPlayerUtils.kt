@@ -156,6 +156,20 @@ object YTPlayerUtils {
          * empty) — feeds the in-player quality switcher via VideoModeController.
          */
         val videoQualities: List<VideoQualityRung> = emptyList(),
+        /**
+         * Ready-to-play stream URLs for EVERY ladder rung (itag → URL), resolved from the same
+         * response/client that served [format] (preferVideo only). One resolution seeds them all
+         * (MusicService.seedVideoUrlCaches) so a quality switch never needs another network
+         * round-trip — the switch is a local replaceMediaItem + one CDN range request.
+         */
+        val videoRungUrls: Map<Int, String> = emptyMap(),
+        /**
+         * The merge-audio partner's ready-to-play URL + itag (preferVideo only): the audio track an
+         * adaptive rung plays alongside. Seeding it avoids the second full player resolution the
+         * `videoaudio:` branch would otherwise run.
+         */
+        val mergeAudioUrl: String? = null,
+        val mergeAudioItag: Int? = null,
     )
     /**
      * Custom player response intended to use for playback.
@@ -239,6 +253,7 @@ object YTPlayerUtils {
         var streamExpiresInSeconds: Int? = null
         var streamPlayerResponse: PlayerResponse? = null
         var successClient: String? = null
+        var successClientObj: YouTubeClient? = null
 
         for (clientIndex in (-1 until fallbackClients.size)) {
             // reset for each client
@@ -317,29 +332,12 @@ object YTPlayerUtils {
                 Timber.tag(TAG).d( "Stream URL (${client.clientName}): ${streamUrl.take(80)}...")
 
                 // Apply n-transform and PoToken for web clients (n-transform FIRST, then pot=)
-                val needsNTransform = client.useWebPoTokens ||
-                    client.clientName in listOf("WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5")
+                val needsNTransform = clientNeedsNTransform(client)
 
                 if (needsNTransform) {
                     try {
                         Timber.tag(TAG).d("Applying n-transform to stream URL for ${client.clientName}")
-
-                        // Try CipherDeobfuscator first (uses Pattern 5), fallback to EjsNTransformSolver
-                        val originalUrl = streamUrl
-                        streamUrl = CipherDeobfuscator.transformNParamInUrl(streamUrl)
-
-                        if (streamUrl == originalUrl) {
-                            // CipherDeobfuscator didn't transform, try EjsNTransformSolver as fallback
-                            Timber.tag(TAG).d("CipherDeobfuscator returned same URL, trying EjsNTransformSolver...")
-                            streamUrl = EjsNTransformSolver.transformNParamInUrl(originalUrl)
-                        }
-
-                        // Append pot= parameter AFTER n-transform (URI-encode to handle base64 padding)
-                        if (client.useWebPoTokens && poTokenResult?.streamingDataPoToken != null) {
-                            Timber.tag(TAG).d("Appending pot= parameter to stream URL")
-                            val separator = if ("?" in streamUrl) "&" else "?"
-                            streamUrl = "${streamUrl}${separator}pot=${android.net.Uri.encode(poTokenResult.streamingDataPoToken)}"
-                        }
+                        streamUrl = applyWebUrlTransforms(streamUrl, client, poTokenResult)
                     } catch (e: Exception) {
                         Timber.tag(TAG).e(e, "N-transform or pot append failed: ${e.message}")
                         // Continue with original URL
@@ -361,6 +359,7 @@ object YTPlayerUtils {
                 if (clientIndex == fallbackClients.size - 1) {
                     Timber.tag(TAG).d( "Last fallback — skipping validation: ${client.clientName}")
                     successClient = client.clientName
+                    successClientObj = client
                     break
                 }
 
@@ -374,6 +373,7 @@ object YTPlayerUtils {
                     && !forDownload && !webRemixFailedIds.contains(videoId)) {
                     Timber.tag(TAG).d("WEB_REMIX — skipping HEAD validation, letting ExoPlayer try directly")
                     successClient = client.clientName
+                    successClientObj = client
                     break
                 }
 
@@ -381,6 +381,7 @@ object YTPlayerUtils {
                 if (validationResult) {
                     Timber.tag(TAG).d( "Stream VALIDATED OK with ${client.clientName}")
                     successClient = client.clientName
+                    successClientObj = client
                     break
                 } else {
                     Timber.tag(TAG).d( "Stream validation FAILED for ${client.clientName}")
@@ -451,6 +452,32 @@ object YTPlayerUtils {
         // Log.i survives release builds (Timber is stripped)
         android.util.Log.i(TAG, "Playback: client=${successClient ?: "unknown"}, itag=${format.itag}, videoId=$videoId")
 
+        // For a video resolution, resolve EVERY ladder rung's URL plus the merge-audio partner from
+        // this same response — pure local computation (sig decipher + n-transform + pot append, no
+        // extra network), and exactly what tests/video-qualities.mjs proves works per rung. Seeded
+        // into the URL cache by the caller so a quality switch never pays a second round-trip.
+        var videoRungUrls: Map<Int, String> = emptyMap()
+        var mergeAudioUrl: String? = null
+        var mergeAudioItag: Int? = null
+        if (preferVideo && successClientObj != null) {
+            val response = streamPlayerResponse
+            val rungClient = successClientObj!!
+            videoRungUrls = VideoQualityLogic.ladderFormats(response.streamingData)
+                .mapNotNull { rungFormat ->
+                    resolveFinalStreamUrl(rungFormat, videoId, response, rungClient, poTokenResult)
+                        ?.let { rungFormat.itag to it }
+                }.toMap()
+            val mergeAudioFormat = findFormat(
+                response, audioQuality, connectivityManager, preferVideo = false,
+                maxVideoBitrateKbps = null, forDownload = false,
+            )
+            if (mergeAudioFormat != null) {
+                mergeAudioUrl =
+                    resolveFinalStreamUrl(mergeAudioFormat, videoId, response, rungClient, poTokenResult)
+                mergeAudioItag = mergeAudioFormat.itag.takeIf { mergeAudioUrl != null }
+            }
+        }
+
         PlaybackData(
             audioConfig,
             videoDetails,
@@ -464,6 +491,9 @@ object YTPlayerUtils {
             } else {
                 emptyList()
             },
+            videoRungUrls = videoRungUrls,
+            mergeAudioUrl = mergeAudioUrl,
+            mergeAudioItag = mergeAudioItag,
         )
     }
     /**
@@ -476,6 +506,42 @@ object YTPlayerUtils {
     ): Result<PlayerResponse> {
         return YouTube.player(videoId, playlistId, client = WEB_REMIX) // ANDROID_VR does not work with history
     }
+
+    private fun clientNeedsNTransform(client: YouTubeClient): Boolean =
+        client.useWebPoTokens || client.clientName in listOf("WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5")
+
+    /**
+     * The shared web-client URL finalization (n-transform first, then `pot=`) — one implementation
+     * for the main resolution path and the ladder-wide rung-URL table, so the two can never drift.
+     */
+    private suspend fun applyWebUrlTransforms(
+        url: String,
+        client: YouTubeClient,
+        poTokenResult: PoTokenResult?,
+    ): String {
+        var result = CipherDeobfuscator.transformNParamInUrl(url)
+        if (result == url) {
+            // CipherDeobfuscator didn't transform; try EjsNTransformSolver as fallback.
+            result = EjsNTransformSolver.transformNParamInUrl(url)
+        }
+        if (client.useWebPoTokens && poTokenResult?.streamingDataPoToken != null) {
+            val separator = if ("?" in result) "&" else "?"
+            result = "$result${separator}pot=${android.net.Uri.encode(poTokenResult.streamingDataPoToken)}"
+        }
+        return result
+    }
+
+    /** Resolve one format's playable URL (decipher + web transforms); null on any failure. */
+    private suspend fun resolveFinalStreamUrl(
+        format: PlayerResponse.StreamingData.Format,
+        videoId: String,
+        response: PlayerResponse,
+        client: YouTubeClient,
+        poTokenResult: PoTokenResult?,
+    ): String? = runCatching {
+        val url = findUrlOrNull(format, videoId, response) ?: return null
+        if (clientNeedsNTransform(client)) applyWebUrlTransforms(url, client, poTokenResult) else url
+    }.getOrNull()
 
     private fun findFormat(
         playerResponse: PlayerResponse,

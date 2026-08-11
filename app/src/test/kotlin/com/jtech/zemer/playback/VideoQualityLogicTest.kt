@@ -184,6 +184,29 @@ class VideoQualityLogicTest {
     }
 
     @Test
+    fun `rebuffer guard fires only on repeated stalls within the window`() {
+        val w = VideoQualityLogic.REBUFFER_WINDOW_MS
+        // One stall: never.
+        assertEquals(false, VideoQualityLogic.shouldDowngradeForRebuffer(listOf(1_000L), 1_000L))
+        // Two stalls inside the window: downgrade.
+        assertTrue(VideoQualityLogic.shouldDowngradeForRebuffer(listOf(1_000L, 20_000L), 20_000L))
+        // Two stalls but the first aged out of the window: no downgrade.
+        assertEquals(
+            false,
+            VideoQualityLogic.shouldDowngradeForRebuffer(listOf(1_000L, w + 10_000L), w + 10_000L),
+        )
+    }
+
+    @Test
+    fun `rungBelow steps down the high-to-low ladder and stops at the bottom`() {
+        val rungs = VideoQualityLogic.rungs(liveStreamingData())
+        assertEquals("1440p", VideoQualityLogic.rungBelow(rungs, "2160p")?.label)
+        assertEquals("720p", VideoQualityLogic.rungBelow(rungs, "1080p")?.label)
+        assertNull(VideoQualityLogic.rungBelow(rungs, "144p"))
+        assertNull(VideoQualityLogic.rungBelow(rungs, "999p"))
+    }
+
+    @Test
     fun `decoderMimeType maps the three codec families`() {
         assertEquals("video/avc", VideoQualityLogic.decoderMimeType(avc))
         assertEquals("video/x-vnd.on2.vp9", VideoQualityLogic.decoderMimeType(vp9))

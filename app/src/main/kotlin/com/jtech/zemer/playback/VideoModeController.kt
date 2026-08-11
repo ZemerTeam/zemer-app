@@ -111,6 +111,14 @@ class VideoModeController(
     /** The active rung's label, or [VideoQualityLogic.AUTO] for the automatic pick. */
     val currentVideoQuality: StateFlow<String> = _currentVideoQuality.asStateFlow()
 
+    // Rebuffer guard state (main-thread confined, reset on every swap/exit): mid-play stall
+    // timestamps for the CURRENT rendition, whether playback has reached READY since the last swap
+    // (a prepare's initial buffering is not a stall), and a seek exemption (a user seek buffers
+    // legitimately — MusicService.onPositionDiscontinuity flags it before the BUFFERING arrives).
+    private val videoStallTimes = mutableListOf<Long>()
+    private var videoReachedReady = false
+    private var ignoreNextVideoBuffer = false
+
     // Latest BlockVideosKey value, kept current by the block collector in init{} — so availability never
     // does a blocking dataStore read on the main thread (the combine transform + setVideoMode are hot/UI
     // paths). Seeded UNKNOWN (null), not false: the naive "seed false, the collector's first emission
@@ -276,6 +284,60 @@ class VideoModeController(
         swapToVideoKey(VideoRendition.key(renditionId, rung.itag, rung.progressive), rung.label)
     }
 
+    // ---- Rebuffer guard (avoid mid-play buffering: drop a rung instead of stalling) ------------
+
+    /** MusicService hook: a user seek's buffering must not count as a stall. */
+    fun onSeekDiscontinuity() {
+        ignoreNextVideoBuffer = true
+    }
+
+    /**
+     * MusicService hook for playback-state changes. A STATE_BUFFERING after READY while a STREAMING
+     * video rendition plays is a mid-play stall — the network cannot sustain the rung's bitrate.
+     * Repeated stalls ([VideoQualityLogic.shouldDowngradeForRebuffer]) drop ONE rung,
+     * position-continuous, and pin the item there so the ladder callback can't upgrade straight
+     * back. Seek-caused buffering is exempt; LOCAL renditions and plain audio playback never count.
+     */
+    fun onPlaybackStateChanged(state: Int) {
+        if (!_isVideoMode.value || renditionKind == RenditionKind.LOCAL) {
+            videoReachedReady = false
+            videoStallTimes.clear()
+            return
+        }
+        when (state) {
+            Player.STATE_READY -> {
+                videoReachedReady = true
+                ignoreNextVideoBuffer = false
+            }
+            Player.STATE_BUFFERING -> {
+                if (!videoReachedReady) return
+                if (ignoreNextVideoBuffer) {
+                    ignoreNextVideoBuffer = false
+                    return
+                }
+                val now = android.os.SystemClock.elapsedRealtime()
+                videoStallTimes.add(now)
+                if (VideoQualityLogic.shouldDowngradeForRebuffer(videoStallTimes, now)) {
+                    videoStallTimes.clear()
+                    downgradeOneRung()
+                }
+            }
+            else -> {}
+        }
+    }
+
+    private fun downgradeOneRung() {
+        val renditionId = videoRenditionId ?: return
+        // AUTO already plays the cheapest single-stream pick — nothing to drop to.
+        val current = _currentVideoQuality.value
+        if (current == VideoQualityLogic.AUTO) return
+        val rungs = qualityLadders[renditionId] ?: return
+        val below = VideoQualityLogic.rungBelow(rungs, current) ?: return
+        // Pin the item to the lower rung so onVideoQualitiesResolved can't bounce back up.
+        videoModeItemId?.let { qualityOverrides[it] = below.label }
+        swapToRung(below)
+    }
+
     /** Replace our own current video rendition with the same item under [key] — the quality re-swap. */
     private fun swapToVideoKey(key: String, label: String) {
         if (!_isVideoMode.value || renditionKind == RenditionKind.LOCAL) return
@@ -300,6 +362,9 @@ class VideoModeController(
         mainHandler.post { pendingSwap = false }
         videoModeVideoKey = key
         _currentVideoQuality.value = label
+        // A fresh rendition starts a fresh stall history (the swap's own prepare is not a stall).
+        videoStallTimes.clear()
+        videoReachedReady = false
     }
 
     /** Pure availability for the CURRENT item (null ⇒ no toggle). Recomputed by [videoModeAvailable]. */
@@ -523,6 +588,9 @@ class VideoModeController(
         // this Looper during the calls above; this post runs after them).
         mainHandler.post { pendingSwap = false }
         videoModeVideoKey = videoKey
+        // Fresh rendition, fresh rebuffer-guard history (the entry prepare is not a stall).
+        videoStallTimes.clear()
+        videoReachedReady = false
         _isVideoMode.value = true
     }
 
@@ -608,6 +676,8 @@ class VideoModeController(
         renditionKind = null
         videoRenditionId = null
         videoModeVideoKey = null
+        videoStallTimes.clear()
+        videoReachedReady = false
         _videoQualities.value = emptyList()
         _currentVideoQuality.value = VideoQualityLogic.AUTO
         _isVideoMode.value = false

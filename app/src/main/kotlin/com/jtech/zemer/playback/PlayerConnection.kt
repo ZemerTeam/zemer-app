@@ -121,6 +121,7 @@ class PlayerConnection(
     fun setVideoQuality(label: String) = service.videoModeController.setVideoQuality(label)
     fun downloadVideoQuality(mediaId: String) = service.videoModeController.downloadVideoQuality(mediaId)
     fun requestVideoAvailability(mediaId: String) = service.videoModeController.requestVideoAvailability(mediaId)
+    fun prefetchVideoRendition(mediaId: String) = service.prefetchVideoRendition(mediaId)
     fun setVideoSurface(view: android.view.TextureView?) = service.videoModeController.setVideoSurface(view)
     fun clearVideoSurface(view: android.view.TextureView) = service.videoModeController.clearVideoSurface(view)
 

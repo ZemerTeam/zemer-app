@@ -1042,6 +1042,23 @@ WEB_REMIX serves avc1 144p…1080p and vp9-only 1440p/2160p. The rules that must
   renditions and RELAY mode have no switcher (one baked/fixed rendition; quality keys must never reach
   the relay resolver). A video-mode player error pins the item's session pick to AUTO so neither the
   failed pick NOR the persisted default can loop a re-entry back into the failing rung.
+- **Fast entry + instant switching (the perf contract).** ONE video resolution resolves EVERY ladder
+  rung's URL plus the merge-audio partner from the same response (`PlaybackData.videoRungUrls` /
+  `mergeAudioUrl` — pure local sig/n/pot computation, no extra network; exactly what
+  `tests/video-qualities.mjs` proves per rung) and `MusicService.seedVideoUrlCaches` seeds them all,
+  so a quality switch and the adaptive audio track never pay a second player round-trip. The expanded
+  player PREFETCHES the rendition in the background while the Song/Video pill is showing
+  (`prefetchVideoRendition` — deduped, expiry-aware, relay-gated, silent on failure), so a Video tap
+  starts with a single CDN range request. The web-URL finalization lives in ONE helper
+  (`applyWebUrlTransforms`) shared by the main resolution path and the rung table — never fork it.
+- **The rebuffer guard (never keep stalling mid-play).** A STATE_BUFFERING after READY on a STREAMING
+  rendition is a mid-play stall; two stalls within 45s (`VideoQualityLogic.shouldDowngradeForRebuffer`,
+  pure + tested) drop ONE rung position-continuously and pin the item there so the ladder callback
+  can't bounce back up. Seek-caused buffering is exempt (`onSeekDiscontinuity` flags it), a swap's own
+  prepare never counts (history resets on every swap), LOCAL/audio playback never counts, and AUTO
+  never downgrades (already the cheapest single-stream pick). The buffering spinner lives INSIDE the
+  shared `PlayerVideoSurface` so the inline art slot and the fullscreen overlay show one identical
+  treatment.
 - **Downloads above the progressive ceiling fetch video+audio separately and REMUX on-device**
   (`VideoMuxer` — framework MediaExtractor/MediaMuxer, zero new dependencies: avc1+AAC → MP4,
   vp9+Opus → WebM on API 29+ only — `selectRung(opusWebmMuxSupported)`; av01 is stream-only). The
