@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` — a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline — they are not duplicated here.
 
-## `app` Kotlin files (638)
+## `app` Kotlin files (640)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -461,6 +461,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/utils/PlaylistRemoteEdits.kt` | 49 | `com.jtech.zemer.utils` | no | 2 | 6 |  |
 | `app/src/main/kotlin/com/jtech/zemer/utils/PodcastLibrarySources.kt` | 79 | `com.jtech.zemer.utils` | no | 8 | 8 | kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/utils/PodcastWhitelistCache.kt` | 39 | `com.jtech.zemer.utils` | no | 1 | 7 |  |
+| `app/src/main/kotlin/com/jtech/zemer/utils/RankedContentGate.kt` | 32 | `com.jtech.zemer.utils` | no | 0 | 6 |  |
 | `app/src/main/kotlin/com/jtech/zemer/utils/StringUtils.kt` | 31 | `com.jtech.zemer.utils` | no | 2 | 8 | java.math, java.security |
 | `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1122 | `com.jtech.zemer.utils` | no | 48 | 142 | android.content, android.util, androidx.datastore, dagger.hilt, java.time, javax.inject, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/UpdateChecker.kt` | 250 | `com.jtech.zemer.utils` | no | 19 | 67 | android.content, android.net, io.ktor, java.io, kotlinx.coroutines, kotlinx.serialization |
@@ -639,6 +640,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/utils/PlaylistSongWhitelistTest.kt` | 52 | `com.jtech.zemer.utils` | no | 3 | 2 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/PodcastLibrarySourcesTest.kt` | 78 | `com.jtech.zemer.utils` | no | 4 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/PodcastWhitelistCacheTest.kt` | 44 | `com.jtech.zemer.utils` | no | 5 | 3 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/utils/RankedContentGateTest.kt` | 52 | `com.jtech.zemer.utils` | no | 4 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/ZemerContentClientTest.kt` | 97 | `com.jtech.zemer.utils` | no | 7 | 11 | kotlinx.coroutines, kotlinx.serialization, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/updater/InstallerTest.kt` | 43 | `com.jtech.zemer.utils.updater` | no | 3 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/updater/NightlyUpdatesTest.kt` | 188 | `com.jtech.zemer.utils.updater` | no | 9 | 15 | java.util, org.junit |

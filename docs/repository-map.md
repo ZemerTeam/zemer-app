@@ -77,9 +77,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1176`
+- Files counted: `1178`
 - By extension:
-  - `.kt`: `738`
+  - `.kt`: `740`
   - `.xml`: `196`
   - `.mjs`: `74`
   - `.md`: `68`
@@ -621,6 +621,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/PlaylistRemoteEdits.kt` | 49 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/PodcastLibrarySources.kt` | 79 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/PodcastWhitelistCache.kt` | 39 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/RankedContentGate.kt` | 32 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/StringUtils.kt` | 31 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1122 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/UpdateChecker.kt` | 250 lines | `.kt` |
@@ -1011,6 +1012,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/utils/PlaylistSongWhitelistTest.kt` | 52 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/utils/PodcastLibrarySourcesTest.kt` | 78 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/utils/PodcastWhitelistCacheTest.kt` | 44 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/utils/RankedContentGateTest.kt` | 52 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/utils/ZemerContentClientTest.kt` | 97 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/utils/updater/InstallerTest.kt` | 43 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/utils/updater/NightlyUpdatesTest.kt` | 188 lines | `.kt` |
@@ -1060,7 +1062,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 761 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 763 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 384 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
@@ -1071,7 +1073,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1286 lines | `.md` |
+| `docs/repository-map.md` | 1288 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
