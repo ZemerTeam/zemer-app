@@ -244,23 +244,24 @@ class ZemerSearchRepository @Inject constructor(
      * `podcasts` shard carries each show's genres). Flag-keyed TTL memo, mirroring [genres] — the Home-
      * adjacent catalog is opened repeatedly, and the data changes on curation timescales.
      */
-    suspend fun podcastGenres(options: ZemerSearchOptions): List<ZemerPodcastGenreSummary> {
+    suspend fun podcastGenres(options: ZemerSearchOptions): PodcastGenreCatalog {
         val key = "${options.allowFemale}|${options.blockVideos}"
         val now = System.currentTimeMillis()
         podcastGenresCache?.let { (cachedKey, at, value) ->
             if (cachedKey == key && now - at < GENRES_CACHE_TTL_MS) return value
         }
-        return serverOrOffline(
+        val response = serverOrOffline(
             server = { client.podcastGenres(options.allowFemale, options.blockVideos) },
             offline = { offlineReads.podcastGenres(options.allowFemale, options.blockVideos) },
-        ).genres
-            .filter { it.id.isNotBlank() }
-            .distinctBy { it.id }
-            .also { podcastGenresCache = Triple(key, now, it) }
+        )
+        return PodcastGenreCatalog(
+            kinds = response.kinds,
+            genres = response.genres.filter { it.id.isNotBlank() }.distinctBy { it.id },
+        ).also { podcastGenresCache = Triple(key, now, it) }
     }
 
     @Volatile
-    private var podcastGenresCache: Triple<String, Long, List<ZemerPodcastGenreSummary>>? = null
+    private var podcastGenresCache: Triple<String, Long, PodcastGenreCatalog>? = null
 
     /**
      * One podcast genre's page (its member shows). Null = 404 (unknown slug / all filtered out) — the

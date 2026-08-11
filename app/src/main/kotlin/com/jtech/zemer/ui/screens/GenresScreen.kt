@@ -1,9 +1,6 @@
 package com.jtech.zemer.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
@@ -19,26 +16,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
-import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.search.GenreKind
-import com.jtech.zemer.search.ZemerGenreSummary
 import com.jtech.zemer.search.zemerGenreRoute
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.EmptyPlaceholder
-import com.jtech.zemer.ui.component.GenreCard
+import com.jtech.zemer.ui.component.GenreCardGrid
+import com.jtech.zemer.ui.component.GenreCatalogTopSpacing
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.BoxPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
@@ -50,9 +45,11 @@ import com.jtech.zemer.viewmodels.ZemerGenreCatalogViewModel.UiState
  * The genre catalog (the home chips row's "See all"): every music genre as a BIG card in a
  * two-column grid, grouped Styles → Occasions, each in the server's most-populated-first order.
  * Non-music genres are dropped upstream ([com.jtech.zemer.search.genresByKind]) and never render
- * here. Tapping a card opens the genre detail. Deliberately count-free (see [GenreSectionBlock]).
+ * here. Tapping a card opens the genre detail. Deliberately count-free (a concrete
+ * number reads as small; the catalog should read as complete). Sections render via the shared
+ * [GenreCardGrid].
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GenresScreen(
     navController: NavController,
@@ -64,6 +61,10 @@ fun GenresScreen(
     LazyColumn(
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) {
+        // Breathing room between the top bar and the first section title (owner ask; matches the
+        // podcast catalog).
+        item(key = "top_spacer") { Spacer(Modifier.height(GenreCatalogTopSpacing)) }
+
         when (val uiState = state) {
             UiState.Loading -> item(key = "loading_shimmer") {
                 GenreCatalogShimmer()
@@ -86,10 +87,10 @@ fun GenresScreen(
                         val genres = uiState.groups[kind].orEmpty()
                         if (genres.isNotEmpty()) {
                             item(key = "section_$kind") {
-                                GenreSectionBlock(
+                                GenreCardGrid(
                                     title = stringResource(titleRes),
-                                    genres = genres,
-                                    navController = navController,
+                                    genres = genres.map { it.id to it.title },
+                                    onGenreClick = { navController.navigate(zemerGenreRoute(it)) },
                                 )
                             }
                         }
@@ -160,54 +161,3 @@ private fun GenreCatalogShimmer(modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * One kind group on the catalog page: a section title over a two-column grid of BIG [GenreCard]s
- * (owner decision: the catalog is a destination page and gets substantial cards; chips live only on
- * the Home strip). Two columns like the featured grids — long Hebrew+English titles need the width.
- * Deliberately count-free (a concrete number reads as small — the catalog should read as complete,
- * not counted).
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun GenreSectionBlock(
-    title: String,
-    genres: List<ZemerGenreSummary>,
-    navController: NavController,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
-        Spacer(Modifier.height(12.dp))
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            maxItemsInEachRow = 2,
-        ) {
-            genres.forEach { genre ->
-                // Stable per-genre key so a list update keeps each genre's card (cached motif + running
-                // weave) instead of reusing a slot for a different genre and re-inflating.
-                key(genre.id) {
-                    GenreCard(
-                        title = genre.title,
-                        slug = genre.id,
-                        onClick = { navController.navigate(zemerGenreRoute(genre.id)) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-            // An odd count leaves the last card alone on its row; without a weighted partner it
-            // would stretch to the full width. The invisible spacer keeps it at exact cell width.
-            if (genres.size % 2 == 1) {
-                Spacer(Modifier.weight(1f))
-            }
-        }
-    }
-}

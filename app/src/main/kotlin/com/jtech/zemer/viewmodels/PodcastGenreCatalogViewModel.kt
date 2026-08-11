@@ -3,7 +3,8 @@ package com.jtech.zemer.viewmodels
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jtech.zemer.search.ZemerPodcastGenreSummary
+import com.jtech.zemer.search.PodcastGenreSection
+import com.jtech.zemer.search.podcastGenreSections
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.utils.ContentFilterState
@@ -18,9 +19,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Backs the podcast-genre catalog screen: the FLAT `/podcast-genres` list (podcast genres carry no
- * `kind`, unlike music). Same fetch discipline as [ZemerGenreCatalogViewModel]: a fresh fetch per
- * screen open, a re-fetch on content-flag change, and a response fetched under stale flags is dropped.
+ * Backs the podcast-genre catalog screen: `/podcast-genres` grouped into the server-owned kind
+ * sections ([podcastGenreSections] — flat when the server sends no `kinds`). Same fetch discipline as
+ * [ZemerGenreCatalogViewModel]: a fresh fetch per screen open, a re-fetch on content-flag change, and
+ * a response fetched under stale flags is dropped.
  */
 @HiltViewModel
 class PodcastGenreCatalogViewModel @Inject constructor(
@@ -30,7 +32,7 @@ class PodcastGenreCatalogViewModel @Inject constructor(
 
     sealed interface UiState {
         data object Loading : UiState
-        data class Loaded(val genres: List<ZemerPodcastGenreSummary>) : UiState
+        data class Loaded(val sections: List<PodcastGenreSection>) : UiState
         data object Error : UiState
     }
 
@@ -47,9 +49,9 @@ class PodcastGenreCatalogViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             val options = zemerSearchOptions(context)
             runCatching { repository.podcastGenres(options) }
-                .onSuccess { genres ->
+                .onSuccess { catalog ->
                     if (zemerOptionsStillCurrent(options, ContentFilterState.current)) {
-                        _state.value = UiState.Loaded(genres)
+                        _state.value = UiState.Loaded(podcastGenreSections(catalog))
                     }
                 }
                 .onFailure {

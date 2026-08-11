@@ -48,7 +48,8 @@ class PodcastGenresHomeViewModel @Inject constructor(
         runCatching { repository.podcastGenres(options) }
             .onSuccess { fetched ->
                 if (zemerOptionsStillCurrent(options, ContentFilterState.current)) {
-                    _genres.value = fetched
+                    // The home strip stays flat (chips) — only the catalog screen groups by kind.
+                    _genres.value = fetched.genres
                 }
             }
             .onFailure { reportException(it) }

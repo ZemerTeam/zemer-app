@@ -1,9 +1,6 @@
 package com.jtech.zemer.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.asPaddingValues
@@ -19,7 +16,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
-import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,21 +31,24 @@ import com.jtech.zemer.search.zemerPodcastGenreRoute
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.EmptyPlaceholder
-import com.jtech.zemer.ui.component.GenreCard
+import com.jtech.zemer.ui.component.GenreCardGrid
+import com.jtech.zemer.ui.component.GenreCatalogTopSpacing
 import com.jtech.zemer.ui.component.podcastGenreIcon
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.BoxPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
+import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
 import com.jtech.zemer.viewmodels.PodcastGenreCatalogViewModel
 import com.jtech.zemer.viewmodels.PodcastGenreCatalogViewModel.UiState
 
 /**
- * The podcast-genre catalog: every genre as a big [GenreCard] in a two-column grid (reuses the music
- * catalog's card + shimmer). FLAT — podcast genres have no `kind`, so there are no Styles/Occasions
- * sections. Tapping a card opens the genre's flat show list ([PodcastGenreScreen]). Count-free, like
- * the music catalog.
+ * The podcast-genre catalog: big genre cards in the shared [GenreCardGrid], grouped under the
+ * SERVER-OWNED kind sections (`kinds` on `/podcast-genres` — titles come from the wire, unlike
+ * music's app-side Styles/Occasions strings, so a new kind ships titled with no app release). No
+ * `kinds` (older server / offline snapshot) = one headerless flat grid, exactly the pre-kinds render.
+ * Tapping a card opens the genre's show list ([PodcastGenreScreen]). Count-free, like music.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PodcastGenresScreen(
     navController: NavController,
@@ -61,8 +60,8 @@ fun PodcastGenresScreen(
     LazyColumn(
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) {
-        // Breathing room between the top bar and the first row of cards (owner ask).
-        item(key = "top_spacer") { Spacer(Modifier.height(16.dp)) }
+        // Breathing room between the top bar and the first section (owner ask; matches music).
+        item(key = "top_spacer") { Spacer(Modifier.height(GenreCatalogTopSpacing)) }
 
         when (val uiState = state) {
             UiState.Loading -> item(key = "loading_shimmer") {
@@ -70,7 +69,7 @@ fun PodcastGenresScreen(
             }
 
             is UiState.Loaded -> {
-                if (uiState.genres.isEmpty()) {
+                if (uiState.sections.isEmpty()) {
                     item(key = "empty") {
                         EmptyPlaceholder(
                             icon = R.drawable.podcast,
@@ -78,33 +77,14 @@ fun PodcastGenresScreen(
                         )
                     }
                 } else {
-                    item(key = "grid") {
-                        FlowRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            maxItemsInEachRow = 2,
-                        ) {
-                            uiState.genres.forEach { genre ->
-                                // Stable per-genre key so a list update (re-sync reorders by count) keeps
-                                // each genre's card - its cached motif tile + running weave - instead of
-                                // reusing a slot for a different genre and re-inflating (the update flicker).
-                                key(genre.id) {
-                                    GenreCard(
-                                        title = genre.title,
-                                        slug = genre.id,
-                                        onClick = { navController.navigate(zemerPodcastGenreRoute(genre.id)) },
-                                        modifier = Modifier.weight(1f),
-                                        iconOverride = podcastGenreIcon(genre.id),
-                                    )
-                                }
-                            }
-                            // Keep a lone trailing card at exact cell width (see the music catalog).
-                            if (uiState.genres.size % 2 == 1) {
-                                Spacer(Modifier.weight(1f))
-                            }
+                    uiState.sections.forEachIndexed { index, section ->
+                        item(key = "section_${section.title ?: "ungrouped_$index"}") {
+                            GenreCardGrid(
+                                title = section.title,
+                                genres = section.genres.map { it.id to it.title },
+                                onGenreClick = { navController.navigate(zemerPodcastGenreRoute(it)) },
+                                iconOverride = ::podcastGenreIcon,
+                            )
                         }
                     }
                 }
@@ -140,26 +120,31 @@ fun PodcastGenresScreen(
 }
 
 /**
- * The catalog's own loading skeleton, shaped like what loads: a flat two-column grid of 96dp card
- * slabs (no section-title bars — podcast genres are ungrouped, unlike the music catalog).
+ * The catalog's own loading skeleton, shaped like what loads: kind sections, each a title bar over a
+ * two-column grid of 96dp card slabs (matches the music catalog's shimmer now that both group).
  */
 @Composable
 private fun PodcastGenreCatalogShimmer(modifier: Modifier = Modifier) {
     ShimmerHost(modifier) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-        ) {
-            repeat(5) { row ->
-                if (row > 0) Spacer(Modifier.height(10.dp))
-                Row {
-                    repeat(2) { col ->
-                        if (col > 0) Spacer(Modifier.width(10.dp))
-                        BoxPlaceholder(
-                            Modifier.weight(1f).height(96.dp),
-                            shape = RoundedCornerShape(20.dp),
-                        )
+        repeat(2) { section ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                if (section > 0) Spacer(Modifier.height(12.dp))
+                TextPlaceholder()
+                Spacer(Modifier.height(12.dp))
+                repeat(3) { row ->
+                    if (row > 0) Spacer(Modifier.height(10.dp))
+                    Row {
+                        repeat(2) { col ->
+                            if (col > 0) Spacer(Modifier.width(10.dp))
+                            BoxPlaceholder(
+                                Modifier.weight(1f).height(96.dp),
+                                shape = RoundedCornerShape(20.dp),
+                            )
+                        }
                     }
                 }
             }
