@@ -131,7 +131,7 @@ fun WhitelistedArtistListItem(
     },
     modifier = modifier
         .fillMaxWidth()
-
+        .focusBorder()
         .clickable {
             navController.navigateToArtist(artist.id)
         }
@@ -198,7 +198,7 @@ fun WhitelistedArtistGridItem(
     fillMaxWidth = true,
     modifier = modifier
         .fillMaxWidth()
-
+        .focusBorder()
         .combinedClickable(
             onClick = {
                 navController.navigateToArtist(artist.id)
@@ -452,6 +452,7 @@ fun WhitelistedPodcastListItem(
     },
     modifier = modifier
         .fillMaxWidth()
+        .focusBorder()
         .clickable {
             navController.openWhitelistedPodcast(podcast)
         }
@@ -494,6 +495,7 @@ fun WhitelistedPodcastGridItem(
     fillMaxWidth = fillMaxWidth,
     modifier = modifier
         .then(if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier)
+        .focusBorder()
         .combinedClickable(
             onClick = {
                 navController.openWhitelistedPodcast(podcast)

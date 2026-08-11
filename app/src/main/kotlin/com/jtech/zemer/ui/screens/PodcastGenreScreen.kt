@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
@@ -66,7 +68,11 @@ fun PodcastGenreScreen(
     }
 
     when (val uiState = state) {
-        UiState.Loading -> ShimmerHost {
+        // The pre-content states pad with the same player-aware insets as the loaded YtItemGrid, so
+        // the skeleton/empty/error never sit under the top bar or jump when the real content lands.
+        UiState.Loading -> ShimmerHost(
+            modifier = Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current),
+        ) {
             // A header slab (the mosaic; shorter than music's since the podcast header has no Play pill)
             // then a 3-COLUMN card grid — matching the YtItemGrid(columns = 3) that loads below.
             BoxPlaceholder(Modifier.fillMaxWidth().height(180.dp))
@@ -84,6 +90,7 @@ fun PodcastGenreScreen(
                 EmptyPlaceholder(
                     icon = R.drawable.podcast,
                     text = stringResource(R.string.home_see_all_empty),
+                    modifier = Modifier.windowInsetsPadding(LocalPlayerAwareWindowInsets.current),
                 )
             } else {
                 // The header mosaic is the genre's OWN color source — its shows' art. Min 3 unique for
@@ -112,6 +119,7 @@ fun PodcastGenreScreen(
 
         UiState.Error -> Column(
             modifier = Modifier
+                .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
                 .fillMaxWidth()
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
