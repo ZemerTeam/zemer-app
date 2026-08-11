@@ -71,7 +71,7 @@ subtitle.
 
 ## Where the feed comes from
 
-- **URL:** `https://api.flipphoneguy.duckdns.org/zemer/recent-releases.json`
+- **URL:** `https://flipphoneguy.duckdns.org/?page=zemer_releases`
   (`LatestReleasesStore.FEED_URL`, `LatestReleasesStore.kt:69`), served with an ETag (the store
   sends `If-None-Match` and honours `304` — doc 03).
 - **Builder location:** the deployed job is **not** in this repo. Per

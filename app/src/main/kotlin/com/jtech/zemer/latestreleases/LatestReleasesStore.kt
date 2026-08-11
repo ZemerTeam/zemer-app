@@ -21,7 +21,7 @@ import java.io.File
 /**
  * The "latest releases" feed: recent releases from kosher (whitelisted) artists, precomputed
  * server-side and served as a small JSON. Mirrors the shape produced by the VPS builder
- * (flipphoneguy-api `/zemer/recent-releases.json`); `ignoreUnknownKeys` keeps the app forward-
+ * (flipphoneguy-api `/?page=zemer_releases`); `ignoreUnknownKeys` keeps the app forward-
  * compatible if the server adds fields.
  */
 @Serializable
@@ -67,7 +67,7 @@ data class LatestRelease(
  */
 object LatestReleasesStore {
     private const val TAG = "Zemer_LatestReleases"
-    private const val FEED_URL = "https://api.flipphoneguy.duckdns.org/zemer/recent-releases.json"
+    private const val FEED_URL = "https://flipphoneguy.duckdns.org/?page=zemer_releases"
     private const val MAX_ATTEMPTS = 3
 
     // A cached feed older than this (since its last successful fetch) is treated as gone: the server

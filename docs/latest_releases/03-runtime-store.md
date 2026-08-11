@@ -9,7 +9,7 @@ refresh. Modelled on the cipher `PlayerConfigStore` (its KDoc says so, `:50-53`)
 | Constant | Value | Meaning |
 |---|---|---|
 | `TAG` | `"Zemer_LatestReleases"` | Timber tag (shared with the ViewModel). |
-| `FEED_URL` | `https://api.flipphoneguy.duckdns.org/zemer/recent-releases.json` | The feed. |
+| `FEED_URL` | `https://flipphoneguy.duckdns.org/?page=zemer_releases` | The feed. |
 | `MAX_ATTEMPTS` | `3` | Network tries per launch before giving up. |
 | `MAX_STALE_MS` | `3 * 24 * 60 * 60 * 1000L` (3 days) | A disk cache older than this is treated as gone. |
 | `CACHE_FILE` | `"latest_releases.json"` | The cached feed body. |
