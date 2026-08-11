@@ -52,6 +52,7 @@ different id as the first CLI arg or via `VIDEO_ID`.
 | `pot-probe.mjs` | The **definitive poToken-binding matrix**: request-pot × url-pot × {none/videoId/visitorData-raw/visitorData-enc}, fetched past the 1-MiB window. |
 | `client-fulldownload.mjs` | Drains the **whole** file per client to show which clients actually deliver a full song right now (vs the old 2-byte check). Defaults to the app's MAIN+fallback client set; `CLIENTS=A,B` to subset. |
 | `sts-mismatch.mjs` | Regression test for **STS/cipher player coherence**: `/player` with the pinned player's own STS must stream past the wall; another live generation's STS 403s (the A/B-rollout bug — app fix: `CipherDeobfuscator.signatureTimestamp()` feeds `YTPlayerUtils`). |
+| `video-qualities.mjs` | The **beyond-720p quality ladder** prover: enumerates every video quality (progressive muxed + adaptive video-only, mirroring `VideoQualityLogic.ladderFormats`) plus the audio merge partner, resolves each URL the app's exact way, and per rung (high→low) verifies initial 206, a fresh-connection sweep past the 1-MiB pot wall, a 75% seek, and a **full drain to EOF** (the download proof). PASS/FAIL exit — can gate. |
 | `run.mjs`, `full-stream.mjs`, `retest-web.mjs`, `clients.mjs` | Older player-endpoint probes / client matrix (kept for reference). |
 
 ### Run them
@@ -64,6 +65,8 @@ URL_POT=player node tests/web-remix-stream.mjs       # verify the fix (videoId-b
 node tests/pot-probe.mjs                             # the binding matrix
 node tests/client-fulldownload.mjs                   # per-client whole-song delivery
 node tests/sts-mismatch.mjs                          # STS/cipher player coherence (403 regression)
+node tests/video-qualities.mjs <videoId>             # every quality rung: stream + full-download proof
+MODE=stream LABELS=2160p,1080p node tests/video-qualities.mjs <videoId>  # subset, skip full drains
 ```
 
 Useful env: `URL_POT=streaming|player|none`, `CHUNK=262144`, `COVER_SECONDS=90`,

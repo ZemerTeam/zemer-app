@@ -230,6 +230,7 @@ The Node mirror duplicates app constants on purpose. When these app files change
 | `PoTokenGenerator.kt` token bindings | `potoken.mjs` `mintWebPoTokens` + the `URL_POT` mapping in `web-remix-stream.mjs` |
 | `PoTokenWebView.kt` `REQUEST_KEY` | `potoken.mjs` `WEB_REQUEST_KEY` |
 | `YTPlayerUtils.findFormat()` selection | `findFormat()` in the scripts |
+| `VideoQualityLogic` ladder/codec rules | `qualityLadder()` + `CODEC_RANK` in `video-qualities.mjs` |
 | `PlayerJsFetcher` base.js URL (locale path) | `cipher.mjs` `PLAYER_JS_URL` |
 
 A quick `node cipher.mjs && node potoken.mjs && URL_POT=player node web-remix-stream.mjs` after any
