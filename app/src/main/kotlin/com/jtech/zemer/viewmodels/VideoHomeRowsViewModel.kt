@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import timber.log.Timber
 import javax.inject.Inject
 
 /**
@@ -57,6 +58,10 @@ class VideoHomeRowsViewModel @Inject constructor(
         val options = zemerSearchOptions(context)
         runCatching { repository.videoHomeRows(options) }
             .onSuccess { fetched: ZemerResultMapper.VideoHomeRows ->
+                Timber.d(
+                    "NET: /video-home-rows -> trending=%d new=%d artists=%d",
+                    fetched.trending.size, fetched.newVideos.size, fetched.artists.size,
+                )
                 if (zemerOptionsStillCurrent(options, ContentFilterState.current)) {
                     _trending.value = fetched.trending
                     _newVideos.value = fetched.newVideos
