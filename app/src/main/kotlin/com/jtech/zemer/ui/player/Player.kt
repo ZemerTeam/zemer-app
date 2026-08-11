@@ -1348,16 +1348,8 @@ private fun EpisodePlaybackControls(
 ) {
     // Live speed, not a one-shot snapshot: the Tempo & Pitch dialog writes playbackParameters too,
     // and a stale cached value made the pill label lie and the next tap override the user's choice.
-    var speed by remember { mutableFloatStateOf(playerConnection.player.playbackParameters.speed) }
-    DisposableEffect(playerConnection) {
-        val listener = object : androidx.media3.common.Player.Listener {
-            override fun onPlaybackParametersChanged(playbackParameters: androidx.media3.common.PlaybackParameters) {
-                speed = playbackParameters.speed
-            }
-        }
-        playerConnection.player.addListener(listener)
-        onDispose { playerConnection.player.removeListener(listener) }
-    }
+    val playbackParameters by playerConnection.playbackParameters.collectAsState()
+    val speed = playbackParameters.speed
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),

@@ -45,10 +45,10 @@ object PodcastSyncLogic {
         local.filterNot { id(it) in remoteIds }
 
     /** What syncEpisodesForLater imports vs. what its cleanup may treat as "still saved remotely". */
-    data class EpisodeSyncPlan(val importIds: Set<String>, val cleanupReference: Set<String>)
+    data class EpisodeSyncPlan<T>(val imported: List<T>, val cleanupReference: Set<String>)
 
     /**
-     * The whitelist lookup gates IMPORT only ([importIds] = episodes whose show positively resolved
+     * The whitelist lookup gates IMPORT only ([imported] = episodes whose show positively resolved
      * as whitelisted). [cleanupReference] is ALL raw remote ids: an episode whose show id is
      * unresolvable (no MPSP id) or 404s under the current flags is still in VLSE remotely, and
      * deleting its local save would wipe a genuine user save (the flag-hidden-album precedent).
@@ -58,8 +58,8 @@ object PodcastSyncLogic {
         id: (T) -> String,
         showIdOf: (T) -> String?,
         showAllowed: Map<String, Boolean>,
-    ): EpisodeSyncPlan = EpisodeSyncPlan(
-        importIds = rawRemote.filter { showIdOf(it)?.let(showAllowed::get) == true }.mapTo(mutableSetOf(), id),
+    ): EpisodeSyncPlan<T> = EpisodeSyncPlan(
+        imported = rawRemote.filter { showIdOf(it)?.let(showAllowed::get) == true },
         cleanupReference = rawRemote.mapTo(mutableSetOf(), id),
     )
 

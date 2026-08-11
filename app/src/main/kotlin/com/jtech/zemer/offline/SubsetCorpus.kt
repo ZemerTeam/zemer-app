@@ -9,7 +9,7 @@ package com.jtech.zemer.offline
  * Raw tables are plain lists; the maps/groupings the reads need are built lazily on first use so a
  * corpus that is loaded but never queried (e.g. app start with offline search off) costs only the parse.
  */
-class SubsetCorpus(
+data class SubsetCorpus(
     val artists: List<SubArtist>,
     val tracks: List<SubTrack>,
     val albums: List<SubAlbum>,

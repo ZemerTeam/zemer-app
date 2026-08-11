@@ -70,7 +70,6 @@ import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.extensions.togglePlayPause
-import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
@@ -273,17 +272,9 @@ fun OnlineSearchScreen(
                         whitelistedPodcastRoute(item.id, item.channelId)?.let { navController.navigate(it) }
                         onDismiss()
                     }
-                    // Episode: play the single episode via a plain ListQueue. A podcast episode must
-                    // NOT seed music song-radio around its videoId (that fills the queue with
-                    // unrelated corpus songs) — mirrors every other episode tap site.
+                    // Episode taps go through the shared single-episode queue (never song radio).
                     is EpisodeItem -> {
-                        playerConnection.playQueue(
-                            ListQueue(
-                                title = item.title,
-                                items = listOf(item.toMediaItem()),
-                                playSource = PlaySource.SEARCH,
-                            )
-                        )
+                        playerConnection.playQueue(ListQueue.episode(item, PlaySource.SEARCH))
                         onDismiss()
                     }
                     is SongItem -> {

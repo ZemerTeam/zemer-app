@@ -254,10 +254,9 @@ fun HomeScreen(
     // Blocking podcasts hides the whole content type (unlike videos, which relabel to audio) — drop the
     // tab and, if it was the persisted selection, fall back to Music so a blocked user never lands on it.
     LaunchedEffect(blockPodcasts, homeTab) {
-        val current = homeTab
-        if (current != null && effectiveHomeTab(current, blockPodcasts) != current) {
-            setHomeTab(effectiveHomeTab(current, blockPodcasts))
-        }
+        val current = homeTab ?: return@LaunchedEffect
+        val effective = effectiveHomeTab(current, blockPodcasts)
+        if (effective != current) setHomeTab(effective)
     }
     // Chip order/visibility is the pure, unit-tested visibleHomeTabs; only labels are resolved here.
     // The Video tab is ALWAYS shown; blocked-video users get it relabeled "Video songs" — its rows play

@@ -126,7 +126,7 @@ class PodcastSyncLogicTest {
             showIdOf = { it.showId },
             showAllowed = mapOf("MPSP_ok" to true, "MPSP_404" to false),
         )
-        assertEquals(setOf("e1"), plan.importIds)
+        assertEquals(listOf("e1"), plan.imported.map { it.id })
         assertEquals(setOf("e1", "e2", "e3"), plan.cleanupReference)
         // cleanup against the RAW reference removes nothing that is still in VLSE
         assertTrue(PodcastSyncLogic.localOnly(listOf("e2", "e3"), plan.cleanupReference) { it }.isEmpty())

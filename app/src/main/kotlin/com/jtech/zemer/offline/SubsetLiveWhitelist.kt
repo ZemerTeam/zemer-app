@@ -56,13 +56,13 @@ fun SubsetCorpus.withLiveWhitelist(live: Map<String, Boolean>): SubsetCorpus {
     val keptAlbumIds = keptAlbums.mapTo(HashSet()) { it.id }
     val droppedAlbumIds = albums.mapTo(HashSet()) { it.id }.apply { removeAll(keptAlbumIds) }
 
-    return SubsetCorpus(
+    // Podcasts are reconciled by the separate [withLivePodcastWhitelist] overlay, not this one.
+    return copy(
         artists = overlaidArtists,
         tracks = keptTracks,
         albums = keptAlbums,
         albumTracks = albumTracks.filter { it.albumId !in droppedAlbumIds && it.videoId !in droppedTrackIds },
         artistPlaylists = artistPlaylists.filter { it.artistId in keptArtists },
-        community = community,
         // A member is dropped when it POSITIVELY references dropped content: a corpus track of a
         // dropped artist, or a discovery-resolved artist id the live whitelist no longer carries.
         communityTracks = communityTracks.filter { ct ->
@@ -78,7 +78,6 @@ fun SubsetCorpus.withLiveWhitelist(live: Map<String, Boolean>): SubsetCorpus {
             }
             refKept && (r.artistId == null || r.artistId in live)
         },
-        zemerPlaylists = zemerPlaylists,
         zemerItems = zemerItems.filter {
             when (it.kind) {
                 "track" -> it.refId !in droppedTrackIds
@@ -86,11 +85,6 @@ fun SubsetCorpus.withLiveWhitelist(live: Map<String, Boolean>): SubsetCorpus {
                 else -> true
             }
         },
-        blocked = blocked,
-        // Podcasts are reconciled by the separate [withLivePodcastWhitelist] overlay, not the artist one.
-        podcastChannels = podcastChannels,
-        podcasts = podcasts,
-        podcastEpisodes = podcastEpisodes,
     )
 }
 
@@ -108,18 +102,7 @@ fun SubsetCorpus.withLivePodcastWhitelist(liveChannels: Set<String>): SubsetCorp
     val keptShows = podcasts.filter { it.channelId == null || it.channelId in liveChannels }
     if (keptChannels.size == podcastChannels.size && keptShows.size == podcasts.size) return this
     val keptShowIds = keptShows.mapTo(HashSet()) { it.id }
-    return SubsetCorpus(
-        artists = artists,
-        tracks = tracks,
-        albums = albums,
-        albumTracks = albumTracks,
-        artistPlaylists = artistPlaylists,
-        community = community,
-        communityTracks = communityTracks,
-        homeRank = homeRank,
-        zemerPlaylists = zemerPlaylists,
-        zemerItems = zemerItems,
-        blocked = blocked,
+    return copy(
         podcastChannels = keptChannels,
         podcasts = keptShows,
         podcastEpisodes = podcastEpisodes.filter { it.showId in keptShowIds },

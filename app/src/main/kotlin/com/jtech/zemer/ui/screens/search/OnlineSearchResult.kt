@@ -44,7 +44,6 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
-import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
@@ -178,19 +177,10 @@ fun OnlineSearchResult(
                     val route = whitelistedPodcastRoute(item.id, item.channelId)
                     if (route != null) navController.navigate(route)
                 }
-                // Episode: play the single episode via a plain ListQueue. A podcast episode must NOT seed
-                // music song-radio around its videoId (that fills the queue with unrelated corpus songs) —
-                // mirrors the artist-page episode tap.
+                // Episode taps go through the shared single-episode queue (never song radio), with
+                // the same declared source as the sibling song taps.
                 is EpisodeItem ->
-                    playerConnection.playQueue(
-                        ListQueue(
-                            title = item.title,
-                            items = listOf(item.toMediaItem()),
-                            // Same declared source as the sibling song taps on this screen — the
-                            // default OTHER would undercount search-driven listens.
-                            playSource = PlaySource.SEARCH,
-                        )
-                    )
+                    playerConnection.playQueue(ListQueue.episode(item, PlaySource.SEARCH))
                 is SongItem -> {
                     // Audio-first always (I2): every result plays as a normal song; video is a per-play
                     // in-player toggle, never a separate watch entry point (D3).

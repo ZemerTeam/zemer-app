@@ -40,6 +40,7 @@ import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
+import com.jtech.zemer.utils.VideoLinkBuilder
 import com.metrolist.innertube.models.PodcastItem
 
 /**
@@ -56,20 +57,15 @@ fun PodcastChannelMenu(
     navController: NavController,
     onDismiss: () -> Unit,
 ) {
-    val context = LocalContext.current
     PodcastMenuLayout(
         thumbnailUrl = podcast.thumbnailUrl,
         name = podcast.name,
         actions = listOf(
-            podcastViewAction(R.string.view_channel) {
+            podcastAction(R.drawable.podcast, R.string.view_channel) {
                 onDismiss()
                 whitelistedPodcastRoute(null, podcast.channelId)?.let(navController::navigate)
             },
-            podcastShareAction {
-                onDismiss()
-                Tracker.action(TrackingActionKind.SHARE, podcast.channelId)
-                context.shareText("https://music.zemer.io/channel/${podcast.channelId}")
-            },
+            podcastShareAction(podcast.channelId, onDismiss),
         ),
     )
 }
@@ -87,35 +83,28 @@ fun YouTubePodcastMenu(
     navController: NavController,
     onDismiss: () -> Unit,
 ) {
-    val context = LocalContext.current
     PodcastMenuLayout(
         thumbnailUrl = podcast.thumbnail,
         name = podcast.title,
-        actions = buildList {
-            add(
-                podcastViewAction(R.string.view_podcast) {
-                    onDismiss()
-                    whitelistedPodcastRoute(podcast.id, podcast.channelId)?.let(navController::navigate)
-                }
-            )
-            podcast.channelId?.let { channelId ->
-                add(
-                    podcastShareAction {
-                        onDismiss()
-                        Tracker.action(TrackingActionKind.SHARE, channelId)
-                        context.shareText("https://music.zemer.io/channel/$channelId")
-                    }
-                )
-            }
-        },
+        actions = listOfNotNull(
+            podcastAction(R.drawable.podcast, R.string.view_podcast) {
+                onDismiss()
+                whitelistedPodcastRoute(podcast.id, podcast.channelId)?.let(navController::navigate)
+            },
+            podcast.channelId?.let { podcastShareAction(it, onDismiss) },
+        ),
     )
 }
 
 @Composable
-private fun podcastViewAction(@androidx.annotation.StringRes labelRes: Int, onClick: () -> Unit) = NewAction(
+private fun podcastAction(
+    @androidx.annotation.DrawableRes iconRes: Int,
+    @androidx.annotation.StringRes labelRes: Int,
+    onClick: () -> Unit,
+) = NewAction(
     icon = {
         Icon(
-            painter = painterResource(R.drawable.podcast),
+            painter = painterResource(iconRes),
             contentDescription = null,
             modifier = Modifier.size(28.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -125,19 +114,16 @@ private fun podcastViewAction(@androidx.annotation.StringRes labelRes: Int, onCl
     onClick = onClick,
 )
 
+/** The tracked channel share, owned once so the two podcast menus can't drift. */
 @Composable
-private fun podcastShareAction(onClick: () -> Unit) = NewAction(
-    icon = {
-        Icon(
-            painter = painterResource(R.drawable.share),
-            contentDescription = null,
-            modifier = Modifier.size(28.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    },
-    text = stringResource(R.string.share),
-    onClick = onClick,
-)
+private fun podcastShareAction(channelId: String, onDismiss: () -> Unit): NewAction {
+    val context = LocalContext.current
+    return podcastAction(R.drawable.share, R.string.share) {
+        onDismiss()
+        Tracker.action(TrackingActionKind.SHARE, channelId)
+        context.shareText(VideoLinkBuilder.channelLink(channelId))
+    }
+}
 
 /** Shared shell for the podcast menus: square-art header + divider + [NewActionGrid]. */
 @Composable

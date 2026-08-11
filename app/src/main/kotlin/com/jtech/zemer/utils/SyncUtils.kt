@@ -260,7 +260,7 @@ class SyncUtils @Inject constructor(
                 // unresolvable or flag-hidden show must not wipe its saved episode) — see
                 // [PodcastSyncLogic.episodeSyncPlan].
                 val plan = PodcastSyncLogic.episodeSyncPlan(rawEpisodes, { it.id }, showIdOf, showAllowed)
-                val remoteEpisodes = rawEpisodes.filter { it.id in plan.importIds }
+                val remoteEpisodes = plan.imported
                 val remoteIds = plan.cleanupReference
 
                 remoteEpisodes.forEach { episode ->

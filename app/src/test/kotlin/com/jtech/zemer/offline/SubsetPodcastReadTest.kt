@@ -129,15 +129,7 @@ class SubsetPodcastReadTest {
         assertTrue(corpus === corpus.withLivePodcastWhitelist(emptySet()))
         // a null-channelId show is grandfathered
         val orphan = SubPodcastShow("MPSO", "Orphan Show", null, null, null, null)
-        val withOrphan = SubsetCorpus(
-            artists = emptyList(), tracks = emptyList(), albums = emptyList(), albumTracks = emptyList(),
-            artistPlaylists = emptyList(), community = emptyList(), communityTracks = emptyList(),
-            homeRank = emptyList(), zemerPlaylists = emptyList(), zemerItems = emptyList(),
-            blocked = SubBlocked(global = emptySet(), female = emptySet()),
-            podcastChannels = listOf(chNorm, chFem),
-            podcasts = listOf(s1, s2, sf, orphan),
-            podcastEpisodes = listOf(e1, e2, e3, ef),
-        )
+        val withOrphan = corpus.copy(podcasts = corpus.podcasts + orphan)
         assertTrue(withOrphan.withLivePodcastWhitelist(setOf("UCn")).podcasts.any { it.id == "MPSO" })
     }
 

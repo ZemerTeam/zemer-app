@@ -3,6 +3,7 @@ package com.jtech.zemer.playback
 import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM
 import androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
@@ -90,6 +91,9 @@ class PlayerConnection(
 
     val shuffleModeEnabled = MutableStateFlow(false)
     val repeatMode = MutableStateFlow(REPEAT_MODE_OFF)
+    // Live playback speed/pitch — the episode speed pill reads this; the Tempo & Pitch dialog writes
+    // the player directly, so any speed UI must observe, never cache a one-shot read.
+    val playbackParameters = MutableStateFlow(player.playbackParameters)
 
     val canSkipPrevious = MutableStateFlow(true)
     val canSkipNext = MutableStateFlow(true)
@@ -315,6 +319,10 @@ class PlayerConnection(
     override fun onRepeatModeChanged(mode: Int) {
         repeatMode.value = mode
         updateCanSkipPreviousAndNext()
+    }
+
+    override fun onPlaybackParametersChanged(parameters: PlaybackParameters) {
+        playbackParameters.value = parameters
     }
 
     override fun onPlayerErrorChanged(playbackError: PlaybackException?) {
