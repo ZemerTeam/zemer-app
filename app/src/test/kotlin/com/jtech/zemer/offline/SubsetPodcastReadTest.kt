@@ -110,6 +110,38 @@ class SubsetPodcastReadTest {
     }
 
     @Test
+    fun `search drops a blocked show's episodes by show id, not just videoId`() {
+        // MPS2 rides blocked.female: its episode ve3 must vanish from offline search when female is
+        // blocked, even though ve3's own videoId is not in the shard.
+        val blocked = offlineSearch(corpus, matcher, "Three", 10, allowFemale = false, blockVideos = false, kidZone = false)
+        assertTrue(blocked.categories.episodes.none { it.videoId == "ve3" })
+        val allowed = offlineSearch(corpus, matcher, "Three", 10, allowFemale = true, blockVideos = false, kidZone = false)
+        assertTrue(allowed.categories.episodes.any { it.videoId == "ve3" })
+    }
+
+    @Test
+    fun `live podcast whitelist overlay drops de-approved channels with their shows and episodes`() {
+        val overlaid = corpus.withLivePodcastWhitelist(setOf("UCn"))
+        assertEquals(listOf("UCn"), overlaid.podcastChannels.map { it.id })
+        assertEquals(listOf("MPS1", "MPS2"), overlaid.podcasts.map { it.id })
+        assertTrue(overlaid.podcastEpisodes.none { it.videoId == "vef" })
+        // empty live set = not synced yet -> no-op, never wipes the snapshot
+        assertTrue(corpus === corpus.withLivePodcastWhitelist(emptySet()))
+        // a null-channelId show is grandfathered
+        val orphan = SubPodcastShow("MPSO", "Orphan Show", null, null, null, null)
+        val withOrphan = SubsetCorpus(
+            artists = emptyList(), tracks = emptyList(), albums = emptyList(), albumTracks = emptyList(),
+            artistPlaylists = emptyList(), community = emptyList(), communityTracks = emptyList(),
+            homeRank = emptyList(), zemerPlaylists = emptyList(), zemerItems = emptyList(),
+            blocked = SubBlocked(global = emptySet(), female = emptySet()),
+            podcastChannels = listOf(chNorm, chFem),
+            podcasts = listOf(s1, s2, sf, orphan),
+            podcastEpisodes = listOf(e1, e2, e3, ef),
+        )
+        assertTrue(withOrphan.withLivePodcastWhitelist(setOf("UCn")).podcasts.any { it.id == "MPSO" })
+    }
+
+    @Test
     fun `genre catalog counts are post-filter, most-populated first, titles capitalized`() {
         // allowFemale: all three shows carry "gemara" (3); only s1 carries "history" (1).
         val open = offlinePodcastGenres(corpus, allowFemale = true, blockVideos = false, kidZone = false)

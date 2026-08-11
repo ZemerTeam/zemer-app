@@ -180,7 +180,10 @@ class BuiltCategories internal constructor(
 
         val episodeRows = pick(episodes, k,
             { allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
-            { listOf(it.videoId) })
+            // A show blocked by id (per-show exception on a mixed channel) must also drop its
+            // episodes here — every other offline podcast surface checks the show id, so matching
+            // only the videoId let blocked shows' episodes leak through offline search.
+            { listOf(it.videoId, it.showId, it.channelId) })
             .map { ZemerPodcastEpisode(videoId = it.videoId, title = it.title, podcastId = it.showId, podcastName = it.showName, channelId = it.channelId, thumbnail = it.thumbnail, durationSeconds = it.durationSec ?: 0, publishedAt = it.publishedAt) }
 
         return ZemerCategories(

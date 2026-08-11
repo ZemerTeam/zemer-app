@@ -87,8 +87,7 @@ fun SubsetCorpus.withLiveWhitelist(live: Map<String, Boolean>): SubsetCorpus {
             }
         },
         blocked = blocked,
-        // Podcasts ride the snapshot unchanged: they are gated by the separate podcast-CHANNEL whitelist
-        // (baked into the snapshot server-side), not the artist whitelist this overlay reconciles.
+        // Podcasts are reconciled by the separate [withLivePodcastWhitelist] overlay, not the artist one.
         podcastChannels = podcastChannels,
         podcasts = podcasts,
         podcastEpisodes = podcastEpisodes,
@@ -96,12 +95,46 @@ fun SubsetCorpus.withLiveWhitelist(live: Map<String, Boolean>): SubsetCorpus {
 }
 
 /**
+ * The podcast counterpart of [withLiveWhitelist]: overlays the live channel-level podcast whitelist
+ * ([com.jtech.zemer.utils.PodcastWhitelistCache]) onto the snapshot's podcast shards. A channel
+ * de-approved since the snapshot was built is DROPPED with its shows and episodes the moment the
+ * app's whitelist sync lands — not after the next snapshot download. A null-channelId show is
+ * grandfathered (kept), matching [com.jtech.zemer.utils.PodcastLibrarySources]. An EMPTY [liveChannels]
+ * means the podcast whitelist has not synced yet — no-op, never wipe the snapshot.
+ */
+fun SubsetCorpus.withLivePodcastWhitelist(liveChannels: Set<String>): SubsetCorpus {
+    if (liveChannels.isEmpty()) return this
+    val keptChannels = podcastChannels.filter { it.id in liveChannels }
+    val keptShows = podcasts.filter { it.channelId == null || it.channelId in liveChannels }
+    if (keptChannels.size == podcastChannels.size && keptShows.size == podcasts.size) return this
+    val keptShowIds = keptShows.mapTo(HashSet()) { it.id }
+    return SubsetCorpus(
+        artists = artists,
+        tracks = tracks,
+        albums = albums,
+        albumTracks = albumTracks,
+        artistPlaylists = artistPlaylists,
+        community = community,
+        communityTracks = communityTracks,
+        homeRank = homeRank,
+        zemerPlaylists = zemerPlaylists,
+        zemerItems = zemerItems,
+        blocked = blocked,
+        podcastChannels = keptChannels,
+        podcasts = keptShows,
+        podcastEpisodes = podcastEpisodes.filter { it.showId in keptShowIds },
+    )
+}
+
+/**
  * Cheap order-independent fingerprint of the live overlay input, so [OfflineReadProvider] can keep
  * its decoded-corpus cache while detecting a whitelist sync landing mid-process (membership or a
- * female flag changing must rebuild the overlaid corpus).
+ * female flag changing must rebuild the overlaid corpus). Covers both overlays: the artist map and
+ * the podcast-channel allow-set.
  */
-fun liveWhitelistFingerprint(live: Map<String, Boolean>): Long {
-    var fp = live.size.toLong()
+fun liveWhitelistFingerprint(live: Map<String, Boolean>, livePodcastChannels: Set<String> = emptySet()): Long {
+    var fp = live.size.toLong() + livePodcastChannels.size.toLong() * 17L
     for ((id, female) in live) fp += id.hashCode().toLong() * (if (female) 31L else 7L)
+    for (id in livePodcastChannels) fp += id.hashCode().toLong() * 13L
     return fp
 }

@@ -23,6 +23,9 @@ object PodcastWhitelistCache {
     /** Whether [channelId] is a whitelisted host channel (`UC…`). Show ids never match — see class doc. */
     fun isChannelWhitelisted(channelId: String): Boolean = memory.containsKey(channelId)
 
+    /** The current allow-set (immutable snapshot's keys) — the offline layer's live overlay input. */
+    fun channelIds(): Set<String> = memory.keys
+
     /**
      * Whether [channelId] is whitelisted AND passes the female gate — a wholly-female channel
      * (`isFemale`) is hidden when [allowFemale] is false, matching the server, the offline layer, and the

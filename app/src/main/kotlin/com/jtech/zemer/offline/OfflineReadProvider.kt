@@ -13,6 +13,7 @@ import com.jtech.zemer.search.ZemerPodcastGenrePageResponse
 import com.jtech.zemer.search.ZemerPodcastGenresResponse
 import com.jtech.zemer.search.ZemerPodcastResponse
 import com.jtech.zemer.search.ZemerSearchResponse
+import com.jtech.zemer.utils.PodcastWhitelistCache
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -65,11 +66,13 @@ class OfflineReadProvider @Inject constructor(
         val lastSyncedAt = context.dataStore.data.first()[OfflineSubsetLastSyncedAtKey] ?: 0L
         if (!subsetSnapshotIsFresh(lastSyncedAt, System.currentTimeMillis())) return null
         val live = WhitelistCache.snapshot().associate { it.artistId to it.isFemale }
+        val livePodcastChannels = PodcastWhitelistCache.channelIds()
         return synchronized(lock) {
             val manifest = store.localManifest() ?: run { cache = null; return null }
-            val fingerprint = liveWhitelistFingerprint(live)
+            val fingerprint = liveWhitelistFingerprint(live, livePodcastChannels)
             cache?.get()?.let { if (it.version == manifest.v && it.whitelistFingerprint == fingerprint) return it }
             val corpus = SubsetDecoder.loadCorpus(store)?.withLiveWhitelist(live)
+                ?.withLivePodcastWhitelist(livePodcastChannels)
                 ?: run { cache = null; return null }
             Loaded(manifest.v, fingerprint, corpus, buildFemaleMatcher(corpus.artists))
                 .also { cache = SoftReference(it) }
