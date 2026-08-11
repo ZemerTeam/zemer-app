@@ -7,6 +7,9 @@ import com.jtech.zemer.search.ZemerResultMapper
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.IsraeliArtistRegistry
+import com.jtech.zemer.utils.RankedContentGate
+import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.SongItem
@@ -56,6 +59,7 @@ class VideoHomeRowsViewModel @Inject constructor(
 
     private suspend fun refreshNow() = refreshMutex.withLock {
         val options = zemerSearchOptions(context)
+        IsraeliArtistRegistry.ensureLoaded()
         runCatching { repository.videoHomeRows(options) }
             .onSuccess { fetched: ZemerResultMapper.VideoHomeRows ->
                 Timber.d(
@@ -63,14 +67,25 @@ class VideoHomeRowsViewModel @Inject constructor(
                     fetched.trending.size, fetched.newVideos.size, fetched.artists.size,
                 )
                 if (zemerOptionsStillCurrent(options, ContentFilterState.current)) {
-                    _trending.value = fetched.trending
-                    _newVideos.value = fetched.newVideos
-                    _artists.value = fetched.artists
+                    // The client-only ranked gate (female/Israeli/kids — no wire flag exists), same
+                    // rule HomeViewModel applies to the topVideos lead row on this tab.
+                    val entryById = WhitelistCache.snapshot().associateBy { it.artistId }
+                    fun blocked(ids: List<String>) = RankedContentGate.isBlockedRanked(
+                        ids = ids,
+                        allowFemale = options.allowFemale,
+                        flagsOf = { id -> entryById[id]?.let { RankedContentGate.Flags(it.isFemale, it.isKids) } },
+                    )
+                    val trending = fetched.trending.filterNot { blocked(it.artists.mapNotNull { a -> a.id }) }
+                    val newVideos = fetched.newVideos.filterNot { blocked(it.artists.mapNotNull { a -> a.id }) }
+                    val artists = fetched.artists.filterNot { blocked(listOfNotNull(it.id)) }
+                    _trending.value = trending
+                    _newVideos.value = newVideos
+                    _artists.value = artists
                     // Publish the full rows so their "See all" screens show exactly what the rows show.
                     VideoHomeSeeAllStore.publishRows(
-                        trending = fetched.trending,
-                        newVideos = fetched.newVideos,
-                        artists = fetched.artists,
+                        trending = trending,
+                        newVideos = newVideos,
+                        artists = artists,
                     )
                 }
             }

@@ -410,7 +410,8 @@ object ZemerResultMapper {
             newVideos = songItems(resp.newVideos, hideExplicit = false, isVideo = true),
             artists = resp.topVideoArtists.filter { it.id.isNotBlank() }
                 .map { it.toArtistItem() }
-                .distinctBy { it.id },
+                .distinctBy { it.id }
+                .dropBlocked(),
         )
 
     /**

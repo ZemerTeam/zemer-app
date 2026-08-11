@@ -541,6 +541,8 @@ class ZemerResultMapperTest {
                 ZemerArtist("UCa", "A", "art"),
                 ZemerArtist("", "Blank", null),
                 ZemerArtist("UCa", "A dup", null),
+                // A blocked-id override must drop an ARTIST card too, not just track videoIds.
+                ZemerArtist("blockedVid", "Blocked Channel", null),
             ),
         )
         val rows = ZemerResultMapper.videoHomeRows(resp)

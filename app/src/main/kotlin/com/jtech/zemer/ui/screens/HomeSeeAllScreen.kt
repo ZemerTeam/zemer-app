@@ -144,12 +144,8 @@ fun HomeSeeAllScreen(
         title = {
             AppBarTitle(
                 stringResource(
-                    when {
-                        row == HomeSeeAllRow.FEATURED_VIDEOS && blockVideos -> R.string.featured_video_songs
-                        row == HomeSeeAllRow.TRENDING_VIDEOS && blockVideos -> R.string.trending_video_songs
-                        row == HomeSeeAllRow.NEW_VIDEOS && blockVideos -> R.string.new_video_songs
-                        else -> row.titleRes
-                    }
+                    // ONE relabel definition: HomeSeeAllRow.displayTitleRes, shared with the Home rows.
+                    row.displayTitleRes(blockVideos)
                 )
             )
         },
