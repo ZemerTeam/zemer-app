@@ -13,7 +13,6 @@ data class MusicShelfRenderer(
     @Serializable
     data class Content(
         val musicResponsiveListItemRenderer: MusicResponsiveListItemRenderer?,
-        val musicMultiRowListItemRenderer: MusicMultiRowListItemRenderer?,
         val continuationItemRenderer: ContinuationItemRenderer?,
     )
 }

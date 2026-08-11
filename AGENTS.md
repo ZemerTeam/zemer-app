@@ -223,9 +223,11 @@ The rules that must not regress:
   non-empty shelf (always, like the artist page).
 - **Visuals are monochrome + one gold accent** (`docs/genres/README.md` §visual): per-genre motif
   drawables (`ui/component/GenreIcons.kt` → `res/drawable/genre_*.xml`, incl. hand-drawn
-  menorah/alef/sukkah; NOT `material-icons-extended`); the drifting weave (`GenreWeaveLayer`) is a
-  GPU-composited `graphicsLayer` translation of a once-drawn tile (NOT a per-frame redraw — that
-  caused catalog jank; the fix is load-bearing); the detail header album-art mosaic
+  menorah/alef/sukkah; NOT `material-icons-extended`); the drifting weave (`GenreWeaveLayer`)
+  rasterizes the vector motif ONCE into a tiny cached tile and per-frame only blits that tile across
+  the grid (never re-rasterize the vector per frame — that caused catalog jank; the earlier cached
+  `graphicsLayer` variant was replaced because evicted layers left cards blank, so the cheap-blit
+  self-healing design is load-bearing); the detail header album-art mosaic
   (`ZemerResultMapper.headerCovers`) is the ONE color source, de-duped, min 3 unique covers
   (songs reuse album art), neutral `ColorPainter` fallback (never a transparent gap), sized by the
   mosaic-only `mosaicVariant` (isolated from the shared `thumbnailFor`). `HeaderFontFamily` (Heebo)
@@ -638,17 +640,17 @@ statuses. Rules that must not regress:
 
 A full podcast feature ported from Metrolist onto Zemer main. **DISCOVERY is now the whitelist-pure Zemer
 server** (`search.zemer.io`), exactly like artist/album/home-rows/radio — the app carries **no InnerTube
-podcast-discovery path and no direct Firestore `podcastsWhitelist` read**. The endpoints
+podcast-discovery path and no direct-first Firestore whitelist read**. The endpoints
 (`handoff-docs/zemer-app-podcasts-request.md`, both sides SETTLED 2026-08-01) are `GET /podcast?id=MPSP…&offset=`
 (show + episode page), `GET /podcast-channel?id=UC…` (host channel → an `ArtistPage`), `GET
 /podcasts/new-episodes` (Library New Episodes), and podcast/episode groups folded into `/search`. The
 **whitelist allow-set + version gate + browse-grid data (art + channelId)** all come from the **content
-mirror** (`content.zemer.io/podcastsWhitelist` + `/podcastsWhitelist/version`), mirror-first with Firestore
-fallback — exactly like the artist whitelist (`ZemerContentClient` / `WhitelistFetcher`): each mirror doc
-carries `thumbnailUrl` + `channelId`, so the grid renders straight from the mirror (the app does NOT call
-`zemer-search /podcasts`). All are wired in
-`ZemerSearchClient`/`ZemerResultMapper`/`ZemerSearchRepository` and are **live-only** (no offline snapshot,
-like `/radio`+`/playlist`). **NOTE: as of 2026-08-01 the server endpoints are BUILT but NOT YET DEPLOYED**
+mirror** — the CHANNEL-level `content.zemer.io/podcastChannelsWhitelist` + `/podcastChannelsWhitelist/version`,
+mirror-first with a Firestore `podcastChannelsWhitelist` fallback — exactly like the artist whitelist
+(`ZemerContentClient` / `WhitelistFetcher`): each mirror doc carries `thumbnailUrl` + `channelId`, so the
+grid renders straight from the mirror (the app does NOT call `zemer-search /podcasts`). All are wired in
+`ZemerSearchClient`/`ZemerResultMapper`/`ZemerSearchRepository`, server-first with the offline-snapshot
+fallback (`OfflineReadProvider` podcast reads; only `/podcast-home-rows` is live-only). **NOTE: as of 2026-08-01 the server endpoints are BUILT but NOT YET DEPLOYED**
 — `syncPodcastWhitelist` preserves the last-good table on fetch failure, so existing installs degrade
 gracefully until deploy; live integration testing waits on the deploy.
 **Two things stay InnerTube:** (1) **PLAYBACK NEVER MOVES** — an episode is a YouTube video with a real
@@ -674,8 +676,9 @@ YouTube account (`SyncUtils.syncPodcastSubscriptions`/`syncEpisodesForLater`, ga
   "Episodes" section). NOT InnerTube `YouTube.artist` anymore (that path was deleted). A 404/null →
   the not-available state. Radio is HIDDEN for `isPodcastChannel` (no corpus radio for a host).
 - **The podcast whitelist source is the content mirror, not Firestore** (`SyncUtils.syncPodcastWhitelist`
-  → `WhitelistFetcher.fetchPodcastWhitelist`/`fetchPodcastVersion`, mirror-first from
-  `content.zemer.io/podcastsWhitelist` with Firestore fallback, exactly like the artist whitelist). Each
+  → `WhitelistFetcher.fetchPodcastWhitelist`/`fetchPodcastVersion`, mirror-first from the channel-level
+  `content.zemer.io/podcastChannelsWhitelist` with a Firestore `podcastChannelsWhitelist` fallback,
+  exactly like the artist whitelist). Each
   mirror doc carries `thumbnailUrl` + `channelId` (`ContentPodcastDoc`), so the browse grid renders cover
   art + routes to the host channel straight from the allow-set — no per-row fetch. The old per-row
   `requestPodcastThumbnail` (InnerTube) fetch AND the interim `zemer-search /podcasts` art overlay are both
@@ -719,7 +722,7 @@ YouTube account (`SyncUtils.syncPodcastSubscriptions`/`syncEpisodesForLater`, ga
   Episodes-for-Later are `AutoPlaylistCard`s (personal → `online_playlist/RDPN`,`/SE`; anon → local
   inline). The shared podcast data sources (whitelist filter + leak gate) live in ONE place,
   `utils/PodcastLibrarySources`, so the two podcast VMs can't drift.
-- **Whitelist:** podcasts have their OWN whitelist (`podcastsWhitelist` Firestore → `PodcastWhitelistCache`),
+- **Whitelist:** podcasts have their OWN channel-level whitelist (`podcastChannelsWhitelist` → `PodcastWhitelistCache`),
   separate from the artist whitelist. `filterWhitelisted` gates `PodcastItem`/`EpisodeItem` against it too
   (respecting filters-off) as defense-in-depth. Play source/surface: episode plays tag
   `PlaySource.podcast(id)` / `TrackingSurface.podcast|channel` (append-only slugs).

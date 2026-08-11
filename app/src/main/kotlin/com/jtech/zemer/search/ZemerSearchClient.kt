@@ -235,9 +235,10 @@ class ZemerSearchClient @Inject constructor() {
     }
 
     // --- Podcast discovery (handoff `zemer-app-podcasts-request.md`). Whitelist-pure + content-filtered
-    // server-side; playback still runs on InnerTube by videoId. All are live-only (no offline snapshot,
-    // like /playlist and /radio). Content flags are sent for parity (mostly no-ops for podcasts). The
-    // browse grid + whitelist allow-set come from the content mirror (ZemerContentClient), not /podcasts. ---
+    // server-side; playback still runs on InnerTube by videoId. Server-first with the offline-snapshot
+    // fallback in ZemerSearchRepository (only /podcast-home-rows is live-only). Content flags are sent
+    // for parity (mostly no-ops for podcasts). The browse grid + whitelist allow-set come from the
+    // content mirror (ZemerContentClient), not /podcasts. ---
 
     /** `GET /podcast?id=&offset=` — a SHOW + its episodes page. Null on 404 (unknown/filtered-out show). */
     suspend fun podcast(

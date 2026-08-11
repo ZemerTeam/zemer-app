@@ -74,10 +74,13 @@ specifics:
   Unknown slugs fall back to the music note. NOT `material-icons-extended` — that dependency was
   reviewed out for the vector-drawable convention.
 - **The drifting weave** (`ui/component/GenreCard.kt` `GenreWeaveLayer`): a faint tiled motif
-  background shared by the catalog cards and the detail header (one continuous fabric). The motion
-  is a **GPU-composited layer translation** (`graphicsLayer { translationX }`), NOT a per-frame
-  redraw — the tile grid is drawn once and only re-composited each frame; the grid period is one
-  cell so the loop is seamless. This is why ~20 cards can animate at once without jank.
+  background shared by the catalog cards and the detail header (one continuous fabric). The vector
+  motif is rasterized **once** into a tiny cached tile (`drawWithCache`); each frame only blits that
+  tile across the brick grid at a phase-driven offset (grid period one cell, so the loop is
+  seamless). Never re-rasterize the vector per frame — that caused catalog jank. This deliberately
+  replaced the earlier cached-`graphicsLayer` translation: with ~20 weaves coexisting the compositor
+  could silently evict a card's layer, leaving its weave blank with no input change to redraw it —
+  the cheap tile blit self-heals and keeps ~20 cards smooth.
 - **Album-art mosaic header** (`GenreScreen.kt` genre_header): the genre's own top covers fill the
   detail header behind a scrim (the ONE color source). Selection is `ZemerResultMapper.headerCovers`
   — de-duped, sized to the header band via `mosaicVariant` (a mosaic-only URL rewrite, isolated from
