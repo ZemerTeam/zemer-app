@@ -24,8 +24,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +48,14 @@ import com.jtech.zemer.ui.theme.HeaderFontFamily
  * creator avatar/name identifies the content the stories way. [currentSegment] is the active segment
  * (0-based) and [progress] fills it; earlier segments are full, later ones empty.
  */
+// The legibility belt over bright media where the fade has already thinned: a soft dark drop shadow
+// under the white name/date text (what WhatsApp does), so the header reads without an opaque band.
+private val statusTextShadow = Shadow(
+    color = Color.Black.copy(alpha = 0.65f),
+    offset = Offset(0f, 1f),
+    blurRadius = 6f,
+)
+
 @Composable
 fun StatusStoryTopOverlay(
     navController: NavController,
@@ -61,10 +71,12 @@ fun StatusStoryTopOverlay(
     // A top-down fade, not a flat band: dark enough at the very top for the segment bars + white text,
     // dissolving into the media below (the extra bottom padding is the visible fade tail). The gradient
     // paints through the status-bar strip too (background BEFORE the insets padding — keep that order).
+    // The gradient alone is not enough over bright media, so the name/date also carry a drop shadow
+    // (the WhatsApp trick) — see [statusTextShadow].
     val scrim = Brush.verticalGradient(
         colors = listOf(
-            colorScheme.scrim.copy(alpha = 0.7f),
-            colorScheme.scrim.copy(alpha = 0.35f),
+            colorScheme.scrim.copy(alpha = 0.8f),
+            colorScheme.scrim.copy(alpha = 0.5f),
             Color.Transparent,
         ),
     )
@@ -123,15 +135,15 @@ fun StatusStoryTopOverlay(
                     Text(
                         text = creatorName,
                         color = Color.White,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleSmall.copy(shadow = statusTextShadow),
                         fontFamily = HeaderFontFamily,
                         fontWeight = FontWeight.SemiBold,
                     )
                     if (!subtitle.isNullOrEmpty()) {
                         Text(
                             text = subtitle,
-                            color = Color.White.copy(alpha = 0.55f),
-                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.8f),
+                            style = MaterialTheme.typography.labelSmall.copy(shadow = statusTextShadow),
                         )
                     }
                 }

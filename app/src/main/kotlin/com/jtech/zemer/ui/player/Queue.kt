@@ -299,9 +299,13 @@ fun Queue(
                         )
                     }
 
+                    // Shuffle/repeat show their ON state by FILLING the pill (the menu circle's
+                    // filled language), with the plain glyph — the *_on filled-badge glyphs look
+                    // heavy inside these small outlined pills (kept for the plain-icon surfaces).
                     QueuePillButton(
                         shape = middleShape,
                         borderColor = borderColor,
+                        containerColor = if (shuffleModeEnabled) textButtonColor else Color.Transparent,
                         onClick = {
                             // Station broadcasts mask shuffle/repeat (synchronized timeline) — same
                             // gate as every transport surface.
@@ -312,29 +316,28 @@ fun Queue(
                         },
                     ) {
                         Icon(
-                            painter = painterResource(id = shuffleIconRes(shuffleModeEnabled)),
+                            painter = painterResource(id = R.drawable.shuffle),
                             contentDescription = stringResource(R.string.shuffle),
-                            modifier = Modifier
-                                .size(iconSize)
-                                .alpha(if (shuffleModeEnabled) 1f else 0.5f),
-                            tint = TextBackgroundColor
+                            modifier = Modifier.size(iconSize),
+                            tint = if (shuffleModeEnabled) iconButtonColor else TextBackgroundColor
                         )
                     }
 
                     QueuePillButton(
                         shape = endCapShape,
                         borderColor = borderColor,
+                        containerColor = if (repeatMode == Player.REPEAT_MODE_OFF) Color.Transparent else textButtonColor,
                         onClick = {
                             if (!isStationBroadcast) playerConnection.player.toggleRepeatMode()
                         },
                     ) {
                         Icon(
-                            painter = painterResource(id = repeatModeIconRes(repeatMode)),
+                            painter = painterResource(
+                                id = if (repeatMode == Player.REPEAT_MODE_ONE) R.drawable.repeat_one else R.drawable.repeat
+                            ),
                             contentDescription = null,
-                            modifier = Modifier
-                                .size(iconSize)
-                                .alpha(if (repeatMode == Player.REPEAT_MODE_OFF) 0.5f else 1f),
-                            tint = TextBackgroundColor
+                            modifier = Modifier.size(iconSize),
+                            tint = if (repeatMode == Player.REPEAT_MODE_OFF) TextBackgroundColor else iconButtonColor
                         )
                     }
                     Spacer(modifier = Modifier.weight(1f))
@@ -1116,12 +1119,14 @@ private fun QueuePillButton(
     shape: RoundedCornerShape,
     borderColor: Color,
     onClick: () -> Unit,
+    containerColor: Color = Color.Transparent,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(
         modifier = Modifier
             .size(42.dp)
             .clip(shape)
+            .background(containerColor)
             .border(1.dp, borderColor, shape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
