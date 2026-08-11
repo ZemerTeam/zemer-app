@@ -70,7 +70,9 @@ import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.extensions.togglePlayPause
+import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.ui.screens.Screens
 import com.jtech.zemer.tracking.PlaySource
@@ -128,7 +130,7 @@ fun OnlineSearchScreen(
     // Blocked podcasts are hidden as a content type, so drop podcast results (shows AND episodes) plus
     // the browse shortcut.
     val displayItems = remember(viewState.items, blockPodcasts) {
-        if (blockPodcasts) viewState.items.filterNot { it is PodcastItem || it is EpisodeItem } else viewState.items
+        dropBlockedPodcastItems(viewState.items, blockPodcasts)
     }
     // The dropdown follows the active engine (see OnlineSearchSuggestionViewModel), so a Zemer playlist
     // shown here must open through the server path — route on the same provider preference.
@@ -261,6 +263,53 @@ fun OnlineSearchScreen(
         }
 
         items(displayItems, key = { "item_${it.id}" }) { item ->
+            // ONE activation path for tap and D-pad select (the results screen's convention) — the
+            // previous duplicated when-blocks drifted once already (episode routing).
+            val activate = {
+                when (item) {
+                    // Podcast SHOW: open the host channel when known (where Subscribe lives),
+                    // else the show — the browse-grid routing (whitelistedPodcastRoute).
+                    is PodcastItem -> {
+                        whitelistedPodcastRoute(item.id, item.channelId)?.let { navController.navigate(it) }
+                        onDismiss()
+                    }
+                    // Episode: play the single episode via a plain ListQueue. A podcast episode must
+                    // NOT seed music song-radio around its videoId (that fills the queue with
+                    // unrelated corpus songs) — mirrors every other episode tap site.
+                    is EpisodeItem -> {
+                        playerConnection.playQueue(
+                            ListQueue(
+                                title = item.title,
+                                items = listOf(item.toMediaItem()),
+                                playSource = PlaySource.SEARCH,
+                            )
+                        )
+                        onDismiss()
+                    }
+                    is SongItem -> {
+                        if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
+                            playerConnection.playPause()
+                        } else {
+                            playerConnection.playQueue(
+                                ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service)
+                            )
+                            onDismiss()
+                        }
+                    }
+                    is AlbumItem -> {
+                        navController.navigate(zemerAlbumRoute(item))
+                        onDismiss()
+                    }
+                    is ArtistItem -> {
+                        navController.navigateToArtist(item.id)
+                        onDismiss()
+                    }
+                    is PlaylistItem -> {
+                        navController.navigate(zemerPlaylistRoute(item.id))
+                        onDismiss()
+                    }
+                }
+            }
             YouTubeListItem(
                 item = item,
                 isActive = when (item) {
@@ -288,49 +337,7 @@ fun OnlineSearchScreen(
                 },
                 modifier = Modifier
                     .combinedClickable(
-                        onClick = {
-                            when (item) {
-                                // Podcast SHOW: open the host channel when known (where Subscribe lives),
-                                // else the show — the browse-grid routing (whitelistedPodcastRoute).
-                                is PodcastItem -> {
-                                    whitelistedPodcastRoute(item.id, item.channelId)?.let { navController.navigate(it) }
-                                    onDismiss()
-                                }
-                                // Episode: seed-first play by videoId through the normal pipeline.
-                                is EpisodeItem -> {
-                                    playerConnection.playQueue(
-                                        ZemerRadioQueue.song(
-                                            item.asSongItem().toMediaMetadata(),
-                                            playerConnection.service,
-                                            PlaySource.SEARCH,
-                                        )
-                                    )
-                                    onDismiss()
-                                }
-                                is SongItem -> {
-                                    if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
-                                        playerConnection.playPause()
-                                    } else {
-                                        playerConnection.playQueue(
-                                            ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service)
-                                        )
-                                        onDismiss()
-                                    }
-                                }
-                                is AlbumItem -> {
-                                    navController.navigate(zemerAlbumRoute(item))
-                                    onDismiss()
-                                }
-                                is ArtistItem -> {
-                                    navController.navigateToArtist(item.id)
-                                    onDismiss()
-                                }
-                                is PlaylistItem -> {
-                                    navController.navigate(zemerPlaylistRoute(item.id))
-                                    onDismiss()
-                                }
-                            }
-                        },
+                        onClick = activate,
                         onLongClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             menuState.show(
@@ -356,47 +363,7 @@ fun OnlineSearchScreen(
                     }
                     .onKeyEvent { event ->
                         if (event.key == Key.Enter || event.key == Key.DirectionCenter) {
-                            when (item) {
-                                // Podcast SHOW: open the host channel when known (where Subscribe lives),
-                                // else the show — the browse-grid routing (whitelistedPodcastRoute).
-                                is PodcastItem -> {
-                                    whitelistedPodcastRoute(item.id, item.channelId)?.let { navController.navigate(it) }
-                                    onDismiss()
-                                }
-                                // Episode: seed-first play by videoId through the normal pipeline.
-                                is EpisodeItem -> {
-                                    playerConnection.playQueue(
-                                        ZemerRadioQueue.song(
-                                            item.asSongItem().toMediaMetadata(),
-                                            playerConnection.service,
-                                            PlaySource.SEARCH,
-                                        )
-                                    )
-                                    onDismiss()
-                                }
-                                is SongItem -> {
-                                    if (activeRowTapTogglesPlayPause(item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
-                                        playerConnection.playPause()
-                                    } else {
-                                        playerConnection.playQueue(
-                                            ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service)
-                                        )
-                                        onDismiss()
-                                    }
-                                }
-                                is AlbumItem -> {
-                                    navController.navigate(zemerAlbumRoute(item))
-                                    onDismiss()
-                                }
-                                is ArtistItem -> {
-                                    navController.navigateToArtist(item.id)
-                                    onDismiss()
-                                }
-                                is PlaylistItem -> {
-                                    navController.navigate(zemerPlaylistRoute(item.id))
-                                    onDismiss()
-                                }
-                            }
+                            activate()
                             true
                         } else {
                             false

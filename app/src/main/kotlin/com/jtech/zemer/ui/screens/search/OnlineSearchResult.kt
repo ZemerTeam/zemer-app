@@ -117,6 +117,16 @@ fun OnlineSearchResult(
     val searchFilter by viewModel.filter.collectAsState()
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     val (blockPodcasts, _) = rememberPreference(BlockPodcastsKey, false)
+    // Block Podcasts must also evict an ALREADY-SELECTED podcast/episode chip: the chip row below
+    // hides those chips reactively, but the retained ViewModel keeps its selected filter and the
+    // fetched page — without this reset a results screen left on the Podcasts chip keeps rendering
+    // blocked content after a Settings round-trip (HomeScreen's PODCASTS -> MUSIC snap is the same
+    // rule for the home tabs).
+    LaunchedEffect(blockPodcasts) {
+        if (!searchFilterAllowed(viewModel.filter.value, blockPodcasts)) {
+            viewModel.filter.value = null
+        }
+    }
     val searchSummary = viewModel.summaryPage
     val isSummaryLoading by viewModel.isSummaryLoading.collectAsState()
     val summaryError by viewModel.summaryError.collectAsState()
@@ -176,6 +186,9 @@ fun OnlineSearchResult(
                         ListQueue(
                             title = item.title,
                             items = listOf(item.toMediaItem()),
+                            // Same declared source as the sibling song taps on this screen — the
+                            // default OTHER would undercount search-driven listens.
+                            playSource = PlaySource.SEARCH,
                         )
                     )
                 is SongItem -> {
@@ -445,10 +458,14 @@ fun OnlineSearchResult(
                 }
 
                 else -> {
-                    itemsIndexed(
-                        items = itemsPage?.items.orEmpty().distinctBy { it.id },
-                        key = { _, it -> filteredItemKey(it.id) },
-                    ) { index, it -> ytItemContent(it, index) }
+                    // Belt-and-braces for the frame(s) before the LaunchedEffect above resets a
+                    // now-disallowed podcast/episode filter: never render its page.
+                    if (searchFilterAllowed(searchFilter, blockPodcasts)) {
+                        itemsIndexed(
+                            items = itemsPage?.items.orEmpty().distinctBy { it.id },
+                            key = { _, it -> filteredItemKey(it.id) },
+                        ) { index, it -> ytItemContent(it, index) }
+                    }
                 }
             }
         }
