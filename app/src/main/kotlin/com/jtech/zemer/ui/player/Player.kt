@@ -1334,11 +1334,6 @@ fun BottomSheetPlayer(
     }
 }
 
-private val EPISODE_SPEEDS = listOf(1f, 1.25f, 1.5f, 1.75f, 2f)
-
-private fun episodeSpeedLabel(s: Float): String =
-    if (s == s.toLong().toFloat()) "${s.toLong()}×" else "$s×"
-
 /**
  * Episode-only transport extras (podcasts are long): a playback-speed pill that cycles
  * 1×→1.25×→1.5×→1.75×→2× and 30-second skip-back / skip-forward. Shown only when an episode is
@@ -1351,7 +1346,18 @@ private fun EpisodePlaybackControls(
     contentColor: Color,
     modifier: Modifier = Modifier,
 ) {
+    // Live speed, not a one-shot snapshot: the Tempo & Pitch dialog writes playbackParameters too,
+    // and a stale cached value made the pill label lie and the next tap override the user's choice.
     var speed by remember { mutableFloatStateOf(playerConnection.player.playbackParameters.speed) }
+    DisposableEffect(playerConnection) {
+        val listener = object : androidx.media3.common.Player.Listener {
+            override fun onPlaybackParametersChanged(playbackParameters: androidx.media3.common.PlaybackParameters) {
+                speed = playbackParameters.speed
+            }
+        }
+        playerConnection.player.addListener(listener)
+        onDispose { playerConnection.player.removeListener(listener) }
+    }
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
@@ -1362,10 +1368,7 @@ private fun EpisodePlaybackControls(
             modifier = Modifier
                 .focusBorder(RoundedCornerShape(50))
                 .clickable {
-                    val cur = EPISODE_SPEEDS.indexOf(speed).let { if (it < 0) 0 else it }
-                    val next = EPISODE_SPEEDS[(cur + 1) % EPISODE_SPEEDS.size]
-                    speed = next
-                    playerConnection.player.setPlaybackSpeed(next)
+                    playerConnection.player.setPlaybackSpeed(nextEpisodeSpeed(speed))
                 }
                 .padding(horizontal = 12.dp, vertical = 6.dp),
         ) {
@@ -1378,17 +1381,23 @@ private fun EpisodePlaybackControls(
             Spacer(Modifier.width(6.dp))
             Text(text = episodeSpeedLabel(speed), color = contentColor, style = MaterialTheme.typography.labelLarge)
         }
-        IconButton(onClick = {
-            val p = playerConnection.player
-            p.seekTo((p.currentPosition - 30_000).coerceAtLeast(0))
-        }) {
+        IconButton(
+            onClick = {
+                val p = playerConnection.player
+                p.seekTo((p.currentPosition - 30_000).coerceAtLeast(0))
+            },
+            modifier = Modifier.focusBorder(RoundedCornerShape(50)),
+        ) {
             Icon(painter = painterResource(R.drawable.fast_rewind), contentDescription = null, tint = contentColor)
         }
-        IconButton(onClick = {
-            val p = playerConnection.player
-            val target = p.currentPosition + 30_000
-            p.seekTo(if (p.duration > 0) target.coerceAtMost(p.duration) else target)
-        }) {
+        IconButton(
+            onClick = {
+                val p = playerConnection.player
+                val target = p.currentPosition + 30_000
+                p.seekTo(if (p.duration > 0) target.coerceAtMost(p.duration) else target)
+            },
+            modifier = Modifier.focusBorder(RoundedCornerShape(50)),
+        ) {
             Icon(painter = painterResource(R.drawable.fast_forward), contentDescription = null, tint = contentColor)
         }
     }

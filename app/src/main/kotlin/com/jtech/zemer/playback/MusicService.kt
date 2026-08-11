@@ -112,7 +112,6 @@ import com.jtech.zemer.extensions.collect
 import com.jtech.zemer.extensions.collectLatest
 import com.jtech.zemer.extensions.currentMetadata
 import com.jtech.zemer.extensions.findNextMediaItemById
-import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.mediaItems
 import com.jtech.zemer.extensions.metadata
 import com.jtech.zemer.extensions.setOffloadEnabled
