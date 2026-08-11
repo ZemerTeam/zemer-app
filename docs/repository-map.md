@@ -77,10 +77,10 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1162`
+- Files counted: `1175`
 - By extension:
-  - `.kt`: `735`
-  - `.xml`: `185`
+  - `.kt`: `737`
+  - `.xml`: `196`
   - `.mjs`: `74`
   - `.md`: `68`
   - `.json`: `37`
@@ -395,9 +395,10 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/ExpandableStatusCaption.kt` | 98 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/FocusBorder.kt` | 50 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/GenreCard.kt` | 166 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/GenreCardGrid.kt` | 84 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/GenreChip.kt` | 84 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/GenreDetailHeader.kt` | 118 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/GenreIcons.kt` | 88 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/GenreIcons.kt` | 85 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/HideOnScrollFAB.kt` | 117 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/IconButton.kt` | 203 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/IconCategoryCard.kt` | 92 lines | `.kt` |
@@ -501,7 +502,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/NewReleaseScreen.kt` | 252 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 89 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenreScreen.kt` | 151 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenresScreen.kt` | 153 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenresScreen.kt` | 154 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/Screens.kt` | 62 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/SplashScreen.kt` | 166 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/StatsScreen.kt` | 411 lines | `.kt` |
@@ -737,35 +738,46 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/drawable/favorite_border.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/genre_abc.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_alef.xml` | 12 lines | `.xml` |
+| `app/src/main/res/drawable/genre_balance.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_campaign.xml` | 10 lines | `.xml` |
+| `app/src/main/res/drawable/genre_candles.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_celebration.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_chassidus.xml` | 16 lines | `.xml` |
 | `app/src/main/res/drawable/genre_chazzan.xml` | 109 lines | `.xml` |
+| `app/src/main/res/drawable/genre_coins.xml` | 13 lines | `.xml` |
+| `app/src/main/res/drawable/genre_comedian.xml` | 17 lines | `.xml` |
 | `app/src/main/res/drawable/genre_dark_mode.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_diamond.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_dinner_dining.xml` | 10 lines | `.xml` |
+| `app/src/main/res/drawable/genre_family.xml` | 11 lines | `.xml` |
 | `app/src/main/res/drawable/genre_flag.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_graphic_eq.xml` | 10 lines | `.xml` |
+| `app/src/main/res/drawable/genre_health.xml` | 14 lines | `.xml` |
 | `app/src/main/res/drawable/genre_heart_broken.xml` | 10 lines | `.xml` |
+| `app/src/main/res/drawable/genre_kiruv.xml` | 13 lines | `.xml` |
 | `app/src/main/res/drawable/genre_landscape.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_local_fire_department.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_machshava.xml` | 16 lines | `.xml` |
 | `app/src/main/res/drawable/genre_menorah.xml` | 12 lines | `.xml` |
 | `app/src/main/res/drawable/genre_menu_book.xml` | 11 lines | `.xml` |
 | `app/src/main/res/drawable/genre_mic.xml` | 10 lines | `.xml` |
+| `app/src/main/res/drawable/genre_moadim.xml` | 13 lines | `.xml` |
 | `app/src/main/res/drawable/genre_music_note.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_nightlife.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_park.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_parsha.xml` | 16 lines | `.xml` |
 | `app/src/main/res/drawable/genre_piano.xml` | 10 lines | `.xml` |
-| `app/src/main/res/drawable/genre_rings.xml` | 17 lines | `.xml` |
+| `app/src/main/res/drawable/genre_quill.xml` | 10 lines | `.xml` |
+| `app/src/main/res/drawable/genre_rings.xml` | 26 lines | `.xml` |
 | `app/src/main/res/drawable/genre_self_improvement.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_shiurim.xml` | 16 lines | `.xml` |
 | `app/src/main/res/drawable/genre_star.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_sukkah.xml` | 12 lines | `.xml` |
+| `app/src/main/res/drawable/genre_tefilla.xml` | 17 lines | `.xml` |
 | `app/src/main/res/drawable/genre_theater_comedy.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_wb_sunny.xml` | 10 lines | `.xml` |
 | `app/src/main/res/drawable/genre_wine_bar.xml` | 10 lines | `.xml` |
+| `app/src/main/res/drawable/genre_zemer_note.xml` | 18 lines | `.xml` |
 | `app/src/main/res/drawable/github.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/google_webview.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/gradient.xml` | 10 lines | `.xml` |
@@ -941,6 +953,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/recognition/RecognitionMatcherTest.kt` | 72 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/recognition/ShazamSignatureGeneratorTest.kt` | 75 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ChartMovementTest.kt` | 78 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/search/PodcastGenreSectionsTest.kt` | 64 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ResultDedupeTest.kt` | 86 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerCuratedPlaylistsTest.kt` | 187 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerGenresTest.kt` | 272 lines | `.kt` |
@@ -1046,8 +1059,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 758 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 373 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 760 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 384 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
 | `docs/remote_cipher_config/02-file-format.md` | 116 lines | `.md` |
@@ -1057,7 +1070,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1272 lines | `.md` |
+| `docs/repository-map.md` | 1285 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
