@@ -4,6 +4,9 @@ import android.net.ConnectivityManager
 import androidx.core.net.toUri
 import androidx.media3.common.PlaybackException
 import com.jtech.zemer.constants.AudioQuality
+import com.jtech.zemer.playback.VideoDecoderCaps
+import com.jtech.zemer.playback.VideoQualityLogic
+import com.jtech.zemer.playback.VideoQualityRung
 import com.jtech.zemer.constants.StreamSourceAndroidVRKey
 import com.jtech.zemer.constants.StreamSourceIOSKey
 import com.jtech.zemer.constants.StreamSourceIPadOSKey
@@ -148,6 +151,11 @@ object YTPlayerUtils {
         val streamUrl: String,
         val streamExpiresInSeconds: Int,
         val streamClient: String = "unknown",
+        /**
+         * The video quality ladder of the response that served [format] (preferVideo only, else
+         * empty) — feeds the in-player quality switcher via VideoModeController.
+         */
+        val videoQualities: List<VideoQualityRung> = emptyList(),
     )
     /**
      * Custom player response intended to use for playback.
@@ -162,6 +170,12 @@ object YTPlayerUtils {
         preferVideo: Boolean = false,
         maxVideoBitrateKbps: Int? = null,
         forDownload: Boolean = false,
+        // Explicit video-quality selection (preferVideo only; both null = the automatic progressive
+        // pick, the pre-switcher behavior). videoItag = the EXACT rung a streaming quality swap
+        // encoded in its rendition key; videoQualityTarget = a target LABEL ("1080p") resolved to the
+        // best remux-capable rung at or below it (the download path, which has no ladder up front).
+        videoItag: Int? = null,
+        videoQualityTarget: String? = null,
     ): Result<PlaybackData> = runCatching {
         val mainClient = if (MAIN_CLIENT.clientName in disabledStreamClients) {
             STREAM_FALLBACK_CLIENTS.firstOrNull()
@@ -285,6 +299,8 @@ object YTPlayerUtils {
                         preferVideo,
                         maxVideoBitrateKbps,
                         forDownload,
+                        videoItag,
+                        videoQualityTarget,
                     )
 
                 if (format == null) {
@@ -443,6 +459,11 @@ object YTPlayerUtils {
             streamUrl,
             streamExpiresInSeconds,
             streamClient = successClient ?: "unknown",
+            videoQualities = if (preferVideo) {
+                VideoQualityLogic.rungs(streamPlayerResponse.streamingData)
+            } else {
+                emptyList()
+            },
         )
     }
     /**
@@ -463,8 +484,39 @@ object YTPlayerUtils {
         preferVideo: Boolean,
         maxVideoBitrateKbps: Int?,
         forDownload: Boolean = false,
+        videoItag: Int? = null,
+        videoQualityTarget: String? = null,
     ): PlayerResponse.StreamingData.Format? {
         if (preferVideo) {
+            // Explicit quality selections (the beyond-720p switcher / quality-aware downloads) pick
+            // from the FULL ladder (progressive + adaptive video-only). The user's explicit choice is
+            // not bitrate-capped — the metered cap governs only the automatic pick below, and the
+            // metered gate on the PERSISTED default lives in VideoModeController.effectiveQualityTarget.
+            if (videoItag != null) {
+                // Deliberately NO fallback to the automatic pick: the itag came from a rendition key
+                // (`video:<id>:q<itag>`) whose cache spans must only ever hold THAT itag's bytes —
+                // resolving a different format under it would reintroduce the container-mixing
+                // corruption class. A client without the itag is skipped; total failure surfaces
+                // through the video error path (revert to audio), which is the safe outcome.
+                return VideoQualityLogic.formatForItag(playerResponse.streamingData, videoItag)
+            }
+            if (videoQualityTarget != null && videoQualityTarget != VideoQualityLogic.AUTO) {
+                // Downloads gate on decoder capability too (the streaming ladder is filtered at
+                // publish, but a download target arrives label-only): a rung the device cannot
+                // decode must never become a committed LOCAL file that errors on every play.
+                val rungs = VideoQualityLogic.rungs(playerResponse.streamingData)
+                    .filter { it.progressive || VideoDecoderCaps.supports(it) }
+                val rung = VideoQualityLogic.selectRung(
+                    rungs,
+                    videoQualityTarget,
+                    downloadable = forDownload,
+                    opusWebmMuxSupported = android.os.Build.VERSION.SDK_INT >= 29,
+                )
+                if (rung != null) {
+                    return VideoQualityLogic.formatForItag(playerResponse.streamingData, rung.itag)
+                }
+                // Fail-soft: an unresolvable target falls through to the automatic progressive pick.
+            }
             val progressive = playerResponse.streamingData?.formats.orEmpty()
                 .filter { it.mimeType.startsWith("video") && (it.audioQuality != null || it.audioChannels != null) }
             val progressiveMp4 = progressive.filter { it.mimeType.contains("mp4") }

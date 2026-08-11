@@ -54,6 +54,8 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import android.database.SQLException
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
@@ -2000,6 +2002,11 @@ class MusicService :
             // playerCache keyed on the video: key) keep video bytes isolated from the audio cache.
             if (VideoRendition.isVideoKey(mediaId)) {
                 val renditionId = VideoRendition.renditionId(mediaId)
+                // An explicit quality rung encodes its itag IN the key (`video:<id>:p18` /
+                // `video:<id>:q137`), so each rung's bytes cache under their own key and a quality
+                // switch can never mix containers in one resource (the corruption class the
+                // position-0 purge exists for). Plain `video:<id>` stays the automatic pick.
+                val renditionItag = VideoRendition.renditionItag(mediaId)
                 if (playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
                     return@Factory dataSpec
                 }
@@ -2007,6 +2014,7 @@ class MusicService :
                     return@Factory dataSpec.withUri(it.first.toUri())
                 }
                 // The shared metered-aware cap (one policy with muxed downloads — VideoRendition).
+                // Governs only the AUTOMATIC pick: an explicit rung is the user's own choice.
                 val maxVideoBitrateKbps = VideoRendition.defaultMaxBitrateKbps(connectivityManager.isActiveNetworkMetered)
                 val videoPlayback = runBlocking(Dispatchers.IO) {
                     YTPlayerUtils.playerResponseForPlayback(
@@ -2015,6 +2023,7 @@ class MusicService :
                         connectivityManager = connectivityManager,
                         preferVideo = true,
                         maxVideoBitrateKbps = maxVideoBitrateKbps,
+                        videoItag = renditionItag,
                     )
                 }.getOrElse { throwable ->
                     when (throwable) {
@@ -2025,10 +2034,57 @@ class MusicService :
                     }
                 }
                 val nonNullVideo = requireNotNull(videoPlayback) { getString(R.string.error_unknown) }
+                // Publish the response's quality ladder — the in-player switcher's data source. The
+                // resolved itag lets the controller skip a redundant re-swap when the automatic pick
+                // already streams the target rung.
+                videoModeController.onVideoQualitiesResolved(
+                    renditionId, nonNullVideo.videoQualities, nonNullVideo.format.itag,
+                )
                 val videoUrl = nonNullVideo.streamUrl
                 songUrlCache[mediaId] =
                     videoUrl to System.currentTimeMillis() + (nonNullVideo.streamExpiresInSeconds * 1000L)
                 return@Factory dataSpec.withUri(videoUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
+            }
+
+            // The audio half of an adaptive (video-only) quality rung — the MergingMediaSource's
+            // second track (see createMediaSourceFactory). Its own `videoaudio:<id>` namespace keeps
+            // these bytes out of the bare id's cache spans (which may hold a different itag/container)
+            // and, like the video branch, bypasses the audio-only machinery (local file, FormatEntity,
+            // Tracker, recoverSong) — the ordinary audio path already owns those for this id.
+            if (VideoRendition.isMergeAudioKey(mediaId)) {
+                val audioId = mediaId.removePrefix("videoaudio:")
+                if (playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
+                    return@Factory dataSpec
+                }
+                songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
+                    return@Factory dataSpec.withUri(it.first.toUri())
+                }
+                val mergeAudio = runBlocking(Dispatchers.IO) {
+                    YTPlayerUtils.playerResponseForPlayback(
+                        audioId,
+                        audioQuality = audioQuality,
+                        connectivityManager = connectivityManager,
+                    )
+                }.getOrElse { throwable ->
+                    when (throwable) {
+                        is PlaybackException -> throw throwable
+                        else -> throw PlaybackException(
+                            getString(R.string.error_unknown), throwable, PlaybackException.ERROR_CODE_REMOTE_ERROR
+                        )
+                    }
+                }
+                val nonNullAudio = requireNotNull(mergeAudio) { getString(R.string.error_unknown) }
+                // The merge-audio key carries no itag, but the audio pick is not stable (AudioQuality
+                // AUTO flips with metered state) — purge the key's cached spans whenever the resolved
+                // itag is unknown (fresh process) or changed, so two containers can never share the
+                // resource (the same corruption class the itag-suffixed video keys prevent).
+                val previousAudioItag = mergeAudioItagCache.put(mediaId, nonNullAudio.format.itag)
+                if (previousAudioItag != nonNullAudio.format.itag) {
+                    runCatching { playerCache.removeResource(mediaId) }
+                }
+                songUrlCache[mediaId] =
+                    nonNullAudio.streamUrl to System.currentTimeMillis() + (nonNullAudio.streamExpiresInSeconds * 1000L)
+                return@Factory dataSpec.withUri(nonNullAudio.streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
 
             // Downloaded local file? Decide once at position 0 and honor it later; self-repair a stale
@@ -2159,6 +2215,13 @@ class MusicService :
     @Volatile
     private var relayModeNow: Boolean? = null
 
+    /** Whether playback is currently routed through the RELAY source (fixed server-side rendition). */
+    fun isRelayPlaybackMode(): Boolean = relayModeNow == true
+
+    // The last-resolved audio itag per `videoaudio:<id>` merge key — drives the container-drift purge
+    // in the merge-audio resolver branch (see createDataSourceFactory).
+    private val mergeAudioItagCache = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
     // Last relay song id whose local `song` row was ensured (see persistRelaySongIfNeeded) — so the
     // insert-if-missing runs once per relay track, not on every metadata-changed event.
     private var lastRelayPersistedId: String? = null
@@ -2188,8 +2251,8 @@ class MusicService :
         if (relay) relayDataSourceFactory.createDataSource() else dataSourceFactory.createDataSource()
     }
 
-    private fun createMediaSourceFactory() =
-        DefaultMediaSourceFactory(
+    private fun createMediaSourceFactory(): MediaSource.Factory {
+        val default = DefaultMediaSourceFactory(
             playbackDataSourceFactory,
             ExtractorsFactory {
                 // Mp4Extractor added for the video-mode progressive muxed MP4 (plain-moov container the
@@ -2199,6 +2262,30 @@ class MusicService :
                 arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor())
             },
         )
+        // An adaptive (video-only) quality rung has no audio of its own: its MediaSource MERGES the
+        // video rendition with the item's audio stream (`videoaudio:<id>` — resolved by the same
+        // ResolvingDataSource, cached under its own namespace). Everything else — plain audio,
+        // progressive video rungs, relay, local files — is untouched: only a `:q`-marked key (built
+        // exclusively by VideoModeController for a ladder-known adaptive rung, never in RELAY mode)
+        // takes this branch. clipDurations trims the merged timeline to the shorter track so a
+        // slightly-longer audio tail can't hang the item past the video's end.
+        return object : MediaSource.Factory by default {
+            override fun createMediaSource(mediaItem: MediaItem): MediaSource {
+                val key = mediaItem.localConfiguration?.customCacheKey
+                if (key != null && VideoRendition.isAdaptiveVideoKey(key)) {
+                    val audioKey = VideoRendition.mergeAudioKey(VideoRendition.renditionId(key))
+                    val audioItem = mediaItem.buildUpon().setUri(audioKey).setCustomCacheKey(audioKey).build()
+                    return MergingMediaSource(
+                        /* adjustPeriodTimeOffsets = */ true,
+                        /* clipDurations = */ true,
+                        default.createMediaSource(mediaItem),
+                        default.createMediaSource(audioItem),
+                    )
+                }
+                return default.createMediaSource(mediaItem)
+            }
+        }
+    }
 
     private fun createRenderersFactory() =
         object : DefaultRenderersFactory(this) {

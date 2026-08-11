@@ -106,6 +106,9 @@
     <string name="song">Song</string>
     <string name="enter_fullscreen">Enter fullscreen</string>
     <string name="exit_fullscreen">Exit fullscreen</string>
+    <string name="video_quality">Video quality</string>
+    <string name="video_quality_auto">Auto</string>
+    <string name="video_quality_p">%1$dp</string>
     <string name="video_songs">Video Songs</string>
     <string name="filter_video_songs">Video songs</string>
     <string name="music">Music</string>

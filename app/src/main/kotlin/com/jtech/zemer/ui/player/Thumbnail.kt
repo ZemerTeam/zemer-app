@@ -104,6 +104,8 @@ fun Thumbnail(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val error by playerConnection.error.collectAsState()
     val queueTitle by playerConnection.queueTitle.collectAsState()
+    val videoQualities by playerConnection.videoQualities.collectAsState()
+    val currentVideoQuality by playerConnection.currentVideoQuality.collectAsState()
 
     val swipeThumbnailPref by rememberPreference(SwipeThumbnailKey, true)
     val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
@@ -426,6 +428,17 @@ fun Thumbnail(
                                                     tint = Color.White,
                                                 )
                                             }
+                                            // Quality switcher at BottomStart (the free corner —
+                                            // fullscreen owns BottomEnd, the Song/Video pill TopStart,
+                                            // cast TopEnd). Renders only when the ladder offers a choice.
+                                            VideoQualitySelector(
+                                                qualities = videoQualities,
+                                                currentQuality = currentVideoQuality,
+                                                onSelect = playerConnection::setVideoQuality,
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomStart)
+                                                    .padding(8.dp),
+                                            )
                                         }
                                     }
 

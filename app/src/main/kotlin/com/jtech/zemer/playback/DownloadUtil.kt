@@ -276,8 +276,9 @@ constructor(
         song: com.jtech.zemer.db.entities.Song,
         maxVideoBitrateKbps: Int? = null,
         fromUser: Boolean = true,
+        requestedQuality: String? = null,
     ) {
-        mediaStoreDownloadManager.downloadVideo(song, maxVideoBitrateKbps, fromUser)
+        mediaStoreDownloadManager.downloadVideo(song, maxVideoBitrateKbps, fromUser, requestedQuality)
     }
 
     fun cancelMediaStoreDownload(songId: String) {
@@ -301,9 +302,13 @@ constructor(
         // Purge the id's playerCache resources: local-file plays cached FILE bytes under this key,
         // which are a different container than a future STREAM of the same id — stale spans would
         // corrupt the extractor mid-track. The video: rendition namespace is purged too (a deleted
-        // muxed file's cached video spans must not survive it).
+        // muxed file's cached video spans must not survive it) — including every itag-suffixed
+        // quality-rung key and the merge-audio partner (VideoRendition.allRenditionKeys).
         runCatching { playerCache.removeResource(songId) }
-        runCatching { playerCache.removeResource(VideoRendition.key(songId)) }
+        // Per-key runCatching: one throwing resource must not skip purging the rest of the family.
+        runCatching { VideoRendition.allRenditionKeys(songId, playerCache.keys) }
+            .getOrDefault(emptyList())
+            .forEach { runCatching { playerCache.removeResource(it) } }
 
         downloads.update { it - songId }
 

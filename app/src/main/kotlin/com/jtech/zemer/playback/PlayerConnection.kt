@@ -115,6 +115,11 @@ class PlayerConnection(
     val isVideoMode = service.videoModeController.isVideoMode
     val videoErrorEvents = service.videoModeController.videoErrorEvents
     fun setVideoMode(enabled: Boolean) = service.videoModeController.setVideoMode(enabled)
+    // The quality switcher (beyond-720p): the current item's selectable ladder + active rung label.
+    val videoQualities = service.videoModeController.videoQualities
+    val currentVideoQuality = service.videoModeController.currentVideoQuality
+    fun setVideoQuality(label: String) = service.videoModeController.setVideoQuality(label)
+    fun downloadVideoQuality(mediaId: String) = service.videoModeController.downloadVideoQuality(mediaId)
     fun requestVideoAvailability(mediaId: String) = service.videoModeController.requestVideoAvailability(mediaId)
     fun setVideoSurface(view: android.view.TextureView?) = service.videoModeController.setVideoSurface(view)
     fun clearVideoSurface(view: android.view.TextureView) = service.videoModeController.clearVideoSurface(view)

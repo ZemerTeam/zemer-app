@@ -8,6 +8,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.VideoQualityKey
 import com.jtech.zemer.playback.VideoModeLogic.RenditionKind
 import com.jtech.zemer.playback.VideoModeLogic.TransitionClass
 import com.jtech.zemer.utils.BlockedIdsCache
@@ -70,8 +71,45 @@ class VideoModeController(
     private var videoModeAudioItem: MediaItem? = null
     private var renditionKind: RenditionKind? = null
     private var videoRenditionId: String? = null
+    private var videoModeVideoKey: String? = null
     private var pendingSwap: Boolean = false
     private var currentSurface: TextureView? = null
+
+    // ---- Quality state (the beyond-720p switcher) --------------------------
+    // The persisted default target (VideoQualityKey; AUTO = the automatic progressive pick), kept
+    // current by an async collector like blockVideosNow. AUTO is a safe synchronous seed: worst case
+    // the first video-mode entry plays the automatic pick and upgrades when the ladder lands.
+    @Volatile
+    private var defaultVideoQuality: String = VideoQualityLogic.AUTO
+
+    // Per-item session overrides from the in-player switcher (a pick applies to THAT item's plays
+    // this session, not globally), and per-id quality ladders published by the stream resolver.
+    // Concurrent maps, NOT main-confined like the swap state: [downloadVideoQuality] is read from
+    // the player menu's IO coroutine while the main thread writes picks — a plain HashMap would race.
+    // Ladders are decoder-capability-filtered at publish ([VideoDecoderCaps]) so the switcher never
+    // offers a rung the device cannot decode.
+    private val qualityOverrides = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val qualityLadders = java.util.concurrent.ConcurrentHashMap<String, List<VideoQualityRung>>()
+
+    // The metered gate for the PERSISTED default: an in-player pick is per-play consent, but the
+    // Settings default must not silently drive full-bitrate adaptive streams/downloads on a metered
+    // connection (the invariant the automatic pick's bitrate cap exists for).
+    private fun effectiveQualityTarget(itemId: String?): String =
+        qualityOverrides[itemId] ?: defaultVideoQuality.takeIf { !isMeteredNetwork() } ?: VideoQualityLogic.AUTO
+
+    private fun isMeteredNetwork(): Boolean =
+        runCatching {
+            (service.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager)
+                ?.isActiveNetworkMetered == true
+        }.getOrDefault(true)
+
+    private val _videoQualities = MutableStateFlow<List<VideoQualityRung>>(emptyList())
+    /** The CURRENT video-mode item's selectable quality ladder (empty = no switcher). */
+    val videoQualities: StateFlow<List<VideoQualityRung>> = _videoQualities.asStateFlow()
+
+    private val _currentVideoQuality = MutableStateFlow(VideoQualityLogic.AUTO)
+    /** The active rung's label, or [VideoQualityLogic.AUTO] for the automatic pick. */
+    val currentVideoQuality: StateFlow<String> = _currentVideoQuality.asStateFlow()
 
     // Latest BlockVideosKey value, kept current by the block collector in init{} — so availability never
     // does a blocking dataStore read on the main thread (the combine transform + setVideoMode are hot/UI
@@ -162,6 +200,106 @@ class VideoModeController(
                 if (blocked && _isVideoMode.value) revertToAudio()
             }
         }
+        // The persisted default quality target (the Settings preference) — applies to NEW plays;
+        // an in-player pick overrides it per item via qualityOverrides.
+        scope.launch {
+            service.dataStore.data
+                .map { it[VideoQualityKey] ?: VideoQualityLogic.AUTO }
+                .distinctUntilChanged()
+                .collect { defaultVideoQuality = it }
+        }
+    }
+
+    // ---- Quality switcher --------------------------------------------------
+
+    /**
+     * The stream resolver just served a video rendition from a player response — publish that
+     * response's quality ladder (decoder-capability-filtered) for the switcher. Runs on the resolver's
+     * IO thread; all state is touched on [scope] (main). If the automatic pick is playing and the
+     * effective target is an explicit rung, upgrade to it now that the ladder is known
+     * (position-continuous — the first entry never waits a second round-trip to start).
+     */
+    fun onVideoQualitiesResolved(renditionId: String, rungs: List<VideoQualityRung>, resolvedItag: Int? = null) {
+        if (rungs.isEmpty()) return
+        val usable = rungs.filter { it.progressive || VideoDecoderCaps.supports(it) }
+        if (usable.isEmpty()) return
+        scope.launch {
+            qualityLadders[renditionId] = usable
+            if (_isVideoMode.value && videoRenditionId == renditionId) {
+                _videoQualities.value = usable
+                if (_currentVideoQuality.value == VideoQualityLogic.AUTO) {
+                    val rung = VideoQualityLogic.selectRung(usable, effectiveQualityTarget(videoModeItemId))
+                    if (rung != null) {
+                        if (rung.itag == resolvedItag) {
+                            // The automatic pick already streams exactly this rung — a re-swap would
+                            // replace the same bytes under a new cache key (redundant prepare +
+                            // duplicate spans). Just surface the truthful label.
+                            _currentVideoQuality.value = rung.label
+                        } else {
+                            swapToRung(rung)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * The in-player quality switcher: swap the CURRENT video-mode item to [label]'s rung (or back to
+     * the automatic pick for [VideoQualityLogic.AUTO]), position-continuous. The pick is remembered
+     * for this item for the session. No-ops when not in video mode, on a LOCAL rendition (the
+     * downloaded file has one baked quality — the switcher is hidden there), and in RELAY mode (the
+     * relay serves one fixed rendition; quality keys must never reach the relay resolver).
+     */
+    fun setVideoQuality(label: String) {
+        val itemId = videoModeItemId ?: return
+        if (renditionKind == RenditionKind.LOCAL || service.isRelayPlaybackMode()) return
+        qualityOverrides[itemId] = label
+        val renditionId = videoRenditionId ?: return
+        if (label == VideoQualityLogic.AUTO) {
+            swapToVideoKey(VideoRendition.key(renditionId), VideoQualityLogic.AUTO)
+            return
+        }
+        val rungs = qualityLadders[renditionId] ?: return
+        VideoQualityLogic.selectRung(rungs, label)?.let { swapToRung(it) }
+    }
+
+    /**
+     * The quality label a video DOWNLOAD of [mediaId] should target, or null for the automatic
+     * (progressive) pick: the session's in-player pick for that item, else the persisted default.
+     */
+    fun downloadVideoQuality(mediaId: String): String? =
+        effectiveQualityTarget(mediaId).takeIf { it != VideoQualityLogic.AUTO }
+
+    private fun swapToRung(rung: VideoQualityRung) {
+        val renditionId = videoRenditionId ?: return
+        swapToVideoKey(VideoRendition.key(renditionId, rung.itag, rung.progressive), rung.label)
+    }
+
+    /** Replace our own current video rendition with the same item under [key] — the quality re-swap. */
+    private fun swapToVideoKey(key: String, label: String) {
+        if (!_isVideoMode.value || renditionKind == RenditionKind.LOCAL) return
+        val index = player.currentMediaItemIndex
+        if (index == C.INDEX_UNSET || index >= player.mediaItemCount) return
+        val current = player.getMediaItemAt(index)
+        val currentKey = current.localConfiguration?.customCacheKey ?: return
+        // Only ever re-swap OUR parked rendition (same identity rule as exitVideoModeSameItem).
+        if (current.mediaId != videoModeItemId || !VideoRendition.isVideoKey(currentKey)) return
+        if (currentKey == key) {
+            _currentVideoQuality.value = label
+            return
+        }
+        val position = player.currentPosition
+        val playWhenReady = player.playWhenReady
+        videoModeItemId?.let { listenAccumulator.onSwap(it) }
+        pendingSwap = true
+        player.replaceMediaItem(index, current.buildUpon().setUri(key).setCustomCacheKey(key).build())
+        player.seekTo(index, position)
+        player.prepare()
+        player.playWhenReady = playWhenReady
+        mainHandler.post { pendingSwap = false }
+        videoModeVideoKey = key
+        _currentVideoQuality.value = label
     }
 
     /** Pure availability for the CURRENT item (null ⇒ no toggle). Recomputed by [videoModeAvailable]. */
@@ -315,7 +453,17 @@ class VideoModeController(
     fun onPlayerError(error: PlaybackException): Boolean {
         if (!_isVideoMode.value) return false
         val wasLocal = renditionKind == RenditionKind.LOCAL
-        if (!wasLocal) videoRenditionId?.let { service.invalidateStreamCache(VideoRendition.key(it)) }
+        if (!wasLocal) {
+            // Invalidate the ACTUAL rendition key in play (quality rungs carry their itag in the key)
+            // plus the merge-audio partner an adaptive rung streams alongside.
+            (videoModeVideoKey ?: videoRenditionId?.let { VideoRendition.key(it) })
+                ?.let { service.invalidateStreamCache(it) }
+            videoRenditionId?.let { service.invalidateStreamCache(VideoRendition.mergeAudioKey(it)) }
+            // Pin the item to AUTO for the session: whatever rung failed (an explicit pick OR the
+            // persisted default's rung), a re-entry must land on the working automatic pick, not
+            // loop straight back into the failing rung. The user can still re-pick from the switcher.
+            videoModeItemId?.let { qualityOverrides[it] = VideoQualityLogic.AUTO }
+        }
         reportException(error, "Video mode playback error")
         exitVideoModeSameItem()
         scope.launch { _videoErrorEvents.emit(Unit) }
@@ -343,17 +491,30 @@ class VideoModeController(
 
         if (rendition.kind == RenditionKind.LOCAL) {
             // The current (downloaded muxed) source already carries the video track — attaching the
-            // surface renders it. No source swap, no seek (works offline).
+            // surface renders it. No source swap, no seek (works offline). One baked quality — no
+            // switcher (the ladder stays empty).
             _isVideoMode.value = true
             return
         }
 
         val renditionId = rendition.renditionVideoId ?: run { clearState(); return }
+        // Quality: when this id's ladder is already known (a re-entry this session), enter DIRECTLY
+        // at the effective target's rung; otherwise start on the automatic pick — the ladder arrives
+        // with the resolution (onVideoQualitiesResolved) and upgrades position-continuously. RELAY
+        // always uses the plain key (fixed server-side rendition — quality keys never reach it).
+        val target = effectiveQualityTarget(audioItem.mediaId)
+        val knownRungs = if (service.isRelayPlaybackMode()) null else qualityLadders[renditionId]
+        val entryRung = knownRungs?.let { VideoQualityLogic.selectRung(it, target) }
+        val videoKey = entryRung?.let { VideoRendition.key(renditionId, it.itag, it.progressive) }
+            ?: VideoRendition.key(renditionId)
+        _videoQualities.value = knownRungs.orEmpty()
+        _currentVideoQuality.value = entryRung?.label ?: VideoQualityLogic.AUTO
+
         val position = player.currentPosition
         val playWhenReady = player.playWhenReady
         listenAccumulator.onSwap(audioItem.mediaId)
         pendingSwap = true
-        player.replaceMediaItem(index, buildVideoItem(audioItem, renditionId))
+        player.replaceMediaItem(index, buildVideoItem(audioItem, videoKey))
         // Explicit seek is deterministic regardless of media3's replace-current-item position semantics.
         player.seekTo(index, position)
         player.prepare()
@@ -361,6 +522,7 @@ class VideoModeController(
         // Clear the pending mark after media3's swap callbacks have been dispatched (they are enqueued on
         // this Looper during the calls above; this post runs after them).
         mainHandler.post { pendingSwap = false }
+        videoModeVideoKey = videoKey
         _isVideoMode.value = true
     }
 
@@ -445,13 +607,15 @@ class VideoModeController(
         videoModeAudioItem = null
         renditionKind = null
         videoRenditionId = null
+        videoModeVideoKey = null
+        _videoQualities.value = emptyList()
+        _currentVideoQuality.value = VideoQualityLogic.AUTO
         _isVideoMode.value = false
     }
 
-    private fun buildVideoItem(audioItem: MediaItem, renditionId: String): MediaItem {
-        val key = VideoRendition.key(renditionId)
+    private fun buildVideoItem(audioItem: MediaItem, videoKey: String): MediaItem {
         // buildUpon() preserves mediaId + tag (MediaMetadata) + media3 MediaMetadata; only the URI and
         // cache key change to the video: namespace (isolating video bytes from the audio cache).
-        return audioItem.buildUpon().setUri(key).setCustomCacheKey(key).build()
+        return audioItem.buildUpon().setUri(videoKey).setCustomCacheKey(videoKey).build()
     }
 }

@@ -1008,6 +1008,54 @@ survive a failed attempt, see §download system) — a video fetch must never si
 available file on a metered connection. See §The download system for `VideoDownloadsInMusicKey` (the
 library-wide "show video downloads as music too" preference this enables).
 
+**The quality ladder (beyond-720p; `VideoQualityLogic` + the in-player switcher).** Streaming video
+is no longer capped at the progressive muxed formats (which top out at 360p/720p): the quality ladder
+spans progressive PLUS the adaptive video-only formats — measured live (`tests/video-qualities.mjs`),
+WEB_REMIX serves avc1 144p…1080p and vp9-only 1440p/2160p. The rules that must not regress:
+- **`VideoQualityLogic` is the ONE ladder/selection authority** (pure, JVM-tested): one rung per
+  qualityLabel (progressive wins its label; then avc1 > vp9 > av01, then bitrate), targets resolve to
+  the best rung at-or-below ("1080p" on a 720p-max video → 720p, never null for an explicit pick),
+  AUTO = the pre-switcher automatic progressive pick (the metered bitrate cap governs ONLY that).
+- **The rung's itag lives IN the cache key** (`video:<id>:p<itag>` progressive / `:q<itag>` adaptive,
+  `VideoRendition`): two rungs' bytes can never share cache spans (the container-mixing corruption
+  class) — which is also why the exact-itag resolution deliberately has NO fallback format (a
+  different container under an itag key would reintroduce the corruption; total failure surfaces
+  through the video error path instead). The `:q` mark is what routes an item through the
+  `MergingMediaSource` in `createMediaSourceFactory` — an adaptive rung is video-only, so playback
+  merges it with the item's audio stream, resolved under its own `videoaudio:<id>` namespace (never
+  the bare id's spans; the resolver purges that key's spans whenever the resolved audio itag is
+  unknown or changed — the audio pick flips with metered state). `removeDownload` purges the WHOLE
+  key family (`VideoRendition.allRenditionKeys`, one runCatching PER key).
+- **The switcher** (`VideoQualitySelector`, shared by the inline art slot at BottomStart and the
+  fullscreen overlay at TopEnd) shows the CURRENT item's live ladder, decoder-capability-filtered
+  (`VideoDecoderCaps` — never offer vp9 2160p to a SoC that can't decode it); a pick applies to that
+  item for the session (`qualityOverrides` — a CONCURRENT map: the player-menu download reads it from
+  an IO coroutine), the Settings default (`VideoQualityKey`, Player settings, hidden when videos are
+  blocked) applies to new plays. **The persisted default is metered-gated**
+  (`effectiveQualityTarget`): an in-player pick is per-play consent, but the Settings default must
+  never silently drive full-bitrate adaptive streams/downloads on a metered connection (the invariant
+  the automatic pick's bitrate cap protects). First entry plays AUTO instantly and upgrades
+  position-continuously when the ladder lands with the resolution — never a blocking wait, and never a
+  redundant re-swap when the automatic pick already streams the target rung (the resolved itag rides
+  the ladder callback). Quality re-swaps ride the same `pendingSwap` + `listenAccumulator.onSwap`
+  discipline as enter/exit (a swap is never a track change, never a double-counted listen). LOCAL
+  renditions and RELAY mode have no switcher (one baked/fixed rendition; quality keys must never reach
+  the relay resolver). A video-mode player error pins the item's session pick to AUTO so neither the
+  failed pick NOR the persisted default can loop a re-entry back into the failing rung.
+- **Downloads above the progressive ceiling fetch video+audio separately and REMUX on-device**
+  (`VideoMuxer` — framework MediaExtractor/MediaMuxer, zero new dependencies: avc1+AAC → MP4,
+  vp9+Opus → WebM on API 29+ only — `selectRung(opusWebmMuxSupported)`; av01 is stream-only). The
+  download target is decoder-capability-gated too (a rung the device can't decode must never become a
+  committed LOCAL file that errors on every play), the WebM audio partner is pinned to the HIGH
+  streaming pick (deterministically Opus), and each stream is verified against its declared
+  contentLength before muxing (a truncated track fails the attempt with the quality preserved). The
+  requested quality label (`requestedVideoQuality`) follows the `requestedVideoBitrate` lifecycle
+  rules (survives failed attempts, cleared on success/cancel/delete) — EXCEPT a mux/mux-compat
+  failure, which is deterministic for those inputs: it clears the request so the retry falls back to
+  the automatic progressive pick (logged; a bounded downgrade beats an endless fail-loop). The
+  player-menu download passes the session's pick (`downloadVideoQuality`) so the file saved is what
+  the user was watching.
+
 **UI-only rules (`PlayerVideoUiLogic`, pure, JVM-tested — the inline surface and the fullscreen
 overlay must never disagree about which one is live).** Opening the lyrics sheet reverts video mode
 to audio (position-continuous) — the sheet covers the inline video slot, leaving it decoding

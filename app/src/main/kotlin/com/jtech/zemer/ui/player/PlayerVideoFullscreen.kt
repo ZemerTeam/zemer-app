@@ -69,6 +69,8 @@ fun PlayerVideoFullscreen(onExit: () -> Unit) {
     val playbackState by playerConnection.playbackState.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
+    val videoQualities by playerConnection.videoQualities.collectAsState()
+    val currentVideoQuality by playerConnection.currentVideoQuality.collectAsState()
 
     var position by remember { mutableLongStateOf(playerConnection.currentPositionMs()) }
     var duration by remember { mutableLongStateOf(playerConnection.currentDurationMs()) }
@@ -153,6 +155,18 @@ fun PlayerVideoFullscreen(onExit: () -> Unit) {
                         tint = Color.White,
                     )
                 }
+
+                // Quality switcher at TopEnd — the fullscreen overlay's free corner (close at
+                // TopStart, transport centered, seek bar at the bottom). Same shared component as
+                // the inline art slot, so the two surfaces can never disagree.
+                VideoQualitySelector(
+                    qualities = videoQualities,
+                    currentQuality = currentVideoQuality,
+                    onSelect = playerConnection::setVideoQuality,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                )
 
                 Row(
                     modifier = Modifier.align(Alignment.Center),

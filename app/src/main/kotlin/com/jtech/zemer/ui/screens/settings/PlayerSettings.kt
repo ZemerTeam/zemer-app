@@ -29,6 +29,10 @@ import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.AudioOffload
 import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.AudioQualityKey
+import com.jtech.zemer.constants.BlockVideosKey
+import com.jtech.zemer.constants.VideoQualityKey
+import com.jtech.zemer.playback.VideoQualityLogic
+import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.constants.AutoDownloadOnLikeKey
 import com.jtech.zemer.constants.AutoLoadMoreKey
 import com.jtech.zemer.constants.AutoSkipNextOnErrorKey
@@ -61,6 +65,11 @@ fun PlayerSettings(
         AudioQualityKey,
         defaultValue = AudioQuality.AUTO
     )
+    val (videoQuality, onVideoQualityChange) = rememberPreference(
+        VideoQualityKey,
+        defaultValue = VideoQualityLogic.AUTO
+    )
+    val (blockVideos, _) = rememberPreference(BlockVideosKey, defaultValue = false)
     val (persistentQueue, onPersistentQueueChange) = rememberPreference(
         PersistentQueueKey,
         defaultValue = true
@@ -146,6 +155,29 @@ fun PlayerSettings(
             },
             modifier = Modifier.focusRequester(firstFocus),
         )
+
+        // Default video-mode quality target (the in-player switcher overrides it per play). Values
+        // are TARGETS: playback picks the best rung the video actually serves at or below the target.
+        // Hidden when videos are blocked (no video plays anywhere — the Music Status settings pattern).
+        if (!blockVideos) {
+            ListPreference(
+                title = { Text(stringResource(R.string.video_quality)) },
+                icon = { Icon(painterResource(R.drawable.ondemand_video), null) },
+                selectedValue = videoQuality,
+                values = listOf(VideoQualityLogic.AUTO) + VideoQualityLogic.TARGET_HEIGHTS.map { "${it}p" },
+                valueText = {
+                    if (it == VideoQualityLogic.AUTO) {
+                        stringResource(R.string.video_quality_auto)
+                    } else {
+                        stringResource(
+                            R.string.video_quality_p,
+                            VideoQualityLogic.heightOfLabel(it) ?: 0,
+                        )
+                    }
+                },
+                onValueSelected = onVideoQualityChange,
+            )
+        }
 
         SliderPreference(
             title = { Text(stringResource(R.string.history_duration)) },

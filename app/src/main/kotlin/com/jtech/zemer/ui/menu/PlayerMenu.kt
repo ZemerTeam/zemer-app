@@ -344,8 +344,17 @@ fun PlayerMenu(
                                 database.transaction { insert(mediaMetadata) }
                                 val song = database.song(mediaMetadata.id).first()
                                 song?.let {
-                                    if (songIsVideo) downloadUtil.downloadVideoToMediaStore(it)
-                                    else downloadUtil.downloadToMediaStore(it)
+                                    if (songIsVideo) {
+                                        downloadUtil.downloadVideoToMediaStore(
+                                            it,
+                                            // The session's in-player quality pick (or the persisted
+                                            // default target) — the download saves what the user is
+                                            // watching, not silently the automatic rung.
+                                            requestedQuality = playerConnection.downloadVideoQuality(it.id),
+                                        )
+                                    } else {
+                                        downloadUtil.downloadToMediaStore(it)
+                                    }
                                 }
                             }
                         },
