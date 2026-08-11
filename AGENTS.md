@@ -1051,13 +1051,21 @@ WEB_REMIX serves avc1 144p…1080p and vp9-only 1440p/2160p. The rules that must
   (`prefetchVideoRendition` — deduped, expiry-aware, relay-gated, silent on failure), so a Video tap
   starts with a single CDN range request. The web-URL finalization lives in ONE helper
   (`applyWebUrlTransforms`) shared by the main resolution path and the rung table — never fork it.
-- **The rebuffer guard (never keep stalling mid-play).** A STATE_BUFFERING after READY on a STREAMING
-  rendition is a mid-play stall; two stalls within 45s (`VideoQualityLogic.shouldDowngradeForRebuffer`,
-  pure + tested) drop ONE rung position-continuously and pin the item there so the ladder callback
-  can't bounce back up. Seek-caused buffering is exempt (`onSeekDiscontinuity` flags it), a swap's own
-  prepare never counts (history resets on every swap), LOCAL/audio playback never counts, and AUTO
-  never downgrades (already the cheapest single-stream pick). The buffering spinner lives INSIDE the
-  shared `PlayerVideoSurface` so the inline art slot and the fullscreen overlay show one identical
+- **The rebuffer guard (never keep stalling mid-play; fast AND slow connections).** A STATE_BUFFERING
+  after READY on a STREAMING rendition is a mid-play stall; two stalls within 45s — or a SINGLE stall
+  within 15s of first reaching READY (the rung is clearly beyond the connection) — trigger a
+  downgrade (`VideoQualityLogic.shouldDowngradeForRebuffer`, pure + tested). The drop lands DIRECTLY
+  on the highest rung the player's measured bandwidth sustains with 1.3x headroom
+  (`downgradeRung` + the DefaultBandwidthMeter singleton — one decisive jump, not a stall per
+  intermediate rung), position-continuous, and pins the item there so the ladder callback can't
+  bounce back up. DEFAULT-driven upgrades are bandwidth-gated the same way (`defaultUpgradeAllowed`
+  — a Settings default never upgrades onto a link that can't carry it; an explicit in-player pick is
+  always honored and the guard corrects it). Seek-caused buffering is exempt (`onSeekDiscontinuity`),
+  a swap's own prepare never counts (history resets on every swap), LOCAL/audio playback never
+  counts, and AUTO never downgrades (already the cheapest single-stream pick). The shared
+  LoadControl requires 5s buffered before resuming from a rebuffer (vs media3's 2s) — one slightly
+  longer recovery instead of a stall-play-stall loop. The buffering spinner lives INSIDE the shared
+  `PlayerVideoSurface` so the inline art slot and the fullscreen overlay show one identical
   treatment.
 - **Downloads above the progressive ceiling fetch video+audio separately and REMUX on-device**
   (`VideoMuxer` — framework MediaExtractor/MediaMuxer, zero new dependencies: avc1+AAC → MP4,

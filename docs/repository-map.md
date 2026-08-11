@@ -297,7 +297,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 816 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1052 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 302 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2712 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2715 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 370 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogic.kt` | 49 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/RemoteVolumeTracker.kt` | 54 lines | `.kt` |
@@ -305,9 +305,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/SleepTimer.kt` | 81 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoAvailabilityCache.kt` | 69 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoDecoderCaps.kt` | 33 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/VideoModeController.kt` | 691 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/VideoModeController.kt` | 719 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoModeLogic.kt` | 190 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/VideoQualityLogic.kt` | 195 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/VideoQualityLogic.kt` | 235 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoRendition.kt` | 84 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoSongIds.kt` | 25 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/EmptyQueue.kt` | 14 lines | `.kt` |
@@ -948,7 +948,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/playback/SeekMathTest.kt` | 35 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoAvailabilityCacheTest.kt` | 75 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoModeLogicTest.kt` | 254 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/playback/VideoQualityLogicTest.kt` | 216 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/VideoQualityLogicTest.kt` | 252 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoRenditionTest.kt` | 76 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/relay/RelayDeviceIdTest.kt` | 82 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/relay/RelayDownloadTest.kt` | 67 lines | `.kt` |

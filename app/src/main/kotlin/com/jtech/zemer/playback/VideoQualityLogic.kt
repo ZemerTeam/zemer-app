@@ -48,23 +48,63 @@ object VideoQualityLogic {
      */
     val TARGET_HEIGHTS = listOf(2160, 1440, 1080, 720, 480, 360)
 
-    /** Mid-play stalls within this window that trigger a one-rung downgrade — see [shouldDowngradeForRebuffer]. */
+    /** Mid-play stalls within this window that trigger a downgrade — see [shouldDowngradeForRebuffer]. */
     const val REBUFFER_DOWNGRADE_COUNT = 2
     const val REBUFFER_WINDOW_MS = 45_000L
 
     /**
-     * The rebuffer guard's decision: [stallTimesMs] are mid-play stall timestamps (seek-caused
-     * buffering excluded by the caller); reaching [REBUFFER_DOWNGRADE_COUNT] stalls within
-     * [REBUFFER_WINDOW_MS] means the connection cannot sustain the current rung's bitrate — playback
-     * should drop one rung rather than keep stalling.
+     * A stall this soon after first reaching READY means the rung's bitrate is clearly beyond the
+     * connection — downgrade IMMEDIATELY on the first stall instead of waiting for a second one.
      */
-    fun shouldDowngradeForRebuffer(stallTimesMs: List<Long>, nowMs: Long): Boolean =
-        stallTimesMs.count { nowMs - it <= REBUFFER_WINDOW_MS } >= REBUFFER_DOWNGRADE_COUNT
+    const val EARLY_STALL_WINDOW_MS = 15_000L
+
+    /**
+     * Headroom factor for bandwidth-gated decisions: a rung is sustainable only when
+     * `bitrate * BANDWIDTH_SAFETY <= estimate` — streaming at the estimate itself leaves zero margin
+     * and stalls on the first throughput dip.
+     */
+    const val BANDWIDTH_SAFETY = 1.3
+
+    /**
+     * The rebuffer guard's decision: [stallTimesMs] are mid-play stall timestamps (seek-caused
+     * buffering excluded by the caller). Downgrade when [REBUFFER_DOWNGRADE_COUNT] stalls land within
+     * [REBUFFER_WINDOW_MS] — or immediately when a single stall arrives within
+     * [EARLY_STALL_WINDOW_MS] of first reaching READY ([readyAtMs]; null = not yet ready).
+     */
+    fun shouldDowngradeForRebuffer(stallTimesMs: List<Long>, nowMs: Long, readyAtMs: Long? = null): Boolean {
+        if (readyAtMs != null && stallTimesMs.isNotEmpty() && nowMs - readyAtMs <= EARLY_STALL_WINDOW_MS) return true
+        return stallTimesMs.count { nowMs - it <= REBUFFER_WINDOW_MS } >= REBUFFER_DOWNGRADE_COUNT
+    }
 
     /** The next rung DOWN from [currentLabel] in a high→low ladder, or null at the bottom/unknown. */
     fun rungBelow(rungs: List<VideoQualityRung>, currentLabel: String): VideoQualityRung? {
         val index = rungs.indexOfFirst { it.label == currentLabel }
         return if (index >= 0 && index + 1 < rungs.size) rungs[index + 1] else null
+    }
+
+    /** Whether a rung's bitrate fits the measured connection with [BANDWIDTH_SAFETY] headroom. */
+    fun rungFitsBandwidth(rung: VideoQualityRung, bitrateEstimate: Long?): Boolean =
+        bitrateEstimate == null || bitrateEstimate <= 0 ||
+            rung.bitrate * BANDWIDTH_SAFETY <= bitrateEstimate
+
+    /**
+     * The rung a stall-downgrade lands on: the HIGHEST rung below [currentLabel] the measured
+     * bandwidth can sustain — one decisive jump to a stable rung instead of stepping painfully
+     * through every intermediate rung on a slow connection. With no usable estimate (or nothing
+     * below fitting), fall back to one step down; null at the bottom.
+     */
+    fun downgradeRung(
+        rungs: List<VideoQualityRung>,
+        currentLabel: String,
+        bitrateEstimate: Long?,
+    ): VideoQualityRung? {
+        val index = rungs.indexOfFirst { it.label == currentLabel }
+        if (index < 0 || index + 1 >= rungs.size) return null
+        val below = rungs.subList(index + 1, rungs.size)
+        if (bitrateEstimate != null && bitrateEstimate > 0) {
+            below.firstOrNull { rungFitsBandwidth(it, bitrateEstimate) }?.let { return it }
+        }
+        return below.first()
     }
 
     /** A muxed progressive video format (video mime + its own audio) — plays/downloads as one stream. */

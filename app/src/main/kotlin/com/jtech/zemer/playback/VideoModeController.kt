@@ -103,6 +103,25 @@ class VideoModeController(
                 ?.isActiveNetworkMetered == true
         }.getOrDefault(true)
 
+    /**
+     * The player's live throughput estimate (bps). The service player is built with media3's default
+     * bandwidth meter — the process singleton — so reading the singleton reads the player's own
+     * measurements. 0/unset → null (no estimate yet).
+     */
+    private fun bandwidthEstimate(): Long? =
+        runCatching {
+            androidx.media3.exoplayer.upstream.DefaultBandwidthMeter.getSingletonInstance(service)
+                .bitrateEstimate.takeIf { it > 0 }
+        }.getOrNull()
+
+    /**
+     * Whether a DEFAULT-driven upgrade (no explicit per-play pick) to [rung] is allowed: the measured
+     * connection must sustain the rung's bitrate with headroom. An in-player pick is per-play consent
+     * and always honored — the rebuffer guard corrects it if the network can't keep up.
+     */
+    private fun defaultUpgradeAllowed(itemId: String?, rung: VideoQualityRung): Boolean =
+        qualityOverrides[itemId] != null || VideoQualityLogic.rungFitsBandwidth(rung, bandwidthEstimate())
+
     private val _videoQualities = MutableStateFlow<List<VideoQualityRung>>(emptyList())
     /** The CURRENT video-mode item's selectable quality ladder (empty = no switcher). */
     val videoQualities: StateFlow<List<VideoQualityRung>> = _videoQualities.asStateFlow()
@@ -117,6 +136,7 @@ class VideoModeController(
     // legitimately — MusicService.onPositionDiscontinuity flags it before the BUFFERING arrives).
     private val videoStallTimes = mutableListOf<Long>()
     private var videoReachedReady = false
+    private var videoFirstReadyAt: Long? = null
     private var ignoreNextVideoBuffer = false
 
     // Latest BlockVideosKey value, kept current by the block collector in init{} — so availability never
@@ -237,7 +257,7 @@ class VideoModeController(
                 _videoQualities.value = usable
                 if (_currentVideoQuality.value == VideoQualityLogic.AUTO) {
                     val rung = VideoQualityLogic.selectRung(usable, effectiveQualityTarget(videoModeItemId))
-                    if (rung != null) {
+                    if (rung != null && defaultUpgradeAllowed(videoModeItemId, rung)) {
                         if (rung.itag == resolvedItag) {
                             // The automatic pick already streams exactly this rung — a re-swap would
                             // replace the same bytes under a new cache key (redundant prepare +
@@ -301,11 +321,13 @@ class VideoModeController(
     fun onPlaybackStateChanged(state: Int) {
         if (!_isVideoMode.value || renditionKind == RenditionKind.LOCAL) {
             videoReachedReady = false
+            videoFirstReadyAt = null
             videoStallTimes.clear()
             return
         }
         when (state) {
             Player.STATE_READY -> {
+                if (!videoReachedReady) videoFirstReadyAt = android.os.SystemClock.elapsedRealtime()
                 videoReachedReady = true
                 ignoreNextVideoBuffer = false
             }
@@ -317,22 +339,24 @@ class VideoModeController(
                 }
                 val now = android.os.SystemClock.elapsedRealtime()
                 videoStallTimes.add(now)
-                if (VideoQualityLogic.shouldDowngradeForRebuffer(videoStallTimes, now)) {
+                if (VideoQualityLogic.shouldDowngradeForRebuffer(videoStallTimes, now, videoFirstReadyAt)) {
                     videoStallTimes.clear()
-                    downgradeOneRung()
+                    downgradeForStall()
                 }
             }
             else -> {}
         }
     }
 
-    private fun downgradeOneRung() {
+    private fun downgradeForStall() {
         val renditionId = videoRenditionId ?: return
         // AUTO already plays the cheapest single-stream pick — nothing to drop to.
         val current = _currentVideoQuality.value
         if (current == VideoQualityLogic.AUTO) return
         val rungs = qualityLadders[renditionId] ?: return
-        val below = VideoQualityLogic.rungBelow(rungs, current) ?: return
+        // One decisive jump to the highest rung the MEASURED bandwidth sustains (slow connections
+        // land on a stable rung immediately instead of stepping through every stall on the way down).
+        val below = VideoQualityLogic.downgradeRung(rungs, current, bandwidthEstimate()) ?: return
         // Pin the item to the lower rung so onVideoQualitiesResolved can't bounce back up.
         videoModeItemId?.let { qualityOverrides[it] = below.label }
         swapToRung(below)
@@ -365,6 +389,7 @@ class VideoModeController(
         // A fresh rendition starts a fresh stall history (the swap's own prepare is not a stall).
         videoStallTimes.clear()
         videoReachedReady = false
+        videoFirstReadyAt = null
     }
 
     /** Pure availability for the CURRENT item (null ⇒ no toggle). Recomputed by [videoModeAvailable]. */
@@ -570,6 +595,7 @@ class VideoModeController(
         val target = effectiveQualityTarget(audioItem.mediaId)
         val knownRungs = if (service.isRelayPlaybackMode()) null else qualityLadders[renditionId]
         val entryRung = knownRungs?.let { VideoQualityLogic.selectRung(it, target) }
+            ?.takeIf { defaultUpgradeAllowed(audioItem.mediaId, it) }
         val videoKey = entryRung?.let { VideoRendition.key(renditionId, it.itag, it.progressive) }
             ?: VideoRendition.key(renditionId)
         _videoQualities.value = knownRungs.orEmpty()
@@ -591,6 +617,7 @@ class VideoModeController(
         // Fresh rendition, fresh rebuffer-guard history (the entry prepare is not a stall).
         videoStallTimes.clear()
         videoReachedReady = false
+        videoFirstReadyAt = null
         _isVideoMode.value = true
     }
 
@@ -678,6 +705,7 @@ class VideoModeController(
         videoModeVideoKey = null
         videoStallTimes.clear()
         videoReachedReady = false
+        videoFirstReadyAt = null
         _videoQualities.value = emptyList()
         _currentVideoQuality.value = VideoQualityLogic.AUTO
         _isVideoMode.value = false
