@@ -131,7 +131,8 @@ data class ZemerAlbum(
     val playlistId: String? = null,
     val title: String = "",
     val artist: String = "",
-    // Present on `/home-rows` cards (see [ZemerTrack.artistId]); absent on the search categories.
+    // The primary artist's whitelisted UC… channel id. Present on `/home-rows` cards and (since
+    // 2026-08-11) on `/artist` + `/search` album/single rows — id-based credit resolution.
     val artistId: String? = null,
     val year: Int? = null,
     val thumbnail: String? = null,
@@ -254,6 +255,10 @@ data class ZemerAlbumHeader(
     val playlistId: String? = null,
     val title: String = "",
     val artist: String = "",
+    // The primary artist's whitelisted UC… channel id (live 2026-08-11, stuck-skeleton handoff): lets
+    // the insert resolve the credit by ID instead of the fragile name lookup. Optional — absent falls
+    // back to today's name-only behavior.
+    val artistId: String? = null,
     val year: Int? = null,
     val thumbnail: String? = null,
 )

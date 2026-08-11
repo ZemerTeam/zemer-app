@@ -174,10 +174,10 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/search/ResultDedupe.kt` | 78 | `com.jtech.zemer.search` | no | 2 | 9 |  |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerGenresModels.kt` | 149 | `com.jtech.zemer.search` | no | 1 | 42 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerPodcastGenresModels.kt` | 38 | `com.jtech.zemer.search` | no | 1 | 10 | kotlinx.serialization |
-| `app/src/main/kotlin/com/jtech/zemer/search/ZemerResultMapper.kt` | 652 | `com.jtech.zemer.search` | no | 21 | 93 |  |
+| `app/src/main/kotlin/com/jtech/zemer/search/ZemerResultMapper.kt` | 661 | `com.jtech.zemer.search` | no | 21 | 93 |  |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerRoutes.kt` | 56 | `com.jtech.zemer.search` | no | 1 | 9 |  |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchClient.kt` | 575 | `com.jtech.zemer.search` | no | 16 | 60 | io.ktor, java.io, javax.inject, kotlinx.serialization, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchModels.kt` | 383 | `com.jtech.zemer.search` | no | 2 | 152 | kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchModels.kt` | 388 | `com.jtech.zemer.search` | no | 2 | 153 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchOptions.kt` | 32 | `com.jtech.zemer.search` | no | 5 | 6 | android.content |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchRepository.kt` | 449 | `com.jtech.zemer.search` | no | 32 | 65 | android.content, dagger.hilt, java.io, java.nio, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerStationsModels.kt` | 135 | `com.jtech.zemer.search` | no | 1 | 39 | kotlinx.serialization |
@@ -584,7 +584,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerCuratedPlaylistsTest.kt` | 187 | `com.jtech.zemer.search` | no | 8 | 15 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerGenresTest.kt` | 272 | `com.jtech.zemer.search` | no | 5 | 24 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerPodcastMapperTest.kt` | 177 | `com.jtech.zemer.search` | no | 14 | 19 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/search/ZemerResultMapperTest.kt` | 688 | `com.jtech.zemer.search` | no | 18 | 84 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/search/ZemerResultMapperTest.kt` | 708 | `com.jtech.zemer.search` | no | 18 | 87 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerRoutesTest.kt` | 63 | `com.jtech.zemer.search` | no | 3 | 2 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchJsonTest.kt` | 89 | `com.jtech.zemer.search` | no | 3 | 10 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchParametersTest.kt` | 45 | `com.jtech.zemer.search` | no | 2 | 4 | org.junit |

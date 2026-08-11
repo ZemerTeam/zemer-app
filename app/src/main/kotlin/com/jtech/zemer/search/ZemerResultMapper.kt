@@ -264,7 +264,9 @@ object ZemerResultMapper {
             // and mis-id share links. Then the server's own playlistId, then the browseId fallback.
             playlistId = playlistId?.takeIf { it != album.id } ?: album.playlistId ?: album.id,
             title = album.title,
-            artists = if (album.artist.isBlank()) null else listOf(Artist(name = album.artist, id = null)),
+            // `artistId` (when the server sends it) makes the insert resolve the credit by ID —
+            // the name-only fallback is what collided with generated artist rows (stuck-skeleton).
+            artists = if (album.artist.isBlank()) null else listOf(Artist(name = album.artist, id = album.artistId)),
             year = album.year,
             thumbnail = album.thumbnail.orEmpty(),
         )
@@ -273,7 +275,14 @@ object ZemerResultMapper {
             // sortedBy is stable, so untagged tracks keep server order (after the numbered ones).
             .sortedBy { it.trackNumber ?: Int.MAX_VALUE }
             .map { track ->
-                track.toSongItem().copy(
+                track.toSongItem().let { song ->
+                    // Thread the album's artistId into track credits matching the album artist —
+                    // the wire tracks are name-only, and this covers the song-map side of the same
+                    // generated-row collision.
+                    if (album.artistId != null && song.artists.singleOrNull()?.name == album.artist) {
+                        song.copy(artists = listOf(Artist(name = album.artist, id = album.artistId)))
+                    } else song
+                }.copy(
                     album = Album(name = albumItem.title, id = albumItem.browseId),
                     // Prefer the square album art over the derived (letterboxed) video frame.
                     thumbnail = album.thumbnail ?: thumbnailFor(track.videoId),
