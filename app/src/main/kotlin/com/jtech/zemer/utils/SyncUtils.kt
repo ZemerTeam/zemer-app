@@ -236,9 +236,10 @@ class SyncUtils @Inject constructor(
                 // wipe a genuine local save.
                 val repo = context.zemerSearchRepository()
                 val options = zemerSearchOptions(context)
+                // Only an MPSP id can be looked up on /podcast — a UC/absent fallback id would 404
+                // cleanly on a healthy server and read as "not whitelisted".
                 val showIdOf: (SongItem) -> String? = { ep ->
                     ep.artists.mapNotNull { it.id }.firstOrNull { it.startsWith("MPSP") }
-                        ?: ep.artists.firstOrNull()?.id
                 }
                 val distinctShowIds = rawEpisodes.mapNotNull(showIdOf).distinct()
                 val lookups = coroutineScope {
@@ -255,10 +256,12 @@ class SyncUtils @Inject constructor(
                 }
                 val showAllowed = lookups.associate { (showId, allowed, _) -> showId to allowed }
                 val anyLookupFailed = lookups.any { (_, _, failed) -> failed }
-                val remoteEpisodes = rawEpisodes.filter { ep ->
-                    showIdOf(ep)?.let { showAllowed[it] } == true
-                }
-                val remoteIds = remoteEpisodes.map { it.id }.toSet()
+                // Whitelist resolution gates IMPORT; cleanup keys off the RAW remote set (an
+                // unresolvable or flag-hidden show must not wipe its saved episode) — see
+                // [PodcastSyncLogic.episodeSyncPlan].
+                val plan = PodcastSyncLogic.episodeSyncPlan(rawEpisodes, { it.id }, showIdOf, showAllowed)
+                val remoteEpisodes = rawEpisodes.filter { it.id in plan.importIds }
+                val remoteIds = plan.cleanupReference
 
                 remoteEpisodes.forEach { episode ->
                     try {
@@ -329,9 +332,9 @@ class SyncUtils @Inject constructor(
     /**
      * Save/unsave a podcast episode - the episode analogue of [likeSong]. Flips `inLibrary` locally at
      * once (optimistic, drives the heart/notification; anonymous sessions stay local-only), then, for a
-     * personal login, syncs the account and reverts the local flip + toasts on failure. The whole flow
-     * lives in one coroutine so the flip and its revert can never race. Un-save always clears locally
-     * (even without the `setVideoId` needed for server removal), so it can never stick.
+     * personal login, syncs the account and reverts the local flip + toasts on failure (including a
+     * failed setVideoId lookup — success there left the remote entry alive and the next sync silently
+     * re-saved it). The whole flow lives in one coroutine so the flip and its revert can never race.
      */
     fun toggleSaveEpisode(episode: SongEntity) {
         val wasSaved = episode.inLibrary != null
@@ -347,13 +350,21 @@ class SyncUtils @Inject constructor(
                 // Removal needs the playlist-scoped setVideoId. We store it on the PULL sync, but an
                 // episode saved in Zemer (pushed via addToPlaylist, which doesn't return it) has none until
                 // then — so if it's missing, fetch it live from the SE playlist so the un-save reaches
-                // YouTube Music instead of silently staying saved there.
-                val setVideoId = database.getSetVideoId(episode.id)?.setVideoId
-                    ?: YouTube.episodesForLater().getOrNull()?.firstOrNull { it.id == episode.id }?.setVideoId
-                if (setVideoId != null) {
-                    YouTube.removeEpisodeFromSavedEpisodes(episode.id, setVideoId)
+                // YouTube Music instead of silently staying saved there. A FAILED lookup surfaces as
+                // failure (revert + toast) — see [PodcastSyncLogic.unsaveAction].
+                val stored = database.getSetVideoId(episode.id)?.setVideoId
+                if (stored != null) {
+                    YouTube.removeEpisodeFromSavedEpisodes(episode.id, stored)
                 } else {
-                    Result.success(Unit)
+                    val lookup = YouTube.episodesForLater()
+                    val live = lookup.getOrNull()?.firstOrNull { it.id == episode.id }?.setVideoId
+                    when (PodcastSyncLogic.unsaveAction(lookup.isSuccess, live)) {
+                        PodcastSyncLogic.UnsaveAction.REMOVE ->
+                            YouTube.removeEpisodeFromSavedEpisodes(episode.id, live!!)
+                        PodcastSyncLogic.UnsaveAction.NOTHING_TO_REMOVE -> Result.success(Unit)
+                        PodcastSyncLogic.UnsaveAction.FAIL ->
+                            Result.failure(lookup.exceptionOrNull() ?: Exception("episodesForLater lookup failed"))
+                    }
                 }
             } else {
                 YouTube.addEpisodeToSavedEpisodes(episode.id)

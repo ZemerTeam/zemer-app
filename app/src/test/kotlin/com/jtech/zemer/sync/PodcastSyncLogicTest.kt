@@ -108,4 +108,46 @@ class PodcastSyncLogicTest {
             )
         )
     }
+
+    // --- episodeSyncPlan: whitelist gates import, never deletion ---
+
+    private data class Ep(val id: String, val showId: String?)
+
+    @Test
+    fun `unresolvable or unconfirmed show gates import but never enters the removal set`() {
+        val remote = listOf(
+            Ep("e1", "MPSP_ok"),      // whitelisted show -> imported
+            Ep("e2", "MPSP_404"),     // show 404s under current flags -> not imported, still saved remotely
+            Ep("e3", null),           // no MPSP id resolvable -> not imported, still saved remotely
+        )
+        val plan = PodcastSyncLogic.episodeSyncPlan(
+            rawRemote = remote,
+            id = { it.id },
+            showIdOf = { it.showId },
+            showAllowed = mapOf("MPSP_ok" to true, "MPSP_404" to false),
+        )
+        assertEquals(setOf("e1"), plan.importIds)
+        assertEquals(setOf("e1", "e2", "e3"), plan.cleanupReference)
+        // cleanup against the RAW reference removes nothing that is still in VLSE
+        assertTrue(PodcastSyncLogic.localOnly(listOf("e2", "e3"), plan.cleanupReference) { it }.isEmpty())
+        // a genuinely-removed remote episode is still cleaned up
+        assertEquals(listOf("gone"), PodcastSyncLogic.localOnly(listOf("gone"), plan.cleanupReference) { it })
+    }
+
+    // --- unsaveAction: a failed lookup must fail loud, not fake success ---
+
+    @Test
+    fun `unsave removes when a setVideoId was found`() {
+        assertEquals(PodcastSyncLogic.UnsaveAction.REMOVE, PodcastSyncLogic.unsaveAction(lookupSucceeded = true, setVideoId = "svid"))
+    }
+
+    @Test
+    fun `unsave is a clean no-op when the lookup succeeded but found no entry`() {
+        assertEquals(PodcastSyncLogic.UnsaveAction.NOTHING_TO_REMOVE, PodcastSyncLogic.unsaveAction(lookupSucceeded = true, setVideoId = null))
+    }
+
+    @Test
+    fun `unsave fails when the lookup itself failed`() {
+        assertEquals(PodcastSyncLogic.UnsaveAction.FAIL, PodcastSyncLogic.unsaveAction(lookupSucceeded = false, setVideoId = null))
+    }
 }

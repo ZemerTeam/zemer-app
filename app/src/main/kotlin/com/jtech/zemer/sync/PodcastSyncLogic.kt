@@ -37,11 +37,44 @@ object PodcastSyncLogic {
      * bookmark/library flag cleared so the app stays a mirror of YouTube Music. Mirrors the music
      * sync's "unlike locals absent from the filtered remote" cleanup.
      *
-     * [remoteIds] MUST be the whitelist-filtered remote id set, same as music. A de-whitelisted
-     * podcast that vanishes from the filtered remote is correctly dropped locally (kosher).
+     * For SUBSCRIPTIONS [remoteIds] is the whitelist-filtered remote set (a de-whitelisted podcast
+     * drops locally, kosher). For EPISODES it is the RAW set from [episodeSyncPlan]: whitelist
+     * resolution gates import, never deletion.
      */
     fun <T> localOnly(local: List<T>, remoteIds: Set<String>, id: (T) -> String): List<T> =
         local.filterNot { id(it) in remoteIds }
+
+    /** What syncEpisodesForLater imports vs. what its cleanup may treat as "still saved remotely". */
+    data class EpisodeSyncPlan(val importIds: Set<String>, val cleanupReference: Set<String>)
+
+    /**
+     * The whitelist lookup gates IMPORT only ([importIds] = episodes whose show positively resolved
+     * as whitelisted). [cleanupReference] is ALL raw remote ids: an episode whose show id is
+     * unresolvable (no MPSP id) or 404s under the current flags is still in VLSE remotely, and
+     * deleting its local save would wipe a genuine user save (the flag-hidden-album precedent).
+     */
+    fun <T> episodeSyncPlan(
+        rawRemote: List<T>,
+        id: (T) -> String,
+        showIdOf: (T) -> String?,
+        showAllowed: Map<String, Boolean>,
+    ): EpisodeSyncPlan = EpisodeSyncPlan(
+        importIds = rawRemote.filter { showIdOf(it)?.let(showAllowed::get) == true }.mapTo(mutableSetOf(), id),
+        cleanupReference = rawRemote.mapTo(mutableSetOf(), id),
+    )
+
+    /** Un-save server action when no setVideoId is stored locally and a live lookup was attempted. */
+    enum class UnsaveAction { REMOVE, NOTHING_TO_REMOVE, FAIL }
+
+    /**
+     * A FAILED lookup must surface as failure (revert + toast) - treating it as success left the
+     * remote entry alive and the next sync silently re-saved the episode locally.
+     */
+    fun unsaveAction(lookupSucceeded: Boolean, setVideoId: String?): UnsaveAction = when {
+        setVideoId != null -> UnsaveAction.REMOVE
+        lookupSucceeded -> UnsaveAction.NOTHING_TO_REMOVE
+        else -> UnsaveAction.FAIL
+    }
 
     /**
      * Whether a podcast/episode passes the SEPARATE podcast whitelist (never the music artist
