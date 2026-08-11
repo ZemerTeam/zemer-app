@@ -38,6 +38,17 @@ fun whitelistedPodcastRoute(podcastId: String?, channelId: String?): String? =
     channelId?.takeIf { it.isNotBlank() }?.let { artistRoute(it, isPodcastChannel = true) }
         ?: podcastRoute(podcastId)
 
+/**
+ * Where a `channel/<UC…>` deep link opens: the music artist page for an artist-whitelisted channel,
+ * the podcast channel page for a podcast-whitelisted one, null (silently ignored) otherwise. A
+ * podcast-only channel must not dead-end — its Share links point here.
+ */
+fun channelDeepLinkRoute(channelId: String?, artistWhitelisted: Boolean, podcastWhitelisted: Boolean): String? = when {
+    artistWhitelisted -> artistRoute(channelId)
+    podcastWhitelisted -> artistRoute(channelId, isPodcastChannel = true)
+    else -> null
+}
+
 fun NavController.navigateToArtist(artistId: String?, isPodcastChannel: Boolean = false) {
     artistRoute(artistId, isPodcastChannel)?.let(::navigate)
 }

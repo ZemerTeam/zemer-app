@@ -244,6 +244,8 @@ import com.jtech.zemer.ui.theme.extractThemeColor
 import com.jtech.zemer.ui.theme.rememberPureBlack
 import com.jtech.zemer.ui.utils.HOME_EASTER_EGG_TAPS
 import com.jtech.zemer.ui.utils.appBarScrollBehavior
+import com.jtech.zemer.ui.utils.channelDeepLinkRoute
+import com.jtech.zemer.utils.PodcastWhitelistCache
 import com.jtech.zemer.ui.utils.easterEggTapCount
 import com.jtech.zemer.ui.utils.playHomeEasterEgg
 import com.jtech.zemer.ui.utils.backToMain
@@ -2118,16 +2120,20 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            "channel", "c" -> uri.lastPathSegment?.let { artistId ->
+            "channel", "c" -> uri.lastPathSegment?.let { channelId ->
                 coroutineScope.launch(Dispatchers.IO) {
-                    // Check if artist is whitelisted before navigating
-                    val isWhitelisted = database.isArtistWhitelisted(artistId)
-                    if (isWhitelisted) {
+                    // Artist-whitelisted opens the music artist page; podcast-whitelisted opens the
+                    // podcast channel page (its Share links point here); otherwise silently ignore.
+                    val route = channelDeepLinkRoute(
+                        channelId = channelId,
+                        artistWhitelisted = database.isArtistWhitelisted(channelId),
+                        podcastWhitelisted = PodcastWhitelistCache.isChannelWhitelisted(channelId),
+                    )
+                    if (route != null) {
                         withContext(Dispatchers.Main) {
-                            navController.navigate("artist/$artistId")
+                            navController.navigate(route)
                         }
                     }
-                    // Silently ignore if not whitelisted
                 }
             }
 

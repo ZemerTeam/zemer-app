@@ -106,18 +106,6 @@ data class PodcastItem(
         get() = false
     override val shareLink: String
         get() = "https://music.zemer.io/playlist?list=$id"
-
-    fun asPlaylistItem() = PlaylistItem(
-        id = id,
-        title = title,
-        author = author,
-        songCountText = episodeCountText,
-        thumbnail = thumbnail,
-        playEndpoint = playEndpoint,
-        shuffleEndpoint = shuffleEndpoint,
-        radioEndpoint = null,
-        isEditable = false
-    )
 }
 
 data class EpisodeItem(

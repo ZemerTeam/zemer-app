@@ -40,6 +40,7 @@ import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
+import com.metrolist.innertube.models.PodcastItem
 
 /**
  * The long-press menu for a whitelisted podcast CHANNEL (the browse grid/list in
@@ -56,9 +57,96 @@ fun PodcastChannelMenu(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
+    PodcastMenuLayout(
+        thumbnailUrl = podcast.thumbnailUrl,
+        name = podcast.name,
+        actions = listOf(
+            podcastViewAction(R.string.view_channel) {
+                onDismiss()
+                whitelistedPodcastRoute(null, podcast.channelId)?.let(navController::navigate)
+            },
+            podcastShareAction {
+                onDismiss()
+                Tracker.action(TrackingActionKind.SHARE, podcast.channelId)
+                context.shareText("https://music.zemer.io/channel/${podcast.channelId}")
+            },
+        ),
+    )
+}
 
-    // Header — the same roomy avatar + bold name row ArtistMenu uses (rounded, not circular, matching the
-    // podcast rows' square art).
+/**
+ * The long-press menu for a podcast SHOW ([PodcastItem]) on mixed lists (search, home see-all, the
+ * host-channel shelf). A show is NOT a music playlist: routing it into [YouTubePlaylistMenu] saved an
+ * `MPSP…` id as a music `PlaylistEntity` and populated it via the artist-whitelisted `YouTube.playlist`
+ * — a permanently empty, broken library row. Shows get their own menu; saving a show is the bookmark on
+ * [com.jtech.zemer.ui.screens.podcast.OnlinePodcastScreen].
+ */
+@Composable
+fun YouTubePodcastMenu(
+    podcast: PodcastItem,
+    navController: NavController,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    PodcastMenuLayout(
+        thumbnailUrl = podcast.thumbnail,
+        name = podcast.title,
+        actions = buildList {
+            add(
+                podcastViewAction(R.string.view_podcast) {
+                    onDismiss()
+                    whitelistedPodcastRoute(podcast.id, podcast.channelId)?.let(navController::navigate)
+                }
+            )
+            podcast.channelId?.let { channelId ->
+                add(
+                    podcastShareAction {
+                        onDismiss()
+                        Tracker.action(TrackingActionKind.SHARE, channelId)
+                        context.shareText("https://music.zemer.io/channel/$channelId")
+                    }
+                )
+            }
+        },
+    )
+}
+
+@Composable
+private fun podcastViewAction(@androidx.annotation.StringRes labelRes: Int, onClick: () -> Unit) = NewAction(
+    icon = {
+        Icon(
+            painter = painterResource(R.drawable.podcast),
+            contentDescription = null,
+            modifier = Modifier.size(28.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    },
+    text = stringResource(labelRes),
+    onClick = onClick,
+)
+
+@Composable
+private fun podcastShareAction(onClick: () -> Unit) = NewAction(
+    icon = {
+        Icon(
+            painter = painterResource(R.drawable.share),
+            contentDescription = null,
+            modifier = Modifier.size(28.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    },
+    text = stringResource(R.string.share),
+    onClick = onClick,
+)
+
+/** Shared shell for the podcast menus: square-art header + divider + [NewActionGrid]. */
+@Composable
+private fun PodcastMenuLayout(
+    thumbnailUrl: String?,
+    name: String,
+    actions: List<NewAction>,
+) {
+    val context = LocalContext.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -67,7 +155,7 @@ fun PodcastChannelMenu(
     ) {
         AsyncImage(
             model = ImageRequest.Builder(context)
-                .data(podcast.thumbnailUrl)
+                .data(thumbnailUrl)
                 .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
                 .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
                 .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
@@ -82,7 +170,7 @@ fun PodcastChannelMenu(
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
-            text = podcast.name,
+            text = name,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             maxLines = 2,
@@ -102,43 +190,7 @@ fun PodcastChannelMenu(
     ) {
         item {
             NewActionGrid(
-                actions = buildList {
-                    add(
-                        NewAction(
-                            icon = {
-                                Icon(
-                                    painter = painterResource(R.drawable.podcast),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(28.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            },
-                            text = stringResource(R.string.view_channel),
-                            onClick = {
-                                onDismiss()
-                                whitelistedPodcastRoute(null, podcast.channelId)?.let(navController::navigate)
-                            },
-                        ),
-                    )
-                    add(
-                        NewAction(
-                            icon = {
-                                Icon(
-                                    painter = painterResource(R.drawable.share),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(28.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            },
-                            text = stringResource(R.string.share),
-                            onClick = {
-                                onDismiss()
-                                Tracker.action(TrackingActionKind.SHARE, podcast.channelId)
-                                context.shareText("https://music.zemer.io/channel/${podcast.channelId}")
-                            },
-                        ),
-                    )
-                },
+                actions = actions,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp),
             )
         }

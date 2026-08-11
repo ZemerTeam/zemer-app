@@ -77,4 +77,15 @@ class AppNavigationTest {
         assertNull(whitelistedPodcastRoute(null, null))
         assertNull(whitelistedPodcastRoute("", ""))
     }
+
+    @Test
+    fun channelDeepLink_artistWhitelistWinsThenPodcastThenNothing() {
+        assertEquals("artist/UC1", channelDeepLinkRoute("UC1", artistWhitelisted = true, podcastWhitelisted = true))
+        assertEquals(
+            "artist/UC1?isPodcastChannel=true",
+            channelDeepLinkRoute("UC1", artistWhitelisted = false, podcastWhitelisted = true),
+        )
+        assertNull(channelDeepLinkRoute("UC1", artistWhitelisted = false, podcastWhitelisted = false))
+        assertNull(channelDeepLinkRoute("", artistWhitelisted = true, podcastWhitelisted = true))
+    }
 }

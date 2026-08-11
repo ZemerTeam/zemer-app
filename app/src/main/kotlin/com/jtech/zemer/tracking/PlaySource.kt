@@ -24,8 +24,12 @@ object PlaySource {
     fun zemer(id: String) = "zemer:$id"
     /** Genre radio started from a genre page ("Play genre"); `id` is the server genre slug. */
     fun genre(id: String) = "genre:$id"
-    /** A play started from a podcast SHOW's episode list; `id` is the podcast (show) id. */
-    fun podcast(id: String) = "podcast:$id"
+    /**
+     * A play started from a podcast surface; `id` is the podcast (show) id. When the show id is
+     * unknown the bare "podcast" slug is sent — never a videoId, which would splinter server-side
+     * per-show aggregation into phantom one-episode shows.
+     */
+    fun podcast(id: String?) = if (id.isNullOrBlank()) "podcast" else "podcast:$id"
 }
 
 /**
