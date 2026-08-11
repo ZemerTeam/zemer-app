@@ -67,6 +67,7 @@ import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeSeeAllStore
 import com.jtech.zemer.viewmodels.PodcastHomeSeeAllStore
+import com.jtech.zemer.viewmodels.VideoHomeSeeAllStore
 
 /**
  * The generic "See all" page for a Home row: the row's full, already-filtered list as a vertical page
@@ -87,6 +88,7 @@ fun HomeSeeAllScreen(
 ) {
     val data by HomeSeeAllStore.data.collectAsState()
     val podcastData by PodcastHomeSeeAllStore.data.collectAsState()
+    val videoData by VideoHomeSeeAllStore.data.collectAsState()
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
 
     val rowIsEmpty = when (row) {
@@ -101,6 +103,9 @@ fun HomeSeeAllScreen(
         HomeSeeAllRow.TOP_PODCASTS -> podcastData.topPodcasts.isEmpty()
         HomeSeeAllRow.TRENDING_EPISODES -> podcastData.trendingEpisodes.isEmpty()
         HomeSeeAllRow.SUBSCRIBED_CHANNELS -> podcastData.subscribedChannels.isEmpty()
+        HomeSeeAllRow.TRENDING_VIDEOS -> videoData.trending.isEmpty()
+        HomeSeeAllRow.NEW_VIDEOS -> videoData.newVideos.isEmpty()
+        HomeSeeAllRow.TOP_VIDEO_ARTISTS -> videoData.artists.isEmpty()
     }
 
     if (rowIsEmpty) {
@@ -127,6 +132,10 @@ fun HomeSeeAllScreen(
             HomeSeeAllRow.TOP_PODCASTS -> YtItemGrid(podcastData.topPodcasts, navController, podcastChannelFirst = true)
             HomeSeeAllRow.TRENDING_EPISODES -> YtItemGrid(podcastData.trendingEpisodes, navController)
             HomeSeeAllRow.SUBSCRIBED_CHANNELS -> YtItemGrid(podcastData.subscribedChannels, navController, podcastChannelFirst = true)
+            // Videos-tab rows: video-song grids match the Featured Videos treatment (no badge).
+            HomeSeeAllRow.TRENDING_VIDEOS -> YtItemGrid(videoData.trending, navController, showVideoBadge = false)
+            HomeSeeAllRow.NEW_VIDEOS -> YtItemGrid(videoData.newVideos, navController, showVideoBadge = false)
+            HomeSeeAllRow.TOP_VIDEO_ARTISTS -> YtItemGrid(videoData.artists, navController)
         }
     }
 
@@ -135,8 +144,12 @@ fun HomeSeeAllScreen(
         title = {
             AppBarTitle(
                 stringResource(
-                    if (row == HomeSeeAllRow.FEATURED_VIDEOS && blockVideos) R.string.featured_video_songs
-                    else row.titleRes
+                    when {
+                        row == HomeSeeAllRow.FEATURED_VIDEOS && blockVideos -> R.string.featured_video_songs
+                        row == HomeSeeAllRow.TRENDING_VIDEOS && blockVideos -> R.string.trending_video_songs
+                        row == HomeSeeAllRow.NEW_VIDEOS && blockVideos -> R.string.new_video_songs
+                        else -> row.titleRes
+                    }
                 )
             )
         },

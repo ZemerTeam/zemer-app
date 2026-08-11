@@ -33,6 +33,10 @@ enum class HomeSeeAllRow(val slug: String, @StringRes val titleRes: Int) {
     TOP_PODCASTS("top-podcasts", R.string.top_podcasts),
     TRENDING_EPISODES("trending-episodes", R.string.trending_episodes),
     SUBSCRIBED_CHANNELS("subscribed-channels", R.string.subscribed_channels),
+    // Videos-tab ranked rows (backed by [VideoHomeSeeAllStore]).
+    TRENDING_VIDEOS("trending-videos", R.string.trending_videos),
+    NEW_VIDEOS("new-videos", R.string.new_videos),
+    TOP_VIDEO_ARTISTS("top-video-artists", R.string.top_video_artists),
     ;
 
     companion object {
@@ -96,5 +100,21 @@ object PodcastHomeSeeAllStore {
 
     fun publishSubscribedChannels(subscribedChannels: List<PodcastItem>) {
         _data.update { it.copy(subscribedChannels = subscribedChannels) }
+    }
+}
+
+data class VideoHomeSeeAllData(
+    val trending: List<SongItem> = emptyList(),
+    val newVideos: List<SongItem> = emptyList(),
+    val artists: List<ArtistItem> = emptyList(),
+)
+
+/** The Videos-tab twin of [PodcastHomeSeeAllStore]; [VideoHomeRowsViewModel] publishes each load. */
+object VideoHomeSeeAllStore {
+    private val _data = MutableStateFlow(VideoHomeSeeAllData())
+    val data: StateFlow<VideoHomeSeeAllData> = _data.asStateFlow()
+
+    fun publishRows(trending: List<SongItem>, newVideos: List<SongItem>, artists: List<ArtistItem>) {
+        _data.update { it.copy(trending = trending, newVideos = newVideos, artists = artists) }
     }
 }

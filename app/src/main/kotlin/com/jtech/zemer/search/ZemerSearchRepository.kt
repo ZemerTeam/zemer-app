@@ -232,6 +232,10 @@ class ZemerSearchRepository @Inject constructor(
     suspend fun podcastHomeRows(options: ZemerSearchOptions): ZemerResultMapper.PodcastHomeRows =
         ZemerResultMapper.podcastHomeRows(client.podcastHomeRows(options.allowFemale, options.blockVideos))
 
+    /** The Videos tab's ranked rows. Live-only like [podcastHomeRows]; throws on failure (fail-soft VM). */
+    suspend fun videoHomeRows(options: ZemerSearchOptions): ZemerResultMapper.VideoHomeRows =
+        ZemerResultMapper.videoHomeRows(client.videoHomeRows(options.allowFemale, options.blockVideos))
+
     /** Latest episodes across all whitelisted shows (Library New Episodes), newest-first. */
     suspend fun podcastsNewEpisodes(k: Int, options: ZemerSearchOptions): List<EpisodeItem> =
         serverOrOffline(

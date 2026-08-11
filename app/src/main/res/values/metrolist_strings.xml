@@ -672,6 +672,11 @@
         <string name="featured_podcasts">Featured</string>
         <string name="top_podcasts">Top Podcasts</string>
         <string name="trending_episodes">Trending Episodes</string>
+        <string name="trending_videos">Trending Videos</string>
+        <string name="trending_video_songs">Trending video songs</string>
+        <string name="new_videos">New Videos</string>
+        <string name="new_video_songs">New video songs</string>
+        <string name="top_video_artists">Top Video Artists</string>
         <string name="zemer_radio_stations">Zemer Radio Stations</string>
         <string name="mark_as_played">Mark as played</string>
         <string name="mark_as_unplayed">Mark as unplayed</string>

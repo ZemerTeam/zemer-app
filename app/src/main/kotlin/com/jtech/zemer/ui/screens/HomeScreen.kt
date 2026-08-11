@@ -131,6 +131,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.jtech.zemer.viewmodels.STATION_ROW_REFRESH_MS
 import com.jtech.zemer.viewmodels.ZemerGenresViewModel
 import com.jtech.zemer.viewmodels.PodcastHomeRowsViewModel
+import com.jtech.zemer.viewmodels.VideoHomeRowsViewModel
 import com.jtech.zemer.viewmodels.PodcastSubscriptionsHomeViewModel
 import com.jtech.zemer.viewmodels.ZemerStatusesViewModel
 import com.jtech.zemer.viewmodels.ZemerStationsViewModel
@@ -195,6 +196,12 @@ fun HomeScreen(
     val featuredPodcasts by podcastHomeRowsViewModel.featured.collectAsState()
     val topPodcasts by podcastHomeRowsViewModel.topPodcasts.collectAsState()
     val trendingEpisodes by podcastHomeRowsViewModel.trendingEpisodes.collectAsState()
+    // The Videos tab's ranked rows — isolated fail-soft VM (empty rows hide; the /video-home-rows
+    // endpoint being absent leaves the tab on its topVideos lead row alone).
+    val videoHomeRowsViewModel: VideoHomeRowsViewModel = hiltViewModel()
+    val trendingVideos by videoHomeRowsViewModel.trending.collectAsState()
+    val newVideos by videoHomeRowsViewModel.newVideos.collectAsState()
+    val topVideoArtists by videoHomeRowsViewModel.artists.collectAsState()
     // Subscription-driven podcast rows (New Episodes + Subscribed Channels) — LOCAL sources, so identical
     // for anon + Google login. Own isolated fail-soft VM; each row hides when empty.
     val podcastSubscriptionsViewModel: PodcastSubscriptionsHomeViewModel = hiltViewModel()
@@ -233,6 +240,7 @@ fun HomeScreen(
         zemerGenresViewModel.refresh()
         podcastGenresHomeViewModel.refresh()
         podcastHomeRowsViewModel.refresh()
+        videoHomeRowsViewModel.refresh()
         podcastSubscriptionsViewModel.fetchNewEpisodes()
         zemerStatusesViewModel.refresh()
     }
@@ -283,6 +291,9 @@ fun HomeScreen(
     val uniqueFeaturedArtists = remember(featuredArtists) { featuredArtists.distinctBy { it.id } }
     val uniqueFeaturedAlbums = remember(featuredAlbums) { featuredAlbums.distinctBy { it.id } }
     val uniqueFeaturedVideos = remember(featuredVideos) { featuredVideos.distinctBy { it.id } }
+    val uniqueTrendingVideos = remember(trendingVideos) { trendingVideos.distinctBy { it.id } }
+    val uniqueNewVideos = remember(newVideos) { newVideos.distinctBy { it.id } }
+    val uniqueTopVideoArtists = remember(topVideoArtists) { topVideoArtists.distinctBy { it.id } }
 
     val isLoading: Boolean = homeUiState.isLoading
     val isRefreshing = homeUiState.isRefreshing
@@ -503,6 +514,7 @@ fun HomeScreen(
                     zemerGenresViewModel.refresh()
                     podcastGenresHomeViewModel.refresh()
                     podcastHomeRowsViewModel.refresh()
+                    videoHomeRowsViewModel.refresh()
                     podcastSubscriptionsViewModel.fetchNewEpisodes()
                     zemerStatusesViewModel.refresh(force = true) // pull-to-refresh always re-fetches
                 }
@@ -1123,6 +1135,122 @@ fun HomeScreen(
                                     )
                                     .animateItem()
                             )
+                        }
+                    }
+                }
+            }
+
+            // The ranked rows (/video-home-rows): one builder for both video-song rows — same card,
+            // audio-first tap with the row's declared source, audio-gated menu, per-row impressions.
+            fun rankedVideoRow(
+                keyPrefix: String,
+                @StringRes titleRes: Int,
+                @StringRes blockedTitleRes: Int,
+                seeAll: HomeSeeAllRow,
+                surface: String,
+                playSource: String,
+                videos: List<SongItem>,
+            ) {
+                if (videos.isEmpty()) return
+                item(key = "${keyPrefix}_title", contentType = "header") {
+                    NavigationTitle(
+                        title = stringResource(if (blockVideos) blockedTitleRes else titleRes),
+                        onClick = { navController.navigate("home_see_all/${seeAll.slug}") },
+                        modifier = Modifier.animateItem()
+                    )
+                }
+                item(key = "${keyPrefix}_list", contentType = "grid") {
+                    val rowState = rememberLazyListState()
+                    TrackImpressionsByKey(
+                        surface = surface,
+                        state = rowState,
+                        parent = lazylistState,
+                        parentKey = "${keyPrefix}_list",
+                        idOfKey = rememberRowImpressionIds(videos) { it.id },
+                    )
+                    LazyRow(
+                        state = rowState,
+                        contentPadding = WindowInsets.systemBars
+                            .only(WindowInsetsSides.Horizontal)
+                            .asPaddingValues(),
+                        modifier = Modifier.animateItem()
+                    ) {
+                        items(items = videos, key = { it.id }, contentType = { "video" }) { video ->
+                            YouTubeGridItem(
+                                item = video,
+                                isActive = mediaMetadata?.id == video.id,
+                                isPlaying = isPlaying,
+                                coroutineScope = scope,
+                                // Square crop + no badge, matching the Featured video songs row.
+                                thumbnailRatio = 1f,
+                                showVideoBadge = false,
+                                modifier = Modifier
+                                    .combinedClickable(
+                                        onClick = {
+                                            playerConnection.playQueue(
+                                                ZemerRadioQueue.song(video.toMediaMetadata(), playerConnection.service, playSource)
+                                            )
+                                        },
+                                        onLongClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            menuState.show {
+                                                YouTubeSongMenu(
+                                                    song = video,
+                                                    navController = navController,
+                                                    onDismiss = menuState::dismiss,
+                                                    isVideo = video.isVideo && !blockVideos,
+                                                )
+                                            }
+                                        }
+                                    )
+                                    .animateItem()
+                            )
+                        }
+                    }
+                }
+            }
+            rankedVideoRow(
+                keyPrefix = "trending_videos",
+                titleRes = R.string.trending_videos,
+                blockedTitleRes = R.string.trending_video_songs,
+                seeAll = HomeSeeAllRow.TRENDING_VIDEOS,
+                surface = TrackingSurface.home("video-trending"),
+                playSource = PlaySource.HOME_VIDEO_TRENDING,
+                videos = uniqueTrendingVideos,
+            )
+            rankedVideoRow(
+                keyPrefix = "new_videos",
+                titleRes = R.string.new_videos,
+                blockedTitleRes = R.string.new_video_songs,
+                seeAll = HomeSeeAllRow.NEW_VIDEOS,
+                surface = TrackingSurface.home("video-new"),
+                playSource = PlaySource.HOME_VIDEO_NEW,
+                videos = uniqueNewVideos,
+            )
+
+            // Top Video Artists: cards open the artist page, so plays attribute artist:UC… — no
+            // per-row source or impressions needed (contract: the tracking handoff).
+            if (uniqueTopVideoArtists.isNotEmpty()) {
+                item(key = "top_video_artists_title", contentType = "header") {
+                    NavigationTitle(
+                        title = stringResource(R.string.top_video_artists),
+                        onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.TOP_VIDEO_ARTISTS.slug}") },
+                        modifier = Modifier.animateItem()
+                    )
+                }
+                item(key = "top_video_artists_list", contentType = "grid") {
+                    LazyRow(
+                        contentPadding = WindowInsets.systemBars
+                            .only(WindowInsetsSides.Horizontal)
+                            .asPaddingValues(),
+                        modifier = Modifier.animateItem()
+                    ) {
+                        items(
+                            items = uniqueTopVideoArtists,
+                            key = { "top_video_artist_${it.id}" },
+                            contentType = { "artist" }
+                        ) { artist ->
+                            ytGridItem(artist)
                         }
                     }
                 }
