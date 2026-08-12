@@ -612,19 +612,14 @@ object YTPlayerUtils {
                 return VideoQualityLogic.formatForItag(playerResponse.streamingData, videoItag)
             }
             if (videoQualityTarget != null && videoQualityTarget != VideoQualityLogic.AUTO) {
-                // Downloads gate on decoder capability too (the streaming ladder is filtered at
-                // publish, but a download target arrives label-only): a rung the device cannot
-                // decode must never become a committed LOCAL file that errors on every play.
-                var rungs = VideoQualityLogic.rungs(playerResponse.streamingData)
+                // An EXPLICIT quality target (the user's Settings default or in-player pick) is
+                // honored as chosen — NOT metered-capped (that would silently downgrade what the user
+                // asked to save/watch). The metered bitrate cap governs only the AUTOMATIC pick below.
+                // Downloads still gate on decoder capability (the streaming ladder is filtered at
+                // publish, but a download target arrives label-only): a rung the device cannot decode
+                // must never become a committed LOCAL file that errors on every play.
+                val rungs = VideoQualityLogic.rungs(playerResponse.streamingData)
                     .filter { it.progressive || VideoDecoderCaps.supports(it) }
-                // Re-apply the metered cap at RESOLUTION time, not just at enqueue. A download target
-                // (requestedVideoQuality) survives failed attempts BY DESIGN, so an automatic retry
-                // after a Wi-Fi -> metered transition would otherwise re-resolve the full-bitrate rung
-                // with no consent. Capping here keeps every retry metered-safe (the target still
-                // resolves to the best rung AT OR BELOW the cap).
-                if (maxVideoBitrateKbps != null) {
-                    rungs = rungs.filter { it.bitrate / 1000 <= maxVideoBitrateKbps }
-                }
                 val rung = VideoQualityLogic.selectRung(
                     rungs,
                     videoQualityTarget,

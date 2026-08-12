@@ -1045,19 +1045,20 @@ WEB_REMIX serves avc1 144p…1080p and vp9-only 1440p/2160p. The rules that must
   landscape window's orientation/insets/z-order, so fullscreen must present its own panel inside the
   overlay (Back closes the panel before exiting fullscreen). It
   (`VideoDecoderCaps` — never offer vp9 2160p to a SoC that can't decode it); a pick applies to that
-  item for the session. Two CONCURRENT maps on purpose: `qualityOverrides` holds the effective
-  session state (an in-player pick OR a machine write from the rebuffer guard / error revert) and
-  drives streaming; `userQualityPicks` holds ONLY the user's explicit switcher choices and is what
-  DOWNLOADS read (`downloadVideoQuality`), so a transient guard-downgrade or an error's AUTO pin never
-  silently downgrades a later download of what the user chose to watch. The Settings default
-  (`VideoQualityKey`, Player settings, hidden when videos are blocked) applies to new plays and is
-  **metered-gated** (`effectiveQualityTarget` → AUTO on metered; an explicit pick is per-play consent
-  and honored) — the default must never silently drive full-bitrate adaptive streams on a metered
-  connection. Downloads re-apply the metered bitrate cap at RESOLUTION time (not just enqueue) so a
-  retry after a Wi-Fi→metered transition can't pull the full-bitrate rung. The unmetered default is
-  honored optimistically (NOT pre-gated on a bandwidth estimate — media3 seeds a synthetic prior at
-  cold start that would wrongly deny a fast link); the rebuffer guard downgrades if the link can't
-  sustain it. A same-itag switcher tap (tapping the quality already playing, including the automatic
+  item for the session. **An explicit quality the user chose — in Settings OR the in-player switcher
+  — is HONORED on every connection, metered included.** It is a deliberate choice, not something to
+  silently override: no metered gate, no bandwidth pre-gate, no error-time AUTO pin discards it (a
+  video error just invalidates the stale URL so a re-entry re-resolves fresh at the chosen quality;
+  the decoder-caps filter already keeps undecodable rungs off the menu). Data/stutter protection
+  lives where it belongs: the AUTOMATIC pick (AUTO — the default-default) keeps its metered bitrate
+  cap, and the reactive rebuffer guard drops the CURRENT video a rung when it actually stalls
+  (per-item; a new video still starts at the user's setting). Two CONCURRENT maps: `qualityOverrides`
+  is the effective session state (an in-player pick OR the guard's reactive downgrade) driving
+  streaming; `userQualityPicks` holds ONLY explicit switcher choices and is what DOWNLOADS read
+  (`downloadVideoQuality` → `userQualityPicks[id] ?: defaultVideoQuality`), so the guard's downgrade
+  never leaks into a download. The Settings default (`VideoQualityKey`, Player settings, hidden when
+  videos are blocked) applies to new plays via `effectiveQualityTarget` (`qualityOverrides ?:
+  default`). A same-itag switcher tap (tapping the quality already playing, including the automatic
   pick's true label) is a no-op — never a redundant re-swap. First entry plays AUTO instantly and upgrades
   position-continuously when the ladder lands with the resolution — never a blocking wait, and never a
   redundant re-swap when the automatic pick already streams the target rung (the resolved itag rides
@@ -1103,8 +1104,10 @@ WEB_REMIX serves avc1 144p…1080p and vp9-only 1440p/2160p. The rules that must
 - **Downloads above the progressive ceiling fetch video+audio separately and REMUX on-device**
   (`VideoMuxer` — framework MediaExtractor/MediaMuxer, zero new dependencies: avc1+AAC → MP4,
   vp9+Opus → WebM on API 29+ only — `selectRung(opusWebmMuxSupported)`; av01 is stream-only). The
-  download target is decoder-capability-gated too (a rung the device can't decode must never become a
-  committed LOCAL file that errors on every play), the audio partner is resolved from the SAME video
+  download target is decoder-capability-gated (a rung the device can't decode must never become a
+  committed LOCAL file that errors on every play) but is NOT metered-capped — an explicit download
+  quality is honored as chosen; only the automatic (AUTO) pick keeps the metered bitrate cap. The
+  audio partner is resolved from the SAME video
   response and client (`PlaybackData.downloadAudioUrl` — container-matched: mp4/avc video → AAC,
   webm/vp9 video → Opus; NO second `/player` round-trip and no client-disagreement mux failure, with
   a defensive second resolution only when the response carried no usable audio), and each stream is

@@ -101,20 +101,15 @@ class VideoModeController(
     // re-swapping identical bytes under a new cache key.
     private var currentRenditionItag: Int? = null
 
-    // The metered gate for the PERSISTED default: an in-player pick is per-play consent, but the
-    // Settings default must not silently drive full-bitrate adaptive streams/downloads on a metered
-    // connection (the invariant the automatic pick's bitrate cap exists for). On an UNMETERED link the
-    // default is honored optimistically and the rebuffer guard downgrades if the link can't sustain it
-    // — deliberately NOT pre-gated on a bandwidth estimate, which media3 seeds with a synthetic prior
-    // at cold start (a stale prior would wrongly deny a fast link with no later re-check).
+    // The effective quality TARGET for an item: an in-player pick if one exists, else the persisted
+    // Settings default. A user who explicitly sets a quality (in Settings OR the in-player switcher)
+    // gets it honored on EVERY connection — it is a deliberate choice, not "silent", so it is NOT
+    // metered-gated (an earlier metered gate here dropped the Settings default to AUTO on cellular,
+    // which read as "my setting is ignored"). Data protection lives where it belongs: the AUTOMATIC
+    // pick (AUTO) keeps its metered bitrate cap, and the rebuffer guard downgrades a target the link
+    // can't sustain. A user who wants to save data sets AUTO or a lower default.
     private fun effectiveQualityTarget(itemId: String?): String =
-        qualityOverrides[itemId] ?: defaultVideoQuality.takeIf { !isMeteredNetwork() } ?: VideoQualityLogic.AUTO
-
-    private fun isMeteredNetwork(): Boolean =
-        runCatching {
-            (service.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager)
-                ?.isActiveNetworkMetered == true
-        }.getOrDefault(true)
+        qualityOverrides[itemId] ?: defaultVideoQuality
 
     /**
      * The player's live throughput estimate (bps) for the DOWNGRADE target only (read after stalls,
@@ -586,10 +581,12 @@ class VideoModeController(
                 service.invalidateStreamCache(VideoRendition.key(it))
                 service.invalidateStreamCache(VideoRendition.mergeAudioKey(it))
             }
-            // Pin the item to AUTO for the session: whatever rung failed (an explicit pick OR the
-            // persisted default's rung), a re-entry must land on the working automatic pick, not
-            // loop straight back into the failing rung. The user can still re-pick from the switcher.
-            videoModeItemId?.let { qualityOverrides[it] = VideoQualityLogic.AUTO }
+            // Do NOT override the user's quality on error — a video-mode error is almost always a
+            // stale/expired signed URL (fixed by the cache invalidation above → a fresh resolution on
+            // re-entry), and a rung the device genuinely can't decode is already filtered out
+            // (VideoDecoderCaps). Pinning AUTO here silently discarded the user's chosen quality on a
+            // transient blip. A rung that truly can't sustain surfaces as stalls, not a hard error,
+            // and the rebuffer guard handles that.
         }
         reportException(error, "Video mode playback error")
         exitVideoModeSameItem()
