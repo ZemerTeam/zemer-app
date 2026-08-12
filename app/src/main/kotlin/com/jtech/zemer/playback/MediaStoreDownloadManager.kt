@@ -800,9 +800,12 @@ constructor(
         // Completeness is verified against each track's declared contentLength, so BOTH must declare
         // one — otherwise an early-closed connection could feed the muxer a truncated track that it
         // happily copies into a "successful" (silently corrupt / cut-short) download. Adaptive DASH
-        // formats always carry contentLength; a missing one is anomalous, so fail the attempt rather
-        // than commit an unverifiable mux.
+        // formats always carry contentLength; a missing one is anomalous. Fail the attempt — but clear
+        // the quality request first (like the mux-INCOMPATIBLE branch below) so the retry degrades to
+        // the automatic progressive pick instead of re-picking this same unverifiable rung to a hard
+        // permanent FAILED with no fallback.
         if (videoData.format.contentLength == null || audioContentLength == null) {
+            requestedVideoQuality.remove(song.id)
             throw Exception("Adaptive download missing contentLength (video=${videoData.format.contentLength}, audio=$audioContentLength) — cannot verify completeness")
         }
 
@@ -813,14 +816,18 @@ constructor(
             val audioBytes = audioContentLength ?: 0L
             val total = (videoBytes + audioBytes).takeIf { it > 0 }
             val videoShare = if (total != null) videoBytes.toFloat() / total else 0.9f
+            // The two fetches span the FULL 0..1 progress so the ring reaches 100% when the bytes are
+            // down; the on-device mux + MediaStore save (which emit no byte progress) then run at 100%
+            // as a brief finalization before COMPLETED — better than the ring visibly hanging partway
+            // through, which reads as a stuck download (worst on a long 4K remux).
             downloadFile(
                 videoData.streamUrl, videoPart, song.id,
-                progressBase = 0f, progressSpan = videoShare * 0.98f,
+                progressBase = 0f, progressSpan = videoShare,
                 expectedBytes = videoData.format.contentLength,
             )
             downloadFile(
                 audioUrl, audioPart, song.id,
-                progressBase = videoShare * 0.98f, progressSpan = (1f - videoShare) * 0.98f,
+                progressBase = videoShare, progressSpan = 1f - videoShare,
                 expectedBytes = audioContentLength,
             )
             when (VideoMuxer.mux(videoPart, audioPart, outputFile, webm = webmOutput)) {
