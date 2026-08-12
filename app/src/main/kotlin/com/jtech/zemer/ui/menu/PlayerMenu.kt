@@ -69,6 +69,7 @@ import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.utils.VideoLinkBuilder
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.metrolist.innertube.YouTube
@@ -243,9 +244,10 @@ fun PlayerMenu(
                             playerConnection.startRadioSeamlessly()
                             onDismiss()
                         }
-                        // Also hidden for an episode: an episode must never seed music radio around
-                        // its videoId (the ListQueue.episode rule).
-                    ).takeUnless { isStationBroadcast || mediaMetadata.isEpisode },
+                        // Also hidden for an episode (an episode must never seed music radio around
+                        // its videoId, the ListQueue.episode rule) and in offline mode (the radio
+                        // fill is an online function).
+                    ).takeUnless { isStationBroadcast || mediaMetadata.isEpisode || OfflineModeState.enabled },
                     NewAction(
                         icon = {
                             Icon(

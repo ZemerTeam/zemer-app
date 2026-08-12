@@ -10,14 +10,28 @@ package com.jtech.zemer.ui.screens
  */
 enum class HomeContentTab { MUSIC, PODCASTS, RADIO, VIDEO }
 
-/** The selector's tabs under the current flags — only Block Podcasts removes one (see class doc). */
-fun visibleHomeTabs(blockPodcasts: Boolean): List<HomeContentTab> = buildList {
+/**
+ * The selector's tabs under the current flags — Block Podcasts removes PODCASTS (see class doc),
+ * and manual offline mode removes RADIO (a synchronized live broadcast cannot be served from
+ * downloads; every other tab has a downloaded-only rendering). VIDEO stays always visible in both.
+ */
+fun visibleHomeTabs(blockPodcasts: Boolean, offlineMode: Boolean = false): List<HomeContentTab> = buildList {
     add(HomeContentTab.MUSIC)
-    add(HomeContentTab.RADIO)
+    if (!offlineMode) add(HomeContentTab.RADIO)
     if (!blockPodcasts) add(HomeContentTab.PODCASTS)
     add(HomeContentTab.VIDEO)
 }
 
-/** The tab Home may land on: a persisted PODCASTS selection falls back to MUSIC when blocked. */
-fun effectiveHomeTab(persisted: HomeContentTab, blockPodcasts: Boolean): HomeContentTab =
-    if (blockPodcasts && persisted == HomeContentTab.PODCASTS) HomeContentTab.MUSIC else persisted
+/**
+ * The tab Home may land on: a persisted PODCASTS selection falls back to MUSIC when blocked, and a
+ * persisted RADIO selection falls back to MUSIC in offline mode (same hidden-tab rule).
+ */
+fun effectiveHomeTab(
+    persisted: HomeContentTab,
+    blockPodcasts: Boolean,
+    offlineMode: Boolean = false,
+): HomeContentTab = when {
+    blockPodcasts && persisted == HomeContentTab.PODCASTS -> HomeContentTab.MUSIC
+    offlineMode && persisted == HomeContentTab.RADIO -> HomeContentTab.MUSIC
+    else -> persisted
+}

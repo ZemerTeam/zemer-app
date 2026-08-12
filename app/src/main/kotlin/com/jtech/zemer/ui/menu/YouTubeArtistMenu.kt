@@ -41,6 +41,7 @@ import com.metrolist.innertube.models.ArtistItem
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.extensions.shareText
+import com.jtech.zemer.utils.OfflineModeState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,7 +88,8 @@ fun YouTubeArtistMenu(
                 actions = buildList {
                     // Corpus-native Zemer radio (/radio?kind=artist), always available (no InnerTube
                     // radioEndpoint needed).
-                    add(
+                    // Offline mode hides Start radio: the artist radio fill is an online function.
+                    if (!OfflineModeState.enabled) add(
                         NewAction(
                             icon = {
                                 Icon(

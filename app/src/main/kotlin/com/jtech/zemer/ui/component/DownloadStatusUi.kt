@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import com.jtech.zemer.utils.OfflineModeState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -129,6 +130,10 @@ fun AggregateDownloadButton(
 ) {
     val status = rememberAggregateDownloadStatus(songs)
     val progress = rememberAggregateDownloadProgress(songs)
+    // Manual offline mode: a download-all affordance must not exist (nothing could fetch); Remove
+    // and an in-flight ring still render.
+    val offlineMode by OfflineModeState.state.collectAsState()
+    if (offlineMode && status == DownloadStatus.NOT_DOWNLOADED) return
     val focused = remember { mutableStateOf(false) }
     val borderColor by animateColorAsState(
         targetValue = if (focused.value) MaterialTheme.colorScheme.primary else Color.Transparent,

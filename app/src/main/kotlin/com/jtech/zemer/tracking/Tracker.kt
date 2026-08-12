@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.constants.TrackingDeviceIdKey
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.getSuspend
 import kotlinx.coroutines.CompletableDeferred
@@ -174,6 +175,9 @@ object Tracker {
         ready.await()
         return kotlinx.coroutines.withContext(confined) {
             val device = deviceId ?: return@withContext null
+            // Manual offline mode: no telemetry POSTs; the backfill run aborts and resumes from its
+            // cursor on a later (online) launch.
+            if (OfflineModeState.enabled) return@withContext null
             // Honor the shared backoff window and never overlap a live upload.
             while (true) {
                 val wait = schedule.delayUntilAllowed()
@@ -229,6 +233,9 @@ object Tracker {
         val q = queue ?: return
         val device = deviceId ?: return
         if (inFlight || q.size == 0) return
+        // Manual offline mode: hold uploads entirely (zero network) — events keep queueing under the
+        // normal 500-event drop-oldest cap and flush on the first trigger after the mode turns off.
+        if (OfflineModeState.enabled) return
         // Belt-and-braces: even a mistimed trigger never violates the backoff window.
         schedule.delayUntilAllowed().takeIf { it > 0 }?.let {
             scheduleFlush(it)

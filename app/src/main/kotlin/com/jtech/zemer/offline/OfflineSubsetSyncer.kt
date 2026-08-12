@@ -3,6 +3,7 @@ package com.jtech.zemer.offline
 import android.content.Context
 import com.jtech.zemer.constants.OfflineSubsetEnabledKey
 import com.jtech.zemer.constants.OfflineSubsetLastSyncedAtKey
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -159,6 +160,9 @@ class OfflineSubsetSyncer @Inject constructor(
     suspend fun maybeSync() {
         val prefs = context.dataStore.data.first()
         if (prefs[OfflineSubsetEnabledKey] != true) return
+        // Manual offline mode: no auto-sync (an online function; the next online launch catches up).
+        // The settings screen's explicit "Download now" (requestSync) stays available.
+        if (OfflineModeState.enabled) return
         val last = prefs[OfflineSubsetLastSyncedAtKey] ?: 0L
         if (System.currentTimeMillis() - last < AUTO_UPDATE_INTERVAL_MS) return
         sync()

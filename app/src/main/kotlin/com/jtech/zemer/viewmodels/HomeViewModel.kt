@@ -11,6 +11,7 @@ import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.OnboardingCompleteKey
 import com.jtech.zemer.constants.QuickPicks
 import com.jtech.zemer.constants.QuickPicksKey
+import com.jtech.zemer.constants.VideoDownloadsInMusicKey
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Album
@@ -19,6 +20,7 @@ import com.jtech.zemer.db.entities.LocalItem
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.playback.queues.DownloadedSongsQueue
 import com.jtech.zemer.playback.queues.Queue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.utils.ContentWhitelistDoc
@@ -27,6 +29,7 @@ import com.jtech.zemer.utils.RankedContentGate
 import com.jtech.zemer.utils.ZemerContentClient
 import com.jtech.zemer.utils.mirrorFirst
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.search.ZemerResultMapper
 import com.jtech.zemer.search.ZemerSearchRepository
@@ -485,6 +488,12 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun load(force: Boolean = false) {
         if (uiState.value.isLoading) return
+        // Manual offline mode: the whole load is replaced by the downloaded-only assembly — no
+        // /home-rows fetch, no Quick-Picks seed, no artist-profile fetch, nothing to fail.
+        if (OfflineModeState.enabled) {
+            loadOfflineHome()
+            return
+        }
         val loadStartTime = System.currentTimeMillis()
         Timber.d("HomeViewModel: load() START force=$force")
 
@@ -868,15 +877,83 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
+     * The offline-mode Home load (manual offline mode, #366): every row is rebuilt from downloaded
+     * content in Room — Quick Picks a shuffle over the downloads, Keep Listening / Forgotten
+     * Favorites their normal Room sources scoped to downloads, and the featured rows the downloaded
+     * artists/albums/videos ("Your artists"/"Your albums" in the UI). The see-all pools are
+     * published from the SAME lists so see-all can never disagree with a row. Purely local: no
+     * network call runs and nothing can fail loudly.
+     */
+    private suspend fun loadOfflineHome() {
+        uiState.update { it.copy(isLoading = true) }
+        try {
+            val includeVideos = context.dataStore.getSuspend(VideoDownloadsInMusicKey, true)
+            val rows = buildOfflineHomeRows(database, includeVideos)
+            val keepListening = filterKeepListeningToDownloaded(
+                items = loadKeepListening(),
+                downloadedSongIds = rows.downloadedSongIds,
+                downloadedAlbumIds = rows.downloadedAlbumIds,
+                downloadedArtistIds = rows.downloadedArtistIds,
+            )
+            val forgotten = downloadedOnly(
+                songs = runCatching {
+                    database.forgottenFavorites().first().filter { !it.song.isEpisode }
+                }.getOrDefault(emptyList()),
+                includeVideos = includeVideos,
+            ).shuffled(Random(System.nanoTime())).take(20)
+            uiState.update {
+                it.copy(
+                    isLoading = false,
+                    isNewUser = rows.quickPicks.isEmpty() && keepListening.isEmpty(),
+                    quickPicks = rows.quickPicks,
+                    featuredPlaylists = emptyList(),
+                    keepListening = keepListening,
+                    forgottenFavorites = forgotten,
+                    featuredAlbums = rows.albums,
+                    featuredArtists = rows.artists,
+                    featuredVideos = rows.videos,
+                    // Local rows open the plain album/playlist routes, never the Zemer server routes.
+                    featuredAlbumsAreZemer = false,
+                    featuredPlaylistsAreZemer = false,
+                )
+            }
+            HomeSeeAllStore.publish(
+                HomeSeeAllData(
+                    featuredAlbums = rows.albums,
+                    featuredArtists = rows.artists,
+                    featuredVideos = rows.videos,
+                    featuredPlaylists = emptyList(),
+                    keepListening = keepListening,
+                    forgottenFavorites = forgotten,
+                    quickPicks = rows.quickPicks,
+                    featuredAlbumsAreZemer = false,
+                    featuredPlaylistsAreZemer = false,
+                ),
+            )
+        } catch (e: java.util.concurrent.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            reportException(e)
+        } finally {
+            uiState.update { it.copy(isLoading = false) }
+        }
+    }
+
+    /**
      * "Radio mode": a corpus-native, whitelist-pure shuffle station over the whole catalog (Zemer
      * `/radio?kind=shuffle`), replacing the old InnerTube lucky-item radio. Endless via the queue's token.
      */
     fun shuffleRadioQueue(): Queue =
-        ZemerRadioQueue(
-            kind = "shuffle",
-            seed = null,
-            context = context,
-        )
+        if (OfflineModeState.enabled) {
+            // Offline "Radio mode": shuffle every downloaded song instead of the network station.
+            DownloadedSongsQueue(context, database)
+        } else {
+            ZemerRadioQueue(
+                kind = "shuffle",
+                seed = null,
+                context = context,
+            )
+        }
 
     fun refresh() {
         if (uiState.value.isRefreshing) return
@@ -949,9 +1026,14 @@ class HomeViewModel @Inject constructor(
         }
 
         viewModelScope.launch(Dispatchers.IO) {
-            context.dataStore.data
-                .map { it[InnerTubeCookieKey] }
-                .collect { cookie ->
+            kotlinx.coroutines.flow.combine(
+                context.dataStore.data.map { it[InnerTubeCookieKey] }.distinctUntilChanged(),
+                OfflineModeState.state,
+            ) { cookie, offline -> cookie to offline }
+                .collect { (cookie, offline) ->
+                    // Manual offline mode: skip the accountInfo fetch; the combine re-fires the
+                    // lookup when the mode turns off, so the card recovers without a cookie change.
+                    if (offline) return@collect
                     if (isProcessingAccountData) return@collect
                     isProcessingAccountData = true
                     try {
@@ -978,5 +1060,8 @@ class HomeViewModel @Inject constructor(
                 load(force = true)
             }
         }
+
+        // Toggling offline mode swaps the whole Home between the live and downloaded-only builds.
+        reloadOnOfflineModeChange { load(force = true) }
     }
 }

@@ -1024,6 +1024,56 @@ interface DatabaseDao {
     @Query("SELECT * FROM song WHERE isDownloaded = 1 AND (:includeVideos OR isVideo = 0) AND isEpisode = 0 ORDER BY totalPlayTime")
     fun downloadedSongsByPlayTimeAsc(includeVideos: Boolean): Flow<List<Song>>
 
+    // Artists with at least one downloaded song (offline mode's "Your artists" row). Deliberately
+    // NOT whitelist-joined: the phone-side downloaded surfaces are unfiltered (see
+    // downloadedSongsWhitelistedByCreateDateAsc above), and offline mode browses exactly them.
+    @Transaction
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Query("SELECT artist.*, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE song_artist_map.artistId = artist.id AND song.isDownloaded = 1 AND song.isEpisode = 0 AND (:includeVideos OR song.isVideo = 0)) AS songCount FROM artist WHERE songCount > 0 ORDER BY artist.name COLLATE NOCASE")
+    fun downloadedArtists(includeVideos: Boolean): Flow<List<Artist>>
+
+    // Albums with at least one downloaded song (offline mode's "Your albums" row). Membership ORs the
+    // denormalized song.albumId with song_album_map: insertSongRelations writes the map only when the
+    // caller's Song carried an album, while insert(MediaMetadata) writes only albumId - either side
+    // alone misses real downloads. Unfiltered, like every phone downloaded surface.
+    @Transaction
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Query("SELECT * FROM album WHERE EXISTS(SELECT 1 FROM song WHERE song.isDownloaded = 1 AND song.isEpisode = 0 AND (:includeVideos OR song.isVideo = 0) AND (song.albumId = album.id OR song.id IN (SELECT songId FROM song_album_map WHERE albumId = album.id))) ORDER BY title COLLATE NOCASE")
+    fun downloadedAlbums(includeVideos: Boolean): Flow<List<Album>>
+
+    // One artist's downloaded songs (offline mode's artist-page Songs section) - the isDownloaded
+    // analogue of artistSongsPreview, unfiltered like every phone downloaded surface, un-capped (the
+    // downloaded set is small and the offline page IS the full local view).
+    @Transaction
+    @Query("SELECT song.* FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE song_artist_map.artistId = :artistId AND song.isDownloaded = 1 AND song.isEpisode = 0 AND (:includeVideos OR song.isVideo = 0) ORDER BY song.title COLLATE NOCASE")
+    fun downloadedArtistSongs(artistId: String, includeVideos: Boolean): Flow<List<Song>>
+
+    // One artist's albums holding at least one of their downloaded songs (offline mode's artist-page
+    // Albums section). Artist linkage rides the downloaded song itself (song_artist_map), NOT
+    // album_artist_map - insert(MediaMetadata) writes no album_artist_map row, so requiring it would
+    // miss real downloads; album membership ORs song.albumId with song_album_map (same reasoning as
+    // downloadedAlbums above).
+    @Transaction
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Query("SELECT * FROM album WHERE EXISTS(SELECT 1 FROM song JOIN song_artist_map ON song_artist_map.songId = song.id WHERE song_artist_map.artistId = :artistId AND song.isDownloaded = 1 AND song.isEpisode = 0 AND (:includeVideos OR song.isVideo = 0) AND (song.albumId = album.id OR song.id IN (SELECT songId FROM song_album_map WHERE albumId = album.id))) ORDER BY title COLLATE NOCASE")
+    fun downloadedArtistAlbums(artistId: String, includeVideos: Boolean): Flow<List<Album>>
+
+    // Downloaded-scoped local search (offline mode): the searchSongs/Artists/Albums shapes keyed on
+    // isDownloaded instead of inLibrary, and unfiltered like every phone downloaded surface.
+    @Transaction
+    @Query("SELECT * FROM song WHERE title LIKE '%' || :query || '%' AND isDownloaded = 1 AND isEpisode = 0 AND (:includeVideos OR isVideo = 0) LIMIT :previewSize")
+    fun searchDownloadedSongs(query: String, includeVideos: Boolean, previewSize: Int = Int.MAX_VALUE): Flow<List<Song>>
+
+    @Transaction
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Query("SELECT artist.*, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE song_artist_map.artistId = artist.id AND song.isDownloaded = 1 AND song.isEpisode = 0 AND (:includeVideos OR song.isVideo = 0)) AS songCount FROM artist WHERE artist.name LIKE '%' || :query || '%' AND songCount > 0 LIMIT :previewSize")
+    fun searchDownloadedArtists(query: String, includeVideos: Boolean, previewSize: Int = Int.MAX_VALUE): Flow<List<Artist>>
+
+    @Transaction
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Query("SELECT * FROM album WHERE title LIKE '%' || :query || '%' AND EXISTS(SELECT 1 FROM song WHERE song.isDownloaded = 1 AND song.isEpisode = 0 AND (:includeVideos OR song.isVideo = 0) AND (song.albumId = album.id OR song.id IN (SELECT songId FROM song_album_map WHERE albumId = album.id))) LIMIT :previewSize")
+    fun searchDownloadedAlbums(query: String, includeVideos: Boolean, previewSize: Int = Int.MAX_VALUE): Flow<List<Album>>
+
     // Downloaded podcast EPISODES (isEpisode = 1), sorted like downloadedSongs. Local-only, so it
     // works for anonymous sessions too (no account read). Powers the Library -> Podcasts DOWNLOADED tab.
     fun downloadedEpisodes(

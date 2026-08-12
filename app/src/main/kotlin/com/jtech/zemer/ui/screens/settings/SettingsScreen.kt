@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -33,8 +34,11 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
+import com.jtech.zemer.constants.OfflineModeKey
 import com.jtech.zemer.ui.component.Material3SettingsGroup
 import com.jtech.zemer.ui.component.Material3SettingsItem
+import com.jtech.zemer.ui.component.SwitchPreference
+import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.extensions.toast
 
@@ -227,6 +231,17 @@ fun SettingsScreen(
                 .padding(bottom = paddingValues.calculateBottomPadding())
         ) {
             Spacer(modifier = Modifier.height(8.dp))
+            // Manual offline mode (#366): a top-level mode switch, not a buried category option —
+            // ON shrinks every browse surface to downloaded content and stops content networking.
+            val (offlineMode, onOfflineModeChange) = rememberPreference(OfflineModeKey, defaultValue = false)
+            SwitchPreference(
+                title = { Text(stringResource(R.string.offline_mode)) },
+                description = stringResource(R.string.offline_mode_description),
+                icon = { Icon(painterResource(R.drawable.offline), null) },
+                checked = offlineMode,
+                onCheckedChange = onOfflineModeChange,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
             val sections = allSettings.groupBy { it.section }
             // Fixed section order; "Android Auto" sits right after "Player & Content" (matches Metrolist).
             val sectionOrder = listOf(

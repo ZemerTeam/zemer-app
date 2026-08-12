@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import com.jtech.zemer.playback.DownloadRowKind
 import com.jtech.zemer.ui.component.Material3MenuItemData
+import com.jtech.zemer.utils.OfflineModeState
 
 /**
  * THE download row for every Material3 item/collection menu. One builder means identical icon, label,
@@ -31,6 +32,14 @@ fun downloadMenuItem(
     onRetry: () -> Unit = {},
     onRemove: () -> Unit = {},
 ): Material3MenuItemData? {
+    // Manual offline mode: a fetch affordance must not exist — Download / video-download / retry
+    // rows hide (nothing could fetch them); Remove and an already-running progress ring stay. One
+    // gate here covers every item + collection menu (the download-unification chokepoint).
+    if (OfflineModeState.enabled &&
+        (kind == DownloadRowKind.DOWNLOAD || kind == DownloadRowKind.DOWNLOAD_VIDEO || kind == DownloadRowKind.FAILED)
+    ) {
+        return null
+    }
     val pct = progress.coerceIn(0f, 1f)
     return when (kind) {
         DownloadRowKind.HIDDEN -> null

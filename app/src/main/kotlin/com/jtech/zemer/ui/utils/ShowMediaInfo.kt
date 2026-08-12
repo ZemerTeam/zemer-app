@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +43,7 @@ import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.db.entities.FormatEntity
 import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
@@ -77,7 +79,12 @@ fun ShowMediaInfo(videoId: String, isEpisodeHint: Boolean = false) {
     var song by remember { mutableStateOf<Song?>(null) }
     var currentFormat by remember { mutableStateOf<FormatEntity?>(null) }
 
-    LaunchedEffect(videoId, relayMode) { info = if (relayMode) null else YouTube.getMediaInfo(videoId).getOrNull() }
+    // Offline mode skips the InnerTube stats fetch like relay does (the sheet's General section
+    // still renders from the local row).
+    val offlineMode by OfflineModeState.state.collectAsState()
+    LaunchedEffect(videoId, relayMode, offlineMode) {
+        info = if (relayMode || offlineMode) null else YouTube.getMediaInfo(videoId).getOrNull()
+    }
     LaunchedEffect(videoId) { database.song(videoId).collect { song = it } }
     LaunchedEffect(videoId) { database.format(videoId).collect { currentFormat = it } }
 
@@ -99,7 +106,8 @@ fun ShowMediaInfo(videoId: String, isEpisodeHint: Boolean = false) {
     ) {
         // In DIRECT mode wait for the YouTube media info; in RELAY mode it may never load (filtered
         // device), so render from local `song` + the relay info rather than shimmering forever.
-        if (info == null && !relayMode) {
+        // Offline mode never requests it, so it renders local-only the same way.
+        if (info == null && !relayMode && !offlineMode) {
             ShimmerHost {
                 Row(
                     horizontalArrangement = Arrangement.Center,

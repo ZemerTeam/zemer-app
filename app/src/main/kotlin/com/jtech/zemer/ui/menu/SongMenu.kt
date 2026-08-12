@@ -74,6 +74,7 @@ import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.utils.ShowMediaInfo
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.utils.PermissionHelper
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.VideoLinkBuilder
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.CachePlaylistViewModel
@@ -349,8 +350,9 @@ fun SongMenu(
                 modifier = Modifier.padding(horizontal = 4.dp),
                 items = buildList {
                     // An episode must never seed music radio around its videoId (the
-                    // ListQueue.episode rule) — no Start radio row on episode menus.
-                    if (!song.song.isEpisode) add(
+                    // ListQueue.episode rule) — no Start radio row on episode menus. Offline mode
+                    // hides it too: the radio fill is an online function.
+                    if (!song.song.isEpisode && !OfflineModeState.enabled) add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.radio), null, Modifier.size(24.dp)) },
                             title = { Text(stringResource(R.string.start_radio)) },

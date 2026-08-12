@@ -3,6 +3,7 @@ package com.jtech.zemer.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.OfflineModeState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
@@ -23,6 +24,19 @@ internal fun ViewModel.reloadOnContentFlagChange(onChange: suspend () -> Unit) {
         ContentFilterState.state
             .map { it.allowFemaleSingers to it.blockVideos }
             .distinctUntilChanged()
+            .drop(1)
+            .collect { onChange() }
+    }
+}
+
+/**
+ * Same shape for the manual offline-mode toggle ([OfflineModeState]): the initial load is the
+ * caller's (`drop(1)`), so only actual toggle CHANGES fire [onChange] — turning the mode on
+ * rebuilds a surface from downloaded content, turning it off re-fetches the live version.
+ */
+internal fun ViewModel.reloadOnOfflineModeChange(onChange: suspend () -> Unit) {
+    viewModelScope.launch(Dispatchers.IO) {
+        OfflineModeState.state
             .drop(1)
             .collect { onChange() }
     }

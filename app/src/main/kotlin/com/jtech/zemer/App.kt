@@ -39,6 +39,7 @@ import com.jtech.zemer.statuses.parseStatusSourcesConfig
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.LogBufferTree
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.SyncUtils
 import com.zemer.cipher.ZemerCipher
 import timber.log.Timber
@@ -146,6 +147,9 @@ class App : Application(), SingletonImageLoader.Factory {
         // for visitorData (it's a no-op without one). Each half swallows its own failures.
         applicationScope.launch(Dispatchers.IO) {
             delay(2500)
+            // Manual offline mode: skip both warm-ups — playback is local files only, so the cipher
+            // and PoToken WebViews (which load network JS) have nothing to prepare.
+            if (dataStore.get(OfflineModeKey, false)) return@launch
             YTPlayerUtils.prewarmCipher()
             var waitedMs = 0
             while (YouTube.visitorData == null && waitedMs < 12_000) {
@@ -214,6 +218,8 @@ class App : Application(), SingletonImageLoader.Factory {
     private suspend fun checkForUpdatesOnStartup() {
         val settings = dataStore.data.first()
         if (settings[CheckForUpdatesKey] != true) return
+        // Manual offline mode: no update check (an online function; the next online launch checks).
+        if (settings[OfflineModeKey] == true) return
 
         when (val result = UpdateChecker.checkForUpdates(settings[NightlyUpdatesKey] == true)) {
             is UpdateChecker.UpdateResult.UpdateAvailable -> {
@@ -429,6 +435,13 @@ class App : Application(), SingletonImageLoader.Factory {
                 .collect { filters ->
                     ContentFilterState.current = filters
                 }
+        }
+
+        applicationScope.launch(Dispatchers.IO) {
+            dataStore.data
+                .map { it[OfflineModeKey] == true }
+                .distinctUntilChanged()
+                .collect { OfflineModeState.set(it) }
         }
 
         applicationScope.launch(Dispatchers.IO) {

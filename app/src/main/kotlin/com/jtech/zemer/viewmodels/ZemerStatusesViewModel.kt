@@ -8,6 +8,7 @@ import com.jtech.zemer.constants.HideTextStatusKey
 import com.jtech.zemer.statuses.StatusContentFilter
 import com.jtech.zemer.statuses.StatusCreator
 import com.jtech.zemer.statuses.StatusesRepository
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -58,6 +59,9 @@ class ZemerStatusesViewModel @Inject constructor(
      * only a platform whose cache has gone stale. Fail-soft in the repository (a failure keeps the list).
      */
     fun refresh(force: Boolean = false) {
+        // Manual offline mode: no third-party fetch; the row itself is render-gated in HomeScreen
+        // (the repository keeps its last-good creators for when the mode turns off).
+        if (OfflineModeState.enabled) return
         viewModelScope.launch(Dispatchers.IO) { repository.refreshCreators(force) }
     }
 }

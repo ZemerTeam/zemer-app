@@ -7,6 +7,7 @@ import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.latestreleases.LatestRelease
 import com.jtech.zemer.latestreleases.LatestReleasesStore
 import com.jtech.zemer.latestreleases.toAlbumItem
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.filterWhitelisted
 import com.metrolist.innertube.models.AlbumItem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -45,6 +46,9 @@ class LatestReleasesViewModel @Inject constructor(
                 _releases.value = shown
                 Timber.tag(TAG).d("Showing ${shown.size} cached releases (of ${cached.size} before whitelist filter)")
             }
+            // Manual offline mode: skip the feed fetch (the row is render-gated in HomeScreen — its
+            // cards open network album pages, so even the disk cache is not shown offline).
+            if (OfflineModeState.enabled) return@launch
             val fresh = LatestReleasesStore.refresh()
             val shown = filterReleases(fresh)
             _releases.value = shown

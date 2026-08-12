@@ -255,7 +255,10 @@ tile — centered gold icon + bold title + count subtitle on one neutral `surfac
 the D-pad focus treatment; the Downloaded library's Music/Videos/Status tiles all render through it),
 `GenreCardGrid` (one genre-catalog section — optional bold title over the two-column `GenreCard` grid
 with the odd-card spacer; BOTH the music and podcast genre catalogs render through it, with the shared
-`GenreCatalogTopSpacing`/`GenreSectionGap` constants owning the catalog spacing). The
+`GenreCatalogTopSpacing`/`GenreSectionGap` constants owning the catalog spacing), `OfflineModeBanner`
+(the manual offline-mode indicator + one-tap exit — self-contained around `OfflineModeKey`, renders
+nothing when the mode is off; any surface that shrinks to downloaded-only content shows this one
+banner, never a hand-rolled notice). The
 **status viewers** share a family so the live (`StoryScreen`) and saved (`SavedStatusScreen`) viewers
 can't drift: `StatusStoryTopOverlay` (segment bars + avatar/name/date), `ExpandableStatusCaption` (the
 WhatsApp Read-more caption with clickable links + inline copy), `StatusCopyButton` (icon-only themed copy

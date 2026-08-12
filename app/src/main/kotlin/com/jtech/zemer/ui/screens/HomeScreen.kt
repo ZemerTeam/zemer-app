@@ -64,6 +64,7 @@ import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.BlockPodcastsKey
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.constants.HomeContentTabKey
+import com.jtech.zemer.constants.OfflineModeKey
 import com.jtech.zemer.constants.ShowHomeGenresKey
 import com.jtech.zemer.constants.ShowHomeStatusesKey
 import com.jtech.zemer.constants.GridThumbnailHeight
@@ -75,6 +76,7 @@ import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
+import com.jtech.zemer.playback.queues.songTapQueue
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerGenresRoute
 import com.jtech.zemer.search.zemerPodcastGenresRoute
@@ -84,9 +86,11 @@ import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.ArtistGridItem
+import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
+import com.jtech.zemer.ui.component.OfflineModeBanner
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
@@ -206,6 +210,7 @@ fun HomeScreen(
     // for anon + Google login. Own isolated fail-soft VM; each row hides when empty.
     val podcastSubscriptionsViewModel: PodcastSubscriptionsHomeViewModel = hiltViewModel()
     val homeNewEpisodes by podcastSubscriptionsViewModel.newEpisodes.collectAsState()
+    val homeDownloadedEpisodes by podcastSubscriptionsViewModel.downloadedEpisodes.collectAsState()
     val homeSubscribedChannels by podcastSubscriptionsViewModel.subscribedChannels.collectAsState()
     // The Home "Podcast Genres" chips strip, above the Podcasts row. Isolated + fail-soft like the
     // music genres strip: an outage leaves the list empty and the strip hides.
@@ -216,6 +221,9 @@ fun HomeScreen(
     // Settings → Appearance owns these toggles (there is deliberately no in-row hide affordance).
     val (showHomeGenres, _) = rememberPreference(ShowHomeGenresKey, defaultValue = true)
     val (showHomeStatuses, _) = rememberPreference(ShowHomeStatusesKey, defaultValue = true)
+    // Manual offline mode: Home shrinks to downloaded-only rows; the network-fed rows hide (their
+    // VMs gate at source) and RADIO — a live broadcast — drops from the selector entirely.
+    val (offlineMode, _) = rememberPreference(OfflineModeKey, defaultValue = false)
     // Home content-type tab (Music / Podcasts / Radio / Video); each renders only its own shelves.
     // Persisted to DataStore. Seeded from ONE async snapshot that reads the tab AND Block Podcasts
     // together: no main-thread disk read, no flash of Music, and no flash of a blocked Podcasts tab.
@@ -226,6 +234,7 @@ fun HomeScreen(
         homeTab = effectiveHomeTab(
             persisted = prefs[HomeContentTabKey].toEnum(HomeContentTab.MUSIC),
             blockPodcasts = prefs[BlockPodcastsKey] == true,
+            offlineMode = prefs[OfflineModeKey] == true,
         )
     }
     val tabWriteScope = rememberCoroutineScope()
@@ -235,7 +244,9 @@ fun HomeScreen(
     }
     // The curated endpoint's freshness contract is a plain re-fetch on screen open (single-digit-ms
     // server reads) — this also picks up a card removed by curation while a detail open 404'd.
-    LaunchedEffect(Unit) {
+    // Keyed on offlineMode so leaving offline mode re-fires the whole burst (each VM's refresh
+    // early-returns while the mode is ON, so an offline pass is free).
+    LaunchedEffect(offlineMode) {
         zemerPlaylistsViewModel.refresh()
         zemerGenresViewModel.refresh()
         podcastGenresHomeViewModel.refresh()
@@ -245,15 +256,18 @@ fun HomeScreen(
         zemerStatusesViewModel.refresh()
     }
     val stationsLifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(Unit) {
+    LaunchedEffect(offlineMode) {
         // Keep the cards' now-playing line live while Home is actually VISIBLE: repeatOnLifecycle
         // suspends the ticker the moment the app leaves RESUMED (composition alone survives
-        // backgrounding, so a bare while-loop would keep polling from the recents stack).
-        stationsLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            zemerStationsViewModel.refresh()
-            while (true) {
-                delay(STATION_ROW_REFRESH_MS)
+        // backgrounding, so a bare while-loop would keep polling from the recents stack). Offline
+        // mode has no RADIO tab, so the ticker doesn't run at all.
+        if (!offlineMode) {
+            stationsLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 zemerStationsViewModel.refresh()
+                while (true) {
+                    delay(STATION_ROW_REFRESH_MS)
+                    zemerStationsViewModel.refresh()
+                }
             }
         }
     }
@@ -261,15 +275,15 @@ fun HomeScreen(
     val (blockPodcasts, _) = rememberPreference(BlockPodcastsKey, false)
     // Blocking podcasts hides the whole content type (unlike videos, which relabel to audio) — drop the
     // tab and, if it was the persisted selection, fall back to Music so a blocked user never lands on it.
-    LaunchedEffect(blockPodcasts, homeTab) {
+    LaunchedEffect(blockPodcasts, offlineMode, homeTab) {
         val current = homeTab ?: return@LaunchedEffect
-        val effective = effectiveHomeTab(current, blockPodcasts)
+        val effective = effectiveHomeTab(current, blockPodcasts, offlineMode)
         if (effective != current) setHomeTab(effective)
     }
     // Chip order/visibility is the pure, unit-tested visibleHomeTabs; only labels are resolved here.
     // The Video tab is ALWAYS shown; blocked-video users get it relabeled "Video songs" — its rows play
     // audio-first (the Featured Videos shelf follows the same relabel), so it's never hidden.
-    val homeContentChips = visibleHomeTabs(blockPodcasts).map { tab ->
+    val homeContentChips = visibleHomeTabs(blockPodcasts, offlineMode).map { tab ->
         tab to stringResource(
             when (tab) {
                 HomeContentTab.MUSIC -> R.string.music
@@ -554,8 +568,10 @@ fun HomeScreen(
         // MUST stay scoped to HomeContentTab.MUSIC: this skeleton matches the MUSIC home layout (title +
         // card row). isLoading + the has*HomeContent flags are all music-VM state, so on Radio/Podcasts/
         // Videos it would paint a music-shaped skeleton that never resolves into anything on that tab.
-        // Ratcheted by R22-home-shimmer (scripts/ui-audit.sh).
-        val shouldShowShimmer = homeTab == HomeContentTab.MUSIC && (isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent))
+        // Offline mode is excluded too: with zero downloads nothing ever loads, so the skeleton would
+        // shimmer forever — the tab shows the offline empty state instead. Ratcheted by R22-home-shimmer
+        // (scripts/ui-audit.sh).
+        val shouldShowShimmer = homeTab == HomeContentTab.MUSIC && !offlineMode && (isLoading || (!hasLocalHomeContent && !hasRemoteHomeContent))
 
         LazyColumn(
             state = lazylistState,
@@ -577,6 +593,14 @@ fun HomeScreen(
                             currentValue = homeTab,
                             onValueUpdate = { it?.let(setHomeTab) },
                         )
+                    }
+                }
+
+                // Offline-mode banner: first content item on EVERY tab — it explains why the tabs
+                // shrank to downloaded content and offers the one-tap exit.
+                if (offlineMode) {
+                    item(key = "offline_mode_banner", contentType = "banner") {
+                        OfflineModeBanner(modifier = Modifier.animateItem())
                     }
                 }
 
@@ -666,9 +690,14 @@ fun HomeScreen(
                                                 if (activeRowTapTogglesPlayPause(song!!.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                     playerConnection.playPause()
                                                 } else {
+                                                    // Offline mode queues the visible row instead of
+                                                    // the (network) song radio; online is unchanged.
                                                     playerConnection.playQueue(
-                                                        ZemerRadioQueue.song(
-                                                            song!!.toMediaMetadata(), playerConnection.service
+                                                        songTapQueue(
+                                                            songs = uniqueQuickPicks,
+                                                            tapped = song!!,
+                                                            title = null,
+                                                            context = playerConnection.service,
                                                         )
                                                     )
                                                 }
@@ -694,7 +723,7 @@ fun HomeScreen(
                 // toggle, when the third-party feed is empty/unreachable (fail-soft), OR when videos are
                 // blocked by content filters: statuses are mostly video/media, so the same gate as the
                 // Featured Videos row applies. The tap carries the creator's stable id (storyRoute).
-                if (showHomeStatuses && !blockVideos) {
+                if (showHomeStatuses && !blockVideos && !offlineMode) {
                     statusCreators.takeIf { it.isNotEmpty() }?.let { creators ->
                         item(key = "statuses_title", contentType = "header") {
                             NavigationTitle(
@@ -715,7 +744,9 @@ fun HomeScreen(
                     }
                 }
 
-                latestReleasesCapped.takeIf { it.isNotEmpty() }?.let { releases ->
+                // Offline mode hides Latest Releases outright: the row's state persists in its VM
+                // (disk cache), but its cards open network album pages.
+                latestReleasesCapped.takeIf { it.isNotEmpty() && !offlineMode }?.let { releases ->
                     item(key = "latest_releases_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.latest_releases),
@@ -981,9 +1012,14 @@ fun HomeScreen(
                                                 if (activeRowTapTogglesPlayPause(song!!.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                     playerConnection.playPause()
                                                 } else {
+                                                    // Offline mode queues the visible row instead of
+                                                    // the (network) song radio; online is unchanged.
                                                     playerConnection.playQueue(
-                                                        ZemerRadioQueue.song(
-                                                            song!!.toMediaMetadata(), playerConnection.service
+                                                        songTapQueue(
+                                                            songs = uniqueForgottenFavorites,
+                                                            tapped = song!!,
+                                                            title = null,
+                                                            context = playerConnection.service,
                                                         )
                                                     )
                                                 }
@@ -1009,7 +1045,7 @@ fun HomeScreen(
             if (featuredArtists.isNotEmpty()) {
                 item(key = "featured_artists_title", contentType = "header") {
                     NavigationTitle(
-                        title = stringResource(R.string.featured_artists),
+                        title = stringResource(if (offlineMode) R.string.offline_your_artists else R.string.featured_artists),
                         onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_ARTISTS.slug}") },
                         modifier = Modifier.animateItem()
                     )
@@ -1037,7 +1073,7 @@ fun HomeScreen(
             if (featuredAlbums.isNotEmpty()) {
                 item(key = "featured_albums_title", contentType = "header") {
                     NavigationTitle(
-                        title = stringResource(R.string.featured_albums),
+                        title = stringResource(if (offlineMode) R.string.offline_your_albums else R.string.featured_albums),
                         onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.FEATURED_ALBUMS.slug}") },
                         modifier = Modifier.animateItem()
                     )
@@ -1062,6 +1098,18 @@ fun HomeScreen(
             }
 
             } // end MUSIC (part 2)
+
+            // Offline mode with nothing downloaded: every MUSIC row is empty and the shimmer is
+            // deliberately off (it would never resolve) — show a real empty state instead.
+            if (homeTab == HomeContentTab.MUSIC && offlineMode && !hasLocalHomeContent && !hasRemoteHomeContent) {
+                item(key = "offline_empty_music", contentType = "placeholder") {
+                    EmptyPlaceholder(
+                        icon = R.drawable.download,
+                        text = stringResource(R.string.offline_mode_no_downloads),
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
 
             if (homeTab == HomeContentTab.VIDEO) {
             // Shown to blocked-video users too — the rows play audio-first, so for them each shelf is
@@ -1193,6 +1241,37 @@ fun HomeScreen(
                     }
                 }
 
+                // Downloaded episodes (offline mode only — the flow is empty otherwise): the
+                // Library -> Podcasts -> Downloaded set as a home row, since the network podcast
+                // rows are hidden. Tap plays the local file; the row renders the full set, no See-all.
+                podcastHomeRow(
+                    keyPrefix = "home_downloaded_episodes",
+                    titleRes = R.string.offline_downloaded_episodes,
+                    items = homeDownloadedEpisodes,
+                    isPlaying = isPlaying,
+                    scope = scope,
+                    activePlayingId = mediaMetadata?.id,
+                    onClick = { episode ->
+                        playerConnection.playQueue(
+                            ListQueue(
+                                title = episode.title,
+                                items = listOf(episode.toMediaItem()),
+                                playSource = PlaySource.podcast(episode.album?.id),
+                            )
+                        )
+                    },
+                    onLongClick = { episode ->
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        menuState.show {
+                            YouTubeSongMenu(
+                                song = episode,
+                                navController = navController,
+                                onDismiss = menuState::dismiss,
+                            )
+                        }
+                    },
+                )
+
                 // New Episodes: the newest episodes from the shows you're subscribed to (LOCAL-scoped, so it
                 // works for anon + Google). The row already renders the FULL feed, so it has no See-all (like
                 // Continue Listening). Tap plays the episode; long-press opens the episode menu (a SongItem
@@ -1200,7 +1279,9 @@ fun HomeScreen(
                 podcastHomeRow(
                     keyPrefix = "home_new_episodes",
                     titleRes = R.string.new_episodes,
-                    items = homeNewEpisodes,
+                    // Offline mode: the feed's last-good episodes persist in the VM but stream from
+                    // the network — the row hides (downloaded episodes get their own row instead).
+                    items = if (offlineMode) emptyList() else homeNewEpisodes,
                     isPlaying = isPlaying,
                     scope = scope,
                     activePlayingId = mediaMetadata?.id,

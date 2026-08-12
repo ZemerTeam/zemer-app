@@ -13,8 +13,22 @@ import com.metrolist.innertube.models.YTItem
  * filter (and the ViewModel keeps the fetched page) — the screen resets a disallowed filter and
  * refuses to render its page, so blocked content can never survive a Settings round-trip.
  */
-fun searchFilterAllowed(filter: SearchFilter?, blockPodcasts: Boolean): Boolean =
-    !(blockPodcasts && (filter == ZEMER_FILTER_PODCAST || filter == ZEMER_FILTER_EPISODE))
+fun searchFilterAllowed(
+    filter: SearchFilter?,
+    blockPodcasts: Boolean,
+    offlineMode: Boolean = false,
+): Boolean = when {
+    blockPodcasts && (filter == ZEMER_FILTER_PODCAST || filter == ZEMER_FILTER_EPISODE) -> false
+    // Manual offline mode: playlist/podcast chips have no downloaded-catalog source, so a retained
+    // selection resets to All (the same round-trip rule as the podcast block above).
+    offlineMode && (
+        filter == SearchFilter.FILTER_COMMUNITY_PLAYLIST ||
+            filter == SearchFilter.FILTER_FEATURED_PLAYLIST ||
+            filter == ZEMER_FILTER_PODCAST ||
+            filter == ZEMER_FILTER_EPISODE
+        ) -> false
+    else -> true
+}
 
 /**
  * The Block Podcasts result filter: podcast shows and episodes are dropped from every search

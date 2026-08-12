@@ -23,12 +23,15 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.content.Context
 import com.jtech.zemer.constants.HideExplicitKey
+import com.jtech.zemer.constants.VideoDownloadsInMusicKey
 import com.jtech.zemer.extensions.filterExplicit
 import com.jtech.zemer.extensions.filterExplicitAlbums
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -62,24 +65,27 @@ class ArtistViewModel @Inject constructor(
     // podcast host channels too (they are never whitelisted, so libraryArtist above is always null).
     val libraryArtistEntity = database.artistEntity(artistId)
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
-    val librarySongs = context.dataStore.data
-        .map { it[HideExplicitKey] ?: false }
+    // The local sections' inputs. Manual offline mode swaps the inLibrary-keyed previews (which
+    // would miss pure downloads) for the downloaded-scoped queries — the offline page shows exactly
+    // what this artist has on disk. Online behavior is byte-identical to before.
+    private val librarySourceFlags = combine(
+        context.dataStore.data.map { it[HideExplicitKey] ?: false }.distinctUntilChanged(),
+        context.dataStore.data.map { it[VideoDownloadsInMusicKey] ?: true }.distinctUntilChanged(),
+        OfflineModeState.state,
+    ) { hideExplicit, includeVideos, offline -> Triple(hideExplicit, includeVideos, offline) }
         .distinctUntilChanged()
-        .flatMapLatest { hideExplicit ->
-            database.artistSongsPreview(artistId).map { it.filterExplicit(hideExplicit) }
+    val librarySongs = librarySourceFlags
+        .flatMapLatest { (hideExplicit, includeVideos, offline) ->
+            val source = if (offline) database.downloadedArtistSongs(artistId, includeVideos)
+            else database.artistSongsPreview(artistId)
+            source.map { it.filterExplicit(hideExplicit) }
         }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-    val libraryAlbums = context.dataStore.data
-        .map { it[HideExplicitKey] ?: false }
-        .distinctUntilChanged()
-        .flatMapLatest { hideExplicit ->
-            database.artistAlbumsPreview(artistId).map { albums ->
-                timber.log.Timber.d("ArtistViewModel: artistId=$artistId, albums from query=${albums.size}, hideExplicit=$hideExplicit")
-                albums.forEach { album ->
-                    timber.log.Timber.d("ArtistViewModel: album=${album.album.title}, explicit=${album.album.explicit}")
-                }
-                albums.filterExplicitAlbums(hideExplicit)
-            }
+    val libraryAlbums = librarySourceFlags
+        .flatMapLatest { (hideExplicit, includeVideos, offline) ->
+            val source = if (offline) database.downloadedArtistAlbums(artistId, includeVideos)
+            else database.artistAlbumsPreview(artistId)
+            source.map { albums -> albums.filterExplicitAlbums(hideExplicit) }
         }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
@@ -93,10 +99,20 @@ class ArtistViewModel @Inject constructor(
                     fetchArtistsFromYTM()
                 }
         }
+        // Leaving offline mode with no loaded page: fetch the live page the screen returns to.
+        reloadOnOfflineModeChange {
+            if (!OfflineModeState.enabled && artistPage == null) fetchArtistsFromYTM()
+        }
     }
 
     fun fetchArtistsFromYTM() {
         viewModelScope.launch {
+            // Manual offline mode: no server fetch — the screen forces its local (downloaded-only)
+            // rendering; a kept artistPage is harmless because showLocal wins while the mode is on.
+            if (OfflineModeState.enabled) {
+                isLoading = false
+                return@launch
+            }
             isLoading = true
             // Music artists: served purely from the Zemer `/artist` corpus (whitelist-pure, already
             // content-filtered, InnerTube-free). A 404 / failure leaves artistPage null — the screen
@@ -134,7 +150,7 @@ class ArtistViewModel @Inject constructor(
      */
     fun loadMoreEpisodes() {
         val offset = episodesNextOffset ?: return
-        if (!isPodcastChannel || isLoadingMoreEpisodes) return
+        if (!isPodcastChannel || isLoadingMoreEpisodes || OfflineModeState.enabled) return
         isLoadingMoreEpisodes = true
         viewModelScope.launch {
             val options = zemerSearchOptions(context)

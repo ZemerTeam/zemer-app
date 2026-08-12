@@ -27,6 +27,9 @@ object IsraeliArtistRegistry {
 
     suspend fun ensureLoaded() {
         if (cachedIds.isNotEmpty()) return
+        // Manual offline mode: no fetch — the registry only feeds ranked-row gates over live
+        // (online) content, and it loads normally on the next online use.
+        if (OfflineModeState.enabled) return
 
         mutex.withLock {
             if (cachedIds.isNotEmpty()) return

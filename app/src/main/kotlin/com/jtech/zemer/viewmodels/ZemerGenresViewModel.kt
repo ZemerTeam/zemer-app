@@ -7,6 +7,7 @@ import com.jtech.zemer.search.ZemerGenreSummary
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -47,6 +48,11 @@ class ZemerGenresViewModel @Inject constructor(
     }
 
     private suspend fun refreshNow() = refreshMutex.withLock {
+        // Manual offline mode: genres are a live-only taxonomy — clear so the strip hides, no fetch.
+        if (OfflineModeState.enabled) {
+            _genres.value = emptyList()
+            return@withLock
+        }
         val options = zemerSearchOptions(context)
         runCatching { repository.genres(options) }
             .onSuccess { fetched ->

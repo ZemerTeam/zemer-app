@@ -52,6 +52,8 @@ import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.BlockPodcastsKey
+import com.jtech.zemer.constants.OfflineModeKey
+import com.jtech.zemer.ui.component.OfflineModeBanner
 import com.jtech.zemer.search.ZEMER_FILTER_PODCAST
 import com.jtech.zemer.search.ZEMER_FILTER_EPISODE
 import com.jtech.zemer.search.zemerAlbumRoute
@@ -121,8 +123,9 @@ fun OnlineSearchResult(
     // fetched page — without this reset a results screen left on the Podcasts chip keeps rendering
     // blocked content after a Settings round-trip (HomeScreen's PODCASTS -> MUSIC snap is the same
     // rule for the home tabs).
-    LaunchedEffect(blockPodcasts) {
-        if (!searchFilterAllowed(viewModel.filter.value, blockPodcasts)) {
+    val (offlineMode, _) = rememberPreference(OfflineModeKey, defaultValue = false)
+    LaunchedEffect(blockPodcasts, offlineMode) {
+        if (!searchFilterAllowed(viewModel.filter.value, blockPodcasts, offlineMode)) {
             viewModel.filter.value = null
         }
     }
@@ -287,13 +290,17 @@ fun OnlineSearchResult(
                     )
                     add(FILTER_ALBUM to stringResource(R.string.filter_albums))
                     add(FILTER_ARTIST to stringResource(R.string.filter_artists))
-                    add(FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists))
-                    add(FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists))
-                    // Podcasts + episodes are corpus content with no YouTube filter. Hidden entirely
-                    // when podcasts are blocked (same content type as the gated summary sections).
-                    if (!blockPodcasts) {
-                        add(ZEMER_FILTER_PODCAST to stringResource(R.string.filter_podcasts))
-                        add(ZEMER_FILTER_EPISODE to stringResource(R.string.filter_episodes))
+                    // Playlist / podcast chips have no offline (downloaded-catalog) source, so they
+                    // hide in offline mode instead of offering guaranteed-empty pages.
+                    if (!offlineMode) {
+                        add(FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists))
+                        add(FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists))
+                        // Podcasts + episodes are corpus content with no YouTube filter. Hidden entirely
+                        // when podcasts are blocked (same content type as the gated summary sections).
+                        if (!blockPodcasts) {
+                            add(ZEMER_FILTER_PODCAST to stringResource(R.string.filter_podcasts))
+                            add(ZEMER_FILTER_EPISODE to stringResource(R.string.filter_episodes))
+                        }
                     }
                 },
                 currentValue = searchFilter,
@@ -317,15 +324,23 @@ fun OnlineSearchResult(
                     .fillMaxWidth()
             )
         }
-        item(key = "offline_backup_promo") {
-            // One-time pre-failure discovery of the search backup (self-hides once
-            // enabled/dismissed) — existing installs never see the onboarding step.
-            OfflineBackupPromoCard(
-                onSetUp = { navController.navigate("settings/offline_search") },
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .animateItem(),
-            )
+        // Offline mode replaces the promo slot with the mode banner: results are downloaded-only
+        // here, and advertising the subset download is pointless without a network.
+        if (offlineMode) {
+            item(key = "offline_mode_banner") {
+                OfflineModeBanner(modifier = Modifier.animateItem())
+            }
+        } else {
+            item(key = "offline_backup_promo") {
+                // One-time pre-failure discovery of the search backup (self-hides once
+                // enabled/dismissed) — existing installs never see the onboarding step.
+                OfflineBackupPromoCard(
+                    onSetUp = { navController.navigate("settings/offline_search") },
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .animateItem(),
+                )
+            }
         }
         if (searchFilter == null) {
             when {
@@ -450,7 +465,7 @@ fun OnlineSearchResult(
                 else -> {
                     // Belt-and-braces for the frame(s) before the LaunchedEffect above resets a
                     // now-disallowed podcast/episode filter: never render its page.
-                    if (searchFilterAllowed(searchFilter, blockPodcasts)) {
+                    if (searchFilterAllowed(searchFilter, blockPodcasts, offlineMode)) {
                         itemsIndexed(
                             items = itemsPage?.items.orEmpty().distinctBy { it.id },
                             key = { _, it -> filteredItemKey(it.id) },

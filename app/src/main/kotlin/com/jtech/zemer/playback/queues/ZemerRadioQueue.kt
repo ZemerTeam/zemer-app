@@ -7,6 +7,7 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.tracking.PlaySource
+import com.jtech.zemer.utils.OfflineModeState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.withContext
@@ -102,12 +103,21 @@ class ZemerRadioQueue(
          * Seed-first song radio for a single-song tap: the tapped [song] plays immediately and the
          * queue continues with `/radio?kind=song` seeded by it. Corpus-native replacement for
          * `YouTubeQueue.radio(song)`; the tapped song is the chosen play, the fill reports as radio.
+         *
+         * Manual offline mode: the radio fill is a network fetch that can only fail, so the SAME
+         * factory returns a one-item [ListQueue] instead — the tapped (downloaded) song plays from
+         * disk and nothing parks on the network wait. One branch here covers every tap site.
          */
         fun song(
             song: MediaMetadata,
             context: Context,
             playSource: String = PlaySource.OTHER,
-        ) = ZemerRadioQueue("song", song.id, context, playSource, seedSong = song)
+        ): Queue =
+            if (OfflineModeState.enabled) {
+                ListQueue(title = song.title, items = listOf(song.toMediaItem()), playSource = playSource)
+            } else {
+                ZemerRadioQueue("song", song.id, context, playSource, seedSong = song)
+            }
 
         /**
          * Endless genre radio (`/radio?kind=genre&seed=<slug>`) — what a genre page's Play button

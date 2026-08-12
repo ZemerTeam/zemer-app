@@ -48,6 +48,7 @@ import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.utils.filterWhitelisted
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.models.MediaMetadata
@@ -345,7 +346,8 @@ fun YouTubePlaylistMenu(
                     // Corpus-native Zemer radio (/radio?kind=playlist), always available (seeds from the
                     // playlist's member tracks; no InnerTube radioEndpoint needed). This menu only ever
                     // opens for real YouTube/community playlists, so playlist.id is always a valid seed.
-                    add(
+                    // Offline mode hides Start radio: the playlist radio fill is an online function.
+                    if (!OfflineModeState.enabled) add(
                         NewAction(
                             icon = {
                                 Icon(

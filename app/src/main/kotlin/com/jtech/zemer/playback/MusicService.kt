@@ -140,6 +140,7 @@ import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.utils.CoilBitmapLoader
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.NetworkConnectivityObserver
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.YTPlayerUtils
 import com.zemer.cipher.CipherDeobfuscator
@@ -974,11 +975,13 @@ class MusicService :
                     .setIconResId(R.drawable.radio)
                     .setSessionCommand(CommandToggleStartRadio)
                     // Disabled for episodes too: an episode must never seed music radio (the
-                    // ListQueue.episode rule) — startRadioSeamlessly() also early-returns.
+                    // ListQueue.episode rule) — startRadioSeamlessly() also early-returns. Offline
+                    // mode disables it as well: the radio fill is an online function.
                     .setEnabled(
                         currentSong.value != null &&
                             currentSong.value?.song?.isEpisode != true &&
-                            currentQueue !is StationQueue,
+                            currentQueue !is StationQueue &&
+                            !OfflineModeState.enabled,
                     )
                     .build(),
                 CommandButton.Builder()
@@ -1131,6 +1134,9 @@ class MusicService :
         // the same button would be a confusing silent exit - the affordance is hidden/disabled on
         // every surface, and this chokepoint guard covers any stale controller.
         if (currentQueue is StationQueue) return
+        // Manual offline mode: the radio fill is an online function — the affordances are
+        // hidden/disabled, and this chokepoint covers any stale controller.
+        if (OfflineModeState.enabled) return
         // Ignore re-taps while a radio fetch is in flight — two concurrent runs would both
         // append their radio items, duplicating the queue (#89).
         if (startRadioJob?.isActive == true) return

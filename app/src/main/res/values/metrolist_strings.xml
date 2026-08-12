@@ -556,6 +556,15 @@
     <string name="offline_search_promo_body">Download a backup of the catalog once and search keeps working even when the Zemer server is unreachable</string>
     <string name="offline_search_promo_action">Set up</string>
     <string name="offline_search_promo_dismiss">Not now</string>
+    <!-- Manual offline mode (downloaded-only lens) -->
+    <string name="offline_mode">Offline mode</string>
+    <string name="offline_mode_description">Show only downloaded content and stop using the network for browsing</string>
+    <string name="offline_mode_banner">Offline mode: showing downloaded content only</string>
+    <string name="offline_mode_turn_off">Turn off</string>
+    <string name="offline_mode_no_downloads">No downloaded music yet. Download songs to listen offline.</string>
+    <string name="offline_your_artists">Your artists</string>
+    <string name="offline_your_albums">Your albums</string>
+    <string name="offline_downloaded_episodes">Downloaded episodes</string>
     <!-- Zemer Stations (synchronized broadcast radio) -->
     <string name="station_live_badge">LIVE</string>
     <string name="onboarding_backup_title">Search backup</string>

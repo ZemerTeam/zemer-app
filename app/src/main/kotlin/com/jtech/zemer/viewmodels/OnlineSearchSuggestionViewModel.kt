@@ -8,6 +8,7 @@ import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.SearchHistory
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -58,7 +59,9 @@ constructor(
                         // the next keystroke.
                         val zemerSuggestions = flow {
                             emit(null) // history renders at once, never waiting on the request
-                            if (query.trim().length >= ZEMER_MIN_QUERY_LENGTH) {
+                            // Manual offline mode: no as-you-type server suggestions; history (and
+                            // the submitted search's downloaded-catalog results) carry the surface.
+                            if (query.trim().length >= ZEMER_MIN_QUERY_LENGTH && !OfflineModeState.enabled) {
                                 emit(
                                     withContext(Dispatchers.IO) {
                                         runCatching {

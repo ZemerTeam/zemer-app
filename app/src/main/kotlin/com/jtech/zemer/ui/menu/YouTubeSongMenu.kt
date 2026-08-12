@@ -62,6 +62,7 @@ import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.ArtistChoice
 import com.jtech.zemer.utils.VideoLinkBuilder
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
@@ -296,8 +297,9 @@ fun YouTubeSongMenu(
                 modifier = Modifier.padding(horizontal = 4.dp),
                 items = buildList {
                     // An episode must never seed music radio around its videoId (the
-                    // ListQueue.episode rule) — no Start radio row on episode menus.
-                    if (!song.isEpisode) add(
+                    // ListQueue.episode rule) — no Start radio row on episode menus. Offline mode
+                    // hides it too: the radio fill is an online function.
+                    if (!song.isEpisode && !OfflineModeState.enabled) add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.radio), null, Modifier.size(24.dp)) },
                             title = { Text(stringResource(R.string.start_radio)) },

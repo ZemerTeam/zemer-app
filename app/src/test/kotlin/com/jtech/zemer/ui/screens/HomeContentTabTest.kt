@@ -46,4 +46,38 @@ class HomeContentTabTest {
             assertEquals(tab, effectiveHomeTab(tab, blockPodcasts = false))
         }
     }
+
+    @Test
+    fun `offline mode drops only the radio tab`() {
+        val tabs = visibleHomeTabs(blockPodcasts = false, offlineMode = true)
+        assertFalse(HomeContentTab.RADIO in tabs)
+        assertEquals(listOf(HomeContentTab.MUSIC, HomeContentTab.PODCASTS, HomeContentTab.VIDEO), tabs)
+    }
+
+    @Test
+    fun `offline mode plus blocked podcasts leaves music and video`() {
+        assertEquals(
+            listOf(HomeContentTab.MUSIC, HomeContentTab.VIDEO),
+            visibleHomeTabs(blockPodcasts = true, offlineMode = true),
+        )
+    }
+
+    @Test
+    fun `video tab is never hidden in offline mode`() {
+        assertTrue(HomeContentTab.VIDEO in visibleHomeTabs(blockPodcasts = false, offlineMode = true))
+        assertTrue(HomeContentTab.VIDEO in visibleHomeTabs(blockPodcasts = true, offlineMode = true))
+    }
+
+    @Test
+    fun `persisted radio tab falls back to music in offline mode`() {
+        assertEquals(HomeContentTab.MUSIC, effectiveHomeTab(HomeContentTab.RADIO, blockPodcasts = false, offlineMode = true))
+        assertEquals(HomeContentTab.RADIO, effectiveHomeTab(HomeContentTab.RADIO, blockPodcasts = false, offlineMode = false))
+    }
+
+    @Test
+    fun `other persisted tabs are untouched by offline mode`() {
+        for (tab in listOf(HomeContentTab.MUSIC, HomeContentTab.PODCASTS, HomeContentTab.VIDEO)) {
+            assertEquals(tab, effectiveHomeTab(tab, blockPodcasts = false, offlineMode = true))
+        }
+    }
 }

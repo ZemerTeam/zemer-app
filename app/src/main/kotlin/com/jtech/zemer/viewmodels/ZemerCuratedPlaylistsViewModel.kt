@@ -9,6 +9,7 @@ import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -69,6 +70,12 @@ class ZemerCuratedPlaylistsViewModel @Inject constructor(
     }
 
     private suspend fun refreshNow() = refreshMutex.withLock {
+        // Manual offline mode: curated playlists are server browse content — clear so the section
+        // hides, no fetch (and no offline-subset fallback; offline mode shows downloads only).
+        if (OfflineModeState.enabled) {
+            _playlists.value = emptyList()
+            return@withLock
+        }
         val options = zemerSearchOptions(context)
         runCatching { repository.curatedPlaylists(options) }
             .onSuccess { fetched ->

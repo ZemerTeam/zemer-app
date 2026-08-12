@@ -3,18 +3,25 @@ package com.jtech.zemer.viewmodels
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.db.MusicDatabase
+import com.jtech.zemer.models.toSongItem
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.NewEpisodesFeed
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.PodcastLibrarySources
 import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
@@ -77,5 +84,22 @@ class PodcastSubscriptionsHomeViewModel @Inject constructor(
             }
             .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    fun fetchNewEpisodes() = newEpisodesFeed.fetch(viewModelScope)
+    // Offline mode's "Downloaded episodes" home row: the Library -> Podcasts -> Downloaded set,
+    // newest download first, rendered as episode cards. Empty (row hidden) whenever the mode is off.
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val downloadedEpisodes: StateFlow<List<SongItem>> =
+        OfflineModeState.state
+            .flatMapLatest { offline ->
+                if (!offline) flowOf(emptyList())
+                else database.downloadedEpisodes(SongSortType.CREATE_DATE, descending = true)
+                    .map { songs -> songs.map { it.toSongItem() } }
+            }
+            .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    // Manual offline mode: New Episodes is a server feed — no fetch; the row is render-gated in
+    // HomeScreen. Subscribed Channels stays live (pure local Room sources).
+    fun fetchNewEpisodes() {
+        if (OfflineModeState.enabled) return
+        newEpisodesFeed.fetch(viewModelScope)
+    }
 }

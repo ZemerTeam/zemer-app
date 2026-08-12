@@ -7,6 +7,7 @@ import com.jtech.zemer.search.ZemerResultMapper
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.reportException
 import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.PodcastItem
@@ -54,6 +55,13 @@ class PodcastHomeRowsViewModel @Inject constructor(
     }
 
     private suspend fun refreshNow() = refreshMutex.withLock {
+        // Manual offline mode: the ranked podcast rows are live-only — clear so they hide, no fetch.
+        if (OfflineModeState.enabled) {
+            _featured.value = emptyList()
+            _topPodcasts.value = emptyList()
+            _trendingEpisodes.value = emptyList()
+            return@withLock
+        }
         val options = zemerSearchOptions(context)
         runCatching { repository.podcastHomeRows(options) }
             .onSuccess { fetched: ZemerResultMapper.PodcastHomeRows ->

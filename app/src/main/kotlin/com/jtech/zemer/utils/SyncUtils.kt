@@ -101,6 +101,7 @@ class SyncUtils @Inject constructor(
      */
     suspend fun syncPodcastSubscriptions() {
         if (!isPersonalAccountSignedIn) return
+        if (OfflineModeState.enabled) return // manual offline mode: no account traffic; local state syncs later
         if (isSyncingPodcastSubscriptions.value) return
         isSyncingPodcastSubscriptions.value = true
         try {
@@ -215,6 +216,7 @@ class SyncUtils @Inject constructor(
      */
     suspend fun syncEpisodesForLater() {
         if (!isPersonalAccountSignedIn) return
+        if (OfflineModeState.enabled) return // manual offline mode: no account traffic; local state syncs later
         if (isSyncingEpisodes.value) return
         isSyncingEpisodes.value = true
         try {
@@ -324,6 +326,7 @@ class SyncUtils @Inject constructor(
 
     fun likeSong(s: SongEntity) {
         if (!isPersonalAccountSignedIn) return
+        if (OfflineModeState.enabled) return // manual offline mode: no account traffic; local state syncs later
         syncScope.launch {
             YouTube.likeVideo(s.id, s.liked)
         }
@@ -365,7 +368,9 @@ class SyncUtils @Inject constructor(
             // save sets nothing (update no-ops on a missing row) and it never appears in Episodes-for-Later.
             saveEpisodeLocal(episode, inLibrary = if (wasSaved) null else LocalDateTime.now())
             // Anonymous (pooled) sessions never write the shared account (dataSyncId, not SAPISID).
-            if (!isPersonalAccountSignedIn) return@launch
+            // Manual offline mode keeps the save LOCAL-ONLY too: attempting the account write would
+            // just fail and REVERT the user's save — the next online pull/push reconciles instead.
+            if (!isPersonalAccountSignedIn || OfflineModeState.enabled) return@launch
 
             val result = if (wasSaved) {
                 // Removal needs the playlist-scoped setVideoId. We store it on the PULL sync, but an
@@ -419,6 +424,7 @@ class SyncUtils @Inject constructor(
 
     suspend fun syncLikedSongs() {
         if (!isPersonalAccountSignedIn) return
+        if (OfflineModeState.enabled) return // manual offline mode: no account traffic; local state syncs later
         if (isSyncingLikedSongs.value) return
         isSyncingLikedSongs.value = true
         try {
@@ -457,6 +463,7 @@ class SyncUtils @Inject constructor(
 
     suspend fun syncLibrarySongs() {
         if (!isPersonalAccountSignedIn) return
+        if (OfflineModeState.enabled) return // manual offline mode: no account traffic; local state syncs later
         if (isSyncingLibrarySongs.value) return
         isSyncingLibrarySongs.value = true
         try {
@@ -505,6 +512,7 @@ class SyncUtils @Inject constructor(
 
     suspend fun syncUploadedSongs() {
         if (!isPersonalAccountSignedIn) return
+        if (OfflineModeState.enabled) return // manual offline mode: no account traffic; local state syncs later
         if (isSyncingUploadedSongs.value) return
         isSyncingUploadedSongs.value = true
         try {
@@ -538,6 +546,7 @@ class SyncUtils @Inject constructor(
 
     suspend fun syncLikedAlbums() {
         if (!isPersonalAccountSignedIn) return
+        if (OfflineModeState.enabled) return // manual offline mode: no account traffic; local state syncs later
         if (isSyncingLikedAlbums.value) return
         isSyncingLikedAlbums.value = true
         try {
@@ -574,6 +583,7 @@ class SyncUtils @Inject constructor(
 
     suspend fun syncUploadedAlbums() {
         if (!isPersonalAccountSignedIn) return
+        if (OfflineModeState.enabled) return // manual offline mode: no account traffic; local state syncs later
         if (isSyncingUploadedAlbums.value) return
         isSyncingUploadedAlbums.value = true
         try {
@@ -610,6 +620,7 @@ class SyncUtils @Inject constructor(
 
     suspend fun syncArtistsSubscriptions() {
         if (!isPersonalAccountSignedIn) return
+        if (OfflineModeState.enabled) return // manual offline mode: no account traffic; local state syncs later
         if (isSyncingArtists.value) return
         isSyncingArtists.value = true
         try {
@@ -650,6 +661,7 @@ class SyncUtils @Inject constructor(
 
     suspend fun syncSavedPlaylists() {
         if (!isPersonalAccountSignedIn) return
+        if (OfflineModeState.enabled) return // manual offline mode: no account traffic; local state syncs later
         if (isSyncingPlaylists.value) return
         isSyncingPlaylists.value = true
         try {
@@ -861,6 +873,9 @@ class SyncUtils @Inject constructor(
 
     suspend fun syncArtistWhitelist(forceSync: Boolean = false) {
         withContext(Dispatchers.IO) {
+            // Manual offline mode: no whitelist fetch; the last-good persisted table keeps filtering
+            // (the same never-unblock behavior as any failed sync).
+            if (OfflineModeState.enabled) return@withContext
             if (isSyncingWhitelist.value) return@withContext
 
             isSyncingWhitelist.value = true
@@ -956,6 +971,8 @@ class SyncUtils @Inject constructor(
      */
     suspend fun syncPodcastWhitelist(forceSync: Boolean = false) {
         withContext(Dispatchers.IO) {
+            // Manual offline mode: same last-good-table rule as syncArtistWhitelist above.
+            if (OfflineModeState.enabled) return@withContext
             if (isSyncingPodcastWhitelist.value) return@withContext
             isSyncingPodcastWhitelist.value = true
             _podcastWhitelistSyncProgress.value = WhitelistSyncProgress()

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.ZemerStation
+import com.jtech.zemer.utils.OfflineModeState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,12 @@ class ZemerStationsViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch(Dispatchers.IO) {
             refreshMutex.withLock {
+                // Manual offline mode: a synchronized live broadcast can't be served offline — the
+                // RADIO tab is hidden and the ticker stopped; clear so nothing stale lingers.
+                if (OfflineModeState.enabled) {
+                    _stations.value = emptyList()
+                    return@withLock
+                }
                 // Failure keeps the previous cards (or hides a never-loaded row); a live broadcast
                 // catalog is not worth an error state on Home.
                 runCatching { repository.stations() }.onSuccess { _stations.value = it }

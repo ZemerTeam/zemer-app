@@ -8,6 +8,7 @@ import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.IsraeliArtistRegistry
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.RankedContentGate
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.reportException
@@ -58,6 +59,14 @@ class VideoHomeRowsViewModel @Inject constructor(
     }
 
     private suspend fun refreshNow() = refreshMutex.withLock {
+        // Manual offline mode: the ranked video rows are live-only — clear so they hide, no fetch
+        // (the Videos tab keeps its downloaded-videos lead row from HomeViewModel).
+        if (OfflineModeState.enabled) {
+            _trending.value = emptyList()
+            _newVideos.value = emptyList()
+            _artists.value = emptyList()
+            return@withLock
+        }
         val options = zemerSearchOptions(context)
         IsraeliArtistRegistry.ensureLoaded()
         runCatching { repository.videoHomeRows(options) }

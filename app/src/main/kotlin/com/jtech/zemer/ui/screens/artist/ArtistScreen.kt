@@ -82,6 +82,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.AppBarHeight
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.HideExplicitKey
+import com.jtech.zemer.constants.OfflineModeKey
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.copyToClipboard
@@ -177,9 +178,12 @@ fun ArtistScreen(
         }
     }
 
-    LaunchedEffect(libraryArtist) {
+    // Manual offline mode forces the local (downloaded-only) rendering; the ViewModel re-fetches the
+    // live page itself when the mode turns off (reloadOnOfflineModeChange), so this stays render-only.
+    val (offlineMode, _) = rememberPreference(OfflineModeKey, defaultValue = false)
+    LaunchedEffect(libraryArtist, offlineMode) {
         // always show local page for local artists. Show local page remote artist when offline
-        showLocal = libraryArtist?.artist?.isLocal == true
+        showLocal = offlineMode || libraryArtist?.artist?.isLocal == true
     }
 
     LaunchedEffect(artistPage, libraryArtist, showLocal) {
@@ -513,6 +517,17 @@ fun ArtistScreen(
                 }
 
                 if (showLocal) {
+                    // Offline mode with nothing of this artist's downloaded: a neutral state, never
+                    // a bare header (mirrors the artist_unavailable branch above).
+                    if (offlineMode && librarySongs.isEmpty() && libraryAlbums.isEmpty()) {
+                        item(key = "offline_artist_empty") {
+                            EmptyPlaceholder(
+                                icon = R.drawable.artist,
+                                text = stringResource(R.string.artist_not_available),
+                                modifier = Modifier.fillParentMaxSize(),
+                            )
+                        }
+                    }
                     if (librarySongs.isNotEmpty()) {
                         item(key = "local_songs_title") {
                             val artistName = artistPage?.artist?.title ?: libraryArtist?.artist?.name ?: ""
@@ -844,7 +859,8 @@ fun ArtistScreen(
         }
 
         HideOnScrollFAB(
-            visible = librarySongs.isNotEmpty() && libraryArtist?.artist?.isLocal != true,
+            // Offline mode pins the local rendering — no live view exists to toggle to.
+            visible = librarySongs.isNotEmpty() && libraryArtist?.artist?.isLocal != true && !offlineMode,
             lazyListState = lazyListState,
             icon = if (showLocal) R.drawable.language else R.drawable.library_music,
             onClick = {

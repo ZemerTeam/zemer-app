@@ -16,8 +16,13 @@ import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.R
 import com.jtech.zemer.models.ItemsPage
+import com.jtech.zemer.models.toAlbumItem
+import com.jtech.zemer.models.toArtistItem
 import com.jtech.zemer.models.toMediaMetadata
+import com.jtech.zemer.models.toSongItem
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.search.ResultDedupe
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
@@ -101,6 +106,17 @@ constructor(
                 }
             }
         }
+        // A retained results screen must not keep pages fetched under the other mode: toggling
+        // offline drops every cached page and reloads the current view from the new source.
+        reloadOnOfflineModeChange {
+            summaryPage = null
+            viewStateMap.clear()
+            filterError.clear()
+            when (val selected = filter.value) {
+                null -> loadSummary(force = true)
+                else -> loadFiltered(selected, force = true)
+            }
+        }
     }
 
     private suspend fun loadSummary(force: Boolean = false) {
@@ -115,6 +131,21 @@ constructor(
 
         isSummaryLoading.value = true
         summaryError.value = null
+
+        // Manual offline mode: search the downloaded catalog in Room — no server call, no
+        // offline-subset fallback, and no error path (nothing can fail loudly). Empty results reuse
+        // the normal no-results message; a video download surfaces under a categorical Videos
+        // section (relabeled for blocked-video users, like every video shelf).
+        if (OfflineModeState.enabled) {
+            val summaries = withContext(Dispatchers.IO) { offlineSummaries() }
+            summaryPage = SearchSummaryPage(summaries = summaries)
+            trackSearchOnce(results = summaries.sumOf { it.items.size })
+            if (summaries.isEmpty()) {
+                summaryError.value = "No results found for \"$query\""
+            }
+            isSummaryLoading.value = false
+            return
+        }
 
         val result =
             withContext(Dispatchers.IO) {
@@ -160,6 +191,19 @@ constructor(
         filterLoading[key] = true
         filterError[key] = null
 
+        // Manual offline mode: every chip serves from the downloaded catalog (playlist chips have
+        // no offline source and read empty). No server call, no error path.
+        if (OfflineModeState.enabled) {
+            val items = withContext(Dispatchers.IO) {
+                val (songs, artists, albums) = offlineSearchInputs()
+                offlineFilteredItems(filter, songs, artists, albums)
+            }
+            viewStateMap[key] = ItemsPage(items, null)
+            trackSearchOnce(results = items.size)
+            filterLoading[key] = false
+            return
+        }
+
         val result =
             withContext(Dispatchers.IO) {
                 runCatching {
@@ -172,39 +216,13 @@ constructor(
                     when (filter) {
                         SearchFilter.FILTER_ARTIST -> {
                             val localArtists = database.searchArtists(query).first()
-                            items.addAll(
-                                localArtists.map { artist ->
-                                    com.metrolist.innertube.models.ArtistItem(
-                                        id = artist.id,
-                                        title = artist.title,
-                                        thumbnail = artist.thumbnailUrl,
-                                        shuffleEndpoint = null,
-                                        radioEndpoint = null,
-                                    )
-                                }
-                            )
+                            items.addAll(localArtists.map { it.toArtistItem() })
                         }
                         SearchFilter.FILTER_ALBUM -> {
                             val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                             val localAlbums = database.searchAlbums(query).first()
                                 .filter { if (hideExplicit) !it.album.explicit else true }
-                            items.addAll(
-                                localAlbums.map { album ->
-                                    com.metrolist.innertube.models.AlbumItem(
-                                        browseId = album.id,
-                                        playlistId = album.album.playlistId ?: album.id,
-                                        title = album.title,
-                                        artists = album.artists.map { artist ->
-                                            com.metrolist.innertube.models.Artist(
-                                                name = artist.name,
-                                                id = artist.id,
-                                            )
-                                        },
-                                        year = album.album.year,
-                                        thumbnail = album.thumbnailUrl ?: "",
-                                    )
-                                }
-                            )
+                            items.addAll(localAlbums.map { it.toAlbumItem() })
                         }
                         else -> {} // Songs/videos/playlists: online only (local songs are local search)
                     }
@@ -247,6 +265,38 @@ constructor(
                 loadFiltered(currentFilter, force = true)
             }
         }
+    }
+
+    /** The downloaded-scoped Room search results feeding both offline branches (explicit-filtered). */
+    private suspend fun offlineSearchInputs(): Triple<
+        List<com.metrolist.innertube.models.SongItem>,
+        List<com.metrolist.innertube.models.ArtistItem>,
+        List<com.metrolist.innertube.models.AlbumItem>,
+        > {
+        val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
+        val songs = database.searchDownloadedSongs(query, includeVideos = true).first()
+            .filter { !hideExplicit || !it.song.explicit }
+            .map { it.toSongItem() }
+        val artists = database.searchDownloadedArtists(query, includeVideos = true).first()
+            .map { it.toArtistItem() }
+        val albums = database.searchDownloadedAlbums(query, includeVideos = true).first()
+            .filter { !hideExplicit || !it.album.explicit }
+            .map { it.toAlbumItem() }
+        return Triple(songs, artists, albums)
+    }
+
+    private suspend fun offlineSummaries(): List<SearchSummary> {
+        val (songs, artists, albums) = offlineSearchInputs()
+        val blockVideos = context.dataStore.getSuspend(BlockVideosKey, false)
+        return offlineSearchSummarySections(
+            songs = songs,
+            artists = artists,
+            albums = albums,
+            songsTitle = context.getString(R.string.songs),
+            videosTitle = context.getString(if (blockVideos) R.string.video_songs else R.string.videos),
+            artistsTitle = context.getString(R.string.artists),
+            albumsTitle = context.getString(R.string.albums),
+        )
     }
 
     private companion object {

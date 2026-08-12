@@ -2,6 +2,7 @@ package com.jtech.zemer.ui.screens.search
 
 import com.jtech.zemer.search.ZEMER_FILTER_EPISODE
 import com.jtech.zemer.search.ZEMER_FILTER_PODCAST
+import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_SONG
 import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.EpisodeItem
@@ -49,5 +50,27 @@ class SearchFilterPolicyTest {
         val items = listOf(show, episode, song)
         assertEquals(listOf(song), dropBlockedPodcastItems(items, blockPodcasts = true))
         assertEquals(items, dropBlockedPodcastItems(items, blockPodcasts = false))
+    }
+
+    @Test
+    fun `offline mode disallows playlist podcast and episode chips`() {
+        for (filter in listOf(
+            SearchFilter.FILTER_COMMUNITY_PLAYLIST,
+            SearchFilter.FILTER_FEATURED_PLAYLIST,
+            ZEMER_FILTER_PODCAST,
+            ZEMER_FILTER_EPISODE,
+        )) {
+            assertFalse(searchFilterAllowed(filter, blockPodcasts = false, offlineMode = true))
+            assertTrue(searchFilterAllowed(filter, blockPodcasts = false, offlineMode = false))
+        }
+    }
+
+    @Test
+    fun `offline mode keeps the summary song video artist and album chips`() {
+        assertTrue(searchFilterAllowed(null, blockPodcasts = false, offlineMode = true))
+        assertTrue(searchFilterAllowed(FILTER_SONG, blockPodcasts = false, offlineMode = true))
+        assertTrue(searchFilterAllowed(SearchFilter.FILTER_VIDEO, blockPodcasts = false, offlineMode = true))
+        assertTrue(searchFilterAllowed(SearchFilter.FILTER_ARTIST, blockPodcasts = false, offlineMode = true))
+        assertTrue(searchFilterAllowed(SearchFilter.FILTER_ALBUM, blockPodcasts = false, offlineMode = true))
     }
 }

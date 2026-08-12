@@ -50,6 +50,7 @@ import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.NewEpisodesFeed
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.PodcastLibrarySources
 import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
@@ -160,6 +161,7 @@ constructor(
     init {
         viewModelScope.launch(Dispatchers.IO) {
             allArtists.collect { artists ->
+                if (OfflineModeState.enabled) return@collect // manual offline mode: no thumbnail refresh
                 artists
                     .map { it.artist }
                     .filter {
@@ -364,6 +366,7 @@ constructor(
         }
         viewModelScope.launch(Dispatchers.IO) {
             artists.collect { artists ->
+                if (OfflineModeState.enabled) return@collect // manual offline mode: no thumbnail refresh
                 artists
                     .map { it.artist }
                     .filter {
@@ -545,7 +548,7 @@ constructor(
     fun fetchNewEpisodes() = newEpisodesFeed.fetch(viewModelScope)
 
     fun refreshChannels() {
-        if (!isPersonalAccountSignedIn) return
+        if (!isPersonalAccountSignedIn || OfflineModeState.enabled) return
         viewModelScope.launch(Dispatchers.IO) {
             YouTube.libraryPodcastChannels().onSuccess { page ->
                 _apiPodcastChannels.value = page.items
@@ -587,7 +590,8 @@ constructor(
     fun unsubscribeShow(podcast: PodcastEntity) {
         viewModelScope.launch(Dispatchers.IO) {
             database.query { updatePodcast(podcast.copy(bookmarkedAt = null)) }
-            if (isPersonalAccountSignedIn) YouTube.savePodcast(podcast.id, false)
+            // Offline mode: local-only (the attempt could only fail); the next online sync reconciles.
+            if (isPersonalAccountSignedIn && !OfflineModeState.enabled) YouTube.savePodcast(podcast.id, false)
         }
     }
 }

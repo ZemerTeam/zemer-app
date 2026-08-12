@@ -11,9 +11,12 @@ import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.jtech.zemer.utils.OfflineModeState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -33,7 +36,7 @@ class AlbumViewModel
 @Inject
 constructor(
     @ApplicationContext private val context: Context,
-    database: MusicDatabase,
+    private val database: MusicDatabase,
     private val zemerRepository: ZemerSearchRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -51,9 +54,18 @@ constructor(
     // True once the `/album` fetch 404s / fails (or returns no tracks) and there's nothing local to show —
     // the screen renders a "not available" state instead of an endless loading shimmer.
     val notFound = MutableStateFlow(false)
+    // Manual offline mode scopes the rendered track list to downloaded songs (the row itself stays
+    // whole in Room — only the view shrinks), so every surface reading this flow (header, rows,
+    // download aggregate, play/shuffle) agrees on the same downloaded-only list.
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val albumWithSongs =
-        database
-            .albumWithSongs(albumId)
+        OfflineModeState.state
+            .flatMapLatest { offline ->
+                database.albumWithSongs(albumId).map { row ->
+                    if (!offline || row == null) row
+                    else row.copy(songs = row.songs.filter { it.song.isDownloaded })
+                }
+            }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     init {
@@ -67,7 +79,24 @@ constructor(
                 )
             }
         }
+        loadAlbum()
+        // Toggling the mode re-resolves: leaving offline fetches the live page; entering offline
+        // re-evaluates notFound against the downloaded-only view.
+        reloadOnOfflineModeChange { loadAlbum() }
+    }
+
+    private fun loadAlbum() {
         viewModelScope.launch {
+            // Manual offline mode: never fetch `/album` (and never run the stale-row delete — a
+            // local AlbumEntity must not be destroyed while the server can't be consulted). The
+            // local row renders, scoped to downloaded songs; nothing downloaded = not available.
+            if (OfflineModeState.enabled) {
+                val row = database.albumWithSongs(albumId).first()
+                notFound.value = row == null || row.songs.none { it.song.isDownloaded }
+                row?.album?.playlistId?.let { playlistId.value = it }
+                return@launch
+            }
+            notFound.value = false
             val album = database.album(albumId).first()
             Timber.d(
                 "AlbumOpen: open albumId=%s openerPlaylistId=%s localWhitelistedRow=%s",

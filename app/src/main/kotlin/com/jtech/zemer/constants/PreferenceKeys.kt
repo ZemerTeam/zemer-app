@@ -213,6 +213,11 @@ val OfflineSubsetEnabledKey = booleanPreferencesKey("offlineSubsetEnabled")
 val OfflineSubsetLastSyncedAtKey = longPreferencesKey("offlineSubsetLastSyncedAt")
 val OfflineSubsetPromoDismissedKey = booleanPreferencesKey("offlineSubsetPromoDismissed")
 
+// Manual offline mode (#366): user-controlled, never auto-detected. ON = every browse surface
+// shrinks to downloaded content only and content-discovery network calls are suppressed at source
+// (mirrored process-wide by OfflineModeState). Playback of what remains is all local files.
+val OfflineModeKey = booleanPreferencesKey("offlineMode")
+
 val ContentFiltersAutoRestoredKey = booleanPreferencesKey("content_filters_auto_restored")
 val ContentFiltersRestoredEmailKey = stringPreferencesKey("content_filters_restored_email")
 val ContentFiltersLockedKey = booleanPreferencesKey("content_filters_locked")
