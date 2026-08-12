@@ -2296,6 +2296,11 @@ class MusicService :
     private fun seedVideoUrlCaches(renditionId: String, data: YTPlayerUtils.PlaybackData) {
         val expiry = System.currentTimeMillis() + (data.streamExpiresInSeconds * 1000L)
         data.videoRungUrls.forEach { (itag, url) ->
+            // Skip the AUTOMATIC pick's own itag: it is already cached under the plain `video:<id>`
+            // key (seedPlainVideoKey), so also seeding it under `video:<id>:p<itag>` would duplicate
+            // the cache entry, and a tap of that rung's label already no-ops against the plain key
+            // (currentRenditionItag) — never streaming those bytes twice under a second key.
+            if (itag == data.format.itag) return@forEach
             val rung = data.videoQualities.firstOrNull { it.itag == itag } ?: return@forEach
             songUrlCache[VideoRendition.key(renditionId, itag, rung.progressive)] = url to expiry
         }
@@ -2404,6 +2409,23 @@ class MusicService :
         // takes this branch. clipDurations trims the merged timeline to the shorter track so a
         // slightly-longer audio tail can't hang the item past the video's end.
         return object : MediaSource.Factory by default {
+            // The interface's builder setters delegate to `default` and would return `default` (not
+            // this wrapper), so a caller chaining `factory.setX(..).createMediaSource(..)` would lose
+            // the merge override. Configure `default` but return THIS so the wrapper always survives.
+            override fun setDrmSessionManagerProvider(
+                provider: androidx.media3.exoplayer.drm.DrmSessionManagerProvider,
+            ): MediaSource.Factory {
+                default.setDrmSessionManagerProvider(provider)
+                return this
+            }
+
+            override fun setLoadErrorHandlingPolicy(
+                policy: androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy,
+            ): MediaSource.Factory {
+                default.setLoadErrorHandlingPolicy(policy)
+                return this
+            }
+
             override fun createMediaSource(mediaItem: MediaItem): MediaSource {
                 val key = mediaItem.localConfiguration?.customCacheKey
                 if (key != null && VideoRendition.isAdaptiveVideoKey(key)) {
