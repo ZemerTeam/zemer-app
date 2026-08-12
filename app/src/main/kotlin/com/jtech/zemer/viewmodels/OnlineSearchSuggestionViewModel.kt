@@ -40,8 +40,13 @@ constructor(
 
     init {
         viewModelScope.launch {
-            query
-                .flatMapLatest { query ->
+            kotlinx.coroutines.flow.combine(query, OfflineModeState.state) { q, offline -> q to offline }
+                .flatMapLatest { (query, offlineMode) ->
+                    // Manual offline mode: no history and no as-you-type suggestions on the search
+                    // surface - the submitted search serves the downloaded catalog only.
+                    if (offlineMode) {
+                        return@flatMapLatest kotlinx.coroutines.flow.flowOf(SearchSuggestionViewState())
+                    }
                     if (query.isEmpty()) {
                         database.searchHistory().map { history ->
                             SearchSuggestionViewState(

@@ -713,7 +713,11 @@ class MainActivity : ComponentActivity() {
                             setInitialSyncHandled(true)
                         }
 
-                        if (!initialSyncHandled && !syncProgress.isComplete && !skipSplash) {
+                        // Manual offline mode: the whitelist sync is gated (it cannot complete), so
+                        // the sync splash must never block entry - the last-good persisted whitelist
+                        // is the working set.
+                        val (offlineModeSplash, _) = rememberPreference(OfflineModeKey, false)
+                        if (!offlineModeSplash && !initialSyncHandled && !syncProgress.isComplete && !skipSplash) {
                             SplashScreen(
                                 syncProgress = syncProgress,
                                 onSkip = {

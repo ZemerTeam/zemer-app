@@ -277,31 +277,67 @@ constructor(
         }
     }
 
-    /** The downloaded-scoped Room search results feeding both offline branches (explicit-filtered). */
+    /**
+     * The downloaded-scoped search results feeding both offline branches. Two engines merged for
+     * online-parity match quality:
+     * 1. The on-device SUBSET's Hebrew-aware/cross-script matcher (when installed), scoped to
+     *    downloaded ids - the subset contributes MATCHING, never non-downloaded content.
+     * 2. The Room LIKE baseline (title or artist name), so search works with no subset installed.
+     * Subset hits lead (relevance order), Room extras follow; everything runs the offline content
+     * gate so the mode can never surface what the (passcode-protected) filter hides online.
+     * Nav args arrive URLEncoder-encoded ('+' for spaces) - normalized before matching.
+     */
     private suspend fun offlineSearchInputs(): OfflineSearchInputs {
+        val q = query.replace('+', ' ').trim()
         val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
         val blockPodcasts = context.dataStore.getSuspend(com.jtech.zemer.constants.BlockPodcastsKey, false)
-        // The same female/blocked-id/Israeli gate the offline Home rows run - offline search must
-        // never surface what the (passcode-protected) filter hides online.
         val config = com.jtech.zemer.utils.ContentFilterState.current
-        val songs = database.searchDownloadedSongs(query, includeVideos = true).first()
-            .filter { !hideExplicit || !it.song.explicit }
-            .offlineContentGated(config)
-            .map { it.toSongItem() }
-        val artists = database.searchDownloadedArtists(query, includeVideos = true).first()
-            .filter { offlineContentGatePasses(itemId = null, artistIds = listOf(it.id), config = config) }
-            .map { it.toArtistItem() }
-        val albums = database.searchDownloadedAlbums(query, includeVideos = true).first()
-            .filter { !hideExplicit || !it.album.explicit }
-            .filter { a -> offlineContentGatePasses(a.id, a.artists.map { it.id }, config) }
-            .map { it.toAlbumItem() }
-        // Downloaded podcast episodes are searchable too ("all downloaded items"); the blocked-ids
-        // gate still applies, and the whole set hides when podcasts are blocked.
-        val episodes = if (blockPodcasts) emptyList() else {
-            database.searchDownloadedEpisodes(query).first()
-                .filter { offlineContentGatePasses(it.id, emptyList(), config) }
-                .map { it.toSongItem() }
+
+        // The downloaded universe (id sets scope the subset engine; the episode map upgrades subset
+        // episode hits to the local rows the offline UI plays from).
+        val allSongs = database.downloadedSongsByCreateDateAsc(includeVideos = true).first()
+        val songIds = allSongs.mapTo(HashSet()) { it.id }
+        val artistIds = database.downloadedArtists(includeVideos = true).first().mapTo(HashSet()) { it.id }
+        val albumIds = database.downloadedAlbums(includeVideos = true).first().mapTo(HashSet()) { it.id }
+        val allEpisodes = if (blockPodcasts) emptyList() else {
+            database.downloadedEpisodes(com.jtech.zemer.constants.SongSortType.CREATE_DATE, descending = true).first()
         }
+        val episodeById = allEpisodes.associateBy { it.id }
+
+        // Engine 1: the subset matcher, filtered to downloaded ids (null when not installed/stale).
+        val subsetItems = runCatching { zemerRepo.subsetSummary(q, zemerSearchOptions(context)) }
+            .getOrNull()?.summaries?.flatMap { it.items }.orEmpty()
+        val subsetSongs = subsetItems.filterIsInstance<com.metrolist.innertube.models.SongItem>()
+            .filter { !it.isEpisode && it.id in songIds }
+        val subsetArtists = subsetItems.filterIsInstance<com.metrolist.innertube.models.ArtistItem>()
+            .filter { it.id in artistIds }
+        val subsetAlbums = subsetItems.filterIsInstance<com.metrolist.innertube.models.AlbumItem>()
+            .filter { it.browseId in albumIds }
+        val subsetEpisodes = subsetItems
+            .filter { it is com.metrolist.innertube.models.EpisodeItem || (it is com.metrolist.innertube.models.SongItem && it.isEpisode) }
+            .mapNotNull { episodeById[it.id] }
+
+        // Engine 2: the Room LIKE baseline.
+        val roomSongs = database.searchDownloadedSongs(q, includeVideos = true).first()
+        val roomArtists = database.searchDownloadedArtists(q, includeVideos = true).first()
+        val roomAlbums = database.searchDownloadedAlbums(q, includeVideos = true).first()
+        val roomEpisodes = if (blockPodcasts) emptyList() else database.searchDownloadedEpisodes(q).first()
+
+        val songs = (subsetSongs + roomSongs.map { it.toSongItem() })
+            .distinctBy { it.id }
+            .filter { !hideExplicit || !it.explicit }
+            .filter { s -> offlineContentGatePasses(s.id, s.artists.mapNotNull { it.id }, config) }
+        val artists = (subsetArtists + roomArtists.map { it.toArtistItem() })
+            .distinctBy { it.id }
+            .filter { offlineContentGatePasses(itemId = null, artistIds = listOf(it.id), config = config) }
+        val albums = (subsetAlbums + roomAlbums.map { it.toAlbumItem() })
+            .distinctBy { it.id }
+            .filter { !hideExplicit || !it.explicit }
+            .filter { a -> offlineContentGatePasses(a.browseId, a.artists?.mapNotNull { it.id }.orEmpty(), config) }
+        val episodes = (subsetEpisodes + roomEpisodes)
+            .distinctBy { it.id }
+            .filter { offlineContentGatePasses(it.id, emptyList(), config) }
+            .map { it.toSongItem() }
         return OfflineSearchInputs(songs, artists, albums, episodes)
     }
 

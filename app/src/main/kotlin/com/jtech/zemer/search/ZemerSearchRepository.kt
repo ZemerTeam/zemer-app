@@ -140,6 +140,17 @@ class ZemerSearchRepository @Inject constructor(
         ZemerResultMapper.suggestions(fetch(query, options, K_SUGGEST), options.hideExplicit, formatSongCount)
 
     /**
+     * OFFLINE-MODE search only: the on-device subset's Hebrew-aware/cross-script matcher, mapped
+     * through the exact summary mapping the server path uses; null when no fresh snapshot is
+     * installed. The caller scopes every result to DOWNLOADED content - the subset contributes
+     * match QUALITY ("up to par with online"), never non-downloaded browse results. Deliberately
+     * not routed through [fetch]: no server call, no LRU entry.
+     */
+    suspend fun subsetSummary(query: String, options: ZemerSearchOptions): SearchSummaryPage? =
+        offlineReads.search(query.trim(), K_FILTER, options.allowFemale, options.blockVideos)
+            ?.let { ZemerResultMapper.summaryPage(it, options.hideExplicit, formatSongCount) }
+
+    /**
      * Open a playlist through the server's `/playlist` endpoint so the tracks, count and cover match the
      * search card (which comes from the same server filter) — instead of the InnerTube fetch +
      * local-whitelist path, which produced a different count. The header is a synthetic [PlaylistItem]:

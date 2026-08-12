@@ -11,7 +11,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 87 | `com.dpi` | no | 8 | 13 | android.annotation, android.app, android.content, android.util, kotlin.math, timber.log |
 | `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 46 | `com.dpi` | no | 2 | 9 | android.content, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/App.kt` | 552 | `com.jtech.zemer` | no | 76 | 52 | android.app, android.content, android.os, android.util, android.webkit, androidx.datastore, coil3.ImageLoader, coil3.PlatformContext, coil3.SingletonImageLoader, coil3.disk, coil3.network, coil3.request, coil3.svg, com.google, com.zemer, dagger.hilt, io.ktor, java.net, java.util, javax.inject, kotlinx.coroutines, kotlinx.serialization, okhttp3.Credentials, okhttp3.Dispatcher, okhttp3.OkHttpClient, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2362 | `com.jtech.zemer` | no | 297 | 238 | android.annotation, android.app, android.content, android.os, android.view, androidx.activity, androidx.compose, androidx.core, androidx.datastore, androidx.hilt, androidx.lifecycle, androidx.media3, androidx.navigation, coil3.compose, coil3.imageLoader, coil3.request, coil3.toBitmap, com.google, com.valentinilk, dagger.hilt, java.net, java.util, javax.inject, kotlin.time, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2366 | `com.jtech.zemer` | no | 297 | 240 | android.annotation, android.app, android.content, android.os, android.view, androidx.activity, androidx.compose, androidx.core, androidx.datastore, androidx.hilt, androidx.lifecycle, androidx.media3, androidx.navigation, coil3.compose, coil3.imageLoader, coil3.request, coil3.toBitmap, com.google, com.valentinilk, dagger.hilt, java.net, java.util, javax.inject, kotlin.time, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/accessibility/ButtonMapperAccessibilityService.kt` | 45 | `com.jtech.zemer.accessibility` | no | 7 | 6 | android.accessibilityservice, android.annotation, android.view |
 | `app/src/main/kotlin/com/jtech/zemer/auth/AuthState.kt` | 57 | `com.jtech.zemer.auth` | no | 0 | 16 |  |
 | `app/src/main/kotlin/com/jtech/zemer/auth/UserAuthManager.kt` | 145 | `com.jtech.zemer.auth` | no | 13 | 26 | android.content, com.google, dagger.hilt, javax.inject, kotlinx.coroutines |
@@ -24,7 +24,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 622 | `com.jtech.zemer.constants` | no | 9 | 194 | androidx.annotation, androidx.datastore, java.time |
 | `app/src/main/kotlin/com/jtech/zemer/constants/StatPeriod.kt` | 97 | `com.jtech.zemer.constants` | no | 3 | 4 | java.time |
 | `app/src/main/kotlin/com/jtech/zemer/db/Converters.kt` | 20 | `com.jtech.zemer.db` | no | 4 | 3 | androidx.room, java.time |
-| `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` | 1846 | `com.jtech.zemer.db` | no | 65 | 255 | androidx.room, androidx.sqlite, java.text, java.time, java.util, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` | 1848 | `com.jtech.zemer.db` | no | 65 | 255 | androidx.room, androidx.sqlite, java.text, java.time, java.util, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/db/MusicDatabase.kt` | 642 | `com.jtech.zemer.db` | no | 44 | 80 | android.annotation, android.content, android.database, androidx.core, androidx.room, androidx.sqlite, java.time, java.util, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/db/entities/ActionSnapshotRow.kt` | 13 | `com.jtech.zemer.db.entities` | no | 1 | 3 | java.time |
 | `app/src/main/kotlin/com/jtech/zemer/db/entities/Album.kt` | 33 | `com.jtech.zemer.db.entities` | no | 4 | 8 | androidx.compose, androidx.room |
@@ -138,7 +138,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 817 | `com.jtech.zemer.playback` | no | 61 | 80 | android.content, android.net, android.os, androidx.annotation, androidx.core, androidx.media3, com.google, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1085 | `com.jtech.zemer.playback` | no | 55 | 127 | android.content, android.media, android.net, androidx.core, dagger.hilt, java.io, java.time, java.util, javax.inject, kotlin.math, kotlinx.coroutines, okhttp3.OkHttpClient, okhttp3.Request, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 302 | `com.jtech.zemer.playback` | no | 27 | 48 | android.app, android.content, android.os, androidx.core, dagger.hilt, javax.inject, kotlin.math, kotlinx.coroutines, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2829 | `com.jtech.zemer.playback` | no | 183 | 293 | android.app, android.content, android.database, android.media, android.net, android.os, androidx.core, androidx.datastore, androidx.media3, com.zemer, dagger.hilt, java.io, java.time, java.util, javax.inject, kotlin.time, kotlinx.coroutines, okhttp3.OkHttpClient, org.fcast, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2847 | `com.jtech.zemer.playback` | no | 183 | 293 | android.app, android.content, android.database, android.media, android.net, android.os, androidx.core, androidx.datastore, androidx.media3, com.zemer, dagger.hilt, java.io, java.time, java.util, javax.inject, kotlin.time, kotlinx.coroutines, okhttp3.OkHttpClient, org.fcast, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 370 | `com.jtech.zemer.playback` | no | 28 | 67 | android.content, androidx.media3, kotlinx.coroutines, org.fcast |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogic.kt` | 49 | `com.jtech.zemer.playback` | no | 0 | 5 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/RemoteVolumeTracker.kt` | 54 | `com.jtech.zemer.playback` | no | 3 | 9 | kotlinx.coroutines |
@@ -146,7 +146,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/SleepTimer.kt` | 81 | `com.jtech.zemer.playback` | no | 11 | 12 | androidx.compose, androidx.media3, kotlin.time, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoAvailabilityCache.kt` | 69 | `com.jtech.zemer.playback` | no | 3 | 18 | kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoDecoderCaps.kt` | 35 | `com.jtech.zemer.playback` | no | 2 | 6 | android.media, java.util |
-| `app/src/main/kotlin/com/jtech/zemer/playback/VideoModeController.kt` | 771 | `com.jtech.zemer.playback` | no | 32 | 113 | android.os, android.view, androidx.media3, kotlinx.coroutines, org.fcast |
+| `app/src/main/kotlin/com/jtech/zemer/playback/VideoModeController.kt` | 776 | `com.jtech.zemer.playback` | no | 33 | 113 | android.os, android.view, androidx.media3, kotlinx.coroutines, org.fcast |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoModeLogic.kt` | 190 | `com.jtech.zemer.playback` | no | 1 | 11 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoQualityLogic.kt` | 204 | `com.jtech.zemer.playback` | no | 1 | 39 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoRendition.kt` | 84 | `com.jtech.zemer.playback` | no | 0 | 19 |  |
@@ -183,7 +183,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchClient.kt` | 599 | `com.jtech.zemer.search` | no | 16 | 62 | io.ktor, java.io, javax.inject, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchModels.kt` | 410 | `com.jtech.zemer.search` | no | 2 | 158 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchOptions.kt` | 32 | `com.jtech.zemer.search` | no | 5 | 6 | android.content |
-| `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchRepository.kt` | 474 | `com.jtech.zemer.search` | no | 34 | 68 | android.content, dagger.hilt, java.io, java.nio, javax.inject, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchRepository.kt` | 485 | `com.jtech.zemer.search` | no | 34 | 69 | android.content, dagger.hilt, java.io, java.nio, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerStationsModels.kt` | 135 | `com.jtech.zemer.search` | no | 1 | 39 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusDownload.kt` | 65 | `com.jtech.zemer.statuses` | no | 2 | 16 | org.json |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusDownloadManager.kt` | 118 | `com.jtech.zemer.statuses` | no | 14 | 26 | android.content, android.graphics, android.net, androidx.core, dagger.hilt, java.io, javax.inject, kotlinx.coroutines, okhttp3.OkHttpClient, okhttp3.Request |
@@ -307,7 +307,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/VideoQualityMenu.kt` | 72 | `com.jtech.zemer.ui.menu` | yes | 15 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ViewCollectionMenuItem.kt` | 56 | `com.jtech.zemer.ui.menu` | no | 12 | 2 | androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeAlbumMenu.kt` | 358 | `com.jtech.zemer.ui.menu` | yes | 64 | 20 | android.annotation, androidx.compose, androidx.navigation, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeArtistMenu.kt` | 206 | `com.jtech.zemer.ui.menu` | yes | 42 | 7 | androidx.compose |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeArtistMenu.kt` | 207 | `com.jtech.zemer.ui.menu` | yes | 42 | 7 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeItemMenu.kt` | 64 | `com.jtech.zemer.ui.menu` | yes | 9 | 1 | androidx.compose, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubePlaylistMenu.kt` | 492 | `com.jtech.zemer.ui.menu` | yes | 79 | 23 | android.annotation, androidx.compose, coil3.compose, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeSongMenu.kt` | 512 | `com.jtech.zemer.ui.menu` | yes | 84 | 32 | android.annotation, androidx.compose, androidx.navigation, coil3.compose, java.time, kotlinx.coroutines |
@@ -522,8 +522,8 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnboardingViewModel.kt` | 205 | `com.jtech.zemer.viewmodels` | no | 19 | 31 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlinePlaylistViewModel.kt` | 210 | `com.jtech.zemer.viewmodels` | no | 28 | 33 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlinePodcastViewModel.kt` | 191 | `com.jtech.zemer.viewmodels` | no | 33 | 27 | android.content, androidx.lifecycle, dagger.hilt, java.time, javax.inject, kotlinx.coroutines, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlineSearchSuggestionViewModel.kt` | 103 | `com.jtech.zemer.viewmodels` | no | 24 | 13 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlineSearchViewModel.kt` | 334 | `com.jtech.zemer.viewmodels` | no | 40 | 46 | android.content, android.net, androidx.compose, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlineSearchSuggestionViewModel.kt` | 108 | `com.jtech.zemer.viewmodels` | no | 24 | 13 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlineSearchViewModel.kt` | 370 | `com.jtech.zemer.viewmodels` | no | 40 | 62 | android.content, android.net, androidx.compose, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/PodcastGenreCatalogViewModel.kt` | 65 | `com.jtech.zemer.viewmodels` | no | 17 | 12 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/PodcastGenreViewModel.kt` | 71 | `com.jtech.zemer.viewmodels` | no | 17 | 15 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/PodcastGenresHomeViewModel.kt` | 64 | `com.jtech.zemer.viewmodels` | no | 19 | 9 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |

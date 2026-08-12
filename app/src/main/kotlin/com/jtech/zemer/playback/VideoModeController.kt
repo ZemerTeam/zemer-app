@@ -13,6 +13,7 @@ import com.jtech.zemer.playback.VideoModeLogic.RenditionKind
 import com.jtech.zemer.playback.VideoModeLogic.TransitionClass
 import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.reportException
@@ -222,8 +223,9 @@ class VideoModeController(
                     // during a broadcast); recompute covers local-file source resolution.
                     combine(service.isStationBroadcast, recompute) { _, _ -> },
                 ) { _, _, _, _, _ -> },
-                // Connectivity gates the streaming renditions (a downloaded LOCAL file stays available offline).
-                service.isNetworkConnected,
+                // Connectivity gates the streaming renditions (a downloaded LOCAL file stays available
+                // offline); manual offline mode gates them the same way, so both re-evaluate here.
+                combine(service.isNetworkConnected, OfflineModeState.state) { _, _ -> },
             ) { _, _ -> }.collect { recomputeNow() }
         }
         // I5: a cast session starting forces audio (the receiver only ever gets the audio stream, keyed
@@ -442,7 +444,10 @@ class VideoModeController(
             blockVideos = blockVideosNow ?: true,
             stationBroadcast = service.isStationBroadcast.value,
             localVideoFile = meta.isVideo && service.playbackSourceIsLocalFile(id),
-            online = service.isNetworkConnected.value,
+            // Manual offline mode counts as offline: streaming renditions must not be offered even
+            // with the network up (a downloaded muxed LOCAL file stays available, same as physical
+            // offline - the availability rule already encodes that split).
+            online = service.isNetworkConnected.value && !OfflineModeState.enabled,
             musicVideoType = avail?.musicVideoType,
             // The in-memory registry OR the persisted SongEntity.isVideo flag (Song.toMediaMetadata):
             // both are authoritative video classifications, and the persisted flag is what survives
@@ -514,7 +519,7 @@ class VideoModeController(
             ) {
                 return@launch
             }
-            if (!service.isNetworkConnected.value || !availabilityProbed.add(mediaId)) return@launch
+            if (!service.isNetworkConnected.value || OfflineModeState.enabled || !availabilityProbed.add(mediaId)) return@launch
             val result = withContext(Dispatchers.IO) {
                 YTPlayerUtils.playerResponseForMetadata(mediaId)
             }

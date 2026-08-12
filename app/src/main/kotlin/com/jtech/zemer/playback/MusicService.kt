@@ -2070,6 +2070,16 @@ class MusicService :
                 if (playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
                     return@Factory dataSpec
                 }
+                // Manual offline mode: a streaming video rendition must never resolve or stream
+                // (availability already hides the toggle; this covers a stale swap/seeded URL). The
+                // video error path then reverts the item to audio, which plays the local file.
+                if (OfflineModeState.enabled) {
+                    throw PlaybackException(
+                        getString(R.string.error_no_internet),
+                        null,
+                        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                    )
+                }
                 songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                     return@Factory dataSpec.withUri(it.first.toUri())
                 }
@@ -2125,6 +2135,14 @@ class MusicService :
                 val audioId = mediaId.removePrefix("videoaudio:")
                 if (playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
                     return@Factory dataSpec
+                }
+                // Manual offline mode: same rule as the video branch above - never stream.
+                if (OfflineModeState.enabled) {
+                    throw PlaybackException(
+                        getString(R.string.error_no_internet),
+                        null,
+                        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                    )
                 }
                 songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                     return@Factory dataSpec.withUri(it.first.toUri())
@@ -2369,7 +2387,7 @@ class MusicService :
         // rendition plays from disk — a resolution would be pure waste, and offline it just fails),
         // or when offline. Mirrors requestVideoAvailability's own network guard.
         if (isRelayPlaybackMode()) return
-        if (!isNetworkConnected.value) return
+        if (!isNetworkConnected.value || OfflineModeState.enabled) return
         if (playbackSourceIsLocalFile(videoId)) return
         val plainKey = VideoRendition.key(videoId)
         if (songUrlCache[plainKey]?.let { it.second > System.currentTimeMillis() } == true) return

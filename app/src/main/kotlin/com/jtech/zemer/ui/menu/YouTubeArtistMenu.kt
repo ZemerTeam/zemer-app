@@ -191,7 +191,8 @@ fun YouTubeArtistMenu(
                             },
                         )
                     )
-                    add(
+                    // Reports write to the server - an online function, hidden in offline mode.
+                    if (!OfflineModeState.enabled) add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.warning), null, Modifier.size(24.dp)) },
                             title = { Text(stringResource(R.string.report_artist)) },

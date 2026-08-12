@@ -1059,9 +1059,11 @@ interface DatabaseDao {
     fun downloadedArtistAlbums(artistId: String, includeVideos: Boolean): Flow<List<Album>>
 
     // Downloaded-scoped local search (offline mode): the searchSongs/Artists/Albums shapes keyed on
-    // isDownloaded instead of inLibrary, and unfiltered like every phone downloaded surface.
+    // isDownloaded instead of inLibrary, and unfiltered like every phone downloaded surface. Songs
+    // and episodes also match by ARTIST name (an artist-name query must find their songs, like the
+    // online engine).
     @Transaction
-    @Query("SELECT * FROM song WHERE title LIKE '%' || :query || '%' AND isDownloaded = 1 AND isEpisode = 0 AND (:includeVideos OR isVideo = 0) LIMIT :previewSize")
+    @Query("SELECT * FROM song WHERE isDownloaded = 1 AND isEpisode = 0 AND (:includeVideos OR isVideo = 0) AND (title LIKE '%' || :query || '%' OR song.id IN (SELECT songId FROM song_artist_map JOIN artist ON artist.id = song_artist_map.artistId WHERE artist.name LIKE '%' || :query || '%')) LIMIT :previewSize")
     fun searchDownloadedSongs(query: String, includeVideos: Boolean, previewSize: Int = Int.MAX_VALUE): Flow<List<Song>>
 
     @Transaction
@@ -1075,7 +1077,7 @@ interface DatabaseDao {
     fun searchDownloadedAlbums(query: String, includeVideos: Boolean, previewSize: Int = Int.MAX_VALUE): Flow<List<Album>>
 
     @Transaction
-    @Query("SELECT * FROM song WHERE title LIKE '%' || :query || '%' AND isDownloaded = 1 AND isEpisode = 1 LIMIT :previewSize")
+    @Query("SELECT * FROM song WHERE isDownloaded = 1 AND isEpisode = 1 AND (title LIKE '%' || :query || '%' OR song.id IN (SELECT songId FROM song_artist_map JOIN artist ON artist.id = song_artist_map.artistId WHERE artist.name LIKE '%' || :query || '%')) LIMIT :previewSize")
     fun searchDownloadedEpisodes(query: String, previewSize: Int = Int.MAX_VALUE): Flow<List<Song>>
 
     // A podcast HOST channel's downloaded episodes (offline mode's channel page) - episodes carry the
