@@ -70,12 +70,10 @@ fun VideoModePill(
         label = "video_mode_thumb",
     )
     Box(
+        // The shared over-media chrome (OverMediaChrome.kt) — scrim fill + hairline ring, one source
+        // for the whole floating-control family.
         modifier = modifier
-            .clip(CircleShape)
-            // The theme's scrim token (the StatusStoryTopOverlay media-scrim pattern), never a literal.
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f))
-            // A hairline ring lifts the pill off both artwork and video (the over-media white idiom).
-            .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+            .overMediaChrome(CircleShape)
             .padding(ThumbPadding),
     ) {
         Box(

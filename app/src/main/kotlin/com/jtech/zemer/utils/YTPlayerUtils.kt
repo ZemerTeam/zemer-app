@@ -452,14 +452,19 @@ object YTPlayerUtils {
         // Log.i survives release builds (Timber is stripped)
         android.util.Log.i(TAG, "Playback: client=${successClient ?: "unknown"}, itag=${format.itag}, videoId=$videoId")
 
-        // For a video resolution, resolve EVERY ladder rung's URL plus the merge-audio partner from
-        // this same response — pure local computation (sig decipher + n-transform + pot append, no
-        // extra network), and exactly what tests/video-qualities.mjs proves works per rung. Seeded
-        // into the URL cache by the caller so a quality switch never pays a second round-trip.
+        // For a STREAMING video resolution (never forDownload — downloads read only streamUrl and the
+        // ladder would be pure wasted cipher work), resolve EVERY ladder rung's URL plus the
+        // merge-audio partner from this same response: pure local computation (sig decipher +
+        // n-transform + pot append, no extra network), exactly what tests/video-qualities.mjs proves
+        // works per rung, seeded into the URL cache so a quality switch never pays a second
+        // round-trip. ONLY when the success client is a real web client (WEB_REMIX/WEB_CREATOR/
+        // TVHTML5/WEB): a non-web fallback's URLs (IOS/IPADOS) 403 past the 1 MiB wall and are never
+        // validated here, so seeding a whole ladder of them would make every quality switch fail a
+        // minute in. A non-web success leaves the table empty — the switch does a fresh resolution.
         var videoRungUrls: Map<Int, String> = emptyMap()
         var mergeAudioUrl: String? = null
         var mergeAudioItag: Int? = null
-        if (preferVideo && successClientObj != null) {
+        if (preferVideo && !forDownload && successClientObj != null && clientNeedsNTransform(successClientObj!!)) {
             val response = streamPlayerResponse
             val rungClient = successClientObj!!
             videoRungUrls = VideoQualityLogic.ladderFormats(response.streamingData)
@@ -467,8 +472,10 @@ object YTPlayerUtils {
                     resolveFinalStreamUrl(rungFormat, videoId, response, rungClient, poTokenResult)
                         ?.let { rungFormat.itag to it }
                 }.toMap()
+            // Merge audio is ALWAYS resolved at HIGH so the seeded itag matches every other
+            // preferVideo resolution (the merge-audio drift purge depends on that agreement).
             val mergeAudioFormat = findFormat(
-                response, audioQuality, connectivityManager, preferVideo = false,
+                response, AudioQuality.HIGH, connectivityManager, preferVideo = false,
                 maxVideoBitrateKbps = null, forDownload = false,
             )
             if (mergeAudioFormat != null) {
@@ -570,8 +577,16 @@ object YTPlayerUtils {
                 // Downloads gate on decoder capability too (the streaming ladder is filtered at
                 // publish, but a download target arrives label-only): a rung the device cannot
                 // decode must never become a committed LOCAL file that errors on every play.
-                val rungs = VideoQualityLogic.rungs(playerResponse.streamingData)
+                var rungs = VideoQualityLogic.rungs(playerResponse.streamingData)
                     .filter { it.progressive || VideoDecoderCaps.supports(it) }
+                // Re-apply the metered cap at RESOLUTION time, not just at enqueue. A download target
+                // (requestedVideoQuality) survives failed attempts BY DESIGN, so an automatic retry
+                // after a Wi-Fi -> metered transition would otherwise re-resolve the full-bitrate rung
+                // with no consent. Capping here keeps every retry metered-safe (the target still
+                // resolves to the best rung AT OR BELOW the cap).
+                if (maxVideoBitrateKbps != null) {
+                    rungs = rungs.filter { it.bitrate / 1000 <= maxVideoBitrateKbps }
+                }
                 val rung = VideoQualityLogic.selectRung(
                     rungs,
                     videoQualityTarget,

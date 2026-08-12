@@ -54,9 +54,9 @@ fun VideoQualitySelector(
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
+        // The shared over-media chrome (OverMediaChrome.kt) — same family as VideoModePill.
         modifier = modifier
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f), CircleShape)
-            .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+            .overMediaChrome(CircleShape)
             .focusBorder(CircleShape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },

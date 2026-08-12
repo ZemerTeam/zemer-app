@@ -803,13 +803,19 @@ constructor(
                 progressBase = videoShare * 0.98f, progressSpan = (1f - videoShare) * 0.98f,
                 expectedBytes = audioData.format.contentLength,
             )
-            if (!VideoMuxer.mux(videoPart, audioPart, outputFile, webm = webmOutput)) {
-                // A mux failure is deterministic for these inputs (a truncated STREAM already threw
-                // above, quality preserved) — clear the request so the retry falls back to the
-                // automatic progressive pick instead of re-failing forever. Reported via VideoMuxer's
-                // log; the first attempt's failure is honest, the retry still yields a playable file.
-                requestedVideoQuality.remove(song.id)
-                throw Exception("Remux failed for ${song.id} (${videoData.format.qualityLabel})")
+            when (VideoMuxer.mux(videoPart, audioPart, outputFile, webm = webmOutput)) {
+                VideoMuxer.Result.SUCCESS -> {}
+                VideoMuxer.Result.INCOMPATIBLE -> {
+                    // Deterministic for these inputs — clear the request so the retry falls back to
+                    // the automatic progressive pick instead of re-failing forever.
+                    requestedVideoQuality.remove(song.id)
+                    throw Exception("Remux incompatible for ${song.id} (${videoData.format.qualityLabel})")
+                }
+                VideoMuxer.Result.TRANSIENT -> {
+                    // I/O (disk full / read error) — PRESERVE the quality so the retry re-attempts the
+                    // same rung (never silently downgrade what the user asked to save).
+                    throw Exception("Remux failed (transient) for ${song.id}")
+                }
             }
         } finally {
             videoPart.delete()

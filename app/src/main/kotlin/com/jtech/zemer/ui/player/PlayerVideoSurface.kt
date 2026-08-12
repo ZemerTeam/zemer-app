@@ -110,9 +110,9 @@ fun PlayerVideoSurface(modifier: Modifier = Modifier) {
         ) {
             Box(
                 contentAlignment = Alignment.Center,
+                // The shared over-media chrome (passive variant — no ring, lighter scrim).
                 modifier = Modifier
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
+                    .overMediaChrome(CircleShape, scrimAlpha = OverMediaPassiveScrimAlpha, ring = false)
                     .padding(14.dp),
             ) {
                 CircularProgressIndicator(

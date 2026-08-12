@@ -31,11 +31,13 @@ data class VideoQualityRung(
  * relationship to [VideoModeController] mirrors [VideoModeLogic]'s). The ladder is built from a live
  * player response's streamingData and drives BOTH the streaming switcher and download quality.
  *
- * Hard data (tests/video-qualities.mjs, 2026-08-11): WEB_REMIX serves an avc1-only adaptive
- * video-only ladder (144p…1080p, itags 160/133/134/135/136/137) plus progressive muxed 360p (itag 18,
- * sometimes 720p itag 22) and opus/aac audio. No vp9/av01/1440p+ on the music client — so every rung
- * is avc1/mp4 and the download remux is always MP4. The logic still ranks codecs defensively (avc1
- * first) in case that ever changes.
+ * Hard data (tests/video-qualities.mjs, 2026-08-11): the app's stream resolution serves an avc1
+ * adaptive video-only ladder (144p…1080p, itags 160/133/134/135/136/137) plus progressive muxed 360p
+ * (itag 18, sometimes 720p itag 22) and opus/aac audio; for uploads that HAVE them it also serves
+ * vp9-only 1440p/2160p (itags 271/313) — measured live streaming + full-download of the 369.6 MB
+ * 2160p file. So a rung is usually avc1/mp4 (remux to MP4) but can be vp9 (remux to WebM on API 29+);
+ * av01 is stream-only. Codecs are ranked avc1 > vp9 > av01, and the whole ladder is
+ * decoder-capability-filtered ([VideoDecoderCaps]) so a device is never offered a rung it can't play.
  */
 object VideoQualityLogic {
     /** The persisted/selection sentinel for "no explicit rung — the automatic progressive pick". */

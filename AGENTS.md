@@ -1020,23 +1020,40 @@ WEB_REMIX serves avc1 144p…1080p and vp9-only 1440p/2160p. The rules that must
   `VideoRendition`): two rungs' bytes can never share cache spans (the container-mixing corruption
   class) — which is also why the exact-itag resolution deliberately has NO fallback format (a
   different container under an itag key would reintroduce the corruption; total failure surfaces
-  through the video error path instead). The `:q` mark is what routes an item through the
-  `MergingMediaSource` in `createMediaSourceFactory` — an adaptive rung is video-only, so playback
-  merges it with the item's audio stream, resolved under its own `videoaudio:<id>` namespace (never
-  the bare id's spans; the resolver purges that key's spans whenever the resolved audio itag is
-  unknown or changed — the audio pick flips with metered state). `removeDownload` purges the WHOLE
-  key family (`VideoRendition.allRenditionKeys`, one runCatching PER key).
+  through the video error path instead). The **two keys that CAN drift are guarded**: the plain
+  `video:<id>` automatic key (its itag flips 18/22 with the metered cap) and the `videoaudio:<id>`
+  merge-audio key (the audio pick flips with metered state) each track their last-resolved itag
+  (`videoKeyItagCache`/`mergeAudioItagCache`) and purge their cached spans on any change — seeded
+  through the shared `seedPlainVideoKey` so the resolver AND the prefetch path both run the guard.
+  Every `preferVideo=true` resolution (video branch, live merge branch, prefetch) resolves the merge
+  audio at **HIGH** so its itag agrees across all three and the purge never thrashes. The `:q` mark
+  routes an item through the `MergingMediaSource` in `createMediaSourceFactory` — an adaptive rung is
+  video-only, so playback merges it with the audio stream under `videoaudio:<id>` (never the bare
+  id's spans). `removeDownload` purges the WHOLE key family (`VideoRendition.allRenditionKeys`, one
+  runCatching PER key). Only WEB-client resolutions seed the rung-URL table (`videoRungUrls`) — a
+  non-web fallback's URLs 403 past the 1 MiB wall, so a non-web success leaves the table empty and a
+  switch re-resolves; the ladder-URL block is skipped entirely for `forDownload` (never consumed).
+  A video error invalidates the plain key AND the rung key AND the merge-audio key (all seeded from
+  the same now-dead response), so a re-entry always re-resolves fresh.
 - **The switcher** (`VideoQualitySelector`, shared by the inline art slot at BottomStart and the
   fullscreen overlay at TopEnd — a VideoModePill-family over-media chip opening the standard
   `Material3MenuGroup` menu sheet `VideoQualityMenu`, never a floating dropdown) shows the CURRENT
   item's live ladder, decoder-capability-filtered
   (`VideoDecoderCaps` — never offer vp9 2160p to a SoC that can't decode it); a pick applies to that
-  item for the session (`qualityOverrides` — a CONCURRENT map: the player-menu download reads it from
-  an IO coroutine), the Settings default (`VideoQualityKey`, Player settings, hidden when videos are
-  blocked) applies to new plays. **The persisted default is metered-gated**
-  (`effectiveQualityTarget`): an in-player pick is per-play consent, but the Settings default must
-  never silently drive full-bitrate adaptive streams/downloads on a metered connection (the invariant
-  the automatic pick's bitrate cap protects). First entry plays AUTO instantly and upgrades
+  item for the session. Two CONCURRENT maps on purpose: `qualityOverrides` holds the effective
+  session state (an in-player pick OR a machine write from the rebuffer guard / error revert) and
+  drives streaming; `userQualityPicks` holds ONLY the user's explicit switcher choices and is what
+  DOWNLOADS read (`downloadVideoQuality`), so a transient guard-downgrade or an error's AUTO pin never
+  silently downgrades a later download of what the user chose to watch. The Settings default
+  (`VideoQualityKey`, Player settings, hidden when videos are blocked) applies to new plays and is
+  **metered-gated** (`effectiveQualityTarget` → AUTO on metered; an explicit pick is per-play consent
+  and honored) — the default must never silently drive full-bitrate adaptive streams on a metered
+  connection. Downloads re-apply the metered bitrate cap at RESOLUTION time (not just enqueue) so a
+  retry after a Wi-Fi→metered transition can't pull the full-bitrate rung. The unmetered default is
+  honored optimistically (NOT pre-gated on a bandwidth estimate — media3 seeds a synthetic prior at
+  cold start that would wrongly deny a fast link); the rebuffer guard downgrades if the link can't
+  sustain it. A same-itag switcher tap (tapping the quality already playing, including the automatic
+  pick's true label) is a no-op — never a redundant re-swap. First entry plays AUTO instantly and upgrades
   position-continuously when the ladder lands with the resolution — never a blocking wait, and never a
   redundant re-swap when the automatic pick already streams the target rung (the resolved itag rides
   the ladder callback). Quality re-swaps ride the same `pendingSwap` + `listenAccumulator.onSwap`
@@ -1060,15 +1077,24 @@ WEB_REMIX serves avc1 144p…1080p and vp9-only 1440p/2160p. The rules that must
   on the highest rung the player's measured bandwidth sustains with 1.3x headroom
   (`downgradeRung` + the DefaultBandwidthMeter singleton — one decisive jump, not a stall per
   intermediate rung), position-continuous, and pins the item there so the ladder callback can't
-  bounce back up. DEFAULT-driven upgrades are bandwidth-gated the same way (`defaultUpgradeAllowed`
-  — a Settings default never upgrades onto a link that can't carry it; an explicit in-player pick is
-  always honored and the guard corrects it). Seek-caused buffering is exempt (`onSeekDiscontinuity`),
-  a swap's own prepare never counts (history resets on every swap), LOCAL/audio playback never
-  counts, and AUTO never downgrades (already the cheapest single-stream pick). The shared
-  LoadControl requires 5s buffered before resuming from a rebuffer (vs media3's 2s) — one slightly
-  longer recovery instead of a stall-play-stall loop. The buffering spinner lives INSIDE the shared
-  `PlayerVideoSurface` so the inline art slot and the fullscreen overlay show one identical
-  treatment.
+  bounce back up. Seek-caused buffering is exempt via a **timestamp grace window**
+  (`onSeekDiscontinuity` stamps the time; a stall within `SEEK_GRACE_MS` is ignored) — NOT a boolean
+  flag, because a seek into an already-buffered region fires no state change to clear a flag and a
+  stale flag would swallow the next real stall. A swap's own prepare never counts (history resets on
+  every swap), LOCAL/audio playback never counts, and AUTO never downgrades (already the cheapest
+  single-stream pick). The shared LoadControl is left at media3's rebuffer default (2s) — video
+  stutter is handled by the quality downgrade, NOT by widening the shared buffer, which would regress
+  audio/RELAY rebuffer latency. The buffering spinner lives INSIDE the shared `PlayerVideoSurface`
+  so the inline art slot and the fullscreen overlay show one identical treatment.
+- **Prefetch is skipped where it can't help** (`prefetchVideoRendition`): RELAY (fixed rendition), a
+  downloaded LOCAL video (plays from disk — a resolution would be pure waste, and offline it just
+  fails), or when offline. The relay guard is also enforced at the swap chokepoint itself
+  (`swapToVideoKey`) so a late pre-relay-toggle prefetch callback can never install a `:q` key in a
+  relay session.
+- **Download remux failures are classified** (`VideoMuxer.Result`): a TRANSIENT I/O failure (disk
+  full) preserves the requested quality so a retry re-attempts the same rung (never silently
+  downgrade what the user asked to save); only a DETERMINISTIC format-incompatibility clears the
+  request and falls back to the automatic progressive pick.
 - **Downloads above the progressive ceiling fetch video+audio separately and REMUX on-device**
   (`VideoMuxer` — framework MediaExtractor/MediaMuxer, zero new dependencies: avc1+AAC → MP4,
   vp9+Opus → WebM on API 29+ only — `selectRung(opusWebmMuxSupported)`; av01 is stream-only). The

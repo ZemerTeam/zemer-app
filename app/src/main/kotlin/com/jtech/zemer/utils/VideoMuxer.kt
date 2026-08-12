@@ -21,12 +21,29 @@ import java.nio.ByteBuffer
  */
 object VideoMuxer {
 
+    /** The outcome of a [mux] attempt — classified so the caller knows whether a retry can help. */
+    enum class Result {
+        SUCCESS,
+
+        /**
+         * A TRANSIENT failure (I/O — disk full, a read error): a retry may succeed, so the caller
+         * must PRESERVE the requested quality (never silently downgrade what the user asked to save).
+         */
+        TRANSIENT,
+
+        /**
+         * A DETERMINISTIC failure (the muxer rejected the track format for this container): retrying
+         * the identical inputs re-fails, so the caller may clear the quality request and fall back.
+         */
+        INCOMPATIBLE,
+    }
+
     /**
-     * Mux [videoFile]'s video track + [audioFile]'s audio track into [outputFile]. Returns true on
-     * success; on ANY failure returns false and deletes the partial output (callers treat false as a
-     * failed download attempt — never commit a half-muxed file).
+     * Mux [videoFile]'s video track + [audioFile]'s audio track into [outputFile]. The partial output
+     * is deleted on any failure (never commit a half-muxed file); the [Result] tells the caller
+     * whether the failure was transient (preserve quality, retry) or deterministic (may downgrade).
      */
-    fun mux(videoFile: File, audioFile: File, outputFile: File, webm: Boolean): Boolean {
+    fun mux(videoFile: File, audioFile: File, outputFile: File, webm: Boolean): Result {
         val videoExtractor = MediaExtractor()
         val audioExtractor = MediaExtractor()
         var muxer: MediaMuxer? = null
@@ -61,11 +78,14 @@ object VideoMuxer {
                 }
             }
             muxer.stop()
-            true
+            Result.SUCCESS
         } catch (t: Throwable) {
             Timber.e(t, "VideoMuxer: mux failed (${videoFile.name} + ${audioFile.name} -> ${outputFile.name})")
             outputFile.delete()
-            false
+            // An I/O throwable (disk full / read error) is transient — a later retry may succeed, so
+            // the caller keeps the requested quality. A format-rejection (IllegalState/Argument from
+            // addTrack/writeSampleData) is deterministic for these inputs.
+            if (t is java.io.IOException) Result.TRANSIENT else Result.INCOMPATIBLE
         } finally {
             runCatching { muxer?.release() }
             videoExtractor.release()
