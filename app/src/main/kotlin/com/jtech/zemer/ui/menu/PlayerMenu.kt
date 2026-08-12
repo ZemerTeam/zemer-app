@@ -68,6 +68,7 @@ import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.utils.navigateToArtist
+import com.jtech.zemer.utils.VideoLinkBuilder
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.metrolist.innertube.YouTube
@@ -148,7 +149,8 @@ fun PlayerMenu(
             artists = artists.map { ArtistChoice(it.id!!, it.name) },
             onDismiss = { showSelectArtistDialog = false },
             onArtistClick = { artistId ->
-                navController.navigateToArtist(artistId)
+                // An episode's author is a podcast HOST channel — route to the podcast channel page.
+                navController.navigateToArtist(artistId, isPodcastChannel = mediaMetadata.isEpisode)
                 showSelectArtistDialog = false
                 playerBottomSheetState.collapseSoft()
                 onDismiss()
@@ -241,7 +243,9 @@ fun PlayerMenu(
                             playerConnection.startRadioSeamlessly()
                             onDismiss()
                         }
-                    ).takeUnless { isStationBroadcast },
+                        // Also hidden for an episode: an episode must never seed music radio around
+                        // its videoId (the ListQueue.episode rule).
+                    ).takeUnless { isStationBroadcast || mediaMetadata.isEpisode },
                     NewAction(
                         icon = {
                             Icon(
@@ -267,7 +271,9 @@ fun PlayerMenu(
                         onClick = {
                             context.copyToClipboard(
                                 context.getString(R.string.clip_label_song_link),
-                                "https://music.zemer.io/watch?v=${mediaMetadata.id}",
+                                // Episode links carry the owning show so the receiver routes to the
+                                // podcast screen, not the (artist-whitelisted) music play path.
+                                VideoLinkBuilder.shareLink(mediaMetadata.id, mediaMetadata.isEpisode, mediaMetadata.album?.id),
                                 R.string.link_copied,
                             )
                             onDismiss()
@@ -282,7 +288,9 @@ fun PlayerMenu(
             Material3MenuGroup(
                 modifier = Modifier.padding(horizontal = 4.dp),
                 items = buildList {
-                    add(
+                    // Not for episodes: an episode's "artist" is a podcast HOST channel, and the
+                    // report would land in the music artist-report pipeline mislabeled.
+                    if (!mediaMetadata.isEpisode) add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.warning), null, Modifier.size(24.dp)) },
                             title = { Text(stringResource(R.string.report_artist)) },
@@ -299,7 +307,7 @@ fun PlayerMenu(
                                 val valid = mediaMetadata.artists.filter { !it.id.isNullOrBlank() }
                                 when {
                                     valid.size == 1 -> {
-                                        navController.navigateToArtist(valid[0].id)
+                                        navController.navigateToArtist(valid[0].id, isPodcastChannel = mediaMetadata.isEpisode)
                                         playerBottomSheetState.collapseSoft()
                                         onDismiss()
                                     }

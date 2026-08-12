@@ -140,7 +140,8 @@ import com.jtech.zemer.ui.screens.settings.DarkMode
 import com.jtech.zemer.ui.theme.PlayerSliderColors
 import com.jtech.zemer.ui.utils.ShowMediaInfo
 import com.jtech.zemer.ui.utils.navigateToArtist
-import com.jtech.zemer.ui.utils.navigateToAlbum
+import com.jtech.zemer.ui.menu.viewCollectionRoute
+import com.jtech.zemer.utils.VideoLinkBuilder
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
@@ -629,8 +630,11 @@ fun BottomSheetPlayer(
                                         indication = null,
                                         interactionSource = remember { MutableInteractionSource() },
                                         onClick = {
-                                            if (mediaMetadata.album != null) {
-                                                navController.navigateToAlbum(mediaMetadata.album.id)
+                                            // An episode's `album` is its owning podcast SHOW (an MPSP id),
+                                            // which the music album route can't open — route through the
+                                            // shared episode-aware decision (same as the menus' view row).
+                                            viewCollectionRoute(mediaMetadata.isEpisode, mediaMetadata.album?.id)?.let {
+                                                navController.navigate(it)
                                                 state.collapseSoft()
                                             }
                                         },
@@ -708,7 +712,10 @@ fun BottomSheetPlayer(
                                                     ?.let { ann ->
                                                         val artistId = ann.item
                                                         if (artistId.isNotBlank()) {
-                                                            navController.navigateToArtist(artistId)
+                                                            // An episode's author is a podcast HOST channel:
+                                                            // the flag routes it to the podcast channel page
+                                                            // (/podcast-channel), not the music artist page.
+                                                            navController.navigateToArtist(artistId, isPodcastChannel = mediaMetadata.isEpisode)
                                                             state.collapseSoft()
                                                         }
                                                     }
@@ -761,7 +768,9 @@ fun BottomSheetPlayer(
                                 .onFocusChanged { shareFocused.value = it.isFocused }
                                 .clickable {
                                     Tracker.action(TrackingActionKind.SHARE, mediaMetadata.id)
-                                    context.shareText("https://music.zemer.io/watch?v=${mediaMetadata.id}")
+                                    context.shareText(
+                                        VideoLinkBuilder.shareLink(mediaMetadata.id, mediaMetadata.isEpisode, mediaMetadata.album?.id),
+                                    )
                                 }
                         ) {
                             Image(
@@ -822,7 +831,9 @@ fun BottomSheetPlayer(
                             .onFocusChanged { oldShareFocused.value = it.isFocused }
                             .clickable {
                                 Tracker.action(TrackingActionKind.SHARE, mediaMetadata.id)
-                                context.shareText("https://music.zemer.io/watch?v=${mediaMetadata.id}")
+                                context.shareText(
+                                        VideoLinkBuilder.shareLink(mediaMetadata.id, mediaMetadata.isEpisode, mediaMetadata.album?.id),
+                                    )
                             },
                     ) {
                         Image(
@@ -857,7 +868,7 @@ fun BottomSheetPlayer(
                                         onShowDetailsDialog = {
                                             mediaMetadata.id.let {
                                                 bottomSheetPageState.show {
-                                                    ShowMediaInfo(it)
+                                                    ShowMediaInfo(it, isEpisodeHint = mediaMetadata.isEpisode)
                                                 }
                                             }
                                         },
@@ -994,6 +1005,15 @@ fun BottomSheetPlayer(
                 EpisodePlaybackControls(
                     playerConnection = playerConnection,
                     contentColor = TextBackgroundColor,
+                    onSeekTo = { target ->
+                        // Optimistic: move the progress bar to the target NOW. The position poll
+                        // only runs in STATE_READY, so a skip into an unbuffered region would
+                        // otherwise freeze the bar at the old position until the seek loads.
+                        // PlayerConnection.seekTo, not player.seekTo: while casting the seek must go
+                        // to the receiver (the local player is paused/frozen), same as the slider.
+                        playerConnection.seekTo(target)
+                        position = target
+                    },
                 )
                 Spacer(Modifier.height(12.dp))
             }
@@ -1375,6 +1395,7 @@ fun BottomSheetPlayer(
 private fun EpisodePlaybackControls(
     playerConnection: PlayerConnection,
     contentColor: Color,
+    onSeekTo: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // Live speed, not a one-shot snapshot: the Tempo & Pitch dialog writes playbackParameters too,
@@ -1406,8 +1427,9 @@ private fun EpisodePlaybackControls(
         }
         IconButton(
             onClick = {
-                val p = playerConnection.player
-                p.seekTo((p.currentPosition - 30_000).coerceAtLeast(0))
+                // Cast-aware clocks (currentPositionMs/DurationMs): the LOCAL player's clock is
+                // frozen while casting, so reading it would compute the skip from a stale position.
+                onSeekTo(episodeSkipTarget(playerConnection.currentPositionMs(), playerConnection.currentDurationMs(), forward = false))
             },
             modifier = Modifier.focusBorder(RoundedCornerShape(50)),
         ) {
@@ -1415,9 +1437,7 @@ private fun EpisodePlaybackControls(
         }
         IconButton(
             onClick = {
-                val p = playerConnection.player
-                val target = p.currentPosition + 30_000
-                p.seekTo(if (p.duration > 0) target.coerceAtMost(p.duration) else target)
+                onSeekTo(episodeSkipTarget(playerConnection.currentPositionMs(), playerConnection.currentDurationMs(), forward = true))
             },
             modifier = Modifier.focusBorder(RoundedCornerShape(50)),
         ) {

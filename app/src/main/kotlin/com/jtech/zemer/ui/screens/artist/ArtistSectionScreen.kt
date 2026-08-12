@@ -34,6 +34,17 @@ import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.YtItemGrid
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.rememberCoroutineScope
+import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.ui.menu.ytItemMenu
+import com.metrolist.innertube.models.EpisodeItem
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import com.jtech.zemer.search.ZemerResultMapper
+import com.jtech.zemer.ui.screens.shouldPrefetchNearEnd
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.viewmodels.ArtistViewModel
 import com.metrolist.innertube.models.SongItem
@@ -60,8 +71,34 @@ fun ArtistSectionScreen(
         sectionTitle.contains("short", ignoreCase = true)
     val isSongList = items.firstOrNull() is SongItem && !isVideoSection
 
+    // A podcast channel's Episodes section is PAGED (`/podcast-channel?offset=`, channel-wide list):
+    // near-edge prefetch off the list state appends the next page through the ViewModel (single-flight,
+    // cursor-driven — a pre-paging server / the offline snapshot just never sets a cursor). Off-composition
+    // snapshotFlow, the GenreScreen tracklist pattern. Episodes render as a vertical LIST (the shared
+    // YouTubeListItem row, like the search episode rows) — dated long-form rows read as a feed, not a grid.
+    val pagedEpisodes = viewModel.isPodcastChannel && sectionTitle == ZemerResultMapper.TITLE_EPISODES
+    val episodeListState = rememberLazyListState()
+    if (pagedEpisodes) {
+        // Keyed on the CURSOR too (the GenreScreen trigger pattern): a landed page re-arms the
+        // effect, so a short/overlapping page that leaves the user still past the threshold (nearEnd
+        // continuously true — distinctUntilChanged would suppress it) chains the next fetch instead
+        // of stalling until the user scrolls away and back.
+        LaunchedEffect(episodeListState, viewModel.episodesNextOffset) {
+            snapshotFlow {
+                shouldPrefetchNearEnd(
+                    episodeListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index,
+                    episodeListState.layoutInfo.totalItemsCount,
+                )
+            }
+                .distinctUntilChanged()
+                .collect { nearEnd -> if (nearEnd) viewModel.loadMoreEpisodes() }
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         when {
+            pagedEpisodes && items.isNotEmpty() ->
+                ChannelEpisodeList(items.filterIsInstance<EpisodeItem>(), navController, episodeListState)
             isSongList ->
                 ArtistSongList(items.filterIsInstance<SongItem>(), navController, viewModel.artistId)
             items.isNotEmpty() ->
@@ -90,6 +127,57 @@ fun ArtistSectionScreen(
         navController = navController,
         scrollBehavior = scrollBehavior,
     )
+}
+
+/**
+ * The paged channel-wide episode list: the shared [YouTubeListItem] row (same as the search episode
+ * rows), tap plays the single episode via [ListQueue.episode] under the show's podcast play-source,
+ * long-press / 3-dot opens the shared [ytItemMenu]. [listState] is owned by the caller so the
+ * near-edge paging trigger watches the same state.
+ */
+@Composable
+private fun ChannelEpisodeList(
+    episodes: List<EpisodeItem>,
+    navController: NavController,
+    listState: LazyListState,
+) {
+    val menuState = LocalMenuState.current
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
+    val isPlaying by playerConnection.isPlaying.collectAsState()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+
+    LazyColumn(state = listState, contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()) {
+        items(items = episodes, key = { it.id }) { episode ->
+            YouTubeListItem(
+                item = episode,
+                isActive = mediaMetadata?.id == episode.id,
+                isPlaying = isPlaying,
+                trailingContent = {
+                    MoreVertMenuButton(onClick = {
+                        menuState.show(ytItemMenu(episode, navController, coroutineScope, menuState::dismiss))
+                    })
+                },
+                modifier = Modifier.combinedClickable(
+                    onClick = {
+                        if (activeRowTapTogglesPlayPause(episode.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
+                            playerConnection.playPause()
+                        } else {
+                            // The one way an episode tap plays (never song radio around its videoId).
+                            playerConnection.playQueue(
+                                ListQueue.episode(episode, PlaySource.podcast(episode.podcast?.id)),
+                            )
+                        }
+                    },
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        menuState.show(ytItemMenu(episode, navController, coroutineScope, menuState::dismiss))
+                    },
+                ),
+            )
+        }
+    }
 }
 
 /** The full top-songs list: tap plays the song under the artist play-source, matching the artist page. */

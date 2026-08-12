@@ -267,14 +267,20 @@ class ZemerSearchClient @Inject constructor() {
         return zemerResponseJson.decodeFromString(ZemerPodcastResponse.serializer(), response.bodyAsText())
     }
 
-    /** `GET /podcast-channel?id=` — a host CHANNEL (its shows + latest episodes). Null on 404. */
+    /**
+     * `GET /podcast-channel?id=&offset=` — a host CHANNEL (its shows + latest episodes). Null on 404.
+     * [offset] pages the channel-wide episode list; 0 is omitted so page-0 requests stay byte-identical
+     * to the pre-paging contract.
+     */
     suspend fun podcastChannel(
         id: String,
         allowFemale: Boolean,
         blockVideos: Boolean,
+        offset: Int = 0,
     ): ZemerPodcastChannelResponse? {
         val response: HttpResponse = client.get("$BASE_URL/podcast-channel") {
             parameter("id", id)
+            if (offset > 0) parameter("offset", offset.toString())
             applyParams(zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true))
             timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }

@@ -330,6 +330,27 @@ class SyncUtils @Inject constructor(
     }
 
     /**
+     * THE heart WRITE chokepoint — the write-side twin of [SongEntity.isSavedForPlayer] (the read
+     * side): an episode toggles save-for-later ([toggleSaveEpisode]: inLibrary + VLSE account sync),
+     * a song toggles the music like (local `liked` flip + [likeSong]). Every heart affordance calls
+     * this instead of hand-branching, so a new surface can never music-like an episode (writing a
+     * `liked` the episode heart never reads). The insert-then-update handles a not-yet-persisted row
+     * (insert is IGNORE — fills a missing row, never clobbers an existing one).
+     */
+    fun toggleSavedForPlayer(song: SongEntity) {
+        if (song.isEpisode) {
+            toggleSaveEpisode(song)
+        } else {
+            val toggled = song.toggleLike()
+            database.query {
+                insert(toggled)
+                update(toggled)
+            }
+            likeSong(toggled)
+        }
+    }
+
+    /**
      * Save/unsave a podcast episode - the episode analogue of [likeSong]. Flips `inLibrary` locally at
      * once (optimistic, drives the heart/notification; anonymous sessions stay local-only), then, for a
      * personal login, syncs the account and reverts the local flip + toasts on failure (including a
