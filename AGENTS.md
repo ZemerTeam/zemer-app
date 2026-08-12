@@ -1099,15 +1099,18 @@ WEB_REMIX serves avc1 144p…1080p and vp9-only 1440p/2160p. The rules that must
   (`VideoMuxer` — framework MediaExtractor/MediaMuxer, zero new dependencies: avc1+AAC → MP4,
   vp9+Opus → WebM on API 29+ only — `selectRung(opusWebmMuxSupported)`; av01 is stream-only). The
   download target is decoder-capability-gated too (a rung the device can't decode must never become a
-  committed LOCAL file that errors on every play), the WebM audio partner is pinned to the HIGH
-  streaming pick (deterministically Opus), and each stream is verified against its declared
-  contentLength before muxing (a truncated track fails the attempt with the quality preserved). The
-  requested quality label (`requestedVideoQuality`) follows the `requestedVideoBitrate` lifecycle
-  rules (survives failed attempts, cleared on success/cancel/delete) — EXCEPT a mux/mux-compat
-  failure, which is deterministic for those inputs: it clears the request so the retry falls back to
-  the automatic progressive pick (logged; a bounded downgrade beats an endless fail-loop). The
-  player-menu download passes the session's pick (`downloadVideoQuality`) so the file saved is what
-  the user was watching.
+  committed LOCAL file that errors on every play), the audio partner is resolved from the SAME video
+  response and client (`PlaybackData.downloadAudioUrl` — container-matched: mp4/avc video → AAC,
+  webm/vp9 video → Opus; NO second `/player` round-trip and no client-disagreement mux failure, with
+  a defensive second resolution only when the response carried no usable audio), and each stream is
+  verified against its declared contentLength before muxing (a truncated track fails the attempt with
+  the quality preserved). The requested quality label (`requestedVideoQuality`) follows the
+  `requestedVideoBitrate` lifecycle rules (survives failed attempts, cleared on
+  success/cancel/delete) — EXCEPT a DETERMINISTIC mux-incompatibility (`VideoMuxer.Result.INCOMPATIBLE`)
+  which clears it so the retry falls back to the automatic progressive pick; a TRANSIENT mux failure
+  (disk I/O) preserves the quality for the retry. The player-menu download passes the user's EXPLICIT
+  pick (`downloadVideoQuality` reads `userQualityPicks`, never a machine downgrade) so the saved file
+  is the quality the user chose.
 
 **UI-only rules (`PlayerVideoUiLogic`, pure, JVM-tested — the inline surface and the fullscreen
 overlay must never disagree about which one is live).** Opening the lyrics sheet reverts video mode
