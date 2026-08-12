@@ -254,7 +254,13 @@ fun BottomSheetPlayer(
         val id = mediaMetadata?.id
         if (state.isExpanded && id != null) {
             playerConnection.requestVideoAvailability(id)
-            if (videoModeAvailable && !isVideoMode) playerConnection.prefetchVideoRendition(id)
+            // Debounce the prefetch: only warm the rendition once the item has DWELLED ~1.2s, so
+            // skipping through video-capable tracks doesn't fire a full /player resolution + cipher
+            // work per track (the effect re-keys on id, cancelling this before the delay elapses).
+            if (videoModeAvailable && !isVideoMode) {
+                delay(1200)
+                playerConnection.prefetchVideoRendition(id)
+            }
         }
     }
 

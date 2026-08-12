@@ -15,7 +15,6 @@ object VideoDecoderCaps {
 
     fun supports(rung: VideoQualityRung): Boolean {
         val decoderMime = VideoQualityLogic.decoderMimeType(rung.mimeType) ?: return false
-        if (rung.width <= 0 || rung.height <= 0) return true
         return cache.getOrPut("$decoderMime:${rung.width}x${rung.height}") {
             runCatching { querySupport(decoderMime, rung.width, rung.height) }.getOrDefault(false)
         }
@@ -26,8 +25,11 @@ object VideoDecoderCaps {
             !info.isEncoder &&
                 info.supportedTypes.any { it.equals(decoderMime, ignoreCase = true) } &&
                 runCatching {
-                    info.getCapabilitiesForType(decoderMime).videoCapabilities
-                        ?.isSizeSupported(width, height) == true
+                    val caps = info.getCapabilitiesForType(decoderMime).videoCapabilities ?: return@runCatching false
+                    // With unknown dimensions we can't check a specific size, but we CAN confirm a
+                    // decoder for the codec exists at all — better than the old fail-open `return true`
+                    // that offered undecodable codecs (e.g. vp9 on a device with no vp9 decoder).
+                    if (width <= 0 || height <= 0) true else caps.isSizeSupported(width, height)
                 }.getOrDefault(false)
         }
 }

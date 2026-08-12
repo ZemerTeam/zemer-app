@@ -316,6 +316,16 @@ object YTPlayerUtils {
                 // cipher in findUrlOrNull (sig) + transformNParamInUrl (n) below.
                 val responseToUse = streamPlayerResponse
 
+                // An EXPLICIT quality-rung streaming resolution (videoItag) must come from a WEB client
+                // only: a non-web fallback (IOS/ANDROID_VR) can carry the itag, but its pot-bound URL
+                // 403s past the 1 MiB wall — so the switched-to quality would play ~1 MiB then revert.
+                // Skip non-web clients here so the loop finds a web client or fails safe (revert to
+                // audio, re-resolve fresh on re-entry). Mirrors the ladder-seed's web-only rule.
+                if (videoItag != null && !clientNeedsNTransform(client)) {
+                    Timber.tag(TAG).d("Skipping non-web ${client.clientName} for explicit videoItag=$videoItag")
+                    continue
+                }
+
                 format =
                     findFormat(
                         responseToUse,

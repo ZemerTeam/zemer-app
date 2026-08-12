@@ -184,29 +184,17 @@ class VideoQualityLogicTest {
     }
 
     @Test
-    fun `rebuffer guard fires only on repeated stalls within the window`() {
+    fun `rebuffer guard requires two stalls in the window - a single blip never downgrades`() {
         val w = VideoQualityLogic.REBUFFER_WINDOW_MS
-        // One stall: never.
+        // A SINGLE transient stall never downgrades — the user's chosen quality must survive a blip.
         assertEquals(false, VideoQualityLogic.shouldDowngradeForRebuffer(listOf(1_000L), 1_000L))
-        // Two stalls inside the window: downgrade.
+        assertEquals(false, VideoQualityLogic.shouldDowngradeForRebuffer(listOf(6_000L), 6_000L))
+        // Two stalls inside the window: downgrade (a repeated pattern = the rung can't sustain).
         assertTrue(VideoQualityLogic.shouldDowngradeForRebuffer(listOf(1_000L, 20_000L), 20_000L))
         // Two stalls but the first aged out of the window: no downgrade.
         assertEquals(
             false,
             VideoQualityLogic.shouldDowngradeForRebuffer(listOf(1_000L, w + 10_000L), w + 10_000L),
-        )
-    }
-
-    @Test
-    fun `an early stall right after READY downgrades immediately`() {
-        // One stall 5s after first READY: immediate downgrade (the rung is clearly unsustainable).
-        assertTrue(
-            VideoQualityLogic.shouldDowngradeForRebuffer(listOf(6_000L), nowMs = 6_000L, readyAtMs = 1_000L),
-        )
-        // The same single stall long after READY: not yet (the 2-in-window rule governs).
-        assertEquals(
-            false,
-            VideoQualityLogic.shouldDowngradeForRebuffer(listOf(100_000L), nowMs = 100_000L, readyAtMs = 1_000L),
         )
     }
 

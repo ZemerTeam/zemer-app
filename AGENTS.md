@@ -1078,9 +1078,10 @@ feature map: `docs/video_quality/README.md`. The rules that must not regress:
   starts with a single CDN range request. The web-URL finalization lives in ONE helper
   (`applyWebUrlTransforms`) shared by the main resolution path and the rung table — never fork it.
 - **The rebuffer guard (never keep stalling mid-play; fast AND slow connections).** A STATE_BUFFERING
-  after READY on a STREAMING rendition is a mid-play stall; two stalls within 45s — or a SINGLE stall
-  within 15s of first reaching READY (the rung is clearly beyond the connection) — trigger a
-  downgrade (`VideoQualityLogic.shouldDowngradeForRebuffer`, pure + tested). The drop is exactly ONE
+  after READY on a STREAMING rendition is a mid-play stall; TWO stalls within 45s trigger a downgrade
+  (`VideoQualityLogic.shouldDowngradeForRebuffer`, pure + tested). Two is deliberate — a single
+  transient blip (a routine momentary hiccup) must NOT permanently drop the user's chosen quality;
+  only a repeated pattern means the rung genuinely can't sustain. The drop is exactly ONE
   rung down (`rungBelow`), so playback settles on the HIGHEST rung that actually plays (2160p → 1440p
   → 1080p → 720p, stopping the moment 720p is stable). It deliberately does NOT bandwidth-gate a
   multi-rung jump: a rung's `bitrate` is its PEAK and media3's estimate is depressed right after a

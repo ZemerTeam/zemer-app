@@ -48,10 +48,10 @@ starts fresh at the user's setting).
 
 ### The rebuffer guard (never keep stuttering)
 
-A `STATE_BUFFERING` after `READY` on a streaming rendition is a mid-play stall. Two stalls within 45s
-— or a single stall within 15s of first reaching READY — drop exactly ONE rung (`rungBelow`), so
-playback settles on the highest rung that actually plays (2160p → 1440p → 1080p → 720p, stopping the
-moment 720p is stable). It deliberately does NOT bandwidth-gate a multi-rung jump: a rung's `bitrate`
+A `STATE_BUFFERING` after `READY` on a streaming rendition is a mid-play stall. TWO stalls within 45s
+(a single transient blip never downgrades — it must not drop the user's chosen quality) drop exactly
+ONE rung (`rungBelow`), so playback settles on the highest rung that actually plays (2160p → 1440p →
+1080p → 720p, stopping the moment 720p is stable). It deliberately does NOT bandwidth-gate a multi-rung jump: a rung's `bitrate`
 is its PEAK (above its sustained average) and media3's estimate is depressed right after a stall, so a
 bandwidth jump over-dropped (2160p → 480p when 720p was fine). Seek-caused buffering is exempt via a
 timestamp grace window; a swap's own prepare never counts; LOCAL/audio never count; AUTO never

@@ -797,6 +797,15 @@ constructor(
             throw Exception("No mux-compatible audio for $extension output (got $audioMimeType)")
         }
 
+        // Completeness is verified against each track's declared contentLength, so BOTH must declare
+        // one — otherwise an early-closed connection could feed the muxer a truncated track that it
+        // happily copies into a "successful" (silently corrupt / cut-short) download. Adaptive DASH
+        // formats always carry contentLength; a missing one is anomalous, so fail the attempt rather
+        // than commit an unverifiable mux.
+        if (videoData.format.contentLength == null || audioContentLength == null) {
+            throw Exception("Adaptive download missing contentLength (video=${videoData.format.contentLength}, audio=$audioContentLength) — cannot verify completeness")
+        }
+
         val videoPart = File(context.cacheDir, "temp_${song.id}.video.part")
         val audioPart = File(context.cacheDir, "temp_${song.id}.audio.part")
         try {

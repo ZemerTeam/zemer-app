@@ -55,21 +55,14 @@ object VideoQualityLogic {
     const val REBUFFER_WINDOW_MS = 45_000L
 
     /**
-     * A stall this soon after first reaching READY means the rung's bitrate is clearly beyond the
-     * connection — downgrade IMMEDIATELY on the first stall instead of waiting for a second one.
+     * The rebuffer guard's decision: downgrade only when [REBUFFER_DOWNGRADE_COUNT] mid-play stalls
+     * land within [REBUFFER_WINDOW_MS] ([stallTimesMs]; seek-caused buffering already excluded by the
+     * caller). REQUIRING two stalls is deliberate — a SINGLE transient buffering blip (a momentary
+     * network hiccup, routine on any connection) must NOT permanently drop the user's chosen quality;
+     * only a repeated pattern means the rung genuinely can't sustain.
      */
-    const val EARLY_STALL_WINDOW_MS = 15_000L
-
-    /**
-     * The rebuffer guard's decision: [stallTimesMs] are mid-play stall timestamps (seek-caused
-     * buffering excluded by the caller). Downgrade when [REBUFFER_DOWNGRADE_COUNT] stalls land within
-     * [REBUFFER_WINDOW_MS] — or immediately when a single stall arrives within
-     * [EARLY_STALL_WINDOW_MS] of first reaching READY ([readyAtMs]; null = not yet ready).
-     */
-    fun shouldDowngradeForRebuffer(stallTimesMs: List<Long>, nowMs: Long, readyAtMs: Long? = null): Boolean {
-        if (readyAtMs != null && stallTimesMs.isNotEmpty() && nowMs - readyAtMs <= EARLY_STALL_WINDOW_MS) return true
-        return stallTimesMs.count { nowMs - it <= REBUFFER_WINDOW_MS } >= REBUFFER_DOWNGRADE_COUNT
-    }
+    fun shouldDowngradeForRebuffer(stallTimesMs: List<Long>, nowMs: Long): Boolean =
+        stallTimesMs.count { nowMs - it <= REBUFFER_WINDOW_MS } >= REBUFFER_DOWNGRADE_COUNT
 
     /**
      * The rung a stall-downgrade lands on: exactly ONE step DOWN from [currentLabel] in the high→low

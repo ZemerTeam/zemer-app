@@ -125,7 +125,6 @@ class VideoModeController(
     // legitimately — MusicService.onPositionDiscontinuity flags it before the BUFFERING arrives).
     private val videoStallTimes = mutableListOf<Long>()
     private var videoReachedReady = false
-    private var videoFirstReadyAt: Long? = null
     // Timestamp of the last user seek — a stall within SEEK_GRACE_MS of it is seek-caused, not a
     // network stall. A timestamp self-expires (a seek into an already-buffered region fires no
     // BUFFERING/READY to clear a boolean flag, so a stale flag would swallow the next real stall).
@@ -336,22 +335,18 @@ class VideoModeController(
     fun onPlaybackStateChanged(state: Int) {
         if (!_isVideoMode.value || renditionKind == RenditionKind.LOCAL) {
             videoReachedReady = false
-            videoFirstReadyAt = null
             videoStallTimes.clear()
             return
         }
         when (state) {
-            Player.STATE_READY -> {
-                if (!videoReachedReady) videoFirstReadyAt = android.os.SystemClock.elapsedRealtime()
-                videoReachedReady = true
-            }
+            Player.STATE_READY -> videoReachedReady = true
             Player.STATE_BUFFERING -> {
                 if (!videoReachedReady) return
                 val now = android.os.SystemClock.elapsedRealtime()
                 // A stall within the grace window of a user seek is seek-caused, not a network stall.
                 if (now - lastSeekAtMs <= SEEK_GRACE_MS) return
                 videoStallTimes.add(now)
-                if (VideoQualityLogic.shouldDowngradeForRebuffer(videoStallTimes, now, videoFirstReadyAt)) {
+                if (VideoQualityLogic.shouldDowngradeForRebuffer(videoStallTimes, now)) {
                     videoStallTimes.clear()
                     downgradeForStall()
                 }
@@ -411,7 +406,6 @@ class VideoModeController(
         // A fresh rendition starts a fresh stall history (the swap's own prepare is not a stall).
         videoStallTimes.clear()
         videoReachedReady = false
-        videoFirstReadyAt = null
     }
 
     /** Pure availability for the CURRENT item (null ⇒ no toggle). Recomputed by [videoModeAvailable]. */
@@ -646,7 +640,6 @@ class VideoModeController(
         // Fresh rendition, fresh rebuffer-guard history (the entry prepare is not a stall).
         videoStallTimes.clear()
         videoReachedReady = false
-        videoFirstReadyAt = null
         _isVideoMode.value = true
     }
 
@@ -735,7 +728,6 @@ class VideoModeController(
         currentRenditionItag = null
         videoStallTimes.clear()
         videoReachedReady = false
-        videoFirstReadyAt = null
         lastSeekAtMs = 0L
         _videoQualities.value = emptyList()
         _currentVideoQuality.value = VideoQualityLogic.AUTO
