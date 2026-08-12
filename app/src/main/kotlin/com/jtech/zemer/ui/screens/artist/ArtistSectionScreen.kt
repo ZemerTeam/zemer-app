@@ -34,6 +34,12 @@ import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.YtItemGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import com.jtech.zemer.search.ZemerResultMapper
+import com.jtech.zemer.ui.screens.shouldPrefetchNearEnd
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.viewmodels.ArtistViewModel
 import com.metrolist.innertube.models.SongItem
@@ -60,6 +66,25 @@ fun ArtistSectionScreen(
         sectionTitle.contains("short", ignoreCase = true)
     val isSongList = items.firstOrNull() is SongItem && !isVideoSection
 
+    // A podcast channel's Episodes section is PAGED (`/podcast-channel?offset=`, channel-wide list):
+    // near-edge prefetch off the grid state appends the next page through the ViewModel (single-flight,
+    // cursor-driven — a pre-paging server / the offline snapshot just never sets a cursor). Off-composition
+    // snapshotFlow, the GenreScreen tracklist pattern.
+    val pagedEpisodes = viewModel.isPodcastChannel && sectionTitle == ZemerResultMapper.TITLE_EPISODES
+    val gridState = rememberLazyGridState()
+    if (pagedEpisodes) {
+        LaunchedEffect(gridState) {
+            snapshotFlow {
+                shouldPrefetchNearEnd(
+                    gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index,
+                    gridState.layoutInfo.totalItemsCount,
+                )
+            }
+                .distinctUntilChanged()
+                .collect { nearEnd -> if (nearEnd) viewModel.loadMoreEpisodes() }
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         when {
             isSongList ->
@@ -71,6 +96,7 @@ fun ArtistSectionScreen(
                     zemerAlbums = true,
                     zemerPlaylists = true,
                     communityPlaylists = false,
+                    gridState = gridState,
                 )
             isLoading ->
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

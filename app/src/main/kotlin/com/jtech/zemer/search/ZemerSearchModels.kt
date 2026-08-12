@@ -356,12 +356,18 @@ data class ZemerPodcastChannelHeader(
     val description: String? = null,
 )
 
-/** `GET /podcast-channel?id=UC…` — the host-channel page (replaces InnerTube `YouTube.artist`). */
+/**
+ * `GET /podcast-channel?id=UC…&offset=` — the host-channel page (replaces InnerTube `YouTube.artist`).
+ * `offset` pages the channel-wide, newest-first episode list (30/page); `nextOffset` is null at the end
+ * (and absent on pre-paging servers / the offline snapshot — both read as "no more pages"). `shows` rides
+ * page 0 only.
+ */
 @Serializable
 data class ZemerPodcastChannelResponse(
     val channel: ZemerPodcastChannelHeader? = null,
     val shows: List<ZemerPodcastShow> = emptyList(),
     val episodes: List<ZemerPodcastEpisode> = emptyList(),
+    val nextOffset: Int? = null,
 )
 
 /** `GET /podcasts/new-episodes?k=` — latest episodes across all whitelisted shows, newest-first. */

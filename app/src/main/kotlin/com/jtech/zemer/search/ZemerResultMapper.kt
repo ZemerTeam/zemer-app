@@ -456,6 +456,19 @@ object ZemerResultMapper {
         )
     }
 
+    /**
+     * The [toArtistPage] mapping plus the episodes shelf's paging cursor: `nextOffset` pages the
+     * channel-wide episode list on `/podcast-channel` (null / absent = no more pages — pre-paging
+     * servers and the offline snapshot both read as unpaged).
+     */
+    data class PodcastChannelPage(val artistPage: ArtistPage, val episodesNextOffset: Int?)
+
+    fun ZemerPodcastChannelResponse.toPodcastChannelPage(): PodcastChannelPage? =
+        toArtistPage()?.let { PodcastChannelPage(it, nextOffset) }
+
+    /** An `offset > 0` `/podcast-channel` page as its episode rows (shows ride page 0 only). */
+    fun ZemerPodcastChannelResponse.toChannelEpisodeItems(): List<EpisodeItem> = episodes.toEpisodeItems()
+
     /** New Episodes (`/podcasts/new-episodes`) as the episode rows the library feed renders. */
     fun ZemerNewEpisodesResponse.toEpisodeItems(): List<EpisodeItem> = episodes.toEpisodeItems()
 
@@ -679,5 +692,7 @@ object ZemerResultMapper {
     private const val TITLE_ARTISTS = "Artists"
     private const val TITLE_PLAYLISTS = "Playlists"
     private const val TITLE_PODCASTS = "Podcasts"
-    private const val TITLE_EPISODES = "Episodes"
+
+    /** The channel page's episodes-section title — public so the see-all screen can key its paging on it. */
+    const val TITLE_EPISODES = "Episodes"
 }

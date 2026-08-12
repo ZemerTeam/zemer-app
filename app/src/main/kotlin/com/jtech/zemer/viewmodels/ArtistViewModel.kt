@@ -10,6 +10,7 @@ import com.metrolist.innertube.pages.ArtistPage
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.playback.queues.Queue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
+import com.jtech.zemer.search.ZemerResultMapper
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.tracking.PlaySource
@@ -47,6 +48,13 @@ class ArtistViewModel @Inject constructor(
     val isPodcastChannel = savedStateHandle.get<Boolean>("isPodcastChannel") ?: false
     var artistPage by mutableStateOf<ArtistPage?>(null)
     var isLoading by mutableStateOf(true)
+
+    // Channel-wide episodes paging (`/podcast-channel?offset=`, podcast channels only): the next page
+    // cursor from the last response (null = no more pages / pre-paging server / offline snapshot) and
+    // a single-flight guard so the see-all's near-end trigger can't double-append a page.
+    var episodesNextOffset by mutableStateOf<Int?>(null)
+        private set
+    private var isLoadingMoreEpisodes = false
     val libraryArtist = database.artist(artistId)
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
     // The bare artist row (no whitelist join) - the subscribe/bookmark state, which must work for
@@ -99,8 +107,11 @@ class ArtistViewModel @Inject constructor(
                 if (isPodcastChannel) {
                     // Host channels are now served whitelist-pure by the Zemer server (`/podcast-channel`,
                     // mapped to an ArtistPage), not InnerTube `YouTube.artist`. A 404/null leaves the page
-                    // empty → the channel's not-available state, same as a corpus artist.
+                    // empty → the channel's not-available state, same as a corpus artist. The response also
+                    // carries the episodes paging cursor for the see-all screen.
                     zemerRepository.podcastChannel(artistId, zemerSearchOptions(context))
+                        ?.also { episodesNextOffset = it.episodesNextOffset }
+                        ?.artistPage
                 } else {
                     zemerRepository.artist(artistId, zemerSearchOptions(context))
                 }
@@ -114,6 +125,35 @@ class ArtistViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Appends the next page of the channel-wide episode list to the Episodes section (podcast
+     * channels only; the see-all screen's near-end trigger). Single-flight; a fetch failure leaves
+     * [episodesNextOffset] unchanged so the next trigger simply retries. The cursor advances only
+     * on success, and a null/pre-paging response ends the paging.
+     */
+    fun loadMoreEpisodes() {
+        val offset = episodesNextOffset ?: return
+        if (!isPodcastChannel || isLoadingMoreEpisodes) return
+        isLoadingMoreEpisodes = true
+        viewModelScope.launch {
+            runCatching {
+                zemerRepository.podcastChannelEpisodes(artistId, offset, zemerSearchOptions(context))
+            }.onSuccess { result ->
+                if (result == null) {
+                    episodesNextOffset = null
+                } else {
+                    val (episodes, next) = result
+                    artistPage = artistPage?.let { appendChannelEpisodes(it, episodes) }
+                    episodesNextOffset = next
+                }
+            }.onFailure {
+                if (it is java.util.concurrent.CancellationException) throw it
+                // Unreachable server mid-scroll: keep the cursor so a later near-end trigger retries.
+            }
+            isLoadingMoreEpisodes = false
+        }
+    }
+
     /** A corpus-native artist-seeded radio queue for the Radio button (Zemer `/radio`, no InnerTube). */
     fun radioQueue(): Queue =
         ZemerRadioQueue(
@@ -122,4 +162,28 @@ class ArtistViewModel @Inject constructor(
             context = context,
             playSource = PlaySource.artist(artistId),
         )
+}
+
+/**
+ * The [page] with [more] appended to its Episodes section, de-duplicated by id (a serve-time
+ * female/blocked drop can shift the server's DB-offset pages, so overlap is possible). Every other
+ * section is untouched; a page without an Episodes section gains one only if [more] is non-empty.
+ * Pure + top-level so the append/dedup rule is plain-JVM tested (ArtistChannelEpisodesTest).
+ */
+internal fun appendChannelEpisodes(
+    page: ArtistPage,
+    more: List<com.metrolist.innertube.models.EpisodeItem>,
+): ArtistPage {
+    if (more.isEmpty()) return page
+    val sections = page.sections.toMutableList()
+    val idx = sections.indexOfFirst { it.title == ZemerResultMapper.TITLE_EPISODES }
+    if (idx < 0) {
+        sections.add(com.metrolist.innertube.pages.ArtistSection(ZemerResultMapper.TITLE_EPISODES, more, null))
+    } else {
+        val existing = sections[idx]
+        val seen = existing.items.mapTo(HashSet()) { it.id }
+        val appended = existing.items + more.filter { seen.add(it.id) }
+        sections[idx] = com.metrolist.innertube.pages.ArtistSection(existing.title, appended, existing.moreEndpoint)
+    }
+    return page.copy(sections = sections)
 }

@@ -9,6 +9,8 @@ import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
 import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
 import com.jtech.zemer.search.ZemerResultMapper.toEpisodeItems
 import com.jtech.zemer.search.ZemerResultMapper.toGenrePage
+import com.jtech.zemer.search.ZemerResultMapper.toChannelEpisodeItems
+import com.jtech.zemer.search.ZemerResultMapper.toPodcastChannelPage
 import com.jtech.zemer.search.ZemerResultMapper.toPodcastGenrePage
 import com.jtech.zemer.search.ZemerResultMapper.toPodcastPage
 import com.jtech.zemer.search.ZemerResultMapper.toSongItems
@@ -217,12 +219,30 @@ class ZemerSearchRepository @Inject constructor(
             offline = { offlineReads.podcast(id, offset, options.allowFemale, options.blockVideos) },
         )?.toPodcastPage()
 
-    /** A host CHANNEL as an [ArtistPage] (its shows + latest episodes). Null on 404. */
-    suspend fun podcastChannel(id: String, options: ZemerSearchOptions): ArtistPage? =
+    /**
+     * A host CHANNEL as an [ArtistPage] plus the episodes paging cursor (its shows + latest episodes).
+     * Null on 404. The offline snapshot is unpaged — its response carries no `nextOffset`, so the
+     * cursor is simply null there.
+     */
+    suspend fun podcastChannel(id: String, options: ZemerSearchOptions): ZemerResultMapper.PodcastChannelPage? =
         serverOrOffline(
             server = { client.podcastChannel(id, options.allowFemale, options.blockVideos) },
             offline = { offlineReads.podcastChannel(id, options.allowFemale, options.blockVideos) },
-        )?.toArtistPage()
+        )?.toPodcastChannelPage()
+
+    /**
+     * One deeper page of the channel-wide episode list (`/podcast-channel?offset=`), as the episode
+     * rows plus the next cursor. LIVE-ONLY: the offline snapshot has no paging, so an outage simply
+     * stops the see-all at what's loaded (the caller leaves its cursor unchanged and retries on the
+     * next near-end trigger).
+     */
+    suspend fun podcastChannelEpisodes(
+        id: String,
+        offset: Int,
+        options: ZemerSearchOptions,
+    ): Pair<List<EpisodeItem>, Int?>? =
+        client.podcastChannel(id, options.allowFemale, options.blockVideos, offset)
+            ?.let { it.toChannelEpisodeItems() to it.nextOffset }
 
     /**
      * The telemetry-ranked Podcasts-tab rows (Top Podcasts + Trending Episodes). Live-only (discovery,
