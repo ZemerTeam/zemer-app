@@ -79,7 +79,11 @@ fun ArtistSectionScreen(
     val pagedEpisodes = viewModel.isPodcastChannel && sectionTitle == ZemerResultMapper.TITLE_EPISODES
     val episodeListState = rememberLazyListState()
     if (pagedEpisodes) {
-        LaunchedEffect(episodeListState) {
+        // Keyed on the CURSOR too (the GenreScreen trigger pattern): a landed page re-arms the
+        // effect, so a short/overlapping page that leaves the user still past the threshold (nearEnd
+        // continuously true — distinctUntilChanged would suppress it) chains the next fetch instead
+        // of stalling until the user scrolls away and back.
+        LaunchedEffect(episodeListState, viewModel.episodesNextOffset) {
             snapshotFlow {
                 shouldPrefetchNearEnd(
                     episodeListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index,

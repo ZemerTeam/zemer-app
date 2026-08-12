@@ -769,8 +769,7 @@ fun BottomSheetPlayer(
                                 .clickable {
                                     Tracker.action(TrackingActionKind.SHARE, mediaMetadata.id)
                                     context.shareText(
-                                        if (mediaMetadata.isEpisode) VideoLinkBuilder.episodeLink(mediaMetadata.id, mediaMetadata.album?.id)
-                                        else VideoLinkBuilder.watchLink(mediaMetadata.id),
+                                        VideoLinkBuilder.shareLink(mediaMetadata.id, mediaMetadata.isEpisode, mediaMetadata.album?.id),
                                     )
                                 }
                         ) {
@@ -833,8 +832,7 @@ fun BottomSheetPlayer(
                             .clickable {
                                 Tracker.action(TrackingActionKind.SHARE, mediaMetadata.id)
                                 context.shareText(
-                                        if (mediaMetadata.isEpisode) VideoLinkBuilder.episodeLink(mediaMetadata.id, mediaMetadata.album?.id)
-                                        else VideoLinkBuilder.watchLink(mediaMetadata.id),
+                                        VideoLinkBuilder.shareLink(mediaMetadata.id, mediaMetadata.isEpisode, mediaMetadata.album?.id),
                                     )
                             },
                     ) {
@@ -1011,7 +1009,9 @@ fun BottomSheetPlayer(
                         // Optimistic: move the progress bar to the target NOW. The position poll
                         // only runs in STATE_READY, so a skip into an unbuffered region would
                         // otherwise freeze the bar at the old position until the seek loads.
-                        playerConnection.player.seekTo(target)
+                        // PlayerConnection.seekTo, not player.seekTo: while casting the seek must go
+                        // to the receiver (the local player is paused/frozen), same as the slider.
+                        playerConnection.seekTo(target)
                         position = target
                     },
                 )
@@ -1427,8 +1427,9 @@ private fun EpisodePlaybackControls(
         }
         IconButton(
             onClick = {
-                val p = playerConnection.player
-                onSeekTo(episodeSkipTarget(p.currentPosition, p.duration, forward = false))
+                // Cast-aware clocks (currentPositionMs/DurationMs): the LOCAL player's clock is
+                // frozen while casting, so reading it would compute the skip from a stale position.
+                onSeekTo(episodeSkipTarget(playerConnection.currentPositionMs(), playerConnection.currentDurationMs(), forward = false))
             },
             modifier = Modifier.focusBorder(RoundedCornerShape(50)),
         ) {
@@ -1436,8 +1437,7 @@ private fun EpisodePlaybackControls(
         }
         IconButton(
             onClick = {
-                val p = playerConnection.player
-                onSeekTo(episodeSkipTarget(p.currentPosition, p.duration, forward = true))
+                onSeekTo(episodeSkipTarget(playerConnection.currentPositionMs(), playerConnection.currentDurationMs(), forward = true))
             },
             modifier = Modifier.focusBorder(RoundedCornerShape(50)),
         ) {

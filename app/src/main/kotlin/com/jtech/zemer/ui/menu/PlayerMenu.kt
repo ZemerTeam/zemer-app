@@ -273,8 +273,7 @@ fun PlayerMenu(
                                 context.getString(R.string.clip_label_song_link),
                                 // Episode links carry the owning show so the receiver routes to the
                                 // podcast screen, not the (artist-whitelisted) music play path.
-                                if (mediaMetadata.isEpisode) VideoLinkBuilder.episodeLink(mediaMetadata.id, mediaMetadata.album?.id)
-                                else VideoLinkBuilder.watchLink(mediaMetadata.id),
+                                VideoLinkBuilder.shareLink(mediaMetadata.id, mediaMetadata.isEpisode, mediaMetadata.album?.id),
                                 R.string.link_copied,
                             )
                             onDismiss()

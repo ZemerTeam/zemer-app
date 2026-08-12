@@ -25,6 +25,7 @@ import android.content.Context
 import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.extensions.filterExplicit
 import com.jtech.zemer.extensions.filterExplicitAlbums
+import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.collect
@@ -136,9 +137,15 @@ class ArtistViewModel @Inject constructor(
         if (!isPodcastChannel || isLoadingMoreEpisodes) return
         isLoadingMoreEpisodes = true
         viewModelScope.launch {
+            val options = zemerSearchOptions(context)
             runCatching {
-                zemerRepository.podcastChannelEpisodes(artistId, offset, zemerSearchOptions(context))
+                zemerRepository.podcastChannelEpisodes(artistId, offset, options)
             }.onSuccess { result ->
+                // Only append onto the exact cursor this fetch started from: a full reload
+                // (fetchArtistsFromYTM re-runs on a content-flag change and resets the page + cursor)
+                // supersedes an in-flight page — applying it anyway would skip the reload's pages and
+                // splice in rows fetched under stale flags (the ZemerGenreViewModel.loadMore guard).
+                if (episodesNextOffset != offset || !zemerOptionsStillCurrent(options, ContentFilterState.current)) return@onSuccess
                 if (result == null) {
                     episodesNextOffset = null
                 } else {

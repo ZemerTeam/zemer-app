@@ -263,17 +263,9 @@ fun SongMenu(
         trailingContent = {
             IconButton(
                 onClick = {
-                    // Episodes toggle "save for later" (inLibrary), never a music like — mirror
-                    // MusicService.toggleLike (toggleSaveEpisode owns the optimistic flip + sync).
-                    if (song.song.isEpisode) {
-                        syncUtils.toggleSaveEpisode(song.song)
-                    } else {
-                        val s = song.song.toggleLike()
-                        database.query {
-                            update(s)
-                        }
-                        syncUtils.likeSong(s)
-                    }
+                    // THE shared heart write (episode = save-for-later, song = music like) —
+                    // never hand-branch this per surface.
+                    syncUtils.toggleSavedForPlayer(song.song)
                 },
             ) {
                 Icon(
@@ -343,8 +335,7 @@ fun SongMenu(
                             // Episode links carry the owning show so the receiver routes to the
                             // podcast screen, not the (artist-whitelisted) music play path.
                             context.shareText(
-                                if (song.song.isEpisode) VideoLinkBuilder.episodeLink(song.id, song.song.albumId)
-                                else VideoLinkBuilder.watchLink(song.id),
+                                VideoLinkBuilder.shareLink(song.id, song.song.isEpisode, song.song.albumId),
                             )
                         }
                     )

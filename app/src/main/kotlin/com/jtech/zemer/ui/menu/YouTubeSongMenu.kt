@@ -198,27 +198,14 @@ fun YouTubeSongMenu(
         trailingContent = {
             IconButton(
                 onClick = {
-                    // Episodes toggle "save for later" (inLibrary), never a music like — mirror
-                    // MusicService.toggleLike (toggleSaveEpisode upserts a missing row stamped
-                    // isEpisode and owns the optimistic flip + account sync).
-                    if (song.isEpisode) {
-                        val entity = librarySong?.song ?: song.toMediaMetadata().toSongEntity()
-                        syncUtils.toggleSaveEpisode(entity)
-                    } else {
-                        database.transaction {
-                            librarySong.let { librarySong ->
-                                val s: SongEntity
-                                if (librarySong == null) {
-                                    insert(song.toMediaMetadata(), SongEntity::toggleLike)
-                                    s = song.toMediaMetadata().toSongEntity().let(SongEntity::toggleLike)
-                                } else {
-                                    s = librarySong.song.toggleLike()
-                                    update(s)
-                                }
-                                syncUtils.likeSong(s)
-                            }
-                        }
+                    // A not-yet-persisted row is created WITH its artist relations first (the bare
+                    // entity insert inside the shared write would leave a relation-less row).
+                    if (librarySong == null) {
+                        database.query { insert(song.toMediaMetadata()) }
                     }
+                    // THE shared heart write (episode = save-for-later, song = music like) —
+                    // never hand-branch this per surface.
+                    syncUtils.toggleSavedForPlayer(librarySong?.song ?: song.toMediaMetadata().toSongEntity())
                 },
             ) {
                 Icon(
@@ -290,11 +277,10 @@ fun YouTubeSongMenu(
                         onClick = {
                             Tracker.action(TrackingActionKind.SHARE, song.id)
                             val shareUrl = when {
-                                // Episode links carry the owning show so the receiver routes to the
-                                // podcast screen, not the (artist-whitelisted) music play path.
-                                song.isEpisode -> VideoLinkBuilder.episodeLink(song.id, song.album?.id)
+                                // The shared decision (episode carries its show; song = watch link).
+                                song.isEpisode -> VideoLinkBuilder.shareLink(song.id, true, song.album?.id)
                                 isVideo -> VideoLinkBuilder.videoLink(song.id)
-                                else -> song.shareLink
+                                else -> VideoLinkBuilder.shareLink(song.id, false, null)
                             }
                             context.shareText(shareUrl)
                             onDismiss()

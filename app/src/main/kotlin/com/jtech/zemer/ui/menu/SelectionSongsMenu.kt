@@ -140,7 +140,7 @@ fun SelectionSongMenu(
     ) {
         item {
             NewActionGrid(
-                actions = listOf(
+                actions = listOfNotNull(
                     NewAction(
                         icon = {
                             Icon(
@@ -208,12 +208,13 @@ fun SelectionSongMenu(
                         },
                         text = stringResource(R.string.report_artist),
                         onClick = {
-                            // Use first song in selection for the report dialog
-                            if (songSelection.isNotEmpty()) {
-                                run { targetSong = songSelection.firstOrNull(); showReportDialog = true }
-                            }
+                            // First non-episode song: an episode's "artist" is a podcast HOST channel
+                            // and must never enter the music artist-report pipeline (the same gate as
+                            // the single-item menus).
+                            likeableSongs.firstOrNull()?.let { targetSong = it; showReportDialog = true }
                         }
-                    )
+                        // Hidden when the selection holds no reportable (non-episode) songs.
+                    ).takeIf { likeableSongs.isNotEmpty() }
                 ),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp)
             )
@@ -332,7 +333,9 @@ fun SelectionSongMenu(
                             },
                         )?.let { add(it) }
                     }
-                    add(
+                    // Hidden for an episode-only selection: episodes are never music-liked, so the
+                    // row would be an enabled action that silently does nothing.
+                    if (likeableSongs.isNotEmpty()) add(
                         Material3MenuItemData(
                             icon = {
                                 Icon(
@@ -352,11 +355,13 @@ fun SelectionSongMenu(
                             },
                             onClick = {
                                 // Songs only — an episode in the selection is never music-liked.
-                                val allLiked = likeableSongs.all { it.song.liked }
+                                // Fresh read (not the remembered allLiked) so a stale composition
+                                // can't invert the action; named to not shadow the label's state.
+                                val allLikedNow = likeableSongs.all { it.song.liked }
                                 onDismiss()
                                 database.query {
                                     likeableSongs.forEach { song ->
-                                        if ((!allLiked && !song.song.liked) || allLiked) {
+                                        if ((!allLikedNow && !song.song.liked) || allLikedNow) {
                                             val s = song.song.toggleLike()
                                             update(s)
                                             syncUtils.likeSong(s)
@@ -526,7 +531,9 @@ fun SelectionMediaMetadataMenu(
                             },
                         )
                     )
-                    add(
+                    // Hidden for an episode-only selection: episodes are never music-liked, so the
+                    // row would be an enabled action that silently does nothing.
+                    if (likeableSongs.isNotEmpty()) add(
                         Material3MenuItemData(
                             icon = {
                                 Icon(

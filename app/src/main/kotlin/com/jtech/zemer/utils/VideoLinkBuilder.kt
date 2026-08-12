@@ -22,6 +22,15 @@ object VideoLinkBuilder {
         if (podcastId.isNullOrBlank()) watchLink(videoId)
         else "${watchLink(videoId)}&podcast=$podcastId"
 
+    /**
+     * THE share-link decision for a playable item — every share/copy-link site calls this instead of
+     * hand-branching, so an episode always carries its owning show ([collectionId] = the item's
+     * album/collection id, which for an episode IS the show) and a song always gets the plain watch
+     * link. Ignores [collectionId] for songs (a music album id must not ride the link).
+     */
+    fun shareLink(videoId: String, isEpisode: Boolean, collectionId: String?): String =
+        if (isEpisode) episodeLink(videoId, collectionId) else watchLink(videoId)
+
     /** The shareable channel link — the same URL MainActivity's `channel` deep link parses back. */
     fun channelLink(channelId: String): String = "$ZEMER_MUSIC_BASE_URL/channel/$channelId"
 }

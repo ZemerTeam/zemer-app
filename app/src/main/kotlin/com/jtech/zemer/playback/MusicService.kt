@@ -1328,19 +1328,15 @@ class MusicService :
     fun toggleLike() {
         val songData = currentSong.value ?: return
 
-        // Episodes toggle "save for later" (inLibrary), not a like. Optimistic local flip + account
-        // sync + revert all live in SyncUtils.toggleSaveEpisode (the episode analogue of likeSong).
-        if (songData.song.isEpisode) {
-            syncUtils.toggleSaveEpisode(songData.song)
-        } else {
-            // Regular song - toggle like
-            database.query {
-                val song = songData.song.toggleLike()
-                update(song)
-                syncUtils.likeSong(song)
+        // THE shared heart write (SyncUtils.toggleSavedForPlayer): episode = save-for-later
+        // (inLibrary + VLSE sync), song = local liked flip + likeSong — never hand-branch this.
+        syncUtils.toggleSavedForPlayer(songData.song)
 
-                // Check if auto-download on like is enabled and the song is now liked
-                if (dataStore.get(AutoDownloadOnLikeKey, false) && song.liked) {
+        // Auto-download on like is this surface's extra, songs only. Inside query{} so the blocking
+        // DataStore read stays off the main thread; `!liked` = the song just BECAME liked.
+        if (!songData.song.isEpisode) {
+            database.query {
+                if (dataStore.get(AutoDownloadOnLikeKey, false) && !songData.song.liked) {
                     // Trigger download for the liked song (use video download if isVideo)
                     if (songData.song.isVideo) {
                         downloadUtil.downloadVideoToMediaStore(songData, fromUser = false)

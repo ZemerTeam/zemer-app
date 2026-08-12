@@ -108,6 +108,7 @@ import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
 import com.jtech.zemer.ui.screens.settings.DarkMode
 import com.jtech.zemer.ui.screens.settings.LyricsPosition
 import com.jtech.zemer.ui.utils.fadingEdge
+import com.jtech.zemer.utils.VideoLinkBuilder
 import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.ComposeToImage
 import com.jtech.zemer.utils.rememberEnumPreference
@@ -701,8 +702,13 @@ fun Lyrics(
                             val shareIntent = Intent().apply {
                                 action = Intent.ACTION_SEND
                                 type = "text/plain"
-                                val songLink =
-                                    "https://music.zemer.io/watch?v=${mediaMetadata?.id}"
+                                // The shared decision: mediaMetadata is read live, so if the sheet
+                                // survives a song -> episode auto-advance the link still routes right.
+                                val songLink = VideoLinkBuilder.shareLink(
+                                    mediaMetadata?.id.orEmpty(),
+                                    mediaMetadata?.isEpisode == true,
+                                    mediaMetadata?.album?.id,
+                                )
                                 // Use the potentially multi-line lyricsText here
                                 putExtra(
                                     Intent.EXTRA_TEXT,
