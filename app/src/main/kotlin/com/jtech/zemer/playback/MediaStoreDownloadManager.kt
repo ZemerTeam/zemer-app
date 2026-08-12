@@ -765,32 +765,43 @@ constructor(
         outputFile: File,
         extension: String,
     ) = withContext(Dispatchers.IO) {
-        // The audio partner. MP4 output: the ordinary forDownload pick (webm excluded -> AAC/m4a).
-        // WebM output: streaming selection pinned to HIGH — the +10240 webm bias then deterministically
-        // lands on Opus (a LOW/metered-AUTO sign flip could otherwise pick a low-bitrate AAC that the
-        // WebM muxer cannot accept).
+        // The audio partner comes from the SAME video resolution (container-matched, same client — no
+        // second /player round-trip, no client-disagreement). MP4 output needs AAC, WebM needs Opus.
+        // A defensive second resolution covers the (rare) case that response carried no usable audio.
         val webmOutput = extension == "webm"
-        val audioData = YTPlayerUtils.playerResponseForPlayback(
-            videoId = song.id,
-            audioQuality = if (webmOutput) AudioQuality.HIGH else audioQuality,
-            connectivityManager = connectivityManager,
-            forDownload = !webmOutput,
-        ).getOrThrow()
+        val audioUrl: String
+        val audioMimeType: String
+        val audioContentLength: Long?
+        if (videoData.downloadAudioUrl != null && videoData.downloadAudioMimeType != null) {
+            audioUrl = videoData.downloadAudioUrl
+            audioMimeType = videoData.downloadAudioMimeType
+            audioContentLength = videoData.downloadAudioContentLength
+        } else {
+            val audioData = YTPlayerUtils.playerResponseForPlayback(
+                videoId = song.id,
+                audioQuality = AudioQuality.HIGH,
+                connectivityManager = connectivityManager,
+                forDownload = !webmOutput,
+            ).getOrThrow()
+            audioUrl = audioData.streamUrl
+            audioMimeType = audioData.format.mimeType
+            audioContentLength = audioData.format.contentLength
+        }
         // The framework muxer is container-strict: MP4 output needs AAC, WebM output needs Opus/Vorbis.
-        // The selections above guarantee that in practice — verify anyway, and clear the quality
+        // The selection above guarantees that in practice — verify anyway, and clear the quality
         // request first so the RETRY falls back to the automatic progressive pick (reported, bounded)
         // instead of re-failing on the identical incompatibility forever.
-        val audioIsWebm = audioData.format.mimeType.startsWith("audio/webm")
+        val audioIsWebm = audioMimeType.startsWith("audio/webm")
         if (webmOutput != audioIsWebm) {
             requestedVideoQuality.remove(song.id)
-            throw Exception("No mux-compatible audio for $extension output (got ${audioData.format.mimeType})")
+            throw Exception("No mux-compatible audio for $extension output (got $audioMimeType)")
         }
 
         val videoPart = File(context.cacheDir, "temp_${song.id}.video.part")
         val audioPart = File(context.cacheDir, "temp_${song.id}.audio.part")
         try {
             val videoBytes = videoData.format.contentLength ?: 0L
-            val audioBytes = audioData.format.contentLength ?: 0L
+            val audioBytes = audioContentLength ?: 0L
             val total = (videoBytes + audioBytes).takeIf { it > 0 }
             val videoShare = if (total != null) videoBytes.toFloat() / total else 0.9f
             downloadFile(
@@ -799,9 +810,9 @@ constructor(
                 expectedBytes = videoData.format.contentLength,
             )
             downloadFile(
-                audioData.streamUrl, audioPart, song.id,
+                audioUrl, audioPart, song.id,
                 progressBase = videoShare * 0.98f, progressSpan = (1f - videoShare) * 0.98f,
-                expectedBytes = audioData.format.contentLength,
+                expectedBytes = audioContentLength,
             )
             when (VideoMuxer.mux(videoPart, audioPart, outputFile, webm = webmOutput)) {
                 VideoMuxer.Result.SUCCESS -> {}

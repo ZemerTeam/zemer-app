@@ -170,6 +170,16 @@ object YTPlayerUtils {
          */
         val mergeAudioUrl: String? = null,
         val mergeAudioItag: Int? = null,
+        /**
+         * For a DOWNLOAD of an adaptive (video-only) rung: the CONTAINER-MATCHED audio partner
+         * resolved from THIS SAME response/client (mp4/avc video → AAC, webm/vp9 video → Opus), so the
+         * two-stream mux needs no second `/player` resolution — which would double the round-trip AND
+         * could pick a different fallback client whose audio container disagrees, failing the mux.
+         * Null for a progressive download (no mux) or when no compatible audio was found.
+         */
+        val downloadAudioUrl: String? = null,
+        val downloadAudioMimeType: String? = null,
+        val downloadAudioContentLength: Long? = null,
     )
     /**
      * Custom player response intended to use for playback.
@@ -485,6 +495,31 @@ object YTPlayerUtils {
             }
         }
 
+        // For a DOWNLOAD of an adaptive (video-only) rung, resolve the CONTAINER-MATCHED audio partner
+        // from THIS response/client so the mux needs no second resolution (which could disagree on
+        // client → wrong container → mux failure). mp4/avc video → AAC (forDownload excludes webm);
+        // webm/vp9 video → Opus (forDownload=false keeps opus). HIGH for a deterministic itag.
+        var downloadAudioUrl: String? = null
+        var downloadAudioMimeType: String? = null
+        var downloadAudioContentLength: Long? = null
+        if (forDownload && preferVideo && successClientObj != null && VideoQualityLogic.isVideoOnly(format)) {
+            val response = streamPlayerResponse
+            val audioClient = successClientObj!!
+            val webmVideo = format.mimeType.startsWith("video/webm")
+            val audioFormat = findFormat(
+                response, AudioQuality.HIGH, connectivityManager, preferVideo = false,
+                maxVideoBitrateKbps = null, forDownload = !webmVideo,
+            )
+            if (audioFormat != null) {
+                downloadAudioUrl =
+                    resolveFinalStreamUrl(audioFormat, videoId, response, audioClient, poTokenResult)
+                if (downloadAudioUrl != null) {
+                    downloadAudioMimeType = audioFormat.mimeType
+                    downloadAudioContentLength = audioFormat.contentLength
+                }
+            }
+        }
+
         PlaybackData(
             audioConfig,
             videoDetails,
@@ -501,6 +536,9 @@ object YTPlayerUtils {
             videoRungUrls = videoRungUrls,
             mergeAudioUrl = mergeAudioUrl,
             mergeAudioItag = mergeAudioItag,
+            downloadAudioUrl = downloadAudioUrl,
+            downloadAudioMimeType = downloadAudioMimeType,
+            downloadAudioContentLength = downloadAudioContentLength,
         )
     }
     /**
