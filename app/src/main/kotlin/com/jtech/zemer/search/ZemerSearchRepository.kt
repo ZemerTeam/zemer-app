@@ -150,6 +150,11 @@ class ZemerSearchRepository @Inject constructor(
         offlineReads.search(query.trim(), K_FILTER, options.allowFemale, options.blockVideos)
             ?.let { ZemerResultMapper.summaryPage(it, options.hideExplicit, formatSongCount) }
 
+    /** OFFLINE-MODE as-you-type suggestions from the subset matcher (see [subsetSummary]'s contract). */
+    suspend fun subsetSuggestions(query: String, options: ZemerSearchOptions): SearchSuggestions? =
+        offlineReads.search(query.trim(), K_SUGGEST, options.allowFemale, options.blockVideos)
+            ?.let { ZemerResultMapper.suggestions(it, options.hideExplicit, formatSongCount) }
+
     /**
      * Open a playlist through the server's `/playlist` endpoint so the tracks, count and cover match the
      * search card (which comes from the same server filter) — instead of the InnerTube fetch +

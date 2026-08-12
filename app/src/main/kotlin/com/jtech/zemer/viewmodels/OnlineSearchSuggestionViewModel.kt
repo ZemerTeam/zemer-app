@@ -18,6 +18,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -42,10 +43,29 @@ constructor(
         viewModelScope.launch {
             kotlinx.coroutines.flow.combine(query, OfflineModeState.state) { q, offline -> q to offline }
                 .flatMapLatest { (query, offlineMode) ->
-                    // Manual offline mode: no history and no as-you-type suggestions on the search
-                    // surface - the submitted search serves the downloaded catalog only.
+                    // Manual offline mode: no history (user directive) - as-you-type suggestions come
+                    // from the on-device SUBSET matcher, with recommended items scoped to DOWNLOADED
+                    // content (query strings pass through; the submitted search is downloaded-only).
                     if (offlineMode) {
-                        return@flatMapLatest kotlinx.coroutines.flow.flowOf(SearchSuggestionViewState())
+                        return@flatMapLatest kotlinx.coroutines.flow.flow {
+                            emit(SearchSuggestionViewState())
+                            if (query.trim().length >= ZEMER_MIN_QUERY_LENGTH) {
+                                val suggestions = withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        zemerRepo.subsetSuggestions(query, zemerSearchOptions(context))
+                                            ?.let { scopeSuggestionsToDownloaded(it) }
+                                    }.getOrNull()
+                                }
+                                if (suggestions != null) {
+                                    emit(
+                                        SearchSuggestionViewState(
+                                            suggestions = suggestions.queries,
+                                            items = suggestions.recommendedItems,
+                                        ),
+                                    )
+                                }
+                            }
+                        }
                     }
                     if (query.isEmpty()) {
                         database.searchHistory().map { history ->
@@ -95,6 +115,32 @@ constructor(
                     _viewState.value = it
                 }
         }
+    }
+
+    /**
+     * Offline-mode scoping for subset suggestions: recommended item cards must be DOWNLOADED
+     * (query strings pass through - the search they submit is downloaded-only anyway).
+     */
+    private suspend fun scopeSuggestionsToDownloaded(
+        suggestions: com.metrolist.innertube.models.SearchSuggestions,
+    ): com.metrolist.innertube.models.SearchSuggestions {
+        val songIds = database.downloadedSongsByCreateDateAsc(includeVideos = true)
+            .first().mapTo(HashSet()) { it.id }
+        val artistIds = database.downloadedArtists(includeVideos = true)
+            .first().mapTo(HashSet()) { it.id }
+        val albumIds = database.downloadedAlbums(includeVideos = true)
+            .first().mapTo(HashSet()) { it.id }
+        return com.metrolist.innertube.models.SearchSuggestions(
+            queries = suggestions.queries,
+            recommendedItems = suggestions.recommendedItems.filter { item ->
+                when (item) {
+                    is com.metrolist.innertube.models.SongItem -> item.id in songIds
+                    is com.metrolist.innertube.models.ArtistItem -> item.id in artistIds
+                    is com.metrolist.innertube.models.AlbumItem -> item.browseId in albumIds
+                    else -> false
+                }
+            },
+        )
     }
 }
 
