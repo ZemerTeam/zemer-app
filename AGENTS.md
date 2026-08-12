@@ -1011,7 +1011,8 @@ library-wide "show video downloads as music too" preference this enables).
 **The quality ladder (beyond-720p; `VideoQualityLogic` + the in-player switcher).** Streaming video
 is no longer capped at the progressive muxed formats (which top out at 360p/720p): the quality ladder
 spans progressive PLUS the adaptive video-only formats — measured live (`tests/video-qualities.mjs`),
-WEB_REMIX serves avc1 144p…1080p and vp9-only 1440p/2160p. The rules that must not regress:
+the music client serves avc1 144p…1080p and vp9-only 1440p/2160p for uploads that have them. Full
+feature map: `docs/video_quality/README.md`. The rules that must not regress:
 - **`VideoQualityLogic` is the ONE ladder/selection authority** (pure, JVM-tested): one rung per
   qualityLabel (progressive wins its label; then avc1 > vp9 > av01, then bitrate), targets resolve to
   the best rung at-or-below ("1080p" on a 720p-max video → 720p, never null for an explicit pick),

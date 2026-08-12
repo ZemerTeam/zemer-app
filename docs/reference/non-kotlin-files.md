@@ -11,7 +11,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 50 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 6 lines | text `[none]` |
-| `AGENTS.md` | 1299 lines | text `.md` |
+| `AGENTS.md` | 1300 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 19 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -380,6 +380,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/test-mweb-cipher.mjs` | 142 lines | text `.mjs` |
 | `tests/validate-player-config.mjs` | 186 lines | text `.mjs` |
 | `tests/video-progressive-stream.mjs` | 275 lines | text `.mjs` |
-| `tests/video-qualities.mjs` | 279 lines | text `.mjs` |
+| `tests/video-qualities.mjs` | 306 lines | text `.mjs` |
 | `tests/web-creator-stream.mjs` | 142 lines | text `.mjs` |
 | `tests/web-remix-stream.mjs` | 277 lines | text `.mjs` |

@@ -136,6 +136,19 @@ function findAudioFormat(j) {
     return best == null || score(f) > score(best) ? f : best;
   }, null);
 }
+// The DOWNLOAD-mux audio partners, per container (mirrors YTPlayerUtils' download-audio selection):
+//   MP4 mux (avc1 video)  -> AAC in audio/mp4  (m4a)   — the forDownload pick (webm excluded)
+//   WebM mux (vp9 video)  -> Opus in audio/webm       — the +10240 opus pick
+// Both must exist and stream, or the beyond-progressive remux download can't produce a playable file.
+function findDownloadAudio(j, container) {
+  const formats = (j?.streamingData?.adaptiveFormats || []).filter(
+    (f) => f.width == null && !f.audioTrack?.isAutoDubbed,
+  );
+  const want = container === "webm" ? "audio/webm" : "audio/mp4";
+  return formats
+    .filter((f) => (f.mimeType || "").startsWith(want))
+    .reduce((best, f) => (best == null || (f.bitrate || 0) > (best.bitrate || 0) ? f : best), null);
+}
 
 function resolveUrl(fmt, cipher, tokens) {
   let url = null, sigUsed = false, nUsed = false;
@@ -255,6 +268,12 @@ async function qualityBattery(label, fmt, resolved, durMs, ua) {
     console.log(`  ${String(f.qualityLabel || "?").padEnd(6)} ${f.kind.padEnd(11)} itag=${String(f.itag).padEnd(4)} ${codecOf(f.mimeType).padEnd(5)} ${f.width}x${f.height} br=${f.bitrate} clen=${f.contentLength ? mb(Number(f.contentLength)) : "?"}`);
   }
   console.log(`  audio  adaptive    itag=${String(audio?.itag).padEnd(4)} ${codecOf(audio?.mimeType).padEnd(5)} br=${audio?.bitrate} clen=${audio?.contentLength ? mb(Number(audio.contentLength)) : "?"}`);
+
+  // The two DOWNLOAD-mux audio partners (mp4/AAC + webm/Opus): the beyond-progressive remux download
+  // fetches video-only + a container-matched audio from THIS response, so both must exist and stream.
+  const aacAudio = findDownloadAudio(j, "mp4");
+  const opusAudio = findDownloadAudio(j, "webm");
+  console.log(`  mux-audio  MP4/AAC itag=${aacAudio?.itag ?? "MISSING"}   WebM/Opus itag=${opusAudio?.itag ?? "MISSING"}`);
   if (LABELS) ladder = ladder.filter((f) => LABELS.includes(f.qualityLabel));
 
   const results = [];
@@ -265,6 +284,14 @@ async function qualityBattery(label, fmt, resolved, durMs, ua) {
   if (audio) {
     const resolved = resolveUrl(audio, cipher, tokens);
     results.push(await qualityBattery("audio", { ...audio, kind: "audio" }, resolved, durMs, USER_AGENT_WEB));
+  }
+  // Prove the download-mux audio partners resolve + stream (unless a LABELS subset excludes them).
+  if (!LABELS) {
+    for (const [name, fmt] of [["mux-aac", aacAudio], ["mux-opus", opusAudio]]) {
+      if (!fmt) { console.log(`\n----- ${name}: MISSING from response -----`); results.push({ label: name, ok: false, steps: { present: false } }); continue; }
+      const resolved = resolveUrl(fmt, cipher, tokens);
+      results.push(await qualityBattery(name, { ...fmt, kind: "audio" }, resolved, durMs, USER_AGENT_WEB));
+    }
   }
 
   console.log(`\n========== SUMMARY (${VIDEO_ID}) ==========`);

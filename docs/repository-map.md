@@ -115,7 +115,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
-| `AGENTS.md` | 1299 lines | `.md` |
+| `AGENTS.md` | 1300 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 19 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -1291,6 +1291,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/test-mweb-cipher.mjs` | 142 lines | `.mjs` |
 | `tests/validate-player-config.mjs` | 186 lines | `.mjs` |
 | `tests/video-progressive-stream.mjs` | 275 lines | `.mjs` |
-| `tests/video-qualities.mjs` | 279 lines | `.mjs` |
+| `tests/video-qualities.mjs` | 306 lines | `.mjs` |
 | `tests/web-creator-stream.mjs` | 142 lines | `.mjs` |
 | `tests/web-remix-stream.mjs` | 277 lines | `.mjs` |
