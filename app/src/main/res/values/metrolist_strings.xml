@@ -673,6 +673,8 @@
         <string name="view_channel">View channel</string>
         <string name="view_podcast">View podcast</string>
         <string name="episode_time_left">%s left</string>
+        <string name="episode_title">Episode title</string>
+        <string name="episode_host">Host</string>
         <string name="continue_listening">Continue Listening</string>
         <string name="featured_podcasts">Featured</string>
         <string name="top_podcasts">Top Podcasts</string>

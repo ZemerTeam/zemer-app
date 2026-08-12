@@ -74,6 +74,7 @@ import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.utils.ShowMediaInfo
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.utils.PermissionHelper
+import com.jtech.zemer.utils.VideoLinkBuilder
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.CachePlaylistViewModel
 import com.metrolist.innertube.YouTube
@@ -249,7 +250,8 @@ fun SongMenu(
             artists = song.artists.distinctBy { it.id }.map { ArtistChoice(it.id, it.name, it.thumbnailUrl) },
             onDismiss = { showSelectArtistDialog = false },
             onArtistClick = { artistId ->
-                navController.navigateToArtist(artistId)
+                // An episode's author is a podcast HOST channel — route to the podcast channel page.
+                navController.navigateToArtist(artistId, isPodcastChannel = song.song.isEpisode)
                 onDismiss()
             },
         )
@@ -261,16 +263,23 @@ fun SongMenu(
         trailingContent = {
             IconButton(
                 onClick = {
-                    val s = song.song.toggleLike()
-                    database.query {
-                        update(s)
+                    // Episodes toggle "save for later" (inLibrary), never a music like — mirror
+                    // MusicService.toggleLike (toggleSaveEpisode owns the optimistic flip + sync).
+                    if (song.song.isEpisode) {
+                        syncUtils.toggleSaveEpisode(song.song)
+                    } else {
+                        val s = song.song.toggleLike()
+                        database.query {
+                            update(s)
+                        }
+                        syncUtils.likeSong(s)
                     }
-                    syncUtils.likeSong(s)
                 },
             ) {
                 Icon(
-                    painter = painterResource(if (song.song.liked) R.drawable.favorite else R.drawable.favorite_border),
-                    tint = if (song.song.liked) MaterialTheme.colorScheme.error else LocalContentColor.current,
+                    // isSavedForPlayer: liked for songs, inLibrary for episodes (the shared heart rule).
+                    painter = painterResource(if (song.song.isSavedForPlayer) R.drawable.favorite else R.drawable.favorite_border),
+                    tint = if (song.song.isSavedForPlayer) MaterialTheme.colorScheme.error else LocalContentColor.current,
                     contentDescription = null,
                 )
             }
@@ -331,7 +340,12 @@ fun SongMenu(
                         onClick = {
                             onDismiss()
                             Tracker.action(TrackingActionKind.SHARE, song.id)
-                            context.shareText("https://music.zemer.io/watch?v=${song.id}")
+                            // Episode links carry the owning show so the receiver routes to the
+                            // podcast screen, not the (artist-whitelisted) music play path.
+                            context.shareText(
+                                if (song.song.isEpisode) VideoLinkBuilder.episodeLink(song.id, song.song.albumId)
+                                else VideoLinkBuilder.watchLink(song.id),
+                            )
                         }
                     )
                 ),
@@ -343,7 +357,9 @@ fun SongMenu(
             Material3MenuGroup(
                 modifier = Modifier.padding(horizontal = 4.dp),
                 items = buildList {
-                    add(
+                    // An episode must never seed music radio around its videoId (the
+                    // ListQueue.episode rule) — no Start radio row on episode menus.
+                    if (!song.song.isEpisode) add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.radio), null, Modifier.size(24.dp)) },
                             title = { Text(stringResource(R.string.start_radio)) },
@@ -379,26 +395,36 @@ fun SongMenu(
                         libraryMenuItem(
                             inLibrary = song.song.inLibrary != null,
                             onToggle = {
-                                val currentSong = song.song
-                                val isInLibrary = currentSong.inLibrary != null
-                                val token = if (isInLibrary) currentSong.libraryRemoveToken else currentSong.libraryAddToken
+                                // An EPISODE saves via the VLSE episode endpoint (toggleSaveEpisode),
+                                // NOT the music library feedback token — episodes carry no library
+                                // token, so the music path pushed nothing to the account (the same
+                                // fix YouTubeSongMenu's library row already has).
+                                if (song.song.isEpisode) {
+                                    syncUtils.toggleSaveEpisode(song.song)
+                                } else {
+                                    val currentSong = song.song
+                                    val isInLibrary = currentSong.inLibrary != null
+                                    val token = if (isInLibrary) currentSong.libraryRemoveToken else currentSong.libraryAddToken
 
-                                // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
-                                if (isPersonalAccountSignedIn) {
-                                    token?.let {
-                                        coroutineScope.launch {
-                                            YouTube.feedback(listOf(it))
+                                    // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+                                    if (isPersonalAccountSignedIn) {
+                                        token?.let {
+                                            coroutineScope.launch {
+                                                YouTube.feedback(listOf(it))
+                                            }
                                         }
                                     }
-                                }
 
-                                database.query {
-                                    update(song.song.toggleLibrary())
+                                    database.query {
+                                        update(song.song.toggleLibrary())
+                                    }
                                 }
                             },
                         )
                     )
-                    add(
+                    // Not for episodes: an episode's "artist" is a podcast HOST channel, and the
+                    // report would land in the music artist-report pipeline mislabeled.
+                    if (!song.song.isEpisode) add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.warning), null, Modifier.size(24.dp)) },
                             title = { Text(stringResource(R.string.report_artist)) },
@@ -489,7 +515,7 @@ fun SongMenu(
                                 val valid = song.artists.filter { !it.id.isNullOrBlank() }
                                 when {
                                     valid.size == 1 -> {
-                                        navController.navigateToArtist(valid[0].id)
+                                        navController.navigateToArtist(valid[0].id, isPodcastChannel = song.song.isEpisode)
                                         onDismiss()
                                     }
                                     valid.size > 1 -> showSelectArtistDialog = true
@@ -532,7 +558,7 @@ fun SongMenu(
                             onClick = {
                                 onDismiss()
                                 bottomSheetPageState.show {
-                                    ShowMediaInfo(song.id)
+                                    ShowMediaInfo(song.id, isEpisodeHint = song.song.isEpisode)
                                 }
                             },
                         )

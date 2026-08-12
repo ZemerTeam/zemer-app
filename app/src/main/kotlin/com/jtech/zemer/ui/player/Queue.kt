@@ -286,17 +286,21 @@ fun Queue(
                         }
                     }
 
-                    QueuePillButton(
-                        shape = middleShape,
-                        borderColor = borderColor,
-                        onClick = onShowLyrics,
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.lyrics),
-                            contentDescription = null,
-                            modifier = Modifier.size(iconSize),
-                            tint = TextBackgroundColor
-                        )
+                    // Podcast episodes have no lyrics — hide the affordance instead of opening an
+                    // empty sheet (same gate as the old-design row below).
+                    if (mediaMetadata?.isEpisode != true) {
+                        QueuePillButton(
+                            shape = middleShape,
+                            borderColor = borderColor,
+                            onClick = onShowLyrics,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.lyrics),
+                                contentDescription = null,
+                                modifier = Modifier.size(iconSize),
+                                tint = TextBackgroundColor
+                            )
+                        }
                     }
 
                     // Shuffle/repeat show their ON state by FILLING the pill (the menu circle's
@@ -356,7 +360,7 @@ fun Queue(
                                         onShowDetailsDialog = {
                                             mediaMetadata?.id?.let {
                                                 bottomSheetPageState.show {
-                                                    ShowMediaInfo(it)
+                                                    ShowMediaInfo(it, isEpisodeHint = mediaMetadata?.isEpisode == true)
                                                 }
                                             }
                                         },
@@ -463,30 +467,34 @@ fun Queue(
                         }
                     }
 
-                    TextButton(
-                        onClick = { onShowLyrics() },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth()
+                    // Podcast episodes have no lyrics — hide the affordance instead of opening an
+                    // empty sheet (same gate as the new-design pill above).
+                    if (mediaMetadata?.isEpisode != true) {
+                        TextButton(
+                            onClick = { onShowLyrics() },
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.lyrics),
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = TextBackgroundColor
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(id = R.string.lyrics),
-                                color = TextBackgroundColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.basicMarquee()
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.lyrics),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = TextBackgroundColor
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(id = R.string.lyrics),
+                                    color = TextBackgroundColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.basicMarquee()
+                                )
+                            }
                         }
                     }
                 }
@@ -726,7 +734,7 @@ fun Queue(
                                                         onShowDetailsDialog = {
                                                             window.mediaItem.mediaId.let {
                                                                 bottomSheetPageState.show {
-                                                                    ShowMediaInfo(it)
+                                                                    ShowMediaInfo(it, isEpisodeHint = window.mediaItem.metadata?.isEpisode == true)
                                                                 }
                                                             }
                                                         },
@@ -867,7 +875,7 @@ fun Queue(
                                                     onShowDetailsDialog = {
                                                         item.mediaId.let {
                                                             bottomSheetPageState.show {
-                                                                ShowMediaInfo(it)
+                                                                ShowMediaInfo(it, isEpisodeHint = item.metadata?.isEpisode == true)
                                                             }
                                                         }
                                                     },

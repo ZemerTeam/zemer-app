@@ -80,9 +80,12 @@ fun SelectionSongMenu(
         )
     }
 
+    // Episodes are never `liked` (saved-for-later is inLibrary) — Like all operates on the songs
+    // in the selection only, and reads its all-liked state from them too.
+    val likeableSongs = remember(songSelection) { songSelection.filter { !it.song.isEpisode } }
     val allLiked by remember(songSelection) {
         mutableStateOf(
-            songSelection.isNotEmpty() && songSelection.all {
+            likeableSongs.isNotEmpty() && likeableSongs.all {
                 it.song.liked
             },
         )
@@ -348,10 +351,11 @@ fun SelectionSongMenu(
                                 )
                             },
                             onClick = {
-                                val allLiked = songSelection.all { it.song.liked }
+                                // Songs only — an episode in the selection is never music-liked.
+                                val allLiked = likeableSongs.all { it.song.liked }
                                 onDismiss()
                                 database.query {
-                                    songSelection.forEach { song ->
+                                    likeableSongs.forEach { song ->
                                         if ((!allLiked && !song.song.liked) || allLiked) {
                                             val s = song.song.toggleLike()
                                             update(s)
@@ -404,8 +408,11 @@ fun SelectionMediaMetadataMenu(
     val playerConnection = LocalPlayerConnection.current ?: return
     val selectionQueueTitle = stringResource(R.string.queue_selection)
 
+    // Episodes are never `liked` (saved-for-later is inLibrary) — Like all operates on the songs
+    // in the selection only (the queue multi-select can hold episodes).
+    val likeableSongs = remember(songSelection) { songSelection.filter { !it.isEpisode } }
     val allLiked by remember(songSelection) {
-        mutableStateOf(songSelection.isNotEmpty() && songSelection.all { it.liked })
+        mutableStateOf(likeableSongs.isNotEmpty() && likeableSongs.all { it.liked })
     }
 
     var showChoosePlaylistDialog by rememberSaveable {
@@ -537,8 +544,9 @@ fun SelectionMediaMetadataMenu(
                                     // is never in the local DB), so a bare update() would no-op. insert()
                                     // is OnConflictStrategy.IGNORE, so it only fills in a missing parent row
                                     // (never clobbers an existing one) before we flip liked.
+                                    // Songs only — an episode in the selection is never music-liked.
                                     val toToggle =
-                                        if (allLiked) songSelection else songSelection.filter { !it.liked }
+                                        if (allLiked) likeableSongs else likeableSongs.filter { !it.liked }
                                     toToggle.forEach { song ->
                                         insert(song)
                                         update(song.toSongEntity().toggleLike())

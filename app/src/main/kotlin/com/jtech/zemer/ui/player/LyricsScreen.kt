@@ -129,7 +129,9 @@ fun LyricsScreen(
     val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
 
     LaunchedEffect(mediaMetadata.id, currentLyrics) {
-        if (currentLyrics == null) {
+        // Episodes have no lyrics (the affordances are hidden for them) — defensive gate for a
+        // sheet left open across a song -> episode track change: never fetch/store episode lyrics.
+        if (currentLyrics == null && !mediaMetadata.isEpisode) {
             delay(500)
             coroutineScope.launch(Dispatchers.IO) {
                 try {

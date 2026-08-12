@@ -597,7 +597,9 @@ class MusicService :
         ) { mediaMetadata, showLyrics ->
             mediaMetadata to showLyrics
         }.collectLatest(scope) { (mediaMetadata, showLyrics) ->
-            if (showLyrics && mediaMetadata != null && database.lyrics(mediaMetadata.id)
+            // Podcast episodes have no lyrics (the player hides the lyrics affordance for them) —
+            // skip the provider fetch instead of storing a junk LyricsEntity per episode.
+            if (showLyrics && mediaMetadata != null && !mediaMetadata.isEpisode && database.lyrics(mediaMetadata.id)
                     .first() == null
             ) {
                 val lyrics = lyricsHelper.getLyrics(mediaMetadata)
@@ -927,7 +929,10 @@ class MusicService :
                     .Builder()
                     .setDisplayName(
                         getString(
-                            if (currentSong.value?.song?.liked ==
+                            // isSavedForPlayer, not `liked`: an episode's saved state is inLibrary
+                            // (what toggleLike() flips for episodes) — reading `liked` left the
+                            // notification heart permanently empty for saved episodes.
+                            if (currentSong.value?.song?.isSavedForPlayer ==
                                 true
                             ) {
                                 R.string.action_remove_like
@@ -936,7 +941,7 @@ class MusicService :
                             },
                         ),
                     )
-                    .setIconResId(if (currentSong.value?.song?.liked == true) R.drawable.favorite else R.drawable.favorite_border)
+                    .setIconResId(if (currentSong.value?.song?.isSavedForPlayer == true) R.drawable.favorite else R.drawable.favorite_border)
                     .setSessionCommand(CommandToggleLike)
                     .setEnabled(currentSong.value != null)
                     .build(),
@@ -968,7 +973,13 @@ class MusicService :
                     .setDisplayName(getString(R.string.start_radio))
                     .setIconResId(R.drawable.radio)
                     .setSessionCommand(CommandToggleStartRadio)
-                    .setEnabled(currentSong.value != null && currentQueue !is StationQueue)
+                    // Disabled for episodes too: an episode must never seed music radio (the
+                    // ListQueue.episode rule) — startRadioSeamlessly() also early-returns.
+                    .setEnabled(
+                        currentSong.value != null &&
+                            currentSong.value?.song?.isEpisode != true &&
+                            currentQueue !is StationQueue,
+                    )
                     .build(),
                 CommandButton.Builder()
                     .setDisplayName(getString(R.string.android_auto_target_playlist))
@@ -997,6 +1008,9 @@ class MusicService :
             if (song == null) insert(mediaMetadata.copy(duration = duration))
             else if (song.song.duration == -1) update(song.song.copy(duration = duration))
         }
+        // Episodes never enter the music discovery rows — don't run the related-songs pipeline for
+        // them (it would plant music recommendations keyed on an episode id, plus a wasted round trip).
+        if (mediaMetadata.isEpisode) return
         if (!database.hasRelatedSongs(mediaId)) {
             val nextResult = YouTube.next(WatchEndpoint(videoId = mediaId)).getOrNull()
             // Video mode: passively fold in any song→video counterpart the response carries (free — this
@@ -1121,6 +1135,9 @@ class MusicService :
         // append their radio items, duplicating the queue (#89).
         if (startRadioJob?.isActive == true) return
         val currentMediaMetadata = player.currentMetadata ?: return
+        // An episode must never seed music radio around its videoId (the ListQueue.episode rule) —
+        // the affordances are hidden for episodes, and this chokepoint covers any stale controller.
+        if (currentMediaMetadata.isEpisode) return
 
         // The queue swap itself is invisible on the Now Playing screen (Android Auto included),
         // so surface a transient session message as immediate feedback (#89). INFO_CANCELLED is

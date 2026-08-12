@@ -245,6 +245,7 @@ import com.jtech.zemer.ui.theme.rememberPureBlack
 import com.jtech.zemer.ui.utils.HOME_EASTER_EGG_TAPS
 import com.jtech.zemer.ui.utils.appBarScrollBehavior
 import com.jtech.zemer.ui.utils.channelDeepLinkRoute
+import com.jtech.zemer.ui.utils.podcastRoute
 import com.jtech.zemer.utils.PodcastWhitelistCache
 import com.jtech.zemer.ui.utils.easterEggTapCount
 import com.jtech.zemer.ui.utils.playHomeEasterEgg
@@ -2145,6 +2146,15 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val playlistId = uri.getQueryParameter("list")
+
+                // An EPISODE share link (VideoLinkBuilder.episodeLink) carries the owning show id.
+                // Route it to the podcast show screen: the music path below is artist-whitelist
+                // filtered and would dead-end an episode with "song not available". The screen
+                // itself handles a non-whitelisted/gone show (the not-available state).
+                uri.getQueryParameter("podcast")?.let { podcastId ->
+                    podcastRoute(podcastId)?.let { navController.navigate(it) }
+                    return
+                }
 
                 videoId?.let {
                     // Incoming watch links always play through the normal audio-first player now — video is

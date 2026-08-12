@@ -59,7 +59,7 @@ import com.zemer.cipher.PlayerDatesStore
  * General, Information (stats + stream/format), Description.
  */
 @Composable
-fun ShowMediaInfo(videoId: String) {
+fun ShowMediaInfo(videoId: String, isEpisodeHint: Boolean = false) {
     if (videoId.isBlank()) return
 
     val database = LocalDatabase.current
@@ -82,6 +82,12 @@ fun ShowMediaInfo(videoId: String) {
     LaunchedEffect(videoId) { database.format(videoId).collect { currentFormat = it } }
 
     fun copy(label: String, value: String) = context.copyToClipboard(label, value)
+
+    // Episode-aware framing: the caller's hint (an online item may not be in the DB yet) OR the
+    // persisted row. Episodes relabel the General rows and drop the music-framed YouTube stats
+    // (likes/dislikes/subscribers) — an episode's saved state is inLibrary, not a like, so those
+    // numbers are the wrong vocabulary; Views and the episode description stay (factual + useful).
+    val isEpisode = isEpisodeHint || song?.song?.isEpisode == true
 
     Column(
         modifier = Modifier
@@ -147,8 +153,16 @@ fun ShowMediaInfo(videoId: String) {
         SectionTitle(stringResource(R.string.general))
         Material3MenuGroup(
             items = listOf(
-                field(R.drawable.music_note, stringResource(R.string.song_title), song?.title ?: info?.title),
-                field(R.drawable.person, stringResource(R.string.song_artists), song?.artists?.joinToString { it.name } ?: info?.author),
+                field(
+                    if (isEpisode) R.drawable.podcast else R.drawable.music_note,
+                    stringResource(if (isEpisode) R.string.episode_title else R.string.song_title),
+                    song?.title ?: info?.title,
+                ),
+                field(
+                    R.drawable.person,
+                    stringResource(if (isEpisode) R.string.episode_host else R.string.song_artists),
+                    song?.artists?.joinToString { it.name } ?: info?.author,
+                ),
                 field(R.drawable.link, stringResource(R.string.media_id), song?.id ?: videoId),
             ),
         )
@@ -164,11 +178,15 @@ fun ShowMediaInfo(videoId: String) {
                 add(field(R.drawable.lock_open, stringResource(R.string.format_cipher_support_added), cipherSupportAdded))
             }
             // YouTube stats — DIRECT only (never requested in relay mode, so `info` stays null there).
+            // Episodes keep Views (factual) but drop likes/dislikes/subscribers — music-framed
+            // numbers that don't match podcast semantics (saved-for-later, not liked).
             info?.let { i ->
                 add(field(R.drawable.stats, stringResource(R.string.views), i.viewCount?.let(::numberFormatter)))
-                add(field(R.drawable.favorite, stringResource(R.string.likes), i.like?.let(::numberFormatter)))
-                add(field(R.drawable.favorite_border, stringResource(R.string.dislikes), i.dislike?.let(::numberFormatter)))
-                add(field(R.drawable.person, stringResource(R.string.subscribers), i.subscribers))
+                if (!isEpisode) {
+                    add(field(R.drawable.favorite, stringResource(R.string.likes), i.like?.let(::numberFormatter)))
+                    add(field(R.drawable.favorite_border, stringResource(R.string.dislikes), i.dislike?.let(::numberFormatter)))
+                    add(field(R.drawable.person, stringResource(R.string.subscribers), i.subscribers))
+                }
             }
             currentFormat?.let { f ->
                 add(field(R.drawable.tune, stringResource(R.string.format_itag), f.itag?.toString()))

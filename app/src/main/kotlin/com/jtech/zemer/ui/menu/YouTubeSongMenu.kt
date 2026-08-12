@@ -155,7 +155,8 @@ fun YouTubeSongMenu(
             artists = artists.map { ArtistChoice(id = it.id!!, name = it.name) },
             onDismiss = { showSelectArtistDialog = false },
             onArtistClick = { artistId ->
-                navController.navigateToArtist(artistId)
+                // An episode's author is a podcast HOST channel — route to the podcast channel page.
+                navController.navigateToArtist(artistId, isPodcastChannel = song.isEpisode)
                 onDismiss()
             },
         )
@@ -194,32 +195,41 @@ fun YouTubeSongMenu(
                 )
             }
         },
-        trailingContent = {  
-            IconButton(  
-                onClick = {  
-                    database.transaction {  
-                        librarySong.let { librarySong ->  
-                            val s: SongEntity  
-                            if (librarySong == null) {  
-                                insert(song.toMediaMetadata(), SongEntity::toggleLike)  
-                                s = song.toMediaMetadata().toSongEntity().let(SongEntity::toggleLike)  
-                            } else {  
-                                s = librarySong.song.toggleLike()  
-                                update(s)  
-                            }  
-                            syncUtils.likeSong(s)  
-                        }  
-                    }  
-                },  
-            ) {  
-                Icon(  
-                    painter = painterResource(if (librarySong?.song?.liked == true) R.drawable.favorite else R.drawable.favorite_border),  
-                    tint = if (librarySong?.song?.liked == true) MaterialTheme.colorScheme.error else LocalContentColor.current,  
-                    contentDescription = null,  
-                )  
-            }  
-        },  
-    )  
+        trailingContent = {
+            IconButton(
+                onClick = {
+                    // Episodes toggle "save for later" (inLibrary), never a music like — mirror
+                    // MusicService.toggleLike (toggleSaveEpisode upserts a missing row stamped
+                    // isEpisode and owns the optimistic flip + account sync).
+                    if (song.isEpisode) {
+                        val entity = librarySong?.song ?: song.toMediaMetadata().toSongEntity()
+                        syncUtils.toggleSaveEpisode(entity)
+                    } else {
+                        database.transaction {
+                            librarySong.let { librarySong ->
+                                val s: SongEntity
+                                if (librarySong == null) {
+                                    insert(song.toMediaMetadata(), SongEntity::toggleLike)
+                                    s = song.toMediaMetadata().toSongEntity().let(SongEntity::toggleLike)
+                                } else {
+                                    s = librarySong.song.toggleLike()
+                                    update(s)
+                                }
+                                syncUtils.likeSong(s)
+                            }
+                        }
+                    }
+                },
+            ) {
+                Icon(
+                    // isSavedForPlayer: liked for songs, inLibrary for episodes (the shared heart rule).
+                    painter = painterResource(if (librarySong?.song?.isSavedForPlayer == true) R.drawable.favorite else R.drawable.favorite_border),
+                    tint = if (librarySong?.song?.isSavedForPlayer == true) MaterialTheme.colorScheme.error else LocalContentColor.current,
+                    contentDescription = null,
+                )
+            }
+        },
+    )
 
     HorizontalDivider()
 
@@ -279,10 +289,12 @@ fun YouTubeSongMenu(
                         text = stringResource(R.string.share),
                         onClick = {
                             Tracker.action(TrackingActionKind.SHARE, song.id)
-                            val shareUrl = if (isVideo) {
-                                VideoLinkBuilder.videoLink(song.id)
-                            } else {
-                                song.shareLink
+                            val shareUrl = when {
+                                // Episode links carry the owning show so the receiver routes to the
+                                // podcast screen, not the (artist-whitelisted) music play path.
+                                song.isEpisode -> VideoLinkBuilder.episodeLink(song.id, song.album?.id)
+                                isVideo -> VideoLinkBuilder.videoLink(song.id)
+                                else -> song.shareLink
                             }
                             context.shareText(shareUrl)
                             onDismiss()
@@ -297,7 +309,9 @@ fun YouTubeSongMenu(
             Material3MenuGroup(
                 modifier = Modifier.padding(horizontal = 4.dp),
                 items = buildList {
-                    add(
+                    // An episode must never seed music radio around its videoId (the
+                    // ListQueue.episode rule) — no Start radio row on episode menus.
+                    if (!song.isEpisode) add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.radio), null, Modifier.size(24.dp)) },
                             title = { Text(stringResource(R.string.start_radio)) },
@@ -319,7 +333,9 @@ fun YouTubeSongMenu(
                             },
                         )
                     )
-                    add(
+                    // Not for episodes: an episode's "artist" is a podcast HOST channel, and the
+                    // report would land in the music artist-report pipeline mislabeled.
+                    if (!song.isEpisode) add(
                         Material3MenuItemData(
                             icon = { Icon(painterResource(R.drawable.warning), null, Modifier.size(24.dp)) },
                             title = { Text(stringResource(R.string.report_artist)) },
@@ -478,7 +494,7 @@ fun YouTubeSongMenu(
                                     val valid = artists.filter { !it.id.isNullOrBlank() }
                                     when {
                                         valid.size == 1 -> {
-                                            navController.navigateToArtist(valid[0].id)
+                                            navController.navigateToArtist(valid[0].id, isPodcastChannel = song.isEpisode)
                                             onDismiss()
                                         }
                                         valid.size > 1 -> showSelectArtistDialog = true
@@ -495,7 +511,7 @@ fun YouTubeSongMenu(
                             onClick = {
                                 onDismiss()
                                 bottomSheetPageState.show {
-                                    ShowMediaInfo(song.id)
+                                    ShowMediaInfo(song.id, isEpisodeHint = song.isEpisode)
                                 }
                             },
                         )
