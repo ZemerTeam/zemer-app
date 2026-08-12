@@ -47,6 +47,12 @@ fun VideoQualitySelector(
     currentQuality: String,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
+    // Override the picker presentation. The default (null) opens the shared bottom-sheet menu via
+    // LocalMenuState — correct in the portrait inline player. The FULLSCREEN overlay passes its own
+    // handler to show a landscape-aware in-overlay panel instead: the root-hosted bottom sheet is a
+    // portrait sheet rendered under an immersive landscape window, which fights orientation, insets
+    // and z-order (the "very buggy" fullscreen menu).
+    onOpen: (() -> Unit)? = null,
 ) {
     if (qualities.size < 2) return
     val menuState = LocalMenuState.current
@@ -63,13 +69,17 @@ fun VideoQualitySelector(
                 indication = null,
                 onClickLabel = stringResource(R.string.video_quality),
             ) {
-                menuState.show {
-                    VideoQualityMenu(
-                        qualities = qualities,
-                        currentQuality = currentQuality,
-                        onSelect = onSelect,
-                        onDismiss = menuState::dismiss,
-                    )
+                if (onOpen != null) {
+                    onOpen()
+                } else {
+                    menuState.show {
+                        VideoQualityMenu(
+                            qualities = qualities,
+                            currentQuality = currentQuality,
+                            onSelect = onSelect,
+                            onDismiss = menuState::dismiss,
+                        )
+                    }
                 }
             }
             .padding(start = 10.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),

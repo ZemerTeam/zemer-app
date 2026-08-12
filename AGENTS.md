@@ -1036,9 +1036,14 @@ WEB_REMIX serves avc1 144p…1080p and vp9-only 1440p/2160p. The rules that must
   A video error invalidates the plain key AND the rung key AND the merge-audio key (all seeded from
   the same now-dead response), so a re-entry always re-resolves fresh.
 - **The switcher** (`VideoQualitySelector`, shared by the inline art slot at BottomStart and the
-  fullscreen overlay at TopEnd — a VideoModePill-family over-media chip opening the standard
-  `Material3MenuGroup` menu sheet `VideoQualityMenu`, never a floating dropdown) shows the CURRENT
-  item's live ladder, decoder-capability-filtered
+  fullscreen overlay at TopEnd — a VideoModePill-family over-media chip, never a floating dropdown)
+  shows the CURRENT item's live ladder, decoder-capability-filtered. The picker BODY
+  (`VideoQualityMenu` — `NavigationTitle` heading over shared `OnboardingChoiceCard` rows) is one
+  composable presented two ways: the INLINE player opens it as the root bottom-sheet menu
+  (`LocalMenuState`, portrait), the FULLSCREEN overlay renders it in a fullscreen-LOCAL centered
+  scrollable panel (`onOpen`) — the root bottom sheet is a portrait sheet that fought the immersive
+  landscape window's orientation/insets/z-order, so fullscreen must present its own panel inside the
+  overlay (Back closes the panel before exiting fullscreen). It
   (`VideoDecoderCaps` — never offer vp9 2160p to a SoC that can't decode it); a pick applies to that
   item for the session. Two CONCURRENT maps on purpose: `qualityOverrides` holds the effective
   session state (an in-player pick OR a machine write from the rebuffer guard / error revert) and
