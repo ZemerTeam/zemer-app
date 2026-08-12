@@ -77,9 +77,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1184`
+- Files counted: `1185`
 - By extension:
-  - `.kt`: `745`
+  - `.kt`: `746`
   - `.xml`: `196`
   - `.mjs`: `75`
   - `.md`: `68`
@@ -461,6 +461,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/SavedStatusMenu.kt` | 113 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/SelectionSongsMenu.kt` | 589 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/SongMenu.kt` | 544 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/VideoQualityMenu.kt` | 68 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ViewCollectionMenuItem.kt` | 56 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeAlbumMenu.kt` | 358 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeArtistMenu.kt` | 204 lines | `.kt` |
@@ -1067,7 +1068,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 768 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 769 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 385 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
@@ -1078,7 +1079,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1294 lines | `.md` |
+| `docs/repository-map.md` | 1295 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
