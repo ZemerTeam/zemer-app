@@ -15,14 +15,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -48,6 +54,7 @@ import androidx.media3.common.Player.STATE_ENDED
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.focusBorder
+import com.jtech.zemer.ui.menu.VideoQualityMenu
 import com.jtech.zemer.utils.makeTimeString
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -69,13 +76,19 @@ fun PlayerVideoFullscreen(onExit: () -> Unit) {
     val playbackState by playerConnection.playbackState.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
+    val videoQualities by playerConnection.videoQualities.collectAsState()
+    val currentVideoQuality by playerConnection.currentVideoQuality.collectAsState()
 
     var position by remember { mutableLongStateOf(playerConnection.currentPositionMs()) }
     var duration by remember { mutableLongStateOf(playerConnection.currentDurationMs()) }
     var sliderPosition by remember { mutableStateOf<Long?>(null) }
     var controlsVisible by remember { mutableStateOf(true) }
+    // The quality picker is a fullscreen-LOCAL panel (not the root bottom-sheet menu, which is a
+    // portrait sheet that fights this immersive landscape window). Back closes it before exiting.
+    var showQualityPanel by remember { mutableStateOf(false) }
 
-    BackHandler(onBack = onExit)
+    BackHandler(enabled = showQualityPanel) { showQualityPanel = false }
+    BackHandler(enabled = !showQualityPanel, onBack = onExit)
 
     // Immersive: hide the system bars and lock landscape while fullscreen; restore both on exit.
     val view = LocalView.current
@@ -153,6 +166,19 @@ fun PlayerVideoFullscreen(onExit: () -> Unit) {
                         tint = Color.White,
                     )
                 }
+
+                // Quality switcher at TopEnd — the fullscreen overlay's free corner (close at
+                // TopStart, transport centered, seek bar at the bottom). Same shared pill component,
+                // but it opens the fullscreen-LOCAL panel below (onOpen) instead of the root sheet.
+                VideoQualitySelector(
+                    qualities = videoQualities,
+                    currentQuality = currentVideoQuality,
+                    onSelect = playerConnection::setVideoQuality,
+                    onOpen = { showQualityPanel = true },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                )
 
                 Row(
                     modifier = Modifier.align(Alignment.Center),
@@ -235,6 +261,53 @@ fun PlayerVideoFullscreen(onExit: () -> Unit) {
                             text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "",
                             style = MaterialTheme.typography.labelMedium,
                             color = Color.White,
+                        )
+                    }
+                }
+            }
+        }
+
+        // The fullscreen-LOCAL quality panel: a dim scrim + a centered, height-bounded, scrollable
+        // card (the shared VideoQualityMenu body — same Auto/rung choice cards as the inline sheet).
+        // Drawn last so it sits above the controls, and inside THIS overlay so it inherits the
+        // landscape/immersive window (the root bottom sheet did not — that was the bug). Tapping the
+        // scrim dismisses; a choice applies + dismisses.
+        AnimatedVisibility(
+            visible = showQualityPanel,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { showQualityPanel = false }
+                    .systemBarsPadding(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    tonalElevation = 3.dp,
+                    modifier = Modifier
+                        .widthIn(max = 420.dp)
+                        .heightIn(max = 360.dp)
+                        // Swallow taps so a tap inside the card never dismisses via the scrim.
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) {},
+                ) {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        VideoQualityMenu(
+                            qualities = videoQualities,
+                            currentQuality = currentVideoQuality,
+                            onSelect = playerConnection::setVideoQuality,
+                            onDismiss = { showQualityPanel = false },
                         )
                     }
                 }

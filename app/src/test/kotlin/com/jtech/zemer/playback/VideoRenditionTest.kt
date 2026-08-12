@@ -19,4 +19,58 @@ class VideoRenditionTest {
         assertFalse(VideoRendition.isVideoKey("abc123"))
         assertEquals("abc123", VideoRendition.renditionId("abc123"))
     }
+
+    @Test
+    fun `explicit quality keys carry the itag and the merge marker`() {
+        val progressive = VideoRendition.key("abc123", 22, progressive = true)
+        val adaptive = VideoRendition.key("abc123", 137, progressive = false)
+        assertEquals("video:abc123:p22", progressive)
+        assertEquals("video:abc123:q137", adaptive)
+        assertTrue(VideoRendition.isVideoKey(progressive))
+        assertTrue(VideoRendition.isVideoKey(adaptive))
+        // Only the adaptive (video-only) key demands the audio merge.
+        assertFalse(VideoRendition.isAdaptiveVideoKey(progressive))
+        assertTrue(VideoRendition.isAdaptiveVideoKey(adaptive))
+        assertFalse(VideoRendition.isAdaptiveVideoKey(VideoRendition.key("abc123")))
+    }
+
+    @Test
+    fun `renditionId strips any itag suffix`() {
+        assertEquals("abc123", VideoRendition.renditionId("video:abc123:q137"))
+        assertEquals("abc123", VideoRendition.renditionId("video:abc123:p22"))
+    }
+
+    @Test
+    fun `renditionItag parses the suffix and null for the automatic key`() {
+        assertEquals(137, VideoRendition.renditionItag("video:abc123:q137"))
+        assertEquals(22, VideoRendition.renditionItag("video:abc123:p22"))
+        assertEquals(null, VideoRendition.renditionItag(VideoRendition.key("abc123")))
+        assertEquals(null, VideoRendition.renditionItag("video:abc123:x9"))
+    }
+
+    @Test
+    fun `merge audio key namespace`() {
+        val key = VideoRendition.mergeAudioKey("abc123")
+        assertEquals("videoaudio:abc123", key)
+        assertTrue(VideoRendition.isMergeAudioKey(key))
+        assertFalse(VideoRendition.isMergeAudioKey("video:abc123"))
+        assertFalse(VideoRendition.isVideoKey(key))
+    }
+
+    @Test
+    fun `allRenditionKeys matches the whole family and nothing else`() {
+        val cached = listOf(
+            "abc123",                    // bare audio — NOT a rendition key
+            "video:abc123",
+            "video:abc123:q137",
+            "video:abc123:p22",
+            "videoaudio:abc123",
+            "video:abc123XY",            // a DIFFERENT id sharing the prefix — must not match
+            "video:other",
+        )
+        assertEquals(
+            listOf("video:abc123", "video:abc123:q137", "video:abc123:p22", "videoaudio:abc123"),
+            VideoRendition.allRenditionKeys("abc123", cached),
+        )
+    }
 }

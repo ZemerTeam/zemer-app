@@ -106,6 +106,11 @@ val LastPodcastWhitelistVersionKey = longPreferencesKey("lastPodcastWhitelistVer
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")
 
+// Default video-mode quality: VideoQualityLogic.AUTO ("auto" — the automatic progressive pick, the
+// pre-quality-switcher behavior) or a target rung label ("1080p", "720p", ...). The in-player
+// switcher overrides this per play; see VideoModeController.
+val VideoQualityKey = stringPreferencesKey("videoQuality")
+
 // Stream source toggles — each key maps to whether that client is enabled
 val StreamSourceWebRemixKey   = booleanPreferencesKey("streamSourceWebRemix")
 val StreamSourceTVHTML5Key    = booleanPreferencesKey("streamSourceTVHTML5")

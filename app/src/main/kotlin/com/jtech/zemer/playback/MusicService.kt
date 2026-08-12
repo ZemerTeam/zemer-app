@@ -54,6 +54,8 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import android.database.SQLException
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
@@ -433,7 +435,9 @@ class MusicService :
                     // media3 1.8.0 defaults, except start playback once ~750ms is buffered (vs the
                     // 1000ms default) so the first audio is audible sooner. Min/max (50_000) and
                     // after-rebuffer (2_000) are left at the actual media3 1.8.0 defaults, so
-                    // buffering/rebuffer recovery is unchanged (no stutter regression).
+                    // buffering/rebuffer recovery is unchanged (no stutter regression). Video-mode
+                    // stutter is handled by the rebuffer guard (quality downgrade), NOT by widening
+                    // this shared buffer — which would regress audio/RELAY rebuffer latency.
                     DefaultLoadControl
                         .Builder()
                         .setBufferDurationsMs(50_000, 50_000, 750, 2_000)
@@ -1583,6 +1587,9 @@ class MusicService :
     override fun onPlaybackStateChanged(
         @Player.State playbackState: Int,
     ) {
+        // Video-mode rebuffer guard: repeated mid-play stalls on a streaming rendition downgrade one
+        // quality rung (the controller ignores seeks and non-video playback).
+        videoModeController.onPlaybackStateChanged(playbackState)
         // A broadcast never ends: reaching STATE_ENDED means the runway ran out (top-up lost a
         // race) - re-tune to the live schedule instead of parking in silence.
         if (playbackState == Player.STATE_ENDED) {
@@ -1600,6 +1607,17 @@ class MusicService :
             saveQueueToDisk()
         }
         updateWidget()
+    }
+
+    override fun onPositionDiscontinuity(
+        oldPosition: Player.PositionInfo,
+        newPosition: Player.PositionInfo,
+        reason: Int,
+    ) {
+        // A user seek legitimately buffers — the rebuffer guard must not count it as a stall.
+        if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
+            videoModeController.onSeekDiscontinuity()
+        }
     }
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -1720,6 +1738,21 @@ class MusicService :
         // handleUnrecoverablePlayerError.
         if (isExpiredUrlError(error) && relayModeNow != true) {
             Timber.d("Expired URL detected (403), refreshing stream URL")
+            handleExpiredUrlError()
+            return
+        }
+
+        // A video→audio revert (backgrounding, cast/block revert) just re-prepared the bare-id audio,
+        // which had to re-fetch bytes from a region the audio cache never held (video bytes live in
+        // the isolated video:/videoaudio: namespaces). That fetch can fail transiently — a stale/absent
+        // URL, or the network constrained during an app-switch — and it is NOT a clean 403, so without
+        // this it would fall through to stopOnError() and the player would park in an error the user
+        // sees on return. Route it to the same URL-refresh recovery so audio keeps playing. RELAY is
+        // excluded (deterministic URL — refreshing loops); a station never reverts from video.
+        if (relayModeNow != true && currentQueue !is StationQueue &&
+            videoModeController.revertedToAudioWithin(REVERT_RECOVERY_WINDOW_MS)
+        ) {
+            Timber.d("Player error within the video->audio revert window; refreshing audio URL and re-preparing")
             handleExpiredUrlError()
             return
         }
@@ -2000,6 +2033,11 @@ class MusicService :
             // playerCache keyed on the video: key) keep video bytes isolated from the audio cache.
             if (VideoRendition.isVideoKey(mediaId)) {
                 val renditionId = VideoRendition.renditionId(mediaId)
+                // An explicit quality rung encodes its itag IN the key (`video:<id>:p18` /
+                // `video:<id>:q137`), so each rung's bytes cache under their own key and a quality
+                // switch can never mix containers in one resource (the corruption class the
+                // position-0 purge exists for). Plain `video:<id>` stays the automatic pick.
+                val renditionItag = VideoRendition.renditionItag(mediaId)
                 if (playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
                     return@Factory dataSpec
                 }
@@ -2007,6 +2045,7 @@ class MusicService :
                     return@Factory dataSpec.withUri(it.first.toUri())
                 }
                 // The shared metered-aware cap (one policy with muxed downloads — VideoRendition).
+                // Governs only the AUTOMATIC pick: an explicit rung is the user's own choice.
                 val maxVideoBitrateKbps = VideoRendition.defaultMaxBitrateKbps(connectivityManager.isActiveNetworkMetered)
                 val videoPlayback = runBlocking(Dispatchers.IO) {
                     YTPlayerUtils.playerResponseForPlayback(
@@ -2015,6 +2054,7 @@ class MusicService :
                         connectivityManager = connectivityManager,
                         preferVideo = true,
                         maxVideoBitrateKbps = maxVideoBitrateKbps,
+                        videoItag = renditionItag,
                     )
                 }.getOrElse { throwable ->
                     when (throwable) {
@@ -2025,10 +2065,70 @@ class MusicService :
                     }
                 }
                 val nonNullVideo = requireNotNull(videoPlayback) { getString(R.string.error_unknown) }
+                // Publish the response's quality ladder — the in-player switcher's data source. The
+                // resolved itag lets the controller skip a redundant re-swap when the automatic pick
+                // already streams the target rung.
+                videoModeController.onVideoQualitiesResolved(
+                    renditionId, nonNullVideo.videoQualities, nonNullVideo.format.itag,
+                )
                 val videoUrl = nonNullVideo.streamUrl
-                songUrlCache[mediaId] =
-                    videoUrl to System.currentTimeMillis() + (nonNullVideo.streamExpiresInSeconds * 1000L)
+                val videoExpiry = System.currentTimeMillis() + (nonNullVideo.streamExpiresInSeconds * 1000L)
+                // The PLAIN `video:<id>` key (automatic pick, renditionItag == null) has no itag in its
+                // key, but its resolved itag flips with metered state (18 metered / 22 unmetered) — so
+                // it gets the same drift purge as the merge-audio key; an explicit rung key can't drift.
+                if (renditionItag == null) {
+                    seedPlainVideoKey(renditionId, videoUrl, nonNullVideo.format.itag, videoExpiry)
+                } else {
+                    songUrlCache[mediaId] = videoUrl to videoExpiry
+                }
+                // One resolution seeds EVERY rung's URL + the merge-audio partner, so a quality
+                // switch (and the adaptive rung's audio track) never pays another round-trip.
+                seedVideoUrlCaches(renditionId, nonNullVideo)
                 return@Factory dataSpec.withUri(videoUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
+            }
+
+            // The audio half of an adaptive (video-only) quality rung — the MergingMediaSource's
+            // second track (see createMediaSourceFactory). Its own `videoaudio:<id>` namespace keeps
+            // these bytes out of the bare id's cache spans (which may hold a different itag/container)
+            // and, like the video branch, bypasses the audio-only machinery (local file, FormatEntity,
+            // Tracker, recoverSong) — the ordinary audio path already owns those for this id.
+            if (VideoRendition.isMergeAudioKey(mediaId)) {
+                val audioId = mediaId.removePrefix("videoaudio:")
+                if (playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
+                    return@Factory dataSpec
+                }
+                songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
+                    return@Factory dataSpec.withUri(it.first.toUri())
+                }
+                val mergeAudio = runBlocking(Dispatchers.IO) {
+                    YTPlayerUtils.playerResponseForPlayback(
+                        audioId,
+                        // ALWAYS HIGH for the merge partner — the seed (video branch), this live
+                        // branch, and prefetch must agree, or a non-HIGH user's audio itag flips
+                        // between them and the drift purge thrashes / corrupts mid-stream.
+                        audioQuality = com.jtech.zemer.constants.AudioQuality.HIGH,
+                        connectivityManager = connectivityManager,
+                    )
+                }.getOrElse { throwable ->
+                    when (throwable) {
+                        is PlaybackException -> throw throwable
+                        else -> throw PlaybackException(
+                            getString(R.string.error_unknown), throwable, PlaybackException.ERROR_CODE_REMOTE_ERROR
+                        )
+                    }
+                }
+                val nonNullAudio = requireNotNull(mergeAudio) { getString(R.string.error_unknown) }
+                // The merge-audio key carries no itag, but the audio pick is not stable (AudioQuality
+                // AUTO flips with metered state) — purge the key's cached spans whenever the resolved
+                // itag is unknown (fresh process) or changed, so two containers can never share the
+                // resource (the same corruption class the itag-suffixed video keys prevent).
+                val previousAudioItag = mergeAudioItagCache.put(mediaId, nonNullAudio.format.itag)
+                if (previousAudioItag != nonNullAudio.format.itag) {
+                    runCatching { playerCache.removeResource(mediaId) }
+                }
+                songUrlCache[mediaId] =
+                    nonNullAudio.streamUrl to System.currentTimeMillis() + (nonNullAudio.streamExpiresInSeconds * 1000L)
+                return@Factory dataSpec.withUri(nonNullAudio.streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
 
             // Downloaded local file? Decide once at position 0 and honor it later; self-repair a stale
@@ -2159,6 +2259,103 @@ class MusicService :
     @Volatile
     private var relayModeNow: Boolean? = null
 
+    /** Whether playback is currently routed through the RELAY source (fixed server-side rendition). */
+    fun isRelayPlaybackMode(): Boolean = relayModeNow == true
+
+    // The last-resolved audio itag per `videoaudio:<id>` merge key, and the last-resolved video itag
+    // per PLAIN `video:<id>` key — both drive the container-drift purge in their resolver branches
+    // (the itag-suffixed rung keys can't drift; these two keys can, so they are guarded).
+    private val mergeAudioItagCache = java.util.concurrent.ConcurrentHashMap<String, Int>()
+    private val videoKeyItagCache = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+    // Video renditions currently being prefetched (dedupe) — see prefetchVideoRendition.
+    private val videoPrefetchInFlight =
+        java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
+
+    /**
+     * Seed the shared URL cache with EVERY quality rung's URL + the merge-audio partner from one
+     * video resolution — the fast-switch backbone: a quality swap (or the adaptive rung's audio
+     * track) then resolves entirely from cache, no second player round-trip. The merge-audio seed
+     * runs the same itag-drift purge as the live merge branch so cached spans can never mix
+     * containers.
+     */
+    /**
+     * Seed the PLAIN `video:<id>` key from an automatic-pick resolution, purging its cached spans on
+     * an itag change (the automatic pick's itag flips with metered state). Shared by the resolver's
+     * own plain-key path and [prefetchVideoRendition] so the drift guard can't be bypassed.
+     */
+    private fun seedPlainVideoKey(renditionId: String, streamUrl: String, itag: Int, expiry: Long) {
+        val plainKey = VideoRendition.key(renditionId)
+        val previous = videoKeyItagCache.put(plainKey, itag)
+        if (previous != null && previous != itag) {
+            runCatching { playerCache.removeResource(plainKey) }
+        }
+        songUrlCache[plainKey] = streamUrl to expiry
+    }
+
+    private fun seedVideoUrlCaches(renditionId: String, data: YTPlayerUtils.PlaybackData) {
+        val expiry = System.currentTimeMillis() + (data.streamExpiresInSeconds * 1000L)
+        data.videoRungUrls.forEach { (itag, url) ->
+            val rung = data.videoQualities.firstOrNull { it.itag == itag } ?: return@forEach
+            songUrlCache[VideoRendition.key(renditionId, itag, rung.progressive)] = url to expiry
+        }
+        val audioUrl = data.mergeAudioUrl
+        val audioItag = data.mergeAudioItag
+        if (audioUrl != null && audioItag != null) {
+            val audioKey = VideoRendition.mergeAudioKey(renditionId)
+            val previous = mergeAudioItagCache.put(audioKey, audioItag)
+            if (previous != audioItag) {
+                runCatching { playerCache.removeResource(audioKey) }
+            }
+            songUrlCache[audioKey] = audioUrl to expiry
+        }
+    }
+
+    /**
+     * Background warm-up of a video-capable item's rendition — fired when the expanded player shows
+     * the Song/Video pill, so a Video tap (and the quality ladder behind the switcher) is already
+     * resolved by the time the user reaches for it. Skips when RELAY (fixed rendition), when a fresh
+     * URL is already cached, or when a prefetch for the id is in flight; failures are silent (the
+     * ordinary on-demand resolution path is untouched and runs on the actual tap).
+     */
+    fun prefetchVideoRendition(videoId: String) {
+        // Never prefetch what won't stream: RELAY (fixed rendition), a DOWNLOADED muxed video (LOCAL
+        // rendition plays from disk — a resolution would be pure waste, and offline it just fails),
+        // or when offline. Mirrors requestVideoAvailability's own network guard.
+        if (isRelayPlaybackMode()) return
+        if (!isNetworkConnected.value) return
+        if (playbackSourceIsLocalFile(videoId)) return
+        val plainKey = VideoRendition.key(videoId)
+        if (songUrlCache[plainKey]?.let { it.second > System.currentTimeMillis() } == true) return
+        if (!videoPrefetchInFlight.add(videoId)) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                YTPlayerUtils.playerResponseForPlayback(
+                    videoId,
+                    // HIGH so the seeded merge-audio itag matches the video-branch and live-branch
+                    // resolutions (all preferVideo=true resolutions must agree — see the merge-audio
+                    // resolver) and the drift purge never thrashes.
+                    audioQuality = com.jtech.zemer.constants.AudioQuality.HIGH,
+                    connectivityManager = connectivityManager,
+                    preferVideo = true,
+                    maxVideoBitrateKbps =
+                        VideoRendition.defaultMaxBitrateKbps(connectivityManager.isActiveNetworkMetered),
+                ).onSuccess { data ->
+                    videoModeController.onVideoQualitiesResolved(
+                        videoId, data.videoQualities, data.format.itag,
+                    )
+                    val expiry = System.currentTimeMillis() + (data.streamExpiresInSeconds * 1000L)
+                    seedPlainVideoKey(videoId, data.streamUrl, data.format.itag, expiry)
+                    seedVideoUrlCaches(videoId, data)
+                }.onFailure {
+                    Timber.tag("MusicService").d(it, "Video rendition prefetch failed for %s", videoId)
+                }
+            } finally {
+                videoPrefetchInFlight.remove(videoId)
+            }
+        }
+    }
+
     // Last relay song id whose local `song` row was ensured (see persistRelaySongIfNeeded) — so the
     // insert-if-missing runs once per relay track, not on every metadata-changed event.
     private var lastRelayPersistedId: String? = null
@@ -2188,8 +2385,8 @@ class MusicService :
         if (relay) relayDataSourceFactory.createDataSource() else dataSourceFactory.createDataSource()
     }
 
-    private fun createMediaSourceFactory() =
-        DefaultMediaSourceFactory(
+    private fun createMediaSourceFactory(): MediaSource.Factory {
+        val default = DefaultMediaSourceFactory(
             playbackDataSourceFactory,
             ExtractorsFactory {
                 // Mp4Extractor added for the video-mode progressive muxed MP4 (plain-moov container the
@@ -2199,6 +2396,30 @@ class MusicService :
                 arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor())
             },
         )
+        // An adaptive (video-only) quality rung has no audio of its own: its MediaSource MERGES the
+        // video rendition with the item's audio stream (`videoaudio:<id>` — resolved by the same
+        // ResolvingDataSource, cached under its own namespace). Everything else — plain audio,
+        // progressive video rungs, relay, local files — is untouched: only a `:q`-marked key (built
+        // exclusively by VideoModeController for a ladder-known adaptive rung, never in RELAY mode)
+        // takes this branch. clipDurations trims the merged timeline to the shorter track so a
+        // slightly-longer audio tail can't hang the item past the video's end.
+        return object : MediaSource.Factory by default {
+            override fun createMediaSource(mediaItem: MediaItem): MediaSource {
+                val key = mediaItem.localConfiguration?.customCacheKey
+                if (key != null && VideoRendition.isAdaptiveVideoKey(key)) {
+                    val audioKey = VideoRendition.mergeAudioKey(VideoRendition.renditionId(key))
+                    val audioItem = mediaItem.buildUpon().setUri(audioKey).setCustomCacheKey(audioKey).build()
+                    return MergingMediaSource(
+                        /* adjustPeriodTimeOffsets = */ true,
+                        /* clipDurations = */ true,
+                        default.createMediaSource(mediaItem),
+                        default.createMediaSource(audioItem),
+                    )
+                }
+                return default.createMediaSource(mediaItem)
+            }
+        }
+    }
 
     private fun createRenderersFactory() =
         object : DefaultRenderersFactory(this) {
@@ -2526,6 +2747,9 @@ class MusicService :
         val WEB_STREAM_CLIENTS = setOf("WEB_REMIX", "WEB_CREATOR", "TVHTML5", "WEB")
         const val ERROR_CODE_NO_STREAM = 1000001
         const val CHUNK_LENGTH = 512 * 1024L
+        // How long after a video→audio revert a player error is treated as the revert's own transient
+        // re-prepare failure (recover via URL refresh) rather than a normal unrecoverable error.
+        private const val REVERT_RECOVERY_WINDOW_MS = 6_000L
         const val PERSISTENT_QUEUE_FILE = "persistent_queue.data"
         const val PERSISTENT_AUTOMIX_FILE = "persistent_automix.data"
         const val PERSISTENT_PLAYER_STATE_FILE = "persistent_player_state.data"

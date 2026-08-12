@@ -247,9 +247,21 @@ fun BottomSheetPlayer(
 
     // Kick the on-demand counterpart lookup when the expanded player shows a new item (a no-op today —
     // the counterpart source is dormant per step 3 — but the call site is kept for when it re-lights).
-    LaunchedEffect(state.isExpanded, mediaMetadata?.id) {
+    // When the item is already video-capable (the pill is showing), also PREFETCH the rendition in the
+    // background: the resolution + full quality-ladder URL table are warm before the user taps Video,
+    // so entering video mode (at any target quality) starts with a single CDN range request.
+    LaunchedEffect(state.isExpanded, mediaMetadata?.id, videoModeAvailable) {
         val id = mediaMetadata?.id
-        if (state.isExpanded && id != null) playerConnection.requestVideoAvailability(id)
+        if (state.isExpanded && id != null) {
+            playerConnection.requestVideoAvailability(id)
+            // Debounce the prefetch: only warm the rendition once the item has DWELLED ~1.2s, so
+            // skipping through video-capable tracks doesn't fire a full /player resolution + cipher
+            // work per track (the effect re-keys on id, cancelling this before the delay elapses).
+            if (videoModeAvailable && !isVideoMode) {
+                delay(1200)
+                playerConnection.prefetchVideoRendition(id)
+            }
+        }
     }
 
     var position by rememberSaveable(playbackState) {

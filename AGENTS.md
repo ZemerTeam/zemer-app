@@ -1008,6 +1008,121 @@ survive a failed attempt, see §download system) — a video fetch must never si
 available file on a metered connection. See §The download system for `VideoDownloadsInMusicKey` (the
 library-wide "show video downloads as music too" preference this enables).
 
+**The quality ladder (beyond-720p; `VideoQualityLogic` + the in-player switcher).** Streaming video
+is no longer capped at the progressive muxed formats (which top out at 360p/720p): the quality ladder
+spans progressive PLUS the adaptive video-only formats — measured live (`tests/video-qualities.mjs`),
+the music client serves avc1 144p…1080p and vp9-only 1440p/2160p for uploads that have them. Full
+feature map: `docs/video_quality/README.md`. The rules that must not regress:
+- **`VideoQualityLogic` is the ONE ladder/selection authority** (pure, JVM-tested): one rung per
+  qualityLabel (progressive wins its label; then avc1 > vp9 > av01, then bitrate), targets resolve to
+  the best rung at-or-below ("1080p" on a 720p-max video → 720p, never null for an explicit pick),
+  AUTO = the pre-switcher automatic progressive pick (the metered bitrate cap governs ONLY that).
+- **The rung's itag lives IN the cache key** (`video:<id>:p<itag>` progressive / `:q<itag>` adaptive,
+  `VideoRendition`): two rungs' bytes can never share cache spans (the container-mixing corruption
+  class) — which is also why the exact-itag resolution deliberately has NO fallback format (a
+  different container under an itag key would reintroduce the corruption; total failure surfaces
+  through the video error path instead). The **two keys that CAN drift are guarded**: the plain
+  `video:<id>` automatic key (its itag flips 18/22 with the metered cap) and the `videoaudio:<id>`
+  merge-audio key (the audio pick flips with metered state) each track their last-resolved itag
+  (`videoKeyItagCache`/`mergeAudioItagCache`) and purge their cached spans on any change — seeded
+  through the shared `seedPlainVideoKey` so the resolver AND the prefetch path both run the guard.
+  Every `preferVideo=true` resolution (video branch, live merge branch, prefetch) resolves the merge
+  audio at **HIGH** so its itag agrees across all three and the purge never thrashes. The `:q` mark
+  routes an item through the `MergingMediaSource` in `createMediaSourceFactory` — an adaptive rung is
+  video-only, so playback merges it with the audio stream under `videoaudio:<id>` (never the bare
+  id's spans). `removeDownload` purges the WHOLE key family (`VideoRendition.allRenditionKeys`, one
+  runCatching PER key). Only WEB-client resolutions seed the rung-URL table (`videoRungUrls`) — a
+  non-web fallback's URLs 403 past the 1 MiB wall, so a non-web success leaves the table empty and a
+  switch re-resolves; the ladder-URL block is skipped entirely for `forDownload` (never consumed).
+  A video error invalidates the plain key AND the rung key AND the merge-audio key (all seeded from
+  the same now-dead response), so a re-entry always re-resolves fresh.
+- **The switcher** (`VideoQualitySelector`, shared by the inline art slot at BottomStart and the
+  fullscreen overlay at TopEnd — a VideoModePill-family over-media chip, never a floating dropdown)
+  shows the CURRENT item's live ladder, decoder-capability-filtered. The picker BODY
+  (`VideoQualityMenu` — `NavigationTitle` heading over shared `OnboardingChoiceCard` rows) is one
+  composable presented two ways: the INLINE player opens it as the root bottom-sheet menu
+  (`LocalMenuState`, portrait), the FULLSCREEN overlay renders it in a fullscreen-LOCAL centered
+  scrollable panel (`onOpen`) — the root bottom sheet is a portrait sheet that fought the immersive
+  landscape window's orientation/insets/z-order, so fullscreen must present its own panel inside the
+  overlay (Back closes the panel before exiting fullscreen). It
+  (`VideoDecoderCaps` — never offer vp9 2160p to a SoC that can't decode it); a pick applies to that
+  item for the session. **An explicit quality the user chose — in Settings OR the in-player switcher
+  — is HONORED on every connection, metered included.** It is a deliberate choice, not something to
+  silently override: no metered gate, no bandwidth pre-gate, no error-time AUTO pin discards it (a
+  video error just invalidates the stale URL so a re-entry re-resolves fresh at the chosen quality;
+  the decoder-caps filter already keeps undecodable rungs off the menu). Data/stutter protection
+  lives where it belongs: the AUTOMATIC pick (AUTO — the default-default) keeps its metered bitrate
+  cap, and the reactive rebuffer guard drops the CURRENT video a rung when it actually stalls
+  (per-item; a new video still starts at the user's setting). Two CONCURRENT maps: `qualityOverrides`
+  is the effective session state (an in-player pick OR the guard's reactive downgrade) driving
+  streaming; `userQualityPicks` holds ONLY explicit switcher choices and is what DOWNLOADS read
+  (`downloadVideoQuality` → `userQualityPicks[id] ?: defaultVideoQuality`), so the guard's downgrade
+  never leaks into a download. The Settings default (`VideoQualityKey`, Player settings, hidden when
+  videos are blocked) applies to new plays via `effectiveQualityTarget` (`qualityOverrides ?:
+  default`). A same-itag switcher tap (tapping the quality already playing, including the automatic
+  pick's true label) is a no-op — never a redundant re-swap. First entry plays AUTO instantly and upgrades
+  position-continuously when the ladder lands with the resolution — never a blocking wait, and never a
+  redundant re-swap when the automatic pick already streams the target rung (the resolved itag rides
+  the ladder callback). Quality re-swaps ride the same `pendingSwap` + `listenAccumulator.onSwap`
+  discipline as enter/exit (a swap is never a track change, never a double-counted listen). LOCAL
+  renditions and RELAY mode have no switcher (one baked/fixed rendition; quality keys must never reach
+  the relay resolver). A video-mode player error pins the item's session pick to AUTO so neither the
+  failed pick NOR the persisted default can loop a re-entry back into the failing rung.
+- **Fast entry + instant switching (the perf contract).** ONE video resolution resolves EVERY ladder
+  rung's URL plus the merge-audio partner from the same response (`PlaybackData.videoRungUrls` /
+  `mergeAudioUrl` — pure local sig/n/pot computation, no extra network; exactly what
+  `tests/video-qualities.mjs` proves per rung) and `MusicService.seedVideoUrlCaches` seeds them all,
+  so a quality switch and the adaptive audio track never pay a second player round-trip. The expanded
+  player PREFETCHES the rendition in the background while the Song/Video pill is showing
+  (`prefetchVideoRendition` — deduped, expiry-aware, relay-gated, silent on failure), so a Video tap
+  starts with a single CDN range request. The web-URL finalization lives in ONE helper
+  (`applyWebUrlTransforms`) shared by the main resolution path and the rung table — never fork it.
+- **The rebuffer guard (never keep stalling mid-play; fast AND slow connections).** A STATE_BUFFERING
+  after READY on a STREAMING rendition is a mid-play stall; TWO stalls within 45s trigger a downgrade
+  (`VideoQualityLogic.shouldDowngradeForRebuffer`, pure + tested). Two is deliberate — a single
+  transient blip (a routine momentary hiccup) must NOT permanently drop the user's chosen quality;
+  only a repeated pattern means the rung genuinely can't sustain. The drop is exactly ONE
+  rung down (`rungBelow`), so playback settles on the HIGHEST rung that actually plays (2160p → 1440p
+  → 1080p → 720p, stopping the moment 720p is stable). It deliberately does NOT bandwidth-gate a
+  multi-rung jump: a rung's `bitrate` is its PEAK and media3's estimate is depressed right after a
+  stall, so a bandwidth jump over-dropped (2160p → 480p when 720p was fine). Each step is
+  position-continuous and pins the item there so the ladder callback can't bounce back up. Seek-caused buffering is exempt via a **timestamp grace window**
+  (`onSeekDiscontinuity` stamps the time; a stall within `SEEK_GRACE_MS` is ignored) — NOT a boolean
+  flag, because a seek into an already-buffered region fires no state change to clear a flag and a
+  stale flag would swallow the next real stall. A swap's own prepare never counts (history resets on
+  every swap), LOCAL/audio playback never counts, and AUTO never downgrades (already the cheapest
+  single-stream pick). The shared LoadControl is left at media3's rebuffer default (2s) — video
+  stutter is handled by the quality downgrade, NOT by widening the shared buffer, which would regress
+  audio/RELAY rebuffer latency. The buffering spinner lives INSIDE the shared `PlayerVideoSurface`
+  so the inline art slot and the fullscreen overlay show one identical treatment.
+- **Prefetch is skipped where it can't help** (`prefetchVideoRendition`): RELAY (fixed rendition), a
+  downloaded LOCAL video (plays from disk — a resolution would be pure waste, and offline it just
+  fails), or when offline. The relay guard is also enforced at the swap chokepoint itself
+  (`swapToVideoKey`) so a late pre-relay-toggle prefetch callback can never install a `:q` key in a
+  relay session.
+- **Download remux failures are classified** (`VideoMuxer.Result`): a TRANSIENT I/O failure (disk
+  full) preserves the requested quality so a retry re-attempts the same rung (never silently
+  downgrade what the user asked to save); only a DETERMINISTIC format-incompatibility clears the
+  request and falls back to the automatic progressive pick.
+- **Downloads above the progressive ceiling fetch video+audio separately and REMUX on-device**
+  (`VideoMuxer` — framework MediaExtractor/MediaMuxer, zero new dependencies: avc1+AAC → MP4,
+  vp9+Opus → WebM on API 29+ only — `selectRung(opusWebmMuxSupported)`; av01 is stream-only). The
+  download target is decoder-capability-gated (a rung the device can't decode must never become a
+  committed LOCAL file that errors on every play) but is NOT metered-capped — an explicit download
+  quality is honored as chosen; only the automatic (AUTO) pick keeps the metered bitrate cap. The
+  audio partner is resolved from the SAME video
+  response and client (`PlaybackData.downloadAudioUrl` — container-matched: mp4/avc video → AAC,
+  webm/vp9 video → Opus; NO second `/player` round-trip and no client-disagreement mux failure, with
+  a defensive second resolution only when the response carried no usable audio), and each stream is
+  verified against its declared contentLength before muxing (a truncated track fails the attempt with
+  the quality preserved). The requested quality label (`requestedVideoQuality`) follows the
+  `requestedVideoBitrate` lifecycle rules (survives failed attempts, cleared on
+  success/cancel/delete) — EXCEPT a DETERMINISTIC mux-incompatibility (`VideoMuxer.Result.INCOMPATIBLE`)
+  which clears it so the retry falls back to the automatic progressive pick; a TRANSIENT mux failure
+  (disk I/O) preserves the quality for the retry. The player-menu download passes the user's EXPLICIT
+  pick (`downloadVideoQuality` reads `userQualityPicks`, never a machine downgrade) so the saved file
+  is the quality the user chose.
+
 **UI-only rules (`PlayerVideoUiLogic`, pure, JVM-tested — the inline surface and the fullscreen
 overlay must never disagree about which one is live).** Opening the lyrics sheet reverts video mode
 to audio (position-continuous) — the sheet covers the inline video slot, leaving it decoding

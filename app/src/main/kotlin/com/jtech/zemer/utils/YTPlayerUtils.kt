@@ -4,6 +4,9 @@ import android.net.ConnectivityManager
 import androidx.core.net.toUri
 import androidx.media3.common.PlaybackException
 import com.jtech.zemer.constants.AudioQuality
+import com.jtech.zemer.playback.VideoDecoderCaps
+import com.jtech.zemer.playback.VideoQualityLogic
+import com.jtech.zemer.playback.VideoQualityRung
 import com.jtech.zemer.constants.StreamSourceAndroidVRKey
 import com.jtech.zemer.constants.StreamSourceIOSKey
 import com.jtech.zemer.constants.StreamSourceIPadOSKey
@@ -148,6 +151,35 @@ object YTPlayerUtils {
         val streamUrl: String,
         val streamExpiresInSeconds: Int,
         val streamClient: String = "unknown",
+        /**
+         * The video quality ladder of the response that served [format] (preferVideo only, else
+         * empty) — feeds the in-player quality switcher via VideoModeController.
+         */
+        val videoQualities: List<VideoQualityRung> = emptyList(),
+        /**
+         * Ready-to-play stream URLs for EVERY ladder rung (itag → URL), resolved from the same
+         * response/client that served [format] (preferVideo only). One resolution seeds them all
+         * (MusicService.seedVideoUrlCaches) so a quality switch never needs another network
+         * round-trip — the switch is a local replaceMediaItem + one CDN range request.
+         */
+        val videoRungUrls: Map<Int, String> = emptyMap(),
+        /**
+         * The merge-audio partner's ready-to-play URL + itag (preferVideo only): the audio track an
+         * adaptive rung plays alongside. Seeding it avoids the second full player resolution the
+         * `videoaudio:` branch would otherwise run.
+         */
+        val mergeAudioUrl: String? = null,
+        val mergeAudioItag: Int? = null,
+        /**
+         * For a DOWNLOAD of an adaptive (video-only) rung: the CONTAINER-MATCHED audio partner
+         * resolved from THIS SAME response/client (mp4/avc video → AAC, webm/vp9 video → Opus), so the
+         * two-stream mux needs no second `/player` resolution — which would double the round-trip AND
+         * could pick a different fallback client whose audio container disagrees, failing the mux.
+         * Null for a progressive download (no mux) or when no compatible audio was found.
+         */
+        val downloadAudioUrl: String? = null,
+        val downloadAudioMimeType: String? = null,
+        val downloadAudioContentLength: Long? = null,
     )
     /**
      * Custom player response intended to use for playback.
@@ -162,6 +194,12 @@ object YTPlayerUtils {
         preferVideo: Boolean = false,
         maxVideoBitrateKbps: Int? = null,
         forDownload: Boolean = false,
+        // Explicit video-quality selection (preferVideo only; both null = the automatic progressive
+        // pick, the pre-switcher behavior). videoItag = the EXACT rung a streaming quality swap
+        // encoded in its rendition key; videoQualityTarget = a target LABEL ("1080p") resolved to the
+        // best remux-capable rung at or below it (the download path, which has no ladder up front).
+        videoItag: Int? = null,
+        videoQualityTarget: String? = null,
     ): Result<PlaybackData> = runCatching {
         val mainClient = if (MAIN_CLIENT.clientName in disabledStreamClients) {
             STREAM_FALLBACK_CLIENTS.firstOrNull()
@@ -225,6 +263,7 @@ object YTPlayerUtils {
         var streamExpiresInSeconds: Int? = null
         var streamPlayerResponse: PlayerResponse? = null
         var successClient: String? = null
+        var successClientObj: YouTubeClient? = null
 
         for (clientIndex in (-1 until fallbackClients.size)) {
             // reset for each client
@@ -277,6 +316,16 @@ object YTPlayerUtils {
                 // cipher in findUrlOrNull (sig) + transformNParamInUrl (n) below.
                 val responseToUse = streamPlayerResponse
 
+                // An EXPLICIT quality-rung streaming resolution (videoItag) must come from a WEB client
+                // only: a non-web fallback (IOS/ANDROID_VR) can carry the itag, but its pot-bound URL
+                // 403s past the 1 MiB wall — so the switched-to quality would play ~1 MiB then revert.
+                // Skip non-web clients here so the loop finds a web client or fails safe (revert to
+                // audio, re-resolve fresh on re-entry). Mirrors the ladder-seed's web-only rule.
+                if (videoItag != null && !clientNeedsNTransform(client)) {
+                    Timber.tag(TAG).d("Skipping non-web ${client.clientName} for explicit videoItag=$videoItag")
+                    continue
+                }
+
                 format =
                     findFormat(
                         responseToUse,
@@ -285,6 +334,8 @@ object YTPlayerUtils {
                         preferVideo,
                         maxVideoBitrateKbps,
                         forDownload,
+                        videoItag,
+                        videoQualityTarget,
                     )
 
                 if (format == null) {
@@ -301,29 +352,12 @@ object YTPlayerUtils {
                 Timber.tag(TAG).d( "Stream URL (${client.clientName}): ${streamUrl.take(80)}...")
 
                 // Apply n-transform and PoToken for web clients (n-transform FIRST, then pot=)
-                val needsNTransform = client.useWebPoTokens ||
-                    client.clientName in listOf("WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5")
+                val needsNTransform = clientNeedsNTransform(client)
 
                 if (needsNTransform) {
                     try {
                         Timber.tag(TAG).d("Applying n-transform to stream URL for ${client.clientName}")
-
-                        // Try CipherDeobfuscator first (uses Pattern 5), fallback to EjsNTransformSolver
-                        val originalUrl = streamUrl
-                        streamUrl = CipherDeobfuscator.transformNParamInUrl(streamUrl)
-
-                        if (streamUrl == originalUrl) {
-                            // CipherDeobfuscator didn't transform, try EjsNTransformSolver as fallback
-                            Timber.tag(TAG).d("CipherDeobfuscator returned same URL, trying EjsNTransformSolver...")
-                            streamUrl = EjsNTransformSolver.transformNParamInUrl(originalUrl)
-                        }
-
-                        // Append pot= parameter AFTER n-transform (URI-encode to handle base64 padding)
-                        if (client.useWebPoTokens && poTokenResult?.streamingDataPoToken != null) {
-                            Timber.tag(TAG).d("Appending pot= parameter to stream URL")
-                            val separator = if ("?" in streamUrl) "&" else "?"
-                            streamUrl = "${streamUrl}${separator}pot=${android.net.Uri.encode(poTokenResult.streamingDataPoToken)}"
-                        }
+                        streamUrl = applyWebUrlTransforms(streamUrl, client, poTokenResult)
                     } catch (e: Exception) {
                         Timber.tag(TAG).e(e, "N-transform or pot append failed: ${e.message}")
                         // Continue with original URL
@@ -345,6 +379,7 @@ object YTPlayerUtils {
                 if (clientIndex == fallbackClients.size - 1) {
                     Timber.tag(TAG).d( "Last fallback — skipping validation: ${client.clientName}")
                     successClient = client.clientName
+                    successClientObj = client
                     break
                 }
 
@@ -358,6 +393,7 @@ object YTPlayerUtils {
                     && !forDownload && !webRemixFailedIds.contains(videoId)) {
                     Timber.tag(TAG).d("WEB_REMIX — skipping HEAD validation, letting ExoPlayer try directly")
                     successClient = client.clientName
+                    successClientObj = client
                     break
                 }
 
@@ -365,6 +401,7 @@ object YTPlayerUtils {
                 if (validationResult) {
                     Timber.tag(TAG).d( "Stream VALIDATED OK with ${client.clientName}")
                     successClient = client.clientName
+                    successClientObj = client
                     break
                 } else {
                     Timber.tag(TAG).d( "Stream validation FAILED for ${client.clientName}")
@@ -435,6 +472,64 @@ object YTPlayerUtils {
         // Log.i survives release builds (Timber is stripped)
         android.util.Log.i(TAG, "Playback: client=${successClient ?: "unknown"}, itag=${format.itag}, videoId=$videoId")
 
+        // For a STREAMING video resolution (never forDownload — downloads read only streamUrl and the
+        // ladder would be pure wasted cipher work), resolve EVERY ladder rung's URL plus the
+        // merge-audio partner from this same response: pure local computation (sig decipher +
+        // n-transform + pot append, no extra network), exactly what tests/video-qualities.mjs proves
+        // works per rung, seeded into the URL cache so a quality switch never pays a second
+        // round-trip. ONLY when the success client is a real web client (WEB_REMIX/WEB_CREATOR/
+        // TVHTML5/WEB): a non-web fallback's URLs (IOS/IPADOS) 403 past the 1 MiB wall and are never
+        // validated here, so seeding a whole ladder of them would make every quality switch fail a
+        // minute in. A non-web success leaves the table empty — the switch does a fresh resolution.
+        var videoRungUrls: Map<Int, String> = emptyMap()
+        var mergeAudioUrl: String? = null
+        var mergeAudioItag: Int? = null
+        if (preferVideo && !forDownload && successClientObj != null && clientNeedsNTransform(successClientObj!!)) {
+            val response = streamPlayerResponse
+            val rungClient = successClientObj!!
+            videoRungUrls = VideoQualityLogic.ladderFormats(response.streamingData)
+                .mapNotNull { rungFormat ->
+                    resolveFinalStreamUrl(rungFormat, videoId, response, rungClient, poTokenResult)
+                        ?.let { rungFormat.itag to it }
+                }.toMap()
+            // Merge audio is ALWAYS resolved at HIGH so the seeded itag matches every other
+            // preferVideo resolution (the merge-audio drift purge depends on that agreement).
+            val mergeAudioFormat = findFormat(
+                response, AudioQuality.HIGH, connectivityManager, preferVideo = false,
+                maxVideoBitrateKbps = null, forDownload = false,
+            )
+            if (mergeAudioFormat != null) {
+                mergeAudioUrl =
+                    resolveFinalStreamUrl(mergeAudioFormat, videoId, response, rungClient, poTokenResult)
+                mergeAudioItag = mergeAudioFormat.itag.takeIf { mergeAudioUrl != null }
+            }
+        }
+
+        // For a DOWNLOAD of an adaptive (video-only) rung, resolve the CONTAINER-MATCHED audio partner
+        // from THIS response/client so the mux needs no second resolution (which could disagree on
+        // client → wrong container → mux failure). mp4/avc video → AAC (forDownload excludes webm);
+        // webm/vp9 video → Opus (forDownload=false keeps opus). HIGH for a deterministic itag.
+        var downloadAudioUrl: String? = null
+        var downloadAudioMimeType: String? = null
+        var downloadAudioContentLength: Long? = null
+        if (forDownload && preferVideo && successClientObj != null && VideoQualityLogic.isVideoOnly(format)) {
+            val response = streamPlayerResponse
+            val audioClient = successClientObj!!
+            val webmVideo = format.mimeType.startsWith("video/webm")
+            val audioFormat = findFormat(
+                response, AudioQuality.HIGH, connectivityManager, preferVideo = false,
+                maxVideoBitrateKbps = null, forDownload = !webmVideo,
+            )
+            if (audioFormat != null) {
+                downloadAudioUrl =
+                    resolveFinalStreamUrl(audioFormat, videoId, response, audioClient, poTokenResult)
+                if (downloadAudioUrl != null) {
+                    downloadAudioMimeType = audioFormat.mimeType
+                    downloadAudioContentLength = audioFormat.contentLength
+                }
+            }
+        }
+
         PlaybackData(
             audioConfig,
             videoDetails,
@@ -443,6 +538,17 @@ object YTPlayerUtils {
             streamUrl,
             streamExpiresInSeconds,
             streamClient = successClient ?: "unknown",
+            videoQualities = if (preferVideo) {
+                VideoQualityLogic.rungs(streamPlayerResponse.streamingData)
+            } else {
+                emptyList()
+            },
+            videoRungUrls = videoRungUrls,
+            mergeAudioUrl = mergeAudioUrl,
+            mergeAudioItag = mergeAudioItag,
+            downloadAudioUrl = downloadAudioUrl,
+            downloadAudioMimeType = downloadAudioMimeType,
+            downloadAudioContentLength = downloadAudioContentLength,
         )
     }
     /**
@@ -456,6 +562,42 @@ object YTPlayerUtils {
         return YouTube.player(videoId, playlistId, client = WEB_REMIX) // ANDROID_VR does not work with history
     }
 
+    private fun clientNeedsNTransform(client: YouTubeClient): Boolean =
+        client.useWebPoTokens || client.clientName in listOf("WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5")
+
+    /**
+     * The shared web-client URL finalization (n-transform first, then `pot=`) — one implementation
+     * for the main resolution path and the ladder-wide rung-URL table, so the two can never drift.
+     */
+    private suspend fun applyWebUrlTransforms(
+        url: String,
+        client: YouTubeClient,
+        poTokenResult: PoTokenResult?,
+    ): String {
+        var result = CipherDeobfuscator.transformNParamInUrl(url)
+        if (result == url) {
+            // CipherDeobfuscator didn't transform; try EjsNTransformSolver as fallback.
+            result = EjsNTransformSolver.transformNParamInUrl(url)
+        }
+        if (client.useWebPoTokens && poTokenResult?.streamingDataPoToken != null) {
+            val separator = if ("?" in result) "&" else "?"
+            result = "$result${separator}pot=${android.net.Uri.encode(poTokenResult.streamingDataPoToken)}"
+        }
+        return result
+    }
+
+    /** Resolve one format's playable URL (decipher + web transforms); null on any failure. */
+    private suspend fun resolveFinalStreamUrl(
+        format: PlayerResponse.StreamingData.Format,
+        videoId: String,
+        response: PlayerResponse,
+        client: YouTubeClient,
+        poTokenResult: PoTokenResult?,
+    ): String? = runCatching {
+        val url = findUrlOrNull(format, videoId, response) ?: return null
+        if (clientNeedsNTransform(client)) applyWebUrlTransforms(url, client, poTokenResult) else url
+    }.getOrNull()
+
     private fun findFormat(
         playerResponse: PlayerResponse,
         audioQuality: AudioQuality,
@@ -463,8 +605,42 @@ object YTPlayerUtils {
         preferVideo: Boolean,
         maxVideoBitrateKbps: Int?,
         forDownload: Boolean = false,
+        videoItag: Int? = null,
+        videoQualityTarget: String? = null,
     ): PlayerResponse.StreamingData.Format? {
         if (preferVideo) {
+            // Explicit quality selections (the beyond-720p switcher / quality-aware downloads) pick
+            // from the FULL ladder (progressive + adaptive video-only). The user's explicit choice is
+            // not bitrate-capped — the metered cap governs only the automatic pick below, and the
+            // metered gate on the PERSISTED default lives in VideoModeController.effectiveQualityTarget.
+            if (videoItag != null) {
+                // Deliberately NO fallback to the automatic pick: the itag came from a rendition key
+                // (`video:<id>:q<itag>`) whose cache spans must only ever hold THAT itag's bytes —
+                // resolving a different format under it would reintroduce the container-mixing
+                // corruption class. A client without the itag is skipped; total failure surfaces
+                // through the video error path (revert to audio), which is the safe outcome.
+                return VideoQualityLogic.formatForItag(playerResponse.streamingData, videoItag)
+            }
+            if (videoQualityTarget != null && videoQualityTarget != VideoQualityLogic.AUTO) {
+                // An EXPLICIT quality target (the user's Settings default or in-player pick) is
+                // honored as chosen — NOT metered-capped (that would silently downgrade what the user
+                // asked to save/watch). The metered bitrate cap governs only the AUTOMATIC pick below.
+                // Downloads still gate on decoder capability (the streaming ladder is filtered at
+                // publish, but a download target arrives label-only): a rung the device cannot decode
+                // must never become a committed LOCAL file that errors on every play.
+                val rungs = VideoQualityLogic.rungs(playerResponse.streamingData)
+                    .filter { it.progressive || VideoDecoderCaps.supports(it) }
+                val rung = VideoQualityLogic.selectRung(
+                    rungs,
+                    videoQualityTarget,
+                    downloadable = forDownload,
+                    opusWebmMuxSupported = android.os.Build.VERSION.SDK_INT >= 29,
+                )
+                if (rung != null) {
+                    return VideoQualityLogic.formatForItag(playerResponse.streamingData, rung.itag)
+                }
+                // Fail-soft: an unresolvable target falls through to the automatic progressive pick.
+            }
             val progressive = playerResponse.streamingData?.formats.orEmpty()
                 .filter { it.mimeType.startsWith("video") && (it.audioQuality != null || it.audioChannels != null) }
             val progressiveMp4 = progressive.filter { it.mimeType.contains("mp4") }
