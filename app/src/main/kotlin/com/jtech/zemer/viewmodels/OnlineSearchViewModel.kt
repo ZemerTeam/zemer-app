@@ -138,6 +138,8 @@ constructor(
         // section (relabeled for blocked-video users, like every video shelf).
         if (OfflineModeState.enabled) {
             val summaries = withContext(Dispatchers.IO) { offlineSummaries() }
+            // Mode-currency guard: a toggle-off during the Room read means the reload owns the screen.
+            if (!OfflineModeState.enabled) return
             summaryPage = SearchSummaryPage(summaries = summaries)
             trackSearchOnce(results = summaries.sumOf { it.items.size })
             if (summaries.isEmpty()) {
@@ -161,6 +163,9 @@ constructor(
             }
 
         result.onSuccess { summaries ->
+            // Mode-currency guard: an online fetch that was in flight when offline mode turned ON
+            // must not land over the downloaded-only results the mode-change reload just published.
+            if (OfflineModeState.enabled) return
             summaryPage = SearchSummaryPage(
                 summaries = summaries
             )
@@ -171,6 +176,7 @@ constructor(
             }
         }.onFailure { error ->
             if (error is CancellationException) throw error // a superseded load, not a search failure
+            if (OfflineModeState.enabled) return
             summaryError.value = "Search error: ${error.message ?: "Unknown error"}"
             reportException(error)
         }
@@ -195,9 +201,11 @@ constructor(
         // no offline source and read empty). No server call, no error path.
         if (OfflineModeState.enabled) {
             val items = withContext(Dispatchers.IO) {
-                val (songs, artists, albums) = offlineSearchInputs()
-                offlineFilteredItems(filter, songs, artists, albums)
+                val inputs = offlineSearchInputs()
+                offlineFilteredItems(filter, inputs.songs, inputs.artists, inputs.albums, inputs.episodes)
             }
+            // Mode-currency guard: a toggle-off during the Room read means the reload owns the screen.
+            if (!OfflineModeState.enabled) return
             viewStateMap[key] = ItemsPage(items, null)
             trackSearchOnce(results = items.size)
             filterLoading[key] = false
@@ -234,6 +242,8 @@ constructor(
             }
 
         result.onSuccess { itemsPage ->
+            // Mode-currency guard (same as loadSummary): a stale online page never lands offline.
+            if (OfflineModeState.enabled) return
             viewStateMap[key] = itemsPage
             trackSearchOnce(results = itemsPage.items.size)
             if (itemsPage.items.isEmpty()) {
@@ -268,34 +278,46 @@ constructor(
     }
 
     /** The downloaded-scoped Room search results feeding both offline branches (explicit-filtered). */
-    private suspend fun offlineSearchInputs(): Triple<
-        List<com.metrolist.innertube.models.SongItem>,
-        List<com.metrolist.innertube.models.ArtistItem>,
-        List<com.metrolist.innertube.models.AlbumItem>,
-        > {
+    private suspend fun offlineSearchInputs(): OfflineSearchInputs {
         val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
+        val blockPodcasts = context.dataStore.getSuspend(com.jtech.zemer.constants.BlockPodcastsKey, false)
+        // The same female/blocked-id/Israeli gate the offline Home rows run - offline search must
+        // never surface what the (passcode-protected) filter hides online.
+        val config = com.jtech.zemer.utils.ContentFilterState.current
         val songs = database.searchDownloadedSongs(query, includeVideos = true).first()
             .filter { !hideExplicit || !it.song.explicit }
+            .offlineContentGated(config)
             .map { it.toSongItem() }
         val artists = database.searchDownloadedArtists(query, includeVideos = true).first()
+            .filter { offlineContentGatePasses(itemId = null, artistIds = listOf(it.id), config = config) }
             .map { it.toArtistItem() }
         val albums = database.searchDownloadedAlbums(query, includeVideos = true).first()
             .filter { !hideExplicit || !it.album.explicit }
+            .filter { a -> offlineContentGatePasses(a.id, a.artists.map { it.id }, config) }
             .map { it.toAlbumItem() }
-        return Triple(songs, artists, albums)
+        // Downloaded podcast episodes are searchable too ("all downloaded items"); the blocked-ids
+        // gate still applies, and the whole set hides when podcasts are blocked.
+        val episodes = if (blockPodcasts) emptyList() else {
+            database.searchDownloadedEpisodes(query).first()
+                .filter { offlineContentGatePasses(it.id, emptyList(), config) }
+                .map { it.toSongItem() }
+        }
+        return OfflineSearchInputs(songs, artists, albums, episodes)
     }
 
     private suspend fun offlineSummaries(): List<SearchSummary> {
-        val (songs, artists, albums) = offlineSearchInputs()
+        val inputs = offlineSearchInputs()
         val blockVideos = context.dataStore.getSuspend(BlockVideosKey, false)
         return offlineSearchSummarySections(
-            songs = songs,
-            artists = artists,
-            albums = albums,
+            songs = inputs.songs,
+            artists = inputs.artists,
+            albums = inputs.albums,
             songsTitle = context.getString(R.string.songs),
             videosTitle = context.getString(if (blockVideos) R.string.video_songs else R.string.videos),
             artistsTitle = context.getString(R.string.artists),
             albumsTitle = context.getString(R.string.albums),
+            episodes = inputs.episodes,
+            episodesTitle = context.getString(R.string.filter_episodes),
         )
     }
 

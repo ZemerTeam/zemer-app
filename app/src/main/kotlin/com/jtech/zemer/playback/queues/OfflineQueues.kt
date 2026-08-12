@@ -74,6 +74,10 @@ class DownloadedSongsQueue(
         val songs = database.downloadedSongs(SongSortType.CREATE_DATE, descending = true, includeVideos)
             .first()
             .shuffled()
+        // A failed queue is never silent (the ZemerRadioQueue rule): with nothing downloaded,
+        // throwing lets playQueue surface a toast and restore the previous queue instead of
+        // silently replacing it with an empty one.
+        check(songs.isNotEmpty()) { context.getString(com.jtech.zemer.R.string.offline_mode_no_downloads) }
         Queue.Status(title = null, items = songs.map { it.toMediaItem() }, mediaItemIndex = 0)
     }
 

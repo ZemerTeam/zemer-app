@@ -559,7 +559,7 @@
     <!-- Manual offline mode (downloaded-only lens) -->
     <string name="offline_mode">Offline mode</string>
     <string name="offline_mode_description">Show only downloaded content and stop using the network for browsing</string>
-    <string name="offline_mode_banner">Offline mode: showing downloaded content only</string>
+    <string name="offline_mode_banner">Offline mode</string>
     <string name="offline_mode_turn_off">Turn off</string>
     <string name="offline_mode_no_downloads">No downloaded music yet. Download songs to listen offline.</string>
     <string name="offline_your_artists">Your artists</string>

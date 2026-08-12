@@ -53,6 +53,8 @@ fun AddToPlaylistDialogOnline(
     onProgressStart: (Boolean) -> Unit,
     onPercentageChange: (Int) -> Unit
 ) {
+    // Manual offline mode: this dialog resolves every song via an online search - it must not open.
+    if (com.jtech.zemer.utils.OfflineModeState.enabled) return
     val database = LocalDatabase.current
     val coroutineScope = rememberCoroutineScope()
     var playlists by remember {

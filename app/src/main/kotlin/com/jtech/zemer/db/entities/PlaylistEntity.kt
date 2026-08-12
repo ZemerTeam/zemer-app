@@ -56,7 +56,7 @@ data class PlaylistEntity(
         // remote id (meaningful server-side) over the local random id for online playlists.
         Tracker.action(if (bookmarkedAt == null) TrackingActionKind.FAVORITE else TrackingActionKind.UNFAVORITE, browseId ?: id)
         // Anonymous (pooled) sessions are local-only — only a personal account pushes to remote.
-        if (isPersonalAccountSignedIn) {
+        if (isPersonalAccountSignedIn && !com.jtech.zemer.utils.OfflineModeState.enabled) {
             CoroutineScope(Dispatchers.IO).launch {
                 if (browseId != null)
                     YouTube.likePlaylist(browseId, bookmarkedAt == null)

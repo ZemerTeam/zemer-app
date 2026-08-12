@@ -8,6 +8,7 @@ import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.jtech.zemer.lyrics.model.LyricsUnavailableException
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.utils.NetworkConnectivityObserver
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -47,7 +48,8 @@ constructor(
 
         // Check network connectivity before making network requests
         // Use synchronous check as fallback if flow doesn't emit
-        val isNetworkAvailable = try {
+        // Manual offline mode counts as no network: lyric providers are online functions.
+        val isNetworkAvailable = if (OfflineModeState.enabled) false else try {
             networkConnectivity.isCurrentlyConnected()
         } catch (_: Exception) {
             // If network check fails, try to proceed anyway
@@ -116,7 +118,8 @@ constructor(
 
         // Check network connectivity before making network requests
         // Use synchronous check as fallback if flow doesn't emit
-        val isNetworkAvailable = try {
+        // Manual offline mode counts as no network: lyric providers are online functions.
+        val isNetworkAvailable = if (OfflineModeState.enabled) false else try {
             networkConnectivity.isCurrentlyConnected()
         } catch (_: Exception) {
             // If network check fails, try to proceed anyway

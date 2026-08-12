@@ -43,6 +43,7 @@ import com.jtech.zemer.extensions.metadata
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.OfflineModeState
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.future
@@ -312,7 +313,9 @@ constructor(
                     }
 
                     MusicService.YOUTUBE_PLAYLIST -> {
-                        if (!context.dataStore.get(AndroidAutoYouTubePlaylistsKey, false)) {
+                        if (!context.dataStore.get(AndroidAutoYouTubePlaylistsKey, false) ||
+                            OfflineModeState.enabled // offline mode: no InnerTube browse in Auto
+                        ) {
                             emptyList()
                         } else {
                             try {
@@ -403,7 +406,7 @@ constructor(
                             parentId.startsWith("${MusicService.YOUTUBE_PLAYLIST}/") -> {
                                 val playlistId = parentId.removePrefix("${MusicService.YOUTUBE_PLAYLIST}/")
                                 try {
-                                    val songs = YouTube.playlist(playlistId).getOrNull()?.songs
+                                    val songs = (if (OfflineModeState.enabled) null else YouTube.playlist(playlistId).getOrNull())?.songs
                                         ?.take(100)
                                         ?.filterExplicit(context.dataStore.get(HideExplicitKey, false))
                                         ?.filterWhitelisted(database)
@@ -506,8 +509,7 @@ constructor(
                 }
 
                 try {
-                    val searchItems = YouTube.search(query, YouTube.SearchFilter.FILTER_SONG)
-                        .getOrNull()
+                    val searchItems = (if (OfflineModeState.enabled) null else YouTube.search(query, YouTube.SearchFilter.FILTER_SONG).getOrNull())
                         ?.items
                         ?.filterIsInstance<SongItem>()
                         ?.filterExplicit(context.dataStore.get(HideExplicitKey, false))
@@ -643,7 +645,7 @@ constructor(
                     val playlistId = path.getOrNull(1) ?: return@future defaultResult
 
                     val songs = try {
-                        YouTube.playlist(playlistId).getOrNull()?.songs
+                        (if (OfflineModeState.enabled) null else YouTube.playlist(playlistId).getOrNull())?.songs
                             ?.filterExplicit(context.dataStore.get(HideExplicitKey, false))
                             ?.filterWhitelisted(database)
                             ?.filterIsInstance<SongItem>()
@@ -699,8 +701,7 @@ constructor(
                     searchResults.addAll(allLocalSongs)
                     
                     try {
-                        val searchItems = YouTube.search(searchQuery, YouTube.SearchFilter.FILTER_SONG)
-                            .getOrNull()
+                        val searchItems = (if (OfflineModeState.enabled) null else YouTube.search(searchQuery, YouTube.SearchFilter.FILTER_SONG).getOrNull())
                             ?.items
                             ?.filterIsInstance<SongItem>()
                             ?.filterExplicit(context.dataStore.get(HideExplicitKey, false))

@@ -54,7 +54,10 @@ fun OfflineModeBanner(modifier: Modifier = Modifier) {
                     .weight(1f)
                     .padding(horizontal = 12.dp, vertical = 12.dp),
             )
-            TextButton(onClick = { setOfflineMode(false) }) {
+            TextButton(
+                onClick = { setOfflineMode(false) },
+                modifier = Modifier.focusBorder(),
+            ) {
                 Text(stringResource(R.string.offline_mode_turn_off))
             }
         }

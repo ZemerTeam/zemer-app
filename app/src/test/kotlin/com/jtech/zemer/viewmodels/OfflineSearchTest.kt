@@ -81,4 +81,23 @@ class OfflineSearchTest {
         assertTrue(offlineFilteredItems(SearchFilter.FILTER_COMMUNITY_PLAYLIST, songs, emptyList(), emptyList()).isEmpty())
         assertTrue(offlineFilteredItems(SearchFilter.FILTER_FEATURED_PLAYLIST, songs, emptyList(), emptyList()).isEmpty())
     }
+
+    @Test
+    fun `episode filter serves downloaded episodes and the summary gains an episodes section`() {
+        val episodes = listOf(song("ep1"))
+        assertEquals(
+            listOf("ep1"),
+            offlineFilteredItems(
+                com.jtech.zemer.search.ZEMER_FILTER_EPISODE,
+                songs = listOf(song("a")), artists = emptyList(), albums = emptyList(),
+                episodes = episodes,
+            ).map { it.id },
+        )
+        val sections = offlineSearchSummarySections(
+            songs = emptyList(), artists = emptyList(), albums = emptyList(),
+            songsTitle = "Songs", videosTitle = "Videos", artistsTitle = "Artists", albumsTitle = "Albums",
+            episodes = episodes, episodesTitle = "Episodes",
+        )
+        assertEquals(listOf("Episodes"), sections.map { it.title })
+    }
 }

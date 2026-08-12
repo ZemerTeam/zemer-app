@@ -77,6 +77,13 @@ class OnlinePodcastViewModel @Inject constructor(
     private fun fetchPodcastData() {
         viewModelScope.launch(Dispatchers.IO) {
             Timber.d("fetchPodcastData called for: $podcastId")
+            // Manual offline mode: no server fetch - the show page renders its not-available state
+            // (downloaded episodes stay reachable via Library > Podcasts > Downloaded and search).
+            if (com.jtech.zemer.utils.OfflineModeState.enabled) {
+                _error.value = context.getString(R.string.podcast_not_available)
+                _isLoading.value = false
+                return@launch
+            }
             _isLoading.value = true
             _error.value = null
             _nextOffset.value = null
@@ -111,7 +118,7 @@ class OnlinePodcastViewModel @Inject constructor(
      */
     fun loadMoreEpisodes() {
         val offset = _nextOffset.value ?: return
-        if (isLoadingMore) return
+        if (isLoadingMore || com.jtech.zemer.utils.OfflineModeState.enabled) return
         isLoadingMore = true
         viewModelScope.launch(Dispatchers.IO) {
             try {

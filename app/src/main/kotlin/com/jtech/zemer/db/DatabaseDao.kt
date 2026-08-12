@@ -1074,6 +1074,16 @@ interface DatabaseDao {
     @Query("SELECT * FROM album WHERE title LIKE '%' || :query || '%' AND EXISTS(SELECT 1 FROM song WHERE song.isDownloaded = 1 AND song.isEpisode = 0 AND (:includeVideos OR song.isVideo = 0) AND (song.albumId = album.id OR song.id IN (SELECT songId FROM song_album_map WHERE albumId = album.id))) LIMIT :previewSize")
     fun searchDownloadedAlbums(query: String, includeVideos: Boolean, previewSize: Int = Int.MAX_VALUE): Flow<List<Album>>
 
+    @Transaction
+    @Query("SELECT * FROM song WHERE title LIKE '%' || :query || '%' AND isDownloaded = 1 AND isEpisode = 1 LIMIT :previewSize")
+    fun searchDownloadedEpisodes(query: String, previewSize: Int = Int.MAX_VALUE): Flow<List<Song>>
+
+    // A podcast HOST channel's downloaded episodes (offline mode's channel page) - episodes carry the
+    // host channel in song_artist_map, and the music-scoped downloadedArtistSongs excludes them.
+    @Transaction
+    @Query("SELECT song.* FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE song_artist_map.artistId = :artistId AND song.isDownloaded = 1 AND song.isEpisode = 1 ORDER BY song.title COLLATE NOCASE")
+    fun downloadedArtistEpisodes(artistId: String): Flow<List<Song>>
+
     // Downloaded podcast EPISODES (isEpisode = 1), sorted like downloadedSongs. Local-only, so it
     // works for anonymous sessions too (no account read). Powers the Library -> Podcasts DOWNLOADED tab.
     fun downloadedEpisodes(

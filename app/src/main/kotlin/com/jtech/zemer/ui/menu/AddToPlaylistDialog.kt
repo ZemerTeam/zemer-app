@@ -112,7 +112,8 @@ fun AddToPlaylistDialog(
                                 database.addSongToPlaylist(playlist, songIds!!)
 
                                 // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
-                                if (isPersonalAccountSignedIn) {
+                                // Offline mode is local-only too; the next online account sync reconciles.
+                                if (isPersonalAccountSignedIn && !com.jtech.zemer.utils.OfflineModeState.enabled) {
                                     playlist.playlist.browseId?.let { plist ->
                                         songIds?.forEach {
                                             YouTube.addToPlaylist(plist, it)

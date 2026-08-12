@@ -168,6 +168,7 @@ import coil3.toBitmap
 import com.google.firebase.auth.FirebaseAuth
 import com.jtech.zemer.constants.AppBarHeight
 import com.jtech.zemer.constants.BlockPodcastsKey
+import com.jtech.zemer.constants.OfflineModeKey
 import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.CheckForUpdatesKey
 import com.jtech.zemer.constants.LastNightlyAnnouncedKey
@@ -779,7 +780,19 @@ class MainActivity : ComponentActivity() {
                             onDispose { firebaseAuth.removeAuthStateListener(listener) }
                         }
 
-                        val navigationItems = remember { Screens.MainScreens }
+                        // Manual offline mode: the Artists / Podcasts / KidZone tabs are full online
+                        // catalog browsers (mostly non-downloaded content), so they drop from the
+                        // nav while the mode is on - Home, Search and Library are downloads-scoped.
+                        val (offlineModeNav, _) = rememberPreference(OfflineModeKey, defaultValue = false)
+                        val navigationItems = remember(offlineModeNav) {
+                            if (offlineModeNav) {
+                                Screens.MainScreens.filter {
+                                    it == Screens.Home || it == Screens.Search || it == Screens.Library
+                                }
+                            } else {
+                                Screens.MainScreens
+                            }
+                        }
                         // Check SharedPreferences first for onboarding values, then fallback to DataStore
                         val sharedPreferences = remember { getSharedPreferences("metrolist_settings", MODE_PRIVATE) }
                         val prefBottomNavEnabled = remember(sharedPreferences) {
@@ -1956,6 +1969,8 @@ class MainActivity : ComponentActivity() {
                         // "Recognize music" FAB — floats above the bottom nav bar (and mini player)
                         // on main screens; toggleable via Settings → Appearance (default on).
                         if (recognizeMusicFab &&
+                            // Recognition uploads fingerprints + resolves via search - online only.
+                            !offlineModeNav &&
                             !active &&
                             (playerBottomSheetState.isCollapsed || playerBottomSheetState.isDismissed) &&
                             navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }
@@ -2068,6 +2083,9 @@ class MainActivity : ComponentActivity() {
 
     private fun handleDeepLinkIntent(intent: Intent, navController: NavHostController) {
         val uri = intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri() ?: return
+        // Manual offline mode: every deep-link branch resolves via InnerTube and lands on an online
+        // screen or a streamed play - silently ignore (offline surfaces are downloads-only).
+        if (com.jtech.zemer.utils.OfflineModeState.enabled) return
         val coroutineScope = lifecycleScope
 
         when (val path = uri.pathSegments.firstOrNull()) {

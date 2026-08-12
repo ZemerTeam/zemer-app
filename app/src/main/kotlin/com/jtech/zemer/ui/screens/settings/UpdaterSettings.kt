@@ -249,7 +249,8 @@ fun UpdaterScreen(
                     }
                 },
                 onClick = {
-                    if (!isChecking) {
+                    // Manual offline mode: the check + APK download are online functions.
+                    if (!isChecking && !com.jtech.zemer.utils.OfflineModeState.enabled) {
                         isChecking = true
                         scope.launch {
                             updateResult = UpdateChecker.checkForUpdates(nightlyUpdates)

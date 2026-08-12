@@ -19,13 +19,13 @@ fun searchFilterAllowed(
     offlineMode: Boolean = false,
 ): Boolean = when {
     blockPodcasts && (filter == ZEMER_FILTER_PODCAST || filter == ZEMER_FILTER_EPISODE) -> false
-    // Manual offline mode: playlist/podcast chips have no downloaded-catalog source, so a retained
-    // selection resets to All (the same round-trip rule as the podcast block above).
+    // Manual offline mode: playlist/show chips have no downloaded-catalog source, so a retained
+    // selection resets to All (the same round-trip rule as the podcast block above). The EPISODE
+    // chip survives: downloaded episodes are searchable offline.
     offlineMode && (
         filter == SearchFilter.FILTER_COMMUNITY_PLAYLIST ||
             filter == SearchFilter.FILTER_FEATURED_PLAYLIST ||
-            filter == ZEMER_FILTER_PODCAST ||
-            filter == ZEMER_FILTER_EPISODE
+            filter == ZEMER_FILTER_PODCAST
         ) -> false
     else -> true
 }

@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import timber.log.Timber
@@ -76,6 +77,14 @@ object Tracker {
             ready.complete(Unit)
             // Anything queued from a previous run uploads on the first trigger of this one.
             if ((queue?.size ?: 0) > 0) scheduleFlush(TIMER_FLUSH_MS)
+        }
+        // Offline mode holds uploads (flush() early-returns); flush promptly when it turns off so
+        // the held events don't wait for the next enqueue/backgrounding trigger.
+        scope.launch {
+            ready.await()
+            OfflineModeState.state.drop(1).collect { enabled ->
+                if (!enabled && (queue?.size ?: 0) > 0) scheduleFlush(0L)
+            }
         }
     }
 

@@ -101,7 +101,8 @@ fun SelectionSongMenu(
         isVisible = showChoosePlaylistDialog,
         onGetSong = { playlist ->
             // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
-            if (isPersonalAccountSignedIn) {
+            // Offline mode is local-only too; the next online account sync reconciles.
+            if (isPersonalAccountSignedIn && !com.jtech.zemer.utils.OfflineModeState.enabled) {
                 coroutineScope.launch(Dispatchers.IO) {
                     songSelection.forEach { song ->
                         playlist.playlist.browseId?.let { browseId ->

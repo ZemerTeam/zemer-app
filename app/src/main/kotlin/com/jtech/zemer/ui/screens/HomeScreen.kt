@@ -229,7 +229,10 @@ fun HomeScreen(
     // together: no main-thread disk read, no flash of Music, and no flash of a blocked Podcasts tab.
     // Null = snapshot not landed yet (first frame renders no tab content).
     var homeTab by remember { mutableStateOf<HomeContentTab?>(null) }
-    LaunchedEffect(Unit) {
+    // Keyed on offlineMode so LEAVING offline mode re-reads the persisted tab: the offline snap
+    // away from RADIO is display-only (never persisted, see the snap effect below), and this
+    // re-seed is what restores the user's real selection when the mode turns off.
+    LaunchedEffect(offlineMode) {
         val prefs = context.dataStore.data.first()
         homeTab = effectiveHomeTab(
             persisted = prefs[HomeContentTabKey].toEnum(HomeContentTab.MUSIC),
@@ -278,7 +281,13 @@ fun HomeScreen(
     LaunchedEffect(blockPodcasts, offlineMode, homeTab) {
         val current = homeTab ?: return@LaunchedEffect
         val effective = effectiveHomeTab(current, blockPodcasts, offlineMode)
-        if (effective != current) setHomeTab(effective)
+        if (effective != current) {
+            // The offline-caused RADIO snap is TRANSIENT: update the shown tab only, never the
+            // persisted selection - a durable preference must survive a temporary mode. The
+            // blockPodcasts snap stays persisted (durable filter, original behavior).
+            if (effectiveHomeTab(current, blockPodcasts) == current) homeTab = effective
+            else setHomeTab(effective)
+        }
     }
     // Chip order/visibility is the pure, unit-tested visibleHomeTabs; only labels are resolved here.
     // The Video tab is ALWAYS shown; blocked-video users get it relabeled "Video songs" — its rows play
@@ -563,7 +572,9 @@ fun HomeScreen(
             featuredArtists.isNotEmpty() ||
                 featuredAlbums.isNotEmpty() ||
                 featuredVideos.isNotEmpty() ||
-                latestReleases.isNotEmpty() ||
+                // Offline mode render-gates the Latest Releases row, so its disk cache must not
+                // count as content here or a zero-downloads user gets a blank tab with no empty state.
+                (latestReleases.isNotEmpty() && !offlineMode) ||
                 zemerPlaylists.isNotEmpty()
         // MUST stay scoped to HomeContentTab.MUSIC: this skeleton matches the MUSIC home layout (title +
         // card row). isLoading + the has*HomeContent flags are all music-VM state, so on Radio/Podcasts/

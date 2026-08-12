@@ -85,7 +85,7 @@ data class SongEntity(
         // Anonymous telemetry (spec §3.5): every song-like path in the app converges here.
         Tracker.action(if (!liked) TrackingActionKind.FAVORITE else TrackingActionKind.UNFAVORITE, id)
         // Anonymous (pooled) sessions are local-only — only a personal account pushes to remote.
-        if (isPersonalAccountSignedIn) {
+        if (isPersonalAccountSignedIn && !com.jtech.zemer.utils.OfflineModeState.enabled) {
             CoroutineScope(Dispatchers.IO).launch {
                 YouTube.likeVideo(id, !liked)
                 this.cancel()

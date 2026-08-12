@@ -35,6 +35,8 @@ fun easterEggTapCount(previousCount: Int, lastTapAtMs: Long, nowMs: Long): Int =
  * standard watch-endpoint queue. Failures are reported, never surfaced - it's an egg.
  */
 suspend fun playHomeEasterEgg(playerConnection: PlayerConnection, database: MusicDatabase) {
+    // Manual offline mode: the egg resolves + streams online - silently inert (it's an egg).
+    if (com.jtech.zemer.utils.OfflineModeState.enabled) return
     YouTube.queue(listOf(HOME_EASTER_EGG_VIDEO_ID)).onSuccess { queue ->
         val filtered = queue.filterWhitelisted(database).filterIsInstance<SongItem>()
         val song = filtered.firstOrNull() ?: return

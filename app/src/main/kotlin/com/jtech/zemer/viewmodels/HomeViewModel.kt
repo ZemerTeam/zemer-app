@@ -845,6 +845,13 @@ class HomeViewModel @Inject constructor(
                 featuredAlbumsAreZemer,
             )
 
+            // Mode-currency guard: offline mode flipped ON while this online load was in flight -
+            // discard the online build and publish the downloaded-only one instead (the see-all
+            // store publish above is overwritten by loadOfflineHome's own publish).
+            if (OfflineModeState.enabled) {
+                loadOfflineHome()
+                return
+            }
             Timber.d("HomeViewModel: Updating final UI state at +${System.currentTimeMillis() - loadStartTime}ms")
             uiState.update {
                 it.copy(
@@ -900,7 +907,7 @@ class HomeViewModel @Inject constructor(
                     database.forgottenFavorites().first().filter { !it.song.isEpisode }
                 }.getOrDefault(emptyList()),
                 includeVideos = includeVideos,
-            ).shuffled(Random(System.nanoTime())).take(20)
+            ).offlineContentGated().shuffled(Random(System.nanoTime())).take(20)
             uiState.update {
                 it.copy(
                     isLoading = false,
@@ -1062,6 +1069,11 @@ class HomeViewModel @Inject constructor(
         }
 
         // Toggling offline mode swaps the whole Home between the live and downloaded-only builds.
-        reloadOnOfflineModeChange { load(force = true) }
+        // An in-flight load converts itself at publish time (the mode-currency guard in load());
+        // the wait covers the window where load()'s re-entrancy guard would swallow this call.
+        reloadOnOfflineModeChange {
+            while (uiState.value.isLoading) kotlinx.coroutines.delay(100)
+            load(force = true)
+        }
     }
 }

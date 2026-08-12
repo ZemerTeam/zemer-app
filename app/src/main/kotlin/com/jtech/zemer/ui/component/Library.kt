@@ -335,7 +335,10 @@ fun LibraryPlaylistListItem(
     modifier = modifier
         .fillMaxWidth()
         .clickable {
-            if (!playlist.playlist.isEditable && playlist.songCount == 0 && playlist.playlist.remoteSongCount != 0)
+            // Offline mode never opens the online playlist screen; the local view is the truth.
+            if (!playlist.playlist.isEditable && playlist.songCount == 0 && playlist.playlist.remoteSongCount != 0 &&
+                !com.jtech.zemer.utils.OfflineModeState.enabled
+            )
                 navController.navigate("online_playlist/${playlist.playlist.browseId}")
             else
                 navController.navigate("local_playlist/${playlist.id}")
@@ -357,7 +360,10 @@ fun LibraryPlaylistGridItem(
         .fillMaxWidth()
         .combinedClickable(
             onClick = {
-                if (!playlist.playlist.isEditable && playlist.songCount == 0 && playlist.playlist.remoteSongCount != 0)
+                // Offline mode never opens the online playlist screen; the local view is the truth.
+                if (!playlist.playlist.isEditable && playlist.songCount == 0 && playlist.playlist.remoteSongCount != 0 &&
+                    !com.jtech.zemer.utils.OfflineModeState.enabled
+                )
                     navController.navigate("online_playlist/${playlist.playlist.browseId}")
                 else
                     navController.navigate("local_playlist/${playlist.id}")

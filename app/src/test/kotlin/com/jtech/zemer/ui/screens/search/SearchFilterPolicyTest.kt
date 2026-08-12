@@ -53,16 +53,21 @@ class SearchFilterPolicyTest {
     }
 
     @Test
-    fun `offline mode disallows playlist podcast and episode chips`() {
+    fun `offline mode disallows playlist and show chips`() {
         for (filter in listOf(
             SearchFilter.FILTER_COMMUNITY_PLAYLIST,
             SearchFilter.FILTER_FEATURED_PLAYLIST,
             ZEMER_FILTER_PODCAST,
-            ZEMER_FILTER_EPISODE,
         )) {
             assertFalse(searchFilterAllowed(filter, blockPodcasts = false, offlineMode = true))
             assertTrue(searchFilterAllowed(filter, blockPodcasts = false, offlineMode = false))
         }
+    }
+
+    @Test
+    fun `offline mode keeps the episode chip unless podcasts are blocked`() {
+        assertTrue(searchFilterAllowed(ZEMER_FILTER_EPISODE, blockPodcasts = false, offlineMode = true))
+        assertFalse(searchFilterAllowed(ZEMER_FILTER_EPISODE, blockPodcasts = true, offlineMode = true))
     }
 
     @Test

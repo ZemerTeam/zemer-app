@@ -48,7 +48,7 @@ data class AlbumEntity(
         // Anonymous telemetry (spec §3.5): every album-favorite path converges here.
         Tracker.action(if (bookmarkedAt == null) TrackingActionKind.FAVORITE else TrackingActionKind.UNFAVORITE, id)
         // Anonymous (pooled) sessions are local-only — only a personal account pushes to remote.
-        if (isPersonalAccountSignedIn) {
+        if (isPersonalAccountSignedIn && !com.jtech.zemer.utils.OfflineModeState.enabled) {
             CoroutineScope(Dispatchers.IO).launch {
                 if (playlistId != null)
                     YouTube.likePlaylist(playlistId, bookmarkedAt == null)

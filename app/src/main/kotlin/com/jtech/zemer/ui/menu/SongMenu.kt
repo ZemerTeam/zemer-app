@@ -220,7 +220,8 @@ fun SongMenu(
         isVisible = showChoosePlaylistDialog,
         onGetSong = { playlist ->
             // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
-            if (isPersonalAccountSignedIn) {
+            // Offline mode is local-only too; the next online account sync reconciles.
+            if (isPersonalAccountSignedIn && !com.jtech.zemer.utils.OfflineModeState.enabled) {
                 coroutineScope.launch(Dispatchers.IO) {
                     playlist.playlist.browseId?.let { browseId ->
                         YouTube.addToPlaylist(browseId, song.id)
@@ -517,7 +518,8 @@ fun SongMenu(
                         )
                     )
                     viewCollectionMenuItem(song.song.isEpisode, song.song.albumId, navController, onDismiss)?.let { add(it) }
-                    add(
+                    // Refetch is an InnerTube metadata fetch - an online function, hidden offline.
+                    if (!OfflineModeState.enabled) add(
                         Material3MenuItemData(
                             icon = {
                                 Icon(

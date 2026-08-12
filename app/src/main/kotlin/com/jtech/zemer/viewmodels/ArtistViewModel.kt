@@ -76,8 +76,13 @@ class ArtistViewModel @Inject constructor(
         .distinctUntilChanged()
     val librarySongs = librarySourceFlags
         .flatMapLatest { (hideExplicit, includeVideos, offline) ->
-            val source = if (offline) database.downloadedArtistSongs(artistId, includeVideos)
-            else database.artistSongsPreview(artistId)
+            val source = when {
+                // A podcast HOST channel's downloaded content is its episodes (the music-scoped
+                // query excludes isEpisode rows and would leave the channel page falsely empty).
+                offline && isPodcastChannel -> database.downloadedArtistEpisodes(artistId)
+                offline -> database.downloadedArtistSongs(artistId, includeVideos)
+                else -> database.artistSongsPreview(artistId)
+            }
             source.map { it.filterExplicit(hideExplicit) }
         }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())

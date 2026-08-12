@@ -126,6 +126,7 @@ fun OnlineSearchScreen(
     val coroutineScope = rememberCoroutineScope()
     val viewState by viewModel.viewState.collectAsState()
     val (blockPodcasts) = rememberPreference(BlockPodcastsKey, defaultValue = false)
+    val (offlineModeBrowse, _) = rememberPreference(com.jtech.zemer.constants.OfflineModeKey, defaultValue = false)
     // Blocked podcasts are hidden as a content type, so drop podcast results (shows AND episodes) plus
     // the browse shortcut.
     val displayItems = remember(viewState.items, blockPodcasts) {
@@ -170,8 +171,9 @@ fun OnlineSearchScreen(
     ) {
         // Before the user types, offer a shortcut into the whitelisted-artists browse (the Artists tab
         // was removed from the bottom bar and lives here now). Hidden once a query exists so it never
-        // sits among live suggestions/results.
-        if (query.isBlank()) {
+        // sits among live suggestions/results, and hidden in offline mode (the browse targets are
+        // full online catalogs - the same rule as the nav tabs).
+        if (query.isBlank() && !offlineModeBrowse) {
             item(key = "browse_artists") {
                 BrowseAllItem(
                     onClick = {

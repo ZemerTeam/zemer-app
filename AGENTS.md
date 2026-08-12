@@ -111,6 +111,38 @@ source** onto the whitelisted relay host `stream.zemer.io`. Full contract + the 
 - **Streaming is still the danger zone:** any change here is proven with `tests/` (the DIRECT resolver
   refactor was), and app↔relay contract changes travel as handoff-doc edits, never as guesses.
 
+### Manual offline mode (downloaded-only lens; "offline means offline")
+
+A user-controlled Settings switch (`OfflineModeKey`, default OFF; process-wide mirror
+`utils/OfflineModeState`, seeded by an `App.kt` collector). ON = every browse surface shrinks to
+DOWNLOADED content and content networking stops at source; OFF = byte-for-byte the pre-existing app.
+Rules that must not regress:
+
+- **Online functions must not exist while ON — not fail, not show.** Fetch entry points early-return
+  (Home-feeding VMs, syncs, update check, subset auto-sync, suggestions, lyrics, related-songs,
+  auto-load-more, telemetry uploads — events queue and flush on mode-off), and online AFFORDANCES hide
+  (Start-radio rows + notification button, Download/retry rows and the download-all header while
+  keeping Remove, playlist/show search chips, the Artists/Podcasts/KidZone nav tabs, the recognition
+  FAB, deep links, Android Auto's InnerTube branches, Refetch, the online add-to-playlist dialog).
+  The playback resolver itself throws rather than stream a non-downloaded id, and the self-repair
+  download is skipped. When adding ANY new online call or affordance, gate it on
+  `OfflineModeState.enabled` in the same change.
+- **The content filter still applies.** Offline lists run `offlineContentGatePasses` /
+  `offlineContentGated` (`viewmodels/HomeOfflineRows.kt`): female flag + blocked-id overrides +
+  Israeli registry over the local caches — toggling the mode must never bypass the passcode-protected
+  filter. Unknown artists fail OPEN (parity with the Library Downloaded surfaces).
+- **Home rebuilds from Room per tab** (`loadOfflineHome` + `buildOfflineHomeRows`; RADIO tab hidden,
+  snap display-only), **artist/album/search render downloaded-only views** (artist pins `showLocal`
+  over `downloadedArtistSongs`/`downloadedArtistAlbums` — episodes for a podcast host channel; album
+  filters `albumWithSongs` to downloaded and never runs the stale-row delete; search queries the
+  `searchDownloaded*` DAO family incl. episodes). Song taps build ListQueues
+  (`ZemerRadioQueue.song`'s offline branch / `songTapQueue`); Home shuffle = `DownloadedSongsQueue`
+  (throws on empty — never a silent queue swap).
+- **Mode-currency guards**: an in-flight online load must never publish after the mode flips
+  (HomeViewModel's publish-time check, the search write-time checks). The offline-subset snapshot is
+  deliberately NOT a browse source here — downloads only. The one indicator is the shared
+  `OfflineModeBanner` (Home + search) with the one-tap exit.
+
 ### Cipher / player rotation (the most common future break)
 
 The `cipher` submodule (package `com.zemer.cipher`, repo `ZemerTeam/zemer-cipher`) deciphers YouTube's `player_ias` signatures in an Android WebView and mints poTokens. It's wired **two ways**: a git submodule *and* a Gradle composite build — `includeBuild("cipher")` in `settings.gradle.kts` substitutes `com.zemer:cipher` → the local `:library`, so the app always builds the working tree.
@@ -359,12 +391,14 @@ from the Zemer `/home-rows` endpoint, local Room, or the flipphoneguy Latest-Rel
 signed-in user's name/avatar); do not add others. Full detail in `docs/home_rows/README.md`.
 
 **The content-type selector (Music / Radio / Podcasts / Video)** is driven by the pure, unit-tested
-`visibleHomeTabs`/`effectiveHomeTab` (`ui/screens/HomeContentTab.kt`): Block Podcasts is the ONE filter
-that removes a tab (a persisted PODCASTS selection falls back to MUSIC); VIDEO is ALWAYS shown, relabeled
-"Video songs" for blocked-video users (a visibility gate is a regression). The selected tab is seeded
-from ONE async DataStore snapshot reading the tab AND Block Podcasts together (null until it lands, one
-frame of background) — never a main-thread `dataStore[key]` read in composition, never a flash of Music
-or of a blocked Podcasts tab. R22 (the MUSIC-gated shimmer) rides this selector — see §Loading skeletons.
+`visibleHomeTabs`/`effectiveHomeTab` (`ui/screens/HomeContentTab.kt`): Block Podcasts removes the
+PODCASTS tab (a persisted PODCASTS selection falls back to MUSIC), and manual offline mode removes
+RADIO (a live broadcast cannot serve from downloads — this snap is DISPLAY-ONLY, never persisted, so
+the user's Radio selection survives the mode); VIDEO is ALWAYS shown, relabeled "Video songs" for
+blocked-video users (a visibility gate is a regression). The selected tab is seeded from ONE async
+DataStore snapshot reading the tab, Block Podcasts AND offline mode together (null until it lands, one
+frame of background), re-seeded when offline mode flips — never a main-thread `dataStore[key]` read in
+composition, never a flash of Music or of a blocked Podcasts tab. R22 (the MUSIC-gated shimmer) rides this selector — see §Loading skeletons.
 The **Videos tab's ranked rows** (`/video-home-rows` → Trending Videos / New Videos / Top Video Artists;
 handoff `zemer-app-video-home-rows-request.md`) ride the isolated fail-soft `VideoHomeRowsViewModel`
 (PodcastHomeRows pattern, see-all via `VideoHomeSeeAllStore`): an absent endpoint leaves the tab on its

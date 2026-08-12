@@ -8,6 +8,11 @@ import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.toAlbumItem
 import com.jtech.zemer.models.toArtistItem
 import com.jtech.zemer.models.toSongItem
+import com.jtech.zemer.utils.BlockedIdsCache
+import com.jtech.zemer.utils.ContentFilterConfig
+import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.IsraeliArtistRegistry
+import com.jtech.zemer.utils.WhitelistCache
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.SongItem
@@ -30,12 +35,44 @@ data class OfflineHomeRows(
     val downloadedArtistIds: Set<String>,
 )
 
+/**
+ * The offline content gate: the female flag, the id-override table and the Israeli registry, the
+ * same rules the online surfaces apply to LOCAL Room content ([com.jtech.zemer.viewmodels]'
+ * isAllowed / dropBlocked paths). All three sources are on-device caches, so toggling offline mode
+ * can never resurface content the (passcode-protected) filter hides online. Pure over its lambdas
+ * for the JVM test; unknown artists fail OPEN (a plain downloaded song with no whitelist row keeps
+ * playing, exactly like the Library Downloaded list).
+ */
+internal fun offlineContentGatePasses(
+    itemId: String?,
+    artistIds: List<String>,
+    config: ContentFilterConfig,
+    isFemaleArtist: (String) -> Boolean = { WhitelistCache.get(it)?.isFemale == true },
+    isBlockedId: (String?, ContentFilterConfig) -> Boolean = BlockedIdsCache::isBlocked,
+    isIsraeli: (String) -> Boolean = IsraeliArtistRegistry::isIsraeli,
+): Boolean {
+    if (isBlockedId(itemId, config)) return false
+    if (artistIds.any(isIsraeli)) return false
+    if (config.filtersEnabled && !config.allowFemaleSingers && artistIds.any(isFemaleArtist)) return false
+    return true
+}
+
+/** [offlineContentGatePasses] over a Room song list (the one filter every offline song list runs). */
+internal fun List<Song>.offlineContentGated(
+    config: ContentFilterConfig = ContentFilterState.current,
+): List<Song> = filter { s -> offlineContentGatePasses(s.id, s.artists.map { it.id }, config) }
+
 /** Reads the downloaded catalog once and builds the offline featured rows (newest-download first). */
 suspend fun buildOfflineHomeRows(database: MusicDatabase, includeVideos: Boolean): OfflineHomeRows {
+    val config = ContentFilterState.current
     val downloaded = database.downloadedSongsByCreateDateAsc(includeVideos).first().asReversed()
+        .offlineContentGated(config)
     val artists = database.downloadedArtists(includeVideos).first()
+        .filter { offlineContentGatePasses(itemId = null, artistIds = listOf(it.id), config = config) }
     val albums = database.downloadedAlbums(includeVideos).first()
+        .filter { a -> offlineContentGatePasses(a.id, a.artists.map { it.id }, config) }
     val videos = database.downloadedVideosByCreateDateAsc().first().asReversed()
+        .offlineContentGated(config)
     return OfflineHomeRows(
         quickPicks = offlineQuickPicks(downloaded),
         artists = artists.map { it.toArtistItem() },

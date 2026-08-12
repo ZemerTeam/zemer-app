@@ -31,6 +31,12 @@ class NewEpisodesFeed(
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     fun fetch(scope: CoroutineScope) {
+        // Manual offline mode: the feed is a server fetch and its episodes stream - one gate here
+        // covers every caller (home row, library podcasts, whitelisted podcasts browse).
+        if (OfflineModeState.enabled) {
+            _episodes.value = emptyList()
+            return
+        }
         scope.launch(Dispatchers.IO) {
             _isLoading.value = true
             try {

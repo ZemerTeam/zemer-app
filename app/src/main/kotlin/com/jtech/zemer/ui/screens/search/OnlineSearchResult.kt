@@ -290,17 +290,18 @@ fun OnlineSearchResult(
                     )
                     add(FILTER_ALBUM to stringResource(R.string.filter_albums))
                     add(FILTER_ARTIST to stringResource(R.string.filter_artists))
-                    // Playlist / podcast chips have no offline (downloaded-catalog) source, so they
-                    // hide in offline mode instead of offering guaranteed-empty pages.
+                    // Playlist / show chips have no offline (downloaded-catalog) source, so they
+                    // hide in offline mode instead of offering guaranteed-empty pages. The Episodes
+                    // chip stays: downloaded episodes are searchable offline.
                     if (!offlineMode) {
                         add(FILTER_COMMUNITY_PLAYLIST to stringResource(R.string.filter_community_playlists))
                         add(FILTER_FEATURED_PLAYLIST to stringResource(R.string.filter_featured_playlists))
-                        // Podcasts + episodes are corpus content with no YouTube filter. Hidden entirely
-                        // when podcasts are blocked (same content type as the gated summary sections).
-                        if (!blockPodcasts) {
-                            add(ZEMER_FILTER_PODCAST to stringResource(R.string.filter_podcasts))
-                            add(ZEMER_FILTER_EPISODE to stringResource(R.string.filter_episodes))
-                        }
+                    }
+                    // Podcasts + episodes are corpus content with no YouTube filter. Hidden entirely
+                    // when podcasts are blocked (same content type as the gated summary sections).
+                    if (!blockPodcasts) {
+                        if (!offlineMode) add(ZEMER_FILTER_PODCAST to stringResource(R.string.filter_podcasts))
+                        add(ZEMER_FILTER_EPISODE to stringResource(R.string.filter_episodes))
                     }
                 },
                 currentValue = searchFilter,

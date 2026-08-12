@@ -82,6 +82,13 @@ class OnlinePlaylistViewModel @Inject constructor(
 
     private fun fetchInitialPlaylistData() {
         viewModelScope.launch(Dispatchers.IO) {
+            // Manual offline mode: playlists are live-only - no fetch, show the error state instead
+            // of an endless skeleton (library taps route to the local playlist screen offline).
+            if (com.jtech.zemer.utils.OfflineModeState.enabled) {
+                _error.value = context.getString(com.jtech.zemer.R.string.error_no_internet)
+                _isLoading.value = false
+                return@launch
+            }
             _isLoading.value = true
             _error.value = null
             continuation = null

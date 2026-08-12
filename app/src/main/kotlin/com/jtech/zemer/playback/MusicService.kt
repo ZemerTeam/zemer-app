@@ -1004,8 +1004,11 @@ class MusicService :
         } ?: return
         val duration = song?.song?.duration?.takeIf { it != -1 }
             ?: mediaMetadata.duration.takeIf { it != -1 }
-            ?: (playbackData?.videoDetails ?: YTPlayerUtils.playerResponseForMetadata(mediaId)
-                .getOrNull()?.videoDetails)?.lengthSeconds?.toInt()
+            ?: (
+                playbackData?.videoDetails
+                    ?: if (OfflineModeState.enabled) null
+                    else YTPlayerUtils.playerResponseForMetadata(mediaId).getOrNull()?.videoDetails
+                )?.lengthSeconds?.toInt()
             ?: -1
         database.query {
             if (song == null) insert(mediaMetadata.copy(duration = duration))
@@ -1014,6 +1017,9 @@ class MusicService :
         // Episodes never enter the music discovery rows — don't run the related-songs pipeline for
         // them (it would plant music recommendations keyed on an episode id, plus a wasted round trip).
         if (mediaMetadata.isEpisode) return
+        // Manual offline mode: the related-songs pipeline is pure network (YouTube.next/related) —
+        // skip it; the rows fill in on the next online play.
+        if (OfflineModeState.enabled) return
         if (!database.hasRelatedSongs(mediaId)) {
             val nextResult = YouTube.next(WatchEndpoint(videoId = mediaId)).getOrNull()
             // Video mode: passively fold in any song→video counterpart the response carries (free — this
@@ -1562,7 +1568,10 @@ class MusicService :
         // Auto load more songs. A station's runway top-up is NOT optional: it ignores the user's
         // Auto-load-more preference (a broadcast that silently ends after six slots is broken, not
         // configured) and the repeat-reason guard (repeat is forced off for stations anyway).
-        if ((dataStore.get(AutoLoadMoreKey, true) || currentQueue is StationQueue) &&
+        // Manual offline mode never loads more: a persisted pre-toggle radio queue must not keep
+        // appending fresh online tracks (offline queues are finite ListQueues anyway).
+        if (!OfflineModeState.enabled &&
+            (dataStore.get(AutoLoadMoreKey, true) || currentQueue is StationQueue) &&
             reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
             player.mediaItemCount - player.currentMediaItemIndex <= 5 &&
             currentQueue.hasNextPage() &&
@@ -2018,6 +2027,11 @@ class MusicService :
             val liveStatus = downloadUtil.mediaStoreDownloadState(mediaId)?.status
             if (liveStatus == MediaStoreDownloadManager.DownloadState.Status.FAILED) {
                 Timber.w("Downloaded file missing for $mediaId but its re-download already FAILED this session; streaming without re-enqueueing")
+            } else if (OfflineModeState.enabled) {
+                // Manual offline mode: the self-repair download is a network fetch - skip it (the
+                // resolver's offline gate below fails the play with a clear error instead of
+                // streaming); the repair runs on the next online play of this song.
+                Timber.w("Downloaded file missing for $mediaId; offline mode skips the self-repair download")
             } else {
                 Timber.w("Downloaded file missing for $mediaId; re-downloading to self-repair and streaming this play")
                 scope.launch(Dispatchers.IO) {
@@ -2172,6 +2186,18 @@ class MusicService :
             songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                 return@Factory dataSpec.withUri(it.first.toUri())
+            }
+
+            // Manual offline mode: never resolve a stream. Every offline surface serves only
+            // downloaded content, so reaching here means a non-downloaded item from a persisted
+            // pre-toggle queue (or a downloaded file that went missing) - fail with a clear error
+            // instead of silently streaming ("offline means offline").
+            if (OfflineModeState.enabled) {
+                throw PlaybackException(
+                    getString(R.string.error_no_internet),
+                    null,
+                    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                )
             }
 
             // Validate current authentication state before fetching stream
