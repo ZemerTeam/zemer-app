@@ -13,15 +13,16 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import com.jtech.zemer.playback.VideoQualityLogic
 import com.jtech.zemer.playback.VideoQualityRung
+import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.OnboardingChoiceCard
-import com.jtech.zemer.ui.component.PreferenceGroupTitle
 
 /**
  * The video-quality picker sheet, built ENTIRELY from shared components so it reads as the app:
- * [PreferenceGroupTitle] (the standard group heading) over a stack of [OnboardingChoiceCard]s (the
- * shared radio-select card — onboardingCardColors selected fill, filled radio, D-pad focusBorder,
- * all built in). Auto first with its supporting line, then every rung the current video serves,
- * high→low, each carrying its real resolution. Shown via `LocalMenuState` from
+ * [NavigationTitle] (the app-wide section-header treatment — bold titleLarge, neutral onSurface,
+ * the Home-row look) over a stack of [OnboardingChoiceCard]s (the shared radio-select card —
+ * onboardingCardColors selected fill, filled radio, D-pad focusBorder, all built in). Auto first
+ * with its supporting line, then every rung the current video serves, high→low, each carrying its
+ * real resolution. Shown via `LocalMenuState` from
  * [com.jtech.zemer.ui.player.VideoQualitySelector]'s pill — the inline art slot and the fullscreen
  * overlay open this one sheet.
  */
@@ -37,8 +38,11 @@ fun VideoQualityMenu(
             .padding(bottom = 16.dp)
             .windowInsetsPadding(WindowInsets.navigationBars),
     ) {
-        // The group title brings its own standard 16dp padding — the settings-screen layout.
-        PreferenceGroupTitle(title = stringResource(R.string.video_quality))
+        // The shared section header (its built-in 12dp + 4dp here aligns it with the 16dp card edge).
+        NavigationTitle(
+            title = stringResource(R.string.video_quality),
+            modifier = Modifier.padding(horizontal = 4.dp),
+        )
         Column(
             modifier = Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
