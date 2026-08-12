@@ -51,9 +51,9 @@ import com.jtech.zemer.ui.theme.HeaderFontFamily
 // The legibility belt over bright media where the fade has already thinned: a soft dark drop shadow
 // under the white name/date text (what WhatsApp does), so the header reads without an opaque band.
 private val statusTextShadow = Shadow(
-    color = Color.Black.copy(alpha = 0.65f),
+    color = Color.Black.copy(alpha = 0.9f),
     offset = Offset(0f, 1f),
-    blurRadius = 6f,
+    blurRadius = 10f,
 )
 
 @Composable
@@ -68,15 +68,16 @@ fun StatusStoryTopOverlay(
     modifier: Modifier = Modifier,
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    // A top-down fade, not a flat band: dark enough at the very top for the segment bars + white text,
-    // dissolving into the media below (the extra bottom padding is the visible fade tail). The gradient
-    // paints through the status-bar strip too (background BEFORE the insets padding — keep that order).
-    // The gradient alone is not enough over bright media, so the name/date also carry a drop shadow
-    // (the WhatsApp trick) — see [statusTextShadow].
+    // A single LINEAR fade from dark at the top to transparent at the bottom. Linear = one constant
+    // slope = no slope change, which is what caused the visible "split line" (Mach banding appears
+    // where a gradient's slope changes). Because it never kinks, the tail can be short, so the scrim
+    // stays contained around the header instead of reaching far down the screen. Dark enough at the top
+    // (behind the status bar + segment bars + name) with the name/date drop shadow ([statusTextShadow])
+    // carrying the rest. Background BEFORE the insets padding so the scrim paints through the status-bar
+    // strip too — keep that order.
     val scrim = Brush.verticalGradient(
-        colors = listOf(
+        listOf(
             colorScheme.scrim.copy(alpha = 0.8f),
-            colorScheme.scrim.copy(alpha = 0.5f),
             Color.Transparent,
         ),
     )
@@ -87,7 +88,9 @@ fun StatusStoryTopOverlay(
             .fillMaxWidth()
             .background(scrim)
             .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 28.dp),
+            // Small tail: the linear fade needs no room to hide a slope change, so the scrim ends just
+            // below the date instead of reaching far down the screen.
+            .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 12.dp),
     ) {
         // Segment progress bars at the very top (stories convention), the active one filling with `progress`.
         Row(Modifier.fillMaxWidth()) {
@@ -141,8 +144,11 @@ fun StatusStoryTopOverlay(
                     )
                     if (!subtitle.isNullOrEmpty()) {
                         Text(
+                            // Solid white (not dimmed) so the date reads over bright media too — the
+                            // shadow, not a dark scrim, carries legibility (the WhatsApp approach). The
+                            // smaller labelSmall size keeps it visually secondary to the name.
                             text = subtitle,
-                            color = Color.White.copy(alpha = 0.8f),
+                            color = Color.White,
                             style = MaterialTheme.typography.labelSmall.copy(shadow = statusTextShadow),
                         )
                     }
