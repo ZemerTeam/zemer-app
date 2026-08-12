@@ -211,33 +211,14 @@ class VideoQualityLogicTest {
     }
 
     @Test
-    fun `stall downgrade jumps straight to the rung the bandwidth sustains`() {
-        // Fixture bitrates are height*1000 bps. A 1.5 Mbps estimate fits 1080p (1.08M * 1.3 = 1.40M)
-        // but not 1440p (1.87M): from 2160p the drop lands DIRECTLY on 1080p, skipping 1440p.
-        val rungs = VideoQualityLogic.rungs(liveStreamingData())
-        val estimate = 1_500_000L
-        assertEquals("1080p", VideoQualityLogic.downgradeRung(rungs, "2160p", estimate)?.label)
-        // No estimate: a single conservative step down.
-        assertEquals("1440p", VideoQualityLogic.downgradeRung(rungs, "2160p", null)?.label)
-        // Nothing below fits: the single-step fallback still applies (never stuck).
-        assertEquals("1440p", VideoQualityLogic.downgradeRung(rungs, "2160p", 1L)?.label)
-        // Bottom of the ladder: nowhere to go.
-        assertNull(VideoQualityLogic.downgradeRung(rungs, "144p", estimate))
-    }
-
-    @Test
-    fun `rungFitsBandwidth needs headroom and passes with no estimate`() {
-        val rung = VideoQualityLogic.rungs(liveStreamingData()).first { it.label == "1080p" }
-        assertTrue(VideoQualityLogic.rungFitsBandwidth(rung, null))
-        assertTrue(VideoQualityLogic.rungFitsBandwidth(rung, (rung.bitrate * 2).toLong()))
-        assertEquals(false, VideoQualityLogic.rungFitsBandwidth(rung, rung.bitrate.toLong()))
-    }
-
-    @Test
-    fun `rungBelow steps down the high-to-low ladder and stops at the bottom`() {
+    fun `stall downgrade steps down exactly one rung and stops at the bottom`() {
+        // The rebuffer guard drops ONE rung per stall (2160p -> 1440p -> 1080p -> 720p ...), so
+        // playback settles on the highest rung that actually plays instead of over-dropping.
         val rungs = VideoQualityLogic.rungs(liveStreamingData())
         assertEquals("1440p", VideoQualityLogic.rungBelow(rungs, "2160p")?.label)
+        assertEquals("1080p", VideoQualityLogic.rungBelow(rungs, "1440p")?.label)
         assertEquals("720p", VideoQualityLogic.rungBelow(rungs, "1080p")?.label)
+        // Bottom of the ladder / unknown label: nowhere to go.
         assertNull(VideoQualityLogic.rungBelow(rungs, "144p"))
         assertNull(VideoQualityLogic.rungBelow(rungs, "999p"))
     }

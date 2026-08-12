@@ -111,16 +111,6 @@ class VideoModeController(
     private fun effectiveQualityTarget(itemId: String?): String =
         qualityOverrides[itemId] ?: defaultVideoQuality
 
-    /**
-     * The player's live throughput estimate (bps) for the DOWNGRADE target only (read after stalls,
-     * when the meter is warm from real transfers). Null when there is no usable sample.
-     */
-    private fun bandwidthEstimate(): Long? =
-        runCatching {
-            androidx.media3.exoplayer.upstream.DefaultBandwidthMeter.getSingletonInstance(service)
-                .bitrateEstimate.takeIf { it > 0 }
-        }.getOrNull()
-
     private val _videoQualities = MutableStateFlow<List<VideoQualityRung>>(emptyList())
     /** The CURRENT video-mode item's selectable quality ladder (empty = no switcher). */
     val videoQualities: StateFlow<List<VideoQualityRung>> = _videoQualities.asStateFlow()
@@ -380,9 +370,13 @@ class VideoModeController(
         val current = _currentVideoQuality.value
         if (current == VideoQualityLogic.AUTO) return
         val rungs = qualityLadders[renditionId] ?: return
-        // One decisive jump to the highest rung the MEASURED bandwidth sustains (slow connections
-        // land on a stable rung immediately instead of stepping through every stall on the way down).
-        val below = VideoQualityLogic.downgradeRung(rungs, current, bandwidthEstimate()) ?: return
+        // Step down exactly ONE rung, so playback settles on the HIGHEST rung that actually plays
+        // (e.g. 2160p → 1440p → 1080p → 720p, stopping the moment 720p is stable). We deliberately do
+        // NOT use the bandwidth estimate to jump multiple rungs: right after a stall media3's estimate
+        // is depressed, and a rung's `bitrate` is its PEAK (well above its sustained average), so a
+        // bandwidth-gated jump over-dropped (2160p → 480p when 720p was fine). One step at a time is
+        // predictable and lands correctly; a genuinely slow link just takes a few steps to converge.
+        val below = VideoQualityLogic.rungBelow(rungs, current) ?: return
         // Pin the item to the lower rung so onVideoQualitiesResolved can't bounce back up.
         videoModeItemId?.let { qualityOverrides[it] = below.label }
         swapToRung(below)

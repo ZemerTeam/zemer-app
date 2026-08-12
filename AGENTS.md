@@ -1080,11 +1080,12 @@ feature map: `docs/video_quality/README.md`. The rules that must not regress:
 - **The rebuffer guard (never keep stalling mid-play; fast AND slow connections).** A STATE_BUFFERING
   after READY on a STREAMING rendition is a mid-play stall; two stalls within 45s — or a SINGLE stall
   within 15s of first reaching READY (the rung is clearly beyond the connection) — trigger a
-  downgrade (`VideoQualityLogic.shouldDowngradeForRebuffer`, pure + tested). The drop lands DIRECTLY
-  on the highest rung the player's measured bandwidth sustains with 1.3x headroom
-  (`downgradeRung` + the DefaultBandwidthMeter singleton — one decisive jump, not a stall per
-  intermediate rung), position-continuous, and pins the item there so the ladder callback can't
-  bounce back up. Seek-caused buffering is exempt via a **timestamp grace window**
+  downgrade (`VideoQualityLogic.shouldDowngradeForRebuffer`, pure + tested). The drop is exactly ONE
+  rung down (`rungBelow`), so playback settles on the HIGHEST rung that actually plays (2160p → 1440p
+  → 1080p → 720p, stopping the moment 720p is stable). It deliberately does NOT bandwidth-gate a
+  multi-rung jump: a rung's `bitrate` is its PEAK and media3's estimate is depressed right after a
+  stall, so a bandwidth jump over-dropped (2160p → 480p when 720p was fine). Each step is
+  position-continuous and pins the item there so the ladder callback can't bounce back up. Seek-caused buffering is exempt via a **timestamp grace window**
   (`onSeekDiscontinuity` stamps the time; a stall within `SEEK_GRACE_MS` is ignored) — NOT a boolean
   flag, because a seek into an already-buffered region fires no state change to clear a flag and a
   stale flag would swallow the next real stall. A swap's own prepare never counts (history resets on
