@@ -103,6 +103,18 @@ its resolution), presented two ways:
 
 The Settings default lives in **Settings → Player → Video quality** (hidden when videos are blocked).
 
+## Backgrounding
+
+`MainActivity.onStop` reverts video→audio (`setVideoMode(false)`) so music keeps playing in the
+background without an invisible video decode. That revert seeks to the video position and re-prepares
+the bare-`<id>` audio, which must re-fetch bytes from a region the audio cache never held (video bytes
+live in the isolated `video:`/`videoaudio:` namespaces). If that fetch fails transiently (a
+stale/absent URL, or the network constrained during the app-switch) it is NOT a clean 403, so
+`onPlayerError` routes it — within a short window flagged by `VideoModeController.revertedToAudioWithin`
+(one-shot) — to the URL-refresh recovery (invalidate + re-prepare) instead of parking the player in an
+error the user would see on return. Without this, "watch video → switch apps → return" could surface a
+source error.
+
 ## Untouched paths
 
 RELAY (one fixed server rendition — quality keys never reach it, enforced at the `swapToVideoKey`

@@ -1742,6 +1742,21 @@ class MusicService :
             return
         }
 
+        // A video→audio revert (backgrounding, cast/block revert) just re-prepared the bare-id audio,
+        // which had to re-fetch bytes from a region the audio cache never held (video bytes live in
+        // the isolated video:/videoaudio: namespaces). That fetch can fail transiently — a stale/absent
+        // URL, or the network constrained during an app-switch — and it is NOT a clean 403, so without
+        // this it would fall through to stopOnError() and the player would park in an error the user
+        // sees on return. Route it to the same URL-refresh recovery so audio keeps playing. RELAY is
+        // excluded (deterministic URL — refreshing loops); a station never reverts from video.
+        if (relayModeNow != true && currentQueue !is StationQueue &&
+            videoModeController.revertedToAudioWithin(REVERT_RECOVERY_WINDOW_MS)
+        ) {
+            Timber.d("Player error within the video->audio revert window; refreshing audio URL and re-preparing")
+            handleExpiredUrlError()
+            return
+        }
+
         // A STREAMING item whose downloaded file exists hands playback over to the file instead of
         // failing — most importantly when the device went offline after a mid-play download (the
         // sticky source keeps streaming until the item restarts; without this the app would wait for
@@ -2732,6 +2747,9 @@ class MusicService :
         val WEB_STREAM_CLIENTS = setOf("WEB_REMIX", "WEB_CREATOR", "TVHTML5", "WEB")
         const val ERROR_CODE_NO_STREAM = 1000001
         const val CHUNK_LENGTH = 512 * 1024L
+        // How long after a video→audio revert a player error is treated as the revert's own transient
+        // re-prepare failure (recover via URL refresh) rather than a normal unrecoverable error.
+        private const val REVERT_RECOVERY_WINDOW_MS = 6_000L
         const val PERSISTENT_QUEUE_FILE = "persistent_queue.data"
         const val PERSISTENT_AUTOMIX_FILE = "persistent_automix.data"
         const val PERSISTENT_PLAYER_STATE_FILE = "persistent_player_state.data"

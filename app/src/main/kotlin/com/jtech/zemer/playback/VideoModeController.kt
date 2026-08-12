@@ -130,6 +130,27 @@ class VideoModeController(
     // BUFFERING/READY to clear a boolean flag, so a stale flag would swallow the next real stall).
     private var lastSeekAtMs: Long = 0L
 
+    // When we last swapped a video rendition back to plain audio (background revert, cast/block/error
+    // revert). The revert seeks to the video position and re-prepares the bare-id audio, which must
+    // re-fetch bytes from a region the audio cache never held (video bytes live in the isolated
+    // video:/videoaudio: namespaces) — that fetch can fail transiently (a stale/absent URL, network
+    // constrained during an app-switch). MusicService checks this window so such a failure REFRESHES
+    // the audio URL and re-prepares (recover, keep music playing) instead of parking the player.
+    @Volatile
+    private var lastRevertToAudioAtMs: Long = 0L
+
+    /**
+     * True if a video→audio revert re-prepare happened within [windowMs] (its error is recoverable).
+     * ONE-SHOT: consumes the window so the recovery is attempted once — a SECOND failure right after
+     * falls through to normal error handling instead of looping the URL-refresh recovery.
+     */
+    fun revertedToAudioWithin(windowMs: Long): Boolean {
+        val within = lastRevertToAudioAtMs != 0L &&
+            android.os.SystemClock.elapsedRealtime() - lastRevertToAudioAtMs <= windowMs
+        if (within) lastRevertToAudioAtMs = 0L
+        return within
+    }
+
     // Latest BlockVideosKey value, kept current by the block collector in init{} — so availability never
     // does a blocking dataStore read on the main thread (the combine transform + setVideoMode are hot/UI
     // paths). Seeded UNKNOWN (null), not false: the naive "seed false, the collector's first emission
@@ -669,6 +690,9 @@ class VideoModeController(
             val position = player.currentPosition
             val playWhenReady = player.playWhenReady
             videoModeItemId?.let { listenAccumulator.onSwap(it) }
+            // Mark the revert window so a transient failure of the audio re-prepare below recovers
+            // (URL refresh + re-prepare) instead of parking the player — see MusicService.onPlayerError.
+            lastRevertToAudioAtMs = android.os.SystemClock.elapsedRealtime()
             pendingSwap = true
             player.replaceMediaItem(index, audioItem)
             player.seekTo(index, position)
