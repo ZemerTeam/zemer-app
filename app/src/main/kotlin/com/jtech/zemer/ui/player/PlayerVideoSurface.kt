@@ -4,10 +4,14 @@ import android.view.TextureView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -17,7 +21,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -93,18 +99,30 @@ fun PlayerVideoSurface(modifier: Modifier = Modifier) {
 
         // Buffering indicator — built into the ONE shared surface so the inline art slot and the
         // fullscreen overlay show the identical treatment (prepare after a video-mode entry, a
-        // quality switch, or a mid-play stall). White over the scrim/video, the over-media idiom.
+        // quality switch, or a mid-play stall). The over-media idiom shared with VideoModePill /
+        // VideoQualitySelector: a theme-scrim circle lifting a round-capped white ring off whatever
+        // frame is underneath.
         val playbackState by playerConnection.playbackState.collectAsState()
         AnimatedVisibility(
             visible = playbackState == Player.STATE_BUFFERING,
             enter = fadeIn(),
             exit = fadeOut(),
         ) {
-            CircularProgressIndicator(
-                color = Color.White,
-                trackColor = Color.White.copy(alpha = 0.2f),
-                modifier = Modifier.size(44.dp),
-            )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
+                    .padding(14.dp),
+            ) {
+                CircularProgressIndicator(
+                    color = Color.White,
+                    trackColor = Color.White.copy(alpha = 0.15f),
+                    strokeWidth = 3.5.dp,
+                    strokeCap = StrokeCap.Round,
+                    modifier = Modifier.size(36.dp),
+                )
+            }
         }
     }
 }

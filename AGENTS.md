@@ -1027,7 +1027,9 @@ WEB_REMIX serves avc1 144p…1080p and vp9-only 1440p/2160p. The rules that must
   unknown or changed — the audio pick flips with metered state). `removeDownload` purges the WHOLE
   key family (`VideoRendition.allRenditionKeys`, one runCatching PER key).
 - **The switcher** (`VideoQualitySelector`, shared by the inline art slot at BottomStart and the
-  fullscreen overlay at TopEnd) shows the CURRENT item's live ladder, decoder-capability-filtered
+  fullscreen overlay at TopEnd — a VideoModePill-family over-media chip opening the standard
+  `Material3MenuGroup` menu sheet `VideoQualityMenu`, never a floating dropdown) shows the CURRENT
+  item's live ladder, decoder-capability-filtered
   (`VideoDecoderCaps` — never offer vp9 2160p to a SoC that can't decode it); a pick applies to that
   item for the session (`qualityOverrides` — a CONCURRENT map: the player-menu download reads it from
   an IO coroutine), the Settings default (`VideoQualityKey`, Player settings, hidden when videos are

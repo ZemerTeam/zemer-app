@@ -115,7 +115,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
-| `AGENTS.md` | 1252 lines | `.md` |
+| `AGENTS.md` | 1262 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 19 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -476,12 +476,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Player.kt` | 1504 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/PlayerBackground.kt` | 116 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/PlayerVideoFullscreen.kt` | 258 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/player/PlayerVideoSurface.kt` | 110 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/player/PlayerVideoSurface.kt` | 128 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt` | 1130 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/StationLiveBar.kt` | 70 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 577 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoModePill.kt` | 141 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoQualitySelector.kt` | 124 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoQualitySelector.kt` | 96 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AccountScreen.kt` | 194 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AlbumScreen.kt` | 564 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/ChartsScreen.kt` | 327 lines | `.kt` |
@@ -903,7 +903,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/main/res/values/colors.xml` | 9 lines | `.xml` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | `.xml` |
-| `app/src/main/res/values/metrolist_strings.xml` | 702 lines | `.xml` |
+| `app/src/main/res/values/metrolist_strings.xml` | 704 lines | `.xml` |
 | `app/src/main/res/values/strings.xml` | 438 lines | `.xml` |
 | `app/src/main/res/values/styles.xml` | 26 lines | `.xml` |
 | `app/src/main/res/values/values.xml` | 8 lines | `.xml` |
