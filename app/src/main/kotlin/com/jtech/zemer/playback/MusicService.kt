@@ -116,6 +116,8 @@ import com.jtech.zemer.extensions.currentMetadata
 import com.jtech.zemer.extensions.findNextMediaItemById
 import com.jtech.zemer.extensions.mediaItems
 import com.jtech.zemer.extensions.metadata
+import com.jtech.zemer.extensions.repeatModeIconRes
+import com.jtech.zemer.extensions.shuffleIconRes
 import com.jtech.zemer.extensions.setOffloadEnabled
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.toPersistQueue
@@ -949,14 +951,8 @@ class MusicService :
                                 else -> throw IllegalStateException()
                             },
                         ),
-                    ).setIconResId(
-                        when (player.repeatMode) {
-                            REPEAT_MODE_OFF -> R.drawable.repeat
-                            REPEAT_MODE_ONE -> R.drawable.repeat_one_on
-                            REPEAT_MODE_ALL -> R.drawable.repeat_on
-                            else -> throw IllegalStateException()
-                        },
-                    ).setSessionCommand(CommandToggleRepeatMode)
+                    ).setIconResId(repeatModeIconRes(player.repeatMode))
+                    .setSessionCommand(CommandToggleRepeatMode)
                     // A broadcast has no repeat/shuffle/personal-radio: the buttons disable while a
                     // station plays (updateNotification re-runs on every queue/track change).
                     .setEnabled(currentQueue !is StationQueue)
@@ -964,7 +960,7 @@ class MusicService :
                 CommandButton
                     .Builder()
                     .setDisplayName(getString(if (player.shuffleModeEnabled) R.string.action_shuffle_off else R.string.action_shuffle_on))
-                    .setIconResId(if (player.shuffleModeEnabled) R.drawable.shuffle_on else R.drawable.shuffle)
+                    .setIconResId(shuffleIconRes(player.shuffleModeEnabled))
                     .setSessionCommand(CommandToggleShuffle)
                     .setEnabled(currentQueue !is StationQueue)
                     .build(),

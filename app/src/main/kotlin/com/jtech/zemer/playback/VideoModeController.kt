@@ -444,7 +444,12 @@ class VideoModeController(
             localVideoFile = meta.isVideo && service.playbackSourceIsLocalFile(id),
             online = service.isNetworkConnected.value,
             musicVideoType = avail?.musicVideoType,
-            corpusVideoSong = VideoSongIds.contains(id),
+            // The in-memory registry OR the persisted SongEntity.isVideo flag (Song.toMediaMetadata):
+            // both are authoritative video classifications, and the persisted flag is what survives
+            // process death — after a queue restore the registry is empty, so without it the toggle
+            // silently disappeared for a flagged song until the on-expand probe round-tripped. A
+            // LEARNED musicVideoType (including ATV) still overrides both — see availability().
+            corpusVideoSong = VideoSongIds.contains(id) || meta.isVideo,
             counterpartVideoId = avail?.counterpartVideoId,
             isBlockedRendition = { rid -> BlockedIdsCache.isBlocked(rid, ContentFilterState.current) },
         )

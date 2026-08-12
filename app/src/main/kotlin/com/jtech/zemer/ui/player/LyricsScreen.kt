@@ -73,6 +73,8 @@ import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.db.entities.LyricsEntity
+import com.jtech.zemer.extensions.repeatModeIconRes
+import com.jtech.zemer.extensions.shuffleIconRes
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.models.MediaMetadata
@@ -433,17 +435,13 @@ fun LyricsScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 IconButton(
-                                    onClick = { playerConnection.player.toggleRepeatMode() },
+                                    // Station broadcasts mask repeat/shuffle — same UI gate as the
+                                    // prev/next buttons in this row (belt over the player-level mask).
+                                    onClick = { if (!isStationBroadcast) playerConnection.player.toggleRepeatMode() },
                                     modifier = Modifier.size(48.dp)
                                 ) {
                                     Icon(
-                                        painter = painterResource(
-                                            when (repeatMode) {
-                                                Player.REPEAT_MODE_OFF, Player.REPEAT_MODE_ALL -> R.drawable.repeat
-                                                Player.REPEAT_MODE_ONE -> R.drawable.repeat_one
-                                                else -> R.drawable.repeat
-                                            }
-                                        ),
+                                        painter = painterResource(repeatModeIconRes(repeatMode)),
                                         contentDescription = stringResource(R.string.cd_repeat),
                                         tint = if (repeatMode == Player.REPEAT_MODE_OFF) textBackgroundColor.copy(alpha = 0.4f) else textBackgroundColor,
                                         modifier = Modifier.size(24.dp)
@@ -491,11 +489,11 @@ fun LyricsScreen(
                                     )
                                 }
                                 IconButton(
-                                    onClick = { playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled },
+                                    onClick = { if (!isStationBroadcast) playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled },
                                     modifier = Modifier.size(48.dp)
                                 ) {
                                     Icon(
-                                        painter = painterResource(R.drawable.shuffle),
+                                        painter = painterResource(shuffleIconRes(shuffleModeEnabled)),
                                         contentDescription = stringResource(R.string.shuffle),
                                         tint = if (shuffleModeEnabled) textBackgroundColor else textBackgroundColor.copy(alpha = 0.4f),
                                         modifier = Modifier.size(24.dp)
@@ -677,17 +675,13 @@ fun LyricsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             IconButton(
-                                onClick = { playerConnection.player.toggleRepeatMode() },
+                                // Station broadcasts mask repeat/shuffle — same UI gate as the
+                                // prev/next buttons in this row (belt over the player-level mask).
+                                onClick = { if (!isStationBroadcast) playerConnection.player.toggleRepeatMode() },
                                 modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
-                                    painter = painterResource(
-                                        when (repeatMode) {
-                                            Player.REPEAT_MODE_OFF, Player.REPEAT_MODE_ALL -> R.drawable.repeat
-                                            Player.REPEAT_MODE_ONE -> R.drawable.repeat_one
-                                            else -> R.drawable.repeat
-                                        }
-                                    ),
+                                    painter = painterResource(repeatModeIconRes(repeatMode)),
                                     contentDescription = stringResource(R.string.cd_repeat),
                                     tint = if (repeatMode == Player.REPEAT_MODE_OFF) textBackgroundColor.copy(alpha = 0.4f) else textBackgroundColor,
                                     modifier = Modifier.size(24.dp)
@@ -735,11 +729,11 @@ fun LyricsScreen(
                                 )
                             }
                             IconButton(
-                                onClick = { playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled },
+                                onClick = { if (!isStationBroadcast) playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled },
                                 modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.shuffle),
+                                    painter = painterResource(shuffleIconRes(shuffleModeEnabled)),
                                     contentDescription = stringResource(R.string.shuffle),
                                     tint = if (shuffleModeEnabled) textBackgroundColor else textBackgroundColor.copy(alpha = 0.4f),
                                     modifier = Modifier.size(24.dp)

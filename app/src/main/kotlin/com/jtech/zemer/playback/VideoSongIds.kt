@@ -21,5 +21,8 @@ object VideoSongIds {
 
     fun mark(id: String) = synchronized(ids) { ids.put(id, Unit) }
 
-    fun contains(id: String): Boolean = synchronized(ids) { ids.containsKey(id) }
+    // `get`, not `containsKey`: only get/put refresh recency in an access-ordered LinkedHashMap, so a
+    // containsKey read would never protect the CURRENTLY PLAYING id from aging out — 512 later marks
+    // (queue builds mark whole pages) would evict it mid-play and silently hide the Song/Video toggle.
+    fun contains(id: String): Boolean = synchronized(ids) { ids[id] != null }
 }

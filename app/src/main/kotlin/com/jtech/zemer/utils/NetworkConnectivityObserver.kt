@@ -25,7 +25,21 @@ class NetworkConnectivityObserver(context: Context) {
         }
 
         override fun onLost(network: Network) {
-            _networkStatus.trySend(false)
+            // onLost fires for ANY matching network, not just the last one — losing Wi-Fi while
+            // cellular is already up must not report "offline" (no onAvailable will re-fire for the
+            // still-present cellular network, so a blind `false` here sticks until the next network
+            // event and suppresses every online-gated feature). Re-check the active network instead.
+            _networkStatus.trySend(isCurrentlyConnected())
+        }
+
+        override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+            // A surviving/new network becoming VALIDATED (e.g. cellular taking over after Wi-Fi drops)
+            // arrives here, not via onAvailable — without this the observer could stay latched offline.
+            if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            ) {
+                _networkStatus.trySend(true)
+            }
         }
     }
 

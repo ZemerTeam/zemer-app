@@ -24,7 +24,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -37,12 +40,22 @@ import com.jtech.zemer.ui.theme.HeaderFontFamily
 
 /**
  * The shared WhatsApp/Stories top overlay: segment progress bars at the very top, then a compact creator
- * header (back button, avatar, name, timestamp), all forced white over a media scrim. Used by BOTH the
- * live story viewer and the saved-status viewer so they present identically. There is deliberately NO
+ * header (back button, avatar, name, timestamp), all forced white over a fade-to-transparent gradient —
+ * the WhatsApp look (#394): the media runs full-bleed to the top with the header floating over it, no
+ * opaque band with a hard bottom edge. Used by BOTH the live story viewer and the saved-status viewer
+ * so they present identically. There is deliberately NO
  * "Music Status" app-bar title row - it only stole vertical space from the (now full-bleed) media; the
  * creator avatar/name identifies the content the stories way. [currentSegment] is the active segment
  * (0-based) and [progress] fills it; earlier segments are full, later ones empty.
  */
+// The legibility belt over bright media where the fade has already thinned: a soft dark drop shadow
+// under the white name/date text (what WhatsApp does), so the header reads without an opaque band.
+private val statusTextShadow = Shadow(
+    color = Color.Black.copy(alpha = 0.9f),
+    offset = Offset(0f, 1f),
+    blurRadius = 10f,
+)
+
 @Composable
 fun StatusStoryTopOverlay(
     navController: NavController,
@@ -55,7 +68,19 @@ fun StatusStoryTopOverlay(
     modifier: Modifier = Modifier,
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val scrim = colorScheme.scrim.copy(alpha = 0.8f)
+    // A single LINEAR fade from dark at the top to transparent at the bottom. Linear = one constant
+    // slope = no slope change, which is what caused the visible "split line" (Mach banding appears
+    // where a gradient's slope changes). Because it never kinks, the tail can be short, so the scrim
+    // stays contained around the header instead of reaching far down the screen. Dark enough at the top
+    // (behind the status bar + segment bars + name) with the name/date drop shadow ([statusTextShadow])
+    // carrying the rest. Background BEFORE the insets padding so the scrim paints through the status-bar
+    // strip too — keep that order.
+    val scrim = Brush.verticalGradient(
+        listOf(
+            colorScheme.scrim.copy(alpha = 0.8f),
+            Color.Transparent,
+        ),
+    )
     val context = LocalContext.current
 
     Column(
@@ -63,7 +88,9 @@ fun StatusStoryTopOverlay(
             .fillMaxWidth()
             .background(scrim)
             .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            // Small tail: the linear fade needs no room to hide a slope change, so the scrim ends just
+            // below the date instead of reaching far down the screen.
+            .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 12.dp),
     ) {
         // Segment progress bars at the very top (stories convention), the active one filling with `progress`.
         Row(Modifier.fillMaxWidth()) {
@@ -111,15 +138,18 @@ fun StatusStoryTopOverlay(
                     Text(
                         text = creatorName,
                         color = Color.White,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleSmall.copy(shadow = statusTextShadow),
                         fontFamily = HeaderFontFamily,
                         fontWeight = FontWeight.SemiBold,
                     )
                     if (!subtitle.isNullOrEmpty()) {
                         Text(
+                            // Solid white (not dimmed) so the date reads over bright media too — the
+                            // shadow, not a dark scrim, carries legibility (the WhatsApp approach). The
+                            // smaller labelSmall size keeps it visually secondary to the name.
                             text = subtitle,
-                            color = Color.White.copy(alpha = 0.55f),
-                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall.copy(shadow = statusTextShadow),
                         )
                     }
                 }

@@ -119,6 +119,8 @@ import com.jtech.zemer.constants.QueuePeekHeight
 import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.constants.UseNewPlayerDesignKey
+import com.jtech.zemer.extensions.repeatModeIconRes
+import com.jtech.zemer.extensions.shuffleIconRes
 import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.extensions.shareText
@@ -218,6 +220,7 @@ fun BottomSheetPlayer(
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
     val automix by playerConnection.service.automixItems.collectAsState()
     val repeatMode by playerConnection.repeatMode.collectAsState()
+    val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
     val canSkipNext by playerConnection.canSkipNext.collectAsState()
     val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
@@ -1112,11 +1115,27 @@ fun BottomSheetPlayer(
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
                         ResizableIconButton(
-                            icon = when (repeatMode) {
-                                Player.REPEAT_MODE_OFF, Player.REPEAT_MODE_ALL -> R.drawable.repeat
-                                Player.REPEAT_MODE_ONE -> R.drawable.repeat_one
-                                else -> throw IllegalStateException()
+                            icon = shuffleIconRes(shuffleModeEnabled),
+                            color = TextBackgroundColor,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .padding(4.dp)
+                                .align(Alignment.Center)
+                                .alpha(if (shuffleModeEnabled) 1f else 0.5f),
+                            onClick = {
+                                // A station broadcast masks shuffle (synchronized timeline) — same
+                                // gate as repeat below and the queue sheet's controls.
+                                if (!isStationBroadcast) {
+                                    playerConnection.player.shuffleModeEnabled =
+                                        !playerConnection.player.shuffleModeEnabled
+                                }
                             },
+                        )
+                    }
+
+                    Box(modifier = Modifier.weight(1f)) {
+                        ResizableIconButton(
+                            icon = repeatModeIconRes(repeatMode),
                             color = TextBackgroundColor,
                             modifier = Modifier
                                 .size(32.dp)

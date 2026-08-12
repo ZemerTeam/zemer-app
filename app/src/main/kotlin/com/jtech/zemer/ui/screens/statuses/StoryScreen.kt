@@ -87,6 +87,7 @@ import com.jtech.zemer.ui.component.StatusLoadingIndicator
 import com.jtech.zemer.ui.component.StatusStoryTopOverlay
 import com.jtech.zemer.ui.component.StatusVideoSurface
 import com.jtech.zemer.ui.component.ZemerFab
+import com.jtech.zemer.ui.utils.ForceLightStatusBarIcons
 import com.jtech.zemer.ui.utils.PauseMusicWhileActive
 import com.jtech.zemer.ui.utils.cubeFace
 import com.jtech.zemer.utils.rememberPreference
@@ -190,6 +191,10 @@ fun StoryScreen(
 
     // Silence the music while the viewer is up; resume it on close (shared with the saved-status viewer).
     PauseMusicWhileActive()
+
+    // Full-bleed media runs behind the status bar and the top overlay is now a fade, not an opaque band
+    // (#394) — keep the system clock/battery icons white for the viewer's lifetime, light theme included.
+    ForceLightStatusBarIcons()
 
     // Pause the status video when the app is backgrounded (the composable is not disposed, only stopped),
     // so it doesn't keep playing audio off-screen; resume when it returns.
