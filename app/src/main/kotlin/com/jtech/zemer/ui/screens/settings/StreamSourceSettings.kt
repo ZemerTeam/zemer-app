@@ -65,11 +65,11 @@ fun StreamSourceSettings(
     val (webRemixEnabled, onWebRemixChange)     = rememberPreference(StreamSourceWebRemixKey,   defaultValue = true)
     val (tvhtml5Enabled, onTVHTML5Change)       = rememberPreference(StreamSourceTVHTML5Key,    defaultValue = true)
     val (androidVREnabled, onAndroidVRChange)   = rememberPreference(StreamSourceAndroidVRKey,  defaultValue = true)
-    val (iosEnabled, onIOSChange)               = rememberPreference(StreamSourceIOSKey,        defaultValue = false)
-    val (ipadosEnabled, onIPadOSChange)         = rememberPreference(StreamSourceIPadOSKey,     defaultValue = false)
+    val (iosEnabled, _)                         = rememberPreference(StreamSourceIOSKey,        defaultValue = false)
+    val (ipadosEnabled, _)                      = rememberPreference(StreamSourceIPadOSKey,     defaultValue = false)
     val (visionosEnabled, onVisionOSChange)     = rememberPreference(StreamSourceVisionOSKey,   defaultValue = true)
     val (webCreatorEnabled, onWebCreatorChange) = rememberPreference(StreamSourceWebCreatorKey, defaultValue = true)
-    val (androidCreatorEnabled, onAndroidCreatorChange) = rememberPreference(StreamSourceAndroidCreatorKey, defaultValue = false)
+    val (androidCreatorEnabled, _)              = rememberPreference(StreamSourceAndroidCreatorKey, defaultValue = false)
 
     // RELAY playback mode: stream audio through the Zemer relay instead of resolving YouTube on-device.
     // Off (DIRECT) for every normal user. When ON, the per-client fallback list below is bypassed entirely.
@@ -210,21 +210,10 @@ fun StreamSourceSettings(
             onCheckedChange = onAndroidVRChange,
         )
 
-        SwitchPreference(
-            title = { Text(stringResource(R.string.stream_source_ios)) },
-            description = stringResource(R.string.stream_source_ios_desc),
-            icon = { Icon(painterResource(R.drawable.play), null) },
-            checked = iosEnabled,
-            onCheckedChange = onIOSChange,
-        )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.stream_source_ipad_os)) },
-            description = stringResource(R.string.stream_source_ipad_os_desc),
-            icon = { Icon(painterResource(R.drawable.play), null) },
-            checked = ipadosEnabled,
-            onCheckedChange = onIPadOSChange,
-        )
+        // iOS / iPadOS / ANDROID_CREATOR toggles are HIDDEN, not deleted (owner decision): the
+        // preferences, keys and resolver behavior all stay, and a previously-enabled one still
+        // shows in the order strip above; there is just no switch to flip on this screen (all
+        // three are off by default and poor choices - spc/DroidGuard-gated).
 
         PreferenceGroupTitle(
             title = stringResource(R.string.stream_source_creator_clients)
@@ -236,14 +225,6 @@ fun StreamSourceSettings(
             icon = { Icon(painterResource(R.drawable.play), null) },
             checked = webCreatorEnabled,
             onCheckedChange = onWebCreatorChange,
-        )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.stream_source_android_creator)) },
-            description = stringResource(R.string.stream_source_android_creator_desc),
-            icon = { Icon(painterResource(R.drawable.play), null) },
-            checked = androidCreatorEnabled,
-            onCheckedChange = onAndroidCreatorChange,
         )
         } // end if (!relayEnabled): DIRECT-only client list
     }
