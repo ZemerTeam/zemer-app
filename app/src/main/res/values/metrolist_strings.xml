@@ -8,6 +8,7 @@
 
     <!-- Home rows -->
     <string name="featured_playlists">Community playlists</string>
+    <string name="zemer_user_playlists">Zemer User Playlists</string>
     <string name="home_see_all_empty">Nothing here yet</string>
     <string name="artist_not_available">This artist isn\'t available yet</string>
     <string name="album_not_available">This album isn\'t available</string>
@@ -564,6 +565,7 @@
         <item quantity="other">%d songs couldn\'t be shared</item>
     </plurals>
     <string name="share_playlist_empty">Nothing to share yet</string>
+    <string name="share_playlist_feature_notice">Great playlists may be featured in the app</string>
     <string name="share_playlist_rate_limited">Sharing limit reached, try again later</string>
     <string name="share_playlist_failed">Couldn\'t create the share link</string>
     <string name="user_playlist_load_failed">Couldn\'t load this shared playlist</string>

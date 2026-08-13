@@ -90,6 +90,9 @@ class HomeViewModel @Inject constructor(
         val isNewUser: Boolean = true,
         val quickPicks: List<Song> = emptyList(),
         val featuredPlaylists: List<PlaylistItem> = emptyList(),
+        // Operator-featured user-shared playlists (the "Zemer User Playlists" row). Ids are SHARE ids
+        // opening `user_playlist/<id>`; server order = operator order, so no rotation/shuffle here.
+        val featuredUserPlaylists: List<PlaylistItem> = emptyList(),
         val keepListening: List<LocalItem> = emptyList(),
         val forgottenFavorites: List<Song> = emptyList(),
         val featuredAlbums: List<AlbumItem> = emptyList(),
@@ -736,6 +739,9 @@ class HomeViewModel @Inject constructor(
             recentCommunityIds = finalFeaturedPlaylists.map { it.id }.toSet()
             val featuredAlbumsAreZemer = finalFeaturedAlbums.isNotEmpty()
             val featuredPlaylistsAreZemer = finalFeaturedPlaylists.isNotEmpty()
+            // Operator-curated: served pre-screened and pre-ordered, so no isAllowedRanked/rotation
+            // pass — the server already applied the viewer's content flags and the operator's order.
+            val featuredUserPlaylists = homeRows?.userPlaylists.orEmpty()
             val finalKeepListening = rotateByArtist(
                 keepListening.filter { it.isAllowed() },
                 maxPerArtist = 1,
@@ -762,6 +768,7 @@ class HomeViewModel @Inject constructor(
                     featuredArtists = displayedFirst(finalFeaturedArtists, artistsPool) { it.id },
                     featuredVideos = displayedFirst(finalFeaturedVideos, videosPool) { it.id },
                     featuredPlaylists = displayedFirst(finalFeaturedPlaylists, communityPool) { it.id },
+                    featuredUserPlaylists = featuredUserPlaylists,
                     keepListening = displayedFirst(finalKeepListening, keepListeningAllowed) { it.id },
                     forgottenFavorites = displayedFirst(finalForgotten, forgottenAllowed) { it.id },
                     quickPicks = displayedFirst(displayedQuick, filteredQuick) { it.id },
@@ -844,6 +851,7 @@ class HomeViewModel @Inject constructor(
                     isNewUser = isNewUser,
                     quickPicks = displayedQuick,
                     featuredPlaylists = finalFeaturedPlaylists,
+                    featuredUserPlaylists = featuredUserPlaylists,
                     keepListening = finalKeepListening,
                     forgottenFavorites = finalForgotten,
                     featuredAlbums = finalFeaturedAlbums,

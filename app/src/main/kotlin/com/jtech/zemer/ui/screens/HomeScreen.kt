@@ -166,6 +166,7 @@ fun HomeScreen(
 
     val quickPicks = homeUiState.quickPicks
     val featuredPlaylists = homeUiState.featuredPlaylists
+    val featuredUserPlaylists = homeUiState.featuredUserPlaylists
     val forgottenFavorites = homeUiState.forgottenFavorites
     val keepListening = homeUiState.keepListening
     val featuredAlbums = homeUiState.featuredAlbums
@@ -547,6 +548,7 @@ fun HomeScreen(
                 keepListening.isNotEmpty()
         val hasRemoteHomeContent =
             featuredArtists.isNotEmpty() ||
+                featuredUserPlaylists.isNotEmpty() ||
                 featuredAlbums.isNotEmpty() ||
                 featuredVideos.isNotEmpty() ||
                 latestReleases.isNotEmpty() ||
@@ -864,6 +866,47 @@ fun HomeScreen(
                                 contentType = { "playlist" }
                             ) { playlist ->
                                 ytGridItem(playlist)
+                            }
+                        }
+                    }
+                }
+
+                // "Zemer User Playlists" - operator-featured user-shared playlists (contract:
+                // handoff-docs/zemer-app-user-playlists-home-row-request.md). Server order = operator
+                // order. Ids are SHARE ids: a tap opens the existing shared-playlist screen, and there
+                // is deliberately NO long-press menu (the generic playlist menu assumes an
+                // online-playlist id and would misroute play/share for a share id).
+                featuredUserPlaylists.takeIf { it.isNotEmpty() }?.let { userPlaylists ->
+                    item(key = "user_playlists_title", contentType = "header") {
+                        NavigationTitle(
+                            title = stringResource(R.string.zemer_user_playlists),
+                            onClick = { navController.navigate("home_see_all/${HomeSeeAllRow.USER_PLAYLISTS.slug}") },
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+
+                    item(key = "user_playlists_list", contentType = "grid") {
+                        LazyRow(
+                            contentPadding = WindowInsets.systemBars
+                                .only(WindowInsetsSides.Horizontal)
+                                .asPaddingValues(),
+                            modifier = Modifier.animateItem()
+                        ) {
+                            items(
+                                items = userPlaylists,
+                                key = { it.id },
+                                contentType = { "user_playlist" }
+                            ) { playlist ->
+                                YouTubeGridItem(
+                                    item = playlist,
+                                    isActive = false,
+                                    isPlaying = isPlaying,
+                                    coroutineScope = scope,
+                                    thumbnailRatio = 1f,
+                                    modifier = Modifier.clickable {
+                                        navController.navigate("user_playlist/${playlist.id}")
+                                    }
+                                )
                             }
                         }
                     }

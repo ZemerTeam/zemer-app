@@ -1,8 +1,12 @@
 package com.jtech.zemer.ui.menu
 
 import android.content.Context
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -237,7 +241,19 @@ fun ShareUserPlaylistDialog(
     savedName?.let { name ->
         TextFieldDialog(
             icon = { Icon(painterResource(R.drawable.share), contentDescription = null) },
-            title = { Text(stringResource(R.string.share_playlist_as_title)) },
+            title = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(stringResource(R.string.share_playlist_as_title))
+                    // The featuring disclosure (contract: the operator may feature great shares on
+                    // Home) - shown at share time so featuring never surprises a sharer.
+                    Text(
+                        text = stringResource(R.string.share_playlist_feature_notice),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            },
             initialTextFieldValue = TextFieldValue(name, selection = TextRange(name.length)),
             placeholder = { Text(stringResource(R.string.share_playlist_name_hint)) },
             autoFocus = name.isEmpty(),

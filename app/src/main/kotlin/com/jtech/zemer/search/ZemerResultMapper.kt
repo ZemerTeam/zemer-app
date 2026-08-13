@@ -186,14 +186,37 @@ object ZemerResultMapper {
                 .distinctBy { it.id }
                 .dropBlocked(),
             community = playlistItems(resp.topCommunity, formatSongCount),
+            userPlaylists = resp.userPlaylists
+                .filter { it.id.isNotBlank() }
+                .distinctBy { it.id }
+                .map { it.toPlaylistItem(formatSongCount) },
         )
 
-    /** The four telemetry/discovery-ranked home rows in native item types (see [homeRows]). */
+    /**
+     * An operator-featured user-shared playlist as a [PlaylistItem] card (author = the sharer's
+     * display name). The id is the SHARE id — the row routes it to `user_playlist/<id>`, never an
+     * online-playlist path, so this item must not enter the generic playlist click/menu handling.
+     */
+    fun ZemerFeaturedUserPlaylist.toPlaylistItem(formatSongCount: (Int) -> String?): PlaylistItem =
+        PlaylistItem(
+            id = id,
+            title = title,
+            author = sharedBy?.takeIf { it.isNotBlank() }?.let { Artist(name = it, id = null) },
+            songCountText = trackCount.takeIf { it > 0 }?.let(formatSongCount),
+            thumbnail = thumbnail,
+            playEndpoint = null,
+            shuffleEndpoint = null,
+            radioEndpoint = null,
+        )
+
+    /** The telemetry/discovery-ranked home rows in native item types (see [homeRows]). */
     data class HomeRows(
         val albums: List<AlbumItem>,
         val videos: List<SongItem>,
         val artists: List<ArtistItem>,
         val community: List<PlaylistItem>,
+        // Operator-featured user-shared playlists ("Zemer User Playlists"); ids are SHARE ids.
+        val userPlaylists: List<PlaylistItem> = emptyList(),
     )
 
     /**

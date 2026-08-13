@@ -169,6 +169,24 @@ data class ZemerHomeRowsResponse(
     val topVideos: List<ZemerTrack> = emptyList(),
     val topArtists: List<ZemerArtist> = emptyList(),
     val topCommunity: List<ZemerPlaylist> = emptyList(),
+    // Operator-featured user-shared playlists (the "Zemer User Playlists" row; contract:
+    // `handoff-docs/zemer-app-user-playlists-home-row-request.md`). Absent/empty = row hidden.
+    val userPlaylists: List<ZemerFeaturedUserPlaylist> = emptyList(),
+)
+
+/**
+ * One operator-featured user-shared playlist on `/home-rows.userPlaylists`. [id] is the SHARE id —
+ * it opens the existing shared-playlist screen (`user_playlist/<id>`), never an online-playlist
+ * route. [trackCount] is the count visible under the request's content flags (entries below the
+ * server's floor are omitted server-side); [sharedBy] is the operator-approved display name.
+ */
+@Serializable
+data class ZemerFeaturedUserPlaylist(
+    val id: String = "",
+    val title: String = "",
+    val sharedBy: String? = null,
+    val thumbnail: String? = null,
+    val trackCount: Int = 0,
 )
 
 /**
