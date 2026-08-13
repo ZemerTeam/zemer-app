@@ -98,12 +98,17 @@ fun LibrarySongsScreen(
 
     var filter by rememberEnumPreference(SongFilterKey, SongFilter.LIKED)
 
+    // Uploaded is not a Zemer feature: its chip is gone, so a filter persisted as UPLOADED from
+    // an older build snaps back to Library instead of stranding the screen on an unreachable tab.
+    LaunchedEffect(filter) {
+        if (filter == SongFilter.UPLOADED) filter = SongFilter.LIBRARY
+    }
+
     LaunchedEffect(Unit) {
         if (ytmSync) {
             when (filter) {
                 SongFilter.LIKED -> viewModel.syncLikedSongs()
                 SongFilter.LIBRARY -> viewModel.syncLibrarySongs()
-                SongFilter.UPLOADED -> viewModel.syncUploadedSongs()
                 else -> return@LaunchedEffect
             }
         }
@@ -168,7 +173,6 @@ fun LibrarySongsScreen(
                         listOf(
                             SongFilter.LIKED to stringResource(R.string.filter_liked),
                             SongFilter.LIBRARY to stringResource(R.string.filter_library),
-                            SongFilter.UPLOADED to stringResource(R.string.filter_uploaded),
                             SongFilter.DOWNLOADED to stringResource(R.string.filter_downloaded),
                         ),
                         currentValue = filter,

@@ -85,6 +85,10 @@ fun LibraryAlbumsScreen(
 
     var viewType by rememberEnumPreference(AlbumViewTypeKey, LibraryViewType.GRID)
     var filter by rememberEnumPreference(AlbumFilterKey, AlbumFilter.LIKED)
+    // Uploaded chip removed (not a Zemer feature): snap a persisted UPLOADED filter to Library.
+    LaunchedEffect(filter) {
+        if (filter == AlbumFilter.UPLOADED) filter = AlbumFilter.LIBRARY
+    }
     val (sortType, onSortTypeChange) = rememberEnumPreference(
         AlbumSortTypeKey,
         AlbumSortType.CREATE_DATE
@@ -112,8 +116,7 @@ fun LibraryAlbumsScreen(
                 chips =
                 listOf(
                     AlbumFilter.LIKED to stringResource(R.string.filter_liked),
-                    AlbumFilter.LIBRARY to stringResource(R.string.filter_library),
-                    AlbumFilter.UPLOADED to stringResource(R.string.filter_uploaded)
+                    AlbumFilter.LIBRARY to stringResource(R.string.filter_library)
                 ),
                 currentValue = filter,
                 onValueUpdate = {
