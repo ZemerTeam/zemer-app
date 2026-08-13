@@ -133,10 +133,20 @@ class ArtistViewModel @Inject constructor(
      * on success, and a null/pre-paging response ends the paging.
      */
     fun loadMoreEpisodes() {
-        val offset = episodesNextOffset ?: return
-        if (!isPodcastChannel || isLoadingMoreEpisodes) return
+        viewModelScope.launch { fetchNextEpisodePage() }
+    }
+
+    /**
+     * One page fetch, awaitable — the body [loadMoreEpisodes] wraps. Returns true only when the
+     * cursor MOVED (a page appended, or the paging cleanly ended); false on a failure, a stale
+     * cursor, or a concurrent fetch — the signals [drainEpisodeHistoryForSearch] uses to STOP
+     * rather than spin.
+     */
+    private suspend fun fetchNextEpisodePage(): Boolean {
+        val offset = episodesNextOffset ?: return false
+        if (!isPodcastChannel || isLoadingMoreEpisodes) return false
         isLoadingMoreEpisodes = true
-        viewModelScope.launch {
+        try {
             val options = zemerSearchOptions(context)
             runCatching {
                 zemerRepository.podcastChannelEpisodes(artistId, offset, options)
@@ -157,7 +167,25 @@ class ArtistViewModel @Inject constructor(
                 if (it is java.util.concurrent.CancellationException) throw it
                 // Unreachable server mid-scroll: keep the cursor so a later near-end trigger retries.
             }
+        } finally {
             isLoadingMoreEpisodes = false
+        }
+        return episodesNextOffset != offset
+    }
+
+    /**
+     * The episode-search drain: sequentially pages the REMAINING channel history in so a search
+     * covers the whole catalog, then returns — it must ALWAYS terminate so the search UI's
+     * "searching older episodes" state can resolve to a real verdict (results or "no results").
+     * Stops on: history exhausted (cursor null), a failed/stalled page (no cursor movement — a
+     * retry loop here would spin the spinner forever on a dead connection), or the [maxPages]
+     * runaway backstop. Caller-scoped (cancelled when the query changes/screen leaves); pages
+     * already loaded stay loaded, so a re-search resumes where the last drain stopped.
+     */
+    suspend fun drainEpisodeHistoryForSearch(maxPages: Int = 100) {
+        repeat(maxPages) {
+            if (episodesNextOffset == null) return
+            if (!fetchNextEpisodePage()) return
         }
     }
 

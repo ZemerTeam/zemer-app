@@ -36,7 +36,16 @@ import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.YtItemGrid
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.unit.dp
+import com.jtech.zemer.ui.component.ArtistSearchField
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.menu.ytItemMenu
 import com.metrolist.innertube.models.EpisodeItem
@@ -78,6 +87,31 @@ fun ArtistSectionScreen(
     // YouTubeListItem row, like the search episode rows) — dated long-form rows read as a feed, not a grid.
     val pagedEpisodes = viewModel.isPodcastChannel && sectionTitle == ZemerResultMapper.TITLE_EPISODES
     val episodeListState = rememberLazyListState()
+    // Channel-wide episode search (the shared ArtistSearchField, like the Artists/Podcasts browse
+    // screens): a CLIENT-side title filter over the loaded pages, with an explicit QUERY-DRIVEN
+    // drain ([ArtistViewModel.drainEpisodeHistoryForSearch]) pulling the remaining history in so
+    // the search covers the whole catalog. The drain is bounded and failure-terminated, and
+    // [searchingHistory] mirrors exactly its lifetime - so the empty state always RESOLVES
+    // (results or "No results found"), never a spinner that circles forever. It deliberately does
+    // NOT ride the near-edge prefetch: a failed page leaves the cursor unchanged, which never
+    // re-arms that trigger, and an empty filtered list pinned "near its end" would otherwise show
+    // an unresolvable spinner (the shipped first cut's bug).
+    var episodeQuery by rememberSaveable { mutableStateOf("") }
+    var searchingHistory by remember { mutableStateOf(false) }
+    if (pagedEpisodes) {
+        LaunchedEffect(episodeQuery) {
+            if (episodeQuery.isBlank()) return@LaunchedEffect
+            // Debounce: one drain per settled query, not one per keystroke (a changed query
+            // cancels this effect and the in-flight drain with it).
+            kotlinx.coroutines.delay(300)
+            searchingHistory = true
+            try {
+                viewModel.drainEpisodeHistoryForSearch()
+            } finally {
+                searchingHistory = false
+            }
+        }
+    }
     if (pagedEpisodes) {
         // Keyed on the CURSOR too (the GenreScreen trigger pattern): a landed page re-arms the
         // effect, so a short/overlapping page that leaves the user still past the threshold (nearEnd
@@ -98,7 +132,14 @@ fun ArtistSectionScreen(
     Box(Modifier.fillMaxSize()) {
         when {
             pagedEpisodes && items.isNotEmpty() ->
-                ChannelEpisodeList(items.filterIsInstance<EpisodeItem>(), navController, episodeListState)
+                ChannelEpisodeList(
+                    episodes = filterChannelEpisodes(items.filterIsInstance<EpisodeItem>(), episodeQuery),
+                    navController = navController,
+                    listState = episodeListState,
+                    query = episodeQuery,
+                    onQueryChange = { episodeQuery = it },
+                    searching = searchingHistory,
+                )
             isSongList ->
                 ArtistSongList(items.filterIsInstance<SongItem>(), navController, viewModel.artistId)
             items.isNotEmpty() ->
@@ -140,6 +181,12 @@ private fun ChannelEpisodeList(
     episodes: List<EpisodeItem>,
     navController: NavController,
     listState: LazyListState,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    // Whether the query-driven history drain is still running - decides between the progress row
+    // and the "no results" row for an empty filter. Mirrors the drain's exact lifetime, so this
+    // always flips false (the empty state must resolve, never spin forever).
+    searching: Boolean,
 ) {
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -147,8 +194,30 @@ private fun ChannelEpisodeList(
     val coroutineScope = rememberCoroutineScope()
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val searchFocus = remember { FocusRequester() }
 
     LazyColumn(state = listState, contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()) {
+        item(key = "episode_search", contentType = "search") {
+            ArtistSearchField(
+                query = query,
+                onQueryChange = onQueryChange,
+                searchFocus = searchFocus,
+                placeholderRes = R.string.search_episodes,
+            )
+        }
+        if (episodes.isEmpty() && query.isNotBlank()) {
+            item(key = "episode_search_state", contentType = "state") {
+                if (searching) {
+                    // The drain is still walking older history in - progress, not a premature
+                    // "no results". Bounded + failure-terminated, so it always resolves.
+                    Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    EmptyPlaceholder(icon = R.drawable.search, text = stringResource(R.string.no_results_found))
+                }
+            }
+        }
         items(items = episodes, key = { it.id }) { episode ->
             YouTubeListItem(
                 item = episode,
@@ -226,4 +295,14 @@ private fun ArtistSongList(
             )
         }
     }
+}
+
+/**
+ * The channel-episode search filter: a case-insensitive title match over the pages loaded so far.
+ * Blank query = everything (the plain paged list). Pure so the rule is unit-tested.
+ */
+internal fun filterChannelEpisodes(episodes: List<EpisodeItem>, query: String): List<EpisodeItem> {
+    val q = query.trim()
+    if (q.isEmpty()) return episodes
+    return episodes.filter { it.title.contains(q, ignoreCase = true) }
 }
