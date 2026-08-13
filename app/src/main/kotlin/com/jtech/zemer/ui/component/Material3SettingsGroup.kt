@@ -20,7 +20,6 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
@@ -66,10 +65,9 @@ fun Material3SettingsGroup(
         // every settings surface so the two group components can never drift.
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(SettingsCardGap)
         ) {
             items.forEachIndexed { index, item ->
-                val (top, bottom) = settingsCardCorners(index, items.size)
                 // No animateContentSize here: it was the SINGLE resizing card's affordance. On
                 // per-item cards it ran one size animation per row on every screen open (the
                 // rough settle-in), and row membership changes restructure the list anyway,
@@ -77,13 +75,10 @@ fun Material3SettingsGroup(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth(),
-                    shape = RoundedCornerShape(
-                        topStart = top.dp, topEnd = top.dp,
-                        bottomStart = bottom.dp, bottomEnd = bottom.dp,
-                    ),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    ),
+                    // Shape, gap and fill come from SettingsCardGroup's shared pieces - a
+                    // designer tweak lands on every card-stack surface at once.
+                    shape = settingsCardShape(index, items.size),
+                    colors = CardDefaults.cardColors(containerColor = settingsCardFill()),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Material3SettingsItemRow(item = item)
@@ -194,8 +189,6 @@ private fun Material3SettingsItemRow(
                 trailing()
             }
         }
-        
-        // Divider
     }
 }
 

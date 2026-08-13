@@ -33,13 +33,20 @@ val SettingsScreenTopSpacing = 12.dp
 const val SETTINGS_CARD_OUTER_RADIUS = 24
 const val SETTINGS_CARD_INNER_RADIUS = 6
 
-private fun settingsCardShape(index: Int, count: Int): RoundedCornerShape {
+/** The gap between neighbouring cards in a stack - shared with every card-stack renderer. */
+val SettingsCardGap = 4.dp
+
+fun settingsCardShape(index: Int, count: Int): RoundedCornerShape {
     val (top, bottom) = settingsCardCorners(index, count)
     return RoundedCornerShape(
         topStart = top.dp, topEnd = top.dp,
         bottomStart = bottom.dp, bottomEnd = bottom.dp,
     )
 }
+
+/** The one card fill for the stacks - a change here restyles every card-stack surface together. */
+@Composable
+fun settingsCardFill() = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
 
 /**
  * A settings group in the per-item CARD style: an optional group title over a 4dp-gapped stack in
@@ -57,6 +64,10 @@ fun SettingsCardGroup(
     // The stack's screen-edge inset. Screens whose scroll column already applies its own
     // horizontal padding pass 0.dp so the cards don't double-indent against their siblings.
     horizontalPadding: Dp = 16.dp,
+    // Optional info content between the title and the card stack (e.g. Storage's size-used
+    // caption and usage bars) - section-scoped context that is not a tappable row. Rendered
+    // inside the group's inset so it stays visually attached to ITS section.
+    headerContent: (@Composable () -> Unit)? = null,
     rows: List<@Composable () -> Unit>,
 ) {
     if (rows.isEmpty()) return
@@ -67,16 +78,17 @@ fun SettingsCardGroup(
                 padding = PaddingValues(start = 4.dp, top = 8.dp, bottom = 8.dp),
             )
         }
+        headerContent?.invoke()
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(SettingsCardGap),
         ) {
             rows.forEachIndexed { index, row ->
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(settingsCardShape(index, rows.size))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                        .background(settingsCardFill()),
                 ) {
                     row()
                 }

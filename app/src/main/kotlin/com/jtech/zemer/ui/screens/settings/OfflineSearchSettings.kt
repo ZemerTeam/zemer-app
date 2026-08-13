@@ -36,7 +36,6 @@ import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.SettingsCardGroup
 import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
-import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain

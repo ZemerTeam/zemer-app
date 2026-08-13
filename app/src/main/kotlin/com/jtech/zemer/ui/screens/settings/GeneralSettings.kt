@@ -46,7 +46,6 @@ fun GeneralSettings(
             .verticalScroll(rememberScrollState())
     ) {
         Spacer(Modifier.height(SettingsScreenTopSpacing))
-        Spacer(Modifier.height(8.dp))
 
         SettingsCardGroup(
             title = stringResource(R.string.links),

@@ -182,8 +182,8 @@ fun UpdaterScreen(
         Spacer(Modifier.height(SettingsScreenTopSpacing))
 
         SettingsCardGroup(
-            rows = listOf(
-                {
+            rows = buildList {
+                add {
                     SwitchPreference(
                         title = { Text(stringResource(R.string.check_for_updates)) },
                         icon = { Icon(painterResource(R.drawable.update), null) },
@@ -193,8 +193,8 @@ fun UpdaterScreen(
                             .fillMaxWidth()
                             .focusRequester(firstFocus)
                     )
-                },
-                {
+                }
+                add {
                     // Opt-in only after the notice dialog is confirmed; switching back to stable is instant.
                     SwitchPreference(
                         title = { Text(stringResource(R.string.nightly_builds)) },
@@ -205,8 +205,8 @@ fun UpdaterScreen(
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
-                },
-                {
+                }
+                add {
                     ListPreference(
                         title = { Text(stringResource(R.string.installer_method)) },
                         icon = { Icon(painterResource(R.drawable.download), null) },
@@ -216,21 +216,22 @@ fun UpdaterScreen(
                         onValueSelected = ::selectInstaller,
                         modifier = Modifier.fillMaxWidth()
                     )
-                },
-            ),
-        )
-
-        installerSelectionError?.let { error ->
-            Text(
-                text = error,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-        }
-
-        SettingsCardGroup(
-            rows = buildList {
+                }
+                // The installer error is a card ROW, start-aligned directly under the
+                // Installer-method entry it explains - not a floating text centered by the
+                // screen column between two gapless card stacks.
+                installerSelectionError?.let { error ->
+                    add {
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                }
                 add {
                     PreferenceEntry(
                         title = { Text(stringResource(R.string.check_for_updates_now)) },

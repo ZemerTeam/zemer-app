@@ -193,6 +193,14 @@ fun StorageSettings(
         Spacer(Modifier.height(SettingsScreenTopSpacing))
         SettingsCardGroup(
             title = stringResource(R.string.downloaded_songs),
+            // Section-scoped size caption between the title and the rows (main's hierarchy).
+            headerContent = {
+                Text(
+                    text = stringResource(R.string.size_used, formatFileSize(downloadCacheSize)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 6.dp),
+                )
+            },
             rows = buildList {
                 add {
                     PreferenceEntry(
@@ -231,12 +239,6 @@ fun StorageSettings(
             },
         )
 
-        Text(
-            text = stringResource(R.string.size_used, formatFileSize(downloadCacheSize)),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-        )
-
         if (clearDownloads) {
             ActionPromptDialog(
                 title = stringResource(R.string.clear_all_downloads),
@@ -268,6 +270,43 @@ fun StorageSettings(
 
         SettingsCardGroup(
             title = stringResource(R.string.song_cache),
+            headerContent = {
+                if (maxSongCacheSize != 0) {
+                    if (maxSongCacheSize == -1) {
+                        Text(
+                            text = stringResource(R.string.size_used, formatFileSize(playerCacheSize)),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 6.dp),
+                        )
+                    } else {
+                        // Use M3 LinearProgressIndicator with theme colors
+                        LinearProgressIndicator(
+                            progress = { playerCacheProgress },
+                            modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = 4.dp, top = 2.dp, bottom = 6.dp),
+                            color = MaterialTheme.colorScheme.primary, // Explicitly use theme color
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant, // Use appropriate track color
+                            strokeCap = StrokeCap.Round // M3 default style
+                        )
+
+                        Text(
+                            text =
+                            stringResource(
+                                R.string.size_used,
+                                "${formatFileSize(playerCacheSize)} / ${
+                                    formatFileSize(
+                                        maxSongCacheSize * 1024 * 1024L,
+                                    )
+                                }",
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 6.dp),
+                        )
+                    }
+                }
+            },
             rows = listOf(
                 {
                     ListPreference(
@@ -294,42 +333,6 @@ fun StorageSettings(
             ),
         )
 
-        if (maxSongCacheSize != 0) {
-            if (maxSongCacheSize == -1) {
-                Text(
-                    text = stringResource(R.string.size_used, formatFileSize(playerCacheSize)),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                )
-            } else {
-                // Use M3 LinearProgressIndicator with theme colors
-                LinearProgressIndicator(
-                    progress = { playerCacheProgress },
-                    modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    color = MaterialTheme.colorScheme.primary, // Explicitly use theme color
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant, // Use appropriate track color
-                    strokeCap = StrokeCap.Round // M3 default style
-                )
-
-                Text(
-                    text =
-                    stringResource(
-                        R.string.size_used,
-                        "${formatFileSize(playerCacheSize)} / ${
-                            formatFileSize(
-                                maxSongCacheSize * 1024 * 1024L,
-                            )
-                        }",
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                )
-            }
-        }
-
         if (clearCacheDialog) {
             ActionPromptDialog(
                 title = stringResource(R.string.clear_song_cache),
@@ -351,6 +354,30 @@ fun StorageSettings(
 
         SettingsCardGroup(
             title = stringResource(R.string.image_cache),
+            headerContent = {
+                if (maxImageCacheSize > 0) {
+                    // Use M3 LinearProgressIndicator with theme colors
+                    LinearProgressIndicator(
+                        progress = { imageCacheProgress },
+                        modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 4.dp, top = 2.dp, bottom = 6.dp),
+                        color = MaterialTheme.colorScheme.primary, // Explicitly use theme color
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant, // Use appropriate track color
+                        strokeCap = StrokeCap.Round // M3 default style
+                    )
+
+                    Text(
+                        text = stringResource(
+                            R.string.size_used,
+                            "${formatFileSize(imageCacheSize)} / ${formatFileSize(imageDiskCache.maxSize)}"
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 6.dp),
+                    )
+                }
+            },
             rows = listOf(
                 {
                     ListPreference(
@@ -376,28 +403,6 @@ fun StorageSettings(
             ),
         )
 
-        if (maxImageCacheSize > 0) {
-            // Use M3 LinearProgressIndicator with theme colors
-            LinearProgressIndicator(
-                progress = { imageCacheProgress },
-                modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                color = MaterialTheme.colorScheme.primary, // Explicitly use theme color
-                trackColor = MaterialTheme.colorScheme.surfaceVariant, // Use appropriate track color
-                strokeCap = StrokeCap.Round // M3 default style
-            )
-
-            Text(
-                text = stringResource(
-                    R.string.size_used,
-                    "${formatFileSize(imageCacheSize)} / ${formatFileSize(imageDiskCache.maxSize)}"
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-            )
-        }
 
         if (clearImageCacheDialog) {
             ActionPromptDialog(

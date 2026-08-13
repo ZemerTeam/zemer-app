@@ -480,7 +480,7 @@ fun AppearanceSettings(
         Spacer(Modifier.height(SettingsScreenTopSpacing))
         SettingsCardGroup(
             title = stringResource(R.string.theme),
-            rows = listOf(
+            rows = listOfNotNull(
                 {
                     // Dynamic (album-art) theme, theme mode (system/light/dark/pure-black) and the accent Color
                     // Palette all live on the dedicated Theme & Colors screen, so there is a single home for every
@@ -515,7 +515,7 @@ fun AppearanceSettings(
 
         SettingsCardGroup(
             title = stringResource(R.string.player),
-            rows = listOf(
+            rows = listOfNotNull(
                 {
                     SwitchPreference(
                         title = { Text(stringResource(R.string.new_player_design)) },
@@ -616,8 +616,9 @@ fun AppearanceSettings(
                         onCheckedChange = onSwipeThumbnailChange,
                     )
                 },
-                {
-                    AnimatedVisibility(swipeThumbnail) {
+                // Conditionally INCLUDED, not an AnimatedVisibility slot: a collapsed slot left a
+                // phantom zero-height card in the stack (doubled seam, wrong corner accounting).
+                if (swipeThumbnail) ({
                         var showSensitivityDialog by rememberSaveable { mutableStateOf(false) }
 
                         if (showSensitivityDialog) {
@@ -689,8 +690,7 @@ fun AppearanceSettings(
                             icon = { Icon(painterResource(R.drawable.tune), null) },
                             onClick = { showSensitivityDialog = true }
                         )
-                    }
-                },
+                }) else null,
                 {
                     EnumListPreference(
                         title = { Text(stringResource(R.string.lyrics_text_position)) },
@@ -727,7 +727,7 @@ fun AppearanceSettings(
 
         SettingsCardGroup(
             title = stringResource(R.string.misc),
-            rows = listOf(
+            rows = listOfNotNull(
                 {
                     EnumListPreference(
                         title = { Text(stringResource(R.string.default_open_tab)) },
@@ -797,15 +797,14 @@ fun AppearanceSettings(
                         }
                     )
                 },
-                {
-                    AnimatedVisibility(visible = bottomNavEnabled) {
-                        PreferenceEntry(
-                            title = { Text(stringResource(R.string.customize_bottom_navigation)) },
-                            icon = { Icon(painterResource(R.drawable.nav_bar), null) },
-                            onClick = { showBottomNavCustomizationDialog = true }
-                        )
-                    }
-                },
+                // Conditionally INCLUDED, not an AnimatedVisibility slot (see the swipe row above).
+                if (bottomNavEnabled) ({
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.customize_bottom_navigation)) },
+                        icon = { Icon(painterResource(R.drawable.nav_bar), null) },
+                        onClick = { showBottomNavCustomizationDialog = true }
+                    )
+                }) else null,
                 {
                     SwitchPreference(
                         title = { Text(stringResource(R.string.recognize_music_fab)) },
@@ -849,7 +848,7 @@ fun AppearanceSettings(
             SettingsCardGroup(
                 title = stringResource(R.string.statuses),
                 modifier = Modifier.onGloballyPositioned { statusGroupTopY.floatValue = it.positionInWindow().y },
-                rows = listOf(
+                rows = listOfNotNull(
                     {
                         SwitchPreference(
                             title = { Text(stringResource(R.string.show_statuses_row)) },
@@ -883,7 +882,7 @@ fun AppearanceSettings(
 
         SettingsCardGroup(
             title = stringResource(R.string.auto_playlists),
-            rows = listOf(
+            rows = listOfNotNull(
                 {
                     SwitchPreference(
                         title = { Text(stringResource(R.string.show_liked_playlist)) },
