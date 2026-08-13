@@ -203,6 +203,9 @@ private fun ChannelEpisodeList(
                 onQueryChange = onQueryChange,
                 searchFocus = searchFocus,
                 placeholderRes = R.string.search_episodes,
+                // Breathing room between the pill and the first episode row (the component's own
+                // 8dp bottom padding reads cramped over the dense dated rows).
+                modifier = Modifier.padding(bottom = 8.dp),
             )
         }
         if (episodes.isEmpty() && query.isNotBlank()) {
