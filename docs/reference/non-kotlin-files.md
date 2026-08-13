@@ -264,7 +264,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 709 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 703 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 438 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
@@ -296,7 +296,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `scripts/dead-resources-baseline.txt` | 9 lines | text `.txt` |
 | `scripts/telegram-chats.sh` | 38 lines | text `.sh` |
 | `scripts/ui-audit-baseline.tsv` | 24 lines | text `.tsv` |
-| `scripts/ui-audit.sh` | 223 lines | text `.sh` |
+| `scripts/ui-audit.sh` | 235 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 56 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
 | `simpmusic/build.gradle.kts` | 15 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
