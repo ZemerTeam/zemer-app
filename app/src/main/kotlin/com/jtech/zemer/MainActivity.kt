@@ -228,6 +228,7 @@ import com.jtech.zemer.ui.component.TopAppBarActionButton
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.RecognizeMusicFab
+import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.ui.screens.recognition.RecognizeMusicDialogActivity
 import com.jtech.zemer.ui.component.TopSearch
 import com.jtech.zemer.ui.component.castVolumeKeyModifier
@@ -1494,8 +1495,12 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         ) {
+                            // D-pad sessions only: a touch session must not grab drawer focus -
+                            // the focused NavigationDrawerItem paints M3's own focus pill even in
+                            // touch mode, which reads as a stuck highlight without a keypad.
+                            val dpadSession = focusVisualsEnabled()
                             LaunchedEffect(drawerState.isOpen) {
-                                if (drawerState.isOpen) {
+                                if (drawerState.isOpen && dpadSession) {
                                     drawerFocusRequester.requestFocus()
                                 }
                             }

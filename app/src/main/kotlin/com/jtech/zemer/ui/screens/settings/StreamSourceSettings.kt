@@ -33,6 +33,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
+import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.InnerTubeCookieKey
@@ -105,8 +106,13 @@ fun StreamSourceSettings(
     // the web-remix toggle otherwise). Keyed on the visibility inputs so it re-requests once a row is
     // actually composed (e.g. after the global relay reset makes the client list appear); guarded in case
     // neither is composed yet.
+    val dpadSession = focusVisualsEnabled()
     LaunchedEffect(loggedInNormally, relayEnabled) {
-        runCatching { firstFocus.requestFocus() }
+        // Touch sessions skip the initial grab: focused M3 components paint their own
+        // focus pill even in touch mode, which is pure noise without a D-pad.
+        if (dpadSession) {
+            runCatching { firstFocus.requestFocus() }
+        }
     }
 
     Column(

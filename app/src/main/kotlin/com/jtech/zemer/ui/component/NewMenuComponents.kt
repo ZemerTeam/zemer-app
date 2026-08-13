@@ -58,7 +58,7 @@ fun NewActionButton(
     )
 
     val borderColor by animateColorAsState(
-        targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+        targetValue = if (isFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.outline else Color.Transparent,
         label = "button_focus_border"
     )
 
@@ -74,7 +74,7 @@ fun NewActionButton(
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp
         ),
-        border = BorderStroke(width = if (isFocused) 1.5.dp else 0.dp, color = borderColor)
+        border = BorderStroke(width = if (isFocused && focusVisualsEnabled()) 1.5.dp else 0.dp, color = borderColor)
     ) {
         Column(
             modifier = Modifier

@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.DebugLoggingEnabledKey
@@ -85,8 +86,13 @@ fun LogViewerScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val dpadSession = focusVisualsEnabled()
     LaunchedEffect(Unit) {
-        firstFocus.requestFocus()
+        // Touch sessions skip the initial grab: focused M3 components paint their own
+        // focus pill even in touch mode, which is pure noise without a D-pad.
+        if (dpadSession) {
+            firstFocus.requestFocus()
+        }
     }
 
     val (debugLogging, onDebugLoggingChange) = rememberPreference(DebugLoggingEnabledKey, true)

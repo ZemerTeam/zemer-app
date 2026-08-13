@@ -103,7 +103,7 @@ fun <E> ChipsRow(
         chips.forEachIndexed { index, (value, label) ->
             var isFocused by remember { mutableStateOf(false) }
             val borderColor by animateColorAsState(
-                targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+                targetValue = if (isFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.outline else Color.Transparent,
                 label = "chip_focus_border"
             )
             FilterChip(
@@ -181,7 +181,7 @@ fun <Int> ChoiceChipsRow(
         Column {
             var isFocused by remember { mutableStateOf(false) }
             val borderColor by animateColorAsState(
-                targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+                targetValue = if (isFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.outline else Color.Transparent,
                 label = "chip_focus_border"
             )
             AssistChip(
@@ -262,7 +262,7 @@ fun <Int> ChoiceChipsRow(
                     Spacer(Modifier.width(8.dp))
                     var isFocused by remember { mutableStateOf(false) }
                     val borderColor by animateColorAsState(
-                        targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+                        targetValue = if (isFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.outline else Color.Transparent,
                         label = "chip_focus_border"
                     )
                     FilterChip(

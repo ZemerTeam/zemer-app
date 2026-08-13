@@ -61,6 +61,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
@@ -384,17 +385,17 @@ fun BrowseAllItem(
 
     val backgroundColor by animateColorAsState(
         targetValue = when {
-            isFocused -> MaterialTheme.colorScheme.primary
+            isFocused && focusVisualsEnabled() -> MaterialTheme.colorScheme.primary
             else -> MaterialTheme.colorScheme.surface
         },
         label = "browse_artists_focus_bg"
     )
     val borderColor by animateColorAsState(
-        targetValue = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+        targetValue = if (isFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
         label = "browse_artists_focus_border"
     )
     val iconAlpha by animateFloatAsState(
-        targetValue = if (isFocused) 1f else 0.5f,
+        targetValue = if (isFocused && focusVisualsEnabled()) 1f else 0.5f,
         label = "browse_artists_icon_alpha"
     )
 
@@ -451,7 +452,7 @@ fun SuggestionItem(
     pureBlack: Boolean
 ) {
     var focusState by remember { mutableStateOf<FocusState?>(null) }
-    val isFocused = focusState?.isFocused ?: false
+    val isFocused = (focusState?.isFocused ?: false) && focusVisualsEnabled()
 
     val backgroundColor by animateColorAsState(
         targetValue = when {

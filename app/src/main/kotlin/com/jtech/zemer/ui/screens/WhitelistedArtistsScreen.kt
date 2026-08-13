@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ArtistViewTypeKey
@@ -174,8 +175,13 @@ fun WhitelistedArtistsScreen(
         }
     }
 
+    val dpadSession = focusVisualsEnabled()
     LaunchedEffect(Unit) {
-        firstFocus.requestFocus()
+        // Touch sessions skip the initial grab: focused M3 components paint their own
+        // focus pill even in touch mode, which is pure noise without a D-pad.
+        if (dpadSession) {
+            firstFocus.requestFocus()
+        }
     }
 
     LaunchedEffect(scrollToTop?.value) {

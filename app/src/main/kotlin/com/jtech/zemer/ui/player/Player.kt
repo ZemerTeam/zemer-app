@@ -104,6 +104,7 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
+import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.playback.PlayerConnection
@@ -598,7 +599,7 @@ fun BottomSheetPlayer(
                 ) {
                     val titleFocused = remember { mutableStateOf(false) }
                     val titleBorderColor = animateColorAsState(
-                        targetValue = if (titleFocused.value) accentColor else Color.Transparent,
+                        targetValue = if (titleFocused.value && focusVisualsEnabled()) accentColor else Color.Transparent,
                         label = "title_focus"
                     )
 

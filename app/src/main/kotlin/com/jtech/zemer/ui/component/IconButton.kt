@@ -53,11 +53,11 @@ fun ResizableIconButton(
 ) {
     val isFocused = remember { mutableStateOf(false) }
     val borderColor = animateColorAsState(
-        targetValue = if (isFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+        targetValue = if (isFocused.value && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
         label = "button_focus_border"
     )
     val bgColor = animateColorAsState(
-        targetValue = if (isFocused.value) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
+        targetValue = if (isFocused.value && focusVisualsEnabled()) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
         label = "button_focus_bg"
     )
 

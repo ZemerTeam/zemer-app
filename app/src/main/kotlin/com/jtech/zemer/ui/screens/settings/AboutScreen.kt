@@ -1,5 +1,6 @@
 package com.jtech.zemer.ui.screens.settings
 
+import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.ui.component.AppNameTitle
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
@@ -129,8 +130,13 @@ fun AboutScreen(
     var devTapCount by remember { mutableIntStateOf(0) }
     val (developerMode, onDeveloperModeChange) = rememberPreference(DeveloperModeEnabledKey, false)
 
+    val dpadSession = focusVisualsEnabled()
     LaunchedEffect(Unit) {
-        firstFocus.requestFocus()
+        // Touch sessions skip the initial grab: focused M3 components paint their own
+        // focus pill even in touch mode, which is pure noise without a D-pad.
+        if (dpadSession) {
+            firstFocus.requestFocus()
+        }
     }
 
     Column(
