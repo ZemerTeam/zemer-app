@@ -80,6 +80,16 @@ scrollBehavior: TopAppBarScrollBehavior)` annotated `@OptIn(ExperimentalMaterial
 stateful screens add a third `viewModel: XxxViewModel = hiltViewModel()` parameter (the pattern of
 `OfflineSearchSettings`, `BackupAndRestore`, `ContentSettings`).
 
+Every row run renders through `SettingsCardGroup` (`ui/component/SettingsCardGroup.kt`) — the
+per-item CARD stack (position-shaped corners via the unit-tested `settingsCardCorners`, one shared
+geometry with `Material3SettingsGroup`/`Material3MenuItem`). The rows stay the ordinary preference
+composables below, passed as slots; conditional rows are CONDITIONALLY INCLUDED (`buildList` /
+`listOfNotNull`) — never an always-present `AnimatedVisibility` slot, which leaves a phantom
+zero-height card in the stack. Section-scoped info content (captions, usage bars) goes in the
+group's `headerContent` slot; dialogs and non-row content stay outside the group. Screens whose
+column already applies horizontal padding pass `horizontalPadding = 0.dp`. Every screen leads with
+`Spacer(Modifier.height(SettingsScreenTopSpacing))` under the top bar.
+
 Skeleton:
 
 ```kotlin
@@ -96,14 +106,21 @@ fun ExampleSettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState()),
     ) {
-        PreferenceGroupTitle(title = stringResource(R.string.example_group))
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
 
-        SwitchPreference(
-            title = { Text(stringResource(R.string.example_toggle)) },
-            description = stringResource(R.string.example_toggle_desc),
-            icon = { Icon(painterResource(R.drawable.example), null) },
-            checked = enabled,
-            onCheckedChange = onEnabledChange,
+        SettingsCardGroup(
+            title = stringResource(R.string.example_group),
+            rows = listOf(
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.example_toggle)) },
+                        description = stringResource(R.string.example_toggle_desc),
+                        icon = { Icon(painterResource(R.drawable.example), null) },
+                        checked = enabled,
+                        onCheckedChange = onEnabledChange,
+                    )
+                },
+            ),
         )
     }
 

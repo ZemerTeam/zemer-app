@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -86,13 +87,19 @@ fun PreferenceEntry(
             .padding(horizontal = 16.dp, vertical = 16.dp),
     ) {
         if (icon != null) {
+            // The icon sits in a tinted 40dp tile (the settings-card language, upstream parity):
+            // primary at low alpha behind the glyph, so icons read as a consistent leading block.
             Box(
-                modifier = Modifier.padding(horizontal = 4.dp),
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center,
             ) {
                 icon()
             }
 
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(16.dp))
         }
 
         Column(
@@ -358,11 +365,14 @@ fun SliderPreference(
 fun PreferenceGroupTitle(
     title: String,
     modifier: Modifier = Modifier,
+    // The default suits a free-standing title over flat rows; SettingsCardGroup passes a compact
+    // inset so the title aligns with its card stack instead of double-indenting.
+    padding: PaddingValues = PaddingValues(16.dp),
 ) {
     Text(
         text = title.uppercase(),
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.padding(16.dp),
+        modifier = modifier.padding(padding),
     )
 }

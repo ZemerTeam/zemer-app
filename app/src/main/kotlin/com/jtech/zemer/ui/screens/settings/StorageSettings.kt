@@ -10,7 +10,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -53,7 +55,8 @@ import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
-import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.SettingsCardGroup
+import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.formatFileSize
@@ -187,44 +190,53 @@ fun StorageSettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState()),
     ) {
-        PreferenceGroupTitle(
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
+        SettingsCardGroup(
             title = stringResource(R.string.downloaded_songs),
-        )
-
-        Text(
-            text = stringResource(R.string.size_used, formatFileSize(downloadCacheSize)),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-        )
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.custom_download_path)) },
-            description = stringResource(
-                R.string.custom_download_path_summary,
-                resolvedDownloadPath
-            ),
-            onClick = { downloadPickerLauncher.launch(null) }
-        )
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.video_download_path)) },
-            description = stringResource(R.string.video_download_path_summary),
-            onClick = { /* Video path is fixed to Movies/Zemer */ }
-        )
-
-        if (customDownloadPath.isNotBlank()) {
-            PreferenceEntry(
-                title = { Text(stringResource(R.string.reset_download_path)) },
-                description = stringResource(R.string.reset_download_path_summary),
-                onClick = onResetDownloadPath
-            )
-        }
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.clear_all_downloads)) },
-            onClick = {clearDownloads = true
+            // Section-scoped size caption between the title and the rows (main's hierarchy).
+            headerContent = {
+                Text(
+                    text = stringResource(R.string.size_used, formatFileSize(downloadCacheSize)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 6.dp),
+                )
             },
-            modifier = Modifier.focusRequester(firstFocus),
+            rows = buildList {
+                add {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.custom_download_path)) },
+                        description = stringResource(
+                            R.string.custom_download_path_summary,
+                            resolvedDownloadPath
+                        ),
+                        onClick = { downloadPickerLauncher.launch(null) }
+                    )
+                }
+                add {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.video_download_path)) },
+                        description = stringResource(R.string.video_download_path_summary),
+                        onClick = { /* Video path is fixed to Movies/Zemer */ }
+                    )
+                }
+                if (customDownloadPath.isNotBlank()) {
+                    add {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.reset_download_path)) },
+                            description = stringResource(R.string.reset_download_path_summary),
+                            onClick = onResetDownloadPath
+                        )
+                    }
+                }
+                add {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.clear_all_downloads)) },
+                        onClick = {clearDownloads = true
+                        },
+                        modifier = Modifier.focusRequester(firstFocus),
+                    )
+                }
+            },
         )
 
         if (clearDownloads) {
@@ -256,64 +268,69 @@ fun StorageSettings(
             )
         }
 
-        PreferenceGroupTitle(
+        SettingsCardGroup(
             title = stringResource(R.string.song_cache),
-        )
+            headerContent = {
+                if (maxSongCacheSize != 0) {
+                    if (maxSongCacheSize == -1) {
+                        Text(
+                            text = stringResource(R.string.size_used, formatFileSize(playerCacheSize)),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 6.dp),
+                        )
+                    } else {
+                        // Use M3 LinearProgressIndicator with theme colors
+                        LinearProgressIndicator(
+                            progress = { playerCacheProgress },
+                            modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = 4.dp, top = 2.dp, bottom = 6.dp),
+                            color = MaterialTheme.colorScheme.primary, // Explicitly use theme color
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant, // Use appropriate track color
+                            strokeCap = StrokeCap.Round // M3 default style
+                        )
 
-        if (maxSongCacheSize != 0) {
-            if (maxSongCacheSize == -1) {
-                Text(
-                    text = stringResource(R.string.size_used, formatFileSize(playerCacheSize)),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                )
-            } else {
-                // Use M3 LinearProgressIndicator with theme colors
-                LinearProgressIndicator(
-                    progress = { playerCacheProgress },
-                    modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    color = MaterialTheme.colorScheme.primary, // Explicitly use theme color
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant, // Use appropriate track color
-                    strokeCap = StrokeCap.Round // M3 default style
-                )
-
-                Text(
-                    text =
-                    stringResource(
-                        R.string.size_used,
-                        "${formatFileSize(playerCacheSize)} / ${
-                            formatFileSize(
-                                maxSongCacheSize * 1024 * 1024L,
-                            )
-                        }",
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                )
-            }
-        }
-
-        ListPreference(
-            title = { Text(stringResource(R.string.max_cache_size)) },
-            selectedValue = maxSongCacheSize,
-            values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192, -1),
-            valueText = {
-                when (it) {
-                    0 -> stringResource(R.string.disable)
-                    -1 -> stringResource(R.string.unlimited)
-                    else -> formatFileSize(it * 1024 * 1024L)
+                        Text(
+                            text =
+                            stringResource(
+                                R.string.size_used,
+                                "${formatFileSize(playerCacheSize)} / ${
+                                    formatFileSize(
+                                        maxSongCacheSize * 1024 * 1024L,
+                                    )
+                                }",
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 6.dp),
+                        )
+                    }
                 }
             },
-            onValueSelected = onMaxSongCacheSizeChange,
-        )
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.clear_song_cache)) },
-            onClick = { clearCacheDialog = true
-            },
+            rows = listOf(
+                {
+                    ListPreference(
+                        title = { Text(stringResource(R.string.max_cache_size)) },
+                        selectedValue = maxSongCacheSize,
+                        values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192, -1),
+                        valueText = {
+                            when (it) {
+                                0 -> stringResource(R.string.disable)
+                                -1 -> stringResource(R.string.unlimited)
+                                else -> formatFileSize(it * 1024 * 1024L)
+                            }
+                        },
+                        onValueSelected = onMaxSongCacheSizeChange,
+                    )
+                },
+                {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.clear_song_cache)) },
+                        onClick = { clearCacheDialog = true
+                        },
+                    )
+                },
+            ),
         )
 
         if (clearCacheDialog) {
@@ -335,51 +352,57 @@ fun StorageSettings(
             )
         }
 
-        PreferenceGroupTitle(
+        SettingsCardGroup(
             title = stringResource(R.string.image_cache),
-        )
+            headerContent = {
+                if (maxImageCacheSize > 0) {
+                    // Use M3 LinearProgressIndicator with theme colors
+                    LinearProgressIndicator(
+                        progress = { imageCacheProgress },
+                        modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 4.dp, top = 2.dp, bottom = 6.dp),
+                        color = MaterialTheme.colorScheme.primary, // Explicitly use theme color
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant, // Use appropriate track color
+                        strokeCap = StrokeCap.Round // M3 default style
+                    )
 
-        if (maxImageCacheSize > 0) {
-            // Use M3 LinearProgressIndicator with theme colors
-            LinearProgressIndicator(
-                progress = { imageCacheProgress },
-                modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                color = MaterialTheme.colorScheme.primary, // Explicitly use theme color
-                trackColor = MaterialTheme.colorScheme.surfaceVariant, // Use appropriate track color
-                strokeCap = StrokeCap.Round // M3 default style
-            )
-
-            Text(
-                text = stringResource(
-                    R.string.size_used,
-                    "${formatFileSize(imageCacheSize)} / ${formatFileSize(imageDiskCache.maxSize)}"
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-            )
-        }
-
-        ListPreference(
-            title = { Text(stringResource(R.string.max_cache_size)) },
-            selectedValue = maxImageCacheSize,
-            values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192),
-            valueText = {
-                when (it) {
-                    0 -> stringResource(R.string.disable)
-                    else -> formatFileSize(it * 1024 * 1024L)
+                    Text(
+                        text = stringResource(
+                            R.string.size_used,
+                            "${formatFileSize(imageCacheSize)} / ${formatFileSize(imageDiskCache.maxSize)}"
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 6.dp),
+                    )
                 }
             },
-            onValueSelected = onMaxImageCacheSizeChange,
+            rows = listOf(
+                {
+                    ListPreference(
+                        title = { Text(stringResource(R.string.max_cache_size)) },
+                        selectedValue = maxImageCacheSize,
+                        values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192),
+                        valueText = {
+                            when (it) {
+                                0 -> stringResource(R.string.disable)
+                                else -> formatFileSize(it * 1024 * 1024L)
+                            }
+                        },
+                        onValueSelected = onMaxImageCacheSizeChange,
+                    )
+                },
+                {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.clear_image_cache)) },
+                        onClick = { clearImageCacheDialog = true
+                        },
+                    )
+                },
+            ),
         )
 
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.clear_image_cache)) },
-            onClick = { clearImageCacheDialog = true
-            },
-        )
 
         if (clearImageCacheDialog) {
             ActionPromptDialog(

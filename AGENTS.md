@@ -250,6 +250,9 @@ ArtistScreen's over-header transparent state; the in-player fullscreen video ove
 (`PlayerVideoFullscreen`) has no `TopAppBar` at all, just an exit icon over the scrim),
 `PlaylistPlayShuffleButtons` + `PlaylistHeaderShimmer` (playlist headers/skeletons),
 `shimmer/BoxPlaceholder` (the base shimmer slab under `ButtonPlaceholder`/`GridItemPlaceholder`),
+`SettingsCardGroup` (the settings grouped-card stack — every settings row run renders through it:
+position-shaped per-row cards via the unit-tested `settingsCardCorners`, one geometry shared with
+`Material3SettingsGroup`; screens whose column already pads pass `horizontalPadding = 0.dp`),
 `ArtistBrowseComponents` (KidZone/whitelist browse header; also `ArtistSearchField` + `SearchHandoffPill` —
 the browse search pill and its tappable hand-off sibling, one shared geometry so the pair can't drift),
 `IconCategoryCard` (the square category
@@ -311,6 +314,12 @@ rule covers repeated *logic*. The current shared helpers — reach for these bef
   hand-rolled `Toast.makeText(...).show()` — two overloads mirror the framework (string-resource id /
   `CharSequence`); `long = true` is `LENGTH_LONG`. Ratcheted by `R21-toast` (UI-scoped, baseline 0). Works
   from any `Context` (Activity, Service, Application, `this@MusicService`).
+- **Focus visuals and initial D-pad focus:** every focus ring/border/fill conditions on
+  `focusVisualsEnabled()` and every screen-open focus grab goes through
+  `RequestInitialDpadFocus(requester, enabled, keys)` (both `ui/component/FocusBorder.kt`) — touch
+  sessions see no rings and skip the grabs; the grab re-arms when the input mode flips to keys.
+  Ratcheted by `R23-focusgate` and `R24-initialfocus` (baseline 0); functional focus (text fields,
+  key-event moves, the cast volume-key seed) is never gated. Full rules: `docs/ui/standards.md` §11.
 - **The "See all" gate:** `seeAllOnClick(count, action)` / `SEE_ALL_MIN_ITEMS` (`ui/utils/SeeAll.kt`,
   unit-tested `SeeAllTest`) hides a section header's see-all arrow below the shared min-items threshold.
   Gate on the **total the arrow opens, not a truncated preview count**: a full-list row passes its real

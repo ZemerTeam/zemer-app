@@ -7,7 +7,6 @@ import android.provider.Settings
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -28,7 +27,8 @@ import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceEntry
-import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.SettingsCardGroup
+import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 
@@ -44,30 +44,34 @@ fun GeneralSettings(
         modifier = Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
     ) {
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
 
-        PreferenceGroupTitle(title = stringResource(R.string.links))
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.default_link_handler)) },
-            icon = { Icon(painterResource(R.drawable.link), null) },
-            onClick = {
-                // Open default app settings
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val intent = Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS).apply {
-                        data = Uri.parse("package:${context.packageName}")
-                    }
-                    context.startActivity(intent)
-                } else {
-                    // For older Android versions, open app settings
-                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = Uri.parse("package:${context.packageName}")
-                    }
-                    context.startActivity(intent)
-                }
-            }
+        SettingsCardGroup(
+            title = stringResource(R.string.links),
+            rows = listOf(
+                {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.default_link_handler)) },
+                        icon = { Icon(painterResource(R.drawable.link), null) },
+                        onClick = {
+                            // Open default app settings
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                val intent = Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS).apply {
+                                    data = Uri.parse("package:${context.packageName}")
+                                }
+                                context.startActivity(intent)
+                            } else {
+                                // For older Android versions, open app settings
+                                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.parse("package:${context.packageName}")
+                                }
+                                context.startActivity(intent)
+                            }
+                        }
+                    )
+                },
+            ),
         )
 
         Spacer(Modifier.height(8.dp))

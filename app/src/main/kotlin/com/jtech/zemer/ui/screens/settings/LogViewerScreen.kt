@@ -58,7 +58,7 @@ import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.ui.theme.logPriorityColor
 import com.jtech.zemer.ui.component.PreferenceEntry
-import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.SettingsCardGroup
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
@@ -114,38 +114,39 @@ fun LogViewerScreen(
         // focusable log rows are what lets D-pad focus travel into — and scroll — the list.
         LazyColumn(Modifier.weight(1f)) {
             item {
-                PreferenceGroupTitle(title = stringResource(R.string.log_viewer))
-            }
-
-            item {
-                SwitchPreference(
-                    title = { Text(stringResource(R.string.enable_debug_logging)) },
-                    description = stringResource(R.string.enable_debug_logging_desc),
-                    icon = { Icon(painterResource(R.drawable.info), null) },
-                    checked = debugLogging,
-                    onCheckedChange = onDebugLoggingChange,
-                )
-            }
-
-            item {
-                PreferenceEntry(
-                    title = { Text(stringResource(R.string.clear_logs)) },
-                    onClick = {
-                        LogBufferTree.clear()
-                    },
-                )
-            }
-
-            item {
-                PreferenceEntry(
-                    title = { Text(stringResource(R.string.export_logs)) },
-                    description = stringResource(R.string.log_export_range),
-                    onClick = {
-                        exportFromMillis = entries.firstOrNull()?.timestamp ?: System.currentTimeMillis()
-                        exportToMillis = entries.lastOrNull()?.timestamp ?: System.currentTimeMillis()
-                        showExportRangePicker = true
-                    },
-                    modifier = Modifier.focusRequester(firstFocus),
+                SettingsCardGroup(
+                    title = stringResource(R.string.log_viewer),
+                    rows = listOf(
+                        {
+                            SwitchPreference(
+                                title = { Text(stringResource(R.string.enable_debug_logging)) },
+                                description = stringResource(R.string.enable_debug_logging_desc),
+                                icon = { Icon(painterResource(R.drawable.info), null) },
+                                checked = debugLogging,
+                                onCheckedChange = onDebugLoggingChange,
+                            )
+                        },
+                        {
+                            PreferenceEntry(
+                                title = { Text(stringResource(R.string.clear_logs)) },
+                                onClick = {
+                                    LogBufferTree.clear()
+                                },
+                            )
+                        },
+                        {
+                            PreferenceEntry(
+                                title = { Text(stringResource(R.string.export_logs)) },
+                                description = stringResource(R.string.log_export_range),
+                                onClick = {
+                                    exportFromMillis = entries.firstOrNull()?.timestamp ?: System.currentTimeMillis()
+                                    exportToMillis = entries.lastOrNull()?.timestamp ?: System.currentTimeMillis()
+                                    showExportRangePicker = true
+                                },
+                                modifier = Modifier.focusRequester(firstFocus),
+                            )
+                        },
+                    ),
                 )
             }
 

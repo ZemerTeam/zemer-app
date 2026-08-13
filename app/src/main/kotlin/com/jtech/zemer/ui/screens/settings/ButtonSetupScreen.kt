@@ -51,7 +51,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.models.DpadDirection
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
-import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.SettingsCardGroup
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.AccessibilityUtils
@@ -125,14 +125,21 @@ fun ButtonSetupScreen(
                 CompletedCard()
             }
 
-            PreferenceGroupTitle(title = stringResource(R.string.dpad_current_mapping))
-            DpadDirection.entries.forEach { direction ->
-                AssignmentRow(
-                    direction = direction,
-                    keyCode = uiState.assignments[direction],
-                    onClear = { viewModel.clear(direction) }
-                )
-            }
+            SettingsCardGroup(
+                title = stringResource(R.string.dpad_current_mapping),
+                // The screen's scroll column already pads 16dp; a second inset would misalign the
+                // stack against the Start button above it.
+                horizontalPadding = 0.dp,
+                rows = DpadDirection.entries.map { direction ->
+                    {
+                        AssignmentRow(
+                            direction = direction,
+                            keyCode = uiState.assignments[direction],
+                            onClear = { viewModel.clear(direction) }
+                        )
+                    }
+                },
+            )
             Spacer(modifier = Modifier.height(32.dp))
         }
 
@@ -258,7 +265,7 @@ private fun AssignmentRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {

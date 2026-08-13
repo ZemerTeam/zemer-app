@@ -1,12 +1,12 @@
 package com.jtech.zemer.ui.component
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,7 +20,6 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
@@ -61,23 +60,28 @@ fun Material3SettingsGroup(
             )
         }
         
-        // Settings card
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .animateContentSize(),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        // The per-item card stack ([settingsCardCorners], shared with SettingsCardGroup): each
+        // row is its own card, outer corners large, seams small, 4dp gaps - one geometry for
+        // every settings surface so the two group components can never drift.
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(SettingsCardGap)
         ) {
-            Column {
-                items.forEachIndexed { index, item ->
-                    Material3SettingsItemRow(
-                        item = item,
-                        showDivider = index < items.size - 1
-                    )
+            items.forEachIndexed { index, item ->
+                // No animateContentSize here: it was the SINGLE resizing card's affordance. On
+                // per-item cards it ran one size animation per row on every screen open (the
+                // rough settle-in), and row membership changes restructure the list anyway,
+                // which a size animation cannot express.
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    // Shape, gap and fill come from SettingsCardGroup's shared pieces - a
+                    // designer tweak lands on every card-stack surface at once.
+                    shape = settingsCardShape(index, items.size),
+                    colors = CardDefaults.cardColors(containerColor = settingsCardFill()),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Material3SettingsItemRow(item = item)
                 }
             }
         }
@@ -89,8 +93,7 @@ fun Material3SettingsGroup(
  */
 @Composable
 private fun Material3SettingsItemRow(
-    item: Material3SettingsItem,
-    showDivider: Boolean
+    item: Material3SettingsItem
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
@@ -185,18 +188,6 @@ private fun Material3SettingsItemRow(
                 Spacer(modifier = Modifier.width(8.dp))
                 trailing()
             }
-        }
-        
-        // Divider
-        if (showDivider) {
-            HorizontalDivider(
-                modifier = Modifier.padding(
-                    start = if (item.icon != null) 76.dp else 20.dp,
-                    end = 20.dp
-                ),
-                thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-            )
         }
     }
 }

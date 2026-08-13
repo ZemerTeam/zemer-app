@@ -61,6 +61,8 @@ import com.jtech.zemer.constants.UseLoginForBrowse
 import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.ui.component.PreferenceEntry
+import com.jtech.zemer.ui.component.SettingsCardGroup
+import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.component.InfoLabel
@@ -118,6 +120,7 @@ fun AccountSettings(
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -346,32 +349,32 @@ fun AccountSettings(
         // "Auto sync" only runs for a personal account anyway — so gate both on dataSyncId, not the
         // SAPISID-based isLoggedIn (which is true for anonymous too).
         if (dataSyncId.isNotBlank()) {
-            SwitchPreference(
-                title = { Text(stringResource(R.string.more_content)) },
-                description = null,
-                icon = { Icon(painterResource(R.drawable.add_circle), null) },
-                checked = useLoginForBrowse,
-                onCheckedChange = {
-                    YouTube.useLoginForBrowse = it
-                    onUseLoginForBrowseChange(it)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            SwitchPreference(
-                title = { Text(stringResource(R.string.yt_sync)) },
-                icon = { Icon(painterResource(R.drawable.cached), null) },
-                checked = ytmSync,
-                onCheckedChange = onYtmSyncChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surface)
+            SettingsCardGroup(
+                horizontalPadding = 0.dp, // the sheet's column already pads 16dp
+                rows = listOf(
+                    {
+                        SwitchPreference(
+                            title = { Text(stringResource(R.string.more_content)) },
+                            description = null,
+                            icon = { Icon(painterResource(R.drawable.add_circle), null) },
+                            checked = useLoginForBrowse,
+                            onCheckedChange = {
+                                YouTube.useLoginForBrowse = it
+                                onUseLoginForBrowseChange(it)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                    {
+                        SwitchPreference(
+                            title = { Text(stringResource(R.string.yt_sync)) },
+                            icon = { Icon(painterResource(R.drawable.cached), null) },
+                            checked = ytmSync,
+                            onCheckedChange = onYtmSyncChange,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                ),
             )
         }
 
@@ -418,21 +421,25 @@ fun AccountSettings(
         }
 
         if (latestVersionName != BuildConfig.VERSION_NAME) {
-            PreferenceEntry(
-                title = { Text(text = stringResource(R.string.new_version_available)) },
-                description = latestVersionName,
-                icon = {
-                    BadgedBox(badge = { Badge() }) {
-                        Icon(painterResource(R.drawable.update), null)
-                    }
-                },
-                onClick = {
-                    Updater.getCachedDownloadUrl()?.let { uriHandler.openUri(it) }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
+            SettingsCardGroup(
+                horizontalPadding = 0.dp, // the sheet's column already pads 16dp
+                rows = listOf(
+                    {
+                        PreferenceEntry(
+                            title = { Text(text = stringResource(R.string.new_version_available)) },
+                            description = latestVersionName,
+                            icon = {
+                                BadgedBox(badge = { Badge() }) {
+                                    Icon(painterResource(R.drawable.update), null)
+                                }
+                            },
+                            onClick = {
+                                Updater.getCachedDownloadUrl()?.let { uriHandler.openUri(it) }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                ),
             )
         }
     }

@@ -3,6 +3,8 @@ package com.jtech.zemer.ui.screens.settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -36,6 +38,8 @@ import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceEntry
+import com.jtech.zemer.ui.component.SettingsCardGroup
+import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.menu.AddToPlaylistDialogOnline
 import com.jtech.zemer.ui.menu.LoadingScreen
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
@@ -111,39 +115,52 @@ fun BackupAndRestore(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState()),
     ) {
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.action_backup)) },
-            icon = { Icon(painterResource(R.drawable.backup), null) },
-            onClick = {
-                val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-                backupLauncher.launch(
-                    "${context.getString(R.string.app_name)}_${
-                        LocalDateTime.now().format(formatter)
-                    }.backup"
-                )
-            },
-            modifier = Modifier.focusRequester(firstFocus),
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.action_restore)) },
-            icon = { Icon(painterResource(R.drawable.restore), null) },
-            onClick = {
-                restoreLauncher.launch(arrayOf("application/octet-stream"))
-            },
-        )
-        PreferenceEntry(
-            title = {Text(stringResource(R.string.import_online))},
-            icon = { Icon(painterResource(R.drawable.playlist_add), null) },
-            onClick = {
-                importM3uLauncherOnline.launch(arrayOf("audio/*"))
-            }
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.import_csv)) },
-            icon = { Icon(painterResource(R.drawable.playlist_add), null) },
-            onClick = {
-                importPlaylistFromCsv.launch(arrayOf("text/csv", "text/comma-separated-values", "application/csv", "text/plain"))
-            }
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
+        SettingsCardGroup(
+            rows = listOf(
+                {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.action_backup)) },
+                        icon = { Icon(painterResource(R.drawable.backup), null) },
+                        onClick = {
+                            val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+                            backupLauncher.launch(
+                                "${context.getString(R.string.app_name)}_${
+                                    LocalDateTime.now().format(formatter)
+                                }.backup"
+                            )
+                        },
+                        modifier = Modifier.focusRequester(firstFocus),
+                    )
+                },
+                {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.action_restore)) },
+                        icon = { Icon(painterResource(R.drawable.restore), null) },
+                        onClick = {
+                            restoreLauncher.launch(arrayOf("application/octet-stream"))
+                        },
+                    )
+                },
+                {
+                    PreferenceEntry(
+                        title = {Text(stringResource(R.string.import_online))},
+                        icon = { Icon(painterResource(R.drawable.playlist_add), null) },
+                        onClick = {
+                            importM3uLauncherOnline.launch(arrayOf("audio/*"))
+                        }
+                    )
+                },
+                {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.import_csv)) },
+                        icon = { Icon(painterResource(R.drawable.playlist_add), null) },
+                        onClick = {
+                            importPlaylistFromCsv.launch(arrayOf("text/csv", "text/comma-separated-values", "application/csv", "text/plain"))
+                        }
+                    )
+                },
+            ),
         )
     }
 

@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
+import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.AppBarTitle
@@ -100,7 +101,7 @@ fun SettingsScreen(
             id = "stream_sources",
             title = stringResource(R.string.stream_sources),
             description = stringResource(R.string.stream_sources_description),
-            icon = R.drawable.play,
+            icon = R.drawable.radio,
             section = stringResource(R.string.settings_section_player_content),
             route = "settings/stream_sources"
         ),
@@ -226,7 +227,7 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp)
                 .padding(bottom = paddingValues.calculateBottomPadding())
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(SettingsScreenTopSpacing))
             val sections = allSettings.groupBy { it.section }
             // Fixed section order; "Android Auto" sits right after "Player & Content" (matches Metrolist).
             val sectionOrder = listOf(

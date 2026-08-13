@@ -79,6 +79,8 @@ import com.jtech.zemer.ui.component.EditTextPreference
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.SettingsCardGroup
+import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.AnonymousAuthEmailDialog
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
@@ -233,94 +235,117 @@ fun ContentSettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState()),
     ) {
-        PreferenceGroupTitle(title = stringResource(R.string.general))
-        ListPreference(
-            title = { Text(stringResource(R.string.content_language)) },
-            icon = { Icon(painterResource(R.drawable.language), null) },
-            selectedValue = contentLanguage,
-            values = listOf(SYSTEM_DEFAULT) + LanguageCodeToName.keys.toList(),
-            valueText = {
-                LanguageCodeToName.getOrElse(it) { stringResource(R.string.system_default) }
-            },
-            onValueSelected = { newValue ->
-                val locale = Locale.getDefault()
-                val languageTag = locale.toLanguageTag().replace("-Hant", "")
- 
-                YouTube.locale = YouTube.locale.copy(
-                    hl = newValue.takeIf { it != SYSTEM_DEFAULT }
-                        ?: locale.language.takeIf { it in LanguageCodeToName }
-                        ?: languageTag.takeIf { it in LanguageCodeToName }
-                        ?: "en"
-                )
- 
-                onContentLanguageChange(newValue)
-            }
-        )
-        ListPreference(
-            title = { Text(stringResource(R.string.content_country)) },
-            icon = { Icon(painterResource(R.drawable.location_on), null) },
-            selectedValue = contentCountry,
-            values = listOf(SYSTEM_DEFAULT) + CountryCodeToName.keys.toList(),
-            valueText = {
-                CountryCodeToName.getOrElse(it) { stringResource(R.string.system_default) }
-            },
-            onValueSelected = { newValue ->
-                val locale = Locale.getDefault()
- 
-                YouTube.locale = YouTube.locale.copy(
-                    gl = newValue.takeIf { it != SYSTEM_DEFAULT }
-                        ?: locale.country.takeIf { it in CountryCodeToName }
-                        ?: "US"
-                )
- 
-                onContentCountryChange(newValue)
-           }
-        )
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
+        SettingsCardGroup(
+            title = stringResource(R.string.general),
+            rows = listOf(
+                {
+                    ListPreference(
+                        title = { Text(stringResource(R.string.content_language)) },
+                        icon = { Icon(painterResource(R.drawable.language), null) },
+                        selectedValue = contentLanguage,
+                        values = listOf(SYSTEM_DEFAULT) + LanguageCodeToName.keys.toList(),
+                        valueText = {
+                            LanguageCodeToName.getOrElse(it) { stringResource(R.string.system_default) }
+                        },
+                        onValueSelected = { newValue ->
+                            val locale = Locale.getDefault()
+                            val languageTag = locale.toLanguageTag().replace("-Hant", "")
 
-        PreferenceGroupTitle(title = stringResource(R.string.app_language))
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            PreferenceEntry(
-                title = { Text(stringResource(R.string.app_language)) },
-                icon = { Icon(painterResource(R.drawable.language), null) },
-                onClick = {
-                    context.startActivity(
-                        Intent(
-                            Settings.ACTION_APP_LOCALE_SETTINGS,
-                            "package:${context.packageName}".toUri()
-                        )
+                            YouTube.locale = YouTube.locale.copy(
+                                hl = newValue.takeIf { it != SYSTEM_DEFAULT }
+                                    ?: locale.language.takeIf { it in LanguageCodeToName }
+                                    ?: languageTag.takeIf { it in LanguageCodeToName }
+                                    ?: "en"
+                            )
+
+                            onContentLanguageChange(newValue)
+                        }
                     )
-                }
-            )
-        }
-        // Support for Android versions before Android 13
-        else {
-            ListPreference(
-                title = { Text(stringResource(R.string.app_language)) },
-                icon = { Icon(painterResource(R.drawable.language), null) },
-                selectedValue = appLanguage,
-                values = listOf(SYSTEM_DEFAULT) + LanguageCodeToName.keys.toList(),
-                valueText = {
-                    LanguageCodeToName.getOrElse(it) { stringResource(R.string.system_default) }
                 },
-                onValueSelected = { langTag ->
-                    val newLocale = langTag
-                        .takeUnless { it == SYSTEM_DEFAULT }
-                        ?.let { Locale.forLanguageTag(it) }
-                        ?: Locale.getDefault()
+                {
+                    ListPreference(
+                        title = { Text(stringResource(R.string.content_country)) },
+                        icon = { Icon(painterResource(R.drawable.location_on), null) },
+                        selectedValue = contentCountry,
+                        values = listOf(SYSTEM_DEFAULT) + CountryCodeToName.keys.toList(),
+                        valueText = {
+                            CountryCodeToName.getOrElse(it) { stringResource(R.string.system_default) }
+                        },
+                        onValueSelected = { newValue ->
+                            val locale = Locale.getDefault()
 
-                    onAppLanguageChange(langTag)
-                    setAppLocale(context, newLocale)
+                            YouTube.locale = YouTube.locale.copy(
+                                gl = newValue.takeIf { it != SYSTEM_DEFAULT }
+                                    ?: locale.country.takeIf { it in CountryCodeToName }
+                                    ?: "US"
+                            )
 
+                            onContentCountryChange(newValue)
+                        }
+                    )
+                },
+            ),
+        )
+
+        SettingsCardGroup(
+            title = stringResource(R.string.app_language),
+            rows = buildList {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    add {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.app_language)) },
+                            icon = { Icon(painterResource(R.drawable.language), null) },
+                            onClick = {
+                                context.startActivity(
+                                    Intent(
+                                        Settings.ACTION_APP_LOCALE_SETTINGS,
+                                        "package:${context.packageName}".toUri()
+                                    )
+                                )
+                            }
+                        )
+                    }
                 }
-            )
-        }
+                // Support for Android versions before Android 13
+                else {
+                    add {
+                        ListPreference(
+                            title = { Text(stringResource(R.string.app_language)) },
+                            icon = { Icon(painterResource(R.drawable.language), null) },
+                            selectedValue = appLanguage,
+                            values = listOf(SYSTEM_DEFAULT) + LanguageCodeToName.keys.toList(),
+                            valueText = {
+                                LanguageCodeToName.getOrElse(it) { stringResource(R.string.system_default) }
+                            },
+                            onValueSelected = { langTag ->
+                                val newLocale = langTag
+                                    .takeUnless { it == SYSTEM_DEFAULT }
+                                    ?.let { Locale.forLanguageTag(it) }
+                                    ?: Locale.getDefault()
 
-        PreferenceGroupTitle(title = stringResource(R.string.lyrics))
-        SwitchPreference(
-            title = { Text(stringResource(R.string.enable_lrclib)) },
-            icon = { Icon(painterResource(R.drawable.lyrics), null) },
-            checked = enableLrclib,
-            onCheckedChange = onEnableLrclibChange,
+                                onAppLanguageChange(langTag)
+                                setAppLocale(context, newLocale)
+
+                            }
+                        )
+                    }
+                }
+            },
+        )
+
+        SettingsCardGroup(
+            title = stringResource(R.string.lyrics),
+            rows = listOf(
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.enable_lrclib)) },
+                        icon = { Icon(painterResource(R.drawable.lyrics), null) },
+                        checked = enableLrclib,
+                        onCheckedChange = onEnableLrclibChange,
+                    )
+                },
+            ),
         )
 
         PreferenceGroupTitle(title = stringResource(R.string.content_filters))
@@ -338,63 +363,90 @@ fun ContentSettings(
             isLocked = isLocked
         )
 
-        SwitchPreference(
-            title = { Text(stringResource(R.string.enable_personal_filters)) },
-            icon = { Icon(painterResource(R.drawable.settings), null) },
-            checked = true, // Always shown as ON
-            onCheckedChange = { }, // No-op, cannot be changed
-            isEnabled = false // Always greyed out
-        )
-        SwitchPreference(
-            title = { Text(stringResource(R.string.allow_female_singers)) },
-            icon = { Icon(painterResource(R.drawable.person), null) },
-            checked = allowFemaleSingers,
-            onCheckedChange = onAllowFemaleSingersChange,
-            isEnabled = enableContentFilters && togglesEnabled
-        )
-        SwitchPreference(
-            title = { Text(stringResource(R.string.block_videos)) },
-            icon = { Icon(painterResource(R.drawable.ic_video_hd), null) },
-            checked = blockVideos,
-            onCheckedChange = onBlockVideosChange,
-            isEnabled = enableContentFilters && togglesEnabled
-        )
-        SwitchPreference(
-            title = { Text(stringResource(R.string.block_podcasts)) },
-            icon = { Icon(painterResource(R.drawable.podcast), null) },
-            checked = blockPodcasts,
-            onCheckedChange = onBlockPodcastsChange,
-            isEnabled = enableContentFilters && togglesEnabled
+        SettingsCardGroup(
+            rows = listOf(
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.enable_personal_filters)) },
+                        icon = { Icon(painterResource(R.drawable.settings), null) },
+                        checked = true, // Always shown as ON
+                        onCheckedChange = { }, // No-op, cannot be changed
+                        isEnabled = false // Always greyed out
+                    )
+                },
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.allow_female_singers)) },
+                        icon = { Icon(painterResource(R.drawable.person), null) },
+                        checked = allowFemaleSingers,
+                        onCheckedChange = onAllowFemaleSingersChange,
+                        isEnabled = enableContentFilters && togglesEnabled
+                    )
+                },
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.block_videos)) },
+                        icon = { Icon(painterResource(R.drawable.ic_video_hd), null) },
+                        checked = blockVideos,
+                        onCheckedChange = onBlockVideosChange,
+                        isEnabled = enableContentFilters && togglesEnabled
+                    )
+                },
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.block_podcasts)) },
+                        icon = { Icon(painterResource(R.drawable.podcast), null) },
+                        checked = blockPodcasts,
+                        onCheckedChange = onBlockPodcastsChange,
+                        isEnabled = enableContentFilters && togglesEnabled
+                    )
+                },
+            ),
         )
 
-        PreferenceGroupTitle(title = stringResource(R.string.recommendations))
-        SwitchPreference(
-            title = { Text(stringResource(R.string.i_am_chasidish)) },
-            icon = { Icon(painterResource(R.drawable.person), null) },
-            checked = allowChasidish,
-            onCheckedChange = onAllowChasidishChange,
-            isEnabled = true // Chasidish is not locked, it's for recommendations only
+        SettingsCardGroup(
+            title = stringResource(R.string.recommendations),
+            rows = listOf(
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.i_am_chasidish)) },
+                        icon = { Icon(painterResource(R.drawable.person), null) },
+                        checked = allowChasidish,
+                        onCheckedChange = onAllowChasidishChange,
+                        isEnabled = true // Chasidish is not locked, it's for recommendations only
+                    )
+                },
+            ),
         )
-        PreferenceGroupTitle(title = stringResource(R.string.misc))
-        EditTextPreference(
-            title = { Text(stringResource(R.string.top_length)) },
-            icon = { Icon(painterResource(R.drawable.trending_up), null) },
-            value = lengthTop,
-            isInputValid = { it.toIntOrNull()?.let { num -> num > 0 } == true },
-            onValueChange = onLengthTopChange,
+
+        SettingsCardGroup(
+            title = stringResource(R.string.misc),
+            rows = listOf(
+                {
+                    EditTextPreference(
+                        title = { Text(stringResource(R.string.top_length)) },
+                        icon = { Icon(painterResource(R.drawable.trending_up), null) },
+                        value = lengthTop,
+                        isInputValid = { it.toIntOrNull()?.let { num -> num > 0 } == true },
+                        onValueChange = onLengthTopChange,
+                    )
+                },
+                {
+                    ListPreference(
+                        title = { Text(stringResource(R.string.set_quick_picks)) },
+                        icon = { Icon(painterResource(R.drawable.home_outlined), null) },
+                        selectedValue = quickPicks,
+                        values = listOf(QuickPicks.QUICK_PICKS, QuickPicks.LAST_LISTEN),
+                        valueText = {
+                            when (it) {
+                                QuickPicks.QUICK_PICKS -> stringResource(R.string.quick_picks)
+                                QuickPicks.LAST_LISTEN -> stringResource(R.string.last_song_listened)
+                            }
+                        },
+                        onValueSelected = onQuickPicksChange,)
+                },
+            ),
         )
-        ListPreference(
-            title = { Text(stringResource(R.string.set_quick_picks)) },
-            icon = { Icon(painterResource(R.drawable.home_outlined), null) },
-            selectedValue = quickPicks,
-            values = listOf(QuickPicks.QUICK_PICKS, QuickPicks.LAST_LISTEN),
-            valueText = {
-                when (it) {
-                    QuickPicks.QUICK_PICKS -> stringResource(R.string.quick_picks)
-                    QuickPicks.LAST_LISTEN -> stringResource(R.string.last_song_listened)
-                }
-            },
-            onValueSelected = onQuickPicksChange,)
     }
 
     // Create account dialog

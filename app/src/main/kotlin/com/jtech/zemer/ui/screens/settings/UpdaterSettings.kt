@@ -1,7 +1,6 @@
 package com.jtech.zemer.ui.screens.settings
 
 import android.content.pm.PackageManager
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,7 +28,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -52,6 +49,8 @@ import com.jtech.zemer.ui.component.UpdateDownloadDialog
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
+import com.jtech.zemer.ui.component.SettingsCardGroup
+import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.UpdateChecker
@@ -180,117 +179,117 @@ fun UpdaterScreen(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(8.dp)
-        ) {
-            SwitchPreference(
-                title = { Text(stringResource(R.string.check_for_updates)) },
-                icon = { Icon(painterResource(R.drawable.update), null) },
-                checked = checkForUpdates,
-                onCheckedChange = onCheckForUpdatesChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(firstFocus)
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            // Opt-in only after the notice dialog is confirmed; switching back to stable is instant.
-            SwitchPreference(
-                title = { Text(stringResource(R.string.nightly_builds)) },
-                icon = { Icon(painterResource(R.drawable.dark_mode), null) },
-                checked = nightlyUpdates,
-                onCheckedChange = { checked ->
-                    if (checked) showNightlyNotice = true else onNightlyUpdatesChange(false)
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            ListPreference(
-                title = { Text(stringResource(R.string.installer_method)) },
-                icon = { Icon(painterResource(R.drawable.download), null) },
-                selectedValue = installerType,
-                values = InstallerType.entries.toList(),
-                valueText = { stringResource(it.title) },
-                onValueSelected = ::selectInstaller,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            installerSelectionError?.let { error ->
-                Text(
-                    text = error,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
-            }
-
-            Spacer(Modifier.height(4.dp))
-
-            PreferenceEntry(
-                title = { Text(stringResource(R.string.check_for_updates_now)) },
-                icon = {
-                    if (isChecking) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp
+        SettingsCardGroup(
+            rows = buildList {
+                add {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.check_for_updates)) },
+                        icon = { Icon(painterResource(R.drawable.update), null) },
+                        checked = checkForUpdates,
+                        onCheckedChange = onCheckForUpdatesChange,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(firstFocus)
+                    )
+                }
+                add {
+                    // Opt-in only after the notice dialog is confirmed; switching back to stable is instant.
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.nightly_builds)) },
+                        icon = { Icon(painterResource(R.drawable.dark_mode), null) },
+                        checked = nightlyUpdates,
+                        onCheckedChange = { checked ->
+                            if (checked) showNightlyNotice = true else onNightlyUpdatesChange(false)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                add {
+                    ListPreference(
+                        title = { Text(stringResource(R.string.installer_method)) },
+                        icon = { Icon(painterResource(R.drawable.download), null) },
+                        selectedValue = installerType,
+                        values = InstallerType.entries.toList(),
+                        valueText = { stringResource(it.title) },
+                        onValueSelected = ::selectInstaller,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                // The installer error is a card ROW, start-aligned directly under the
+                // Installer-method entry it explains - not a floating text centered by the
+                // screen column between two gapless card stacks.
+                installerSelectionError?.let { error ->
+                    add {
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
                         )
-                    } else {
-                        Icon(painterResource(R.drawable.sync), null)
                     }
-                },
-                onClick = {
-                    if (!isChecking) {
-                        isChecking = true
-                        scope.launch {
-                            updateResult = UpdateChecker.checkForUpdates(nightlyUpdates)
-                            isChecking = false
-                            showResultDialog = true
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // The way back from the nightly channel: the regular check compares versions and a
-            // stable release shares the nightly's versionName, so it is offered unconditionally.
-            if (nightlyUpdates) {
-                Spacer(Modifier.height(4.dp))
-
-                PreferenceEntry(
-                    title = { Text(stringResource(R.string.force_download_stable)) },
-                    icon = {
-                        if (isFetchingStable) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Icon(painterResource(R.drawable.download), null)
-                        }
-                    },
-                    onClick = {
-                        if (!isFetchingStable) {
-                            isFetchingStable = true
-                            scope.launch {
-                                updateResult = UpdateChecker.forceStableUpdate()
-                                isFetchingStable = false
-                                showResultDialog = true
+                }
+                add {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.check_for_updates_now)) },
+                        icon = {
+                            if (isChecking) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(painterResource(R.drawable.sync), null)
                             }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
+                        },
+                        onClick = {
+                            if (!isChecking) {
+                                isChecking = true
+                                scope.launch {
+                                    updateResult = UpdateChecker.checkForUpdates(nightlyUpdates)
+                                    isChecking = false
+                                    showResultDialog = true
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                // The way back from the nightly channel: the regular check compares versions and a
+                // stable release shares the nightly's versionName, so it is offered unconditionally.
+                if (nightlyUpdates) {
+                    add {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.force_download_stable)) },
+                            icon = {
+                                if (isFetchingStable) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(painterResource(R.drawable.download), null)
+                                }
+                            },
+                            onClick = {
+                                if (!isFetchingStable) {
+                                    isFetchingStable = true
+                                    scope.launch {
+                                        updateResult = UpdateChecker.forceStableUpdate()
+                                        isFetchingStable = false
+                                        showResultDialog = true
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            },
+        )
 
         Spacer(Modifier.height(32.dp))
     }

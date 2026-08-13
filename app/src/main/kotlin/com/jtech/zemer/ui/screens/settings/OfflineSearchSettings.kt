@@ -3,6 +3,8 @@ package com.jtech.zemer.ui.screens.settings
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -32,7 +34,8 @@ import com.jtech.zemer.constants.OfflineSubsetEnabledKey
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceEntry
-import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.SettingsCardGroup
+import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
@@ -84,36 +87,41 @@ fun OfflineSearchSettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState()),
     ) {
-        PreferenceGroupTitle(
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
+        SettingsCardGroup(
             title = stringResource(R.string.offline_search),
-        )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.offline_search_enable)) },
-            description = stringResource(R.string.offline_search_enable_desc),
-            icon = { Icon(painterResource(R.drawable.offline), null) },
-            checked = enabled,
-            onCheckedChange = viewModel::setEnabled,
-            modifier = Modifier.focusRequester(firstFocus),
-        )
-
-        if (enabled) {
-            PreferenceEntry(
-                title = {
-                    Text(
-                        if (status.running) {
-                            stringResource(R.string.offline_search_updating)
-                        } else {
-                            stringResource(R.string.offline_search_download_now)
-                        }
+            rows = buildList {
+                add {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.offline_search_enable)) },
+                        description = stringResource(R.string.offline_search_enable_desc),
+                        icon = { Icon(painterResource(R.drawable.offline), null) },
+                        checked = enabled,
+                        onCheckedChange = viewModel::setEnabled,
+                        modifier = Modifier.focusRequester(firstFocus),
                     )
-                },
-                description = statusDescription,
-                icon = { Icon(painterResource(R.drawable.download), null) },
-                onClick = { viewModel.downloadNow() },
-                isEnabled = !status.running,
-            )
-        }
+                }
+                if (enabled) {
+                    add {
+                        PreferenceEntry(
+                            title = {
+                                Text(
+                                    if (status.running) {
+                                        stringResource(R.string.offline_search_updating)
+                                    } else {
+                                        stringResource(R.string.offline_search_download_now)
+                                    }
+                                )
+                            },
+                            description = statusDescription,
+                            icon = { Icon(painterResource(R.drawable.download), null) },
+                            onClick = { viewModel.downloadNow() },
+                            isEnabled = !status.running,
+                        )
+                    }
+                }
+            },
+        )
     }
 
     TopAppBar(
