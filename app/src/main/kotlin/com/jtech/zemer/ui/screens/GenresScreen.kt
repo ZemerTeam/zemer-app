@@ -117,6 +117,10 @@ fun GenresScreen(
                 }
             }
         }
+
+        // Mirror of the top spacer: the last card row otherwise sits flush against the bottom
+        // edge, unlike the matching breathing room under the top bar.
+        item(key = "bottom_spacer") { Spacer(Modifier.height(GenreCatalogTopSpacing)) }
     }
 
     TopAppBar(
