@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -98,15 +102,24 @@ fun ArtistSectionScreen(
     // an unresolvable spinner (the shipped first cut's bug).
     var episodeQuery by rememberSaveable { mutableStateOf("") }
     var searchingHistory by remember { mutableStateOf(false) }
+    // False when the last drain stopped early (failed page / cap) with the history NOT fully
+    // loaded: an empty filter is then "couldn't search everything" + Retry, never an
+    // authoritative "no results". [drainAttempt] re-keys the effect so Retry can re-run the SAME
+    // query (the query key alone only fires on text edits - the false negative was sticky).
+    var drainComplete by remember { mutableStateOf(true) }
+    var drainAttempt by remember { mutableStateOf(0) }
     if (pagedEpisodes) {
-        LaunchedEffect(episodeQuery) {
+        LaunchedEffect(episodeQuery, drainAttempt) {
             if (episodeQuery.isBlank()) return@LaunchedEffect
-            // Debounce: one drain per settled query, not one per keystroke (a changed query
-            // cancels this effect and the in-flight drain with it).
-            kotlinx.coroutines.delay(300)
+            // Searching flips ON before the debounce: the client-side filter applies on the FIRST
+            // keystroke, so waiting until after the delay flashed "No results found" for 300ms per
+            // keystroke on a query whose matches live in not-yet-loaded pages.
             searchingHistory = true
             try {
-                viewModel.drainEpisodeHistoryForSearch()
+                // Debounce: one drain per settled query, not one per keystroke (a changed query
+                // cancels this effect and the in-flight drain with it).
+                kotlinx.coroutines.delay(300)
+                drainComplete = viewModel.drainEpisodeHistoryForSearch()
             } finally {
                 searchingHistory = false
             }
@@ -117,7 +130,15 @@ fun ArtistSectionScreen(
         // effect, so a short/overlapping page that leaves the user still past the threshold (nearEnd
         // continuously true — distinctUntilChanged would suppress it) chains the next fetch instead
         // of stalling until the user scrolls away and back.
-        LaunchedEffect(episodeListState, viewModel.episodesNextOffset) {
+        //
+        // GATED OFF while a query is active: the drain owns paging then. Left armed, this trigger
+        // measured the FILTERED list - an unmatched query pins it 2 items long and permanently
+        // "near its end", chaining uncapped background pages of the whole channel history and
+        // racing the drain for the single-flight flag (the review's fetch-storm + premature
+        // "no results" pair).
+        val queryActive = episodeQuery.isNotBlank()
+        LaunchedEffect(episodeListState, viewModel.episodesNextOffset, queryActive) {
+            if (queryActive) return@LaunchedEffect
             snapshotFlow {
                 shouldPrefetchNearEnd(
                     episodeListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index,
@@ -131,15 +152,24 @@ fun ArtistSectionScreen(
 
     Box(Modifier.fillMaxSize()) {
         when {
-            pagedEpisodes && items.isNotEmpty() ->
+            pagedEpisodes && items.isNotEmpty() -> {
+                // Remembered: the full drained list can run to thousands of rows, and an
+                // unremembered filter re-scanned + re-allocated it (new list identity, full
+                // LazyColumn re-key) on EVERY recomposition, not just query/page changes.
+                val filteredEpisodes = remember(items, episodeQuery) {
+                    filterChannelEpisodes(items.filterIsInstance<EpisodeItem>(), episodeQuery)
+                }
                 ChannelEpisodeList(
-                    episodes = filterChannelEpisodes(items.filterIsInstance<EpisodeItem>(), episodeQuery),
+                    episodes = filteredEpisodes,
                     navController = navController,
                     listState = episodeListState,
                     query = episodeQuery,
                     onQueryChange = { episodeQuery = it },
                     searching = searchingHistory,
+                    drainComplete = drainComplete,
+                    onRetryDrain = { drainAttempt++ },
                 )
+            }
             isSongList ->
                 ArtistSongList(items.filterIsInstance<SongItem>(), navController, viewModel.artistId)
             items.isNotEmpty() ->
@@ -187,6 +217,10 @@ private fun ChannelEpisodeList(
     // and the "no results" row for an empty filter. Mirrors the drain's exact lifetime, so this
     // always flips false (the empty state must resolve, never spin forever).
     searching: Boolean,
+    // Whether the last drain covered the FULL history. False (failed page / cap) turns an empty
+    // filter into "couldn't search everything" + Retry instead of a false "No results found".
+    drainComplete: Boolean,
+    onRetryDrain: () -> Unit,
 ) {
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -210,14 +244,31 @@ private fun ChannelEpisodeList(
         }
         if (episodes.isEmpty() && query.isNotBlank()) {
             item(key = "episode_search_state", contentType = "state") {
-                if (searching) {
-                    // The drain is still walking older history in - progress, not a premature
-                    // "no results". Bounded + failure-terminated, so it always resolves.
-                    Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                } else {
-                    EmptyPlaceholder(icon = R.drawable.search, text = stringResource(R.string.no_results_found))
+                when {
+                    searching ->
+                        // The drain is still walking older history in - progress, not a premature
+                        // "no results". Bounded + failure-terminated, so it always resolves.
+                        Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    !drainComplete ->
+                        // The drain stopped before covering the history (failed page / cap):
+                        // an authoritative "no results" would be false - say so and offer Retry.
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.search_episodes_incomplete),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            TextButton(onClick = onRetryDrain) {
+                                Text(stringResource(R.string.retry))
+                            }
+                        }
+                    else ->
+                        EmptyPlaceholder(icon = R.drawable.search, text = stringResource(R.string.no_results_found))
                 }
             }
         }

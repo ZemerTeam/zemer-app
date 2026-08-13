@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.positionInParent
 import kotlinx.coroutines.launch
 import com.jtech.zemer.R
@@ -72,6 +73,13 @@ fun <E> ChipsRow(
     firstChipFocusRequester: FocusRequester? = null,
     upFocusRequester: FocusRequester? = null,
     downFocusRequester: FocusRequester? = null,
+    // Opt-in (the filter-prefilled search results screen): scroll the initially selected chip into
+    // view once, and anchor [firstChipFocusRequester] to the SELECTED chip instead of the first -
+    // the search screen's delayed TV focus grab otherwise yanks the row back to chip 0, hiding the
+    // selection again. Default OFF: the library rows' rememberPreference-backed selection emits its
+    // default before the stored value, which would latch the one-shot on chip 0 and (worse) move
+    // their focus anchor unasked.
+    revealSelectedChip: Boolean = false,
 ) {
     val scrollState = rememberScrollState()
     val revealScope = rememberCoroutineScope()
@@ -80,11 +88,9 @@ fun <E> ChipsRow(
     // past the fold and an invisible selection reads as "landed on All". Once only (saveable, so a
     // process restore doesn't re-scroll): later taps are on visible chips and must not yank the row.
     var revealedInitialChip by rememberSaveable { mutableStateOf(false) }
-    // The caller's focus requester rides the SELECTED chip (fallback: first). The search screen
-    // grabs chip focus ~900ms after open for TV remotes, and focusing a chip scrolls it into view -
-    // anchored to chip 0 that grab YANKED the row back to the left edge right after the initial
-    // reveal above, hiding a prefilled selection (e.g. the Episodes chip) all over again.
-    val focusChipIndex = chips.indexOfFirst { it.first == currentValue }.coerceAtLeast(0)
+    val focusChipIndex =
+        if (revealSelectedChip) chips.indexOfFirst { it.first == currentValue }.coerceAtLeast(0) else 0
+    val revealLeadPx = with(LocalDensity.current) { 24.dp.toPx() }
     Row(
         modifier =
         modifier
@@ -127,11 +133,11 @@ fun <E> ChipsRow(
                     )
                     .onFocusChanged { isFocused = it.isFocused }
                     .onGloballyPositioned { coords ->
-                        if (!revealedInitialChip && currentValue == value) {
+                        if (revealSelectedChip && !revealedInitialChip && currentValue == value) {
                             revealedInitialChip = true
                             // Content coordinates equal scroll offsets here (the Row starts unscrolled);
-                            // a small lead keeps the previous chip's edge peeking for scroll affordance.
-                            val target = (coords.positionInParent().x - 48f).toInt().coerceAtLeast(0)
+                            // a small dp lead keeps the previous chip's edge peeking for scroll affordance.
+                            val target = (coords.positionInParent().x - revealLeadPx).toInt().coerceAtLeast(0)
                             if (target > 0) revealScope.launch { scrollState.animateScrollTo(target) }
                         }
                     }

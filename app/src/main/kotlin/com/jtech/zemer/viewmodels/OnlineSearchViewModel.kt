@@ -51,8 +51,8 @@ constructor(
         }.let(Uri::decode)
     private val initialFilter = savedStateHandle.get<String>("filter")?.let { filterParam ->
         when (filterParam) {
-            "albums" -> SearchFilter.FILTER_ALBUM
-            "songs" -> SearchFilter.FILTER_SONG
+            com.jtech.zemer.search.SEARCH_FILTER_ALBUMS -> SearchFilter.FILTER_ALBUM
+            com.jtech.zemer.search.SEARCH_FILTER_SONGS -> SearchFilter.FILTER_SONG
             "artists" -> SearchFilter.FILTER_ARTIST
             "videos" -> SearchFilter.FILTER_VIDEO
             "playlists" -> SearchFilter.FILTER_COMMUNITY_PLAYLIST
@@ -60,7 +60,7 @@ constructor(
             "featured_playlists" -> SearchFilter.FILTER_FEATURED_PLAYLIST
             // The Podcasts browse's "Search episodes for 'X'" hand-off lands straight on the
             // Episodes chip (a Zemer-only filter; response-side, never sent to a server).
-            "episodes" -> com.jtech.zemer.search.ZEMER_FILTER_EPISODE
+            com.jtech.zemer.search.SEARCH_FILTER_EPISODES -> com.jtech.zemer.search.ZEMER_FILTER_EPISODE
             else -> null
         }
     }

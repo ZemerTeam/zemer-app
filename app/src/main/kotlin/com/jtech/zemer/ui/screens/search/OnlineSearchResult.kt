@@ -307,6 +307,10 @@ fun OnlineSearchResult(
                 },
                 firstChipFocusRequester = chipsFocusRequester,
                 downFocusRequester = firstResultFocusRequester,
+                // Filter-prefilled entries (the Podcasts browse's episode hand-off, the artist-page
+                // section searches) land with a chip mid-row selected: reveal it and anchor the TV
+                // focus grab to it, or that grab scrolls the row back and hides the selection.
+                revealSelectedChip = true,
                 modifier =
                 Modifier
                     .background(MaterialTheme.colorScheme.surface)

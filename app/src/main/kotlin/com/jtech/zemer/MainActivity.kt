@@ -207,6 +207,7 @@ import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.models.DpadDirection
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.CastVolumeKeyAction
+import com.jtech.zemer.search.zemerSearchRoute
 import com.jtech.zemer.playback.CastVolumeKeys
 import com.jtech.zemer.playback.DownloadUtil
 import com.jtech.zemer.playback.MusicService
@@ -977,7 +978,7 @@ class MainActivity : ComponentActivity() {
                                 if (navController.currentDestination?.route?.startsWith("search/") == true) {
                                     navController.popBackStack()
                                 }
-                                navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}")
+                                navController.navigate(zemerSearchRoute(searchQuery))
 
                                 if (dataStore[PauseSearchHistoryKey] != true) {
                                     lifecycleScope.launch(Dispatchers.IO) {

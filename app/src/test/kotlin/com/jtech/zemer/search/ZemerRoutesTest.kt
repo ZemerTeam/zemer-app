@@ -11,6 +11,18 @@ import org.junit.Test
  * navigation or NULLs a dashboard dimension.
  */
 class ZemerRoutesTest {
+    // The search route builder: the ONE encoding of "search/<query>?filter=" (4 hand-rolled copies
+    // drifted before). Query is URL-encoded free text; the filter tokens are the shared vocabulary
+    // the results ViewModel maps - a token rename must break here, not fall through to All.
+    @Test
+    fun searchRoute_encodesQueryAndCarriesFilter() {
+        assertEquals("search/hello", zemerSearchRoute("hello"))
+        assertEquals("search/avraham+fried", zemerSearchRoute("avraham fried"))
+        assertEquals("search/hello?filter=episodes", zemerSearchRoute("hello", SEARCH_FILTER_EPISODES))
+        assertEquals("search/x?filter=songs", zemerSearchRoute("x", SEARCH_FILTER_SONGS))
+        assertEquals("search/x?filter=albums", zemerSearchRoute("x", SEARCH_FILTER_ALBUMS))
+    }
+
 
     private val album = AlbumItem(
         browseId = "MPRE1",

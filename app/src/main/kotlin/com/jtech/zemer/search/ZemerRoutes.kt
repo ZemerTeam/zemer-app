@@ -54,3 +54,18 @@ fun zemerPodcastGenresRoute(): String = "podcast_genres"
  * ([\w-] only, URL- and nav-safe as-is, so no encoding — keeps the builder pure for the JVM tests).
  */
 fun zemerPodcastGenreRoute(id: String): String = "podcast_genre/$id"
+
+/**
+ * The global search results screen. The query is URL-encoded (free text); [filter] preselects a
+ * results chip - use the SEARCH_FILTER_* constants, which are the ONE vocabulary shared with the
+ * results ViewModel's route-param mapping (a bare string literal there and here drifted apart
+ * silently: a renamed token fell through to the All chip with no compile error).
+ */
+fun zemerSearchRoute(query: String, filter: String? = null): String {
+    val encoded = java.net.URLEncoder.encode(query, "UTF-8")
+    return if (filter == null) "search/$encoded" else "search/$encoded?filter=$filter"
+}
+
+const val SEARCH_FILTER_SONGS = "songs"
+const val SEARCH_FILTER_ALBUMS = "albums"
+const val SEARCH_FILTER_EPISODES = "episodes"

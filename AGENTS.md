@@ -250,7 +250,9 @@ ArtistScreen's over-header transparent state; the in-player fullscreen video ove
 (`PlayerVideoFullscreen`) has no `TopAppBar` at all, just an exit icon over the scrim),
 `PlaylistPlayShuffleButtons` + `PlaylistHeaderShimmer` (playlist headers/skeletons),
 `shimmer/BoxPlaceholder` (the base shimmer slab under `ButtonPlaceholder`/`GridItemPlaceholder`),
-`ArtistBrowseComponents` (KidZone/whitelist browse header), `IconCategoryCard` (the square category
+`ArtistBrowseComponents` (KidZone/whitelist browse header; also `ArtistSearchField` + `SearchHandoffPill` —
+the browse search pill and its tappable hand-off sibling, one shared geometry so the pair can't drift),
+`IconCategoryCard` (the square category
 tile — centered gold icon + bold title + count subtitle on one neutral `surfaceContainerHigh` box, with
 the D-pad focus treatment; the Downloaded library's Music/Videos/Status tiles all render through it),
 `GenreCardGrid` (one genre-catalog section — optional bold title over the two-column `GenreCard` grid
