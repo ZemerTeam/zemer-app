@@ -592,7 +592,9 @@ private fun SearchEpisodesHandoffRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            // Sits lower than a plain list row: the pill needs clear air under the content above it
+            // (channel matches or the no-results state) so it reads as its own affordance.
+            .padding(start = 16.dp, top = 24.dp, end = 16.dp, bottom = 8.dp)
             .height(48.dp)
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)

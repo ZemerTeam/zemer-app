@@ -80,6 +80,11 @@ fun <E> ChipsRow(
     // past the fold and an invisible selection reads as "landed on All". Once only (saveable, so a
     // process restore doesn't re-scroll): later taps are on visible chips and must not yank the row.
     var revealedInitialChip by rememberSaveable { mutableStateOf(false) }
+    // The caller's focus requester rides the SELECTED chip (fallback: first). The search screen
+    // grabs chip focus ~900ms after open for TV remotes, and focusing a chip scrolls it into view -
+    // anchored to chip 0 that grab YANKED the row back to the left edge right after the initial
+    // reveal above, hiding a prefilled selection (e.g. the Episodes chip) all over again.
+    val focusChipIndex = chips.indexOfFirst { it.first == currentValue }.coerceAtLeast(0)
     Row(
         modifier =
         modifier
@@ -114,7 +119,7 @@ fun <E> ChipsRow(
                         if (downFocusRequester != null) down = downFocusRequester
                     }
                     .then(
-                        if (index == 0 && firstChipFocusRequester != null) {
+                        if (index == focusChipIndex && firstChipFocusRequester != null) {
                             Modifier.focusRequester(firstChipFocusRequester)
                         } else {
                             Modifier
