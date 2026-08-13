@@ -31,6 +31,8 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import com.jtech.zemer.db.entities.PodcastEntity
 import com.jtech.zemer.ui.component.ArtistCountHeader
+import androidx.compose.foundation.background
+import java.net.URLEncoder
 import com.jtech.zemer.ui.component.ArtistSearchField
 import com.jtech.zemer.ui.component.focusBorder
 import com.metrolist.innertube.models.SongItem
@@ -247,6 +249,21 @@ fun WhitelistedPodcastsScreen(
                             podcast = podcast,
                         )
                     }
+
+                    // This screen's search filters CHANNELS (a local title match over the
+                    // allow-set); episode search is the global search screen's job. A typed query
+                    // gets one hand-off row into it, landing on the Episodes chip prefilled -
+                    // covering the "typed an episode name here" case (esp. zero channel matches)
+                    // without turning this instant local filter into a networked results screen.
+                    if (searchQuery.isNotBlank()) {
+                        item(key = "search_episodes_handoff") {
+                            SearchEpisodesHandoffRow(
+                                query = searchQuery.trim(),
+                                navController = navController,
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
+                    }
                 }
 
             LibraryViewType.GRID ->
@@ -315,6 +332,17 @@ fun WhitelistedPodcastsScreen(
                                 .animateItem(),
                             podcast = podcast,
                         )
+                    }
+
+                    // Same episode-search hand-off as the LIST view (see the comment there).
+                    if (searchQuery.isNotBlank()) {
+                        item(key = "search_episodes_handoff", span = { GridItemSpan(maxLineSpan) }) {
+                            SearchEpisodesHandoffRow(
+                                query = searchQuery.trim(),
+                                navController = navController,
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
                     }
                 }
         }
@@ -544,5 +572,53 @@ private fun NewEpisodesSection(
             }
         }
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+/**
+ * The episode-search hand-off: a pill styled EXACTLY like the [ArtistSearchField] above it (same
+ * 50% shape, surfaceContainerHigh fill, 48dp height, 16dp side margins) so the two read as one
+ * search family - a tap jumps to the global search screen with the query prefilled and the
+ * Episodes chip selected. D-pad focusable via the shared focusBorder treatment.
+ */
+@Composable
+private fun SearchEpisodesHandoffRow(
+    query: String,
+    navController: NavController,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(percent = 50)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .height(48.dp)
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .focusBorder(shape)
+            .clickable {
+                navController.navigate("search/${URLEncoder.encode(query, "UTF-8")}?filter=episodes")
+            },
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.search),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 16.dp, end = 12.dp),
+        )
+        Text(
+            text = stringResource(R.string.search_episodes_for, query),
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            painter = painterResource(R.drawable.arrow_forward),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
     }
 }

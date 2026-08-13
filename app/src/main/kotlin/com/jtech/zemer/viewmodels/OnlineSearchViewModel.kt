@@ -58,6 +58,9 @@ constructor(
             "playlists" -> SearchFilter.FILTER_COMMUNITY_PLAYLIST
             "community_playlists" -> SearchFilter.FILTER_COMMUNITY_PLAYLIST
             "featured_playlists" -> SearchFilter.FILTER_FEATURED_PLAYLIST
+            // The Podcasts browse's "Search episodes for 'X'" hand-off lands straight on the
+            // Episodes chip (a Zemer-only filter; response-side, never sent to a server).
+            "episodes" -> com.jtech.zemer.search.ZEMER_FILTER_EPISODE
             else -> null
         }
     }
