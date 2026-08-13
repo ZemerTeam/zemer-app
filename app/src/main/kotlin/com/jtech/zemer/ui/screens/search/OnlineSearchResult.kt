@@ -39,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
@@ -107,8 +108,14 @@ fun OnlineSearchResult(
     val chipsFocusRequester = remember { FocusRequester() }
     val firstResultFocusRequester = remember { FocusRequester() }
 
-    // Initialize chips focus after a short delay to prioritize content on TV remotes
-    LaunchedEffect(Unit) {
+    // Initialize chips focus after a short delay to prioritize content on TV remotes.
+    // D-pad sessions only: for touch this grab painted the focused FilterChip's own M3 focus
+    // overlay (a phantom ring on a chip nobody focused) and, on filter-prefilled landings,
+    // scroll-yanked the chip row. KEYED on the input mode (like RequestInitialDpadFocus) so a
+    // session that turns key-driven mid-screen still gets the grab; the delay stays bespoke.
+    val dpadSession = focusVisualsEnabled()
+    LaunchedEffect(dpadSession) {
+        if (!dpadSession) return@LaunchedEffect
         delay(900)
         chipsFocusRequester.requestFocus()
     }

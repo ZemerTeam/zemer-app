@@ -22,6 +22,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
+import com.jtech.zemer.ui.component.RequestInitialDpadFocus
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
@@ -127,9 +128,7 @@ fun PlayerSettings(
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
 
-    LaunchedEffect(Unit) {
-        firstFocus.requestFocus()
-    }
+    RequestInitialDpadFocus(firstFocus)
 
     Column(
         Modifier

@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import com.jtech.zemer.ui.component.RequestInitialDpadFocus
 import com.jtech.zemer.db.entities.PodcastEntity
 import com.jtech.zemer.ui.component.ArtistCountHeader
 import com.jtech.zemer.ui.component.SearchHandoffPill
@@ -136,9 +137,7 @@ fun WhitelistedPodcastsScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        firstFocus.requestFocus()
-    }
+    RequestInitialDpadFocus(firstFocus)
 
     LaunchedEffect(scrollToTop?.value) {
         if (scrollToTop?.value == true) {

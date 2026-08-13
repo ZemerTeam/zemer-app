@@ -280,21 +280,15 @@
     <string name="stream_source_native_clients">Native clients</string>
     <string name="stream_source_creator_clients">Creator clients</string>
     <string name="stream_source_web_remix">WEB_REMIX</string>
-    <string name="stream_source_web_remix_desc">YouTube Music web client — best quality, opus audio</string>
+    <string name="stream_source_web_remix_desc">YouTube Music web client: best quality, opus audio</string>
     <string name="stream_source_tvhtml5">TVHTML5</string>
-    <string name="stream_source_tvhtml5_desc">YouTube TV web client — fallback for login-gated content</string>
+    <string name="stream_source_tvhtml5_desc">YouTube TV web client: fallback for login-gated content</string>
     <string name="stream_source_android_vr">Android VR</string>
-    <string name="stream_source_android_vr_desc">Direct URL client — reliable fallback, no cipher needed</string>
-    <string name="stream_source_ios">iOS</string>
-    <string name="stream_source_ios_desc">Apple client — spc-gated past ~1 MiB; off by default, use visionOS</string>
-    <string name="stream_source_ipad_os">iPadOS</string>
-    <string name="stream_source_ipad_os_desc">Apple iPad client — spc-gated past ~1 MiB; off by default, use visionOS</string>
+    <string name="stream_source_android_vr_desc">Direct URL client: reliable fallback, no cipher needed</string>
     <string name="stream_source_visionos">visionOS</string>
-    <string name="stream_source_visionos_desc">Apple direct-URL client — streams full songs (unlike iOS/iPadOS)</string>
+    <string name="stream_source_visionos_desc">Apple direct-URL client: streams full songs</string>
     <string name="stream_source_web_creator">WEB_CREATOR</string>
     <string name="stream_source_web_creator_desc">YouTube Studio web client</string>
-    <string name="stream_source_android_creator">ANDROID_CREATOR</string>
-    <string name="stream_source_android_creator_desc">YouTube Studio client — needs DroidGuard attestation; off by default</string>
 
     <!-- Mixes / suggested playlists -->
     <string name="mixes">Mixes</string>
@@ -426,7 +420,6 @@
     <!-- Bottom navigation customization -->
     <string name="bottom_nav_items">Bottom Navigation Items</string>
     <string name="bottom_nav_n_selected">%1$d/5 selected</string>
-    <string name="bottom_nav_select_one">Select at least 1 item</string>
 
     <!-- About screen -->
     <string name="about_tagline">Kosher YouTube Music Client</string>
@@ -494,7 +487,7 @@
     <!-- Recognize music (Shazam-style identification, whitelist-filtered) -->
     <string name="recognize_music">Recognize music</string>
     <string name="recognize_music_fab">Recognize music button</string>
-    <string name="recognize_music_fab_desc">Show a floating button above the navigation bar to identify a song</string>
+    <string name="recognize_music_fab_desc">Show a floating button on the home music tab to identify a song</string>
     <string name="recognize_music_mic_button">Start listening</string>
     <string name="recognition_history">Recognition history</string>
     <string name="recognition_history_empty">No recognitions yet</string>
@@ -543,7 +536,7 @@
     <string name="enable_casting_description">Show a cast button to play to Chromecast and FCast devices on your network.</string>
     <string name="stop_casting">Stop casting</string>
     <string name="offline_search">Search backup</string>
-    <string name="settings_desc_offline_search">Keep searching if the Zemer server is briefly down</string>
+    <string name="settings_desc_offline_search">Zemer server outage protection</string>
     <string name="offline_search_enable">Enable search backup</string>
     <string name="offline_search_enable_desc">Download the catalog so search and browse keep working during a short Zemer server outage. Updates automatically every day.</string>
     <string name="offline_search_download_now">Download now</string>
@@ -569,7 +562,7 @@
     <string name="genre_kind_style">Styles</string>
     <string name="genre_kind_occasion">Occasions</string>
     <string name="show_genres_row">Show genres on home</string>
-    <string name="show_genres_row_desc">A row of genre shortcuts under Quick picks</string>
+    <string name="show_genres_row_desc">Genre shortcut rows on the Music and Podcasts tabs</string>
     <string name="statuses">Music Status</string>
     <string name="jump_to_date">Jump to date</string>
     <string name="read_more">Read more</string>
@@ -659,6 +652,7 @@
 
     <!-- Podcasts -->
         <string name="podcasts">Podcasts</string>
+        <string name="refresh_podcasts">Refresh podcasts</string>
         <string name="search_podcasts">Search podcasts…</string>
         <string name="search_episodes">Search episodes…</string>
         <string name="search_episodes_for">Search episodes for “%1$s”</string>

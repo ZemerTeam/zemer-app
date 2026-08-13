@@ -61,11 +61,11 @@ fun PreferenceEntry(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
-        targetValue = if (isFocused) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+        targetValue = if (isFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
         label = "preference_entry_focus_bg"
     )
     val borderColor by animateColorAsState(
-        targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+        targetValue = if (isFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.outline else Color.Transparent,
         label = "preference_entry_focus_border"
     )
     Row(

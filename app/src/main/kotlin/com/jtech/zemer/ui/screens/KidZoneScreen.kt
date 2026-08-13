@@ -28,6 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.jtech.zemer.ui.component.RequestInitialDpadFocus
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ArtistViewTypeKey
@@ -77,9 +78,7 @@ fun KidZoneScreen(
     val scrollToTop =
         backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
 
-    LaunchedEffect(Unit) {
-        firstFocus.requestFocus()
-    }
+    RequestInitialDpadFocus(firstFocus)
 
     LaunchedEffect(scrollToTop?.value) {
         if (scrollToTop?.value == true) {

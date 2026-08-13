@@ -54,6 +54,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import com.jtech.zemer.ui.component.RequestInitialDpadFocus
+import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import androidx.compose.ui.text.LinkAnnotation
@@ -148,12 +150,6 @@ fun AlbumScreen(
     val isSelectAllButtonFocused = remember { mutableStateOf(false) }
     val isMoreButtonFocused = remember { mutableStateOf(false) }
 
-    // Focus state for header buttons
-    val isHeartButtonFocused = remember { mutableStateOf(false) }
-    val isDownloadButtonFocused = remember { mutableStateOf(false) }
-    val isHeaderMenuButtonFocused = remember { mutableStateOf(false) }
-    val isArtistLinkFocused = remember { mutableStateOf(false) }
-
     // Focus state for track items
     val trackFocusStates = remember { mutableMapOf<String, Boolean>() }
 
@@ -162,37 +158,19 @@ fun AlbumScreen(
     val firstHeaderItemFocusRequester = remember { FocusRequester() }
 
     val backButtonBorderColor = animateColorAsState(
-        targetValue = if (isBackButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+        targetValue = if (isBackButtonFocused.value && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
         label = "back_button_focus_border"
     )
     val selectAllButtonBorderColor = animateColorAsState(
-        targetValue = if (isSelectAllButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+        targetValue = if (isSelectAllButtonFocused.value && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
         label = "select_all_button_focus_border"
     )
     val moreButtonBorderColor = animateColorAsState(
-        targetValue = if (isMoreButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+        targetValue = if (isMoreButtonFocused.value && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
         label = "more_button_focus_border"
     )
-    animateColorAsState(
-        targetValue = if (isHeartButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
-        label = "heart_button_focus_border"
-    )
-    animateColorAsState(
-        targetValue = if (isDownloadButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
-        label = "download_button_focus_border"
-    )
-    animateColorAsState(
-        targetValue = if (isHeaderMenuButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
-        label = "header_menu_button_focus_border"
-    )
-    animateColorAsState(
-        targetValue = if (isArtistLinkFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
-        label = "artist_link_focus_border"
-    )
 
-    LaunchedEffect(Unit) {
-        firstHeaderItemFocusRequester.requestFocus()
-    }
+    RequestInitialDpadFocus(firstHeaderItemFocusRequester)
 
     LazyColumn(
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
@@ -230,7 +208,7 @@ fun AlbumScreen(
 
                             val artistLinkFocused = remember { mutableStateOf(false) }
                             val artistLinkBorderColor = animateColorAsState(
-                                targetValue = if (artistLinkFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                targetValue = if (artistLinkFocused.value && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
                                 label = "artist_link_focus_border"
                             )
                             Box(
@@ -274,7 +252,7 @@ fun AlbumScreen(
                             Row {
                                 val heartButtonFocused = remember { mutableStateOf(false) }
                                 val heartButtonBorderColor = animateColorAsState(
-                                    targetValue = if (heartButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    targetValue = if (heartButtonFocused.value && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
                                     label = "heart_button_focus_border"
                                 )
                                 Box(
@@ -328,7 +306,7 @@ fun AlbumScreen(
 
                                 val headerMenuButtonFocused = remember { mutableStateOf(false) }
                                 val headerMenuButtonBorderColor = animateColorAsState(
-                                    targetValue = if (headerMenuButtonFocused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    targetValue = if (headerMenuButtonFocused.value && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
                                     label = "header_menu_button_focus_border"
                                 )
                                 Box(
@@ -383,7 +361,7 @@ fun AlbumScreen(
                     val trackId = songWrapper.item.id
                     val isTrackFocused = trackFocusStates[trackId] ?: false
                     val trackBorderColor = animateColorAsState(
-                        targetValue = if (isTrackFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        targetValue = if (isTrackFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
                         label = "track_${trackId}_focus_border"
                     )
 

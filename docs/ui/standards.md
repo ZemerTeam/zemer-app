@@ -278,6 +278,16 @@ Rules for these and any new row component:
   outside the shared group components, apply `Modifier.focusBorder()` (`FocusBorder.kt`) — the single
   source of truth for that treatment — placed **before** `.clickable {}` in the chain so the ripple
   is clipped (`Material3MenuItemRow` / `Material3SettingsItemRow` inline the same effect).
+- **Focus visuals are key-input-only.** Every focus ring/border/fill is gated on
+  `focusVisualsEnabled()` (`FocusBorder.kt` — `LocalInputModeManager` in Keyboard mode), so touch
+  users never see them; `focusBorder()` gates itself, a hand-rolled visual must apply the same
+  check (ratcheted by **R23-focusgate**, baseline 0). Programmatic **initial-focus grabs** go
+  through the shared `RequestInitialDpadFocus(requester)` (`FocusBorder.kt`) — it skips touch
+  sessions (a focused M3 component paints its own focus pill even in touch mode) AND re-arms when
+  the input mode flips to keys, so a screen opened by touch still gets its curated first focus the
+  moment a D-pad is used. Hand-rolled grabs are ratcheted by **R24-initialfocus** (baseline 0).
+  Functional focus (text fields opening the keyboard, key-event-driven moves, the cast volume-key
+  seed) is NEVER gated.
 - **Never add `.focusable()` to a `TextField`/`BasicTextField`.** It is already focusable; a stray
   `.focusable()` after `.focusRequester(fr)` binds `fr` to that wrapper node instead of the text
   editor, so `fr.requestFocus()` (e.g. auto-focusing the search field) gains focus but never starts

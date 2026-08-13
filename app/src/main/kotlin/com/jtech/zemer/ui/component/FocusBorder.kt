@@ -6,6 +6,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,12 +38,13 @@ import androidx.compose.ui.unit.dp
  */
 fun Modifier.focusBorder(shape: Shape = RoundedCornerShape(12.dp)): Modifier = composed {
     var isFocused by remember { mutableStateOf(false) }
+    val showRing = isFocused && focusVisualsEnabled()
     val backgroundColor by animateColorAsState(
-        targetValue = if (isFocused) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+        targetValue = if (showRing) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
         label = "focus_border_bg",
     )
     val borderColor by animateColorAsState(
-        targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+        targetValue = if (showRing) MaterialTheme.colorScheme.outline else Color.Transparent,
         label = "focus_border_outline",
     )
     this
@@ -47,4 +53,41 @@ fun Modifier.focusBorder(shape: Shape = RoundedCornerShape(12.dp)): Modifier = c
         .focusable()
         .background(backgroundColor)
         .border(width = 1.5.dp, color = borderColor, shape = shape)
+}
+
+/**
+ * Whether focus visuals (rings/borders/fills) should render at all: true only while the session's
+ * LAST input was a key (D-pad / TV remote / keyboard), the one audience the treatment exists for.
+ * Touch users kept seeing rings wherever screens programmatically request initial focus for D-pad
+ * convenience - on a touchscreen those are pure noise, so touch mode suppresses the VISUAL while
+ * focus itself (and every focusRequester/bringIntoView behavior) is untouched. The input mode is
+ * snapshot-backed, so a first key press flips the visuals on immediately.
+ */
+@Composable
+fun focusVisualsEnabled(): Boolean =
+    LocalInputModeManager.current.inputMode == InputMode.Keyboard
+
+/**
+ * The ONE initial D-pad focus grab (replaces 14 hand-rolled copies): requests [requester] when the
+ * session is key-driven ([focusVisualsEnabled]), skipping touch sessions entirely - a touch
+ * session's grab painted M3 components' built-in focus pills (drawer items, chips) with no keypad
+ * in sight. KEYED on the input mode, so a screen composed during touch use re-arms and grabs the
+ * moment the user's first key press flips the session to Keyboard (a first-composition capture
+ * missed that flip and left D-pad focus starting from the composition root). [enabled] gates
+ * conditional grabs (a row not yet composed); extra [keys] re-run the grab when the target row
+ * changes. The grab is wrapped in runCatching: a requester whose row is not composed yet must not
+ * crash the screen.
+ */
+@Composable
+fun RequestInitialDpadFocus(
+    requester: FocusRequester,
+    enabled: Boolean = true,
+    vararg keys: Any?,
+) {
+    val dpadSession = focusVisualsEnabled()
+    LaunchedEffect(dpadSession, enabled, *keys) {
+        if (dpadSession && enabled) {
+            runCatching { requester.requestFocus() }
+        }
+    }
 }

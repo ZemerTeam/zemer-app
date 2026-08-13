@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil3.annotation.ExperimentalCoilApi
 import coil3.imageLoader
+import com.jtech.zemer.ui.component.RequestInitialDpadFocus
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
@@ -179,9 +180,7 @@ fun StorageSettings(
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
 
-    LaunchedEffect(Unit) {
-        firstFocus.requestFocus()
-    }
+    RequestInitialDpadFocus(firstFocus)
 
     Column(
         Modifier

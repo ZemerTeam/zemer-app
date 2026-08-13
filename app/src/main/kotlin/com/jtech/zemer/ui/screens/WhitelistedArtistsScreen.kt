@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.jtech.zemer.ui.component.RequestInitialDpadFocus
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ArtistViewTypeKey
@@ -174,9 +175,7 @@ fun WhitelistedArtistsScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        firstFocus.requestFocus()
-    }
+    RequestInitialDpadFocus(firstFocus)
 
     LaunchedEffect(scrollToTop?.value) {
         if (scrollToTop?.value == true) {

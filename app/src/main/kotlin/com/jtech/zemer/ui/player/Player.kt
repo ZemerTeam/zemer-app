@@ -104,6 +104,7 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
+import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.playback.PlayerConnection
@@ -598,7 +599,7 @@ fun BottomSheetPlayer(
                 ) {
                     val titleFocused = remember { mutableStateOf(false) }
                     val titleBorderColor = animateColorAsState(
-                        targetValue = if (titleFocused.value) accentColor else Color.Transparent,
+                        targetValue = if (titleFocused.value && focusVisualsEnabled()) accentColor else Color.Transparent,
                         label = "title_focus"
                     )
 
@@ -664,7 +665,7 @@ fun BottomSheetPlayer(
 
                         val artistFocused = remember { mutableStateOf(false) }
                         val artistBorderColor = animateColorAsState(
-                            targetValue = if (artistFocused.value) accentColor else Color.Transparent,
+                            targetValue = if (artistFocused.value && focusVisualsEnabled()) accentColor else Color.Transparent,
                             label = "artist_focus"
                         )
 
@@ -745,12 +746,12 @@ fun BottomSheetPlayer(
 
                     val shareFocused = remember { mutableStateOf(false) }
                     val shareBorderColor = animateColorAsState(
-                        targetValue = if (shareFocused.value) accentColor else Color.Transparent,
+                        targetValue = if (shareFocused.value && focusVisualsEnabled()) accentColor else Color.Transparent,
                         label = "share_focus"
                     )
                     val favFocused = remember { mutableStateOf(false) }
                     val favBorderColor = animateColorAsState(
-                        targetValue = if (favFocused.value) accentColor else Color.Transparent,
+                        targetValue = if (favFocused.value && focusVisualsEnabled()) accentColor else Color.Transparent,
                         label = "fav_focus"
                     )
 
@@ -812,12 +813,12 @@ fun BottomSheetPlayer(
                 } else {
                     val oldShareFocused = remember { mutableStateOf(false) }
                     val oldShareBorderColor = animateColorAsState(
-                        targetValue = if (oldShareFocused.value) accentColor else Color.Transparent,
+                        targetValue = if (oldShareFocused.value && focusVisualsEnabled()) accentColor else Color.Transparent,
                         label = "old_share_focus"
                     )
                     val oldMenuFocused = remember { mutableStateOf(false) }
                     val oldMenuBorderColor = animateColorAsState(
-                        targetValue = if (oldMenuFocused.value) accentColor else Color.Transparent,
+                        targetValue = if (oldMenuFocused.value && focusVisualsEnabled()) accentColor else Color.Transparent,
                         label = "old_menu_focus"
                     )
                     Box(
@@ -1061,7 +1062,7 @@ fun BottomSheetPlayer(
 
                         val playButtonFocused = remember { mutableStateOf(false) }
                         val playButtonBorderColor = animateColorAsState(
-                            targetValue = if (playButtonFocused.value) accentColor else Color.Transparent,
+                            targetValue = if (playButtonFocused.value && focusVisualsEnabled()) accentColor else Color.Transparent,
                             label = "play_button_focus"
                         )
                         FilledIconButton(
@@ -1187,7 +1188,7 @@ fun BottomSheetPlayer(
 
                     val landscapePlayFocused = remember { mutableStateOf(false) }
                     val landscapePlayBorderColor = animateColorAsState(
-                        targetValue = if (landscapePlayFocused.value) accentColor else Color.Transparent,
+                        targetValue = if (landscapePlayFocused.value && focusVisualsEnabled()) accentColor else Color.Transparent,
                         label = "landscape_play_focus"
                     )
                     Box(
@@ -1477,7 +1478,7 @@ private fun TransportSkipButton(
         }
     }
     val borderColor by animateColorAsState(
-        targetValue = if (focused) accentColor else Color.Transparent,
+        targetValue = if (focused && focusVisualsEnabled()) accentColor else Color.Transparent,
         label = "skip_focus",
     )
     val size by animateDpAsState(

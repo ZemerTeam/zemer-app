@@ -5,6 +5,8 @@ import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,7 +30,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -961,16 +966,19 @@ fun AppearanceSettings(
         }
     }
 
-    // Bottom Navigation Customization Dialog
+    // Bottom Navigation Customization Dialog. House dialog style throughout: DefaultDialog's own
+    // title/button slots, the ListPreference row look (control + bodyLarge label), and ONLY theme
+    // tokens - no pureBlack conditionals (the scheme blacks the dialog surface itself) and no
+    // hardcoded colors.
     if (showBottomNavCustomizationDialog) {
-        val pureBlackActive = rememberPureBlack()
         DefaultDialog(
             onDismiss = { showBottomNavCustomizationDialog = false },
+            title = { Text(stringResource(R.string.bottom_nav_items)) },
             buttons = {
                 TextButton(
                     onClick = { showBottomNavCustomizationDialog = false }
                 ) {
-                    Text(text = stringResource(android.R.string.cancel), color = if (pureBlackActive) Color.White else Color.Unspecified)
+                    Text(stringResource(android.R.string.cancel))
                 }
                 TextButton(
                     onClick = {
@@ -982,99 +990,67 @@ fun AppearanceSettings(
                         showBottomNavCustomizationDialog = false
                     }
                 ) {
-                    Text(text = stringResource(android.R.string.ok), color = if (pureBlackActive) Color.White else Color.Unspecified)
+                    Text(stringResource(android.R.string.ok))
                 }
             }
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .background(if (pureBlackActive) Color.Black else Color.Transparent),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.bottom_nav_items),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = if (pureBlackActive) Color.White else MaterialTheme.colorScheme.onSurface
-                )
+            Text(
+                text = stringResource(R.string.bottom_nav_n_selected, currentSelectedItems.size),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    text = stringResource(R.string.bottom_nav_n_selected, currentSelectedItems.size),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (pureBlackActive) Color.LightGray else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.End)
-                )
+            // Available navigation items
+            val availableItems = listOfNotNull(
+                "home" to stringResource(R.string.home),
+                "artists" to stringResource(R.string.artists),
+                ("podcasts" to stringResource(R.string.podcasts)).takeIf { !blockPodcasts },
+                "kid_zone" to stringResource(R.string.kid_zone),
+                "search" to stringResource(R.string.search),
+                "library" to stringResource(R.string.filter_library)
+            )
 
-                // Available navigation items
-                val availableItems = listOfNotNull(
-                    "home" to stringResource(R.string.home),
-                    "artists" to stringResource(R.string.artists),
-                    ("podcasts" to stringResource(R.string.podcasts)).takeIf { !blockPodcasts },
-                    "kid_zone" to stringResource(R.string.kid_zone),
-                    "search" to stringResource(R.string.search),
-                    "library" to stringResource(R.string.filter_library)
-                )
-
-                val listState = rememberLazyListState()
-                Box(
-                    modifier = Modifier.heightIn(max = 400.dp)
-                ) {
-                    LazyColumn(
-                        state = listState,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                    items(availableItems.size) { index ->
-                        val (key, title) = availableItems[index]
-                        val isSelected = key in currentSelectedItems
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusBorder()
-                                .clickable {
-                                    if (isSelected && currentSelectedItems.size > 1) {
-                                        currentSelectedItems = currentSelectedItems - key
-                                    } else if (!isSelected && currentSelectedItems.size < 5) {
-                                        currentSelectedItems = currentSelectedItems + key
-                                    }
-                                }
-                                .padding(vertical = 6.dp, horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            androidx.compose.material3.Checkbox(
-                                checked = isSelected,
-                                onCheckedChange = { checked ->
-                                    if (checked && currentSelectedItems.size < 5) {
-                                        currentSelectedItems = currentSelectedItems + key
-                                    } else if (!checked && currentSelectedItems.size > 1) {
-                                        currentSelectedItems = currentSelectedItems - key
-                                    }
-                                },
-                                colors = androidx.compose.material3.CheckboxDefaults.colors(
-                                    checkedColor = if (pureBlackActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary,
-                                    uncheckedColor = if (pureBlackActive) Color.Gray else Color.Unspecified,
-                                    checkmarkColor = Color.White
-                                )
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = title,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (pureBlackActive) Color.White else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+            // Scrollable: without this the DefaultDialog body CLIPS overflow (its height cap
+            // assumes a scrollable child), cutting the last rows off entirely on landscape or
+            // large font scales - an unreachable Search/Library toggle.
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+            availableItems.forEach { (key, title) ->
+                val isSelected = key in currentSelectedItems
+                // Min 1 / max 5: a deselect below one and a select past five are both no-ops.
+                val toggle = {
+                    if (isSelected && currentSelectedItems.size > 1) {
+                        currentSelectedItems = currentSelectedItems - key
+                    } else if (!isSelected && currentSelectedItems.size < 5) {
+                        currentSelectedItems = currentSelectedItems + key
                     }
                 }
-                }
-
-                if (currentSelectedItems.isEmpty()) {
+                // Label left, M3 switch trailing - the SwitchPreference look, so the dialog's rows
+                // read like every other toggle in Settings. `toggleable` with Role.Switch (never a
+                // bare clickable): the row must announce its on/off state to TalkBack.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusBorder()
+                        .toggleable(
+                            value = isSelected,
+                            role = Role.Switch,
+                            onValueChange = { toggle() },
+                        )
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                ) {
                     Text(
-                        text = stringResource(R.string.bottom_nav_select_one),
-                        color = if (pureBlackActive) Color.Red else MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = isSelected,
+                        onCheckedChange = null,
                     )
                 }
+            }
             }
         }
     }

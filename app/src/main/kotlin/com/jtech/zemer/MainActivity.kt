@@ -168,6 +168,10 @@ import coil3.request.crossfade
 import coil3.toBitmap
 import com.google.firebase.auth.FirebaseAuth
 import com.jtech.zemer.constants.AppBarHeight
+import com.jtech.zemer.constants.HomeContentTabKey
+import com.jtech.zemer.extensions.toEnum
+import com.jtech.zemer.ui.screens.HomeContentTab
+import com.jtech.zemer.ui.screens.effectiveHomeTab
 import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.CheckForUpdatesKey
@@ -224,6 +228,8 @@ import com.jtech.zemer.ui.component.TopAppBarActionButton
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.RecognizeMusicFab
+import com.jtech.zemer.ui.component.RequestInitialDpadFocus
+import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.ui.screens.recognition.RecognizeMusicDialogActivity
 import com.jtech.zemer.ui.component.TopSearch
 import com.jtech.zemer.ui.component.castVolumeKeyModifier
@@ -277,6 +283,7 @@ import com.jtech.zemer.utils.tryStartForegroundService
 import com.jtech.zemer.viewmodels.HomeViewModel
 import com.jtech.zemer.viewmodels.KidZoneViewModel
 import com.jtech.zemer.viewmodels.WhitelistedArtistsViewModel
+import com.jtech.zemer.viewmodels.WhitelistedPodcastsViewModel
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
@@ -1490,11 +1497,14 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         ) {
-                            LaunchedEffect(drawerState.isOpen) {
-                                if (drawerState.isOpen) {
-                                    drawerFocusRequester.requestFocus()
-                                }
-                            }
+                            // D-pad sessions only (the shared grab): a touch session must not grab
+                            // drawer focus - the focused NavigationDrawerItem paints M3's own focus
+                            // pill even in touch mode, a stuck highlight without a keypad.
+                            RequestInitialDpadFocus(
+                                drawerFocusRequester,
+                                enabled = drawerState.isOpen,
+                                keys = arrayOf(drawerState.isOpen),
+                            )
 
                             Scaffold(
                             // NOTE: no snackbarHost here on purpose. This Scaffold's bottomBar hosts
@@ -1621,6 +1631,16 @@ class MainActivity : ComponentActivity() {
                                                         icon = R.drawable.sync,
                                                         contentDescription = stringResource(R.string.refresh_artists),
                                                         onClick = { whitelistedArtistsViewModel.sync() },
+                                                    )
+                                                }
+
+                                                if (currentRoute == Screens.Podcasts.route && navBackStackEntry != null) {
+                                                    val whitelistedPodcastsViewModel: WhitelistedPodcastsViewModel =
+                                                        hiltViewModel(navBackStackEntry!!)
+                                                    TopAppBarActionButton(
+                                                        icon = R.drawable.sync,
+                                                        contentDescription = stringResource(R.string.refresh_podcasts),
+                                                        onClick = { whitelistedPodcastsViewModel.sync() },
                                                     )
                                                 }
 
@@ -1965,12 +1985,22 @@ class MainActivity : ComponentActivity() {
 
                         }
 
-                        // "Recognize music" FAB — floats above the bottom nav bar (and mini player)
-                        // on main screens; toggleable via Settings → Appearance (default on).
+                        // "Recognize music" FAB — floats above the bottom nav bar (and mini player);
+                        // toggleable via Settings → Appearance (default on). Shown ONLY on the Home
+                        // tab's MUSIC chip (owner ask): recognition is a music feature, and the FAB
+                        // covered content on every other main screen and Home content tab. Reads the
+                        // SAME persisted tab + Block Podcasts pair the Home selector uses, through
+                        // the same effectiveHomeTab fallback, so the two can never disagree.
+                        val (persistedHomeTab) = rememberPreference(HomeContentTabKey, defaultValue = HomeContentTab.MUSIC.name)
+                        val homeTabIsMusic = effectiveHomeTab(
+                            persisted = persistedHomeTab.toEnum(HomeContentTab.MUSIC),
+                            blockPodcasts = blockPodcastsNav,
+                        ) == HomeContentTab.MUSIC
                         if (recognizeMusicFab &&
                             !active &&
+                            homeTabIsMusic &&
                             (playerBottomSheetState.isCollapsed || playerBottomSheetState.isDismissed) &&
-                            navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }
+                            navBackStackEntry?.destination?.route == Screens.Home.route
                         ) {
                             RecognizeMusicFab(
                                 onClick = {

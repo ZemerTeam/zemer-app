@@ -1,5 +1,6 @@
 package com.jtech.zemer.ui.screens.settings
 
+import com.jtech.zemer.ui.component.RequestInitialDpadFocus
 import com.jtech.zemer.ui.component.AppNameTitle
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -128,9 +130,7 @@ fun AboutScreen(
     var devTapCount by remember { mutableIntStateOf(0) }
     val (developerMode, onDeveloperModeChange) = rememberPreference(DeveloperModeEnabledKey, false)
 
-    LaunchedEffect(Unit) {
-        firstFocus.requestFocus()
-    }
+    RequestInitialDpadFocus(firstFocus)
 
     Column(
         modifier = Modifier
@@ -200,6 +200,7 @@ fun AboutScreen(
                     AssistChip(
                         onClick = { uriHandler.openUri(ZEMER_TEAM_URL) },
                         label = { Text(stringResource(R.string.about_zemer_team)) },
+                        colors = aboutChipColors(),
                         leadingIcon = {
                             Icon(
                                 painter = painterResource(R.drawable.github),
@@ -406,6 +407,16 @@ private fun ContributorCard(
     }
 }
 
+/**
+ * The About screen's chip colors: the leading icon takes the SAME neutral onSurface as the chip
+ * label and the screen titles, instead of AssistChip's default primary-tinted icon (owner ask -
+ * the accent-pink GitHub/link icons read as noise against the neutral text).
+ */
+@Composable
+private fun aboutChipColors() = AssistChipDefaults.assistChipColors(
+    leadingIconContentColor = MaterialTheme.colorScheme.onSurface,
+)
+
 @Composable
 private fun LinkChip(
     @StringRes labelRes: Int,
@@ -417,6 +428,7 @@ private fun LinkChip(
     AssistChip(
         onClick = { onOpen(url) },
         label = { Text(stringResource(labelRes)) },
+        colors = aboutChipColors(),
         leadingIcon = {
             Icon(
                 painter = painterResource(iconRes),

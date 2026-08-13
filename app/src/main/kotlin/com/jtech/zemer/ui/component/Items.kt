@@ -131,7 +131,7 @@ inline fun ListItem(
     val backgroundColor by animateColorAsState(
         targetValue = when {
             isActive -> MaterialTheme.colorScheme.secondaryContainer
-            isFocused -> MaterialTheme.colorScheme.surfaceVariant
+            isFocused && focusVisualsEnabled() -> MaterialTheme.colorScheme.surfaceVariant
             else -> Color.Transparent
         },
         label = "list_item_focus_bg"
@@ -139,7 +139,7 @@ inline fun ListItem(
     val borderColor by animateColorAsState(
         targetValue = when {
             isActive -> MaterialTheme.colorScheme.primary
-            isFocused -> MaterialTheme.colorScheme.outline
+            isFocused && focusVisualsEnabled() -> MaterialTheme.colorScheme.outline
             else -> Color.Transparent
         },
         label = "list_item_focus_border"
@@ -202,11 +202,11 @@ fun GridItem(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
-        targetValue = if (isFocused) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+        targetValue = if (isFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
         label = "grid_item_focus_bg"
     )
     val borderColor by animateColorAsState(
-        targetValue = if (isFocused) MaterialTheme.colorScheme.outline else Color.Transparent,
+        targetValue = if (isFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.outline else Color.Transparent,
         label = "grid_item_focus_border"
     )
     val baseModifier = modifier

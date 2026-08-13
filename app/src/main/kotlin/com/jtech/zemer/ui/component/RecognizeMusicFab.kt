@@ -1,14 +1,19 @@
 package com.jtech.zemer.ui.component
 
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 
 /**
- * Floating action button that opens the "Recognize music" screen. Shown above the bottom navigation
- * bar on main screens when enabled (the `recognizeMusicFab` preference, default on). Kept as its own
- * component so `MainActivity` only wires placement/visibility; the look comes from the shared [ZemerFab].
+ * Floating action button that opens the "Recognize music" screen. Shown only on the Home tab's
+ * Music chip when enabled (the `recognizeMusicFab` preference, default on). Kept as its own
+ * component so `MainActivity` only wires placement/visibility; the look comes from the shared
+ * [ZemerFab], COMPACTED (owner ask): the standard 56dp FAB read too heavy floating over content,
+ * so this one is 48dp - the smallest size that still meets the Material/WCAG touch-target
+ * minimum - with the shape and colors unchanged.
  */
 @Composable
 fun RecognizeMusicFab(
@@ -19,6 +24,6 @@ fun RecognizeMusicFab(
         icon = R.drawable.mic,
         contentDescription = stringResource(R.string.recognize_music),
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.size(48.dp),
     )
 }

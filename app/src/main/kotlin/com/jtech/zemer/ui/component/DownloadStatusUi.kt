@@ -131,7 +131,7 @@ fun AggregateDownloadButton(
     val progress = rememberAggregateDownloadProgress(songs)
     val focused = remember { mutableStateOf(false) }
     val borderColor by animateColorAsState(
-        targetValue = if (focused.value) MaterialTheme.colorScheme.primary else Color.Transparent,
+        targetValue = if (focused.value && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
         label = "download_button_focus_border",
     )
     androidx.compose.foundation.layout.Box(

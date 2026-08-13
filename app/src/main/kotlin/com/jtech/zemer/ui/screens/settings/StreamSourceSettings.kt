@@ -38,10 +38,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
-import com.jtech.zemer.constants.StreamSourceAndroidCreatorKey
 import com.jtech.zemer.constants.StreamSourceAndroidVRKey
-import com.jtech.zemer.constants.StreamSourceIOSKey
-import com.jtech.zemer.constants.StreamSourceIPadOSKey
 import com.jtech.zemer.constants.StreamSourceVisionOSKey
 import com.jtech.zemer.constants.StreamSourceTVHTML5Key
 import com.jtech.zemer.constants.StreamSourceWebCreatorKey
@@ -49,6 +46,7 @@ import com.jtech.zemer.constants.StreamSourceWebRemixKey
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.RequestInitialDpadFocus
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
@@ -65,11 +63,8 @@ fun StreamSourceSettings(
     val (webRemixEnabled, onWebRemixChange)     = rememberPreference(StreamSourceWebRemixKey,   defaultValue = true)
     val (tvhtml5Enabled, onTVHTML5Change)       = rememberPreference(StreamSourceTVHTML5Key,    defaultValue = true)
     val (androidVREnabled, onAndroidVRChange)   = rememberPreference(StreamSourceAndroidVRKey,  defaultValue = true)
-    val (iosEnabled, onIOSChange)               = rememberPreference(StreamSourceIOSKey,        defaultValue = false)
-    val (ipadosEnabled, onIPadOSChange)         = rememberPreference(StreamSourceIPadOSKey,     defaultValue = false)
     val (visionosEnabled, onVisionOSChange)     = rememberPreference(StreamSourceVisionOSKey,   defaultValue = true)
     val (webCreatorEnabled, onWebCreatorChange) = rememberPreference(StreamSourceWebCreatorKey, defaultValue = true)
-    val (androidCreatorEnabled, onAndroidCreatorChange) = rememberPreference(StreamSourceAndroidCreatorKey, defaultValue = false)
 
     // RELAY playback mode: stream audio through the Zemer relay instead of resolving YouTube on-device.
     // Off (DIRECT) for every normal user. When ON, the per-client fallback list below is bypassed entirely.
@@ -93,9 +88,6 @@ fun StreamSourceSettings(
         "WEB_CREATOR" to webCreatorEnabled,
         "Android VR" to androidVREnabled,
         "TVHTML5" to tvhtml5Enabled,
-        "iOS" to iosEnabled,
-        "iPadOS" to ipadosEnabled,
-        "ANDROID_CREATOR" to androidCreatorEnabled,
     ).filter { it.second }.map { it.first }
 
     val backFocus = remember { FocusRequester() }
@@ -105,9 +97,7 @@ fun StreamSourceSettings(
     // the web-remix toggle otherwise). Keyed on the visibility inputs so it re-requests once a row is
     // actually composed (e.g. after the global relay reset makes the client list appear); guarded in case
     // neither is composed yet.
-    LaunchedEffect(loggedInNormally, relayEnabled) {
-        runCatching { firstFocus.requestFocus() }
-    }
+    RequestInitialDpadFocus(firstFocus, keys = arrayOf(loggedInNormally, relayEnabled))
 
     Column(
         Modifier
@@ -210,21 +200,10 @@ fun StreamSourceSettings(
             onCheckedChange = onAndroidVRChange,
         )
 
-        SwitchPreference(
-            title = { Text(stringResource(R.string.stream_source_ios)) },
-            description = stringResource(R.string.stream_source_ios_desc),
-            icon = { Icon(painterResource(R.drawable.play), null) },
-            checked = iosEnabled,
-            onCheckedChange = onIOSChange,
-        )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.stream_source_ipad_os)) },
-            description = stringResource(R.string.stream_source_ipad_os_desc),
-            icon = { Icon(painterResource(R.drawable.play), null) },
-            checked = ipadosEnabled,
-            onCheckedChange = onIPadOSChange,
-        )
+        // iOS / iPadOS / ANDROID_CREATOR are HIDDEN here and force-disabled at startup (App.kt
+        // clamps a previously-enabled one back to off - hidden with no switch must not mean
+        // stuck-on): all three are spc/DroidGuard-gated poor choices. Keys and resolver support
+        // stay, so restoring the toggles is a UI-only change.
 
         PreferenceGroupTitle(
             title = stringResource(R.string.stream_source_creator_clients)
@@ -236,14 +215,6 @@ fun StreamSourceSettings(
             icon = { Icon(painterResource(R.drawable.play), null) },
             checked = webCreatorEnabled,
             onCheckedChange = onWebCreatorChange,
-        )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.stream_source_android_creator)) },
-            description = stringResource(R.string.stream_source_android_creator_desc),
-            icon = { Icon(painterResource(R.drawable.play), null) },
-            checked = androidCreatorEnabled,
-            onCheckedChange = onAndroidCreatorChange,
         )
         } // end if (!relayEnabled): DIRECT-only client list
     }
