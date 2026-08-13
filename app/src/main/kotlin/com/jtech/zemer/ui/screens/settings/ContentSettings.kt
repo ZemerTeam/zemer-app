@@ -80,6 +80,7 @@ import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SettingsCardGroup
+import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.AnonymousAuthEmailDialog
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
@@ -234,6 +235,7 @@ fun ContentSettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState()),
     ) {
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
         SettingsCardGroup(
             title = stringResource(R.string.general),
             rows = listOf(

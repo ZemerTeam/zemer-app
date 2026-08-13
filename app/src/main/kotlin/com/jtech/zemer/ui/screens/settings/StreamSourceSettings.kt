@@ -47,6 +47,7 @@ import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.RequestInitialDpadFocus
 import com.jtech.zemer.ui.component.SettingsCardGroup
+import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
@@ -104,6 +105,7 @@ fun StreamSourceSettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState()),
     ) {
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
         // The RELAY toggle leads: it is the one switch that changes WHERE audio comes from. When on, the
         // on-device client fallback list below no longer applies (playback goes through the Zemer relay).
         // Shown ONLY for a login-less session — a normal Google/Anonymous login never sees it.

@@ -28,6 +28,7 @@ import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.SettingsCardGroup
+import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 
@@ -44,6 +45,7 @@ fun GeneralSettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState())
     ) {
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
         Spacer(Modifier.height(8.dp))
 
         SettingsCardGroup(

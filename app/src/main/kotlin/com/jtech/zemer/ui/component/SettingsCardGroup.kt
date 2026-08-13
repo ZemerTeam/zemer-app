@@ -27,6 +27,9 @@ fun settingsCardCorners(index: Int, count: Int): Pair<Int, Int> {
     return top to bottom
 }
 
+/** Breathing room between a settings screen's top bar and its first group title (owner ask). */
+val SettingsScreenTopSpacing = 12.dp
+
 const val SETTINGS_CARD_OUTER_RADIUS = 24
 const val SETTINGS_CARD_INNER_RADIUS = 6
 

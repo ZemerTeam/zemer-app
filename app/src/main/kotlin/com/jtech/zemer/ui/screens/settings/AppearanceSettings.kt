@@ -118,6 +118,7 @@ import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PlayerSliderTrack
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.SettingsCardGroup
+import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.component.focusBorder
@@ -476,6 +477,7 @@ fun AppearanceSettings(
             .verticalScroll(appearanceScrollState)
             .onGloballyPositioned { viewportTopY.floatValue = it.positionInWindow().y },
     ) {
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
         SettingsCardGroup(
             title = stringResource(R.string.theme),
             rows = listOf(

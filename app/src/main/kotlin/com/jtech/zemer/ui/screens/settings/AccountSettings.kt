@@ -62,6 +62,7 @@ import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.SettingsCardGroup
+import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.component.InfoLabel
@@ -119,6 +120,7 @@ fun AccountSettings(
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
         Row(
             modifier = Modifier
                 .fillMaxWidth()

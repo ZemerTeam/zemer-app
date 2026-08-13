@@ -1,6 +1,8 @@
 package com.jtech.zemer.ui.screens.settings
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -48,6 +50,7 @@ import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.EnumListPreference
 import com.jtech.zemer.ui.component.SettingsCardGroup
+import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SliderPreference
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.player.CastDownloadDialog
@@ -135,6 +138,7 @@ fun PlayerSettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState()),
     ) {
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
 
         SettingsCardGroup(
             title = stringResource(R.string.player),
