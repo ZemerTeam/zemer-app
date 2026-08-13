@@ -543,7 +543,7 @@
     <string name="enable_casting_description">Show a cast button to play to Chromecast and FCast devices on your network.</string>
     <string name="stop_casting">Stop casting</string>
     <string name="offline_search">Search backup</string>
-    <string name="settings_desc_offline_search">Keep searching if the Zemer server is briefly down</string>
+    <string name="settings_desc_offline_search">Zemer server outage protection</string>
     <string name="offline_search_enable">Enable search backup</string>
     <string name="offline_search_enable_desc">Download the catalog so search and browse keep working during a short Zemer server outage. Updates automatically every day.</string>
     <string name="offline_search_download_now">Download now</string>
