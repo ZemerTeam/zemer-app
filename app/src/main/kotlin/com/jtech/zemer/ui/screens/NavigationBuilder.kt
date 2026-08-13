@@ -55,6 +55,29 @@ import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeViewModel
 
 
+/**
+ * Whether Block Podcasts forbids this podcast destination. The nav surfaces already hide their
+ * entries, but a restored back stack, a deep link, or a stale shortcut can still land here — same
+ * family as the blank-arg navigateUp guards below, except it bounces to Home because the podcast
+ * entry may be the ONLY thing on the restored stack (navigateUp would strand or exit).
+ */
+@androidx.compose.runtime.Composable
+private fun podcastsBlockedRedirect(navController: NavHostController): Boolean {
+    val (blocked) = com.jtech.zemer.utils.rememberPreference(
+        com.jtech.zemer.constants.BlockPodcastsKey,
+        defaultValue = false,
+    )
+    LaunchedEffect(blocked) {
+        if (blocked) {
+            navController.navigate(Screens.Home.route) {
+                popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                launchSingleTop = true
+            }
+        }
+    }
+    return blocked
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.navigationBuilder(
     navController: NavHostController,
@@ -70,7 +93,9 @@ fun NavGraphBuilder.navigationBuilder(
         WhitelistedArtistsScreen(navController, searchBarScrollBehavior)
     }
     composable(Screens.Podcasts.route) {
-        WhitelistedPodcastsScreen(navController, searchBarScrollBehavior)
+        if (!podcastsBlockedRedirect(navController)) {
+            WhitelistedPodcastsScreen(navController, searchBarScrollBehavior)
+        }
     }
     composable(
         route = "online_podcast/{podcastId}",
@@ -80,7 +105,9 @@ fun NavGraphBuilder.navigationBuilder(
             },
         ),
     ) {
-        OnlinePodcastScreen(navController, scrollBehavior)
+        if (!podcastsBlockedRedirect(navController)) {
+            OnlinePodcastScreen(navController, scrollBehavior)
+        }
     }
     composable(Screens.KidZone.route) {
         KidZoneScreen(navController)
@@ -145,7 +172,9 @@ fun NavGraphBuilder.navigationBuilder(
         else GenreSectionScreen(navController, scrollBehavior)
     }
     composable("podcast_genres") {
-        PodcastGenresScreen(navController, scrollBehavior)
+        if (!podcastsBlockedRedirect(navController)) {
+            PodcastGenresScreen(navController, scrollBehavior)
+        }
     }
     composable(
         // One podcast genre's flat show list. {genreId} is the server slug; blank = broken deep link,
@@ -154,6 +183,7 @@ fun NavGraphBuilder.navigationBuilder(
         arguments = listOf(navArgument("genreId") { type = NavType.StringType }),
     ) {
         val genreId = it.arguments?.getString("genreId")
+        if (podcastsBlockedRedirect(navController)) return@composable
         if (genreId.isNullOrBlank()) LaunchedEffect(Unit) { navController.navigateUp() }
         else PodcastGenreScreen(navController, scrollBehavior)
     }
@@ -182,6 +212,12 @@ fun NavGraphBuilder.navigationBuilder(
             },
         ),
     ) {
+        // A podcast-channel section is podcast content; music artist sections are untouched.
+        if (it.arguments?.getBoolean("isPodcastChannel") == true &&
+            podcastsBlockedRedirect(navController)
+        ) {
+            return@composable
+        }
         ArtistSectionScreen(navController, scrollBehavior, it.arguments?.getString("title").orEmpty())
     }
     composable("charts_screen") {
@@ -258,6 +294,12 @@ fun NavGraphBuilder.navigationBuilder(
             },
         ),
     ) {
+        // A podcast HOST-channel page is podcast content; music artist pages are untouched.
+        if (it.arguments?.getBoolean("isPodcastChannel") == true &&
+            podcastsBlockedRedirect(navController)
+        ) {
+            return@composable
+        }
         ArtistScreen(navController, scrollBehavior)
     }
     composable(

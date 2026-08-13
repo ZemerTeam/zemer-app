@@ -92,4 +92,14 @@ object PodcastSyncLogic {
         if (!filtersEnabled) return true
         return channelIds.any { id -> id != null && isWhitelistedChannel(id) }
     }
+
+    /**
+     * Whether podcast content is allowed AT ALL under the current filters — the Block Podcasts
+     * CATEGORY gate (the female-block pattern applied to the whole category: whitelist membership
+     * is irrelevant when the category is blocked). ONE definition shared by the display chokepoint
+     * ([com.jtech.zemer.utils.WhitelistFilter]'s podcastPasses) and the playback gate
+     * (MusicService), so the two can never drift.
+     */
+    fun podcastCategoryAllowed(filtersEnabled: Boolean, blockPodcasts: Boolean): Boolean =
+        !filtersEnabled || !blockPodcasts
 }

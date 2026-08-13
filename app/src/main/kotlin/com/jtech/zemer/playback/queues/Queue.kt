@@ -49,6 +49,22 @@ interface Queue {
             } else {
                 this
             }
+
+        /**
+         * Drops podcast episodes when Block Podcasts is on (the filterExplicit pattern). The start
+         * index is re-clamped because dropped episodes can shift or empty the list — a stale index
+         * would crash [androidx.media3.common.Player.setMediaItems].
+         */
+        fun filterBlockedPodcasts(blocked: Boolean) =
+            if (blocked) {
+                val kept = items.filterBlockedEpisodes(true)
+                copy(
+                    items = kept,
+                    mediaItemIndex = clampStartIndex(mediaItemIndex, kept.size),
+                )
+            } else {
+                this
+            }
     }
 }
 
@@ -56,6 +72,22 @@ fun List<MediaItem>.filterExplicit(enabled: Boolean = true) =
     if (enabled) {
         filterNot {
             it.metadata?.explicit == true
+        }
+    } else {
+        this
+    }
+
+/**
+ * A queue start index re-clamped after filtering shrank the item list: media3's setMediaItems
+ * crashes on an out-of-range start index, and an emptied list must clamp to 0, not -1.
+ */
+fun clampStartIndex(index: Int, size: Int): Int = index.coerceIn(0, (size - 1).coerceAtLeast(0))
+
+/** Drops podcast episodes when Block Podcasts is on — the playback-side content gate. */
+fun List<MediaItem>.filterBlockedEpisodes(blocked: Boolean) =
+    if (blocked) {
+        filterNot {
+            it.metadata?.isEpisode == true
         }
     } else {
         this

@@ -297,6 +297,11 @@ private suspend fun MusicDatabase.podcastPasses(
     config: ContentFilterConfig,
 ): Boolean {
     if (!config.filtersEnabled) return true
+    // Block Podcasts drops ALL podcast content at this chokepoint, exactly like the female gate:
+    // whitelist membership is irrelevant when the whole category is blocked.
+    if (!com.jtech.zemer.sync.PodcastSyncLogic.podcastCategoryAllowed(config.filtersEnabled, config.blockPodcasts)) {
+        return false
+    }
     val effectiveChannelIds = ids.filterNotNull().flatMap { id ->
         listOfNotNull(id, podcast(id).firstOrNull()?.channelId)
     }

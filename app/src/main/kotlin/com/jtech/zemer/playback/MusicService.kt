@@ -135,7 +135,10 @@ import com.jtech.zemer.search.STATION_MAX_DRIFT_MS
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.playback.queues.continuationItemsToAppend
+import com.jtech.zemer.playback.queues.filterBlockedEpisodes
 import com.jtech.zemer.playback.queues.filterExplicit
+import com.jtech.zemer.sync.PodcastSyncLogic
+import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.utils.CoilBitmapLoader
 import com.jtech.zemer.utils.filterWhitelisted
@@ -673,6 +676,7 @@ class MusicService :
                 }
             }.onSuccess { queue ->
                 automixItems.value = queue.items.map { it.toMediaItem() }
+                    .filterBlockedEpisodes(podcastsBlocked())
             }
 
             // Restore player state
@@ -1034,6 +1038,16 @@ class MusicService :
         }
     }
 
+    /**
+     * The playback-side Block Podcasts gate (shared decision: [PodcastSyncLogic.podcastCategoryAllowed]).
+     * [ContentFilterState] is seeded from DataStore at startup and kept live by App's collector, so a
+     * blocked user is enforced from the first restored queue on — no episode may enter the player from
+     * ANY path (tap, restore, play-next, continuation) while blocked.
+     */
+    private fun podcastsBlocked(): Boolean = ContentFilterState.current.let {
+        !PodcastSyncLogic.podcastCategoryAllowed(it.filtersEnabled, it.blockPodcasts)
+    }
+
     fun playQueue(
         queue: Queue,
         playWhenReady: Boolean = true,
@@ -1048,7 +1062,8 @@ class MusicService :
         if (queue is StationQueue) player.repeatMode = REPEAT_MODE_OFF
         // Tracking: the tapped/preloaded item is always user-chosen context for this queue.
         Tracker.playSources.onQueueStarted(queue.playSource, listOfNotNull(queue.preloadItem?.id))
-        queue.preloadItem?.let { preloadItem ->
+        // A blocked-podcasts user's episode tap/restore never reaches the player.
+        queue.preloadItem?.takeUnless { podcastsBlocked() && it.isEpisode }?.let { preloadItem ->
             player.setMediaItem(preloadItem.toMediaItem())
             player.prepare()
             // While casting, the receiver is the one that plays: onMediaItemTransition() (via
@@ -1060,7 +1075,9 @@ class MusicService :
             val initialStatus =
                 try {
                     withContext(Dispatchers.IO) {
-                        queue.getInitialStatus().filterExplicit(dataStore.get(HideExplicitKey, false))
+                        queue.getInitialStatus()
+                            .filterExplicit(dataStore.get(HideExplicitKey, false))
+                            .filterBlockedPodcasts(podcastsBlocked())
                     }
                 } catch (e: CancellationException) {
                     throw e
@@ -1241,7 +1258,9 @@ class MusicService :
         automixItems.value = emptyList()
     }
 
-    fun playNext(items: List<MediaItem>) {
+    fun playNext(rawItems: List<MediaItem>) {
+        val items = rawItems.filterBlockedEpisodes(podcastsBlocked())
+        if (items.isEmpty()) return
         exitStationOnQueueMutation()
         // If queue is empty or player is idle, play immediately instead
         if (player.mediaItemCount == 0 || player.playbackState == STATE_IDLE) {
@@ -1311,7 +1330,9 @@ class MusicService :
         }
     }
 
-    fun addToQueue(items: List<MediaItem>) {
+    fun addToQueue(rawItems: List<MediaItem>) {
+        val items = rawItems.filterBlockedEpisodes(podcastsBlocked())
+        if (items.isEmpty()) return
         exitStationOnQueueMutation()
         player.addMediaItems(items)
         player.prepare()
@@ -1564,7 +1585,9 @@ class MusicService :
         ) {
             scope.launch(SilentHandler) {
                 val page =
-                    currentQueue.nextPage().filterExplicit(dataStore.get(HideExplicitKey, false))
+                    currentQueue.nextPage()
+                        .filterExplicit(dataStore.get(HideExplicitKey, false))
+                        .filterBlockedEpisodes(podcastsBlocked())
                 // Append only what isn't queued yet: YouTube-style pages lead with the already-queued
                 // current item, Zemer /radio pages are pure fresh tracks — the old blanket drop(1)
                 // silently discarded the first (top-ranked) track of every Zemer page.

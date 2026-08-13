@@ -788,7 +788,16 @@ class MainActivity : ComponentActivity() {
                             onDispose { firebaseAuth.removeAuthStateListener(listener) }
                         }
 
-                        val navigationItems = remember { Screens.MainScreens }
+                        // Block Podcasts removes the Podcasts entry from EVERY nav surface: this list
+                        // drives the nav drawer, the bottom bar filters below from the same flag.
+                        val (blockPodcastsNav) = rememberPreference(BlockPodcastsKey, defaultValue = false)
+                        val navigationItems = remember(blockPodcastsNav) {
+                            if (blockPodcastsNav) {
+                                Screens.MainScreens.filterNot { it.route == Screens.Podcasts.route }
+                            } else {
+                                Screens.MainScreens
+                            }
+                        }
                         // Check SharedPreferences first for onboarding values, then fallback to DataStore
                         val sharedPreferences = remember { getSharedPreferences("metrolist_settings", MODE_PRIVATE) }
                         val prefBottomNavEnabled = remember(sharedPreferences) {
@@ -818,7 +827,6 @@ class MainActivity : ComponentActivity() {
                         // Create bottom navigation items dynamically from preferences.
                         // A blocked-podcasts user never gets the Podcasts nav item, even if it was
                         // added to the persisted bar earlier.
-                        val (blockPodcastsNav) = rememberPreference(BlockPodcastsKey, defaultValue = false)
                         val bottomNavigationItems = remember(bottomNavItemsString, blockPodcastsNav) {
                             val items = mutableListOf<Screens>()
                             bottomNavItemsString.split(",").forEach { itemKey ->

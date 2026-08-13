@@ -150,4 +150,22 @@ class PodcastSyncLogicTest {
     fun `unsave fails when the lookup itself failed`() {
         assertEquals(PodcastSyncLogic.UnsaveAction.FAIL, PodcastSyncLogic.unsaveAction(lookupSucceeded = false, setVideoId = null))
     }
+
+    // --- podcastCategoryAllowed: the Block Podcasts category gate (the v37 leak fix) ---
+
+    @Test
+    fun `block podcasts with filters on blocks the whole category`() {
+        assertFalse(PodcastSyncLogic.podcastCategoryAllowed(filtersEnabled = true, blockPodcasts = true))
+    }
+
+    @Test
+    fun `podcasts allowed when the block toggle is off`() {
+        assertTrue(PodcastSyncLogic.podcastCategoryAllowed(filtersEnabled = true, blockPodcasts = false))
+    }
+
+    @Test
+    fun `filters off passes everything - block toggle inert like the female gate`() {
+        assertTrue(PodcastSyncLogic.podcastCategoryAllowed(filtersEnabled = false, blockPodcasts = true))
+        assertTrue(PodcastSyncLogic.podcastCategoryAllowed(filtersEnabled = false, blockPodcasts = false))
+    }
 }

@@ -782,6 +782,22 @@ YouTube account (`SyncUtils.syncPodcastSubscriptions`/`syncEpisodesForLater`, ga
   separate from the artist whitelist. `filterWhitelisted` gates `PodcastItem`/`EpisodeItem` against it too
   (respecting filters-off) as defense-in-depth. Play source/surface: episode plays tag
   `PlaySource.podcast(id)` / `TrackingSurface.podcast|channel` (append-only slugs).
+- **Block Podcasts is a CATEGORY gate enforced like the female block** (the v37 leak fix, v38). One
+  shared decision — `PodcastSyncLogic.podcastCategoryAllowed` — backs every enforcement layer, all
+  keyed off the live `BlockPodcastsKey`/`ContentFilterState` so existing users are enforced the moment
+  they update: (1) `filterWhitelisted`'s `podcastPasses` drops ALL podcast/episode items when blocked
+  (whitelist membership is irrelevant for a blocked category); (2) BOTH nav surfaces hide the Podcasts
+  entry — the drawer's `navigationItems` and the bottom bar filter off the same preference (the drawer
+  previously read the static `Screens.MainScreens`, which was the leak); (3) every podcast nav
+  destination (`podcasts` browse, `online_podcast`, `podcast_genres`, `podcast_genre`, and
+  `artist`/`artist_section` with `isPodcastChannel=true`) carries a `podcastsBlockedRedirect` guard that
+  bounces a restored back stack/deep link to Home; (4) PLAYBACK itself is gated in `MusicService` —
+  `podcastsBlocked()` + `filterBlockedEpisodes`/`Status.filterBlockedPodcasts` (the `filterExplicit`
+  pattern in `playback/queues/Queue.kt`) drop episodes at `playQueue` (preload + initial items, start
+  index re-clamped via the unit-tested `clampStartIndex`), `playNext`, `addToQueue`, the automix
+  restore and the auto-load-more append, so an episode can't play even from a persisted queue. Every
+  layer is a strict no-op while the flag is off. Regression tests: `PodcastSyncLogicTest`
+  (category-gate truth table) + `BlockedPodcastsQueueTest` (identity + index clamp).
 
 ### Offline search backup (`offline/` — the outage fallback)
 
