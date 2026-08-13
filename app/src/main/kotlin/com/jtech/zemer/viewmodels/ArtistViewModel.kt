@@ -133,10 +133,28 @@ class ArtistViewModel @Inject constructor(
      * on success, and a null/pre-paging response ends the paging.
      */
     fun loadMoreEpisodes() {
-        val offset = episodesNextOffset ?: return
-        if (!isPodcastChannel || isLoadingMoreEpisodes) return
+        viewModelScope.launch { fetchNextEpisodePage() }
+    }
+
+    /** One page fetch's outcome — the drain must tell a busy peer apart from a real stop. */
+    private enum class EpisodePageFetch {
+        /** The cursor moved: a page appended, or the paging cleanly ended (cursor now null). */
+        ADVANCED,
+
+        /** Another fetch holds the single-flight flag; the state says nothing about the history. */
+        BUSY,
+
+        /** The fetch ran and the cursor did NOT move (network failure / stale-cursor supersede). */
+        STALLED,
+    }
+
+    /** One page fetch, awaitable — the body [loadMoreEpisodes] wraps. */
+    private suspend fun fetchNextEpisodePage(): EpisodePageFetch {
+        val offset = episodesNextOffset ?: return EpisodePageFetch.ADVANCED
+        if (!isPodcastChannel) return EpisodePageFetch.STALLED
+        if (isLoadingMoreEpisodes) return EpisodePageFetch.BUSY
         isLoadingMoreEpisodes = true
-        viewModelScope.launch {
+        try {
             val options = zemerSearchOptions(context)
             runCatching {
                 zemerRepository.podcastChannelEpisodes(artistId, offset, options)
@@ -157,8 +175,34 @@ class ArtistViewModel @Inject constructor(
                 if (it is java.util.concurrent.CancellationException) throw it
                 // Unreachable server mid-scroll: keep the cursor so a later near-end trigger retries.
             }
+        } finally {
             isLoadingMoreEpisodes = false
         }
+        return if (episodesNextOffset != offset) EpisodePageFetch.ADVANCED else EpisodePageFetch.STALLED
+    }
+
+    /**
+     * The episode-search drain: sequentially pages the REMAINING channel history in so a search
+     * covers the whole catalog, then returns — it must ALWAYS terminate so the search UI's
+     * "searching older episodes" state can resolve to a real verdict. Returns true when the FULL
+     * history is loaded (an empty filter result is then an authoritative "no results") and false
+     * when it stopped early — a failed page (a retry loop here would spin the spinner forever on
+     * a dead connection) or the [maxPages] runaway backstop — so the UI can offer a Retry instead
+     * of a false "no results". A BUSY peer (one straggler near-end prefetch from pre-query
+     * scrolling) is WAITED OUT briefly, never read as a verdict: treating it as terminal ended
+     * real drains after 0-1 pages. Caller-scoped (cancelled when the query changes/screen
+     * leaves); pages already loaded stay loaded, so a retry resumes where the drain stopped.
+     */
+    suspend fun drainEpisodeHistoryForSearch(maxPages: Int = 100): Boolean {
+        repeat(maxPages) {
+            if (episodesNextOffset == null) return true
+            when (fetchNextEpisodePage()) {
+                EpisodePageFetch.ADVANCED -> Unit
+                EpisodePageFetch.BUSY -> kotlinx.coroutines.delay(150)
+                EpisodePageFetch.STALLED -> return false
+            }
+        }
+        return episodesNextOffset == null
     }
 
     /** A corpus-native artist-seeded radio queue for the Radio button (Zemer `/radio`, no InnerTube). */

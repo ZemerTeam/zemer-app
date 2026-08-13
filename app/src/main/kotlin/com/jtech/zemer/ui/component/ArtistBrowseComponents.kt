@@ -31,6 +31,8 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -62,7 +64,7 @@ fun ArtistSearchField(
     placeholderRes: Int = R.string.search_artists,
 ) {
     val accent = MaterialTheme.colorScheme.primary
-    val shape = RoundedCornerShape(percent = 50)
+    val shape = SearchPillShape
     val interactionSource = remember { MutableInteractionSource() }
     BasicTextField(
         value = query,
@@ -70,7 +72,7 @@ fun ArtistSearchField(
         modifier = modifier
             .fillMaxWidth()
             .padding(start = 16.dp, top = 24.dp, end = 16.dp, bottom = 8.dp)
-            .height(48.dp)
+            .height(SearchPillHeight)
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .focusRequester(searchFocus)
@@ -195,5 +197,56 @@ fun ArtistCountHeader(
                 contentDescription = null,
             )
         }
+    }
+}
+
+// The ONE search-pill geometry, shared by [ArtistSearchField] and [SearchHandoffPill] so the two
+// (often rendered in the same list) can never drift apart.
+private val SearchPillShape = RoundedCornerShape(percent = 50)
+private val SearchPillHeight = 48.dp
+
+/**
+ * A tappable pill in the [ArtistSearchField] family (same shape, fill, height) that HANDS OFF to
+ * another search surface - e.g. the Podcasts browse's "Search episodes for 'X'" row jumping to the
+ * global search screen. D-pad focusable via the shared focusBorder treatment.
+ */
+@Composable
+fun SearchHandoffPill(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            // Sits lower than a plain list row: the pill needs clear air under the content above
+            // it (channel matches or the no-results state) so it reads as its own affordance.
+            .padding(start = 16.dp, top = 24.dp, end = 16.dp, bottom = 8.dp)
+            .height(SearchPillHeight)
+            .clip(SearchPillShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .focusBorder(SearchPillShape)
+            .clickable(onClick = onClick),
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.search),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 16.dp, end = 12.dp),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            painter = painterResource(R.drawable.arrow_forward),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
     }
 }

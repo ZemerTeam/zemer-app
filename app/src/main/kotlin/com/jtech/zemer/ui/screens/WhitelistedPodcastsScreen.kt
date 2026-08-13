@@ -31,6 +31,9 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import com.jtech.zemer.db.entities.PodcastEntity
 import com.jtech.zemer.ui.component.ArtistCountHeader
+import com.jtech.zemer.ui.component.SearchHandoffPill
+import com.jtech.zemer.search.zemerSearchRoute
+import com.jtech.zemer.search.SEARCH_FILTER_EPISODES
 import com.jtech.zemer.ui.component.ArtistSearchField
 import com.jtech.zemer.ui.component.focusBorder
 import com.metrolist.innertube.models.SongItem
@@ -247,6 +250,25 @@ fun WhitelistedPodcastsScreen(
                             podcast = podcast,
                         )
                     }
+
+                    // This screen's search filters CHANNELS (a local title match over the
+                    // allow-set); episode search is the global search screen's job. A typed query
+                    // gets one hand-off row into it, landing on the Episodes chip prefilled -
+                    // covering the "typed an episode name here" case (esp. zero channel matches)
+                    // without turning this instant local filter into a networked results screen.
+                    if (searchQuery.isNotBlank()) {
+                        item(key = "search_episodes_handoff") {
+                            SearchHandoffPill(
+                                text = stringResource(R.string.search_episodes_for, searchQuery.trim()),
+                                onClick = {
+                                    navController.navigate(
+                                        zemerSearchRoute(searchQuery.trim(), SEARCH_FILTER_EPISODES)
+                                    )
+                                },
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
+                    }
                 }
 
             LibraryViewType.GRID ->
@@ -315,6 +337,21 @@ fun WhitelistedPodcastsScreen(
                                 .animateItem(),
                             podcast = podcast,
                         )
+                    }
+
+                    // Same episode-search hand-off as the LIST view (see the comment there).
+                    if (searchQuery.isNotBlank()) {
+                        item(key = "search_episodes_handoff", span = { GridItemSpan(maxLineSpan) }) {
+                            SearchHandoffPill(
+                                text = stringResource(R.string.search_episodes_for, searchQuery.trim()),
+                                onClick = {
+                                    navController.navigate(
+                                        zemerSearchRoute(searchQuery.trim(), SEARCH_FILTER_EPISODES)
+                                    )
+                                },
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
                     }
                 }
         }
@@ -546,3 +583,4 @@ private fun NewEpisodesSection(
         Spacer(Modifier.height(8.dp))
     }
 }
+

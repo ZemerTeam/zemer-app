@@ -87,6 +87,9 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.copyToClipboard
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.search.SEARCH_FILTER_ALBUMS
+import com.jtech.zemer.search.SEARCH_FILTER_SONGS
+import com.jtech.zemer.search.zemerSearchRoute
 import com.jtech.zemer.search.zemerAlbumRoute
 import com.jtech.zemer.search.zemerPlaylistRoute
 import com.jtech.zemer.playback.queues.YouTubeQueue
@@ -522,7 +525,7 @@ fun ArtistScreen(
                                 // See-all opens a full ONLINE name search, not a view of the local rows,
                                 // so it must not be gated on the local count (unrelated quantities).
                                 onClick = {
-                                    navController.navigate("search/${java.net.URLEncoder.encode(artistName, "UTF-8")}?filter=songs")
+                                    navController.navigate(zemerSearchRoute(artistName, SEARCH_FILTER_SONGS))
                                 }
                             )
                         }
@@ -596,7 +599,7 @@ fun ArtistScreen(
                                 // See-all opens a full ONLINE name search, not a view of the local rows,
                                 // so it must not be gated on the local count (unrelated quantities).
                                 onClick = {
-                                    navController.navigate("search/${java.net.URLEncoder.encode(artistName, "UTF-8")}?filter=albums")
+                                    navController.navigate(zemerSearchRoute(artistName, SEARCH_FILTER_ALBUMS))
                                 }
                             )
                         }

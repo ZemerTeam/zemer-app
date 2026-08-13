@@ -660,6 +660,9 @@
     <!-- Podcasts -->
         <string name="podcasts">Podcasts</string>
         <string name="search_podcasts">Search podcasts…</string>
+        <string name="search_episodes">Search episodes…</string>
+        <string name="search_episodes_for">Search episodes for “%1$s”</string>
+        <string name="search_episodes_incomplete">Couldn\'t search the full episode history</string>
         <string name="filter_podcasts">Podcasts</string>
         <string name="no_episodes">No episodes available</string>
         <string name="library_podcast_empty">Your podcasts will show up here</string>
