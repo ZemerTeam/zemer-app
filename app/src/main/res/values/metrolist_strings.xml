@@ -573,7 +573,7 @@
     <string name="user_playlist_shared_label">Shared playlist</string>
     <string name="user_playlist_shared_by">Shared by %1$s</string>
     <string name="share_playlist_as_title">Share playlist</string>
-    <string name="share_playlist_name_hint">Your name (optional)</string>
+    <string name="share_playlist_name_hint">Your display name</string>
     <string name="unshare_playlist">Remove shared link</string>
     <string name="unshare_playlist_confirm">The shared link will stop working for everyone it was sent to.</string>
     <string name="unshare_done">Shared link removed</string>

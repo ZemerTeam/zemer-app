@@ -216,8 +216,8 @@ fun rememberHasActiveShare(playlistId: String): State<Boolean> {
 /**
  * The share entry point: a one-field dialog for the OPTIONAL sharer display name ("shared by
  * ‹name›" on the receiver's screen and the web landing), prefilled from the device-remembered
- * preference so it is one-time typing. Done (empty allowed = share anonymously) saves the name and
- * runs [shareUserPlaylist].
+ * preference so it is one-time typing. The name is MANDATORY (Done stays disabled on a blank
+ * field); Done saves it and runs [shareUserPlaylist].
  */
 @Composable
 fun ShareUserPlaylistDialog(
@@ -241,19 +241,16 @@ fun ShareUserPlaylistDialog(
             initialTextFieldValue = TextFieldValue(name, selection = TextRange(name.length)),
             placeholder = { Text(stringResource(R.string.share_playlist_name_hint)) },
             autoFocus = name.isEmpty(),
-            isInputValid = { true }, // empty = share anonymously
+            isInputValid = { it.isNotBlank() },
             onDismiss = onDismiss,
             onDone = { input ->
                 val trimmed = input.trim()
                 shareScope.launch {
-                    // Remember only a real name: OK on an empty field means "share this one
-                    // anonymously", not "forget my name" - wiping would kill the advertised
-                    // one-time-typing behavior. (The write rides the surviving scope;
-                    // rememberPreference's setter would die with the dismissing composition.)
-                    if (trimmed.isNotBlank()) {
-                        context.applicationContext.dataStore.edit { it[UserPlaylistSharedByKey] = trimmed }
-                    }
-                    shareUserPlaylist(context, playlistId, playlistTitle, videoIds, trimmed.takeIf { it.isNotBlank() })
+                    // The name is validated non-blank, so it is always remembered. (The write
+                    // rides the surviving scope; rememberPreference's setter would die with the
+                    // dismissing composition.)
+                    context.applicationContext.dataStore.edit { it[UserPlaylistSharedByKey] = trimmed }
+                    shareUserPlaylist(context, playlistId, playlistTitle, videoIds, trimmed)
                 }
             },
         )
