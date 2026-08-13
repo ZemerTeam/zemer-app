@@ -1,7 +1,6 @@
 package com.jtech.zemer.ui.component
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -71,10 +70,13 @@ fun Material3SettingsGroup(
         ) {
             items.forEachIndexed { index, item ->
                 val (top, bottom) = settingsCardCorners(index, items.size)
+                // No animateContentSize here: it was the SINGLE resizing card's affordance. On
+                // per-item cards it ran one size animation per row on every screen open (the
+                // rough settle-in), and row membership changes restructure the list anyway,
+                // which a size animation cannot express.
                 Card(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .animateContentSize(),
+                        .fillMaxWidth(),
                     shape = RoundedCornerShape(
                         topStart = top.dp, topEnd = top.dp,
                         bottomStart = bottom.dp, bottomEnd = bottom.dp,
