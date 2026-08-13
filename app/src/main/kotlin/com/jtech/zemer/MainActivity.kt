@@ -168,6 +168,10 @@ import coil3.request.crossfade
 import coil3.toBitmap
 import com.google.firebase.auth.FirebaseAuth
 import com.jtech.zemer.constants.AppBarHeight
+import com.jtech.zemer.constants.HomeContentTabKey
+import com.jtech.zemer.extensions.toEnum
+import com.jtech.zemer.ui.screens.HomeContentTab
+import com.jtech.zemer.ui.screens.effectiveHomeTab
 import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.CheckForUpdatesKey
@@ -1965,12 +1969,22 @@ class MainActivity : ComponentActivity() {
 
                         }
 
-                        // "Recognize music" FAB — floats above the bottom nav bar (and mini player)
-                        // on main screens; toggleable via Settings → Appearance (default on).
+                        // "Recognize music" FAB — floats above the bottom nav bar (and mini player);
+                        // toggleable via Settings → Appearance (default on). Shown ONLY on the Home
+                        // tab's MUSIC chip (owner ask): recognition is a music feature, and the FAB
+                        // covered content on every other main screen and Home content tab. Reads the
+                        // SAME persisted tab + Block Podcasts pair the Home selector uses, through
+                        // the same effectiveHomeTab fallback, so the two can never disagree.
+                        val (persistedHomeTab) = rememberPreference(HomeContentTabKey, defaultValue = HomeContentTab.MUSIC.name)
+                        val homeTabIsMusic = effectiveHomeTab(
+                            persisted = persistedHomeTab.toEnum(HomeContentTab.MUSIC),
+                            blockPodcasts = blockPodcastsNav,
+                        ) == HomeContentTab.MUSIC
                         if (recognizeMusicFab &&
                             !active &&
+                            homeTabIsMusic &&
                             (playerBottomSheetState.isCollapsed || playerBottomSheetState.isDismissed) &&
-                            navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route }
+                            navBackStackEntry?.destination?.route == Screens.Home.route
                         ) {
                             RecognizeMusicFab(
                                 onClick = {
