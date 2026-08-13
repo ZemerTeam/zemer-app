@@ -15,6 +15,8 @@ object PlaySource {
     fun artist(id: String) = "artist:$id"
     /** A Zemer Station broadcast (the whole listen is context under it); `id` is the station slug. */
     fun station(id: String) = "station:$id"
+    /** A shared user playlist opened from its link (issue #176); `id` is the unguessable share id. */
+    fun shared(id: String) = "shared:$id"
     fun album(id: String) = "album:$id"
     fun playlist(id: String) = "playlist:$id"
     // A discovery-sourced community playlist (the home "Community playlists" row + the search Community

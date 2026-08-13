@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `379`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `380`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -54,7 +54,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/9.json` | 840 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/src/debug/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/debug/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
-| `app/src/main/AndroidManifest.xml` | 300 lines | text `.xml`; XML root `manifest` |
+| `app/src/main/AndroidManifest.xml` | 317 lines | text `.xml`; XML root `manifest` |
 | `app/src/main/assets/solver/astring.js` | 3 lines | text `.js` |
 | `app/src/main/assets/solver/meriyah.js` | 9210 lines | text `.js` |
 | `app/src/main/assets/solver/yt.solver.core.js` | 603 lines | text `.js` |
@@ -170,6 +170,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/library_music_filled.xml` | 16 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/library_music_outlined.xml` | 16 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/link.xml` | 9 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/link_off.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/list.xml` | 10 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/location_on.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/lock.xml` | 9 lines | text `.xml`; XML root `vector` |
@@ -264,7 +265,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 706 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 728 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 438 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |

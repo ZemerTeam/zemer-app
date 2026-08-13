@@ -31,6 +31,8 @@ enum class HomeSeeAllRow(
     FEATURED_ARTISTS("featured-artists", R.string.featured_artists),
     FEATURED_VIDEOS("featured-videos", R.string.featured_videos, R.string.featured_video_songs),
     FEATURED_PLAYLISTS("featured-playlists", R.string.featured_playlists),
+    // Operator-featured user-shared playlists; ids are SHARE ids (user_playlist/<id> routing).
+    USER_PLAYLISTS("user-playlists", R.string.zemer_user_playlists),
     KEEP_LISTENING("keep-listening", R.string.keep_listening),
     FORGOTTEN_FAVORITES("forgotten-favorites", R.string.forgotten_favorites),
     QUICK_PICKS("quick-picks", R.string.quick_picks),
@@ -61,6 +63,8 @@ data class HomeSeeAllData(
     val featuredArtists: List<ArtistItem> = emptyList(),
     val featuredVideos: List<SongItem> = emptyList(),
     val featuredPlaylists: List<PlaylistItem> = emptyList(),
+    // Operator-featured user-shared playlists; ids are SHARE ids (user_playlist/<id> routing).
+    val featuredUserPlaylists: List<PlaylistItem> = emptyList(),
     val keepListening: List<LocalItem> = emptyList(),
     val forgottenFavorites: List<Song> = emptyList(),
     val quickPicks: List<Song> = emptyList(),

@@ -8,6 +8,7 @@
 
     <!-- Home rows -->
     <string name="featured_playlists">Community playlists</string>
+    <string name="zemer_user_playlists">Zemer User Playlists</string>
     <string name="home_see_all_empty">Nothing here yet</string>
     <string name="artist_not_available">This artist isn\'t available yet</string>
     <string name="album_not_available">This album isn\'t available</string>
@@ -558,6 +559,27 @@
     <string name="offline_search_promo_dismiss">Not now</string>
     <!-- Zemer Stations (synchronized broadcast radio) -->
     <string name="station_live_badge">LIVE</string>
+    <!-- User playlist sharing (issue #176) -->
+    <plurals name="share_playlist_dropped">
+        <item quantity="one">1 song couldn\'t be shared</item>
+        <item quantity="other">%d songs couldn\'t be shared</item>
+    </plurals>
+    <string name="share_playlist_empty">Nothing to share yet</string>
+    <string name="share_playlist_feature_notice">Great playlists may be featured in the app</string>
+    <string name="share_playlist_rate_limited">Sharing limit reached, try again later</string>
+    <string name="share_playlist_failed">Couldn\'t create the share link</string>
+    <string name="user_playlist_load_failed">Couldn\'t load this shared playlist</string>
+    <string name="user_playlist_not_found">This shared playlist isn\'t available</string>
+    <string name="user_playlist_empty_filtered">No songs from this playlist are available with your content settings</string>
+    <string name="user_playlist_save_copy">Save a copy</string>
+    <string name="user_playlist_shared_label">Shared playlist</string>
+    <string name="user_playlist_shared_by">Shared by %1$s</string>
+    <string name="share_playlist_as_title">Share playlist</string>
+    <string name="share_playlist_name_hint">Your display name</string>
+    <string name="unshare_playlist">Remove shared link</string>
+    <string name="unshare_playlist_confirm">The shared link will stop working for everyone it was sent to.</string>
+    <string name="unshare_done">Shared link removed</string>
+    <string name="unshare_failed">Couldn\'t remove the shared link</string>
     <string name="onboarding_backup_title">Search backup</string>
     <string name="onboarding_backup_question">Should search keep working even when the Zemer server is unreachable?</string>
     <string name="onboarding_backup_enable">Download a backup</string>

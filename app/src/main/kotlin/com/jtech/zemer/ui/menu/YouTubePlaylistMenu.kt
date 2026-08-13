@@ -252,7 +252,10 @@ fun YouTubePlaylistMenu(
                 }.map {
                     it.toMediaMetadata()
                 }
-            database.transaction {
+            // AWAIT the inserts: addSongToPlaylist's map rows FK-reference song.id, and a
+            // fire-and-forget transaction can lose the write-lock race (silently empty import) -
+            // the same race fixed for the shared-playlist receiver.
+            database.awaitTransaction {
                 allSongs.forEach(::insert)
             }
             allSongs.map { it.id }

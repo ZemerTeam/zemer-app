@@ -186,14 +186,37 @@ object ZemerResultMapper {
                 .distinctBy { it.id }
                 .dropBlocked(),
             community = playlistItems(resp.topCommunity, formatSongCount),
+            userPlaylists = resp.userPlaylists
+                .filter { it.id.isNotBlank() }
+                .distinctBy { it.id }
+                .map { it.toPlaylistItem(formatSongCount) },
         )
 
-    /** The four telemetry/discovery-ranked home rows in native item types (see [homeRows]). */
+    /**
+     * An operator-featured user-shared playlist as a [PlaylistItem] card (author = the sharer's
+     * display name). The id is the SHARE id — the row routes it to `user_playlist/<id>`, never an
+     * online-playlist path, so this item must not enter the generic playlist click/menu handling.
+     */
+    fun ZemerFeaturedUserPlaylist.toPlaylistItem(formatSongCount: (Int) -> String?): PlaylistItem =
+        PlaylistItem(
+            id = id,
+            title = title,
+            author = sharedBy?.takeIf { it.isNotBlank() }?.let { Artist(name = it, id = null) },
+            songCountText = trackCount.takeIf { it > 0 }?.let(formatSongCount),
+            thumbnail = thumbnail,
+            playEndpoint = null,
+            shuffleEndpoint = null,
+            radioEndpoint = null,
+        )
+
+    /** The telemetry/discovery-ranked home rows in native item types (see [homeRows]). */
     data class HomeRows(
         val albums: List<AlbumItem>,
         val videos: List<SongItem>,
         val artists: List<ArtistItem>,
         val community: List<PlaylistItem>,
+        // Operator-featured user-shared playlists ("Zemer User Playlists"); ids are SHARE ids.
+        val userPlaylists: List<PlaylistItem> = emptyList(),
     )
 
     /**
@@ -212,6 +235,18 @@ object ZemerResultMapper {
      */
     fun ZemerCuratedPlaylistResponse.toSongItems(hideExplicit: Boolean): List<SongItem> =
         songItems(tracks, hideExplicit)
+
+    /**
+     * A shared user playlist's tracks as playable [SongItem]s, in shared order, via the SAME
+     * [songItems] pipeline as `/playlist`, `/zemer-playlists` and `/radio` (sparse-row drop,
+     * de-dup, hide-explicit, [dropBlocked]; `female`-tagged snapshot members are
+     * receiver-conditional by contract, so the receiver's own table decides). [blockVideos] is the
+     * CLIENT backstop for the server's query flag - the one surface whose content is sender-chosen
+     * gets a second gate from the per-track `isVideo` the server already sends, like female/
+     * blocked-ids everywhere else.
+     */
+    fun ZemerUserPlaylistResponse.toSongItems(hideExplicit: Boolean, blockVideos: Boolean): List<SongItem> =
+        songItems(tracks.filterNot { blockVideos && it.isVideo }, hideExplicit)
 
     /**
      * One station schedule slot as a playable [SongItem], so station items ride the SAME

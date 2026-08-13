@@ -1058,6 +1058,8 @@ class SyncUtils @Inject constructor(
             }
             savedPlaylists.forEach {
                 if (it.playlist.browseId != null) {
+                    // A deleted shared playlist's link is withdrawn by the auto-updater's orphan
+                    // sweep (credentials live in DataStore, not on this row) - no hook needed.
                     try { database.transaction { delete(it.playlist) } } catch (e: Exception) { }
                 }
             }

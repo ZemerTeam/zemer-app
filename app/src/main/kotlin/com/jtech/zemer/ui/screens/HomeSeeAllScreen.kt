@@ -96,6 +96,7 @@ fun HomeSeeAllScreen(
         HomeSeeAllRow.FEATURED_ARTISTS -> data.featuredArtists.isEmpty()
         HomeSeeAllRow.FEATURED_VIDEOS -> data.featuredVideos.isEmpty()
         HomeSeeAllRow.FEATURED_PLAYLISTS -> data.featuredPlaylists.isEmpty()
+        HomeSeeAllRow.USER_PLAYLISTS -> data.featuredUserPlaylists.isEmpty()
         HomeSeeAllRow.QUICK_PICKS -> data.quickPicks.isEmpty()
         HomeSeeAllRow.FORGOTTEN_FAVORITES -> data.forgottenFavorites.isEmpty()
         HomeSeeAllRow.KEEP_LISTENING -> data.keepListening.isEmpty()
@@ -124,6 +125,8 @@ fun HomeSeeAllScreen(
                 YtItemGrid(data.featuredVideos, navController, showVideoBadge = false)
             HomeSeeAllRow.FEATURED_PLAYLISTS ->
                 YtItemGrid(data.featuredPlaylists, navController, zemerPlaylists = data.featuredPlaylistsAreZemer)
+            HomeSeeAllRow.USER_PLAYLISTS ->
+                YtItemGrid(data.featuredUserPlaylists, navController, userPlaylistShares = true)
             HomeSeeAllRow.QUICK_PICKS -> SongList(data.quickPicks, navController)
             HomeSeeAllRow.FORGOTTEN_FAVORITES -> SongList(data.forgottenFavorites, navController)
             HomeSeeAllRow.KEEP_LISTENING -> LocalItemList(data.keepListening, navController)
@@ -162,6 +165,10 @@ internal fun <T : YTItem> YtItemGrid(
     navController: NavController,
     zemerAlbums: Boolean = false,
     zemerPlaylists: Boolean = false,
+    // Operator-featured user-shared playlists: PlaylistItem ids are SHARE ids, so a tap opens the
+    // shared-playlist screen (user_playlist/<id>) and the generic playlist long-press menu is
+    // suppressed (its rows assume an online-playlist id and would misroute).
+    userPlaylistShares: Boolean = false,
     // Zemer playlists tag their plays community:<id> by default (the Home community row); the artist
     // page's own playlists are artist-owned, so it passes false to keep them plain playlist:<id>.
     communityPlaylists: Boolean = true,
@@ -242,12 +249,15 @@ internal fun <T : YTItem> YtItemGrid(
                             is ArtistItem -> navController.navigateToArtist(item.id)
                             // Community playlists are Zemer-sourced: open via the server /playlist route and
                             // tag plays `community:<id>` (the discovery-sourced community row).
-                            is PlaylistItem ->
-                                if (zemerPlaylists) navController.navigate(zemerPlaylistRoute(item.id, community = communityPlaylists))
-                                else navController.navigate("online_playlist/${item.id}")
+                            is PlaylistItem -> when {
+                                userPlaylistShares -> navController.navigate("user_playlist/${item.id}")
+                                zemerPlaylists -> navController.navigate(zemerPlaylistRoute(item.id, community = communityPlaylists))
+                                else -> navController.navigate("online_playlist/${item.id}")
+                            }
                         }
                     },
                     onLongClick = {
+                        if (userPlaylistShares) return@combinedClickable
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         menuState.show(
                             ytItemMenu(

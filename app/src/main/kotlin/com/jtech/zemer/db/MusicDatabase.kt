@@ -39,7 +39,10 @@ import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.db.entities.SortedSongAlbumMap
 import com.jtech.zemer.db.entities.SortedSongArtistMap
 import com.jtech.zemer.extensions.toSQLiteQuery
+import kotlinx.coroutines.suspendCancellableCoroutine
 import timber.log.Timber
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -63,6 +66,31 @@ class MusicDatabase(
             transactionExecutor.execute {
                 runInTransaction {
                     block(this@MusicDatabase)
+                }
+            }
+        }
+
+    /**
+     * [transaction] that SUSPENDS until the block commits - and, critically, RESUMES WITH THE
+     * EXCEPTION when it fails. Resuming from inside the block (the tempting inline pattern) never
+     * resumes on failure: the caller hangs forever and the exception escapes on Room's executor
+     * thread, where it can kill the process. The failure path here still rolls back (the
+     * exception propagates through [InternalDatabase.runInTransaction] before being handed to the
+     * continuation). Use this whenever work after the write depends on the write having landed
+     * (e.g. inserting songs before FK-checked playlist_song_map rows).
+     */
+    suspend fun awaitTransaction(block: MusicDatabase.() -> Unit) =
+        suspendCancellableCoroutine { continuation ->
+            with(delegate) {
+                transactionExecutor.execute {
+                    try {
+                        runInTransaction {
+                            block(this@MusicDatabase)
+                        }
+                        continuation.resume(Unit)
+                    } catch (e: Throwable) {
+                        continuation.resumeWithException(e)
+                    }
                 }
             }
         }

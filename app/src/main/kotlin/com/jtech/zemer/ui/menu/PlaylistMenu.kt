@@ -68,7 +68,9 @@ fun PlaylistMenu(
     val playerConnection = LocalPlayerConnection.current ?: return
     val dbPlaylist by database.playlist(playlist.id).collectAsState(initial = playlist)
     var songs by remember { mutableStateOf(emptyList<Song>()) }
+    var songsLoaded by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
     val mediaStoreDownloads by downloadUtil.getAllMediaStoreDownloads().collectAsState()
     val downloadScope = rememberCoroutineScope()
 
@@ -76,9 +78,11 @@ fun PlaylistMenu(
         if (autoPlaylist == false) {
             database.playlistSongs(playlist.id).collect {
                 songs = it.map(PlaylistSong::song)
+                songsLoaded = true
             }
         } else {
             songList?.let { songs = it }
+            songsLoaded = true
         }
     }
 
@@ -103,6 +107,21 @@ fun PlaylistMenu(
 
     HorizontalDivider()
     Spacer(modifier = Modifier.height(12.dp))
+
+    // Gated on the async Room load landing: a tap that beats the emission would otherwise share an
+    // empty snapshot ("Nothing to share" for a playlist visibly full of songs). The tap is kept -
+    // the dialog appears the moment the songs arrive (in practice immediately).
+    if (showShareDialog && songsLoaded) {
+        ShareUserPlaylistDialog(
+            playlistId = playlist.id,
+            playlistTitle = dbPlaylist?.playlist?.name ?: playlist.playlist.name,
+            videoIds = songs.map { it.id },
+            onDismiss = {
+                showShareDialog = false
+                onDismiss()
+            },
+        )
+    }
 
     if (showReportDialog) {
         ReportContentDialog(
@@ -180,9 +199,13 @@ fun PlaylistMenu(
                         },
                         text = stringResource(R.string.share),
                         onClick = {
-                            dbPlaylist?.playlist?.let { Tracker.action(TrackingActionKind.SHARE, it.browseId ?: it.id) }
-                            context.shareText("https://music.zemer.io/playlist?list=${dbPlaylist?.playlist?.browseId}")
-                            onDismiss()
+                            // Issue #176: share as an unguessable server snapshot link that opens
+                            // in-app for the recipient (the old music.zemer.io/playlist?list=
+                            // browseId link was broken for pure local playlists - null browseId).
+                            // The dialog asks for the optional, device-remembered sharer name.
+                            // (The SHARE action is tracked in shareUserPlaylist's success path,
+                            // with the minted share id - not here, where a cancel would count.)
+                            showShareDialog = true
                         }
                     )
                 ),

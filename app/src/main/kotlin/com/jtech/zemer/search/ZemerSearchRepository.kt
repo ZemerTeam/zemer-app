@@ -7,6 +7,7 @@ import com.jtech.zemer.search.ZemerResultMapper.toAlbumFacetPage
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumItems
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
 import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
+import com.jtech.zemer.constants.TrackingDeviceIdKey
 import com.jtech.zemer.search.ZemerResultMapper.toEpisodeItems
 import com.jtech.zemer.search.ZemerResultMapper.toGenrePage
 import com.jtech.zemer.search.ZemerResultMapper.toChannelEpisodeItems
@@ -14,6 +15,8 @@ import com.jtech.zemer.search.ZemerResultMapper.toPodcastChannelPage
 import com.jtech.zemer.search.ZemerResultMapper.toPodcastGenrePage
 import com.jtech.zemer.search.ZemerResultMapper.toPodcastPage
 import com.jtech.zemer.search.ZemerResultMapper.toSongItems
+import com.jtech.zemer.utils.dataStore
+import kotlinx.coroutines.flow.first
 import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.Artist
@@ -40,6 +43,9 @@ data class ZemerPlaylistPage(val playlist: PlaylistItem, val songs: List<SongIte
 
 /** A Zemer `/radio` page: the next whitelist-pure tracks + the opaque continuation token (null = end). */
 data class ZemerRadioPage(val songs: List<SongItem>, val continuation: String?)
+
+/** A shared user playlist open (issue #176): the immutable snapshot header + the surviving songs. */
+data class ZemerUserPlaylistPage(val header: ZemerUserPlaylistHeader, val songs: List<SongItem>)
 
 /**
  * A curated `/zemer-playlists?id=…` open: the server header plus playable, already-filtered tracks.
@@ -310,6 +316,52 @@ class ZemerSearchRepository @Inject constructor(
         client.radioContinuation(continuation).toRadioPage()
 
     /**
+     * Mints a share link for a local playlist (issue #176): title + videoIds + the anonymous
+     * tracking uuid (rate-limit only). Throws [ZemerRateLimitedException] on the daily cap. The
+     * server is the single truth for `kept`/`dropped` (corpus validation + global blocked-ids).
+     */
+    suspend fun shareUserPlaylist(title: String, videoIds: List<String>, sharedBy: String?): ZemerUserPlaylistCreateResponse {
+        val device = context.dataStore.data.first()[TrackingDeviceIdKey]
+        return client.createUserPlaylist(
+            title.take(USER_PLAYLIST_TITLE_MAX),
+            videoIds.take(USER_PLAYLIST_MAX_TRACKS),
+            device,
+            sharedBy?.trim()?.take(USER_PLAYLIST_SHARED_BY_MAX)?.takeIf { it.isNotBlank() },
+        )
+    }
+
+    /**
+     * Replaces an existing share's state in place (same id, same URL) - the live-updating half of
+     * the share contract. Same clamps as create; throws [ZemerShareGoneException] on 403/404
+     * (caller clears the stored credentials).
+     */
+    suspend fun updateUserPlaylist(shareId: String, ownerToken: String, title: String, videoIds: List<String>, sharedBy: String?): ZemerUserPlaylistCreateResponse =
+        client.updateUserPlaylist(
+            shareId,
+            ownerToken,
+            title.take(USER_PLAYLIST_TITLE_MAX),
+            videoIds.take(USER_PLAYLIST_MAX_TRACKS),
+            sharedBy?.trim()?.take(USER_PLAYLIST_SHARED_BY_MAX)?.takeIf { it.isNotBlank() },
+        )
+
+    /** Withdraws a share - the link 404s everywhere. Throws [ZemerShareGoneException] if already gone. */
+    suspend fun deleteUserPlaylist(shareId: String, ownerToken: String) =
+        client.deleteUserPlaylist(shareId, ownerToken)
+
+    /**
+     * Opens a shared user playlist as (header, playable songs). Null = 404 (unknown/mistyped id or
+     * taken down). LIVE-ONLY: unguessable-link content is never in the offline snapshot, so this is
+     * deliberately not wrapped in [serverOrOffline] (like `/playlist` and `/radio`).
+     */
+    suspend fun userPlaylist(id: String, options: ZemerSearchOptions): ZemerUserPlaylistPage? =
+        client.userPlaylist(id, options.allowFemale, options.blockVideos)?.let { response ->
+            ZemerUserPlaylistPage(
+                header = response.playlist,
+                songs = response.toSongItems(options.hideExplicit, options.blockVideos),
+            )
+        }
+
+    /**
      * The live Zemer Stations for the "Zemer Radio" home row ([liveStations]: live-only cards,
      * absolute covers, fail-soft empty). Deliberately NOT wrapped in [serverOrOffline] — a
      * synchronized broadcast cannot be served from a snapshot, so stations are live-only like
@@ -470,5 +522,14 @@ class ZemerSearchRepository @Inject constructor(
         // server now honors k for that category). Bump if the community catalog ever approaches this.
         private const val K_COMMUNITY = 500
         private const val CACHE_SIZE = 12
+
     }
 }
+
+/**
+ * Server caps for `POST`/`PUT /user-playlist` (handoff contract) — clamped client-side too.
+ * Top-level so [sharedPlaylistFingerprint] applies the identical clamps.
+ */
+internal const val USER_PLAYLIST_TITLE_MAX = 120
+internal const val USER_PLAYLIST_MAX_TRACKS = 500
+internal const val USER_PLAYLIST_SHARED_BY_MAX = 40

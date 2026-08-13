@@ -133,6 +133,9 @@ import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
+import com.jtech.zemer.ui.menu.ShareUserPlaylistDialog
+import com.jtech.zemer.ui.menu.rememberHasActiveShare
+import com.jtech.zemer.ui.menu.unshareUserPlaylistAsync
 import com.jtech.zemer.ui.menu.CustomThumbnailMenu
 import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.menu.SelectionSongMenu
@@ -363,6 +366,11 @@ fun LocalPlaylistScreen(
                 TextButton(
                     onClick = {
                         showDeletePlaylistDialog = false
+                        // Deleting the playlist also withdraws its shared link - a live link to a
+                        // playlist the owner destroyed (and could never manage again) is a trap.
+                        // Credentials live in DataStore, independent of the row, so the deletion
+                        // cannot race them (and the auto-updater's orphan sweep backstops this).
+                        playlist?.let { unshareUserPlaylistAsync(context, it.id) }
                         database.query {
                             playlist?.let { delete(it.playlist) }
                         }
@@ -913,6 +921,47 @@ fun LocalPlaylistHeader(
 
     val liked = playlist.playlist.bookmarkedAt != null
     val editable: Boolean = playlist.playlist.isEditable
+    var showShareDialog by remember { mutableStateOf(false) }
+    var showUnshareDialog by remember { mutableStateOf(false) }
+    val hasActiveShare by rememberHasActiveShare(playlist.id)
+
+    if (showUnshareDialog) {
+        DefaultDialog(
+            onDismiss = { showUnshareDialog = false },
+            content = {
+                Text(
+                    text = stringResource(R.string.unshare_playlist_confirm),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(horizontal = 18.dp)
+                )
+            },
+            buttons = {
+                TextButton(onClick = { showUnshareDialog = false }) {
+                    Text(text = stringResource(android.R.string.cancel))
+                }
+                TextButton(
+                    onClick = {
+                        showUnshareDialog = false
+                        unshareUserPlaylistAsync(context, playlist.id)
+                    }
+                ) {
+                    Text(text = stringResource(R.string.unshare_playlist))
+                }
+            },
+        )
+    }
+
+    if (showShareDialog) {
+        ShareUserPlaylistDialog(
+            playlistId = playlist.id,
+            playlistTitle = playlist.playlist.name,
+            // POSITION order, not the current display sort: the auto-updater fingerprints
+            // ORDER BY position, so sharing a name-sorted view would trigger a contradictory
+            // re-PUT ~10s later that silently reorders the recipient's link.
+            videoIds = songs.sortedBy { it.map.position }.map { it.song.id },
+            onDismiss = { showShareDialog = false },
+        )
+    }
 
     val overrideThumbnail = remember {mutableStateOf<String?>(null)}
     var isCustomThumbnail: Boolean = playlist.thumbnails.firstOrNull()?.let {
@@ -1361,6 +1410,35 @@ fun LocalPlaylistHeader(
                             contentDescription = null,
                             modifier = Modifier.size(24.dp)
                         )
+                    }
+
+                    // Issue #176: share as a live-updating server link, same flow as the
+                    // long-press menu's Share row. The songs list here is the screen's already-
+                    // loaded state, so there is no async race to guard.
+                    IconButton(
+                        onClick = { showShareDialog = true },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.share),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    // Unshare, shown only while a share is active: withdraws the link (404s
+                    // everywhere) after an explicit confirm - it kills the link for everyone.
+                    if (hasActiveShare) {
+                        IconButton(
+                            onClick = { showUnshareDialog = true },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.link_off),
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
             }

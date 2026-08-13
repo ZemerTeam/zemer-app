@@ -21,6 +21,7 @@ import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.db.entities.ActionSnapshotRow
+import com.jtech.zemer.db.entities.PlaylistContentSnapshot
 import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.db.entities.AlbumArtistMap
 import com.jtech.zemer.db.entities.AlbumEntity
@@ -940,6 +941,24 @@ interface DatabaseDao {
     @Transaction
     @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE id = :playlistId")
     fun playlist(playlistId: String): Flow<Playlist?>
+
+    /**
+     * Every playlist's identity + ordered member ids flattened to CSV (videoIds never contain
+     * commas). A read-only projection - NO schema impact. References BOTH `playlist` and
+     * `playlist_song_map`, so Room re-emits on renames AND on member add/remove/reorder - the
+     * share auto-updater's one trigger (it filters to the shared ones against its own
+     * DataStore-held credential map).
+     */
+    @Query(
+        """
+        SELECT p.id AS playlistId, p.name,
+               (SELECT GROUP_CONCAT(songId) FROM
+                   (SELECT songId FROM playlist_song_map WHERE playlistId = p.id ORDER BY position)
+               ) AS songIdsCsv
+        FROM playlist p
+        """
+    )
+    fun playlistContentSnapshots(): Flow<List<PlaylistContentSnapshot>>
 
     @Transaction
     @Query("SELECT *, (SELECT COUNT(*) FROM playlist_song_map WHERE playlistId = playlist.id) AS songCount FROM playlist WHERE isEditable AND bookmarkedAt IS NOT NULL ORDER BY rowId")

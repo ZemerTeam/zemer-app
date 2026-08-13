@@ -603,6 +603,33 @@ class ZemerResultMapperTest {
     }
 
     @Test
+    fun `home rows map operator-featured user playlists preserving server order`() {
+        // Contract: handoff zemer-app-user-playlists-home-row-request.md. Ids are SHARE ids (the
+        // row routes them to user_playlist/<id>); server order = operator order, blank ids and
+        // duplicates dropped; an absent field (older server) = empty list = hidden row.
+        val resp = ZemerHomeRowsResponse(
+            userPlaylists = listOf(
+                ZemerFeaturedUserPlaylist(id = "sh2", title = "Second", sharedBy = "Avi G.", thumbnail = "th2", trackCount = 7),
+                ZemerFeaturedUserPlaylist(id = "sh1", title = "First", sharedBy = null, trackCount = 0),
+                ZemerFeaturedUserPlaylist(id = "", title = "blank"),
+                ZemerFeaturedUserPlaylist(id = "sh2", title = "dup"),
+            ),
+        )
+
+        val rows = ZemerResultMapper.homeRows(resp) { "$it songs" }
+        assertEquals(listOf("sh2", "sh1"), rows.userPlaylists.map { it.id })
+        val first = rows.userPlaylists.first()
+        assertEquals("Second", first.title)
+        assertEquals("Avi G.", first.author?.name)
+        assertEquals("7 songs", first.songCountText)
+        // No sharer name / zero count stay absent rather than rendering an empty author or "0 songs".
+        assertEquals(null, rows.userPlaylists[1].author)
+        assertEquals(null, rows.userPlaylists[1].songCountText)
+
+        assertTrue(ZemerResultMapper.homeRows(ZemerHomeRowsResponse()).userPlaylists.isEmpty())
+    }
+
+    @Test
     fun `home rows drop blank and duplicate ids per row`() {
         val resp = ZemerHomeRowsResponse(
             topAlbums = listOf(

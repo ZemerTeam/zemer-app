@@ -6,8 +6,15 @@ import timber.log.Timber
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
@@ -33,6 +40,25 @@ import javax.inject.Singleton
  * `"categories": null` / `"videos": null` would throw and fail the WHOLE response (the strict-
  * deserialization "No results" trap), instead of degrading gracefully.
  */
+/** `429` from the share endpoint: per-device or server-wide daily cap — "try again later", never a retry loop. */
+class ZemerRateLimitedException : IOException("Zemer share rate limit reached")
+
+/**
+ * `403`/`404` from an owner-token PUT/DELETE: the share no longer exists or the token is rejected
+ * (a pre-token share, a taken-down link, cleared app data on the server side of the pair). NOT an
+ * IOException - it is a definitive server verdict, not a transport failure: the caller's move is
+ * to clear the stored credentials (and, for a share tap, mint a fresh link), never to retry.
+ */
+class ZemerShareGoneException : Exception("Zemer share gone or owner token rejected")
+
+/**
+ * A definitive HTTP failure from an owner-token PUT (400/429/5xx - anything but success and the
+ * 403/404 gone cases). Deliberately NOT an IOException: the auto-updater classifies IOException as
+ * "server unreachable, defer silently", and a server that is answering with an error (contract
+ * drift, rate limit) must be REPORTED, not deferred forever.
+ */
+class ZemerShareHttpException(val status: Int) : Exception("Zemer share update returned HTTP $status")
+
 internal val zemerResponseJson = Json {
     ignoreUnknownKeys = true
     isLenient = true
@@ -350,6 +376,102 @@ class ZemerSearchClient @Inject constructor() {
      * Content flags are sent explicitly (kidZone included), same as the other endpoints.
      */
     /**
+     * Mints a share link for a user playlist (`POST /user-playlist`, issue #176). The server
+     * validates members against the corpus AND drops globally-blocked ids (both folded into
+     * `dropped`); all-invalid is a 400. 429 = rate-limited (per-device daily or server-wide cap) —
+     * surfaced as [ZemerRateLimitedException] so the UI says "try again later" and never
+     * retry-loops. [device] is the anonymous tracking uuid, used only for the rate limit.
+     */
+    suspend fun createUserPlaylist(title: String, videoIds: List<String>, device: String?, sharedBy: String?): ZemerUserPlaylistCreateResponse {
+        val response: HttpResponse = client.post("$BASE_URL/user-playlist") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                zemerResponseJson.encodeToString(
+                    ZemerUserPlaylistCreateRequest.serializer(),
+                    ZemerUserPlaylistCreateRequest(title = title, videoIds = videoIds, device = device, sharedBy = sharedBy),
+                ),
+            )
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (response.status == HttpStatusCode.TooManyRequests) throw ZemerRateLimitedException()
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer user-playlist create returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerUserPlaylistCreateResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * Live-updating shares: `PUT /user-playlist/<id>` replaces the share's state in place - same
+     * id, same URL - with create-identical validation (`kept`/`dropped` back, screened `sharedBy`).
+     * Updates spend nothing from the rate-limit pool (server contract 2026-07-30). Throws
+     * [ZemerShareGoneException] on 403/404 so the caller clears credentials / re-mints.
+     */
+    suspend fun updateUserPlaylist(id: String, ownerToken: String, title: String, videoIds: List<String>, sharedBy: String?): ZemerUserPlaylistCreateResponse {
+        if (!isValidUserPlaylistShareId(id)) throw ZemerShareGoneException()
+        val response: HttpResponse = client.put("$BASE_URL/user-playlist/$id") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                zemerResponseJson.encodeToString(
+                    ZemerUserPlaylistUpdateRequest.serializer(),
+                    ZemerUserPlaylistUpdateRequest(ownerToken = ownerToken, title = title, videoIds = videoIds, sharedBy = sharedBy),
+                ),
+            )
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
+        }
+        if (response.status == HttpStatusCode.Forbidden || response.status == HttpStatusCode.NotFound) {
+            throw ZemerShareGoneException()
+        }
+        if (!response.status.isSuccess()) {
+            throw ZemerShareHttpException(response.status.value)
+        }
+        return zemerResponseJson.decodeFromString(ZemerUserPlaylistCreateResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * Withdraws a share (`DELETE /user-playlist/<id>`, token via `X-Owner-Token` - DELETE bodies
+     * are unreliable across HTTP stacks, per the server contract): the link 404s everywhere
+     * immediately. Throws [ZemerShareGoneException] on 403/404 (already gone - callers treat it
+     * as done and clear the stored credentials either way).
+     */
+    suspend fun deleteUserPlaylist(id: String, ownerToken: String) {
+        if (!isValidUserPlaylistShareId(id)) throw ZemerShareGoneException()
+        val response: HttpResponse = client.delete("$BASE_URL/user-playlist/$id") {
+            header("X-Owner-Token", ownerToken)
+        }
+        if (response.status == HttpStatusCode.Forbidden || response.status == HttpStatusCode.NotFound) {
+            throw ZemerShareGoneException()
+        }
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer user-playlist delete returned HTTP ${response.status.value}")
+        }
+    }
+
+    /**
+     * Opens a shared user playlist (`GET /user_playlist/<id>`). Null on 404 (unknown/mistyped id, or
+     * a taken-down link). The receiver's content flags are sent explicitly (same fail-closed
+     * contract as everywhere); `kidZone=0` is truthful — the app has no kids MODE, only a tab a deep
+     * link never lands in. Members that left the corpus since sharing are dropped server-side.
+     */
+    suspend fun userPlaylist(id: String, allowFemale: Boolean, blockVideos: Boolean): ZemerUserPlaylistResponse? {
+        // The id arrives from an untrusted deep link (and getPathSegments returns it DECODED): a
+        // '/', '?', '#' or space interpolated raw into the path would hit a different endpoint or
+        // truncate the fail-closed content-flag params. Constrain to the server's slug alphabet;
+        // anything else is a mistyped/crafted link = not found.
+        if (!isValidUserPlaylistShareId(id)) return null
+        val response: HttpResponse = client.get("$BASE_URL/user_playlist/$id") {
+            parameter("format", "json")
+            zemerContentFlagParameters(allowFemale, blockVideos, includeKidZone = true).forEach { (name, value) ->
+                parameter(name, value)
+            }
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) {
+            throw IOException("Zemer user-playlist returned HTTP ${response.status.value}")
+        }
+        return zemerResponseJson.decodeFromString(ZemerUserPlaylistResponse.serializer(), response.bodyAsText())
+    }
+
+    /**
      * The Zemer Stations catalog (`GET /stations`) — the synchronized-broadcast home row's data. NO
      * content flags are sent: the pools are pre-filtered server-side to the strictest common
      * denominator (handoff §6), so there is nothing left to filter. Clock-dependent — never cached.
@@ -597,3 +719,11 @@ class ZemerSearchClient @Inject constructor() {
         private const val GENRE_FACET_LIMIT = 200
     }
 }
+
+/**
+ * The server's share-id slug alphabet (unguessable base62-ish ids, e.g. "Rtwwz3ZEA5Bzik"). Bounds
+ * what a deep link can inject into the request path - see [ZemerSearchClient.userPlaylist].
+ */
+private val USER_PLAYLIST_SHARE_ID = Regex("[A-Za-z0-9_-]{1,64}")
+
+internal fun isValidUserPlaylistShareId(id: String): Boolean = id.matches(USER_PLAYLIST_SHARE_ID)
