@@ -54,6 +54,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import kotlinx.coroutines.launch
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.screens.OptionStats
 
@@ -68,11 +73,18 @@ fun <E> ChipsRow(
     upFocusRequester: FocusRequester? = null,
     downFocusRequester: FocusRequester? = null,
 ) {
+    val scrollState = rememberScrollState()
+    val revealScope = rememberCoroutineScope()
+    // One-shot: when the row OPENS with a non-first chip already selected (a filter-prefilled
+    // search like the Podcasts browse's episode hand-off), scroll that chip into view - it may sit
+    // past the fold and an invisible selection reads as "landed on All". Once only (saveable, so a
+    // process restore doesn't re-scroll): later taps are on visible chips and must not yank the row.
+    var revealedInitialChip by rememberSaveable { mutableStateOf(false) }
     Row(
         modifier =
         modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
+            .horizontalScroll(scrollState)
             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
     ) {
         Spacer(Modifier.width(12.dp))
@@ -109,6 +121,15 @@ fun <E> ChipsRow(
                         }
                     )
                     .onFocusChanged { isFocused = it.isFocused }
+                    .onGloballyPositioned { coords ->
+                        if (!revealedInitialChip && currentValue == value) {
+                            revealedInitialChip = true
+                            // Content coordinates equal scroll offsets here (the Row starts unscrolled);
+                            // a small lead keeps the previous chip's edge peeking for scroll affordance.
+                            val target = (coords.positionInParent().x - 48f).toInt().coerceAtLeast(0)
+                            if (target > 0) revealScope.launch { scrollState.animateScrollTo(target) }
+                        }
+                    }
                     .focusable()
                     .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(16.dp))
             )
