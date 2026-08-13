@@ -1148,8 +1148,10 @@ fun HomeScreen(
 
             if (homeTab == HomeContentTab.PODCASTS && !blockPodcasts) {
                 // Podcast Genres strip: the podcast twin of the music genres chips — LEADS the Podcasts
-                // tab. Own isolated fail-soft VM (empty -> hidden); arrow -> catalog.
-                homePodcastGenres.takeIf { it.isNotEmpty() }?.let { genres ->
+                // tab. Own isolated fail-soft VM (empty -> hidden); arrow -> catalog. Gated on the SAME
+                // "Show genres on home" preference as the music strip: the setting promises genres on
+                // Home, and a toggle that silently left the Podcasts tab's strip up read as broken.
+                homePodcastGenres.takeIf { showHomeGenres && it.isNotEmpty() }?.let { genres ->
                     item(key = "podcast_genre_chips_title", contentType = "header") {
                         NavigationTitle(
                             title = stringResource(R.string.genres),
