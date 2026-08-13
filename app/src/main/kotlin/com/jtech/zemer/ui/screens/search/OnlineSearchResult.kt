@@ -111,9 +111,10 @@ fun OnlineSearchResult(
     // Initialize chips focus after a short delay to prioritize content on TV remotes.
     // D-pad sessions only: for touch this grab painted the focused FilterChip's own M3 focus
     // overlay (a phantom ring on a chip nobody focused) and, on filter-prefilled landings,
-    // scroll-yanked the chip row.
+    // scroll-yanked the chip row. KEYED on the input mode (like RequestInitialDpadFocus) so a
+    // session that turns key-driven mid-screen still gets the grab; the delay stays bespoke.
     val dpadSession = focusVisualsEnabled()
-    LaunchedEffect(Unit) {
+    LaunchedEffect(dpadSession) {
         if (!dpadSession) return@LaunchedEffect
         delay(900)
         chipsFocusRequester.requestFocus()

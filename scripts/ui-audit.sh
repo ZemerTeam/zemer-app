@@ -149,6 +149,18 @@ violations() {
   # ContextExt.kt). Baseline 0.
   grep -rnE "Toast\.makeText\(" "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR21-toast/'
+  # R23: an UNGATED focus visual. Every focus ring/border/fill condition must AND with
+  # focusVisualsEnabled() (FocusBorder.kt) so touch sessions never see it - a bare
+  # `if (xFocused...)` painting a color is the stuck-ring bug. Matches single-line focus-driven
+  # color/alpha conditions missing the gate. Baseline 0.
+  grep -rnE "if \(([a-zA-Z]*[Ff]ocused)(\.value)?\) (MaterialTheme|Color|accentColor|1f)" "$UI" --include=*.kt 2>/dev/null \
+    | grep -v "focusVisualsEnabled" | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR23-focusgate/'
+  # R24: a hand-rolled initial D-pad focus grab. Screen-open `firstFocus.requestFocus()` (and the
+  # dpadSession-guarded copies it spawned) go through RequestInitialDpadFocus(requester)
+  # (FocusBorder.kt), which skips touch sessions AND re-arms when the input mode flips to keys.
+  # Baseline 0.
+  grep -rnE "dpadSession|firstFocus\.requestFocus\(\)" "$UI" --include=*.kt 2>/dev/null \
+    | grep -v "/theme/" | grep -v "component/FocusBorder.kt" | grep -v "screens/search/OnlineSearchResult.kt" | sed -E 's/:.*//' | sed 's/$/\tR24-initialfocus/'
 }
 
 # Aggregate to "<path>\t<rule>\t<count>", sorted.

@@ -54,6 +54,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import com.jtech.zemer.ui.component.RequestInitialDpadFocus
 import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.EmptyPlaceholder
@@ -149,12 +150,6 @@ fun AlbumScreen(
     val isSelectAllButtonFocused = remember { mutableStateOf(false) }
     val isMoreButtonFocused = remember { mutableStateOf(false) }
 
-    // Focus state for header buttons
-    val isHeartButtonFocused = remember { mutableStateOf(false) }
-    val isDownloadButtonFocused = remember { mutableStateOf(false) }
-    val isHeaderMenuButtonFocused = remember { mutableStateOf(false) }
-    val isArtistLinkFocused = remember { mutableStateOf(false) }
-
     // Focus state for track items
     val trackFocusStates = remember { mutableMapOf<String, Boolean>() }
 
@@ -174,31 +169,8 @@ fun AlbumScreen(
         targetValue = if (isMoreButtonFocused.value && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
         label = "more_button_focus_border"
     )
-    animateColorAsState(
-        targetValue = if (isHeartButtonFocused.value && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
-        label = "heart_button_focus_border"
-    )
-    animateColorAsState(
-        targetValue = if (isDownloadButtonFocused.value && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
-        label = "download_button_focus_border"
-    )
-    animateColorAsState(
-        targetValue = if (isHeaderMenuButtonFocused.value && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
-        label = "header_menu_button_focus_border"
-    )
-    animateColorAsState(
-        targetValue = if (isArtistLinkFocused.value && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
-        label = "artist_link_focus_border"
-    )
 
-    val dpadSession = focusVisualsEnabled()
-    LaunchedEffect(Unit) {
-        // Touch sessions skip the initial grab: focused M3 components paint their own
-        // focus pill even in touch mode, which is pure noise without a D-pad.
-        if (dpadSession) {
-            firstHeaderItemFocusRequester.requestFocus()
-        }
-    }
+    RequestInitialDpadFocus(firstHeaderItemFocusRequester)
 
     LazyColumn(
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
@@ -389,7 +361,7 @@ fun AlbumScreen(
                     val trackId = songWrapper.item.id
                     val isTrackFocused = trackFocusStates[trackId] ?: false
                     val trackBorderColor = animateColorAsState(
-                        targetValue = if (isTrackFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        targetValue = if (isTrackFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
                         label = "track_${trackId}_focus_border"
                     )
 

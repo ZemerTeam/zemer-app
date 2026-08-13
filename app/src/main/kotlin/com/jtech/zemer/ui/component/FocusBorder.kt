@@ -6,6 +6,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.platform.LocalInputModeManager
@@ -64,3 +66,28 @@ fun Modifier.focusBorder(shape: Shape = RoundedCornerShape(12.dp)): Modifier = c
 @Composable
 fun focusVisualsEnabled(): Boolean =
     LocalInputModeManager.current.inputMode == InputMode.Keyboard
+
+/**
+ * The ONE initial D-pad focus grab (replaces 14 hand-rolled copies): requests [requester] when the
+ * session is key-driven ([focusVisualsEnabled]), skipping touch sessions entirely - a touch
+ * session's grab painted M3 components' built-in focus pills (drawer items, chips) with no keypad
+ * in sight. KEYED on the input mode, so a screen composed during touch use re-arms and grabs the
+ * moment the user's first key press flips the session to Keyboard (a first-composition capture
+ * missed that flip and left D-pad focus starting from the composition root). [enabled] gates
+ * conditional grabs (a row not yet composed); extra [keys] re-run the grab when the target row
+ * changes. The grab is wrapped in runCatching: a requester whose row is not composed yet must not
+ * crash the screen.
+ */
+@Composable
+fun RequestInitialDpadFocus(
+    requester: FocusRequester,
+    enabled: Boolean = true,
+    vararg keys: Any?,
+) {
+    val dpadSession = focusVisualsEnabled()
+    LaunchedEffect(dpadSession, enabled, *keys) {
+        if (dpadSession && enabled) {
+            runCatching { requester.requestFocus() }
+        }
+    }
+}

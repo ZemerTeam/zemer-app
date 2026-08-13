@@ -33,16 +33,12 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
-import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
-import com.jtech.zemer.constants.StreamSourceAndroidCreatorKey
 import com.jtech.zemer.constants.StreamSourceAndroidVRKey
-import com.jtech.zemer.constants.StreamSourceIOSKey
-import com.jtech.zemer.constants.StreamSourceIPadOSKey
 import com.jtech.zemer.constants.StreamSourceVisionOSKey
 import com.jtech.zemer.constants.StreamSourceTVHTML5Key
 import com.jtech.zemer.constants.StreamSourceWebCreatorKey
@@ -50,6 +46,7 @@ import com.jtech.zemer.constants.StreamSourceWebRemixKey
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.RequestInitialDpadFocus
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
@@ -66,11 +63,8 @@ fun StreamSourceSettings(
     val (webRemixEnabled, onWebRemixChange)     = rememberPreference(StreamSourceWebRemixKey,   defaultValue = true)
     val (tvhtml5Enabled, onTVHTML5Change)       = rememberPreference(StreamSourceTVHTML5Key,    defaultValue = true)
     val (androidVREnabled, onAndroidVRChange)   = rememberPreference(StreamSourceAndroidVRKey,  defaultValue = true)
-    val (iosEnabled, _)                         = rememberPreference(StreamSourceIOSKey,        defaultValue = false)
-    val (ipadosEnabled, _)                      = rememberPreference(StreamSourceIPadOSKey,     defaultValue = false)
     val (visionosEnabled, onVisionOSChange)     = rememberPreference(StreamSourceVisionOSKey,   defaultValue = true)
     val (webCreatorEnabled, onWebCreatorChange) = rememberPreference(StreamSourceWebCreatorKey, defaultValue = true)
-    val (androidCreatorEnabled, _)              = rememberPreference(StreamSourceAndroidCreatorKey, defaultValue = false)
 
     // RELAY playback mode: stream audio through the Zemer relay instead of resolving YouTube on-device.
     // Off (DIRECT) for every normal user. When ON, the per-client fallback list below is bypassed entirely.
@@ -94,9 +88,6 @@ fun StreamSourceSettings(
         "WEB_CREATOR" to webCreatorEnabled,
         "Android VR" to androidVREnabled,
         "TVHTML5" to tvhtml5Enabled,
-        "iOS" to iosEnabled,
-        "iPadOS" to ipadosEnabled,
-        "ANDROID_CREATOR" to androidCreatorEnabled,
     ).filter { it.second }.map { it.first }
 
     val backFocus = remember { FocusRequester() }
@@ -106,14 +97,7 @@ fun StreamSourceSettings(
     // the web-remix toggle otherwise). Keyed on the visibility inputs so it re-requests once a row is
     // actually composed (e.g. after the global relay reset makes the client list appear); guarded in case
     // neither is composed yet.
-    val dpadSession = focusVisualsEnabled()
-    LaunchedEffect(loggedInNormally, relayEnabled) {
-        // Touch sessions skip the initial grab: focused M3 components paint their own
-        // focus pill even in touch mode, which is pure noise without a D-pad.
-        if (dpadSession) {
-            runCatching { firstFocus.requestFocus() }
-        }
-    }
+    RequestInitialDpadFocus(firstFocus, keys = arrayOf(loggedInNormally, relayEnabled))
 
     Column(
         Modifier
@@ -216,10 +200,10 @@ fun StreamSourceSettings(
             onCheckedChange = onAndroidVRChange,
         )
 
-        // iOS / iPadOS / ANDROID_CREATOR toggles are HIDDEN, not deleted (owner decision): the
-        // preferences, keys and resolver behavior all stay, and a previously-enabled one still
-        // shows in the order strip above; there is just no switch to flip on this screen (all
-        // three are off by default and poor choices - spc/DroidGuard-gated).
+        // iOS / iPadOS / ANDROID_CREATOR are HIDDEN here and force-disabled at startup (App.kt
+        // clamps a previously-enabled one back to off - hidden with no switch must not mean
+        // stuck-on): all three are spc/DroidGuard-gated poor choices. Keys and resolver support
+        // stay, so restoring the toggles is a UI-only change.
 
         PreferenceGroupTitle(
             title = stringResource(R.string.stream_source_creator_clients)

@@ -5,6 +5,8 @@ import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -1009,6 +1011,10 @@ fun AppearanceSettings(
                 "library" to stringResource(R.string.filter_library)
             )
 
+            // Scrollable: without this the DefaultDialog body CLIPS overflow (its height cap
+            // assumes a scrollable child), cutting the last rows off entirely on landscape or
+            // large font scales - an unreachable Search/Library toggle.
+            Column(Modifier.verticalScroll(rememberScrollState())) {
             availableItems.forEach { (key, title) ->
                 val isSelected = key in currentSelectedItems
                 // Min 1 / max 5: a deselect below one and a select past five are both no-ops.
@@ -1020,13 +1026,18 @@ fun AppearanceSettings(
                     }
                 }
                 // Label left, M3 switch trailing - the SwitchPreference look, so the dialog's rows
-                // read like every other toggle in Settings.
+                // read like every other toggle in Settings. `toggleable` with Role.Switch (never a
+                // bare clickable): the row must announce its on/off state to TalkBack.
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusBorder()
-                        .clickable(onClick = toggle)
+                        .toggleable(
+                            value = isSelected,
+                            role = Role.Switch,
+                            onValueChange = { toggle() },
+                        )
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                 ) {
                     Text(
@@ -1039,6 +1050,7 @@ fun AppearanceSettings(
                         onCheckedChange = null,
                     )
                 }
+            }
             }
         }
     }

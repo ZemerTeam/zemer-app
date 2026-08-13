@@ -452,21 +452,23 @@ fun SuggestionItem(
     pureBlack: Boolean
 ) {
     var focusState by remember { mutableStateOf<FocusState?>(null) }
-    val isFocused = (focusState?.isFocused ?: false) && focusVisualsEnabled()
+    // Named for what it decides (gate folded in): the raw focus flag AND the key-input session
+    // check - so no bare `if (isFocused)` paints a visual here (R23).
+    val focusHighlight = (focusState?.isFocused ?: false) && focusVisualsEnabled()
 
     val backgroundColor by animateColorAsState(
         targetValue = when {
-            isFocused -> MaterialTheme.colorScheme.primary
+            focusHighlight -> MaterialTheme.colorScheme.primary
             else -> MaterialTheme.colorScheme.surface
         },
         label = "suggestion_focus_bg"
     )
     val borderColor by animateColorAsState(
-        targetValue = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+        targetValue = if (focusHighlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
         label = "suggestion_focus_border"
     )
     val iconAlpha by animateFloatAsState(
-        targetValue = if (isFocused) 1f else 0.5f,
+        targetValue = if (focusHighlight) 1f else 0.5f,
         label = "suggestion_icon_alpha"
     )
 

@@ -75,7 +75,7 @@ import androidx.compose.ui.util.fastForEach
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
-import com.jtech.zemer.ui.component.focusVisualsEnabled
+import com.jtech.zemer.ui.component.RequestInitialDpadFocus
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
@@ -186,16 +186,11 @@ fun ArtistScreen(
         showLocal = libraryArtist?.artist?.isLocal == true
     }
 
-    val dpadSession = focusVisualsEnabled()
-    LaunchedEffect(artistPage, libraryArtist, showLocal) {
-        // Touch sessions skip the initial grab: focused M3 components paint their own
-        // focus pill even in touch mode, which is pure noise without a D-pad.
-        if (dpadSession) {
-            if (artistPage != null || libraryArtist != null || showLocal) {
-            firstFocus.requestFocus()
-        }
-        }
-    }
+    RequestInitialDpadFocus(
+        firstFocus,
+        enabled = artistPage != null || libraryArtist != null || showLocal,
+        keys = arrayOf(artistPage, libraryArtist, showLocal),
+    )
 
     Box(
         modifier = Modifier.fillMaxSize()

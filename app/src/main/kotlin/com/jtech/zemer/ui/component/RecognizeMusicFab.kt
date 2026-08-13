@@ -12,7 +12,8 @@ import com.jtech.zemer.R
  * Music chip when enabled (the `recognizeMusicFab` preference, default on). Kept as its own
  * component so `MainActivity` only wires placement/visibility; the look comes from the shared
  * [ZemerFab], COMPACTED (owner ask): the standard 56dp FAB read too heavy floating over content,
- * so this one is 46dp with the shape and colors unchanged.
+ * so this one is 48dp - the smallest size that still meets the Material/WCAG touch-target
+ * minimum - with the shape and colors unchanged.
  */
 @Composable
 fun RecognizeMusicFab(
@@ -23,6 +24,6 @@ fun RecognizeMusicFab(
         icon = R.drawable.mic,
         contentDescription = stringResource(R.string.recognize_music),
         onClick = onClick,
-        modifier = modifier.size(46.dp),
+        modifier = modifier.size(48.dp),
     )
 }
