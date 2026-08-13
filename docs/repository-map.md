@@ -77,12 +77,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1195`
+- Files counted: `1196`
 - By extension:
   - `.kt`: `755`
   - `.xml`: `196`
   - `.mjs`: `75`
-  - `.md`: `69`
+  - `.md`: `70`
   - `.json`: `37`
   - `.webp`: `15`
   - `[none]`: `7`
@@ -1070,6 +1070,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/multi_update/05-runbook.md` | 83 lines | `.md` |
 | `docs/multi_update/README.md` | 77 lines | `.md` |
 | `docs/offline/README.md` | 95 lines | `.md` |
+| `docs/podcasts/README.md` | 82 lines | `.md` |
 | `docs/recognize_music/01-architecture-and-pipeline.md` | 92 lines | `.md` |
 | `docs/recognize_music/02-whitelist-guarantee.md` | 100 lines | `.md` |
 | `docs/recognize_music/03-entry-points-and-ui.md` | 72 lines | `.md` |
@@ -1088,7 +1089,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1305 lines | `.md` |
+| `docs/repository-map.md` | 1306 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
