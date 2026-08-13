@@ -285,16 +285,10 @@
     <string name="stream_source_tvhtml5_desc">YouTube TV web client: fallback for login-gated content</string>
     <string name="stream_source_android_vr">Android VR</string>
     <string name="stream_source_android_vr_desc">Direct URL client: reliable fallback, no cipher needed</string>
-    <string name="stream_source_ios">iOS</string>
-    <string name="stream_source_ios_desc">Apple client — spc-gated past ~1 MiB; off by default, use visionOS</string>
-    <string name="stream_source_ipad_os">iPadOS</string>
-    <string name="stream_source_ipad_os_desc">Apple iPad client — spc-gated past ~1 MiB; off by default, use visionOS</string>
     <string name="stream_source_visionos">visionOS</string>
     <string name="stream_source_visionos_desc">Apple direct-URL client: streams full songs</string>
     <string name="stream_source_web_creator">WEB_CREATOR</string>
     <string name="stream_source_web_creator_desc">YouTube Studio web client</string>
-    <string name="stream_source_android_creator">ANDROID_CREATOR</string>
-    <string name="stream_source_android_creator_desc">YouTube Studio client — needs DroidGuard attestation; off by default</string>
 
     <!-- Mixes / suggested playlists -->
     <string name="mixes">Mixes</string>
@@ -426,7 +420,6 @@
     <!-- Bottom navigation customization -->
     <string name="bottom_nav_items">Bottom Navigation Items</string>
     <string name="bottom_nav_n_selected">%1$d/5 selected</string>
-    <string name="bottom_nav_select_one">Select at least 1 item</string>
 
     <!-- About screen -->
     <string name="about_tagline">Kosher YouTube Music Client</string>
