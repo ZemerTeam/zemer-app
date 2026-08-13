@@ -1,8 +1,6 @@
 package com.jtech.zemer.ui.menu
 
 import android.content.Context
-import android.content.Intent
-import android.widget.Toast
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,12 +17,11 @@ import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.UserPlaylistSharedByKey
 import com.jtech.zemer.di.ShareCredentialStoreEntryPoint
-import com.jtech.zemer.di.ZemerSearchRepositoryEntryPoint
+import com.jtech.zemer.di.zemerSearchRepository
 import com.jtech.zemer.search.ShareCredentials
 import com.jtech.zemer.search.ShareCredentialStore
 import com.jtech.zemer.search.ZemerRateLimitedException
 import com.jtech.zemer.search.ZemerSearchClient
-import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.ZemerShareHttpException
 import com.jtech.zemer.search.isZemerServerUnreachable
 import com.jtech.zemer.search.ZemerShareGoneException
@@ -33,6 +30,8 @@ import com.jtech.zemer.search.sharedPlaylistFingerprint
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.ui.component.TextFieldDialog
+import com.jtech.zemer.extensions.shareText
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.EntryPointAccessors
@@ -55,10 +54,6 @@ private val shareScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immed
 /** Fallback when a PUT response omits `url` - the server host (single-sourced) + the stable id. */
 private fun userPlaylistUrl(shareId: String) = "${ZemerSearchClient.BASE_URL}/user_playlist/$shareId"
 
-private fun repositoryOf(context: Context): ZemerSearchRepository = EntryPointAccessors
-    .fromApplication(context.applicationContext, ZemerSearchRepositoryEntryPoint::class.java)
-    .zemerSearchRepository()
-
 private fun credentialStoreOf(context: Context): ShareCredentialStore = EntryPointAccessors
     .fromApplication(context.applicationContext, ShareCredentialStoreEntryPoint::class.java)
     .shareCredentialStore()
@@ -77,10 +72,10 @@ private fun credentialStoreOf(context: Context): ShareCredentialStore = EntryPoi
 suspend fun shareUserPlaylist(context: Context, playlistId: String, title: String, videoIds: List<String>, sharedBy: String?) {
     val appContext = context.applicationContext
     if (videoIds.isEmpty()) {
-        Toast.makeText(appContext, R.string.share_playlist_empty, Toast.LENGTH_SHORT).show()
+        appContext.toast(R.string.share_playlist_empty)
         return
     }
-    val repository = repositoryOf(context)
+    val repository = context.zemerSearchRepository()
     val store = credentialStoreOf(context)
     val existing = store.get(playlistId)
 
@@ -150,28 +145,19 @@ private fun shareFailureToast(appContext: Context, e: Throwable) {
             R.string.share_playlist_failed
         }
     }
-    Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
+    appContext.toast(message)
 }
 
 private fun openShareSheet(context: Context, shareId: String, response: ZemerUserPlaylistCreateResponse) {
     val appContext = context.applicationContext
     if (response.dropped > 0) {
-        Toast.makeText(
-            appContext,
-            appContext.resources.getQuantityString(R.plurals.share_playlist_dropped, response.dropped, response.dropped),
-            Toast.LENGTH_SHORT,
-        ).show()
+        appContext.toast(appContext.resources.getQuantityString(R.plurals.share_playlist_dropped, response.dropped, response.dropped))
     }
     // The SHARE action is tracked HERE, at the moment the share actually happened, with the
     // share id (joinable to opened links) - not on dialog-open, where a cancel or a 429 would
     // still count (chokepoint rule, docs/tracking/README.md).
     Tracker.action(TrackingActionKind.SHARE, shareId)
-    val intent = Intent().apply {
-        action = Intent.ACTION_SEND
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, response.url)
-    }
-    context.startActivity(Intent.createChooser(intent, null))
+    context.shareText(response.url)
 }
 
 /**
@@ -184,11 +170,11 @@ suspend fun unshareUserPlaylist(context: Context, playlistId: String) {
     val store = credentialStoreOf(context)
     val credentials = store.get(playlistId) ?: return
     runCatching {
-        withContext(Dispatchers.IO) { repositoryOf(appContext).deleteUserPlaylist(credentials.shareId, credentials.ownerToken) }
+        withContext(Dispatchers.IO) { appContext.zemerSearchRepository().deleteUserPlaylist(credentials.shareId, credentials.ownerToken) }
     }
         .onSuccess {
             store.remove(playlistId)
-            Toast.makeText(appContext, R.string.unshare_done, Toast.LENGTH_SHORT).show()
+            appContext.toast(R.string.unshare_done)
         }
         .onFailure { e ->
             when {
@@ -196,14 +182,14 @@ suspend fun unshareUserPlaylist(context: Context, playlistId: String) {
                 // Already gone server-side = the goal state; clear and confirm.
                 e is ZemerShareGoneException -> {
                     store.remove(playlistId)
-                    Toast.makeText(appContext, R.string.unshare_done, Toast.LENGTH_SHORT).show()
+                    appContext.toast(R.string.unshare_done)
                 }
                 // Routine no-network: correct copy, no Crashlytics noise (the auto-updater's
                 // orphan sweep backstops the delete-playlist path).
-                e.isZemerServerUnreachable() -> Toast.makeText(appContext, R.string.error_no_internet, Toast.LENGTH_SHORT).show()
+                e.isZemerServerUnreachable() -> appContext.toast(R.string.error_no_internet)
                 else -> {
                     reportException(e)
-                    Toast.makeText(appContext, R.string.unshare_failed, Toast.LENGTH_SHORT).show()
+                    appContext.toast(R.string.unshare_failed)
                 }
             }
         }

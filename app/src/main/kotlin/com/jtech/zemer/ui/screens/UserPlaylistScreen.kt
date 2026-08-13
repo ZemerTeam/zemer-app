@@ -54,13 +54,16 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
+import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.AutoResizeText
+import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.FontSizeRange
-import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.zemerCuratedPlaylistRuntimeLabel
+import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.menu.ImportPlaylistDialog
@@ -68,7 +71,6 @@ import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.screens.playlist.PlaylistPlayShuffleButtons
 import com.jtech.zemer.ui.screens.playlist.filteredPlaylistCover
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
-import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.viewmodels.UserPlaylistViewModel
 import com.metrolist.innertube.models.SongItem
@@ -238,9 +240,7 @@ fun UserPlaylistScreen(
                         isActive = mediaMetadata?.id == song.id,
                         isPlaying = isPlaying,
                         trailingContent = {
-                            IconButton(onClick = { showSongMenu(song) }, onLongClick = {}) {
-                                Icon(painterResource(R.drawable.more_vert), contentDescription = null)
-                            }
+                            MoreVertMenuButton(onClick = { showSongMenu(song) })
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -281,15 +281,9 @@ fun UserPlaylistScreen(
     }
 
     TopAppBar(
-        title = { Text(page?.header?.title ?: "") },
-        navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(painterResource(R.drawable.arrow_back), contentDescription = null)
-            }
-        },
+        title = { AppBarTitle(page?.header?.title ?: "") },
+        navigationIcon = { BackNavigationIcon(navController) },
         scrollBehavior = scrollBehavior,
+        colors = zemerTopAppBarColors(),
     )
 }
