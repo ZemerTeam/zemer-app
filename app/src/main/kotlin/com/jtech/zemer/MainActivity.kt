@@ -15,6 +15,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
@@ -1243,6 +1244,16 @@ class MainActivity : ComponentActivity() {
                         CompositionLocalProvider(
                             LocalPlayerAwareWindowInsets provides playerAwareWindowInsets,
                         ) {
+                            // A hardware/system Back press with the drawer open must close the
+                            // drawer, not exit the app. Material3's ModalNavigationDrawer ships its
+                            // own PredictiveBackHandler for this, but it never intercepts a plain
+                            // back press under activity-compose 1.12 (verified on an API 30
+                            // emulator: drawer open + KEYCODE_BACK finished the activity while a
+                            // plain BackHandler in the same build worked), so the close is handled
+                            // explicitly here (#431).
+                            BackHandler(enabled = drawerState.isOpen) {
+                                coroutineScope.launch { drawerState.close() }
+                            }
                             ModalNavigationDrawer(
                             drawerState = drawerState,
                             drawerContent = {
