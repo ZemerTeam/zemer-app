@@ -48,7 +48,7 @@ fun ImportPlaylistDialog(
             onDone = { finalName ->
                 importScope.launch {
                     runCatching {
-                        val newPlaylist = PlaylistEntity(name = finalName)
+                        val newPlaylist = importedPlaylistEntity(finalName)
                         // AWAIT the row insert before reading it back - a fire-and-forget insert
                         // racing the flow read intermittently returned null and silently imported
                         // nothing. awaitTransaction also rethrows a failed insert into this
@@ -63,3 +63,16 @@ fun ImportPlaylistDialog(
         )
     }
 }
+
+/**
+ * The entity a "Save a copy" import creates. `bookmarkedAt` MUST be set: the library playlists
+ * queries filter `WHERE bookmarkedAt IS NOT NULL` (DatabaseDao), so a bare `PlaylistEntity(name)`
+ * saves a fully-populated playlist that never appears anywhere - the "Save a copy saved nothing"
+ * bug. Mirrors CreatePlaylistDialog's construction; extracted so the rule is unit-tested.
+ */
+internal fun importedPlaylistEntity(name: String): PlaylistEntity =
+    PlaylistEntity(
+        name = name,
+        bookmarkedAt = java.time.LocalDateTime.now(),
+        isEditable = true,
+    )
