@@ -282,6 +282,7 @@ import com.jtech.zemer.utils.tryStartForegroundService
 import com.jtech.zemer.viewmodels.HomeViewModel
 import com.jtech.zemer.viewmodels.KidZoneViewModel
 import com.jtech.zemer.viewmodels.WhitelistedArtistsViewModel
+import com.jtech.zemer.viewmodels.WhitelistedPodcastsViewModel
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
@@ -1630,6 +1631,16 @@ class MainActivity : ComponentActivity() {
                                                         icon = R.drawable.sync,
                                                         contentDescription = stringResource(R.string.refresh_artists),
                                                         onClick = { whitelistedArtistsViewModel.sync() },
+                                                    )
+                                                }
+
+                                                if (currentRoute == Screens.Podcasts.route && navBackStackEntry != null) {
+                                                    val whitelistedPodcastsViewModel: WhitelistedPodcastsViewModel =
+                                                        hiltViewModel(navBackStackEntry!!)
+                                                    TopAppBarActionButton(
+                                                        icon = R.drawable.sync,
+                                                        contentDescription = stringResource(R.string.refresh_podcasts),
+                                                        onClick = { whitelistedPodcastsViewModel.sync() },
                                                     )
                                                 }
 
