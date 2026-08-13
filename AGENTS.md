@@ -772,6 +772,22 @@ YouTube account (`SyncUtils.syncPodcastSubscriptions`/`syncEpisodesForLater`, ga
   (respecting filters-off) as defense-in-depth. Play source/surface: episode plays tag
   `PlaySource.podcast(id)` / `TrackingSurface.podcast|channel` (append-only slugs).
 
+### User playlist sharing (issue #176; share links, live updates, the featured Home row)
+
+Share a LOCAL playlist as an unguessable `search.zemer.io/user_playlist/<id>` link that opens
+in-app, with live owner-token updates and "Save a copy"; the operator can FEATURE hand-picked
+shares onto the Home "Zemer User Playlists" row (`/home-rows` additive `userPlaylists`; featuring
+IS the moderation gate for the free-text title/name). Full detail in `docs/user_playlists/README.md`;
+contracts in the share handoff thread + `handoff-docs/zemer-app-user-playlists-home-row-request.md`.
+The rules that must not regress: share ids NEVER enter online-playlist code paths (cards and taps
+route to `user_playlist/<id>` only, no generic playlist menu); the sharer display name is
+MANDATORY and remembered device-wide; credentials are SCHEMA-FREE (`ShareCredentialStore`, one
+DataStore JSON map - nothing about sharing touches Room); re-sharing PUTs the same id (never a
+second link) and `SharedPlaylistAutoUpdater` keeps links tracking later edits; a Save-a-copy
+import creates a BOOKMARKED editable playlist (`importedPlaylistEntity`, unit-tested - the library
+filters `bookmarkedAt IS NOT NULL`, an unbookmarked import saved invisibly); the featured row is
+fail-soft (absent/empty = hidden) and server-screened.
+
 ### Offline search backup (`offline/` — the outage fallback)
 
 A downloaded, incrementally-synced snapshot of the corpus serves `/search`, `/artist`, `/album`,
