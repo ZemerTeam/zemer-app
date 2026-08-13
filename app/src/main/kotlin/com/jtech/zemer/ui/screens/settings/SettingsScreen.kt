@@ -101,7 +101,7 @@ fun SettingsScreen(
             id = "stream_sources",
             title = stringResource(R.string.stream_sources),
             description = stringResource(R.string.stream_sources_description),
-            icon = R.drawable.play,
+            icon = R.drawable.radio,
             section = stringResource(R.string.settings_section_player_content),
             route = "settings/stream_sources"
         ),
