@@ -46,6 +46,7 @@ import com.jtech.zemer.constants.AndroidAutoTargetPlaylistKey
 import com.jtech.zemer.constants.MediaSessionConstants
 import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.SettingsCardGroup
 import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.utils.rememberPreference
@@ -208,15 +209,19 @@ fun AndroidAutoSettings(
             }
         }
 
-        item(key = "playlist_title") {
-            PreferenceGroupTitle(title = stringResource(R.string.android_auto_target_playlist))
-        }
-        item(key = "playlist_entry") {
-            PreferenceEntry(
-                icon = { Icon(painterResource(R.drawable.playlist_add), contentDescription = null) },
-                title = { Text(stringResource(R.string.android_auto_target_playlist)) },
-                description = playlistLabel(targetPlaylist),
-                onClick = { showTargetPlaylistDialog = true },
+        item(key = "playlist_group") {
+            SettingsCardGroup(
+                title = stringResource(R.string.android_auto_target_playlist),
+                rows = listOf(
+                    {
+                        PreferenceEntry(
+                            icon = { Icon(painterResource(R.drawable.playlist_add), contentDescription = null) },
+                            title = { Text(stringResource(R.string.android_auto_target_playlist)) },
+                            description = playlistLabel(targetPlaylist),
+                            onClick = { showTargetPlaylistDialog = true },
+                        )
+                    },
+                ),
             )
         }
 

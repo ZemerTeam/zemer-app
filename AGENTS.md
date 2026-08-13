@@ -250,6 +250,9 @@ ArtistScreen's over-header transparent state; the in-player fullscreen video ove
 (`PlayerVideoFullscreen`) has no `TopAppBar` at all, just an exit icon over the scrim),
 `PlaylistPlayShuffleButtons` + `PlaylistHeaderShimmer` (playlist headers/skeletons),
 `shimmer/BoxPlaceholder` (the base shimmer slab under `ButtonPlaceholder`/`GridItemPlaceholder`),
+`SettingsCardGroup` (the settings grouped-card stack — every settings row run renders through it:
+position-shaped per-row cards via the unit-tested `settingsCardCorners`, one geometry shared with
+`Material3SettingsGroup`; screens whose column already pads pass `horizontalPadding = 0.dp`),
 `ArtistBrowseComponents` (KidZone/whitelist browse header; also `ArtistSearchField` + `SearchHandoffPill` —
 the browse search pill and its tappable hand-off sibling, one shared geometry so the pair can't drift),
 `IconCategoryCard` (the square category

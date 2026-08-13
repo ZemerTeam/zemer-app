@@ -53,7 +53,7 @@ import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
-import com.jtech.zemer.ui.component.PreferenceGroupTitle
+import com.jtech.zemer.ui.component.SettingsCardGroup
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.formatFileSize
@@ -187,44 +187,50 @@ fun StorageSettings(
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .verticalScroll(rememberScrollState()),
     ) {
-        PreferenceGroupTitle(
+        SettingsCardGroup(
             title = stringResource(R.string.downloaded_songs),
+            rows = buildList {
+                add {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.custom_download_path)) },
+                        description = stringResource(
+                            R.string.custom_download_path_summary,
+                            resolvedDownloadPath
+                        ),
+                        onClick = { downloadPickerLauncher.launch(null) }
+                    )
+                }
+                add {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.video_download_path)) },
+                        description = stringResource(R.string.video_download_path_summary),
+                        onClick = { /* Video path is fixed to Movies/Zemer */ }
+                    )
+                }
+                if (customDownloadPath.isNotBlank()) {
+                    add {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.reset_download_path)) },
+                            description = stringResource(R.string.reset_download_path_summary),
+                            onClick = onResetDownloadPath
+                        )
+                    }
+                }
+                add {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.clear_all_downloads)) },
+                        onClick = {clearDownloads = true
+                        },
+                        modifier = Modifier.focusRequester(firstFocus),
+                    )
+                }
+            },
         )
 
         Text(
             text = stringResource(R.string.size_used, formatFileSize(downloadCacheSize)),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-        )
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.custom_download_path)) },
-            description = stringResource(
-                R.string.custom_download_path_summary,
-                resolvedDownloadPath
-            ),
-            onClick = { downloadPickerLauncher.launch(null) }
-        )
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.video_download_path)) },
-            description = stringResource(R.string.video_download_path_summary),
-            onClick = { /* Video path is fixed to Movies/Zemer */ }
-        )
-
-        if (customDownloadPath.isNotBlank()) {
-            PreferenceEntry(
-                title = { Text(stringResource(R.string.reset_download_path)) },
-                description = stringResource(R.string.reset_download_path_summary),
-                onClick = onResetDownloadPath
-            )
-        }
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.clear_all_downloads)) },
-            onClick = {clearDownloads = true
-            },
-            modifier = Modifier.focusRequester(firstFocus),
         )
 
         if (clearDownloads) {
@@ -256,8 +262,32 @@ fun StorageSettings(
             )
         }
 
-        PreferenceGroupTitle(
+        SettingsCardGroup(
             title = stringResource(R.string.song_cache),
+            rows = listOf(
+                {
+                    ListPreference(
+                        title = { Text(stringResource(R.string.max_cache_size)) },
+                        selectedValue = maxSongCacheSize,
+                        values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192, -1),
+                        valueText = {
+                            when (it) {
+                                0 -> stringResource(R.string.disable)
+                                -1 -> stringResource(R.string.unlimited)
+                                else -> formatFileSize(it * 1024 * 1024L)
+                            }
+                        },
+                        onValueSelected = onMaxSongCacheSizeChange,
+                    )
+                },
+                {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.clear_song_cache)) },
+                        onClick = { clearCacheDialog = true
+                        },
+                    )
+                },
+            ),
         )
 
         if (maxSongCacheSize != 0) {
@@ -296,26 +326,6 @@ fun StorageSettings(
             }
         }
 
-        ListPreference(
-            title = { Text(stringResource(R.string.max_cache_size)) },
-            selectedValue = maxSongCacheSize,
-            values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192, -1),
-            valueText = {
-                when (it) {
-                    0 -> stringResource(R.string.disable)
-                    -1 -> stringResource(R.string.unlimited)
-                    else -> formatFileSize(it * 1024 * 1024L)
-                }
-            },
-            onValueSelected = onMaxSongCacheSizeChange,
-        )
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.clear_song_cache)) },
-            onClick = { clearCacheDialog = true
-            },
-        )
-
         if (clearCacheDialog) {
             ActionPromptDialog(
                 title = stringResource(R.string.clear_song_cache),
@@ -335,8 +345,31 @@ fun StorageSettings(
             )
         }
 
-        PreferenceGroupTitle(
+        SettingsCardGroup(
             title = stringResource(R.string.image_cache),
+            rows = listOf(
+                {
+                    ListPreference(
+                        title = { Text(stringResource(R.string.max_cache_size)) },
+                        selectedValue = maxImageCacheSize,
+                        values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192),
+                        valueText = {
+                            when (it) {
+                                0 -> stringResource(R.string.disable)
+                                else -> formatFileSize(it * 1024 * 1024L)
+                            }
+                        },
+                        onValueSelected = onMaxImageCacheSizeChange,
+                    )
+                },
+                {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.clear_image_cache)) },
+                        onClick = { clearImageCacheDialog = true
+                        },
+                    )
+                },
+            ),
         )
 
         if (maxImageCacheSize > 0) {
@@ -361,25 +394,6 @@ fun StorageSettings(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
             )
         }
-
-        ListPreference(
-            title = { Text(stringResource(R.string.max_cache_size)) },
-            selectedValue = maxImageCacheSize,
-            values = listOf(0, 128, 256, 512, 1024, 2048, 4096, 8192),
-            valueText = {
-                when (it) {
-                    0 -> stringResource(R.string.disable)
-                    else -> formatFileSize(it * 1024 * 1024L)
-                }
-            },
-            onValueSelected = onMaxImageCacheSizeChange,
-        )
-
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.clear_image_cache)) },
-            onClick = { clearImageCacheDialog = true
-            },
-        )
 
         if (clearImageCacheDialog) {
             ActionPromptDialog(

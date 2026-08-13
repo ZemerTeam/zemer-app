@@ -45,8 +45,8 @@ import com.jtech.zemer.constants.StreamSourceWebCreatorKey
 import com.jtech.zemer.constants.StreamSourceWebRemixKey
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
-import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.RequestInitialDpadFocus
+import com.jtech.zemer.ui.component.SettingsCardGroup
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
@@ -108,17 +108,21 @@ fun StreamSourceSettings(
         // on-device client fallback list below no longer applies (playback goes through the Zemer relay).
         // Shown ONLY for a login-less session — a normal Google/Anonymous login never sees it.
         if (!loggedInNormally) {
-        PreferenceGroupTitle(
-            title = stringResource(R.string.stream_relay_group)
-        )
-        SwitchPreference(
-            title = { Text(stringResource(R.string.stream_relay_title)) },
-            description = stringResource(R.string.stream_relay_desc),
-            icon = { Icon(painterResource(R.drawable.security), null) },
-            checked = relayEnabled,
-            onCheckedChange = { on -> playbackMode = if (on) PlaybackMode.RELAY else PlaybackMode.DIRECT },
-            // When shown (login-less), the relay toggle carries the initial D-pad focus.
-            modifier = Modifier.focusRequester(firstFocus),
+        SettingsCardGroup(
+            title = stringResource(R.string.stream_relay_group),
+            rows = listOf(
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.stream_relay_title)) },
+                        description = stringResource(R.string.stream_relay_desc),
+                        icon = { Icon(painterResource(R.drawable.security), null) },
+                        checked = relayEnabled,
+                        onCheckedChange = { on -> playbackMode = if (on) PlaybackMode.RELAY else PlaybackMode.DIRECT },
+                        // When shown (login-less), the relay toggle carries the initial D-pad focus.
+                        modifier = Modifier.focusRequester(firstFocus),
+                    )
+                },
+            ),
         )
         } // end if (!loggedInNormally)
 
@@ -158,46 +162,54 @@ fun StreamSourceSettings(
             }
         }
 
-        PreferenceGroupTitle(
-            title = stringResource(R.string.stream_source_web_clients)
+        SettingsCardGroup(
+            title = stringResource(R.string.stream_source_web_clients),
+            rows = listOf(
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.stream_source_web_remix)) },
+                        description = stringResource(R.string.stream_source_web_remix_desc),
+                        icon = { Icon(painterResource(R.drawable.play), null) },
+                        checked = webRemixEnabled,
+                        onCheckedChange = onWebRemixChange,
+                        // When the relay group is hidden (a normal login), this is the first row, so it takes focus.
+                        modifier = if (loggedInNormally) Modifier.focusRequester(firstFocus) else Modifier,
+                    )
+                },
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.stream_source_tvhtml5)) },
+                        description = stringResource(R.string.stream_source_tvhtml5_desc),
+                        icon = { Icon(painterResource(R.drawable.play), null) },
+                        checked = tvhtml5Enabled,
+                        onCheckedChange = onTVHTML5Change,
+                    )
+                },
+            ),
         )
 
-        SwitchPreference(
-            title = { Text(stringResource(R.string.stream_source_web_remix)) },
-            description = stringResource(R.string.stream_source_web_remix_desc),
-            icon = { Icon(painterResource(R.drawable.play), null) },
-            checked = webRemixEnabled,
-            onCheckedChange = onWebRemixChange,
-            // When the relay group is hidden (a normal login), this is the first row, so it takes focus.
-            modifier = if (loggedInNormally) Modifier.focusRequester(firstFocus) else Modifier,
-        )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.stream_source_tvhtml5)) },
-            description = stringResource(R.string.stream_source_tvhtml5_desc),
-            icon = { Icon(painterResource(R.drawable.play), null) },
-            checked = tvhtml5Enabled,
-            onCheckedChange = onTVHTML5Change,
-        )
-
-        PreferenceGroupTitle(
-            title = stringResource(R.string.stream_source_native_clients)
-        )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.stream_source_visionos)) },
-            description = stringResource(R.string.stream_source_visionos_desc),
-            icon = { Icon(painterResource(R.drawable.play), null) },
-            checked = visionosEnabled,
-            onCheckedChange = onVisionOSChange,
-        )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.stream_source_android_vr)) },
-            description = stringResource(R.string.stream_source_android_vr_desc),
-            icon = { Icon(painterResource(R.drawable.play), null) },
-            checked = androidVREnabled,
-            onCheckedChange = onAndroidVRChange,
+        SettingsCardGroup(
+            title = stringResource(R.string.stream_source_native_clients),
+            rows = listOf(
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.stream_source_visionos)) },
+                        description = stringResource(R.string.stream_source_visionos_desc),
+                        icon = { Icon(painterResource(R.drawable.play), null) },
+                        checked = visionosEnabled,
+                        onCheckedChange = onVisionOSChange,
+                    )
+                },
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.stream_source_android_vr)) },
+                        description = stringResource(R.string.stream_source_android_vr_desc),
+                        icon = { Icon(painterResource(R.drawable.play), null) },
+                        checked = androidVREnabled,
+                        onCheckedChange = onAndroidVRChange,
+                    )
+                },
+            ),
         )
 
         // iOS / iPadOS / ANDROID_CREATOR are HIDDEN here and force-disabled at startup (App.kt
@@ -205,16 +217,19 @@ fun StreamSourceSettings(
         // stuck-on): all three are spc/DroidGuard-gated poor choices. Keys and resolver support
         // stay, so restoring the toggles is a UI-only change.
 
-        PreferenceGroupTitle(
-            title = stringResource(R.string.stream_source_creator_clients)
-        )
-
-        SwitchPreference(
-            title = { Text(stringResource(R.string.stream_source_web_creator)) },
-            description = stringResource(R.string.stream_source_web_creator_desc),
-            icon = { Icon(painterResource(R.drawable.play), null) },
-            checked = webCreatorEnabled,
-            onCheckedChange = onWebCreatorChange,
+        SettingsCardGroup(
+            title = stringResource(R.string.stream_source_creator_clients),
+            rows = listOf(
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.stream_source_web_creator)) },
+                        description = stringResource(R.string.stream_source_web_creator_desc),
+                        icon = { Icon(painterResource(R.drawable.play), null) },
+                        checked = webCreatorEnabled,
+                        onCheckedChange = onWebCreatorChange,
+                    )
+                },
+            ),
         )
         } // end if (!relayEnabled): DIRECT-only client list
     }

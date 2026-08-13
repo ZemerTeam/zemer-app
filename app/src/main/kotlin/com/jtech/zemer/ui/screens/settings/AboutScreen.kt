@@ -61,6 +61,7 @@ import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.GenreWeaveLayer
 import com.jtech.zemer.ui.component.PreferenceEntry
+import com.jtech.zemer.ui.component.SettingsCardGroup
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.utils.rememberPreference
 
@@ -260,38 +261,56 @@ fun AboutScreen(
 
         // Links.
         SectionTitle(stringResource(R.string.about_links))
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.about_releases)) },
-            icon = { Icon(painterResource(R.drawable.link), null) },
-            onClick = { uriHandler.openUri(RELEASES_URL) },
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.about_discussion)) },
-            icon = { Icon(painterResource(R.drawable.link), null) },
-            onClick = { uriHandler.openUri(DISCUSSION_URL) },
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.about_source_code)) },
-            icon = { Icon(painterResource(R.drawable.github), null) },
-            onClick = { uriHandler.openUri(SOURCE_URL) },
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
-        PreferenceEntry(
-            title = { Text(stringResource(R.string.about_based_on)) },
-            icon = { Icon(painterResource(R.drawable.github), null) },
-            onClick = { uriHandler.openUri(METROLIST_URL) },
-            modifier = Modifier.padding(horizontal = 4.dp),
+        SettingsCardGroup(
+            rows = listOf(
+                {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.about_releases)) },
+                        icon = { Icon(painterResource(R.drawable.link), null) },
+                        onClick = { uriHandler.openUri(RELEASES_URL) },
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                },
+                {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.about_discussion)) },
+                        icon = { Icon(painterResource(R.drawable.link), null) },
+                        onClick = { uriHandler.openUri(DISCUSSION_URL) },
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                },
+                {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.about_source_code)) },
+                        icon = { Icon(painterResource(R.drawable.github), null) },
+                        onClick = { uriHandler.openUri(SOURCE_URL) },
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                },
+                {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.about_based_on)) },
+                        icon = { Icon(painterResource(R.drawable.github), null) },
+                        onClick = { uriHandler.openUri(METROLIST_URL) },
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                },
+            ),
         )
 
         if (BuildConfig.DEBUG && developerMode) {
             Spacer(Modifier.height(16.dp))
-            PreferenceEntry(
-                title = { Text(stringResource(R.string.log_viewer)) },
-                description = stringResource(R.string.enable_debug_logging_desc),
-                onClick = { navController.navigate("settings/log_viewer") },
-                modifier = Modifier.padding(horizontal = 4.dp),
+            SettingsCardGroup(
+                rows = listOf(
+                    {
+                        PreferenceEntry(
+                            title = { Text(stringResource(R.string.log_viewer)) },
+                            description = stringResource(R.string.enable_debug_logging_desc),
+                            onClick = { navController.navigate("settings/log_viewer") },
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                        )
+                    },
+                ),
             )
         }
 

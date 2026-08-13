@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -61,23 +62,29 @@ fun Material3SettingsGroup(
             )
         }
         
-        // Settings card
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .animateContentSize(),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        // The per-item card stack ([settingsCardCorners], shared with SettingsCardGroup): each
+        // row is its own card, outer corners large, seams small, 4dp gaps - one geometry for
+        // every settings surface so the two group components can never drift.
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Column {
-                items.forEachIndexed { index, item ->
-                    Material3SettingsItemRow(
-                        item = item,
-                        showDivider = index < items.size - 1
-                    )
+            items.forEachIndexed { index, item ->
+                val (top, bottom) = settingsCardCorners(index, items.size)
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(),
+                    shape = RoundedCornerShape(
+                        topStart = top.dp, topEnd = top.dp,
+                        bottomStart = bottom.dp, bottomEnd = bottom.dp,
+                    ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Material3SettingsItemRow(item = item)
                 }
             }
         }
@@ -89,8 +96,7 @@ fun Material3SettingsGroup(
  */
 @Composable
 private fun Material3SettingsItemRow(
-    item: Material3SettingsItem,
-    showDivider: Boolean
+    item: Material3SettingsItem
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
@@ -188,16 +194,6 @@ private fun Material3SettingsItemRow(
         }
         
         // Divider
-        if (showDivider) {
-            HorizontalDivider(
-                modifier = Modifier.padding(
-                    start = if (item.icon != null) 76.dp else 20.dp,
-                    end = 20.dp
-                ),
-                thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-            )
-        }
     }
 }
 
