@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` — a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline — they are not duplicated here.
 
-## `app` Kotlin files (655)
+## `app` Kotlin files (656)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -560,6 +560,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetSearchTest.kt` | 159 | `com.jtech.zemer.offline` | no | 4 | 34 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetStoreStagingTest.kt` | 74 | `com.jtech.zemer.offline` | no | 6 | 8 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetSyncTest.kt` | 72 | `com.jtech.zemer.offline` | no | 4 | 13 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/playback/BlockedPodcastsQueueTest.kt` | 55 | `com.jtech.zemer.playback` | no | 6 | 4 | androidx.media3, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastAutoAdvanceTest.kt` | 184 | `com.jtech.zemer.playback` | no | 3 | 10 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastConnectTest.kt` | 134 | `com.jtech.zemer.playback` | no | 13 | 13 | java.net, kotlinx.coroutines, org.fcast, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastDeviceCatalogTest.kt` | 145 | `com.jtech.zemer.playback` | no | 8 | 20 | org.fcast, org.junit |

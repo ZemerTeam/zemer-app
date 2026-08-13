@@ -77,9 +77,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1196`
+- Files counted: `1197`
 - By extension:
-  - `.kt`: `755`
+  - `.kt`: `756`
   - `.xml`: `196`
   - `.mjs`: `75`
   - `.md`: `70`
@@ -932,6 +932,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetSearchTest.kt` | 159 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetStoreStagingTest.kt` | 74 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetSyncTest.kt` | 72 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/BlockedPodcastsQueueTest.kt` | 55 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastAutoAdvanceTest.kt` | 184 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastConnectTest.kt` | 134 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastDeviceCatalogTest.kt` | 145 lines | `.kt` |
@@ -1078,7 +1079,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 778 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 779 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 385 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
@@ -1089,7 +1090,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1306 lines | `.md` |
+| `docs/repository-map.md` | 1307 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
