@@ -96,7 +96,6 @@ import com.jtech.zemer.constants.ShowHomeStatusesKey
 import com.jtech.zemer.constants.ShowDownloadedPlaylistKey
 import com.jtech.zemer.constants.ShowLikedPlaylistKey
 import com.jtech.zemer.constants.ShowTopPlaylistKey
-import com.jtech.zemer.constants.ShowUploadedPlaylistKey
 import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.constants.SlimNavBarKey
@@ -316,10 +315,6 @@ fun AppearanceSettings(
     )
     val (showCachedPlaylist, onShowCachedPlaylistChange) = rememberPreference(
         ShowCachedPlaylistKey,
-        defaultValue = true
-    )
-    val (showUploadedPlaylist, onShowUploadedPlaylistChange) = rememberPreference(
-        ShowUploadedPlaylistKey,
         defaultValue = true
     )
 
@@ -913,14 +908,6 @@ fun AppearanceSettings(
                         icon = { Icon(painterResource(R.drawable.cached), null) },
                         checked = showCachedPlaylist,
                         onCheckedChange = onShowCachedPlaylistChange
-                    )
-                },
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.show_uploaded_playlist)) },
-                        icon = { Icon(painterResource(R.drawable.backup), null) },
-                        checked = showUploadedPlaylist,
-                        onCheckedChange = onShowUploadedPlaylistChange
                     )
                 },
             ),

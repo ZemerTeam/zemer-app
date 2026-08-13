@@ -137,7 +137,6 @@
     <string name="show_downloaded_playlist">Show \"Downloaded\" playlist</string>
     <string name="show_top_playlist">Show \"Top\" playlist</string>
     <string name="show_cached_playlist">Show \"Cached\" playlist</string>
-    <string name="show_uploaded_playlist">Show \"Uploaded\" playlist</string>
 
     <string name="token_adv_login_description">This is an ADVANCED login method. As an alternative to the web portal, you may directly enter or update your login token here. For example, this can speed up logging in on multiple devices. Please note that any invalid token formats the app fails to parse will not be accepted</string>
     <string name="yt_sync">Auto sync with account</string>

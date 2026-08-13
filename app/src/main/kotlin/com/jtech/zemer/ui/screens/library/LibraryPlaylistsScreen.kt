@@ -58,7 +58,6 @@ import com.jtech.zemer.constants.ShowCachedPlaylistKey
 import com.jtech.zemer.constants.ShowDownloadedPlaylistKey
 import com.jtech.zemer.constants.ShowLikedPlaylistKey
 import com.jtech.zemer.constants.ShowTopPlaylistKey
-import com.jtech.zemer.constants.ShowUploadedPlaylistKey
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.PlaylistEntity
@@ -171,7 +170,6 @@ fun LibraryPlaylistsScreen(
     val (showDownloaded) = rememberPreference(ShowDownloadedPlaylistKey, true)
     val (showTop) = rememberPreference(ShowTopPlaylistKey, true)
     val (showCached) = rememberPreference(ShowCachedPlaylistKey, true)
-    val (_) = rememberPreference(ShowUploadedPlaylistKey, false)
 
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
