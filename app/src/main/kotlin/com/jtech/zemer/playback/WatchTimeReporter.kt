@@ -1,0 +1,258 @@
+package com.jtech.zemer.playback
+
+import androidx.media3.common.Player
+import com.jtech.zemer.extensions.metadata
+import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.response.PlayerResponse
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * Emulates a genuine YouTube Music playback-stats session for every DIRECT play — music, video-songs
+ * and podcast episodes alike (handoff: `zemer-app-emulate-youtube-music-stream-request.md`).
+ *
+ * One session per listen, keyed by one cpn: a playback ping when the listen actually starts
+ * (`cmt=<start position>`, `final=0`), watchtime pings every ~[PING_INTERVAL_MS] of playback plus on
+ * pause/seek, and a `final=1` watchtime ping when the listen ends. Every reported range comes from
+ * [WatchTimeSegments] fed with real player positions — nothing is ever fabricated (the spec's hard
+ * rule: fabricated watch time is invalid traffic).
+ *
+ * Deliberately NOT running: RELAY mode (the spec's other hard rule — beacons must never ride the
+ * relay egress) and cast sessions (the receiver plays, not this device). A video-mode rendition swap
+ * and its repeat-one loop never reach [onTransition] (MusicService's own-swap early return), so the
+ * session correctly spans the whole listen across audio/video swaps.
+ *
+ * Extracted from [MusicService] (the giant-shrinking rule), mirroring [EpisodePositionTracker]:
+ * session state is confined to [scope] (the service main scope); only the tracking-URL cache is
+ * concurrent (seeded from the data-source resolver thread). Beacons are fire-and-forget: a network
+ * failure logs and moves on — stats must never affect playback.
+ */
+class WatchTimeReporter(
+    private val player: Player,
+    private val scope: CoroutineScope,
+    private val isCasting: () -> Boolean,
+    private val isRelay: () -> Boolean,
+    /** Mirrors the listen-history pause switch: when the user paused history, no beacons either. */
+    private val historyPaused: suspend () -> Boolean,
+    /**
+     * Fallback tracking-URL resolution for plays that skipped the stream resolver (cached spans,
+     * downloaded files) — a light metadata `/player` fetch, exactly what the legacy end-of-listen
+     * ping did. Null when unavailable (offline local play): the session then reports nothing.
+     */
+    private val fetchTracking: suspend (videoId: String) -> PlayerResponse.PlaybackTracking?,
+) {
+
+    private data class TrackingUrls(val playbackUrl: String?, val watchtimeUrl: String?)
+
+    private sealed interface Ping {
+        data class Start(val cmtMs: Long) : Ping
+        data class Watch(
+            val segments: WatchTimeSegments.Drained,
+            val cmtMs: Long,
+            val rtMs: Long,
+            val final: Boolean,
+        ) : Ping
+    }
+
+    private inner class Session(val videoId: String, val cpn: String) {
+        val startedWallMs = System.currentTimeMillis()
+        val segments = WatchTimeSegments()
+        val pings = Channel<Ping>(Channel.UNLIMITED)
+        var consumer: Job? = null
+        var finished = false
+
+        fun rtMs() = System.currentTimeMillis() - startedWallMs
+    }
+
+    /**
+     * playbackTracking captured by the stream resolver, keyed by clean videoId — written on the
+     * data-source thread, read at session start on the service scope. Bounded: stats URLs are tiny
+     * and a session consumes its entry's value immediately, but never let it grow unbounded.
+     */
+    private val resolvedTracking = ConcurrentHashMap<String, TrackingUrls>()
+
+    private var session: Session? = null
+    private var tickerJob: Job? = null
+
+    /** The departed item's final position, captured from the AUTO_TRANSITION discontinuity. */
+    private var pendingEndPositionMs = -1L
+
+    /** Called from the stream resolver with the playback response's tracking block. */
+    fun onTrackingResolved(videoId: String, tracking: PlayerResponse.PlaybackTracking?) {
+        val urls = TrackingUrls(
+            playbackUrl = tracking?.videostatsPlaybackUrl?.baseUrl,
+            watchtimeUrl = tracking?.videostatsWatchtimeUrl?.baseUrl,
+        )
+        if (urls.playbackUrl == null && urls.watchtimeUrl == null) return
+        if (resolvedTracking.size > MAX_CACHED_TRACKING) resolvedTracking.clear()
+        resolvedTracking[videoId] = urls
+    }
+
+    fun onIsPlayingChanged(isPlaying: Boolean) {
+        if (isPlaying) {
+            ensureSession()
+            session?.segments?.onPlay(player.currentPosition)
+            startTicker()
+        } else {
+            tickerJob?.cancel()
+            val s = session ?: return
+            s.segments.onPause(player.currentPosition)
+            enqueueWatch(s, cmtMs = player.currentPosition, final = false)
+        }
+    }
+
+    fun onPositionDiscontinuity(
+        oldPosition: Player.PositionInfo,
+        newPosition: Player.PositionInfo,
+        reason: Int,
+    ) {
+        val s = session ?: return
+        if (oldPosition.mediaItemIndex != newPosition.mediaItemIndex ||
+            oldPosition.mediaItemId()?.let { it != s.videoId } == true
+        ) {
+            // Leaving the session's item: remember where it really ended — onTransition closes with it.
+            pendingEndPositionMs = oldPosition.positionMs
+            return
+        }
+        if (reason == Player.DISCONTINUITY_REASON_SEEK ||
+            reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
+        ) {
+            s.segments.onSeek(oldPosition.positionMs, newPosition.positionMs, player.isPlaying)
+            enqueueWatch(s, cmtMs = newPosition.positionMs, final = false)
+        }
+    }
+
+    /** A REAL item transition (never the video-mode own-swap): finish the old listen, arm the new. */
+    fun onTransition() {
+        val endMs = pendingEndPositionMs
+        pendingEndPositionMs = -1
+        finishSession(endPositionMs = endMs)
+        if (player.isPlaying) {
+            ensureSession()
+            session?.segments?.onPlay(player.currentPosition)
+            startTicker()
+        }
+    }
+
+    /** The last item ran out (STATE_ENDED fires no transition). */
+    fun onPlaybackEnded() {
+        finishSession(endPositionMs = player.currentPosition)
+    }
+
+    fun onDestroy() {
+        finishSession(endPositionMs = null)
+    }
+
+    private fun ensureSession() {
+        val item = player.currentMediaItem ?: return
+        val id = item.mediaId
+        if (session?.videoId == id && session?.finished == false) return
+        finishSession(endPositionMs = null)
+        // The two hard exclusions: relay egress and cast (the receiver plays, not us).
+        if (isRelay() || isCasting()) return
+        if (item.metadata == null) return
+        val newSession = Session(videoId = id, cpn = YouTube.generateCpn())
+        session = newSession
+        newSession.pings.trySend(Ping.Start(cmtMs = player.currentPosition))
+        newSession.consumer = scope.launch { consumePings(newSession) }
+    }
+
+    private fun finishSession(endPositionMs: Long?) {
+        tickerJob?.cancel()
+        val s = session ?: return
+        session = null
+        if (s.finished) return
+        s.finished = true
+        val end = endPositionMs?.takeIf { it >= 0 } ?: player.currentPosition
+        s.segments.onPause(end)
+        val drained = s.segments.drain(end, stillPlaying = false)
+        if (drained != null) {
+            s.pings.trySend(Ping.Watch(drained, cmtMs = end, rtMs = s.rtMs(), final = true))
+        } else {
+            // Nothing watched since the last ping — the final flag still closes the session honestly
+            // with a zero-length range at the end position.
+            val cmt = WatchTimeSegments.formatSeconds(end)
+            s.pings.trySend(
+                Ping.Watch(
+                    WatchTimeSegments.Drained(st = cmt, et = cmt),
+                    cmtMs = end,
+                    rtMs = s.rtMs(),
+                    final = true,
+                ),
+            )
+        }
+        s.pings.close()
+    }
+
+    private fun enqueueWatch(s: Session, cmtMs: Long, final: Boolean) {
+        val drained = s.segments.drain(cmtMs, stillPlaying = player.isPlaying && !final) ?: return
+        s.pings.trySend(Ping.Watch(drained, cmtMs = cmtMs, rtMs = s.rtMs(), final = final))
+    }
+
+    private fun startTicker() {
+        if (tickerJob?.isActive == true) return
+        tickerJob = scope.launch {
+            while (isActive && player.isPlaying) {
+                delay(PING_INTERVAL_MS)
+                val s = session ?: break
+                if (!player.isPlaying) break
+                s.segments.onProgress(player.currentPosition)
+                enqueueWatch(s, cmtMs = player.currentPosition, final = false)
+            }
+        }
+    }
+
+    /** One consumer per session: resolves the URLs once, then sends pings strictly in order. */
+    private suspend fun consumePings(s: Session) {
+        if (historyPaused()) {
+            for (ping in s.pings) { /* privacy switch on: drop everything, keep order semantics */ }
+            return
+        }
+        val urls = resolvedTracking.remove(s.videoId)
+            ?: runCatching { fetchTracking(s.videoId) }.getOrNull()?.let {
+                TrackingUrls(it.videostatsPlaybackUrl?.baseUrl, it.videostatsWatchtimeUrl?.baseUrl)
+            }
+        if (urls?.playbackUrl == null && urls?.watchtimeUrl == null) {
+            for (ping in s.pings) { /* no tracking URLs (offline local play): nothing to report */ }
+            return
+        }
+        for (ping in s.pings) {
+            when (ping) {
+                is Ping.Start -> urls.playbackUrl?.let { url ->
+                    YouTube.registerPlayback(
+                        playlistId = null,
+                        playbackTracking = url,
+                        cpn = s.cpn,
+                        cmt = WatchTimeSegments.formatSeconds(ping.cmtMs),
+                        final = false,
+                    ).onFailure { Timber.d(it, "WatchTime: playback ping failed") }
+                }
+                is Ping.Watch -> urls.watchtimeUrl?.let { url ->
+                    YouTube.registerWatchtime(
+                        watchtimeTracking = url,
+                        cpn = s.cpn,
+                        st = ping.segments.st,
+                        et = ping.segments.et,
+                        cmt = WatchTimeSegments.formatSeconds(ping.cmtMs),
+                        rt = WatchTimeSegments.formatSeconds(ping.rtMs),
+                        final = ping.final,
+                    ).onFailure { Timber.d(it, "WatchTime: watchtime ping failed") }
+                }
+            }
+        }
+    }
+
+    private fun Player.PositionInfo.mediaItemId(): String? = mediaItem?.mediaId
+
+    companion object {
+        /** The official client reports roughly every half minute of playback. */
+        const val PING_INTERVAL_MS = 30_000L
+        private const val MAX_CACHED_TRACKING = 64
+    }
+}

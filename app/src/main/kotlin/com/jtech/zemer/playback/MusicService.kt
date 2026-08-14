@@ -241,6 +241,22 @@ class MusicService :
         EpisodePositionTracker(player, scope, database) { discoveryHandler.isConnected }
     }
 
+    // The YouTube playback-stats session per DIRECT listen (playback ping at start + real watchtime
+    // pings; music, video-songs and episodes alike). Never relay, never while casting.
+    private val watchTimeReporter by lazy {
+        WatchTimeReporter(
+            player = player,
+            scope = scope,
+            isCasting = { discoveryHandler.isConnected },
+            isRelay = { relayModeNow == true },
+            // The sync DataStore accessor must stay off the main thread (the documented exception).
+            historyPaused = { withContext(Dispatchers.IO) { dataStore.get(PauseListenHistoryKey, false) } },
+            fetchTracking = { videoId ->
+                YTPlayerUtils.playerResponseForMetadata(videoId, null).getOrNull()?.playbackTracking
+            },
+        )
+    }
+
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
     private var lastAudioFocusState = AudioManager.AUDIOFOCUS_NONE
@@ -920,6 +936,7 @@ class MusicService :
             updateWidget()
         }
         episodePositionTracker.onIsPlayingChanged(isPlaying)
+        watchTimeReporter.onIsPlayingChanged(isPlaying)
     }
 
     private fun updateNotification() {
@@ -1541,6 +1558,10 @@ class MusicService :
         // to the normal handling below. onEvents still updates currentMediaMetadata either way.
         if (videoModeController.onMediaItemTransition(mediaItem, reason)) return
 
+        // A REAL track change ends the departed listen's watch-time session (final=1) and arms the
+        // next one — after the own-swap early-return above, so an audio↔video swap keeps its session.
+        watchTimeReporter.onTransition()
+
         lastPlaybackSpeed = -1.0f // force update song
 
         setupLoudnessEnhancer()
@@ -1622,6 +1643,9 @@ class MusicService :
         // race) - re-tune to the live schedule instead of parking in silence.
         if (playbackState == Player.STATE_ENDED) {
             (currentQueue as? StationQueue)?.let { resyncStationPlayback(it) }
+            // The last queue item ran out: no transition fires, so the watch-time session's final
+            // ping is sent from here.
+            watchTimeReporter.onPlaybackEnded()
         }
         // RELAY: a track that reaches READY has played, which breaks any error streak — so the
         // runaway-skip guard (skipOnError) counts only CONSECUTIVE failures, its intent. Without this
@@ -1646,6 +1670,9 @@ class MusicService :
         if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
             videoModeController.onSeekDiscontinuity()
         }
+        // Watch-time honesty: a seek closes the watched segment at the departed position (seeking is
+        // never watched time), and an item change captures where the old listen really ended.
+        watchTimeReporter.onPositionDiscontinuity(oldPosition, newPosition, reason)
     }
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -2228,6 +2255,9 @@ class MusicService :
             val nonNullPlayback = requireNotNull(playbackData) {
                 getString(R.string.error_unknown)
             }
+            // Watch-time: hand the playback response's stats URLs to the reporter so the session
+            // opens without a second /player round-trip (cached/local plays fall back to one).
+            watchTimeReporter.onTrackingResolved(mediaId, nonNullPlayback.playbackTracking)
             run {
                 val format = nonNullPlayback.format
 
@@ -2539,16 +2569,9 @@ class MusicService :
                 }
             }
 
-            CoroutineScope(Dispatchers.IO).launch {
-                val playbackUrl = YTPlayerUtils.playerResponseForMetadata(mediaItem.mediaId, null)
-                    .getOrNull()?.playbackTracking?.videostatsPlaybackUrl?.baseUrl
-                playbackUrl?.let {
-                    YouTube.registerPlayback(null, playbackUrl)
-                        .onFailure {
-                            reportException(it)
-                        }
-                }
-            }
+            // The view beacon moved to the WatchTimeReporter session (playback ping at play START +
+            // watchtime pings, one cpn per listen — the handoff spec). No end-of-listen ping anymore:
+            // firing one here would double-report the session.
         }
     }
 
@@ -2691,6 +2714,9 @@ class MusicService :
         // ALWAYS SAVE: flush the current episode's position before the player is released, so a
         // swipe-kill still resumes next time.
         episodePositionTracker.onDestroyFlush()
+        // Best-effort final watchtime ping for the in-flight listen (the scope may not outlive us,
+        // but the enqueue is synchronous and the consumer usually drains before teardown).
+        watchTimeReporter.onDestroy()
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
         }

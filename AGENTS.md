@@ -111,6 +111,37 @@ source** onto the whitelisted relay host `stream.zemer.io`. Full contract + the 
 - **Streaming is still the danger zone:** any change here is proven with `tests/` (the DIRECT resolver
   refactor was), and app↔relay contract changes travel as handoff-doc edits, never as guesses.
 
+### Watch-time reporting (the YouTube playback-stats session; DIRECT only)
+
+Every DIRECT listen — music, video-songs and podcast episodes alike — emulates a genuine YouTube Music
+stats session (contract: `handoff-docs/zemer-app-emulate-youtube-music-stream-request.md`): one `cpn`
+per listen, a `videostatsPlaybackUrl` ping when playback actually STARTS (`cmt=<start>`, `final=0`),
+`videostatsWatchtimeUrl` pings every ~30s of playback plus on pause/seek, and a `final=1` ping when the
+listen ends. This replaced the legacy single end-of-listen view ping (fresh random cpn, no watch time) —
+do NOT reintroduce an end-of-listen `registerPlayback` call, it would double-report the session. The
+rules that must not regress:
+
+- **Honesty is the hard rule.** Reported ranges come only from real player positions via the pure,
+  JVM-tested `playback/WatchTimeSegments` (drains are DELTAS like the official client, seeks are never
+  watched time, a paused player accumulates nothing, sub-500ms jitter is dropped, a backwards position
+  without a seek closes rather than fabricates). Fabricated watch time is invalid traffic by YouTube's
+  definition and can flag a channel — never widen what gets reported beyond real playback.
+- **`playback/WatchTimeReporter` owns the session** (the `EpisodePositionTracker` extraction pattern:
+  state confined to the service main scope; one ordered ping channel per session so the playback ping
+  always precedes its watchtime pings; beacons are fire-and-forget and must never affect playback).
+  `MusicService` only forwards events: `onIsPlayingChanged`, `onPositionDiscontinuity` (which also
+  captures the departed item's REAL end position for the final ping), the real-transition hook placed
+  AFTER the video-mode own-swap early-return (an audio↔video swap keeps its session — same listen),
+  `STATE_ENDED`, `onDestroy`, and the stream resolver's `onTrackingResolved` seed (no second `/player`
+  round-trip; cached/local plays fall back to one metadata fetch, the legacy ping's own behavior).
+- **Hard exclusions:** RELAY mode (the spec's rule — beacons must never ride the relay egress) and cast
+  sessions (the receiver plays). Both are gated at session creation inside the reporter. The
+  `PauseListenHistoryKey` privacy switch silences beacons too (parity with the legacy ping, which sat
+  inside that gate).
+- The beacon request shapes (`ver=2&c=WEB_REMIX&cpn&st&et&cmt&rt&final`, `s.youtube.com` →
+  `music.youtube.com` host swap, WEB_REMIX headers + SAPISIDHASH via the shared `ytClient`) are the
+  replica-verified ones from `~/zemer-fix/ytmonetization/tests/` (every beacon HTTP 204).
+
 ### Cipher / player rotation (the most common future break)
 
 The `cipher` submodule (package `com.zemer.cipher`, repo `ZemerTeam/zemer-cipher`) deciphers YouTube's `player_ias` signatures in an Android WebView and mints poTokens. It's wired **two ways**: a git submodule *and* a Gradle composite build — `includeBuild("cipher")` in `settings.gradle.kts` substitutes `com.zemer:cipher` → the local `:library`, so the app always builds the working tree.

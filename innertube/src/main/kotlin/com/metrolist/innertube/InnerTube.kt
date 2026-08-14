@@ -240,16 +240,50 @@ class InnerTube {
         cpn: String,
         playlistId: String?,
         client: YouTubeClient = YouTubeClient.WEB_REMIX,
+        cmt: String? = null,
+        final: Boolean? = null,
     ) = httpClient.get(url) {
         ytClient(client, true)
         parameter("ver", "2")
         parameter("c", client.clientName)
         parameter("cpn", cpn)
+        // Watch-time session shape (handoff: emulate-youtube-music-stream): the playback ping opens
+        // the stats session at play START with the current media time; absent for legacy callers.
+        cmt?.let { parameter("cmt", it) }
+        final?.let { parameter("final", if (it) "1" else "0") }
 
         if (playlistId != null) {
             parameter("list", playlistId)
             parameter("referrer", "https://music.youtube.com/playlist?list=$playlistId")
         }
+    }
+
+    /**
+     * The `videostatsWatchtimeUrl` beacon — the periodic/final watch-time ping of a playback session
+     * (same `cpn` as the session's playback ping). `st`/`et` are comma-separated boundaries of the
+     * segments ACTUALLY played since the previous ping; `cmt` is the current media time and `rt` the
+     * wall-clock seconds since the session started. All values are the caller's real measurements —
+     * this function only transports them.
+     */
+    suspend fun registerWatchtime(
+        url: String,
+        cpn: String,
+        st: String,
+        et: String,
+        cmt: String,
+        rt: String,
+        final: Boolean,
+        client: YouTubeClient = YouTubeClient.WEB_REMIX,
+    ) = httpClient.get(url) {
+        ytClient(client, true)
+        parameter("ver", "2")
+        parameter("c", client.clientName)
+        parameter("cpn", cpn)
+        parameter("st", st)
+        parameter("et", et)
+        parameter("cmt", cmt)
+        parameter("rt", rt)
+        parameter("final", if (final) "1" else "0")
     }
 
     suspend fun browse(
