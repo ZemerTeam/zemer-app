@@ -2076,6 +2076,17 @@ class MusicService :
         return null
     }
 
+    /**
+     * Stamp the listen's shared cpn onto a DIRECT googlevideo media URL, matching the official web
+     * client (base.js `cpn=${videoData.clientPlaybackNonce}`) so the watch-time beacon session
+     * correlates with real byte delivery. The cpn is the SAME one [watchTimeReporter] beacons under
+     * for this listen (keyed by base videoId, so audio/video/merge-audio renditions share it). Applied
+     * ONLY to googlevideo stream URLs in the DIRECT factory — never to a downloaded local file uri, a
+     * cache hit (no fetch), or the RELAY factory (which has its own resolver and never calls this).
+     */
+    private fun stampCpn(url: String, mediaId: String): String =
+        PlaybackNonceRegistry.appendCpn(url, watchTimeReporter.mediaCpnFor(VideoRendition.baseVideoId(mediaId)))
+
     private fun createDataSourceFactory(): DataSource.Factory {
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
@@ -2097,7 +2108,7 @@ class MusicService :
                     return@Factory dataSpec
                 }
                 songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
-                    return@Factory dataSpec.withUri(it.first.toUri())
+                    return@Factory dataSpec.withUri(stampCpn(it.first, mediaId).toUri())
                 }
                 // The shared metered-aware cap (one policy with muxed downloads — VideoRendition).
                 // Governs only the AUTOMATIC pick: an explicit rung is the user's own choice.
@@ -2139,7 +2150,7 @@ class MusicService :
                 // One resolution seeds EVERY rung's URL + the merge-audio partner, so a quality
                 // switch (and the adaptive rung's audio track) never pays another round-trip.
                 seedVideoUrlCaches(renditionId, nonNullVideo)
-                return@Factory dataSpec.withUri(videoUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
+                return@Factory dataSpec.withUri(stampCpn(videoUrl, mediaId).toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
 
             // The audio half of an adaptive (video-only) quality rung — the MergingMediaSource's
@@ -2153,7 +2164,7 @@ class MusicService :
                     return@Factory dataSpec
                 }
                 songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
-                    return@Factory dataSpec.withUri(it.first.toUri())
+                    return@Factory dataSpec.withUri(stampCpn(it.first, mediaId).toUri())
                 }
                 val mergeAudio = runBlocking(Dispatchers.IO) {
                     YTPlayerUtils.playerResponseForPlayback(
@@ -2183,7 +2194,7 @@ class MusicService :
                 }
                 songUrlCache[mediaId] =
                     nonNullAudio.streamUrl to System.currentTimeMillis() + (nonNullAudio.streamExpiresInSeconds * 1000L)
-                return@Factory dataSpec.withUri(nonNullAudio.streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
+                return@Factory dataSpec.withUri(stampCpn(nonNullAudio.streamUrl, mediaId).toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
 
             // Downloaded local file? Decide once at position 0 and honor it later; self-repair a stale
@@ -2211,7 +2222,7 @@ class MusicService :
 
             songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                return@Factory dataSpec.withUri(it.first.toUri())
+                return@Factory dataSpec.withUri(stampCpn(it.first, mediaId).toUri())
             }
 
             // Validate current authentication state before fetching stream
@@ -2303,7 +2314,7 @@ class MusicService :
                 // Keep the cast-MIME cache coherent with the URL cache it's written alongside, so a song
                 // played locally first then cast carries its real container (not the "audio/mp4" default).
                 songMimeCache[mediaId] = format.mimeType.split(";")[0]
-                return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
+                return@Factory dataSpec.withUri(stampCpn(streamUrl, mediaId).toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
         }
     }

@@ -124,21 +124,43 @@ KEY **and** truthful VALUE are both derivable are sent:
 literals in the minified source), `fs`/`playerheight`/`playerwidth`/`clipid` (no truthful value for an
 audio service). Adding any of these later requires re-reading base.js for its exact value semantics.
 
+## CDN `cpn` correlation (media request + beacons share one cpn)
+
+The official client stamps `cpn=${videoData.clientPlaybackNonce}` on the googlevideo **media**
+request (confirmed in base.js), using the SAME cpn as its beacons — so YouTube can tie the reported
+watch time to real byte delivery. We do the same:
+
+- **`playback/PlaybackNonceRegistry.kt`** (thread-safe, JVM-tested) mints ONE cpn per in-flight
+  listen, keyed by **base videoId** (`VideoRendition.baseVideoId` collapses audio / `video:` /
+  `videoaudio:` rendition keys to one id, so a video-mode swap shares the listen's cpn). Called from
+  BOTH the stream resolver (a background thread — via `WatchTimeReporter.mediaCpnFor`) and the beacon
+  session (`ensureSession`), so both use the same value. `finishSession` **releases** the id, so the
+  next play mints a fresh cpn — the client's fresh-cpn-per-playback model, which keeps view counts
+  incrementing on repeat.
+- **`MusicService.stampCpn`** appends `&cpn=<cpn>` (`PlaybackNonceRegistry.appendCpn`) to the
+  googlevideo URL at every DIRECT stream `withUri` site — the audio, video-mode, and merge-audio
+  branches, both fresh-resolution and cached-URL. It is applied ONLY to googlevideo URLs: never a
+  downloaded local-file uri, never a pure cache hit (no fetch), never the RELAY factory (its own
+  resolver never calls `mediaCpnFor`). The cpn is appended per-fetch (the `songUrlCache` stores the
+  base URL), so it never pollutes the cached value.
+- **Regression gate:** `tests/watchtime-cpn-stream.mjs` resolves a real stream URL the app's exact way
+  (cipher + poToken, WEB_REMIX) and drains the whole file in sequential ranges, once without and once
+  WITH `&cpn` — proving the cpn-stamped URL streams with 206s throughout (no HTTP rejection),
+  identical to the control. Run it whenever this path changes.
+
+Correlation is best-effort by design: on a FRESH play the media is fetched under the listen's cpn, so
+the beacons correlate; on a REPEAT from the persistent cache no CDN fetch happens, so the fresh
+session's beacons carry a cpn with no new delivery — the same as before, and watch time still credits
+(proven on the live channel). Disabling the cache to force per-play delivery would regress playback
+and is deliberately not done.
+
 ## The ceiling on "indistinguishable"
 
-Two things a real browser sends that we do not, and why:
-
-- **CDN `cpn` correlation** — the official client stamps `cpn=${clientPlaybackNonce}` on the
-  googlevideo media request (confirmed in base.js), and appending it to a real deciphered stream URL
-  keeps HTTP 206 (proven live, `~/zemer-fix/ytmonetization/` / the cpn-safety probe). **But watch
-  time credits fully WITHOUT it** (proven on the live channel), so this is now purely fingerprint
-  matching, and it touches the streaming danger zone. Not implemented — it is unnecessary for the
-  goal and belongs in its own `tests/`-validated change if ever wanted. If added, the cpn must be
-  minted once per play and shared between the media request and the beacon session.
 - **`qoe` beacons** — a real client always sends encoded buffer/quality telemetry. We **cannot**
   produce that truthfully, and faking it would be both dishonest and risky. This is the hard floor:
   true byte-level indistinguishability is not reachable without fabrication, which the honesty
-  invariant forbids.
+  invariant forbids. Everything else the official client sends that we can produce from real data is
+  now sent.
 
 ## Regression gate
 

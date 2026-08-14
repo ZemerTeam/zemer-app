@@ -42,6 +42,17 @@ object VideoRendition {
      */
     fun renditionId(key: String): String = key.removePrefix(PREFIX).substringBefore(':')
 
+    /**
+     * The bare videoId behind ANY playback cache key — a plain id, a `video:` rendition (any itag), or
+     * a `videoaudio:` merge-audio key. So audio, video and merge-audio renditions of one listen all map
+     * to the SAME base id (and therefore share one watch-time cpn). videoIds never contain ':'.
+     */
+    fun baseVideoId(key: String): String = when {
+        isMergeAudioKey(key) -> key.removePrefix(MERGE_AUDIO_PREFIX)
+        isVideoKey(key) -> renditionId(key)
+        else -> key
+    }
+
     /** The explicit itag encoded in a rendition key, or null for the plain automatic key. */
     fun renditionItag(key: String): Int? {
         val suffix = key.removePrefix(PREFIX).substringAfter(':', missingDelimiterValue = "")

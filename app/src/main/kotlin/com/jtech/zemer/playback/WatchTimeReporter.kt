@@ -92,6 +92,20 @@ class WatchTimeReporter(
      */
     private val resolvedTracking = ConcurrentHashMap<String, TrackingUrls>()
 
+    /**
+     * The listen's cpn, shared with the DIRECT media request so the beacon session correlates with
+     * real byte delivery (the official client stamps the same cpn on both — base.js).
+     */
+    private val nonces = PlaybackNonceRegistry()
+
+    /**
+     * The cpn to stamp on this id's DIRECT media request — called from the stream resolver (a
+     * background thread). Returns the SAME cpn the beacon session for this listen uses; keyed by BASE
+     * videoId so audio/video/merge-audio renditions of one listen share it. Never mints for relay
+     * (relay uses its own factory and never calls this) or cast (the resolver is not its byte path).
+     */
+    fun mediaCpnFor(videoId: String): String = nonces.getOrCreate(videoId)
+
     private var session: Session? = null
     private var tickerJob: Job? = null
 
@@ -182,7 +196,9 @@ class WatchTimeReporter(
         // The two hard exclusions: relay egress and cast (the receiver plays, not us).
         if (isRelay() || isCasting()) return
         if (item.metadata == null) return
-        val newSession = Session(videoId = id, cpn = YouTube.generateCpn())
+        // The session cpn IS the one the media request was stamped with for this listen (the resolver
+        // seeds it via mediaCpnFor before playback starts); getOrCreate returns that same value.
+        val newSession = Session(videoId = id, cpn = nonces.getOrCreate(id))
         // Adopt the real flush schedule if tracking already resolved for this id (else the default,
         // which equals the common server value, until onTrackingResolved swaps it in).
         resolvedTracking[id]?.schedule?.let { newSession.schedule = it }
@@ -197,6 +213,9 @@ class WatchTimeReporter(
         session = null
         if (s.finished) return
         s.finished = true
+        // Free the listen's cpn so the next play of this song mints a fresh one (fresh-cpn-per-play,
+        // matching the client — this keeps view counts incrementing on repeat).
+        nonces.release(s.videoId)
         val end = endPositionMs?.takeIf { it >= 0 } ?: player.currentPosition
         val muted = playerMuted()
         s.segments.onPause(end)

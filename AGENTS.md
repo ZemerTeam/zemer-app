@@ -127,8 +127,15 @@ rules that must not regress:
   without a seek closes rather than fabricates). Fabricated watch time is invalid traffic by YouTube's
   definition and can flag a channel — never widen what gets reported beyond real playback.
 - **Confirmed working on a live channel** (2026-08-14): a direct Zemer play credits both a real VIEW
-  and real WATCH TIME in YouTube Studio (per-video "since published" showed 14 views / 0.2 h). Crediting
-  does NOT require CDN-cpn correlation — the beacon session alone is sufficient.
+  and real WATCH TIME in YouTube Studio (per-video "since published" showed 14 views / 0.2 h).
+- **CDN-cpn correlation** (`playback/PlaybackNonceRegistry`, `MusicService.stampCpn`): the DIRECT
+  googlevideo media request is stamped with the SAME cpn the beacon session uses (base.js
+  `cpn=${clientPlaybackNonce}`), keyed by `VideoRendition.baseVideoId` so audio/video/merge-audio
+  renditions of one listen share it; the reporter releases the id on finish (fresh cpn per play).
+  Applied at every DIRECT `withUri` googlevideo site, NEVER a local-file uri / cache hit / the RELAY
+  factory. Proven safe against the live CDN by `tests/watchtime-cpn-stream.mjs` (full-song drain, 206
+  throughout). `qoe` beacons remain the one thing not sent — they carry encoded quality telemetry that
+  cannot be produced truthfully.
 - **Ping cadence matches the official client, server-driven** (`playback/WatchTimeSchedule`, JVM-tested):
   the `/player` response's `videostatsScheduledFlushWalltimeSeconds` + `videostatsDefaultFlushIntervalSeconds`
   (live-verified `[10,20,30]` then `40`) drive the watchtime ping ticker at those wall-clock offsets, not a
