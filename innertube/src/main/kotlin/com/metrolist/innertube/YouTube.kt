@@ -1000,6 +1000,8 @@ object YouTube {
         cpn: String = generateCpn(),
         cmt: String? = null,
         final: Boolean? = null,
+        fmt: Int? = null,
+        muted: Boolean? = null,
     ) = runCatching {
         innerTube.registerPlayback(
             url = statsUrl(playbackTracking),
@@ -1007,6 +1009,8 @@ object YouTube {
             cpn = cpn,
             cmt = cmt,
             final = final,
+            fmt = fmt,
+            muted = muted,
         )
     }
 
@@ -1019,6 +1023,8 @@ object YouTube {
         cmt: String,
         rt: String,
         final: Boolean,
+        fmt: Int? = null,
+        muted: Boolean? = null,
     ) = runCatching {
         innerTube.registerWatchtime(
             url = statsUrl(watchtimeTracking),
@@ -1028,6 +1034,8 @@ object YouTube {
             cmt = cmt,
             rt = rt,
             final = final,
+            fmt = fmt,
+            muted = muted,
         )
     }
 

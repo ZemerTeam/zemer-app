@@ -48,15 +48,22 @@ class WatchTimeReporter(
     private val fetchTracking: suspend (videoId: String) -> PlayerResponse.PlaybackTracking?,
 ) {
 
-    private data class TrackingUrls(val playbackUrl: String?, val watchtimeUrl: String?)
+    private data class TrackingUrls(
+        val playbackUrl: String?,
+        val watchtimeUrl: String?,
+        /** The streamed itag (base.js `fmt=y.D.itag`); null for cached/local plays — then omitted. */
+        val fmt: Int?,
+    )
 
     private sealed interface Ping {
-        data class Start(val cmtMs: Long) : Ping
+        /** [muted] is the player's real mute state, captured on the main thread at enqueue time. */
+        data class Start(val cmtMs: Long, val muted: Boolean) : Ping
         data class Watch(
             val segments: WatchTimeSegments.Drained,
             val cmtMs: Long,
             val rtMs: Long,
             val final: Boolean,
+            val muted: Boolean,
         ) : Ping
     }
 
@@ -83,11 +90,15 @@ class WatchTimeReporter(
     /** The departed item's final position, captured from the AUTO_TRANSITION discontinuity. */
     private var pendingEndPositionMs = -1L
 
-    /** Called from the stream resolver with the playback response's tracking block. */
-    fun onTrackingResolved(videoId: String, tracking: PlayerResponse.PlaybackTracking?) {
+    /**
+     * Called from the stream resolver with the playback response's tracking block and the itag it
+     * actually resolved to stream — so `fmt` carries the real streamed format, never a guess.
+     */
+    fun onTrackingResolved(videoId: String, tracking: PlayerResponse.PlaybackTracking?, itag: Int?) {
         val urls = TrackingUrls(
             playbackUrl = tracking?.videostatsPlaybackUrl?.baseUrl,
             watchtimeUrl = tracking?.videostatsWatchtimeUrl?.baseUrl,
+            fmt = itag,
         )
         if (urls.playbackUrl == null && urls.watchtimeUrl == null) return
         if (resolvedTracking.size > MAX_CACHED_TRACKING) resolvedTracking.clear()
@@ -159,7 +170,7 @@ class WatchTimeReporter(
         if (item.metadata == null) return
         val newSession = Session(videoId = id, cpn = YouTube.generateCpn())
         session = newSession
-        newSession.pings.trySend(Ping.Start(cmtMs = player.currentPosition))
+        newSession.pings.trySend(Ping.Start(cmtMs = player.currentPosition, muted = playerMuted()))
         newSession.consumer = scope.launch { consumePings(newSession) }
     }
 
@@ -170,10 +181,11 @@ class WatchTimeReporter(
         if (s.finished) return
         s.finished = true
         val end = endPositionMs?.takeIf { it >= 0 } ?: player.currentPosition
+        val muted = playerMuted()
         s.segments.onPause(end)
         val drained = s.segments.drain(end, stillPlaying = false)
         if (drained != null) {
-            s.pings.trySend(Ping.Watch(drained, cmtMs = end, rtMs = s.rtMs(), final = true))
+            s.pings.trySend(Ping.Watch(drained, cmtMs = end, rtMs = s.rtMs(), final = true, muted = muted))
         } else {
             // Nothing watched since the last ping — the final flag still closes the session honestly
             // with a zero-length range at the end position.
@@ -184,6 +196,7 @@ class WatchTimeReporter(
                     cmtMs = end,
                     rtMs = s.rtMs(),
                     final = true,
+                    muted = muted,
                 ),
             )
         }
@@ -192,7 +205,7 @@ class WatchTimeReporter(
 
     private fun enqueueWatch(s: Session, cmtMs: Long, final: Boolean) {
         val drained = s.segments.drain(cmtMs, stillPlaying = player.isPlaying && !final) ?: return
-        s.pings.trySend(Ping.Watch(drained, cmtMs = cmtMs, rtMs = s.rtMs(), final = final))
+        s.pings.trySend(Ping.Watch(drained, cmtMs = cmtMs, rtMs = s.rtMs(), final = final, muted = playerMuted()))
     }
 
     private fun startTicker() {
@@ -216,7 +229,8 @@ class WatchTimeReporter(
         }
         val urls = resolvedTracking.remove(s.videoId)
             ?: runCatching { fetchTracking(s.videoId) }.getOrNull()?.let {
-                TrackingUrls(it.videostatsPlaybackUrl?.baseUrl, it.videostatsWatchtimeUrl?.baseUrl)
+                // Fallback metadata fetch (cached/local play): no resolved itag, so `fmt` is omitted.
+                TrackingUrls(it.videostatsPlaybackUrl?.baseUrl, it.videostatsWatchtimeUrl?.baseUrl, fmt = null)
             }
         if (urls?.playbackUrl == null && urls?.watchtimeUrl == null) {
             for (ping in s.pings) { /* no tracking URLs (offline local play): nothing to report */ }
@@ -231,6 +245,8 @@ class WatchTimeReporter(
                         cpn = s.cpn,
                         cmt = WatchTimeSegments.formatSeconds(ping.cmtMs),
                         final = false,
+                        fmt = urls.fmt,
+                        muted = ping.muted,
                     ).onFailure { Timber.d(it, "WatchTime: playback ping failed") }
                 }
                 is Ping.Watch -> urls.watchtimeUrl?.let { url ->
@@ -242,6 +258,8 @@ class WatchTimeReporter(
                         cmt = WatchTimeSegments.formatSeconds(ping.cmtMs),
                         rt = WatchTimeSegments.formatSeconds(ping.rtMs),
                         final = ping.final,
+                        fmt = urls.fmt,
+                        muted = ping.muted,
                     ).onFailure { Timber.d(it, "WatchTime: watchtime ping failed") }
                 }
             }
@@ -249,6 +267,13 @@ class WatchTimeReporter(
     }
 
     private fun Player.PositionInfo.mediaItemId(): String? = mediaItem?.mediaId
+
+    /**
+     * Our player's real mute state (base.js encodes `muted`/`mos` as `isMuted()?1:0`). ExoPlayer has
+     * no mute separate from volume, so zero output IS muted — a truthful read, not a fabricated flag.
+     * Read on the main thread at enqueue time.
+     */
+    private fun playerMuted(): Boolean = player.volume <= 0f
 
     companion object {
         /** The official client reports roughly every half minute of playback. */

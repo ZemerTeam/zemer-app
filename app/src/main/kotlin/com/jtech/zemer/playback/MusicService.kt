@@ -2255,9 +2255,10 @@ class MusicService :
             val nonNullPlayback = requireNotNull(playbackData) {
                 getString(R.string.error_unknown)
             }
-            // Watch-time: hand the playback response's stats URLs to the reporter so the session
-            // opens without a second /player round-trip (cached/local plays fall back to one).
-            watchTimeReporter.onTrackingResolved(mediaId, nonNullPlayback.playbackTracking)
+            // Watch-time: hand the playback response's stats URLs + the resolved itag to the reporter
+            // so the session opens without a second /player round-trip (cached/local plays fall back
+            // to one) and `fmt` carries the real streamed format.
+            watchTimeReporter.onTrackingResolved(mediaId, nonNullPlayback.playbackTracking, nonNullPlayback.format.itag)
             run {
                 val format = nonNullPlayback.format
 

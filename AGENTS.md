@@ -141,6 +141,15 @@ rules that must not regress:
 - The beacon request shapes (`ver=2&c=WEB_REMIX&cpn&st&et&cmt&rt&final`, `s.youtube.com` →
   `music.youtube.com` host swap, WEB_REMIX headers + SAPISIDHASH via the shared `ytClient`) are the
   replica-verified ones from `~/zemer-fix/ytmonetization/tests/` (every beacon HTTP 204).
+- **Extra params match the official client, verified from live `base.js`, never guessed.** The web
+  `Y2` param builder was read from the deployed `player_es6…/base.js` and only params whose KEY AND
+  truthful VALUE are both derivable are sent: `fmt=<streamed itag>` (base.js `n.fmt=y.D.itag`; the
+  real resolved itag, omitted on cached/local plays where it is unknown) and `muted`/`mos` (base.js
+  `isMuted()?1:0`, `mos == muted`; our player has no mute separate from volume, so `player.volume<=0`
+  IS muted). Params requiring a value we could only recall from memory (`volume` scale, `state`
+  strings, `fs`/`playerheight`/`playerwidth`/`clipid`) are deliberately NOT sent — adding one later
+  requires re-reading base.js for its exact value semantics, not guessing. `muted` is captured on the
+  main thread at enqueue time (player access); `fmt` rides the resolver's `onTrackingResolved`.
 
 ### Cipher / player rotation (the most common future break)
 

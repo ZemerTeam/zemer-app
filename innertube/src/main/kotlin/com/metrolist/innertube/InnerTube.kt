@@ -242,6 +242,8 @@ class InnerTube {
         client: YouTubeClient = YouTubeClient.WEB_REMIX,
         cmt: String? = null,
         final: Boolean? = null,
+        fmt: Int? = null,
+        muted: Boolean? = null,
     ) = httpClient.get(url) {
         ytClient(client, true)
         parameter("ver", "2")
@@ -251,6 +253,15 @@ class InnerTube {
         // the stats session at play START with the current media time; absent for legacy callers.
         cmt?.let { parameter("cmt", it) }
         final?.let { parameter("final", if (it) "1" else "0") }
+        // Extra params the official WEB_REMIX client carries, verified from live base.js `Y2`:
+        // `fmt=<itag>` and `muted`/`mos` (encoding `isMuted()?1:0`, `mos == muted`). Only sent when a
+        // truthful value is known; never fabricated.
+        fmt?.let { parameter("fmt", it.toString()) }
+        muted?.let {
+            val v = if (it) "1" else "0"
+            parameter("muted", v)
+            parameter("mos", v)
+        }
 
         if (playlistId != null) {
             parameter("list", playlistId)
@@ -274,6 +285,8 @@ class InnerTube {
         rt: String,
         final: Boolean,
         client: YouTubeClient = YouTubeClient.WEB_REMIX,
+        fmt: Int? = null,
+        muted: Boolean? = null,
     ) = httpClient.get(url) {
         ytClient(client, true)
         parameter("ver", "2")
@@ -284,6 +297,14 @@ class InnerTube {
         parameter("cmt", cmt)
         parameter("rt", rt)
         parameter("final", if (final) "1" else "0")
+        // Same base.js-verified extras as the playback ping (`Y2`): `fmt`, `muted`/`mos`. Truthful or
+        // omitted — never fabricated.
+        fmt?.let { parameter("fmt", it.toString()) }
+        muted?.let {
+            val v = if (it) "1" else "0"
+            parameter("muted", v)
+            parameter("mos", v)
+        }
     }
 
     suspend fun browse(
