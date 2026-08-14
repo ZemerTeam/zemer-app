@@ -248,7 +248,11 @@ class MusicService :
             player = player,
             scope = scope,
             isCasting = { discoveryHandler.isConnected },
-            isRelay = { relayModeNow == true },
+            // Fail-safe on the unresolved (null) cold-start window: only DIRECT (relayModeNow == false)
+            // may beacon. The spec's hard rule is "never in relay" — an unknown relay state must NOT
+            // open a beaconing session (the factory resolves the flag synchronously before playback, so
+            // DIRECT users still beacon their first track).
+            isRelay = { relayModeNow != false },
             // The sync DataStore accessor must stay off the main thread (the documented exception).
             historyPaused = { withContext(Dispatchers.IO) { dataStore.get(PauseListenHistoryKey, false) } },
             fetchTracking = { videoId ->

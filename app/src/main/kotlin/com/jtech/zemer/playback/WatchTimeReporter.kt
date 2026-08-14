@@ -106,6 +106,9 @@ class WatchTimeReporter(
      */
     fun mediaCpnFor(videoId: String): String = nonces.getOrCreate(videoId)
 
+    // Written on the service main scope, but READ from the data-source background thread in
+    // onTrackingResolved (schedule adoption) — @Volatile publishes those writes safely.
+    @Volatile
     private var session: Session? = null
     private var tickerJob: Job? = null
 
@@ -152,18 +155,27 @@ class WatchTimeReporter(
         reason: Int,
     ) {
         val s = session ?: return
-        if (oldPosition.mediaItemIndex != newPosition.mediaItemIndex ||
+        // A track boundary (auto-advance) AND a repeat-one loop back to the SAME item both arrive as
+        // AUTO_TRANSITION — the repeat wraps position to ~0, so capture the REAL end (oldPosition,
+        // before the wrap) for onTransition's final ping instead of the post-wrap ~0. Also covers a
+        // genuine item change (index/id differ, e.g. seekToNext).
+        if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION ||
+            oldPosition.mediaItemIndex != newPosition.mediaItemIndex ||
             oldPosition.mediaItemId()?.let { it != s.videoId } == true
         ) {
-            // Leaving the session's item: remember where it really ended — onTransition closes with it.
             pendingEndPositionMs = oldPosition.positionMs
             return
         }
         if (reason == Player.DISCONTINUITY_REASON_SEEK ||
             reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
         ) {
+            // Keep segment accounting correct on any seek, but a video-mode rendition swap seeks to the
+            // SAME position (position-continuous) — that is not a user seek and must stay transparent
+            // to the session, so fire no spurious zero-progress ping for a sub-second delta.
             s.segments.onSeek(oldPosition.positionMs, newPosition.positionMs, player.isPlaying)
-            enqueueWatch(s, cmtMs = newPosition.positionMs, final = false)
+            if (kotlin.math.abs(newPosition.positionMs - oldPosition.positionMs) >= REAL_SEEK_MIN_MS) {
+                enqueueWatch(s, cmtMs = newPosition.positionMs, final = false)
+            }
         }
     }
 
@@ -265,10 +277,6 @@ class WatchTimeReporter(
 
     /** One consumer per session: resolves the URLs once, then sends pings strictly in order. */
     private suspend fun consumePings(s: Session) {
-        if (historyPaused()) {
-            for (ping in s.pings) { /* privacy switch on: drop everything, keep order semantics */ }
-            return
-        }
         val urls = resolvedTracking.remove(s.videoId)
             ?: runCatching { fetchTracking(s.videoId) }.getOrNull()?.let {
                 // Fallback metadata fetch (cached/local play): no resolved itag, so `fmt` is omitted.
@@ -289,6 +297,9 @@ class WatchTimeReporter(
             return
         }
         for (ping in s.pings) {
+            // Re-check per ping so enabling "pause listen history" MID-listen silences the rest of the
+            // in-flight session (not just sessions started while paused). A cheap off-main DataStore read.
+            if (historyPaused()) continue
             when (ping) {
                 is Ping.Start -> urls.playbackUrl?.let { url ->
                     YouTube.registerPlayback(
@@ -329,5 +340,9 @@ class WatchTimeReporter(
 
     companion object {
         private const val MAX_CACHED_TRACKING = 64
+
+        // A position jump smaller than this is not a user seek (a rendition swap is position-continuous,
+        // ~0) — it fires no watchtime ping. Sub-second seeks are immaterial to watch time.
+        private const val REAL_SEEK_MIN_MS = 1_000L
     }
 }

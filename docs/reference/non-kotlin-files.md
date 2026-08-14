@@ -382,5 +382,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/validate-player-config.mjs` | 186 lines | text `.mjs` |
 | `tests/video-progressive-stream.mjs` | 276 lines | text `.mjs` |
 | `tests/video-qualities.mjs` | 306 lines | text `.mjs` |
+| `tests/watchtime-cpn-stream.mjs` | 110 lines | text `.mjs` |
 | `tests/web-creator-stream.mjs` | 142 lines | text `.mjs` |
 | `tests/web-remix-stream.mjs` | 278 lines | text `.mjs` |

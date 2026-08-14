@@ -73,7 +73,10 @@ the WEB_REMIX headers + SAPISIDHASH via the shared `InnerTube.ytClient`. Base UR
 
 - `onIsPlayingChanged` → open/continue the session, start/stop the scheduled ticker.
 - `onPositionDiscontinuity` → a same-item seek closes+reopens the segment and fires a state-change
-  ping; an item change captures the departed item's REAL end position for the final ping.
+  ping (but a rendition-swap's position-continuous seek, delta < 1s, fires no spurious ping — the
+  swap stays transparent). Any AUTO_TRANSITION — a track boundary OR a **repeat-one loop** back to the
+  same item, which wraps position to ~0 — captures the departed item's REAL end position for the final
+  ping, so a looped song's tail is not under-reported.
 - `onMediaItemTransition` → a REAL track change ends the departed session (`final=1`) and arms the
   next. Placed **after** the video-mode own-swap early-return, so an audio↔video swap keeps its
   session (same listen, one cpn).
@@ -99,11 +102,12 @@ stream is still InnerTube + cipher), so they beacon.
 ## Hard exclusions
 
 - **RELAY mode** (`stream.zemer.io`) — beacons must never ride the relay egress (spec rule + our test
-  showed relay beacons don't even register). Gated at session creation (`isRelay`).
+  showed relay beacons don't even register). Gated at session creation (`isRelay`), fail-safe on the
+  unresolved cold-start window (`relayModeNow != false`, so an unknown relay state never beacons).
 - **Cast** — the receiver plays, not this device. Gated (`isCasting`).
 - **Offline local plays** — no tracking URL resolvable; the session reports nothing.
-- **Listen-history paused** (`PauseListenHistoryKey`) — silences beacons (parity with the legacy
-  ping, which sat inside that gate).
+- **Listen-history paused** (`PauseListenHistoryKey`) — silences beacons, re-checked PER PING so
+  enabling the switch mid-listen silences the rest of the in-flight session too.
 
 Every exclusion is a strict gate; nothing is fabricated for an excluded play.
 
