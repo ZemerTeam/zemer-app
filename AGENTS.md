@@ -114,7 +114,7 @@ source** onto the whitelisted relay host `stream.zemer.io`. Full contract + the 
 ### Watch-time reporting (the YouTube playback-stats session; DIRECT only)
 
 Every DIRECT listen — music, video-songs and podcast episodes alike — emulates a genuine YouTube Music
-stats session (contract: `handoff-docs/zemer-app-emulate-youtube-music-stream-request.md`): one `cpn`
+stats session: one `cpn`
 per listen, a `videostatsPlaybackUrl` ping when playback actually STARTS (`cmt=<start>`, `final=0`),
 `videostatsWatchtimeUrl` pings every ~30s of playback plus on pause/seek, and a `final=1` ping when the
 listen ends. This replaced the legacy single end-of-listen view ping (fresh random cpn, no watch time) —
@@ -145,18 +145,22 @@ rules that must not regress:
 - **`playback/WatchTimeReporter` owns the session** (the `EpisodePositionTracker` extraction pattern:
   state confined to the service main scope; one ordered ping channel per session so the playback ping
   always precedes its watchtime pings; beacons are fire-and-forget and must never affect playback).
-  `MusicService` only forwards events: `onIsPlayingChanged`, `onPositionDiscontinuity` (which also
-  captures the departed item's REAL end position for the final ping), the real-transition hook placed
-  AFTER the video-mode own-swap early-return (an audio↔video swap keeps its session — same listen),
+  `MusicService` only forwards events: `onIsPlayingChanged`, `onPositionDiscontinuity` (which captures
+  the departed item's REAL end position for the final ping — on ANY `AUTO_TRANSITION`, so a **repeat-one
+  loop** back to the same item, position wrapped to ~0, is not under-reported; a rendition-swap's
+  position-continuous seek, delta < 1s, fires no spurious ping), the real-transition hook placed AFTER
+  the video-mode own-swap early-return (an audio↔video swap keeps its session — same listen),
   `STATE_ENDED`, `onDestroy`, and the stream resolver's `onTrackingResolved` seed (no second `/player`
-  round-trip; cached/local plays fall back to one metadata fetch, the legacy ping's own behavior).
-- **Hard exclusions:** RELAY mode (the spec's rule — beacons must never ride the relay egress) and cast
+  round-trip; cached/local plays fall back to one metadata fetch, the legacy ping's own behavior). The
+  `session` ref is `@Volatile` (read from the resolver's background thread for schedule adoption).
+- **Hard exclusions:** RELAY mode (the spec's rule — beacons must never ride the relay egress; gated
+  fail-safe as `relayModeNow != false`, so the unresolved cold-start window never beacons) and cast
   sessions (the receiver plays). Both are gated at session creation inside the reporter. The
-  `PauseListenHistoryKey` privacy switch silences beacons too (parity with the legacy ping, which sat
-  inside that gate).
+  `PauseListenHistoryKey` privacy switch silences beacons too, re-checked PER PING so enabling it
+  mid-listen silences the rest of the in-flight session.
 - The beacon request shapes (`ver=2&c=WEB_REMIX&cpn&st&et&cmt&rt&final`, `s.youtube.com` →
   `music.youtube.com` host swap, WEB_REMIX headers + SAPISIDHASH via the shared `ytClient`) are the
-  replica-verified ones from `~/zemer-fix/ytmonetization/tests/` (every beacon HTTP 204).
+  replica-verified against live YouTube (every beacon HTTP 204).
 - **Extra params match the official client, verified from live `base.js`, never guessed.** The web
   `Y2` param builder was read from the deployed `player_es6…/base.js` and only params whose KEY AND
   truthful VALUE are both derivable are sent: `fmt=<streamed itag>` (base.js `n.fmt=y.D.itag`; the

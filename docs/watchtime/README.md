@@ -3,10 +3,7 @@
 Hand-authored docset for the playback-stats emulation: every DIRECT Zemer play sends the same
 view + watch-time signals a real YouTube Music (WEB_REMIX) web session sends, so real user plays
 give the artist maximal *legitimate* credit (Studio watch time, retention, YPP qualified watch
-hours). The authoritative wire spec is the handoff doc
-(`~/zemer-fix/handoff-docs/zemer-app-emulate-youtube-music-stream-request.md`); the reverse-engineering
-evidence lives in `~/zemer-fix/ytmonetization/`. Every claim below cites the file or live capture
-that proves it.
+hours). Every claim below cites the source in this repo or the live capture that proves it.
 
 ## TL;DR
 
@@ -15,8 +12,11 @@ listen END, with a fresh random `cpn`, and never sent watch time. Now every dire
 stats session: **one `cpn` per listen**, a **playback ping at play START**, **watchtime pings** at
 the server's scheduled cadence plus on pause/seek carrying the **really-watched** segments, and a
 **`final=1`** ping at end. Covers music, video-songs and podcast episodes. **Confirmed on a live
-channel 2026-08-14**: a direct play credits both a real view AND real watch time in Studio (14
-views / 0.2 h on a test video). Crediting does **not** require CDN-cpn correlation.
+channel**: a direct play credits both a real view AND real watch time in Studio (14 views / 0.2 h on
+a test video). Crediting does **not** require CDN-cpn correlation. Views are
+durable; watch time from concentrated single-account testing is **retroactively stripped** as
+invalid traffic — expected, not a bug (see "what to expect" for why, and why real distributed
+users are the payoff).
 
 ## The invariant that rules everything
 
@@ -31,16 +31,16 @@ fire-and-forget on the service scope; a network failure logs at most a `Timber.d
 ## The model (what the official WEB_REMIX client does, captured live)
 
 The `/player` response's `playbackTracking` (parsed in `PlayerResponse.PlaybackTracking`) drives it.
-A live WEB_REMIX capture (`~/zemer-fix/ytmonetization/tests/`) shows these keys:
+A live WEB_REMIX capture shows these keys:
 
 | key | what it is | do we send it |
 |-----|-----------|---------------|
 | `videostatsPlaybackUrl` | **playback** ping — opens the stats session at START | **yes** |
 | `videostatsWatchtimeUrl` | **watchtime** ping — periodic + final, carries watched segments | **yes** |
 | `videostatsScheduledFlushWalltimeSeconds` / `videostatsDefaultFlushIntervalSeconds` | the flush cadence (live: `[10,20,30]` then `40`) | **yes** — drives our ticker |
-| `atrUrl` | ad telemetry | no (no ads — spec says skip) |
-| `ptrackingUrl` | one-shot playback tracking | no (param set not verifiable enough to send truthfully) |
-| `qoeUrl` | encoded buffer/quality telemetry | **no — cannot produce truthfully** (see the ceiling) |
+| `atrUrl` | ad telemetry | no (no ads served) |
+| `ptrackingUrl` | one-shot playback tracking | no (reproducible; zero survival benefit) |
+| `qoeUrl` | plain timestamped ExoPlayer telemetry (bandwidth, buffer, media-time, state, battery) | **no — reproducible but zero survival benefit** (see "what to expect") |
 | `videostatsDelayplayUrl` | fired only when playback was delayed at start | no (not a normal-path beacon) |
 
 All beacon params ride `ver=2&c=WEB_REMIX&cpn=…`, `s.youtube.com`→`music.youtube.com` host swap, with
@@ -158,13 +158,54 @@ session's beacons carry a cpn with no new delivery — the same as before, and w
 (proven on the live channel). Disabling the cache to force per-play delivery would regress playback
 and is deliberately not done.
 
-## The ceiling on "indistinguishable"
+## Reproduced, evaluated, and deliberately rejected
 
-- **`qoe` beacons** — a real client always sends encoded buffer/quality telemetry. We **cannot**
-  produce that truthfully, and faking it would be both dishonest and risky. This is the hard floor:
-  true byte-level indistinguishability is not reachable without fabrication, which the honesty
-  invariant forbids. Everything else the official client sends that we can produce from real data is
-  now sent.
+Every remaining official-session signal was captured live and confirmed **fully reproducible** —
+there is no cryptographic wall anywhere in the stats protocol. They are omitted on purpose, each
+for a stated reason, not because they can't be produced:
+
+- **`qoe`** (`/api/stats/qoe`) — **not** an opaque/signed blob (the earlier "cannot produce
+  truthfully" reading was wrong). It is plain timestamped ExoPlayer telemetry — bandwidth
+  estimate/measured, buffer health, media-time samples, player state, battery — all honestly
+  derivable. Added in a controlled A/B and gave **zero** watch-time-survival benefit. Skip.
+- **Traffic-source params** (`referrer`, `sdetail`, `sourceid`) — populate Studio "Top sources", but
+  a third-party app has no genuine web referrer; synthesizing them is fabrication and also gave no
+  survival benefit. Skip.
+- **`atr`** (ad telemetry) — no ads served. Skip.
+- **`ptracking`** — reproducible, no benefit. Skip.
+- The `vm` token and every other `/player`-baseUrl param are already carried for free by firing from
+  the baseUrl — no synthesis needed.
+- **Never** route any beacon through the relay / free-proxy egress: login-less free-proxy beacons
+  don't even register, and concentrating them would burn the pool.
+
+So the honesty invariant (§"The invariant that rules everything") is the floor, and it costs nothing
+here: the rejected signals are honest AND reproducible, they just don't move the outcome. The real
+ceiling is not producibility — it is YouTube's invalid-traffic sweep on the traffic *pattern*, below.
+
+## What to expect (so the strip isn't mistaken for a bug)
+
+From a controlled A/B on a test channel. Read this before concluding the system is broken:
+
+- **Views count and stick.** Direct plays register real, durable views (measured net **+708** across
+  a 92-vs-92 A/B; held, not stripped).
+- **Watch time from concentrated single-account / one-IP testing gets RETROACTIVELY STRIPPED to
+  0.0 h.** This is the invalid-traffic sweep acting on the *pattern* — one viewer replaying obscure
+  videos on a history-less channel — **not** a defect in this system. Proof: a **complete** official
+  session (these beacons *plus* qoe *plus* source params, from a real browser on a residential IP)
+  was stripped **identically** to the reduced set. More beacons do not change the outcome. ⇒ Testing
+  this from a single account, you will see watch time appear in Studio then vanish on the sweep
+  (public view counts may hold while Studio Analytics validates them away). **That is expected — do
+  not chase it by adding beacons.**
+- **The payoff is real distributed users.** Real Zemer traffic is thousands of distinct devices/IPs
+  each playing once — the opposite of the swept pattern — where the honest watch-time signal is
+  expected to survive. This can't be proven externally (manufacturing distinct real viewers is the
+  fraud we refuse); it is the design intent and the reason to ship.
+- **The final monetization binary** — whether surviving real-user watch time actually earns a
+  pro-rata music-pool share — is the one thing YouTube doesn't publish; only a rights-holder royalty
+  report settles it.
+
+Bottom line: ship the direct path as-is. No further beacons (qoe / source / atr / ptracking) are
+warranted, and the retroactive strip under single-account testing is expected behavior, not a bug.
 
 ## Regression gate
 
