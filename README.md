@@ -6,7 +6,7 @@
 
 </div>
 
-Zemer is YouTube Music for people who filter what they listen to. Every artist in the app was reviewed and approved by hand. If an artist isn't on the whitelist, their music doesn't exist here: not in search, not in radio, not in recommendations.
+Zemer is YouTube Music for people who filter what they listen to. Every artist in the app was reviewed and approved.. If an artist isn't on the whitelist, their music doesn't exist here: not in search, not in radio, not in recommendations.
 
 On top of the whitelist there are per-home choices: allow or block female vocalists, block music videos, block podcasts, and a KidZone with its own stricter list. Filters can be locked with a sync account so they stay put.
 
@@ -39,17 +39,6 @@ Get the app at [zemer.io](https://zemer.io). Updates are checked in-app.
   <img src="https://github.com/user-attachments/assets/852979f3-b1ed-4935-bac2-ca559294bdf5" width="22%" alt="Library" />
   <img src="https://github.com/user-attachments/assets/abcc9b92-2f6a-4464-a9b6-0620e82ffebe" width="22%" alt="Content Filters" />
 </p>
-
-## Building
-
-JDK 21, then:
-
-```
-git submodule update --init --recursive
-./gradlew :app:assembleDebug
-```
-
-See `AGENTS.md` for the full picture.
 
 ## Credits
 
