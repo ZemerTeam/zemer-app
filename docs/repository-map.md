@@ -77,9 +77,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1200`
+- Files counted: `1202`
 - By extension:
-  - `.kt`: `759`
+  - `.kt`: `761`
   - `.xml`: `196`
   - `.mjs`: `75`
   - `.md`: `70`
@@ -115,7 +115,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
-| `AGENTS.md` | 1369 lines | `.md` |
+| `AGENTS.md` | 1378 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 19 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -310,7 +310,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoQualityLogic.kt` | 204 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoRendition.kt` | 84 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoSongIds.kt` | 28 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeReporter.kt` | 283 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeReporter.kt` | 314 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeSchedule.kt` | 41 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeSegments.kt` | 103 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/EmptyQueue.kt` | 14 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/ListQueue.kt` | 35 lines | `.kt` |
@@ -959,6 +960,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoQualityLogicTest.kt` | 221 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoRenditionTest.kt` | 76 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoSongIdsTest.kt` | 45 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeScheduleTest.kt` | 59 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeSegmentsTest.kt` | 110 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/relay/RelayDeviceIdTest.kt` | 82 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/relay/RelayDownloadTest.kt` | 67 lines | `.kt` |
@@ -1082,7 +1084,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 782 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 784 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 385 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
@@ -1093,7 +1095,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1310 lines | `.md` |
+| `docs/repository-map.md` | 1312 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
@@ -1182,7 +1184,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/GetTranscriptResponse.kt` | 65 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/ImageUploadResponse.kt` | 8 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/NextResponse.kt` | 40 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/PlayerResponse.kt` | 117 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/PlayerResponse.kt` | 124 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/SearchResponse.kt` | 33 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/AlbumPage.kt` | 61 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/ArtistItemsContinuationPage.kt` | 8 lines | `.kt` |

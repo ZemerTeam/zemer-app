@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` — a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline — they are not duplicated here.
 
-## `app` Kotlin files (659)
+## `app` Kotlin files (661)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -150,7 +150,8 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoQualityLogic.kt` | 204 | `com.jtech.zemer.playback` | no | 1 | 39 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoRendition.kt` | 84 | `com.jtech.zemer.playback` | no | 0 | 19 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoSongIds.kt` | 28 | `com.jtech.zemer.playback` | no | 0 | 6 |  |
-| `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeReporter.kt` | 283 | `com.jtech.zemer.playback` | no | 12 | 64 | androidx.media3, java.util, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeReporter.kt` | 314 | `com.jtech.zemer.playback` | no | 12 | 68 | androidx.media3, java.util, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeSchedule.kt` | 41 | `com.jtech.zemer.playback` | no | 0 | 6 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeSegments.kt` | 103 | `com.jtech.zemer.playback` | no | 1 | 18 | java.util |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/EmptyQueue.kt` | 14 | `com.jtech.zemer.playback.queues` | no | 2 | 5 | androidx.media3 |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/ListQueue.kt` | 35 | `com.jtech.zemer.playback.queues` | no | 5 | 11 | androidx.media3 |
@@ -587,6 +588,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoQualityLogicTest.kt` | 221 | `com.jtech.zemer.playback` | no | 5 | 23 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoRenditionTest.kt` | 76 | `com.jtech.zemer.playback` | no | 4 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoSongIdsTest.kt` | 45 | `com.jtech.zemer.playback` | no | 4 | 4 | java.util, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeScheduleTest.kt` | 59 | `com.jtech.zemer.playback` | no | 2 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeSegmentsTest.kt` | 110 | `com.jtech.zemer.playback` | no | 5 | 14 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/relay/RelayDeviceIdTest.kt` | 82 | `com.jtech.zemer.playback.relay` | no | 6 | 4 | java.util, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/relay/RelayDownloadTest.kt` | 67 | `com.jtech.zemer.playback.relay` | no | 2 | 11 | org.junit |
@@ -740,7 +742,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/GetTranscriptResponse.kt` | 65 | `com.metrolist.innertube.models.response` | no | 1 | 26 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/ImageUploadResponse.kt` | 8 | `com.metrolist.innertube.models.response` | no | 1 | 2 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/NextResponse.kt` | 40 | `com.metrolist.innertube.models.response` | no | 5 | 15 | kotlinx.serialization |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/PlayerResponse.kt` | 117 | `com.metrolist.innertube.models.response` | no | 4 | 64 | kotlinx.serialization |
+| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/PlayerResponse.kt` | 124 | `com.metrolist.innertube.models.response` | no | 4 | 66 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/SearchResponse.kt` | 33 | `com.metrolist.innertube.models.response` | no | 4 | 12 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/AlbumPage.kt` | 61 | `com.metrolist.innertube.pages` | no | 6 | 4 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/ArtistItemsContinuationPage.kt` | 8 | `com.metrolist.innertube.pages` | no | 1 | 3 |  |

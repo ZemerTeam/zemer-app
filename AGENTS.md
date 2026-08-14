@@ -126,6 +126,15 @@ rules that must not regress:
   watched time, a paused player accumulates nothing, sub-500ms jitter is dropped, a backwards position
   without a seek closes rather than fabricates). Fabricated watch time is invalid traffic by YouTube's
   definition and can flag a channel — never widen what gets reported beyond real playback.
+- **Confirmed working on a live channel** (2026-08-14): a direct Zemer play credits both a real VIEW
+  and real WATCH TIME in YouTube Studio (per-video "since published" showed 14 views / 0.2 h). Crediting
+  does NOT require CDN-cpn correlation — the beacon session alone is sufficient.
+- **Ping cadence matches the official client, server-driven** (`playback/WatchTimeSchedule`, JVM-tested):
+  the `/player` response's `videostatsScheduledFlushWalltimeSeconds` + `videostatsDefaultFlushIntervalSeconds`
+  (live-verified `[10,20,30]` then `40`) drive the watchtime ping ticker at those wall-clock offsets, not a
+  fixed interval (a fixed interval is a timing fingerprint). Falls back to the base.js `klA` default
+  `[10,20,30]`/`40` when the response omits them. Pause/seek pings are extra state-change flushes and never
+  advance the scheduled count.
 - **`playback/WatchTimeReporter` owns the session** (the `EpisodePositionTracker` extraction pattern:
   state confined to the service main scope; one ordered ping channel per session so the playback ping
   always precedes its watchtime pings; beacons are fire-and-forget and must never affect playback).

@@ -53,6 +53,8 @@ class WatchTimeReporter(
         val watchtimeUrl: String?,
         /** The streamed itag (base.js `fmt=y.D.itag`); null for cached/local plays — then omitted. */
         val fmt: Int?,
+        /** The server-provided watchtime flush cadence (falls back to the base.js default). */
+        val schedule: WatchTimeSchedule,
     )
 
     private sealed interface Ping {
@@ -73,6 +75,12 @@ class WatchTimeReporter(
         val pings = Channel<Ping>(Channel.UNLIMITED)
         var consumer: Job? = null
         var finished = false
+        // How many SCHEDULED flushes have fired — advances the wall-clock flush cadence. Pause/seek
+        // pings are extra state-change flushes and never touch this (matches the web client).
+        var scheduledFlushCount = 0
+        // Seeded to the base.js default; replaced with the server schedule the moment tracking resolves
+        // (usually before the first flush is due at 10s).
+        @Volatile var schedule = WatchTimeSchedule(null, null)
 
         fun rtMs() = System.currentTimeMillis() - startedWallMs
     }
@@ -99,10 +107,16 @@ class WatchTimeReporter(
             playbackUrl = tracking?.videostatsPlaybackUrl?.baseUrl,
             watchtimeUrl = tracking?.videostatsWatchtimeUrl?.baseUrl,
             fmt = itag,
+            schedule = WatchTimeSchedule(
+                tracking?.videostatsScheduledFlushWalltimeSeconds,
+                tracking?.videostatsDefaultFlushIntervalSeconds,
+            ),
         )
         if (urls.playbackUrl == null && urls.watchtimeUrl == null) return
         if (resolvedTracking.size > MAX_CACHED_TRACKING) resolvedTracking.clear()
         resolvedTracking[videoId] = urls
+        // If the session for this id is already live, adopt its real flush schedule immediately.
+        session?.takeIf { it.videoId == videoId && !it.finished }?.schedule = urls.schedule
     }
 
     fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -169,6 +183,9 @@ class WatchTimeReporter(
         if (isRelay() || isCasting()) return
         if (item.metadata == null) return
         val newSession = Session(videoId = id, cpn = YouTube.generateCpn())
+        // Adopt the real flush schedule if tracking already resolved for this id (else the default,
+        // which equals the common server value, until onTrackingResolved swaps it in).
+        resolvedTracking[id]?.schedule?.let { newSession.schedule = it }
         session = newSession
         newSession.pings.trySend(Ping.Start(cmtMs = player.currentPosition, muted = playerMuted()))
         newSession.consumer = scope.launch { consumePings(newSession) }
@@ -211,11 +228,17 @@ class WatchTimeReporter(
     private fun startTicker() {
         if (tickerJob?.isActive == true) return
         tickerJob = scope.launch {
+            // Fire watchtime pings at the server's scheduled wall-clock offsets (10s, 20s, 30s, then
+            // every ~40s — matching the official client instead of a fixed interval). A pause/seek
+            // ping is separate and never advances the scheduled count.
             while (isActive && player.isPlaying) {
-                delay(PING_INTERVAL_MS)
                 val s = session ?: break
-                if (!player.isPlaying) break
+                val dueAt = s.schedule.flushOffsetMs(s.scheduledFlushCount)
+                val wait = dueAt - s.rtMs()
+                if (wait > 0) delay(wait)
+                if (!isActive || !player.isPlaying || session !== s) break
                 s.segments.onProgress(player.currentPosition)
+                s.scheduledFlushCount++
                 enqueueWatch(s, cmtMs = player.currentPosition, final = false)
             }
         }
@@ -230,7 +253,17 @@ class WatchTimeReporter(
         val urls = resolvedTracking.remove(s.videoId)
             ?: runCatching { fetchTracking(s.videoId) }.getOrNull()?.let {
                 // Fallback metadata fetch (cached/local play): no resolved itag, so `fmt` is omitted.
-                TrackingUrls(it.videostatsPlaybackUrl?.baseUrl, it.videostatsWatchtimeUrl?.baseUrl, fmt = null)
+                // The schedule field is unused here (this path only supplies URLs to the consumer; the
+                // ticker already holds the session's schedule).
+                TrackingUrls(
+                    it.videostatsPlaybackUrl?.baseUrl,
+                    it.videostatsWatchtimeUrl?.baseUrl,
+                    fmt = null,
+                    schedule = WatchTimeSchedule(
+                        it.videostatsScheduledFlushWalltimeSeconds,
+                        it.videostatsDefaultFlushIntervalSeconds,
+                    ),
+                )
             }
         if (urls?.playbackUrl == null && urls?.watchtimeUrl == null) {
             for (ping in s.pings) { /* no tracking URLs (offline local play): nothing to report */ }
@@ -276,8 +309,6 @@ class WatchTimeReporter(
     private fun playerMuted(): Boolean = player.volume <= 0f
 
     companion object {
-        /** The official client reports roughly every half minute of playback. */
-        const val PING_INTERVAL_MS = 30_000L
         private const val MAX_CACHED_TRACKING = 64
     }
 }
