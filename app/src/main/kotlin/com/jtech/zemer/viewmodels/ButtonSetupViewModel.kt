@@ -63,29 +63,6 @@ class ButtonSetupViewModel @Inject constructor(
         _uiState.update { it.copy(step = ButtonSetupStep.Idle) }
     }
 
-    fun finishAndReset() {
-        captureJob?.cancel()
-        captureJob = null
-        ButtonInputCapture.endCapture()
-        _uiState.update { it.copy(step = ButtonSetupStep.Idle) }
-    }
-
-    fun skipCurrentDirection() {
-        when (val step = _uiState.value.step) {
-            is ButtonSetupStep.Priming -> startListening(true)
-            is ButtonSetupStep.Awaiting -> {
-                viewModelScope.launch {
-                    context.dataStore.edit { prefs ->
-                        prefs.remove(step.direction.prefKey)
-                    }
-                }
-                currentIndex = step.index + 1
-                startListening(cancelCurrent = true)
-            }
-            else -> Unit
-        }
-    }
-
     fun clear(direction: DpadDirection) {
         viewModelScope.launch {
             context.dataStore.edit { prefs ->

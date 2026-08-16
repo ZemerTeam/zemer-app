@@ -667,24 +667,7 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
-    /**
-     * Clear auto-restore state (for testing or migration)
-     */
-    suspend fun clearAutoRestoreState() {
-        syncDataStore.edit { preferences ->
-            preferences.remove(ContentFiltersAutoRestoredKey)
-            preferences.remove(ContentFiltersRestoredEmailKey)
-            preferences.remove(ContentFiltersLockedKey)
-        }
     }
-
-    /**
-     * Public access to deviceIdGenerator for checking device ID generation status
-     */
-    fun getDeviceIdGenerator(): DeviceIdGenerator {
-        return deviceIdGenerator
-    }
-}
 
 /**
  * Data class representing a user's device
@@ -708,5 +691,4 @@ sealed class SyncStatus {
     data class SYNCED(val lastSyncTime: Long) : SyncStatus()
 
     val isSynced: Boolean get() = this is SYNCED
-    val needsSync: Boolean get() = this == NEVER_SYNCED
 }

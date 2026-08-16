@@ -34,31 +34,6 @@ class WebViewGoogleAuthManager @Inject constructor(
         private set
 
     /**
-     * Generates the OAuth URL for Google authentication using Firebase's built-in OAuth provider.
-     */
-    suspend fun getFirebaseOAuthUrl(): String {
-        return try {
-            val provider = OAuthProvider.newBuilder("google.com")
-            // Add custom parameters if needed
-            provider.addCustomParameter("prompt", "consent")
-
-            // Get the OAuth flow URL from Firebase
-            val pendingResultTask = auth.pendingAuthResult
-            if (pendingResultTask != null) {
-                // There's already something pending, complete it first
-                pendingResultTask.await()
-            }
-
-            // Build the OAuth URL manually based on Firebase's requirements
-            // This uses Firebase's internal OAuth configuration
-            "https://accounts.google.com/o/oauth2/v2/auth?client_id=firebase-client-id&redirect_uri=urn:ietf:wg:oauth:2.0:oob&response_type=code&scope=openid%20email%20profile"
-        } catch (e: Exception) {
-            Log.e("WebViewAuth", "Error getting OAuth URL", e)
-            throw e
-        }
-    }
-
-    /**
      * Sign in with Google using Firebase's built-in authentication.
      * This method uses Firebase's OAuth provider internally.
      */
@@ -66,44 +41,6 @@ class WebViewGoogleAuthManager @Inject constructor(
         // For now, we'll use anonymous authentication as a fallback
         // since Firebase's OAuth provider requires Activity context
         return signInAnonymously()
-    }
-
-    /**
-     * Sign in and enable sync
-     * This creates an anonymous account and enables sync for the user
-     */
-    suspend fun signInAndEnableSync(): Result<com.google.firebase.auth.FirebaseUser> {
-        return signInAnonymously()
-    }
-
-    /**
-     * Alternative method using Firebase's GoogleAuthProvider with a dummy token
-     * This can be used in combination with WebView to capture the actual token
-     */
-    suspend fun signInWithGoogleToken(idToken: String): Result<com.google.firebase.auth.FirebaseUser> {
-        return try {
-            val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
-            val authResult = auth.signInWithCredential(firebaseCredential).await()
-            val user = authResult.user
-            if (user != null) {
-                Result.success(user)
-            } else {
-                Result.failure(Exception("Sign in failed: No user returned"))
-            }
-        } catch (e: Exception) {
-            Log.e("WebViewAuth", "Token sign in failed", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Generates a random string for state parameter.
-     */
-    fun generateRandomString(length: Int): String {
-        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-        return (1..length)
-            .map { chars[kotlin.random.Random.nextInt(chars.length)] }
-            .joinToString("")
     }
 
     /**
@@ -124,10 +61,4 @@ class WebViewGoogleAuthManager @Inject constructor(
         }
     }
 
-    /**
-     * Updates the authentication state.
-     */
-    fun updateAuthState(newState: AuthState) {
-        state = newState
-    }
 }

@@ -4,7 +4,7 @@ Tracked ViewModel files: `31`. Metadata below is extracted from source text.
 
 | File | Lines | Declarations | Referenced app/InnerTube imports |
 | --- | ---: | --- | --- |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/AccountSettingsViewModel.kt` | 42 | class AccountSettingsViewModel, val syncUtils, fun logoutAndClearSyncedContent, fun clearAllLibraryData | com.jtech.zemer.App, com.jtech.zemer.utils.SyncUtils |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/AccountSettingsViewModel.kt` | 42 | class AccountSettingsViewModel, val syncUtils, fun clearAllLibraryData | com.jtech.zemer.App, com.jtech.zemer.utils.SyncUtils |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/AccountViewModel.kt` | 81 | class AccountContentType, class AccountViewModel, val database, val playlists, val albums, val artists, val selectedContentType, val likedPlaylists, val likedAlbums, val libraryArtists, fun setSelectedContentType | com.metrolist.innertube.YouTube, com.metrolist.innertube.models.AlbumItem, com.metrolist.innertube.models.ArtistItem, com.metrolist.innertube.models.PlaylistItem, com.metrolist.innertube.utils.completed, com.jtech.zemer.db.MusicDatabase, com.jtech.zemer.utils.filterWhitelisted, com.jtech.zemer.utils.reportException, com.jtech.zemer.ui.utils.resize |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/AlbumViewModel.kt` | 58 | class AlbumViewModel, val albumId, val playlistId, val albumWithSongs, val album | com.metrolist.innertube.YouTube, com.metrolist.innertube.models.AlbumItem, com.jtech.zemer.db.MusicDatabase, com.jtech.zemer.utils.reportException |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/ArtistAlbumsViewModel.kt` | 25 | class ArtistAlbumsViewModel, val artistId, val artist, val albums | com.jtech.zemer.db.MusicDatabase |

@@ -34,8 +34,6 @@ class ContentFilterSyncService @Inject constructor(
     val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
 
     private val _lastSyncResult = MutableStateFlow<Result<Unit>?>(null)
-    val lastSyncResult: StateFlow<Result<Unit>?> = _lastSyncResult.asStateFlow()
-
     private var _isApplyingServerPreferences = false
 
     init {

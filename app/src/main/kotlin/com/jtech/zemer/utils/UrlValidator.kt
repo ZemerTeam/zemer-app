@@ -69,17 +69,6 @@ object UrlValidator {
     }
 
     /**
-     * Validates that a URL belongs to a trusted domain
-     * @param urlString The URL string to validate
-     * @param trustedHosts Whitelist of allowed hosts (e.g., "music.youtube.com")
-     * @return true if URL is from a trusted host, false otherwise
-     */
-    fun isUrlFromTrustedHost(urlString: String?, trustedHosts: Set<String>): Boolean {
-        val httpUrl = validateAndParseUrl(urlString) ?: return false
-        return trustedHosts.contains(httpUrl.host)
-    }
-
-    /**
      * Safely extracts query parameters from a URL
      * @param urlString The URL string
      * @param paramName The parameter name to extract
@@ -90,20 +79,4 @@ object UrlValidator {
         return httpUrl.queryParameter(paramName)
     }
 
-    /**
-     * Validates stream URLs commonly used in the app
-     * @param streamUrl The stream URL to validate
-     * @return true if valid stream URL, false otherwise
-     */
-    fun isValidStreamUrl(streamUrl: String?): Boolean {
-        if (streamUrl.isNullOrBlank()) return false
-
-        val httpUrl = validateAndParseUrl(streamUrl) ?: return false
-
-        // Stream URLs should have expected query parameters
-        return (httpUrl.queryParameter("expire") != null ||
-                httpUrl.queryParameter("exp") != null ||
-                httpUrl.host.contains("googlevideo.com") ||
-                httpUrl.host.contains("r")) // YouTube redirect domains
-    }
 }

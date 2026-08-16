@@ -20,11 +20,6 @@ data class DeviceContentFilters(
     val femalePasscodeHash: String? = null
 ) {
     companion object {
-        const val FIELD_ENABLE_CONTENT_FILTERS = "enableContentFilters"
-        const val FIELD_ALLOW_FEMALE_SINGERS = "allowFemaleSingers"
-        const val FIELD_BLOCK_VIDEOS = "blockVideos"
-        const val FIELD_BLOCK_PODCASTS = "blockPodcasts"
-        const val FIELD_FEMALE_PASSCODE_HASH = "femalePasscodeHash"
     }
 
     /**
@@ -70,30 +65,8 @@ data class DeviceMetadata(
     val lastSeen: Date? = null
 ) {
     companion object {
-        const val FIELD_DEVICE_NAME = "deviceName"
-        const val FIELD_MANUFACTURER = "manufacturer"
-        const val FIELD_MODEL = "model"
-        const val FIELD_ANDROID_VERSION = "androidVersion"
-        const val FIELD_SDK_VERSION = "sdkVersion"
-        const val FIELD_APP_VERSION = "appVersion"
-        const val FIELD_FIRST_SEEN = "firstSeen"
-        const val FIELD_LAST_SEEN = "lastSeen"
     }
 
-    /**
-     * Convert from local DeviceInfo to Firestore model
-     */
-    fun fromLocalInfo(localInfo: com.jtech.zemer.utils.DeviceInfo): DeviceMetadata {
-        return DeviceMetadata(
-            deviceName = localInfo.deviceName,
-            manufacturer = localInfo.manufacturer,
-            model = localInfo.model,
-            androidVersion = localInfo.androidVersion,
-            sdkVersion = localInfo.sdkVersion,
-            appVersion = localInfo.appVersion,
-            lastSeen = Date() // Update last seen on every sync
-        )
-    }
 }
 
 /**
@@ -123,13 +96,5 @@ data class DevicePreferencesEntity(
     val updatedAt: Date? = null
 ) {
     companion object {
-        const val COLLECTION_NAME = "devicePreferences"
-        const val FIELD_USER_ID = "userId"
-        const val FIELD_USER_EMAIL = "userEmail"
-        const val FIELD_CONTENT_FILTERS = "contentFilters"
-        const val FIELD_DEVICE_INFO = "deviceInfo"
-        const val FIELD_DEVICES = "devices"
-        const val FIELD_CREATED_AT = "createdAt"
-        const val FIELD_UPDATED_AT = "updatedAt"
     }
 }

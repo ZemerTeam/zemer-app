@@ -124,15 +124,7 @@ class ContentSettingsViewModel @Inject constructor(
     suspend fun isLocked() = userPreferencesRepository.isLocked()
     suspend fun setLocked(locked: Boolean) = userPreferencesRepository.setLocked(locked)
 
-    fun formatLastSyncTime(timestamp: Long): String {
-        return if (timestamp > 0) {
-            val sdf = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
-            sdf.format(Date(timestamp))
-        } else {
-            "Never"
-        }
     }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

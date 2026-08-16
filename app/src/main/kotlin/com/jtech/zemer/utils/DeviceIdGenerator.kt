@@ -166,16 +166,6 @@ class DeviceIdGenerator @Inject constructor(
     }
 
     /**
-     * Force regenerate the device ID (useful for testing or migration)
-     */
-    suspend fun regenerateDeviceId(): String {
-        dataStore.edit { preferences ->
-            preferences.remove(deviceIdKey)
-        }
-        return generateAndStoreDeviceId()
-    }
-
-    /**
      * Check if the device ID has been generated and stored
      */
     suspend fun hasDeviceId(): Boolean {

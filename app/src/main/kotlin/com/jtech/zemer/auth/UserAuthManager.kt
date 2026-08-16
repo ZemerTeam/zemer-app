@@ -105,19 +105,6 @@ class UserAuthManager @Inject constructor(
     }
 
     /**
-     * Refresh the current user's ID token
-     */
-    suspend fun refreshToken(): Result<String> {
-        return try {
-            val user = auth.currentUser ?: return Result.failure(Exception("No user signed in"))
-            val tokenResult = user.getIdToken(false).await()
-            Result.success(tokenResult.token ?: throw Exception("Token is null"))
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    /**
      * Get the current user's ID token
      */
     suspend fun getIdToken(forceRefresh: Boolean = false): Result<String> {
@@ -130,16 +117,4 @@ class UserAuthManager @Inject constructor(
         }
     }
 
-    /**
-     * Delete the current user's account
-     */
-    suspend fun deleteAccount(): Result<Unit> {
-        return try {
-            val user = auth.currentUser ?: return Result.failure(Exception("No user signed in"))
-            user.delete().await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
 }

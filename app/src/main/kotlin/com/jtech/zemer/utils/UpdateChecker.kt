@@ -242,9 +242,4 @@ object UpdateChecker {
         }
     }
 
-    fun openDownloadPage(context: Context) {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(DOWNLOAD_URL))
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(intent)
-    }
 }

@@ -912,10 +912,6 @@ class MusicService :
         }
     }
 
-    fun hasAudioFocusForPlayback(): Boolean {
-        return hasAudioFocus
-    }
-
     private fun waitOnNetworkError() {
         waitingForNetworkConnection.value = true
     }
@@ -1297,16 +1293,6 @@ class MusicService :
         this.toast(getString(R.string.radio_start_failed))
     }
 
-    fun getAutomixAlbum(albumId: String) {
-        scope.launch(SilentHandler) {
-            YouTube
-                .album(albumId)
-                .onSuccess {
-                    getAutomix(it.album.playlistId)
-                }
-        }
-    }
-
     fun getAutomix(playlistId: String) {
         // Automix/similar content feature disabled
     }
@@ -1331,10 +1317,6 @@ class MusicService :
                 removeAt(position)
             }
         playNext(listOf(item))
-    }
-
-    fun clearAutomix() {
-        automixItems.value = emptyList()
     }
 
     fun playNext(rawItems: List<MediaItem>) {
@@ -2915,7 +2897,6 @@ class MusicService :
         // Clients whose streams run the cipher — only these have a meaningful player hash to report
         // on the telemetry `play` event (mirrors ShowMediaInfo's isWebStream set).
         val WEB_STREAM_CLIENTS = setOf("WEB_REMIX", "WEB_CREATOR", "TVHTML5", "TVHTML5_SIMPLY", "MWEB", "WEB")
-        const val ERROR_CODE_NO_STREAM = 1000001
         const val CHUNK_LENGTH = 512 * 1024L
         // How long after a video→audio revert a player error is treated as the revert's own transient
         // re-prepare failure (recover via URL refresh) rather than a normal unrecoverable error.

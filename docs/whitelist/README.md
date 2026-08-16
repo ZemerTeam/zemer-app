@@ -34,7 +34,6 @@ The DAO exposes these whitelist-specific operations:
 | Replace-insert a list | `insertWhitelist(whitelistEntries: List<ArtistWhitelistEntity>)` |
 | Flow of IDs | `getAllWhitelistedArtistIds()` |
 | Suspended list of IDs | `getAllWhitelistedArtistIdsSync()` |
-| Flow of rows | `getAllWhitelistedArtists()` |
 | Suspended lookup by ID | `getWhitelistEntry(artistId: String)` |
 | Suspended list of rows | `getWhitelistEntriesSync()` |
 | Boolean membership test | `isArtistWhitelisted(artistId: String)` |
@@ -227,8 +226,8 @@ The whitelist appears in these synchronization paths:
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 681 | class ContentSettingsViewModel, val authManager, val webAuthManager, val syncService, val userPreferencesRepository, val authState, val syncState, val syncStatus, fun formatLastSyncTime, val sdf |
 | `app/src/main/kotlin/com/jtech/zemer/utils/ContentFilterConfig.kt` | 108 | class ContentFilterConfig, val filtersEnabled, val allowFemaleSingers, val blockVideos, val femalePasscodeHash, val lastSyncTime, val isSynced, object ContentFilterState, val _state, val state |
 | `app/src/main/kotlin/com/jtech/zemer/utils/IsraeliArtistRegistry.kt` | 51 | object IsraeliArtistRegistry, var cachedIds, val mutex, fun isIsraeli, val snapshot, val ids |
-| `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 724 | class WhitelistSyncProgress, val current, val total, val currentArtistName, val isComplete, class SyncUtils, val databaseLazy, val database, val syncScope, val isSyncingLikedSongs |
-| `app/src/main/kotlin/com/jtech/zemer/utils/UrlValidator.kt` | 109 | object UrlValidator, fun validateAndParseUrl, val trimmedUrl, val urlWithScheme, val httpUrl, fun isValidUrl, fun isUrlFromTrustedHost, val httpUrl, fun getQueryParameter, val httpUrl |
+| `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1111 | class WhitelistSyncProgress, val current, val total, val isComplete, class SyncUtils, val databaseLazy, val database, val syncScope, val isSyncingLikedSongs |
+| `app/src/main/kotlin/com/jtech/zemer/utils/UrlValidator.kt` | 82 | object UrlValidator, fun validateAndParseUrl, val trimmedUrl, val urlWithScheme, val httpUrl, fun isValidUrl, fun getQueryParameter, val httpUrl |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | — | object WhitelistCache, var memory (@Volatile immutable map), fun updateAll (whole-map swap), fun get, fun snapshot, fun allowedEntries, fun isAllowed |
 | `app/src/main/kotlin/com/jtech/zemer/utils/BlockedIdsCache.kt` | 84 | object BlockedIdsCache, const REASON_FEMALE, const REASON_GLOBAL, fun updateAll, fun isBlocked, fun isEmpty, fun snapshot, fun serialize, fun parse |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 72 | object WhitelistFetcher, val firestore, var lastFetchTime, val doc, val updatedAt, val update, val value, val now, val whitelistEntities, val snapshot |

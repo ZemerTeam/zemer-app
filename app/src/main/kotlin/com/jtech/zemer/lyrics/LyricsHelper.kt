@@ -150,11 +150,6 @@ constructor(
         currentLyricsJob?.join()
     }
 
-    fun cancelCurrentLyricsJob() {
-        currentLyricsJob?.cancel()
-        currentLyricsJob = null
-    }
-
     companion object {
         private const val MAX_CACHE_SIZE = 3
     }

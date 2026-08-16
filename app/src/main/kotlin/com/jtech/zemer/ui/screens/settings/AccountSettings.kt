@@ -107,7 +107,6 @@ fun AccountSettings(
     val accountName by homeViewModel.accountName.collectAsState()
     val accountImageUrl by homeViewModel.accountImageUrl.collectAsState()
 
-    var showToken by remember { mutableStateOf(false) }
     var showTokenEditor by remember { mutableStateOf(false) }
     var isTestingToken by remember { mutableStateOf(false) }
     var tokenTestResult by remember { mutableStateOf<String?>(null) }

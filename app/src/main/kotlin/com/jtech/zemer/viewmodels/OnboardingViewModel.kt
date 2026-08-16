@@ -183,23 +183,4 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Reset auto-restore state (for testing or if needed)
-     */
-    fun resetAutoRestoreState() {
-        viewModelScope.launch {
-            try {
-                userPreferencesRepository.clearAutoRestoreState()
-                _uiState.update {
-                    it.copy(
-                        hasServerPreferences = false,
-                        restoredConfig = null,
-                        contentFiltersAlreadySet = false
-                    )
-                }
-            } catch (e: Exception) {
-                // Handle error silently for now
-            }
-        }
-    }
 }

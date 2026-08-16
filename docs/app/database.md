@@ -397,7 +397,6 @@
 | `forgottenFavorites` | `now: Long = System.currentTimeMillis(` | `): Flow<List<Song>>` |
 | `recommendedAlbum` | `now: Long = System.currentTimeMillis(` | `,` |
 | `song` | `songId: String?` | `Flow<Song?>` |
-| `getSongById` | `songId: String` | `Song?` |
 | `getSongByIdBlocking` | `songId: String` | `Song?` |
 | `getSongsByIds` | `songIds: List<String>` | `List<Song>` |
 | `videos` | `` | `Flow<List<Song>>` |
@@ -473,7 +472,6 @@
 | `uploadedSongsByPlayTimeAsc` | `` | `Flow<List<Song>>` |
 | `uploadedSongsByRowIdAsc` | `` | `Flow<List<Song>>` |
 | `uploadedSongs` | `sortType: SongSortType, descending: Boolean,` | `` |
-| `searchSongs` | `query: String, previewSize: Int = Int.MAX_VALUE,` | `Flow<List<Song>>` |
 | `searchArtists` | `query: String, previewSize: Int = Int.MAX_VALUE,` | `Flow<List<Artist>>` |
 | `searchAlbums` | `query: String, previewSize: Int = Int.MAX_VALUE,` | `Flow<List<Album>>` |
 | `searchPlaylists` | `query: String, previewSize: Int = Int.MAX_VALUE,` | `Flow<List<Playlist>>` |
@@ -542,7 +540,6 @@
 | `insertWhitelist` | `whitelistEntries: List<ArtistWhitelistEntity>` | `@Query("SELECT artistId FROM artist_whitelist")` |
 | `getAllWhitelistedArtistIds` | `` | `Flow<List<String>>` |
 | `getAllWhitelistedArtistIdsSync` | `` | `List<String>` |
-| `getAllWhitelistedArtists` | `` | `Flow<List<ArtistWhitelistEntity>>` |
 | `getWhitelistEntry` | `artistId: String` | `ArtistWhitelistEntity?` |
 | `getWhitelistEntriesSync` | `` | `List<ArtistWhitelistEntity>` |
 | `isArtistWhitelisted` | `artistId: String` | `Boolean` |
