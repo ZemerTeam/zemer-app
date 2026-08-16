@@ -10,13 +10,14 @@
 
 import crypto from "node:crypto";
 import { CLIENTS, ORIGIN, PLAYER_URL } from "./clients.mjs";
+import { CLIENTS_WITH_RETIRED } from "./clients-retired.mjs"; // historical probes: retired clients live there
 import { getCred } from "./cred.mjs";
 import { createMinter } from "./potoken.mjs";
 
 const VID = process.argv[2] || "JTF9fLJvniI";
 const MIB = 1048576;
 const dec = (s) => { try { return s && /%[0-9A-Fa-f]{2}/.test(s) ? decodeURIComponent(s) : s; } catch { return s; } };
-const c = CLIENTS.find((x) => x.key === "IOS");
+const c = CLIENTS_WITH_RETIRED.find((x) => x.key === "IOS");
 
 async function iosPlayer(visitorData, poToken) {
   const client = { clientName: c.clientName, clientVersion: c.clientVersion, hl: "en", gl: "US", visitorData };

@@ -20,6 +20,7 @@
 
 import crypto from "node:crypto";
 import { CLIENTS, USER_AGENT_WEB, ORIGIN, PLAYER_URL } from "./clients.mjs";
+import { CLIENTS_WITH_RETIRED } from "./clients-retired.mjs"; // historical probes: retired clients live there
 import { getCred, describeCred } from "./cred.mjs";
 import { mintWebPoTokens } from "./potoken.mjs";
 import { createCipher } from "./cipher.mjs";
@@ -27,8 +28,8 @@ import { createCipher } from "./cipher.mjs";
 const VIDEO_ID = process.argv[2] || process.env.VIDEO_ID || "JTF9fLJvniI";
 const CHUNK = Number(process.env.CHUNK || 262144);
 const COVER_SECONDS = Number(process.env.COVER_SECONDS || 90);
-const WEB_REMIX = CLIENTS.find((c) => c.key === "WEB_REMIX");
-const IOS = CLIENTS.find((c) => c.key === "IOS");
+const WEB_REMIX = CLIENTS_WITH_RETIRED.find((c) => c.key === "WEB_REMIX");
+const IOS = CLIENTS_WITH_RETIRED.find((c) => c.key === "IOS");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const msOf = (a, b) => `${(b - a).toFixed(0)}ms`;

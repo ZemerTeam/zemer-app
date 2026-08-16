@@ -115,11 +115,9 @@ val VideoQualityKey = stringPreferencesKey("videoQuality")
 val StreamSourceWebRemixKey   = booleanPreferencesKey("streamSourceWebRemix")
 val StreamSourceTVHTML5Key    = booleanPreferencesKey("streamSourceTVHTML5")
 val StreamSourceAndroidVRKey  = booleanPreferencesKey("streamSourceAndroidVR")
-val StreamSourceIOSKey        = booleanPreferencesKey("streamSourceIOS")
-val StreamSourceIPadOSKey     = booleanPreferencesKey("streamSourceIPadOS")
 val StreamSourceWebCreatorKey = booleanPreferencesKey("streamSourceWebCreator")
-val StreamSourceAndroidCreatorKey = booleanPreferencesKey("streamSourceAndroidCreator")
 val StreamSourceVisionOSKey   = booleanPreferencesKey("streamSourceVisionOS")
+val StreamSourceMWEBKey       = booleanPreferencesKey("streamSourceMWEB")
 
 enum class AudioQuality {
     AUTO,

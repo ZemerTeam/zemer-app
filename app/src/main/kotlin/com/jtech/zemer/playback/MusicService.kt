@@ -535,17 +535,13 @@ class MusicService :
             dataStore.data.collect { prefs ->
                 val disabled = mutableSetOf<String>()
                 if (prefs[com.jtech.zemer.constants.StreamSourceWebRemixKey] == false) disabled += "WEB_REMIX"
-                if (prefs[com.jtech.zemer.constants.StreamSourceTVHTML5Key]   == false) disabled += "TVHTML5"
+                if (prefs[com.jtech.zemer.constants.StreamSourceTVHTML5Key]   == false) disabled += setOf("TVHTML5", "TVHTML5_SIMPLY")
                 if (prefs[com.jtech.zemer.constants.StreamSourceAndroidVRKey] == false) {
                     disabled += "ANDROID_VR"
                 }
-                // IOS/IPADOS are spc-gated and ANDROID_CREATOR needs DroidGuard — proven unfixable,
-                // so they default OFF (`!= true`: unset or false both disable; only explicit on enables).
-                if (prefs[com.jtech.zemer.constants.StreamSourceIOSKey]       != true)  disabled += "IOS"
-                if (prefs[com.jtech.zemer.constants.StreamSourceIPadOSKey]    != true)  disabled += "IOS" // IPADOS uses IOS clientName
                 if (prefs[com.jtech.zemer.constants.StreamSourceVisionOSKey]  == false) disabled += "VISIONOS"
                 if (prefs[com.jtech.zemer.constants.StreamSourceWebCreatorKey] == false) disabled += "WEB_CREATOR"
-                if (prefs[com.jtech.zemer.constants.StreamSourceAndroidCreatorKey] != true)  disabled += "ANDROID_CREATOR"
+                if (prefs[com.jtech.zemer.constants.StreamSourceMWEBKey]      == false) disabled += "MWEB"
                 YTPlayerUtils.disabledStreamClients = disabled
             }
         }
@@ -2798,7 +2794,7 @@ class MusicService :
         const val NOTIFICATION_ID = 888
         // Clients whose streams run the cipher — only these have a meaningful player hash to report
         // on the telemetry `play` event (mirrors ShowMediaInfo's isWebStream set).
-        val WEB_STREAM_CLIENTS = setOf("WEB_REMIX", "WEB_CREATOR", "TVHTML5", "WEB")
+        val WEB_STREAM_CLIENTS = setOf("WEB_REMIX", "WEB_CREATOR", "TVHTML5", "TVHTML5_SIMPLY", "MWEB", "WEB")
         const val ERROR_CODE_NO_STREAM = 1000001
         const val CHUNK_LENGTH = 512 * 1024L
         // How long after a video→audio revert a player error is treated as the revert's own transient

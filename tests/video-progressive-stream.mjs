@@ -17,6 +17,7 @@
 
 import crypto from "node:crypto";
 import { CLIENTS, USER_AGENT_WEB, ORIGIN, PLAYER_URL } from "./clients.mjs";
+import { CLIENTS_WITH_RETIRED } from "./clients-retired.mjs"; // historical probes: retired clients live there
 import { getCred, describeCred } from "./cred.mjs";
 import { mintWebPoTokens } from "./potoken.mjs";
 import { createCipher } from "./cipher.mjs";
@@ -27,8 +28,8 @@ const COVER_SECONDS = Number(process.env.COVER_SECONDS || 90);
 // Mirror the app's metered/non-metered cap (VideoModeController: 1500 metered, 6000 otherwise). The
 // harness runs on a dev machine (treated as non-metered) → default 6000; override with MAX_KBPS.
 const MAX_KBPS = process.env.MAX_KBPS ? Number(process.env.MAX_KBPS) : 6000;
-const WEB_REMIX = CLIENTS.find((c) => c.key === "WEB_REMIX");
-const IOS = CLIENTS.find((c) => c.key === "IOS");
+const WEB_REMIX = CLIENTS_WITH_RETIRED.find((c) => c.key === "WEB_REMIX");
+const IOS = CLIENTS_WITH_RETIRED.find((c) => c.key === "IOS");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const msOf = (a, b) => `${(b - a).toFixed(0)}ms`;

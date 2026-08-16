@@ -5,6 +5,7 @@
 
 import crypto from "node:crypto";
 import { CLIENTS, ORIGIN, PLAYER_URL, USER_AGENT_WEB } from "./clients.mjs";
+import { CLIENTS_WITH_RETIRED } from "./clients-retired.mjs"; // historical probes: retired clients live there
 import { getCred } from "./cred.mjs";
 import { createMinter } from "./potoken.mjs";
 
@@ -64,7 +65,7 @@ async function r1(u, ua, s, e) { try { const r = await fetch(u, { headers: { "Us
   }
 
   console.log("\n══ D. ANDROID_CREATOR 400 diagnosis ══");
-  const ac = CLIENTS.find((x) => x.key === "ANDROID_CREATOR");
+  const ac = CLIENTS_WITH_RETIRED.find((x) => x.key === "ANDROID_CREATOR");
   const acCl = () => { const cl = { clientName: ac.clientName, clientVersion: ac.clientVersion, hl: "en", gl: "US", visitorData: vd }; for (const k of ["osName", "osVersion", "deviceMake", "deviceModel", "androidSdkVersion"]) if (ac[k]) cl[k] = ac[k]; return cl; };
   const acAuth = await player(acCl(), ac.userAgent, ac.clientId, { cookie: cred.cookie, auth: true });
   console.log(`  ANDROID_CREATOR auth     -> http=${acAuth.http} body=${JSON.stringify(acAuth.j?.error?.message || acAuth.j?.error?.status || acAuth.j?.playabilityStatus?.status || acAuth.j).slice(0, 110)}`);
@@ -72,7 +73,7 @@ async function r1(u, ua, s, e) { try { const r = await fetch(u, { headers: { "Us
   console.log(`  ANDROID_CREATOR auth+pot -> http=${acPot.http} ${acPot.j?.playabilityStatus?.status || ""}`);
   const acAnon = await player(acCl(), ac.userAgent, ac.clientId, { poToken: potVisitor });
   console.log(`  ANDROID_CREATOR anon+pot -> http=${acAnon.http} ${acAnon.j?.playabilityStatus?.status || ""} ${acAnon.j?.playabilityStatus?.reason || ""}`);
-  const an = CLIENTS.find((x) => x.key === "ANDROID");
+  const an = CLIENTS_WITH_RETIRED.find((x) => x.key === "ANDROID");
   if (an) { const r = await player({ clientName: an.clientName, clientVersion: an.clientVersion, hl: "en", gl: "US", visitorData: vd }, an.userAgent, an.clientId, { cookie: cred.cookie, auth: true }); console.log(`  plain ANDROID auth       -> http=${r.http} ${r.j?.playabilityStatus?.status || ""} (is the 400 mobile-auth-wide or CREATOR-specific?)`); }
   process.exit(0);
 })();

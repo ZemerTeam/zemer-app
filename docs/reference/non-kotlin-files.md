@@ -264,7 +264,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 701 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 703 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 438 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
@@ -300,16 +300,16 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 56 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
 | `simpmusic/build.gradle.kts` | 15 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
-| `tests/INVESTIGATION.md` | 277 lines | text `.md` |
+| `tests/INVESTIGATION.md` | 279 lines | text `.md` |
 | `tests/MWEB-INVESTIGATION.md` | 83 lines | text `.md` |
-| `tests/README.md` | 164 lines | text `.md` |
+| `tests/README.md` | 175 lines | text `.md` |
 | `tests/analyze-player.mjs` | 53 lines | text `.mjs` |
-| `tests/broken-clients.mjs` | 142 lines | text `.mjs` |
+| `tests/broken-clients.mjs` | 143 lines | text `.mjs` |
 | `tests/check-live-player.mjs` | 81 lines | text `.mjs` |
 | `tests/cipher-check.mjs` | 86 lines | text `.mjs` |
 | `tests/cipher.mjs` | 205 lines | text `.mjs` |
-| `tests/client-fulldownload.mjs` | 109 lines | text `.mjs` |
-| `tests/clients.mjs` | 69 lines | text `.mjs` |
+| `tests/client-fulldownload.mjs` | 118 lines | text `.mjs` |
+| `tests/clients.mjs` | 53 lines | text `.mjs` |
 | `tests/config-covers.mjs` | 24 lines | text `.mjs` |
 | `tests/cred.mjs` | 82 lines | text `.mjs` |
 | `tests/derive-player-config.mjs` | 89 lines | text `.mjs` |
@@ -346,11 +346,11 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/probe-mweb.mjs` | 136 lines | text `.mjs` |
 | `tests/probe-proper.mjs` | 202 lines | text `.mjs` |
 | `tests/probe-yt-endpoint.mjs` | 203 lines | text `.mjs` |
-| `tests/re-apple.mjs` | 51 lines | text `.mjs` |
-| `tests/re-compare.mjs` | 58 lines | text `.mjs` |
-| `tests/re-deep.mjs` | 78 lines | text `.mjs` |
-| `tests/re-ios.mjs` | 68 lines | text `.mjs` |
-| `tests/re-oauth.mjs` | 115 lines | text `.mjs` |
+| `tests/re-apple.mjs` | 52 lines | text `.mjs` |
+| `tests/re-compare.mjs` | 59 lines | text `.mjs` |
+| `tests/re-deep.mjs` | 79 lines | text `.mjs` |
+| `tests/re-ios.mjs` | 69 lines | text `.mjs` |
+| `tests/re-oauth.mjs` | 116 lines | text `.mjs` |
 | `tests/recent-releases/README.md` | 62 lines | text `.md` |
 | `tests/recent-releases/build-feed.mjs` | 145 lines | text `.mjs` |
 | `tests/recent-releases/lib.mjs` | 239 lines | text `.mjs` |
@@ -379,7 +379,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/sts-mismatch.mjs` | 125 lines | text `.mjs` |
 | `tests/test-mweb-cipher.mjs` | 142 lines | text `.mjs` |
 | `tests/validate-player-config.mjs` | 186 lines | text `.mjs` |
-| `tests/video-progressive-stream.mjs` | 275 lines | text `.mjs` |
+| `tests/video-progressive-stream.mjs` | 276 lines | text `.mjs` |
 | `tests/video-qualities.mjs` | 306 lines | text `.mjs` |
 | `tests/web-creator-stream.mjs` | 142 lines | text `.mjs` |
-| `tests/web-remix-stream.mjs` | 277 lines | text `.mjs` |
+| `tests/web-remix-stream.mjs` | 278 lines | text `.mjs` |

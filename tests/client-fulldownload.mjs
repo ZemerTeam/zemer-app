@@ -19,8 +19,8 @@ const kb = (n) => `${(n / 1024).toFixed(0)}KB`;
 // order as YTPlayerUtils.kt ("ANDROID" here = the app's MOBILE client). Override with
 // CLIENTS=WEB_REMIX,TVHTML5,... to test a subset.
 const TEST = process.env.CLIENTS?.split(",").map((s) => s.trim()).filter(Boolean) || [
-  "WEB_REMIX", "VISIONOS", "WEB_CREATOR", "ANDROID_VR_1_43_32", "ANDROID_VR_1_61_48",
-  "TVHTML5", "IOS", "IPADOS", "ANDROID_CREATOR", "ANDROID_VR_NO_AUTH", "ANDROID", "WEB",
+  "WEB_REMIX", "VISIONOS", "VISIONOS_0_1", "WEB_CREATOR", "ANDROID_VR_1_65_10",
+  "TVHTML5_SIMPLY", "MWEB",
 ];
 
 function sapisidHash(cookie) {
@@ -32,7 +32,9 @@ async function playerRequest(c, visitorData, dataSyncId, cookie, { sts, poToken,
   const client = { clientName: c.clientName, clientVersion: c.clientVersion, hl: "en", gl: "US" };
   if (visitorData) client.visitorData = visitorData;
   for (const k of ["osName", "osVersion", "deviceMake", "deviceModel", "androidSdkVersion"]) if (c[k]) client[k] = c[k];
-  const body = { context: { client }, videoId: VIDEO_ID, contentCheckOk: true, racyCheckOk: true };
+  const body = { context: { client }, videoId: VIDEO_ID, playlistId: null, contentCheckOk: true, racyCheckOk: true };
+  // InnerTube.player(): embedded clients carry thirdParty.embedUrl in the context.
+  if (c.isEmbedded) body.context.thirdParty = { embedUrl: `https://www.youtube.com/watch?v=${VIDEO_ID}` };
   if (c.loginSupported && dataSyncId) body.context.user = { onBehalfOfUser: dataSyncId };
   if (c.useSignatureTimestamp && sts) body.playbackContext = { contentPlaybackContext: { signatureTimestamp: Number(sts) } };
   if (poToken) body.serviceIntegrityDimensions = { poToken };
@@ -79,17 +81,24 @@ async function drainWhole(url, ua, cap) {
     const c = CLIENTS.find((x) => x.key === key);
     if (!c) continue;
     try {
-      const isWeb = c.useWebPoTokens;
+      // YTPlayerUtils.clientNeedsNTransform: useWebPoTokens OR one of the named web clients gets the
+      // n-transform; the `pot=` append rides ONLY useWebPoTokens (applyWebUrlTransforms).
+      const needsN = c.useWebPoTokens || ["WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5"].includes(c.clientName);
       const { http, j } = await playerRequest(c, visitorData, cred.dataSyncId, cred.cookie, {
         sts: c.useSignatureTimestamp ? cipher.sts : null,
-        poToken: isWeb ? potVisitor : null,   // player-request pot (session)
+        poToken: c.useWebPoTokens ? potVisitor : null,   // player-request pot (session-bound)
         auth: !!c.loginSupported,
       });
       const ps = j?.playabilityStatus?.status || "-";
       const fmt = findFormat(j);
-      if (!fmt) { console.log(key.padEnd(20), String(http).padEnd(5), ps.padEnd(5), "-".padEnd(5), "-".padEnd(9), "-".padEnd(12), "-".padEnd(7), "no format"); continue; }
+      if (!fmt) { console.log(key.padEnd(20), String(http).padEnd(5), ps.padEnd(5), "-".padEnd(5), "-".padEnd(9), "-".padEnd(12), "-".padEnd(7), `no format${j?.playabilityStatus?.reason ? " (" + j.playabilityStatus.reason.slice(0, 60) + ")" : ""}`); continue; }
+      if (!fmt.url && !fmt.signatureCipher) {
+        const sabr = j?.streamingData?.serverAbrStreamingUrl ? "SABR-only" : "no url/signatureCipher";
+        console.log(key.padEnd(20), String(http).padEnd(5), ps.padEnd(5), String(fmt.itag).padEnd(5), "-".padEnd(9), "-".padEnd(12), "-".padEnd(7), `✗ ${sabr} (app can't consume)`);
+        continue;
+      }
       let url = fmt.url || cipher.deobfuscateStreamUrl(fmt.signatureCipher);
-      if (isWeb) { url = cipher.transformNParamInUrl(url); url += `${url.includes("?") ? "&" : "?"}pot=${encodeURIComponent(potVideo)}`; } // FIX: videoId pot
+      if (needsN) { url = cipher.transformNParamInUrl(url); if (c.useWebPoTokens) url += `${url.includes("?") ? "&" : "?"}pot=${encodeURIComponent(potVideo)}`; } // videoId-bound stream pot
       const clen = fmt.contentLength ? Number(fmt.contentLength) : null;
       const durMs = fmt.approxDurationMs ? Number(fmt.approxDurationMs) : null;
       const d = await drainWhole(url, c.userAgent, clen ? clen + 1 : 50 * 1048576);

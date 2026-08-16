@@ -14,6 +14,7 @@
 
 import crypto from "node:crypto";
 import { CLIENTS, ORIGIN, PLAYER_URL, USER_AGENT_WEB } from "./clients.mjs";
+import { CLIENTS_WITH_RETIRED } from "./clients-retired.mjs"; // historical probes: retired clients live there
 import { getCred, describeCred } from "./cred.mjs";
 import { createCipher } from "./cipher.mjs";
 import { createMinter } from "./potoken.mjs";
@@ -94,7 +95,7 @@ async function drain(url, c, cap) {
   console.log(`cipher hash=${cipher.hash} sts=${cipher.sts}  pots: video(${potVideo.length}) visitor(${potVisitor.length})`);
 
   for (const key of TEST) {
-    const c = CLIENTS.find((x) => x.key === key);
+    const c = CLIENTS_WITH_RETIRED.find((x) => x.key === key);
     console.log(`\n════════════ ${key} ════════════`);
     console.log(`flags: clientId=${c.clientId} loginSupported=${!!c.loginSupported} loginRequired=${!!c.loginRequired} useSignatureTimestamp=${!!c.useSignatureTimestamp} useWebPoTokens=${!!c.useWebPoTokens}`);
 

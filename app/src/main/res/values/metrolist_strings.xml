@@ -278,15 +278,17 @@
     <string name="stream_source_native_clients">Native clients</string>
     <string name="stream_source_creator_clients">Creator clients</string>
     <string name="stream_source_web_remix">WEB_REMIX</string>
-    <string name="stream_source_web_remix_desc">YouTube Music web client: best quality, opus audio</string>
+    <string name="stream_source_web_remix_desc">YouTube Music web client: the primary client</string>
     <string name="stream_source_tvhtml5">TVHTML5</string>
-    <string name="stream_source_tvhtml5_desc">YouTube TV web client: fallback for login-gated content</string>
+    <string name="stream_source_tvhtml5_desc">YouTube TV client: anonymous fallback, no sign-in needed</string>
+    <string name="stream_source_mweb">MWEB</string>
+    <string name="stream_source_mweb_desc">YouTube mobile web client: signed-in fallback</string>
     <string name="stream_source_android_vr">Android VR</string>
     <string name="stream_source_android_vr_desc">Direct URL client: reliable fallback, no cipher needed</string>
     <string name="stream_source_visionos">visionOS</string>
-    <string name="stream_source_visionos_desc">Apple direct-URL client: streams full songs</string>
+    <string name="stream_source_visionos_desc">Apple direct-URL client: most reliable fallback, no cipher or sign-in</string>
     <string name="stream_source_web_creator">WEB_CREATOR</string>
-    <string name="stream_source_web_creator_desc">YouTube Studio web client</string>
+    <string name="stream_source_web_creator_desc">YouTube Studio web client: requires sign-in</string>
 
     <!-- Mixes / suggested playlists -->
     <string name="mixes">Mixes</string>

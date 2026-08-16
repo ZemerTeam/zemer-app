@@ -36,7 +36,7 @@ must change too (see §6). The mapping:
 |---|---|---|
 | `YouTube.cookie` / `visitorData` (session) | `cred.mjs` | the logged-in session, from `innertube_cookie.txt` |
 | `InnerTube.kt` `player()` + `ytClient()` | `web-remix-stream.mjs` / `pot-probe.mjs` `playerRequest()` | the `/player` POST: context, `X-Goog-*` headers, `SAPISIDHASH`, `signatureTimestamp`, `serviceIntegrityDimensions.poToken` |
-| `models/YouTubeClient.kt` | `clients.mjs` | client name/version/id/UA/flags (WEB_REMIX id 67, IOS id 5, …) |
+| `models/YouTubeClient.kt` | `clients.mjs` | client name/version/id/UA/flags (WEB_REMIX id 67, TVHTML5_SIMPLY id 75, …; retired clients live in `clients-retired.mjs`) |
 | `cipher/.../PlayerJsFetcher.kt` | `cipher.mjs` `fetchPlayerJs()` | iframe_api -> `player_ias.vflset/en_GB/base.js`, STS |
 | `cipher/library/src/main/assets/player_configs.json` (single source: bundled in APK + fetched from cipher `master` at runtime) | `player-configs.mjs` reads the SAME file | per-player sig expression (`Tl(48,5831,…)` / `Qp(25,37,…)` / `v0(35,4499,…)` / `Jf(20,3699,…)`) + n-trick class (`W_`/`W1`/`uY`/`iE`) + STS + MD5 alias |
 | `cipher/.../CipherWebView.kt` (Android WebView) | `cipher.mjs` (jsdom) | injects exports into the IIFE `})(_yt_player);`, runs base.js, calls `_cipherSigFunc` / `_nTransformFunc` |
@@ -190,8 +190,10 @@ The throttle/pot rule changed. Re-derive it empirically:
 ### C. A client that used to work now 403s (e.g. IOS broke)
 `node client-fulldownload.mjs` (pin a player for a clean comparison). It shows, per client,
 whether the whole song downloads. Re-rank `STREAM_FALLBACK_CLIENTS` in `YTPlayerUtils.kt` toward
-whatever still returns "WHOLE SONG" (as of 2026-06-08: VISIONOS and ANDROID_VR with no pot/cipher;
-WEB_REMIX and WEB_CREATOR with videoId pot; IOS/IPADOS broken past 1 MiB).
+whatever still returns "WHOLE SONG" (as of 2026-08-15: VISIONOS 1.02 + 0.1 direct no-pot;
+WEB_REMIX / WEB_CREATOR / TVHTML5_SIMPLY (+ MWEB, signed-in only) with videoId pot; ANDROID_VR 1.65.10 direct — device-true
+even when a flagged terminal IP 403s it; every other client was removed as proven dead — see
+`clients-retired.mjs` for the verdicts). Keep the array order matching the Stream Sources display.
 
 ### D. `potoken.mjs` errors / poToken rejected (`UNPLAYABLE` even with pot)
 BotGuard/`bgutils-js` drift, or the web request key changed.

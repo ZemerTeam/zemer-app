@@ -11,6 +11,7 @@
 
 import fs from "node:fs";
 import { CLIENTS, ORIGIN, PLAYER_URL } from "./clients.mjs";
+import { CLIENTS_WITH_RETIRED } from "./clients-retired.mjs"; // historical probes: retired clients live there
 import { getCred } from "./cred.mjs";
 
 const MIB = 1048576;
@@ -87,7 +88,7 @@ async function poll() {
     "music.youtube": PLAYER_URL,
   };
   for (const key of ["ANDROID_CREATOR", "ANDROID"]) {
-    const c = CLIENTS.find((x) => x.key === key);
+    const c = CLIENTS_WITH_RETIRED.find((x) => x.key === key);
     if (!c) continue;
     console.log(`── ${key} (OAuth Bearer) ──`);
     for (const [en, ep] of Object.entries(endpoints)) {
