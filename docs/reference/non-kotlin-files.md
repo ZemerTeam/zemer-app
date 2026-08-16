@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `379`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `380`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -309,6 +309,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/cipher-check.mjs` | 86 lines | text `.mjs` |
 | `tests/cipher.mjs` | 205 lines | text `.mjs` |
 | `tests/client-fulldownload.mjs` | 118 lines | text `.mjs` |
+| `tests/clients-retired.mjs` | 67 lines | text `.mjs` |
 | `tests/clients.mjs` | 53 lines | text `.mjs` |
 | `tests/config-covers.mjs` | 24 lines | text `.mjs` |
 | `tests/cred.mjs` | 82 lines | text `.mjs` |
