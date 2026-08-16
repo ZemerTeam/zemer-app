@@ -2,6 +2,27 @@ package com.metrolist.innertube.models
 
 import kotlinx.serialization.Serializable
 
+/**
+ * How a client's stream URLs become playable. This is the ONE selector for the per-client
+ * stream-handling behavior bundle — all logic stays compiled; the enum only picks which path runs.
+ */
+@Serializable
+enum class StreamProtocol {
+    /**
+     * The web path: sig deciphered by the cipher submodule, n-transform applied, `pot=` appended,
+     * poToken sent in the /player body, signatureTimestamp sent in playbackContext. Eligible to
+     * seed the video quality ladder / rung URLs / merge audio.
+     */
+    WEB_CIPHER_POT,
+
+    /**
+     * Direct-URL clients (VISIONOS/ANDROID_VR): the CDN URL is used AS-IS — no sig, no
+     * n-transform, no pot (applying the web transforms would CORRUPT it), no STS in the body.
+     * Never seeds the quality ladder.
+     */
+    DIRECT,
+}
+
 @Serializable
 data class YouTubeClient(
     val clientName: String,
@@ -15,10 +36,22 @@ data class YouTubeClient(
     val androidSdkVersion: String? = null,
     val loginSupported: Boolean = false,
     val loginRequired: Boolean = false,
-    val useSignatureTimestamp: Boolean = false,
     val isEmbedded: Boolean = false,
-    val useWebPoTokens: Boolean = false,
+    val protocol: StreamProtocol = StreamProtocol.DIRECT,
+    /**
+     * Skip the HEAD pre-validation when this client serves the MAIN stream slot: its
+     * authenticated CDN URLs 403 on HEAD but serve correctly on ExoPlayer's byte-range GET
+     * (a WEB_REMIX CDN quirk, kept as a flag so the main slot is not name-keyed).
+     */
+    val skipHeadValidation: Boolean = false,
 ) {
+    /**
+     * Derived from [protocol] — kept as properties because the request builder (InnerTube.ytClient/
+     * player) reads them; the protocol is the single source of truth so the two can never drift.
+     */
+    val useSignatureTimestamp: Boolean get() = protocol == StreamProtocol.WEB_CIPHER_POT
+    val useWebPoTokens: Boolean get() = protocol == StreamProtocol.WEB_CIPHER_POT
+
     fun toContext(locale: YouTubeLocale, visitorData: String?, dataSyncId: String?) = Context(
         client = Context.Client(
             clientName = clientName,
@@ -47,6 +80,8 @@ data class YouTubeClient(
         const val REFERER_YOUTUBE_MUSIC = "$ORIGIN_YOUTUBE_MUSIC/"
         const val API_URL_YOUTUBE_MUSIC = "$ORIGIN_YOUTUBE_MUSIC/youtubei/v1/"
 
+        // NOT a stream client (InnerTube next/transcript only). DIRECT here just keeps its request
+        // shape unchanged (no STS, no poToken) — the protocol is never consulted for non-stream use.
         val WEB = YouTubeClient(
             clientName = "WEB",
             clientVersion = "2.20260213.00.00",
@@ -60,8 +95,10 @@ data class YouTubeClient(
             clientId = "67",
             userAgent = USER_AGENT_WEB,
             loginSupported = true,
-            useSignatureTimestamp = true,
-            useWebPoTokens = true,
+            protocol = StreamProtocol.WEB_CIPHER_POT,
+            // Authenticated WEB_REMIX CDN URLs 403 on HEAD but serve fine on ExoPlayer's
+            // byte-range GET — as the main client it skips the HEAD pre-validation.
+            skipHeadValidation = true,
         )
 
         val WEB_CREATOR = YouTubeClient(
@@ -71,12 +108,11 @@ data class YouTubeClient(
             userAgent = USER_AGENT_WEB,
             loginSupported = true,
             loginRequired = true,
-            useSignatureTimestamp = true,
             // Verified against the live CDN (tests/web-creator-stream.mjs): WEB_CREATOR returns
             // ciphered URLs that 403 past the 1 MiB free window unless a videoId-bound pot is
-            // appended (HEAD also 403s without it). Enabling poTokens makes it stream the whole
-            // song — without this it is a dead fallback.
-            useWebPoTokens = true,
+            // appended (HEAD also 403s without it). The web pot path makes it stream the whole
+            // song — without it it is a dead fallback.
+            protocol = StreamProtocol.WEB_CIPHER_POT,
         )
 
         /**
@@ -92,8 +128,7 @@ data class YouTubeClient(
             userAgent = "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)",
             loginSupported = true,
             loginRequired = true,
-            useSignatureTimestamp = true,
-            useWebPoTokens = true,
+            protocol = StreamProtocol.WEB_CIPHER_POT,
         )
 
 
@@ -108,8 +143,7 @@ data class YouTubeClient(
             clientVersion = "1.0",
             clientId = "75",
             userAgent = "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/25.lts.30.1034943-gold (unlike Gecko), Unknown_TV_Unknown_0/Unknown (Unknown, Unknown)",
-            useSignatureTimestamp = true,
-            useWebPoTokens = true,
+            protocol = StreamProtocol.WEB_CIPHER_POT,
         )
 
 
@@ -133,7 +167,6 @@ data class YouTubeClient(
             deviceModel = "Quest 3",
             androidSdkVersion = "32",
             loginSupported = false,
-            useSignatureTimestamp = false
         )
 
 
@@ -160,7 +193,6 @@ data class YouTubeClient(
             deviceMake = "Apple",
             deviceModel = "RealityDevice17,1",
             loginSupported = false,
-            useSignatureTimestamp = false
         )
 
         // The pre-1.02 visionOS config (still streaming whole songs as of 2026-08-15); kept as the
@@ -175,7 +207,6 @@ data class YouTubeClient(
             deviceMake = "Apple",
             deviceModel = "RealityDevice14,1",
             loginSupported = false,
-            useSignatureTimestamp = false
         )
 
     }

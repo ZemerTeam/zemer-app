@@ -19,6 +19,7 @@ import com.zemer.cipher.CipherDeobfuscator
 import com.zemer.cipher.potoken.PoTokenGenerator
 import com.zemer.cipher.potoken.PoTokenResult
 import com.jtech.zemer.utils.sabr.EjsNTransformSolver
+import com.metrolist.innertube.models.StreamProtocol
 import com.metrolist.innertube.models.YouTubeClient
 import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_65_10
 import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS
@@ -49,23 +50,24 @@ object YTPlayerUtils {
 
     private val poTokenGenerator = PoTokenGenerator()
 
-    // Track videoIds where WEB_REMIX stream URLs 403 on ExoPlayer GET, so the next
-    // resolution falls through to TVHTML5/ANDROID_VR instead of looping.
-    private val webRemixFailedIds = java.util.Collections.newSetFromMap(
+    // Track videoIds where the MAIN client's stream URLs (whose HEAD validation is skipped —
+    // see skipHeadValidation) 403 on ExoPlayer GET, so the next resolution falls through to the
+    // fallback clients instead of looping.
+    private val mainClientFailedIds = java.util.Collections.newSetFromMap(
         java.util.concurrent.ConcurrentHashMap<String, Boolean>()
     )
 
-    fun markWebRemixFailed(videoId: String) {
-        webRemixFailedIds.add(videoId)
+    fun markMainClientFailed(videoId: String) {
+        mainClientFailedIds.add(videoId)
     }
 
     /**
      * Cleared when the cipher recovers (player config refreshed after a stream rejection): the
-     * prior WEB_REMIX failures were caused by the stale cipher, so let resolution try WEB_REMIX
-     * again instead of staying pinned to a lower fallback client for the rest of the process.
+     * prior main-client failures were caused by the stale cipher, so let resolution try the main
+     * client again instead of staying pinned to a lower fallback client for the rest of the process.
      */
-    fun clearWebRemixFailures() {
-        webRemixFailedIds.clear()
+    fun clearMainClientFailures() {
+        mainClientFailedIds.clear()
     }
 
     // Fire-and-forget scope for the cipher config self-heal triggered when a cipher client fails
@@ -107,9 +109,6 @@ object YTPlayerUtils {
         // track record; promote only after it has proven itself over time.
         MWEB
     )
-
-    private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient>
-        get() = ALL_FALLBACK_CLIENTS.filter { it.clientName !in disabledStreamClients }.toTypedArray()
 
     // A stable video id used only to warm the local BotGuard token generator; the token is
     // discarded. PoToken generation is a local WebView computation (no YouTube /player call), so
@@ -202,13 +201,10 @@ object YTPlayerUtils {
         videoItag: Int? = null,
         videoQualityTarget: String? = null,
     ): Result<PlaybackData> = runCatching {
-        val mainClient = if (MAIN_CLIENT.clientName in disabledStreamClients) {
-            STREAM_FALLBACK_CLIENTS.firstOrNull()
-                ?: throw PlaybackException("All stream sources are disabled", null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
-        } else {
-            MAIN_CLIENT
-        }
-        val fallbackClients = STREAM_FALLBACK_CLIENTS.filter { it.clientName != mainClient.clientName }.toTypedArray()
+        val chain = StreamClientChain.resolve(MAIN_CLIENT, ALL_FALLBACK_CLIENTS.toList(), disabledStreamClients)
+            ?: throw PlaybackException("All stream sources are disabled", null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
+        val mainClient = chain.main
+        val fallbackClients = chain.fallbacks
 
         Timber.tag(TAG).d( "=== Stream resolution START for videoId=$videoId ===")
         Timber.tag(TAG).d( "Main client: ${mainClient.clientName}, audioQuality=$audioQuality, preferVideo=$preferVideo")
@@ -387,15 +383,15 @@ object YTPlayerUtils {
                     break
                 }
 
-                // WEB_REMIX authenticated CDN URLs 403 on HEAD but serve correctly
-                // on the actual byte-range GET that ExoPlayer makes. Skip HEAD validation
-                // for streaming UNLESS this videoId already failed on GET (tracked in
-                // webRemixFailedIds), in which case fall through to TVHTML5/ANDROID_VR.
-                // For downloads, always fall through — WEB_REMIX signed URLs don't support
-                // the &range= query-param download pattern.
-                if (client.clientName == "WEB_REMIX" && clientIndex == -1
-                    && !forDownload && !webRemixFailedIds.contains(videoId)) {
-                    Timber.tag(TAG).d("WEB_REMIX — skipping HEAD validation, letting ExoPlayer try directly")
+                // A skipHeadValidation client's (WEB_REMIX's) authenticated CDN URLs 403 on HEAD
+                // but serve correctly on the actual byte-range GET that ExoPlayer makes. Skip HEAD
+                // validation for streaming in the MAIN slot UNLESS this videoId already failed on
+                // GET (tracked in mainClientFailedIds), in which case fall through to the fallback
+                // clients. For downloads, always fall through — the signed URLs don't support the
+                // &range= query-param download pattern.
+                if (client.skipHeadValidation && clientIndex == -1
+                    && !forDownload && !mainClientFailedIds.contains(videoId)) {
+                    Timber.tag(TAG).d("${client.clientName} — skipping HEAD validation, letting ExoPlayer try directly")
                     successClient = client.clientName
                     successClientObj = client
                     break
@@ -417,7 +413,7 @@ object YTPlayerUtils {
                     // app restart. This is what covers WEB_CREATOR/TVHTML5/WEB-only users.
                     if (needsNTransform) {
                         cipherRefreshScope.launch {
-                            if (CipherDeobfuscator.onStreamRejected()) clearWebRemixFailures()
+                            if (CipherDeobfuscator.onStreamRejected()) clearMainClientFailures()
                         }
                     }
                 }
@@ -567,7 +563,7 @@ object YTPlayerUtils {
     }
 
     private fun clientNeedsNTransform(client: YouTubeClient): Boolean =
-        client.useWebPoTokens || client.clientName in listOf("WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5")
+        client.protocol == StreamProtocol.WEB_CIPHER_POT
 
     /**
      * The shared web-client URL finalization (n-transform first, then `pot=`) — one implementation

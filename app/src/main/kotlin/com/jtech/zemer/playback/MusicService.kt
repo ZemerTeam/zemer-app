@@ -1995,20 +1995,20 @@ class MusicService :
     private fun handleExpiredUrlError() {
         val mediaId = player.currentMediaItem?.mediaId
         if (mediaId != null) {
-            // If this was a WEB_REMIX stream that 403d on GET, mark it so the next
-            // resolution skips WEB_REMIX and falls through to TVHTML5/ANDROID_VR.
-            YTPlayerUtils.markWebRemixFailed(mediaId)
+            // If this was a main-client (WEB_REMIX) stream that 403d on GET, mark it so the next
+            // resolution skips the main client and falls through to the fallback chain.
+            YTPlayerUtils.markMainClientFailed(mediaId)
             // Clear the cached URL so it will be refreshed on next request
             DownloadUtil.invalidateUrl(mediaId)
-            Timber.d("Cleared cached URL for $mediaId, marked WEB_REMIX as failed")
+            Timber.d("Cleared cached URL for $mediaId, marked main client as failed")
             // A 403 can also mean the cipher produced a wrong-but-non-throwing signature from a
             // stale/wrong player config. Ask the cipher to re-fetch its config (rate-limited); if
             // that corrects the table, the cipher rebuilds its WebView on the next decipher, so we
-            // clear the WEB_REMIX failure set to let playback return to WEB_REMIX — no app restart.
+            // clear the failure set to let playback return to the main client — no app restart.
             scope.launch {
                 if (CipherDeobfuscator.onStreamRejected()) {
-                    Timber.d("Player config changed after stream rejection — restoring WEB_REMIX")
-                    YTPlayerUtils.clearWebRemixFailures()
+                    Timber.d("Player config changed after stream rejection — restoring main client")
+                    YTPlayerUtils.clearMainClientFailures()
                 }
             }
         }
