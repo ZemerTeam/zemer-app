@@ -4,7 +4,7 @@ import java.util.Locale
 
 /**
  * Accumulates the media-time ranges ACTUALLY played during one playback session, and drains them as
- * the `st`/`et` parameter lists of a watchtime ping (handoff: emulate-youtube-music-stream).
+ * the `st`/`et` parameter lists of a watchtime ping.
  *
  * Pure and single-caller-thread-confined (the service main scope) — no player, no clock. The owner
  * feeds it real position observations:
@@ -29,6 +29,14 @@ class WatchTimeSegments {
 
     /** Whether a segment is currently open (playback believed live). */
     val isOpen: Boolean get() = openStartMs >= 0
+
+    /**
+     * The last real media position observed for THIS item (open segment's latest progress, or the
+     * last close point). The session's end position must fall back to this — never the player's
+     * current position, which after a track/queue change already belongs to a DIFFERENT item and
+     * would fabricate a range spanning into the new track.
+     */
+    fun lastKnownPositionMs(): Long = lastPositionMs
 
     fun onPlay(positionMs: Long) {
         if (openStartMs < 0) {

@@ -7,9 +7,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Pins the watch-time honesty rules (handoff: emulate-youtube-music-stream): a range is reported iff
- * the player actually traversed it — seeks are never watched time, a paused player accumulates
- * nothing, drains are deltas (never cumulative resends), and sub-jitter segments are dropped.
+ * Pins the watch-time honesty rules: a range is reported iff the player actually traversed it —
+ * seeks are never watched time, a paused player accumulates nothing, drains are deltas (never
+ * cumulative resends), and sub-jitter segments are dropped.
  */
 class WatchTimeSegmentsTest {
 
@@ -106,5 +106,33 @@ class WatchTimeSegmentsTest {
         assertEquals("1.2", WatchTimeSegments.formatSeconds(1_234))
         assertEquals("0.0", WatchTimeSegments.formatSeconds(0))
         assertEquals("192.5", WatchTimeSegments.formatSeconds(192_500))
+    }
+
+    // --- lastKnownPositionMs: the end-of-session fallback that must NOT be the new item's position ---
+
+    @Test
+    fun `lastKnownPositionMs tracks progress while playing`() {
+        val s = WatchTimeSegments()
+        s.onPlay(0)
+        s.onProgress(42_000)
+
+        assertEquals(42_000L, s.lastKnownPositionMs())
+    }
+
+    @Test
+    fun `lastKnownPositionMs holds the departed position after playback stops`() {
+        val s = WatchTimeSegments()
+        s.onPlay(10_000)
+        s.onProgress(154_000)
+        s.onPause(154_000)
+
+        // After a track change the player jumps to the new item, but the segment still knows THIS
+        // item's real end — the session's final ping must close here, not at the new item's position.
+        assertEquals(154_000L, s.lastKnownPositionMs())
+    }
+
+    @Test
+    fun `lastKnownPositionMs is zero for a session that never played`() {
+        assertEquals(0L, WatchTimeSegments().lastKnownPositionMs())
     }
 }

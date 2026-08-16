@@ -1560,7 +1560,13 @@ class MusicService :
         // real-transition side effects (cast reload, auto-load-more, save-queue) and keep video mode. A
         // real track change instead reverts video to audio (I2) inside the controller, then falls through
         // to the normal handling below. onEvents still updates currentMediaMetadata either way.
-        if (videoModeController.onMediaItemTransition(mediaItem, reason)) return
+        if (videoModeController.onMediaItemTransition(mediaItem, reason)) {
+            // Same listen (one cpn) continues, but neutralise any transition state so a LATER real
+            // transition can't inherit it: a repeat-one loop's captured end position (would fabricate an
+            // unplayed range) and the now-ambiguous single-itag fmt (would report the wrong itag).
+            watchTimeReporter.onOwnSwapTransition()
+            return
+        }
 
         // A REAL track change ends the departed listen's watch-time session (final=1) and arms the
         // next one — after the own-swap early-return above, so an audio↔video swap keeps its session.

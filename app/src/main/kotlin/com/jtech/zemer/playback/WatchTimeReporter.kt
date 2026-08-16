@@ -15,11 +15,12 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Emulates a genuine YouTube Music playback-stats session for every DIRECT play — music, video-songs
- * and podcast episodes alike (handoff: `zemer-app-emulate-youtube-music-stream-request.md`).
+ * and podcast episodes alike.
  *
  * One session per listen, keyed by one cpn: a playback ping when the listen actually starts
- * (`cmt=<start position>`, `final=0`), watchtime pings every ~[PING_INTERVAL_MS] of playback plus on
- * pause/seek, and a `final=1` watchtime ping when the listen ends. Every reported range comes from
+ * (`cmt=<start position>`, `final=0`), watchtime pings at the server's scheduled cadence (see
+ * [WatchTimeSchedule]) plus on pause/seek, and a `final=1` watchtime ping when the listen ends. Every
+ * reported range comes from
  * [WatchTimeSegments] fed with real player positions — nothing is ever fabricated (the spec's hard
  * rule: fabricated watch time is invalid traffic).
  *
@@ -55,6 +56,8 @@ class WatchTimeReporter(
         val fmt: Int?,
         /** The server-provided watchtime flush cadence (falls back to the base.js default). */
         val schedule: WatchTimeSchedule,
+        /** When this resolution was captured — a preloaded entry played much later is stale (see [TRACKING_MAX_AGE_MS]). */
+        val resolvedAtMs: Long,
     )
 
     private sealed interface Ping {
@@ -81,6 +84,10 @@ class WatchTimeReporter(
         // Seeded to the base.js default; replaced with the server schedule the moment tracking resolves
         // (usually before the first flush is due at 10s).
         @Volatile var schedule = WatchTimeSchedule(null, null)
+        // The streamed itag reported as `fmt`. Lives on the session (not the captured URLs) so a
+        // rendition change can update it: a video-mode swap makes the single-itag `fmt` no longer
+        // truthful, so [onOwnSwapTransition] nulls it — omitting is honest, a stale wrong itag is not.
+        @Volatile var fmt: Int? = null
 
         fun rtMs() = System.currentTimeMillis() - startedWallMs
     }
@@ -128,12 +135,16 @@ class WatchTimeReporter(
                 tracking?.videostatsScheduledFlushWalltimeSeconds,
                 tracking?.videostatsDefaultFlushIntervalSeconds,
             ),
+            resolvedAtMs = System.currentTimeMillis(),
         )
         if (urls.playbackUrl == null && urls.watchtimeUrl == null) return
         if (resolvedTracking.size > MAX_CACHED_TRACKING) resolvedTracking.clear()
         resolvedTracking[videoId] = urls
-        // If the session for this id is already live, adopt its real flush schedule immediately.
-        session?.takeIf { it.videoId == videoId && !it.finished }?.schedule = urls.schedule
+        // If the session for this id is already live, adopt its real flush schedule AND itag immediately.
+        session?.takeIf { it.videoId == videoId && !it.finished }?.let {
+            it.schedule = urls.schedule
+            it.fmt = urls.fmt
+        }
     }
 
     fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -143,6 +154,12 @@ class WatchTimeReporter(
             startTicker()
         } else {
             tickerJob?.cancel()
+            // A mid-track rebuffer/stall (still wants to play, just STATE_BUFFERING) is NOT a pause:
+            // firing a state-change ping here produces a timing pattern the official client never
+            // emits, and a stall landing < MIN_SEGMENT_MS after the last flush would drop a genuinely
+            // contiguous segment. Position does not advance while buffering, so the open segment stays
+            // honest and resumes on the next play event — leave it untouched.
+            if (player.playbackState == Player.STATE_BUFFERING && player.playWhenReady) return
             val s = session ?: return
             s.segments.onPause(player.currentPosition)
             enqueueWatch(s, cmtMs = player.currentPosition, final = false)
@@ -191,6 +208,21 @@ class WatchTimeReporter(
         }
     }
 
+    /**
+     * The video-mode OWN swap (audio↔video toggle, or a repeat-one loop of the same video item) —
+     * classified by MusicService BEFORE [onTransition], and it deliberately does NOT finish the
+     * session (same listen, one cpn). Two pieces of session state that a real transition would consume
+     * must be neutralised here so a LATER real transition can't inherit them:
+     *  - the departed-position capture from the loop's AUTO_TRANSITION discontinuity ([onPositionDiscontinuity]),
+     *    which would otherwise be consumed by the next real transition and fabricate an unplayed range;
+     *  - the single-itag `fmt`, no longer truthful once the rendition changed — nulled so it is omitted
+     *    (an honest unknown) rather than reporting the wrong itag against the delivered bytes.
+     */
+    fun onOwnSwapTransition() {
+        pendingEndPositionMs = -1
+        session?.fmt = null
+    }
+
     /** The last item ran out (STATE_ENDED fires no transition). */
     fun onPlaybackEnded() {
         finishSession(endPositionMs = player.currentPosition)
@@ -209,11 +241,16 @@ class WatchTimeReporter(
         if (isRelay() || isCasting()) return
         if (item.metadata == null) return
         // The session cpn IS the one the media request was stamped with for this listen (the resolver
-        // seeds it via mediaCpnFor before playback starts); getOrCreate returns that same value.
+        // seeds it via mediaCpnFor before playback starts); getOrCreate returns that same value. Pin it
+        // so the registry's LRU can never evict the live listen's cpn mid-stream.
         val newSession = Session(videoId = id, cpn = nonces.getOrCreate(id))
-        // Adopt the real flush schedule if tracking already resolved for this id (else the default,
-        // which equals the common server value, until onTrackingResolved swaps it in).
-        resolvedTracking[id]?.schedule?.let { newSession.schedule = it }
+        nonces.pin(id)
+        // Adopt the real flush schedule + itag if tracking already resolved for this id (else the
+        // defaults, until onTrackingResolved swaps them in).
+        resolvedTracking[id]?.let {
+            newSession.schedule = it.schedule
+            newSession.fmt = it.fmt
+        }
         session = newSession
         newSession.pings.trySend(Ping.Start(cmtMs = player.currentPosition, muted = playerMuted()))
         newSession.consumer = scope.launch { consumePings(newSession) }
@@ -228,7 +265,12 @@ class WatchTimeReporter(
         // Free the listen's cpn so the next play of this song mints a fresh one (fresh-cpn-per-play,
         // matching the client — this keeps view counts incrementing on repeat).
         nonces.release(s.videoId)
-        val end = endPositionMs?.takeIf { it >= 0 } ?: player.currentPosition
+        // The end position: the caller's captured value if valid, else this item's OWN last-known
+        // position — NEVER player.currentPosition. After a track/queue change the player's position
+        // already belongs to the NEW item, so using it would close the departed listen with a
+        // fabricated range spanning into the next track (a station join mid-listen was the worst case:
+        // a `final=1` ping claiming the live station offset as watched — invalid traffic, the hard rule).
+        val end = endPositionMs?.takeIf { it >= 0 } ?: s.segments.lastKnownPositionMs()
         val muted = playerMuted()
         s.segments.onPause(end)
         val drained = s.segments.drain(end, stillPlaying = false)
@@ -277,11 +319,15 @@ class WatchTimeReporter(
 
     /** One consumer per session: resolves the URLs once, then sends pings strictly in order. */
     private suspend fun consumePings(s: Session) {
-        val urls = resolvedTracking.remove(s.videoId)
+        // A preloaded resolution that is played much later (queue swap, then a cache-served replay
+        // hours on) carries an EXPIRED tracking baseUrl the server would drop — so a stale entry is
+        // discarded here and re-fetched fresh, exactly the case `fetchTracking` exists to cover.
+        val fresh = resolvedTracking.remove(s.videoId)
+            ?.takeIf { System.currentTimeMillis() - it.resolvedAtMs <= TRACKING_MAX_AGE_MS }
+        val urls = fresh
             ?: runCatching { fetchTracking(s.videoId) }.getOrNull()?.let {
-                // Fallback metadata fetch (cached/local play): no resolved itag, so `fmt` is omitted.
-                // The schedule field is unused here (this path only supplies URLs to the consumer; the
-                // ticker already holds the session's schedule).
+                // Fallback metadata fetch (cached/local/stale play): no resolved itag, so `fmt` is
+                // omitted. The schedule field is unused here (the ticker already holds the session's).
                 TrackingUrls(
                     it.videostatsPlaybackUrl?.baseUrl,
                     it.videostatsWatchtimeUrl?.baseUrl,
@@ -290,40 +336,56 @@ class WatchTimeReporter(
                         it.videostatsScheduledFlushWalltimeSeconds,
                         it.videostatsDefaultFlushIntervalSeconds,
                     ),
+                    resolvedAtMs = System.currentTimeMillis(),
                 )
             }
         if (urls?.playbackUrl == null && urls?.watchtimeUrl == null) {
             for (ping in s.pings) { /* no tracking URLs (offline local play): nothing to report */ }
             return
         }
+        // The fmt reported per ping is the LIVE session value (updated by onTrackingResolved, nulled by
+        // a video-mode swap) — read fresh each ping, never latched.
+        urls.fmt?.let { s.fmt = it }
+        // Whether the playback (session-open) ping was actually sent. A watchtime/final ping must NEVER
+        // ride a cpn whose open ping was suppressed — that half-session shape (watchtime with no
+        // preceding playback ping) is one no real client produces, and it would beacon a listen the
+        // user had marked private at its start. Keyed off the Start ping, which is always first.
+        var opened = false
         for (ping in s.pings) {
             // Re-check per ping so enabling "pause listen history" MID-listen silences the rest of the
             // in-flight session (not just sessions started while paused). A cheap off-main DataStore read.
-            if (historyPaused()) continue
+            val paused = historyPaused()
             when (ping) {
-                is Ping.Start -> urls.playbackUrl?.let { url ->
-                    YouTube.registerPlayback(
-                        playlistId = null,
-                        playbackTracking = url,
-                        cpn = s.cpn,
-                        cmt = WatchTimeSegments.formatSeconds(ping.cmtMs),
-                        final = false,
-                        fmt = urls.fmt,
-                        muted = ping.muted,
-                    ).onFailure { Timber.d(it, "WatchTime: playback ping failed") }
+                is Ping.Start -> {
+                    if (paused) continue
+                    opened = true
+                    urls.playbackUrl?.let { url ->
+                        YouTube.registerPlayback(
+                            playlistId = null,
+                            playbackTracking = url,
+                            cpn = s.cpn,
+                            cmt = WatchTimeSegments.formatSeconds(ping.cmtMs),
+                            final = false,
+                            fmt = s.fmt,
+                            muted = ping.muted,
+                        ).onFailure { Timber.d(it, "WatchTime: playback ping failed") }
+                    }
                 }
-                is Ping.Watch -> urls.watchtimeUrl?.let { url ->
-                    YouTube.registerWatchtime(
-                        watchtimeTracking = url,
-                        cpn = s.cpn,
-                        st = ping.segments.st,
-                        et = ping.segments.et,
-                        cmt = WatchTimeSegments.formatSeconds(ping.cmtMs),
-                        rt = WatchTimeSegments.formatSeconds(ping.rtMs),
-                        final = ping.final,
-                        fmt = urls.fmt,
-                        muted = ping.muted,
-                    ).onFailure { Timber.d(it, "WatchTime: watchtime ping failed") }
+                is Ping.Watch -> {
+                    if (!opened || paused) continue
+                    urls.watchtimeUrl?.let { url ->
+                        YouTube.registerWatchtime(
+                            watchtimeTracking = url,
+                            cpn = s.cpn,
+                            st = ping.segments.st,
+                            et = ping.segments.et,
+                            cmt = WatchTimeSegments.formatSeconds(ping.cmtMs),
+                            rt = WatchTimeSegments.formatSeconds(ping.rtMs),
+                            final = ping.final,
+                            fmt = s.fmt,
+                            muted = ping.muted,
+                        ).onFailure { Timber.d(it, "WatchTime: watchtime ping failed") }
+                    }
                 }
             }
         }
@@ -344,5 +406,10 @@ class WatchTimeReporter(
         // A position jump smaller than this is not a user seek (a rendition swap is position-continuous,
         // ~0) — it fires no watchtime ping. Sub-second seeks are immaterial to watch time.
         private const val REAL_SEEK_MIN_MS = 1_000L
+
+        // A preloaded tracking resolution older than this is treated as stale and re-fetched. Generous
+        // enough that a normal next-track preload (played within minutes) is never rejected, tight
+        // enough that an hours-later cache-served replay resolves fresh instead of beaconing a dead URL.
+        private const val TRACKING_MAX_AGE_MS = 60 * 60 * 1000L
     }
 }

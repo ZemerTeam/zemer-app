@@ -1,7 +1,7 @@
 package com.jtech.zemer.playback
 
 /**
- * The official WEB_REMIX watchtime-ping flush cadence (handoff: emulate-youtube-music-stream). The
+ * The official WEB_REMIX watchtime-ping flush cadence. The
  * `/player` response carries `videostatsScheduledFlushWalltimeSeconds` + `videostatsDefaultFlushIntervalSeconds`
  * (verified live: `[10,20,30]` then `40`); the web client fires a watchtime ping at each scheduled
  * wall-clock second since playback start, then every default-interval seconds. Matching this replaces a

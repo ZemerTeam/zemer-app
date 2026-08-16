@@ -59,6 +59,45 @@ class PlaybackNonceRegistryTest {
         assertEquals(16, reg.getOrCreate("vid").length)
     }
 
+    // --- bounded WITHOUT wiping the live cpn (the wholesale-clear regression) ---
+
+    @Test
+    fun `a pinned id keeps its cpn even after far more than MAX_ENTRIES strays accrue`() {
+        val (reg, _) = counting()
+        val live = reg.getOrCreate("live")
+        reg.pin("live")
+
+        // Pour in strays well past the cap — the old wholesale clear() would have wiped "live".
+        repeat(PlaybackNonceRegistry.MAX_ENTRIES * 3) { reg.getOrCreate("stray$it") }
+
+        assertEquals("the live listen's cpn must survive eviction", live, reg.getOrCreate("live"))
+    }
+
+    @Test
+    fun `the most-recently-used id survives eviction even without a pin`() {
+        val (reg, _) = counting()
+        val recent = reg.getOrCreate("recent")
+
+        // Every insert also touches "recent" (getOrCreate = access), keeping it youngest, so the LRU
+        // evicts the strays, never the entry we keep using.
+        repeat(PlaybackNonceRegistry.MAX_ENTRIES * 3) {
+            reg.getOrCreate("stray$it")
+            reg.getOrCreate("recent")
+        }
+
+        assertEquals(recent, reg.getOrCreate("recent"))
+    }
+
+    @Test
+    fun `an old untouched stray is eventually evicted past the cap`() {
+        val (reg, _) = counting()
+        val old = reg.getOrCreate("old") // never touched again → becomes least-recently-used
+
+        repeat(PlaybackNonceRegistry.MAX_ENTRIES * 2) { reg.getOrCreate("stray$it") }
+
+        assertNotEquals("an unpinned, untouched stray should have been evicted", old, reg.getOrCreate("old"))
+    }
+
     // --- appendCpn: the pure URL stamp ---
 
     @Test

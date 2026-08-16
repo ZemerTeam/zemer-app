@@ -126,16 +126,21 @@ rules that must not regress:
   watched time, a paused player accumulates nothing, sub-500ms jitter is dropped, a backwards position
   without a seek closes rather than fabricates). Fabricated watch time is invalid traffic by YouTube's
   definition and can flag a channel — never widen what gets reported beyond real playback.
-- **Confirmed working on a live channel** (2026-08-14): a direct Zemer play credits both a real VIEW
-  and real WATCH TIME in YouTube Studio (per-video "since published" showed 14 views / 0.2 h).
+- **Confirmed working on a live channel**: a direct Zemer play credits both a real VIEW and real
+  WATCH TIME in YouTube Studio (14 views / 0.2 h). Views are durable; watch time from concentrated
+  single-account testing is retroactively stripped as invalid traffic — expected, not a bug (real
+  distributed users are the payoff; full detail + what to expect in `docs/watchtime/README.md`).
 - **CDN-cpn correlation** (`playback/PlaybackNonceRegistry`, `MusicService.stampCpn`): the DIRECT
   googlevideo media request is stamped with the SAME cpn the beacon session uses (base.js
   `cpn=${clientPlaybackNonce}`), keyed by `VideoRendition.baseVideoId` so audio/video/merge-audio
   renditions of one listen share it; the reporter releases the id on finish (fresh cpn per play).
   Applied at every DIRECT `withUri` googlevideo site, NEVER a local-file uri / cache hit / the RELAY
   factory. Proven safe against the live CDN by `tests/watchtime-cpn-stream.mjs` (full-song drain, 206
-  throughout). `qoe` beacons remain the one thing not sent — they carry encoded quality telemetry that
-  cannot be produced truthfully.
+  throughout). The registry is a bounded access-ordered **LRU that never evicts the live listen's
+  cpn** (the reporter `pin`s the active id) — the earlier wholesale `clear()` past 64 entries could
+  wipe the currently-playing cpn mid-stream and silently break this correlation. `qoe` and the
+  traffic-source params are reproducible but deliberately not sent (a controlled A/B showed zero
+  watch-time-survival benefit) — see `docs/watchtime/README.md`.
 - **Ping cadence matches the official client, server-driven** (`playback/WatchTimeSchedule`, JVM-tested):
   the `/player` response's `videostatsScheduledFlushWalltimeSeconds` + `videostatsDefaultFlushIntervalSeconds`
   (live-verified `[10,20,30]` then `40`) drive the watchtime ping ticker at those wall-clock offsets, not a
@@ -153,6 +158,23 @@ rules that must not regress:
   `STATE_ENDED`, `onDestroy`, and the stream resolver's `onTrackingResolved` seed (no second `/player`
   round-trip; cached/local plays fall back to one metadata fetch, the legacy ping's own behavior). The
   `session` ref is `@Volatile` (read from the resolver's background thread for schedule adoption).
+- **Boundary-capture hardening (never fabricate, never orphan) — these must not regress:**
+  - The session's end position falls back to the departed item's OWN last-known position
+    (`WatchTimeSegments.lastKnownPositionMs`), **never `player.currentPosition`** — after a track/queue
+    change the player position already belongs to the NEW item, so using it would close the departed
+    listen with a fabricated range (a station join mid-listen was the worst case).
+  - The video-mode own-swap path calls `onOwnSwapTransition()`, which **neutralises** the captured
+    end position (else a repeat-one loop's capture is inherited by a LATER real transition and
+    fabricates) and **nulls `fmt`** (the single itag is no longer truthful once the rendition changed —
+    omitting is honest, a stale wrong itag is not). `fmt` lives on the session, not the captured URLs.
+  - A watchtime/final ping is **never sent for a session whose playback (open) ping was suppressed**
+    (`PauseListenHistoryKey` on at start): that orphan half-session shape is one no real client
+    produces. Gated on the Start ping actually being sent.
+  - A preloaded tracking resolution older than `TRACKING_MAX_AGE_MS` (1 h) is **re-fetched fresh** —
+    a cache-served replay hours later would otherwise beacon a dead baseUrl and lose the credit.
+  - A mid-track **rebuffer is not a pause**: `STATE_BUFFERING` while `playWhenReady` fires no
+    state-change ping (a timing fingerprint the official client never emits) and drops no sub-500ms
+    segment; position does not advance while buffering, so the open segment stays honest.
 - **Hard exclusions:** RELAY mode (the spec's rule — beacons must never ride the relay egress; gated
   fail-safe as `relayModeNow != false`, so the unresolved cold-start window never beacons) and cast
   sessions (the receiver plays). Both are gated at session creation inside the reporter. The
