@@ -517,9 +517,11 @@ greenlight and evidence live in `handoff-docs/zemer-app-artist-album-innertube-s
 **Remaining InnerTube candidates (the punch list to complete the migration)** - everything still
 reaching YouTube for content, in rough priority order. Pick from here before inventing new scope:
 
-- **Whole-screen discovery surfaces:** `ChartsScreen` and `NewReleaseScreen`
-  (`FEmusic_new_releases`) remain; each wants a Zemer endpoint (or a handoff request) the way
-  home-rows got one. (`MoodAndGenresScreen`, `YouTubeBrowseScreen`, `BrowseScreen` and their
+- **Whole-screen discovery surfaces:** `NewReleaseScreen`
+  (`FEmusic_new_releases`) remains; it wants a Zemer endpoint (or a handoff request) the way
+  home-rows got one. (`ChartsScreen` + `ChartsViewModel` + `YouTube.getChartsPage()` were DELETED -
+  the `charts_screen` route was registered but nothing navigated to it since the Trending row's
+  removal, so the whole cluster was unreachable. `MoodAndGenresScreen`, `YouTubeBrowseScreen`, `BrowseScreen` and their
   `YouTube.moodAndGenres`/`explore`/`ExplorePage` InnerTube paths were DELETED with the Genres
   feature - the Zemer catalog is the replacement moods/genres surface. The legacy `ArtistItemsScreen`
   + its ViewModel + the `artist/{id}/items` route were DELETED - the Zemer per-section see-all had
@@ -574,8 +576,9 @@ Rules that must not regress:
   filtered pool), so See-all can never disagree with the row it opened from - no re-fetch, no re-filter.
   Featured grids are 2-column (long Hebrew+English titles truncate at 3). Latest Releases / Zemer
   Playlists keep their own see-all screens + ViewModels.
-- **The mainstream Trending row is gone** - `YouTube.getChartsPage()` charts carry ~no whitelisted
-  artists (it filtered to empty and never displayed); the `auto-trending` / `auto-top-50` Zemer playlists
+- **The mainstream Trending row is gone** - the old `YouTube.getChartsPage()` charts carried ~no
+  whitelisted artists (it filtered to empty and never displayed; the whole charts screen/API cluster has
+  since been deleted as unreachable); the `auto-trending` / `auto-top-50` Zemer playlists
   in the Zemer-Playlists shelf are the real trending/top surface. Don't reintroduce a charts-scraped row.
 - The `/home-rows` contract and every design decision are recorded in
   `handoff-docs/zemer-app-home-rows-request.md` (the app↔server thread) and

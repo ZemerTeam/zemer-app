@@ -27,7 +27,6 @@ import com.metrolist.innertube.models.getContinuation
 import com.metrolist.innertube.models.getItems
 import com.metrolist.innertube.models.oddElements
 import com.metrolist.innertube.models.response.AccountMenuResponse
-import com.metrolist.innertube.models.response.AddItemYouTubePlaylistResponse
 import com.metrolist.innertube.models.response.BrowseResponse
 import com.metrolist.innertube.models.response.CreatePlaylistResponse
 import com.metrolist.innertube.models.response.EditPlaylistResponse
@@ -41,7 +40,6 @@ import com.metrolist.innertube.models.response.SearchResponse
 import com.metrolist.innertube.pages.AlbumPage
 import com.metrolist.innertube.pages.ArtistPage
 import com.metrolist.innertube.pages.BrowseResult
-import com.metrolist.innertube.pages.ChartsPage
 import com.metrolist.innertube.pages.HistoryPage
 import com.metrolist.innertube.pages.HomePage
 import com.metrolist.innertube.pages.LibraryContinuationPage
@@ -523,80 +521,6 @@ object YouTube {
                     continuation = contents.musicShelfContinuation.continuations?.getContinuation()
                 )
             }
-        }
-    }
-
-    suspend fun getChartsPage(continuation: String? = null): Result<ChartsPage> = runCatching {
-        val response = innerTube.browse(
-            client = WEB_REMIX,
-            browseId = "FEmusic_charts",
-            params = "ggMGCgQIgAQ%3D",
-            continuation = continuation
-        ).body<BrowseResponse>()
-
-        val sections = mutableListOf<ChartsPage.ChartSection>()
-    
-        response.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()
-            ?.tabRenderer?.content?.sectionListRenderer?.contents?.forEach { content ->
-            
-                content.musicCarouselShelfRenderer?.let { renderer ->
-                    val title = renderer.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.firstOrNull()?.text
-                        ?: return@forEach
-                
-                    val items = renderer.contents.mapNotNull { item ->
-                        when {
-                            item.musicResponsiveListItemRenderer != null -> 
-                                convertToChartItem(item.musicResponsiveListItemRenderer)
-                            item.musicTwoRowItemRenderer != null -> 
-                                convertMusicTwoRowItem(item.musicTwoRowItemRenderer)
-                            else -> null
-                        }
-                    }
-                
-                    if (items.isNotEmpty()) {
-                        sections.add(
-                            ChartsPage.ChartSection(
-                                title = title,
-                                items = items,
-                                chartType = determineChartType(title)
-                            )
-                        )
-                    }
-                }
-            
-                content.gridRenderer?.let { renderer ->
-                    val title = renderer.header?.gridHeaderRenderer?.title?.runs?.firstOrNull()?.text
-                        ?: return@let
-                
-                    val items = renderer.items.mapNotNull { item ->
-                        item.musicTwoRowItemRenderer?.let { renderer ->
-                            convertMusicTwoRowItem(renderer)
-                        }
-                    }
-                
-                    if (items.isNotEmpty()) {
-                        sections.add(
-                            ChartsPage.ChartSection(
-                                title = title,
-                                items = items,
-                                chartType = ChartsPage.ChartType.NEW_RELEASES
-                            )
-                        )
-                    }
-                }
-            }
-
-        ChartsPage(
-            sections = sections,
-            continuation = response.continuationContents?.sectionListContinuation?.continuations?.getContinuation()
-        )
-    }
-
-    private fun determineChartType(title: String): ChartsPage.ChartType {
-        return when {
-            title.contains("Trending", ignoreCase = true) -> ChartsPage.ChartType.TRENDING
-            title.contains("Top", ignoreCase = true) -> ChartsPage.ChartType.TOP
-            else -> ChartsPage.ChartType.GENRE
         }
     }
 

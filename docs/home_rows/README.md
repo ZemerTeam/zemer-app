@@ -90,8 +90,9 @@ GET https://search.zemer.io/home-rows?allowFemale=0&blockVideos=1&kidZone=0
 
 ## Why the removed subsystems produced nothing
 
-- `YouTube.getChartsPage()` browses `FEmusic_charts` (mainstream YT Music) — ~no whitelisted artists, so
-  the Trending row filtered to empty and never rendered.
+- `YouTube.getChartsPage()` browsed `FEmusic_charts` (mainstream YT Music) — ~no whitelisted artists, so
+  the Trending row filtered to empty and never rendered. (The charts screen/API cluster has since been
+  deleted entirely as unreachable.)
 - `YouTube.home()`/`explore()` results (`homePage`/`explorePage`) were stored in UI state but **never
   drawn**; `home()` only seeded cold-start Quick Picks (now Zemer), `explore()` only fed a dedup set.
 - The InnerTube featured scrape (`loadFeaturedContent`, `YouTube.artist()`) only ever ran as a thin-row /

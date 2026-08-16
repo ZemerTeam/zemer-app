@@ -20,8 +20,8 @@
 | Public facade | `YouTube.kt` / `object YouTube` | Exposes app-facing functions that call `InnerTube`, deserialize responses, and convert raw renderer trees into typed page/domain models. |
 | Domain models | `models/*.kt` | Kotlin serialization models and app-level item types such as `SongItem`, `AlbumItem`, `ArtistItem`, `PlaylistItem`, endpoints, thumbnails, runs, clients, and response-context structures. |
 | Request bodies | `models/body/*.kt` | Bodies for browse, search, next, player, queue, playlist mutations, feedback, like, subscribe, transcript, account menu, and playlist creation/editing. |
-| Response models | `models/response/*.kt` | Top-level response wrappers for account menu, browse, continuations, playlist edits, feedback, queue, suggestions, transcript, image upload, next, player, and search. |
-| Page parsers | `pages/*.kt` | Converts YouTube Music renderers/responses into page objects: home, search, album, artist, playlist, library, charts, history, related, next, mood/genres, and continuations. |
+| Response models | `models/response/*.kt` | Top-level response wrappers for account menu, browse, playlist edits, feedback, queue, transcript, image upload, next, player, and search. |
+| Page parsers | `pages/*.kt` | Converts YouTube Music renderers/responses into page objects: home, search, album, artist, playlist, library, history, related, next, and continuations. |
 | Utilities | `utils/*.kt` | Resilient DNS and continuation helpers. |
 | NewPipe bridge | `pages/NewPipe.kt` and functions in `YouTube.kt` | Implements a NewPipe downloader and exposes stream URL/media-info helpers. |
 
@@ -57,7 +57,7 @@
 | --- | --- |
 | Search | `search` (the only search entry point left - Zemer is the app search engine; used by recognition, Auto voice search, add-to-playlist search) |
 | Catalog pages | `album`, `albumSongs`, `artist`, `playlist`, `playlistContinuation`, `home`, `newReleaseAlbums`, `browse` |
-| Library/history/charts | `library`, `libraryContinuation`, `getChartsPage`, `musicHistory` |
+| Library/history | `library`, `libraryContinuation`, `musicHistory` |
 | Podcasts (account) | `savePodcast`, `addEpisodeToSavedEpisodes`, `removeEpisodeFromSavedEpisodes`, `libraryPodcastChannels`, `libraryPodcastEpisodes`, `savedPodcastShows`, `episodesForLater` |
 | Mutations | `likeVideo`, `likePlaylist`, `subscribeChannel`, `addToPlaylist`, `addPlaylistToPlaylist`, `removeFromPlaylist`, `moveSongPlaylist`, `createPlaylist`, `renamePlaylist`, `uploadCustomThumbnailLink`, `removeThumbnailPlaylist`, `deletePlaylist`, `feedback` |
 | Playback | `player`, `registerPlayback`, `registerWatchtime`, `generateCpn`, `next`, `lyrics`, `related`, `queue`, `transcript`, `getMediaInfo` |
@@ -72,7 +72,7 @@ The app imports `com.metrolist.innertube.YouTube` from source files in these are
 | App/session initialization | `App.kt`, `MainActivity.kt` |
 | Playback | `playback/MusicService.kt`, queue files, MediaStore/Exo download services |
 | View models | Search, playlist, library, lyrics, player, stats, and sync-related view models. (NOT Home, Artist or Album — those are corpus-native: `/home-rows`, `/artist`, `/album` with no InnerTube fallback.) |
-| UI screens | Charts, new release, and online-playlist screens. Home/artist/album/search/genres are Zemer-served (`SearchSuggestions`/`SearchSummaryPage` survive only as wire models the Zemer mapper populates). |
+| UI screens | New-release and online-playlist screens. Home/artist/album/search/genres are Zemer-served (`SearchSuggestions`/`SearchSummaryPage` survive only as wire models the Zemer mapper populates). |
 | Utilities | `SyncUtils.kt`, `QueueBoardRadio.kt`, stream/cache helpers |
 
 ## Page parser inventory
@@ -82,7 +82,6 @@ The app imports `com.metrolist.innertube.YouTube` from source files in these are
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/AlbumPage.kt` | 127 | class AlbumPage, val album, val songs, fun getPlaylistId, var playlistId, fun getTitle, val title, fun getYear, val title, fun getThumbnail, fun getArtists, val artists |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/ArtistPage.kt` | 187 | class ArtistSection, val title, val items, val moreEndpoint, class ArtistPage, val artist, val sections, val description, fun fromSectionListRendererContent, fun fromMusicShelfRenderer, fun fromMusicCarouselShelfRenderer, fun fromMusicResponsiveListItemRenderer |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/BrowseResult.kt` | 31 | class BrowseResult, val title, val items, class Item, val title, val items, fun filterExplicit |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/ChartsPage.kt` | 18 | class ChartsPage, val sections, val continuation, class ChartSection, val title, val items, val chartType, class ChartType |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/HistoryPage.kt` | 68 | class HistoryPage, val sections, class HistorySection, val title, val songs, fun fromMusicShelfRenderer, fun fromMusicResponsiveListItemRenderer |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/HomePage.kt` | 166 | class HomePage, val chips, val sections, val continuation, class Chip, val title, val endpoint, val deselectEndPoint, fun fromChipCloudChipRenderer, class Section, val title, val label |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/LibraryContinuationPage.kt` | 8 | class LibraryContinuationPage, val items, val continuation |
@@ -157,7 +156,6 @@ The app imports `com.metrolist.innertube.YouTube` from source files in these are
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/SearchBody.kt` | 11 | class SearchBody, val context, val query, val params |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/SubscribeBody.kt` | 10 | class SubscribeBody, val channelIds, val context |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/AccountMenuResponse.kt` | 53 | class AccountMenuResponse, val actions, class Action, val openPopupAction, class OpenPopupAction, val popup, class Popup, val multiPageMenuRenderer, class MultiPageMenuRenderer, val header, class Header, val activeAccountHeaderRenderer |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/AddItemYouTubePlaylistResponse.kt` | 20 | class AddItemYouTubePlaylistResponse, val status, val playlistEditResults, class PlaylistEditResult, val playlistEditVideoAddedResultData, class PlaylistEditVideoAddedResultData, val setVideoId, val videoId |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/BrowseResponse.kt` | 142 | class BrowseResponse, val contents, val continuationContents, val onResponseReceivedActions, val header, val microformat, val responseContext, val background, class Contents, val singleColumnBrowseResultsRenderer, val sectionListRenderer, val twoColumnBrowseResultsRenderer |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/CreatePlaylistResponse.kt` | 8 | class CreatePlaylistResponse, val playlistId |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/EditPlaylistResponse.kt` | 8 | class EditPlaylistResponse, val newHeader |

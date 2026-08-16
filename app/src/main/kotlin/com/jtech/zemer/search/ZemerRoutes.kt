@@ -6,7 +6,7 @@ import com.metrolist.innertube.models.AlbumItem
 // with the YouTube search engine (removal greenlit in
 // ~/zemer-fix/handoff-docs/zemer-app-artist-album-innertube-swap.md): every consumer passed ZEMER
 // literally, so the two-branch route pickers collapsed to these plain functions. Surfaces that still
-// render InnerTube-sourced items (browse / charts / new releases) navigate via raw route strings and
+// render InnerTube-sourced items (browse / new releases) navigate via raw route strings and
 // never used these helpers.
 
 /**

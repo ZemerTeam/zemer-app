@@ -77,9 +77,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1206`
+- Files counted: `1201`
 - By extension:
-  - `.kt`: `762`
+  - `.kt`: `757`
   - `.xml`: `196`
   - `.mjs`: `77`
   - `.md`: `71`
@@ -115,7 +115,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
-| `AGENTS.md` | 1439 lines | `.md` |
+| `AGENTS.md` | 1442 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 19 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -382,7 +382,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/tracking/TrackingUploader.kt` | 119 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AccountSettingsDialog.kt` | 69 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AlphabetIndex.kt` | 21 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/AnonymousAuthEmailDialog.kt` | 123 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AppBarTitle.kt` | 31 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AppNameTitle.kt` | 35 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AppStateViews.kt` | 121 lines | `.kt` |
@@ -494,7 +493,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoQualitySelector.kt` | 104 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AccountScreen.kt` | 194 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AlbumScreen.kt` | 542 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/ChartsScreen.kt` | 327 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenreScreen.kt` | 500 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenreSectionScreen.kt` | 100 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenresScreen.kt` | 167 lines | `.kt` |
@@ -511,7 +509,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginCapture.kt` | 39 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateScreen.kt` | 275 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 244 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/NavigationBuilder.kt` | 514 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/NavigationBuilder.kt` | 511 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/NewReleaseScreen.kt` | 252 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 89 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenreScreen.kt` | 151 lines | `.kt` |
@@ -564,7 +562,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AppearanceSettings.kt` | 1110 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/BackupAndRestore.kt` | 203 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ButtonSetupScreen.kt` | 374 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 725 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 724 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/GeneralSettings.kt` | 85 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LogViewerScreen.kt` | 378 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/OfflineSearchSettings.kt` | 140 lines | `.kt` |
@@ -665,7 +663,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/BackupRestoreViewModel.kt` | 189 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/ButtonSetupViewModel.kt` | 136 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/CachePlaylistViewModel.kt` | 26 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/ChartsViewModel.kt` | 87 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/ContinueListeningViewModel.kt` | 38 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/DownloadedContentViewModel.kt` | 51 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/DownloadedVideosViewModel.kt` | 46 lines | `.kt` |
@@ -913,7 +910,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/main/res/values/colors.xml` | 9 lines | `.xml` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | `.xml` |
-| `app/src/main/res/values/metrolist_strings.xml` | 703 lines | `.xml` |
+| `app/src/main/res/values/metrolist_strings.xml` | 697 lines | `.xml` |
 | `app/src/main/res/values/strings.xml` | 438 lines | `.xml` |
 | `app/src/main/res/values/styles.xml` | 26 lines | `.xml` |
 | `app/src/main/res/values/values.xml` | 8 lines | `.xml` |
@@ -1055,7 +1052,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/app/database.md` | 564 lines | `.md` |
 | `docs/app/playback.md` | 39 lines | `.md` |
 | `docs/app/preferences-sync-auth.md` | 152 lines | `.md` |
-| `docs/app/viewmodels.md` | 37 lines | `.md` |
+| `docs/app/viewmodels.md` | 36 lines | `.md` |
 | `docs/build-release.md` | 67 lines | `.md` |
 | `docs/fcast/01-architecture.md` | 116 lines | `.md` |
 | `docs/fcast/02-on-demand-native-lib.md` | 134 lines | `.md` |
@@ -1067,8 +1064,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/fcast/README.md` | 79 lines | `.md` |
 | `docs/generate.py` | 486 lines | `.py` |
 | `docs/genres/README.md` | 120 lines | `.md` |
-| `docs/home_rows/README.md` | 100 lines | `.md` |
-| `docs/innertube/README.md` | 172 lines | `.md` |
+| `docs/home_rows/README.md` | 101 lines | `.md` |
+| `docs/innertube/README.md` | 170 lines | `.md` |
 | `docs/latest_releases/01-architecture-and-data-flow.md` | 94 lines | `.md` |
 | `docs/latest_releases/02-feed-format-and-server.md` | 95 lines | `.md` |
 | `docs/latest_releases/03-runtime-store.md` | 128 lines | `.md` |
@@ -1092,7 +1089,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 785 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 780 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 387 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
@@ -1103,17 +1100,17 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1316 lines | `.md` |
+| `docs/repository-map.md` | 1311 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
 | `docs/status/yidstatus-api.md` | 238 lines | `.md` |
 | `docs/tracking/README.md` | 347 lines | `.md` |
-| `docs/ui/README.md` | 326 lines | `.md` |
+| `docs/ui/README.md` | 323 lines | `.md` |
 | `docs/ui/standards.md` | 375 lines | `.md` |
 | `docs/video_quality/README.md` | 134 lines | `.md` |
 | `docs/watchtime/README.md` | 278 lines | `.md` |
-| `docs/whitelist/README.md` | 251 lines | `.md` |
+| `docs/whitelist/README.md` | 250 lines | `.md` |
 | `docs/zemer_playlists/README.md` | 110 lines | `.md` |
 | `gradle.properties` | 40 lines | `.properties` |
 | `gradle/libs.versions.toml` | 158 lines | `.toml` |
@@ -1124,7 +1121,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/.gitignore` | 1 lines | `[none]` |
 | `innertube/build.gradle.kts` | 21 lines | `.kts` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/InnerTube.kt` | 751 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/YouTube.kt` | 1171 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/YouTube.kt` | 1095 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/AccountInfo.kt` | 8 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/AutomixPreviewVideoRenderer.kt` | 18 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Badges.kt` | 13 lines | `.kt` |
@@ -1180,7 +1177,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/SearchBody.kt` | 11 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/SubscribeBody.kt` | 11 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/AccountMenuResponse.kt` | 53 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/AddItemYouTubePlaylistResponse.kt` | 20 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/BrowseResponse.kt` | 142 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/CreatePlaylistResponse.kt` | 8 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/EditPlaylistResponse.kt` | 8 lines | `.kt` |
@@ -1194,7 +1190,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/AlbumPage.kt` | 61 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/ArtistPage.kt` | 228 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/BrowseResult.kt` | 31 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/ChartsPage.kt` | 18 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/HistoryPage.kt` | 68 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/HomePage.kt` | 166 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/LibraryContinuationPage.kt` | 8 lines | `.kt` |
