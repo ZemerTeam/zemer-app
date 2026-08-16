@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `381`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `382`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -11,7 +11,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 50 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 6 lines | text `[none]` |
-| `AGENTS.md` | 1442 lines | text `.md` |
+| `AGENTS.md` | 1490 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 19 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -264,7 +264,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 697 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 699 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 438 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
@@ -290,6 +290,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `lint.xml` | 6 lines | text `.xml`; XML root `lint` |
 | `lrclib/.gitignore` | 1 lines | text `[none]` |
 | `lrclib/build.gradle.kts` | 16 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
+| `remote-stream-clients-plan.md` | 363 lines | text `.md` |
 | `scripts/check-16kb-alignment.sh` | 67 lines | text `.sh` |
 | `scripts/check-dead-resources.sh` | 94 lines | text `.sh` |
 | `scripts/check-download-unification.sh` | 58 lines | text `.sh` |
@@ -310,7 +311,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/cipher.mjs` | 205 lines | text `.mjs` |
 | `tests/client-fulldownload.mjs` | 118 lines | text `.mjs` |
 | `tests/clients-retired.mjs` | 67 lines | text `.mjs` |
-| `tests/clients.mjs` | 53 lines | text `.mjs` |
+| `tests/clients.mjs` | 31 lines | text `.mjs` |
 | `tests/config-covers.mjs` | 24 lines | text `.mjs` |
 | `tests/cred.mjs` | 82 lines | text `.mjs` |
 | `tests/derive-player-config.mjs` | 89 lines | text `.mjs` |

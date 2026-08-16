@@ -1,5 +1,11 @@
 # Remote stream-client config — full plan
 
+> **Status 2026-08-16: IMPLEMENTED** on `feat/remote-stream-clients` (zemer-app) +
+> `feat/remote-stream-clients` (zemer-cipher). PR 1 (flag-ification), PR 2 (parser/store/asset)
+> and PR 3 (end-to-end wiring, dynamic settings, migration, harness loader + parity + deploy
+> gate) are all in; the living rulebook is now the "Remote stream-client config" section of
+> AGENTS.md. Remaining before merge: on-device verification pass + release build via CI.
+
 A cipher-style remote config for the streaming-client chain: client definitions, behavior flags,
 and fallback order become a JSON file pushed to the zemer-cipher repo, so YouTube killing/rotating
 a client is fixed on deployed apps in minutes with no APK release — exactly the recovery model

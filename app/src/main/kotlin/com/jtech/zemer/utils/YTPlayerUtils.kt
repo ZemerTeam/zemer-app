@@ -7,26 +7,16 @@ import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.playback.VideoDecoderCaps
 import com.jtech.zemer.playback.VideoQualityLogic
 import com.jtech.zemer.playback.VideoQualityRung
-import com.jtech.zemer.constants.StreamSourceAndroidVRKey
-import com.jtech.zemer.constants.StreamSourceTVHTML5Key
-import com.jtech.zemer.constants.StreamSourceWebRemixKey
-import kotlinx.coroutines.flow.first
-
 import timber.log.Timber
 import com.metrolist.innertube.NewPipeUtils
 import com.metrolist.innertube.YouTube
 import com.zemer.cipher.CipherDeobfuscator
+import com.zemer.cipher.StreamClientStore
 import com.zemer.cipher.potoken.PoTokenGenerator
 import com.zemer.cipher.potoken.PoTokenResult
 import com.jtech.zemer.utils.sabr.EjsNTransformSolver
 import com.metrolist.innertube.models.StreamProtocol
 import com.metrolist.innertube.models.YouTubeClient
-import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_65_10
-import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS
-import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS_0_1
-import com.metrolist.innertube.models.YouTubeClient.Companion.MWEB
-import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY
-import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.metrolist.innertube.models.response.PlayerResponse
 import com.metrolist.innertube.utils.ResilientDns
@@ -78,37 +68,24 @@ object YTPlayerUtils {
     // refresh never blocks falling through to the next client.
     private val cipherRefreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    /** Client names disabled by the user in Settings → Stream sources. Updated by MusicService. */
-    var disabledStreamClients: Set<String> = emptySet()
+    /** Family ids disabled by the user in Settings → Stream sources. Updated by MusicService. */
+    var disabledStreamFamilies: Set<String> = emptySet()
 
-    private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
-
-    private val ALL_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
-        // VISIONOS first: its CDN URL has no `spc` gate, so it streams the whole song with no
-        // poToken and no cipher (HEAD 200) — the most reliable fallback, ahead of the ANDROID_VR
-        // and TVHTML5 clients. (The proven-dead clients were removed 2026-08-15: the pre-1.65 VR
-        // variants are version-bot-gated; MOBILE 400s authenticated / SABR-only anonymous; WEB,
-        // IOS and IPADOS are SABR-only or 403-wall past the 1 MiB free window.)
-        VISIONOS,
-        // The previous visionOS config as its second chance behind the current 1.02.
-        VISIONOS_0_1,
-        WEB_CREATOR,
-        // The one living VR client (1.65.10, eureka build): its eureka-style UA clears the "confirm
-        // you're not a bot" gate that permanently rejects the older 1.61.48/1.43.32 versions (the
-        // gate keys on the VERSION — verified by probing the old versions under the eureka UA — so
-        // the retired variants were removed as proven dead). Direct URL, used AS-IS (yt-dlp
-        // android_vr: REQUIRE_JS_PLAYER=false, no poToken) — no cipher, no n-transform, no pot.
-        ANDROID_VR_1_65_10,
-        // The one TV cipher client, governed by the "TVHTML5" stream-source toggle (7.x TVHTML5 and
-        // tv_downgraded were both removed as proven dead: 7.x is SABR-only, tv_downgraded 403-walls
-        // even yt-dlp-master-exact — re-add from clients-retired.mjs only if YouTube reverts them).
-        TVHTML5_SIMPLY,
-        // MWEB (yt-dlp-master iPad UA) last: a login-required cipher fallback that drains whole
-        // songs when authenticated (the loginRequired gate skips it for login-less sessions). Last
-        // because it has the largest dependency surface (auth + cipher + pot) and the shortest
-        // track record; promote only after it has proven itself over time.
-        MWEB
-    )
+    /**
+     * Every client failed for this resolution — the shape a YouTube-side client kill takes. Ask
+     * the remote stream-client table to refresh (cooldown-gated, single-flight, off this
+     * coroutine): if a corrected table was pushed, the NEXT resolution snapshots it and recovers
+     * mid-session with no APK. Fire-and-forget — the failure still surfaces to the caller.
+     */
+    private fun onAllClientsFailed() {
+        cipherRefreshScope.launch {
+            runCatching {
+                if (StreamClientStore.refreshAfterResolutionFailure()) {
+                    Timber.tag(TAG).i("Stream-client table changed after total resolution failure")
+                }
+            }
+        }
+    }
 
     // A stable video id used only to warm the local BotGuard token generator; the token is
     // discarded. PoToken generation is a local WebView computation (no YouTube /player call), so
@@ -134,7 +111,7 @@ object YTPlayerUtils {
      */
     suspend fun prewarmPoToken() {
         val sessionId = YouTube.visitorData
-        if (MAIN_CLIENT.useWebPoTokens && sessionId != null) {
+        if (StreamClientTable.current().main.client.useWebPoTokens && sessionId != null) {
             runCatching {
                 withContext(Dispatchers.IO) {
                     poTokenGenerator.getWebClientPoToken(POTOKEN_WARMUP_VIDEO_ID, sessionId)
@@ -201,7 +178,10 @@ object YTPlayerUtils {
         videoItag: Int? = null,
         videoQualityTarget: String? = null,
     ): Result<PlaybackData> = runCatching {
-        val chain = StreamClientChain.resolve(MAIN_CLIENT, ALL_FALLBACK_CLIENTS.toList(), disabledStreamClients)
+        // ONE table snapshot per resolution (remote/bundled via StreamClientStore, compiled floor
+        // otherwise) — a remote refresh landing mid-resolution must not switch tables under the loop.
+        val table = StreamClientTable.current()
+        val chain = StreamClientChain.resolve(table.main, table.fallbacks, disabledStreamFamilies)
             ?: throw PlaybackException("All stream sources are disabled", null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
         val mainClient = chain.main
         val fallbackClients = chain.fallbacks
@@ -424,6 +404,7 @@ object YTPlayerUtils {
 
         if (streamPlayerResponse == null) {
             Timber.tag(TAG).e( "All clients failed for $videoId")
+            onAllClientsFailed()
             throw PlaybackException(
                 "All clients failed for $videoId",
                 null,
@@ -434,6 +415,7 @@ object YTPlayerUtils {
         if (streamPlayerResponse.playabilityStatus.status != "OK") {
             val errorReason = streamPlayerResponse.playabilityStatus.reason
             Timber.tag(TAG).e( "Playability not OK: $errorReason")
+            onAllClientsFailed()
             throw PlaybackException(
                 errorReason,
                 null,
@@ -443,6 +425,7 @@ object YTPlayerUtils {
 
         if (format == null) {
             Timber.tag(TAG).e( "No playable format found for $videoId")
+            onAllClientsFailed()
             throw PlaybackException(
                 "No playable format found",
                 null,
@@ -452,6 +435,7 @@ object YTPlayerUtils {
 
         if (streamUrl == null) {
             Timber.tag(TAG).e( "No stream URL found for $videoId")
+            onAllClientsFailed()
             throw PlaybackException(
                 "No stream URL found",
                 null,
@@ -461,6 +445,7 @@ object YTPlayerUtils {
 
         if (streamExpiresInSeconds == null) {
             Timber.tag(TAG).e( "Stream expired for $videoId")
+            onAllClientsFailed()
             throw PlaybackException(
                 "Stream expired",
                 null,

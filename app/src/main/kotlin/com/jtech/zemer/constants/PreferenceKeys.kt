@@ -111,13 +111,18 @@ val AudioQualityKey = stringPreferencesKey("audioQuality")
 // switcher overrides this per play; see VideoModeController.
 val VideoQualityKey = stringPreferencesKey("videoQuality")
 
-// Stream source toggles — each key maps to whether that client is enabled
+// LEGACY stream source toggles — superseded by the per-family dynamic keys
+// (StreamSourcePrefs.familyKey); kept only as the one-time migration source. Old-version
+// rollbacks still read them, so they are migrated FROM, never deleted.
 val StreamSourceWebRemixKey   = booleanPreferencesKey("streamSourceWebRemix")
 val StreamSourceTVHTML5Key    = booleanPreferencesKey("streamSourceTVHTML5")
 val StreamSourceAndroidVRKey  = booleanPreferencesKey("streamSourceAndroidVR")
 val StreamSourceWebCreatorKey = booleanPreferencesKey("streamSourceWebCreator")
 val StreamSourceVisionOSKey   = booleanPreferencesKey("streamSourceVisionOS")
 val StreamSourceMWEBKey       = booleanPreferencesKey("streamSourceMWEB")
+
+// One-time flag: the legacy toggles above have been copied onto the per-family keys.
+val StreamSourcePrefsMigratedKey = booleanPreferencesKey("streamSourcePrefsMigrated")
 
 enum class AudioQuality {
     AUTO,

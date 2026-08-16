@@ -287,6 +287,8 @@
     <string name="stream_source_visionos_desc">Apple direct-URL client: most reliable fallback, no cipher or sign-in</string>
     <string name="stream_source_web_creator">WEB_CREATOR</string>
     <string name="stream_source_web_creator_desc">YouTube Studio web client: requires sign-in</string>
+    <string name="stream_source_other_clients">Other clients</string>
+    <string name="stream_source_generic_desc">Streaming client</string>
 
     <!-- Mixes / suggested playlists -->
     <string name="mixes">Mixes</string>

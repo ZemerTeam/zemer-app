@@ -609,19 +609,14 @@ class MusicService :
             }
         }
 
-        // Keep YTPlayerUtils in sync with the stream source toggles
+        // Keep YTPlayerUtils in sync with the per-family stream source toggles. The one-time
+        // legacy-key migration runs first so a pre-family install's choices carry over before the
+        // first collect emission publishes the disabled set.
         scope.launch {
+            com.jtech.zemer.utils.StreamSourcePrefs.migrateLegacyToggles(dataStore)
             dataStore.data.collect { prefs ->
-                val disabled = mutableSetOf<String>()
-                if (prefs[com.jtech.zemer.constants.StreamSourceWebRemixKey] == false) disabled += "WEB_REMIX"
-                if (prefs[com.jtech.zemer.constants.StreamSourceTVHTML5Key]   == false) disabled += setOf("TVHTML5", "TVHTML5_SIMPLY")
-                if (prefs[com.jtech.zemer.constants.StreamSourceAndroidVRKey] == false) {
-                    disabled += "ANDROID_VR"
-                }
-                if (prefs[com.jtech.zemer.constants.StreamSourceVisionOSKey]  == false) disabled += "VISIONOS"
-                if (prefs[com.jtech.zemer.constants.StreamSourceWebCreatorKey] == false) disabled += "WEB_CREATOR"
-                if (prefs[com.jtech.zemer.constants.StreamSourceMWEBKey]      == false) disabled += "MWEB"
-                YTPlayerUtils.disabledStreamClients = disabled
+                YTPlayerUtils.disabledStreamFamilies =
+                    com.jtech.zemer.utils.StreamSourcePrefs.disabledFamilies(prefs)
             }
         }
 
