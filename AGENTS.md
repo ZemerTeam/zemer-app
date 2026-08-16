@@ -186,6 +186,19 @@ rules that must not regress:
   - A mid-track **rebuffer is not a pause**: `STATE_BUFFERING` while `playWhenReady` fires no
     state-change ping (a timing fingerprint the official client never emits) and drops no sub-500ms
     segment; position does not advance while buffering, so the open segment stays honest.
+  - The scheduled-flush ticker **skips overdue offsets** after a long pause/rebuffer (rtMs is wall-clock
+    incl. paused time) instead of spinning through a burst of immediate no-op flushes - the pause
+    already flushed pending time, so it resumes at the next FUTURE offset.
+  - `resolvedTracking` (the tracking-URL cache), like the cpn registry, **preserves the live listen's
+    entry** when it clears past `MAX_CACHED_TRACKING`, so a resolution burst never wipes the playing
+    session's URLs out from under its consumer.
+  - The **deferred** open ping's `cmt` is the listen's REAL start position (`DeferredStatsRecord.openCmt`,
+    the first watched-range start), never 0 - a resumed/offline listen begins nonzero, and open-at-0 +
+    watchtime-at-60 is an inconsistency the live path never produces.
+- **Known limitation (accepted):** a **video-mode** repeat-one loop is an own-swap (one session/cpn
+  spans all loops), so it credits ONE view where the same track in audio mode credits N. This is the
+  SAFE direction (under-count, never fabrication); fixing it would risk the own-swap session-continuity,
+  so it is deliberately left. Do not "fix" it into a per-loop session without weighing that.
 - **Hard exclusions:** RELAY mode (the spec's rule - beacons must never ride the relay egress; gated
   fail-safe as `relayModeNow != false`, so the unresolved cold-start window never beacons) and cast
   sessions (the receiver plays). Both are gated at session creation inside the reporter. The

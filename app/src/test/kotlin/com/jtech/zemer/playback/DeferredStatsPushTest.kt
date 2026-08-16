@@ -31,7 +31,7 @@ class DeferredStatsPushTest {
             record = record,
             fetchTracking = { tracking },
             cpn = "CPN",
-            sendPlayback = { _, _ -> playbackStatus },
+            sendPlayback = { _, _, _ -> playbackStatus },
             sendWatchtime = { _, _, _ -> watchtimeStatus },
         )
     }
@@ -63,6 +63,22 @@ class DeferredStatsPushTest {
     }
 
     @Test
+    fun `the open ping cmt is the listen's real start position, not zero`() {
+        var openCmt: String? = null
+        val resumed = record.copy(st = "60.0,120.0", et = "90.0,150.0") // began at 60s
+        runBlocking {
+            pushDeferredStats(
+                record = resumed,
+                fetchTracking = { tracking() },
+                cpn = "CPN",
+                sendPlayback = { _, _, cmt -> openCmt = cmt; 204 },
+                sendWatchtime = { _, _, _ -> 204 },
+            )
+        }
+        assertEquals("60.0", openCmt)
+    }
+
+    @Test
     fun `watchtime is NOT sent when the playback open ping fails`() {
         var watchtimeSent = false
         val outcome = runBlocking {
@@ -70,7 +86,7 @@ class DeferredStatsPushTest {
                 record = record,
                 fetchTracking = { tracking() },
                 cpn = "CPN",
-                sendPlayback = { _, _ -> 503 },
+                sendPlayback = { _, _, _ -> 503 },
                 sendWatchtime = { _, _, _ -> watchtimeSent = true; 204 },
             )
         }

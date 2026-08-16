@@ -297,8 +297,8 @@ class MusicService :
                         YTPlayerUtils.playerResponseForMetadata(videoId, null).getOrNull()?.playbackTracking
                     },
                     cpn = YouTube.generateCpn(),
-                    sendPlayback = { url, cpn ->
-                        YouTube.registerPlayback(playbackTracking = url, cpn = cpn, cmt = "0.0", final = false)
+                    sendPlayback = { url, cpn, cmt ->
+                        YouTube.registerPlayback(playbackTracking = url, cpn = cpn, cmt = cmt, final = false)
                             .beaconStatus()
                     },
                     sendWatchtime = { url, cpn, rec ->

@@ -42,6 +42,13 @@ class DeferredStatsRecordTest {
     }
 
     @Test
+    fun `openCmt is the first watched-range start`() {
+        assertEquals("45.0", sample.copy(st = "45.0,90.0").openCmt())
+        assertEquals("0.0", sample.copy(st = "0.0").openCmt())
+        assertEquals("0.0", sample.copy(st = "").openCmt()) // defensive: never blank
+    }
+
+    @Test
     fun `isStale is true only past the max age`() {
         val maxAge = 7L * 24 * 60 * 60 * 1000
         assertFalse(sample.isStale(nowMs = sample.endedAtMs + maxAge, maxAgeMs = maxAge))

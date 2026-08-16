@@ -22,7 +22,7 @@ suspend fun pushDeferredStats(
     record: DeferredStatsRecord,
     fetchTracking: suspend (videoId: String) -> PlayerResponse.PlaybackTracking?,
     cpn: String,
-    sendPlayback: suspend (url: String, cpn: String) -> Int?,
+    sendPlayback: suspend (url: String, cpn: String, cmt: String) -> Int?,
     sendWatchtime: suspend (url: String, cpn: String, record: DeferredStatsRecord) -> Int?,
 ): DeferredPushOutcome {
     // Video temporarily unresolvable (bot-gate, transient error) or no usable tracking block — keep and
@@ -31,8 +31,11 @@ suspend fun pushDeferredStats(
     val playbackUrl = tracking.videostatsPlaybackUrl?.baseUrl ?: return DeferredPushOutcome.RETRY
     val watchtimeUrl = tracking.videostatsWatchtimeUrl?.baseUrl ?: return DeferredPushOutcome.RETRY
 
-    // Open the session first; do NOT beacon watch time until it is accepted.
-    val playbackStatus = sendPlayback(playbackUrl, cpn)
+    // Open the session first; do NOT beacon watch time until it is accepted. The open ping's cmt is the
+    // listen's REAL start position (first watched range), not 0 — a resumed/offline listen begins at a
+    // nonzero media time, and an open-at-0 + watchtime-at-60 mismatch is an inconsistency the live path
+    // never produces.
+    val playbackStatus = sendPlayback(playbackUrl, cpn, record.openCmt())
     if (!playbackStatus.is2xx()) {
         return if (playbackStatus == 400) DeferredPushOutcome.DROP else DeferredPushOutcome.RETRY
     }

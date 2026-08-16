@@ -144,7 +144,15 @@ class WatchTimeReporter(
             resolvedAtMs = System.currentTimeMillis(),
         )
         if (urls.playbackUrl == null && urls.watchtimeUrl == null) return
-        if (resolvedTracking.size > MAX_CACHED_TRACKING) resolvedTracking.clear()
+        if (resolvedTracking.size > MAX_CACHED_TRACKING) {
+            // Bounded WITHOUT wiping the live listen's tracking URLs (the pinned-LRU lesson from
+            // PlaybackNonceRegistry): preserve the current session's entry through the clear so its
+            // consumer never has to fall back to a redundant fetchTracking round-trip mid-stream.
+            val liveId = session?.videoId
+            val liveEntry = liveId?.let { resolvedTracking[it] }
+            resolvedTracking.clear()
+            if (liveId != null && liveEntry != null) resolvedTracking[liveId] = liveEntry
+        }
         resolvedTracking[videoId] = urls
         // If the session for this id is already live, adopt its real flush schedule AND itag immediately.
         session?.takeIf { it.videoId == videoId && !it.finished }?.let {
@@ -317,6 +325,13 @@ class WatchTimeReporter(
             // ping is separate and never advances the scheduled count.
             while (isActive && probe.isPlaying) {
                 val s = session ?: break
+                // rtMs is wall-clock since session start (it includes paused time). After a long
+                // pause/rebuffer the next scheduled offsets are already in the past; the pause already
+                // flushed the pending segment, so an overdue offset has nothing new to send. SKIP them
+                // (advance the count without firing) so the ticker resumes at the next FUTURE offset
+                // instead of spinning through a burst of immediate no-op flushes (an anti-fingerprint
+                // burst). A normally-progressing session never has an overdue offset here.
+                while (s.schedule.flushOffsetMs(s.scheduledFlushCount) <= s.rtMs()) s.scheduledFlushCount++
                 val dueAt = s.schedule.flushOffsetMs(s.scheduledFlushCount)
                 val wait = dueAt - s.rtMs()
                 if (wait > 0) delay(wait)

@@ -32,6 +32,9 @@ data class DeferredStatsRecord(
     /** Older than [maxAgeMs] relative to [nowMs] — not worth reporting; the flusher drops it. */
     fun isStale(nowMs: Long, maxAgeMs: Long): Boolean = nowMs - endedAtMs > maxAgeMs
 
+    /** The `cmt` for the playback (open) ping: the listen's real START position (first watched range). */
+    fun openCmt(): String = st.substringBefore(",").ifBlank { "0.0" }
+
     fun encode(): String = JSON.encodeToString(this)
 
     companion object {
