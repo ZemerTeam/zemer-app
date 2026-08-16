@@ -107,4 +107,80 @@ class DeferredStatsQueueTest {
         assertEquals(listOf("v1"), pushed)
         assertEquals(0, queuedLines().size)
     }
+
+    // --- soak: multi-record cycles, ordering, retry-then-succeed, batch draining ---
+
+    private fun recordFor(id: String) = record.copy(videoId = id, endedAtMs = nowMs)
+
+    @Test
+    fun `many records queued offline all drain on reconnect, in FIFO order`() {
+        val q = queue { DeferredPushOutcome.SUCCESS }
+        connected = false
+        val ids = (0 until 8).map { "v$it" }
+        ids.forEach { q.enqueue(recordFor(it)) }
+        assertEquals(8, queuedLines().size)
+
+        connected = true
+        q.onFlushTrigger()
+
+        assertEquals("all drained, oldest-first", ids, pushed)
+        assertEquals(0, queuedLines().size)
+    }
+
+    @Test
+    fun `a record that RETRYs then succeeds drains once the backoff expires`() {
+        var outcome = DeferredPushOutcome.RETRY
+        val q = queue { outcome }
+        q.enqueue(record)
+
+        assertEquals("attempted, kept after RETRY", 1, pushed.size)
+        assertEquals(1, queuedLines().size)
+
+        // Server recovers; before the backoff expires a trigger is a no-op...
+        outcome = DeferredPushOutcome.SUCCESS
+        q.onFlushTrigger()
+        assertEquals("still within the backoff window", 1, pushed.size)
+        assertEquals(1, queuedLines().size)
+
+        // ...and once it expires the record drains.
+        nowMs += 60_000
+        q.onFlushTrigger()
+        assertEquals(2, pushed.size)
+        assertEquals(0, queuedLines().size)
+    }
+
+    @Test
+    fun `a queue larger than one batch drains across successive triggers`() {
+        val q = queue { DeferredPushOutcome.SUCCESS }
+        connected = false
+        val total = DeferredStatsQueue.BATCH_SIZE + 5
+        repeat(total) { q.enqueue(recordFor("v$it")) }
+        assertEquals(total, queuedLines().size)
+
+        connected = true
+        q.onFlushTrigger() // one batch
+        assertEquals(DeferredStatsQueue.BATCH_SIZE, pushed.size)
+        assertEquals(5, queuedLines().size)
+
+        q.onFlushTrigger() // the remainder
+        assertEquals(total, pushed.size)
+        assertEquals(0, queuedLines().size)
+    }
+
+    @Test
+    fun `a mix of stale and fresh records drops the stale and pushes the fresh`() {
+        val q = queue { DeferredPushOutcome.SUCCESS }
+        connected = false
+        // one old record, then advance the clock so it is stale, then a fresh one
+        q.enqueue(recordFor("old"))
+        nowMs += DeferredStatsQueue.MAX_AGE_MS + 1
+        q.enqueue(recordFor("fresh"))
+        assertEquals(2, queuedLines().size)
+
+        connected = true
+        q.onFlushTrigger()
+
+        assertEquals("only the fresh record is pushed", listOf("fresh"), pushed)
+        assertEquals(0, queuedLines().size)
+    }
 }

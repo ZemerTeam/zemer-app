@@ -115,7 +115,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
-| `AGENTS.md` | 1416 lines | `.md` |
+| `AGENTS.md` | 1424 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 19 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -300,7 +300,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 816 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1085 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 302 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2916 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2936 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 370 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogic.kt` | 49 lines | `.kt` |
@@ -314,7 +314,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoQualityLogic.kt` | 204 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoRendition.kt` | 95 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoSongIds.kt` | 28 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeReporter.kt` | 474 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeReporter.kt` | 473 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeSchedule.kt` | 41 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeSegments.kt` | 117 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/EmptyQueue.kt` | 14 lines | `.kt` |
@@ -951,7 +951,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastStreamRelayTest.kt` | 330 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastVolumeKeysTest.kt` | 93 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/DeferredStatsPushTest.kt` | 82 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/playback/DeferredStatsQueueTest.kt` | 110 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/DeferredStatsQueueTest.kt` | 186 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/DeferredStatsRecordTest.kt` | 51 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/DownloadCancellationContractTest.kt` | 75 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/DownloadMenuLogicTest.kt` | 140 lines | `.kt` |
@@ -1112,7 +1112,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/ui/README.md` | 326 lines | `.md` |
 | `docs/ui/standards.md` | 375 lines | `.md` |
 | `docs/video_quality/README.md` | 134 lines | `.md` |
-| `docs/watchtime/README.md` | 265 lines | `.md` |
+| `docs/watchtime/README.md` | 273 lines | `.md` |
 | `docs/whitelist/README.md` | 253 lines | `.md` |
 | `docs/zemer_playlists/README.md` | 110 lines | `.md` |
 | `gradle.properties` | 40 lines | `.properties` |

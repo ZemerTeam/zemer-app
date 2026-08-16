@@ -64,6 +64,10 @@ the WEB_REMIX headers + SAPISIDHASH via the shared `InnerTube.ytClient`. Base UR
   concurrent piece (seeded from the data-source resolver thread). One `WatchTimeSchedule` per session;
   a `scheduledFlushCount` advances the wall-clock ticker (pause/seek pings are extra and never touch
   it). Beacons are fire-and-forget via `YouTube.registerPlayback` / `registerWatchtime`.
+- **`playback/PlaybackProbe.kt`** - the read-only `Player` slice the reporter needs (position,
+  isPlaying, playbackState, playWhenReady, currentMediaId, hasCurrentMetadata, volume). Decouples the
+  reporter from `androidx.media3` so its whole state machine is JVM-tested with a pure fake;
+  `MusicService` adapts the real `Player`, and `onPositionDiscontinuity` takes primitive params.
 - **`innertube` `YouTube`/`InnerTube`** - `generateCpn()` (16 chars), `registerWatchtime(...)`, and
   optional `cmt`/`final`/`fmt`/`muted` on `registerPlayback` (all additive; legacy callers unchanged).
 
@@ -258,8 +262,12 @@ The rules that must not regress:
 ## Regression gate
 
 `WatchTimeSegmentsTest` (honesty rules: deltas, seeks-not-counted, jitter drop, pause, backwards
-correction, format) + `WatchTimeScheduleTest` (the flush offset math). Beacon request shapes are
-replica-verified against live YouTube (every beacon HTTP 204/204); the added params + the flush
-schedule are verified against the live deployed `base.js` and a live `/player` capture. When touching
-this system, keep every reported value tied to a real player observation, and keep the coverage/
-exclusion gates intact.
+correction, format) + `WatchTimeScheduleTest` (the flush offset math) + `PlaybackNonceRegistryTest`
+(shared/rotate/append, LRU that survives a pinned eldest) + the `DeferredStats*` tests + **`WatchTimeReporterTest`
+(the full state machine, driven through the `PlaybackProbe` fake)**. The reporter reads the player only
+through `PlaybackProbe`, so its event/state machine is JVM-testable without Robolectric - the extraction
+is behavior-preserving (`MusicService` adapts the real `Player`). Beacon request shapes are replica-verified
+against live YouTube (every beacon HTTP 204/204); the added params + the flush schedule are verified against
+the live deployed `base.js` and a live `/player` capture. When touching this system, keep every reported
+value tied to a real player observation, keep the probe returning exactly the `Player` values, and keep the
+coverage/exclusion gates intact.

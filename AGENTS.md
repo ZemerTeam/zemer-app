@@ -157,6 +157,14 @@ rules that must not regress:
   `STATE_ENDED`, `onDestroy`, and the stream resolver's `onTrackingResolved` seed (no second `/player`
   round-trip; cached/local plays fall back to one metadata fetch, the legacy ping's own behavior). The
   `session` ref is `@Volatile` (read from the resolver's background thread for schedule adoption).
+- **The reporter reads the player through the `PlaybackProbe` seam, so its state machine is
+  JVM-tested** (no Robolectric): the ~7 `Player` reads (position/isPlaying/playbackState/playWhenReady/
+  currentMediaId/hasCurrentMetadata/volume) are behind `playback/PlaybackProbe`, `MusicService` adapts
+  the real `Player`, and `onPositionDiscontinuity` takes primitive params instead of `Player.PositionInfo`.
+  `WatchTimeReporterTest` drives the whole machine with a pure fake probe (Unconfined scope) and asserts
+  via the observable offline-capture sink - played-range capture, seek exclusion, the ≥10s gate,
+  paused-at-start privacy, the teardown end-position, rebuffer-is-not-a-pause, and the relay exclusion.
+  The extraction is behavior-preserving; keep the probe returning exactly the `Player` values.
 - **Boundary-capture hardening (never fabricate, never orphan) - these must not regress:**
   - On a track/queue CHANGE (a real transition, or `ensureSession` replacing a still-open session) the
     end position falls back to the departed item's OWN last-known position

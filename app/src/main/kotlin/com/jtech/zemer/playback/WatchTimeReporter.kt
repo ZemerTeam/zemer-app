@@ -1,7 +1,6 @@
 package com.jtech.zemer.playback
 
 import androidx.media3.common.Player
-import com.jtech.zemer.extensions.metadata
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.response.PlayerResponse
 import kotlinx.coroutines.CoroutineScope
@@ -35,7 +34,7 @@ import java.util.concurrent.ConcurrentHashMap
  * failure logs and moves on — stats must never affect playback.
  */
 class WatchTimeReporter(
-    private val player: Player,
+    private val probe: PlaybackProbe,
     private val scope: CoroutineScope,
     private val isCasting: () -> Boolean,
     private val isRelay: () -> Boolean,
@@ -157,7 +156,7 @@ class WatchTimeReporter(
     fun onIsPlayingChanged(isPlaying: Boolean) {
         if (isPlaying) {
             ensureSession()
-            session?.segments?.onPlay(player.currentPosition)
+            session?.segments?.onPlay(probe.positionMs)
             startTicker()
         } else {
             tickerJob?.cancel()
@@ -166,28 +165,31 @@ class WatchTimeReporter(
             // emits, and a stall landing < MIN_SEGMENT_MS after the last flush would drop a genuinely
             // contiguous segment. Position does not advance while buffering, so the open segment stays
             // honest and resumes on the next play event — leave it untouched.
-            if (player.playbackState == Player.STATE_BUFFERING && player.playWhenReady) return
+            if (probe.playbackState == Player.STATE_BUFFERING && probe.playWhenReady) return
             val s = session ?: return
-            s.segments.onPause(player.currentPosition)
-            enqueueWatch(s, cmtMs = player.currentPosition, final = false)
+            s.segments.onPause(probe.positionMs)
+            enqueueWatch(s, cmtMs = probe.positionMs, final = false)
         }
     }
 
     fun onPositionDiscontinuity(
-        oldPosition: Player.PositionInfo,
-        newPosition: Player.PositionInfo,
+        oldMediaItemIndex: Int,
+        oldPositionMs: Long,
+        oldMediaId: String?,
+        newMediaItemIndex: Int,
+        newPositionMs: Long,
         reason: Int,
     ) {
         val s = session ?: return
         // A track boundary (auto-advance) AND a repeat-one loop back to the SAME item both arrive as
-        // AUTO_TRANSITION — the repeat wraps position to ~0, so capture the REAL end (oldPosition,
+        // AUTO_TRANSITION — the repeat wraps position to ~0, so capture the REAL end (oldPositionMs,
         // before the wrap) for onTransition's final ping instead of the post-wrap ~0. Also covers a
         // genuine item change (index/id differ, e.g. seekToNext).
         if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION ||
-            oldPosition.mediaItemIndex != newPosition.mediaItemIndex ||
-            oldPosition.mediaItemId()?.let { it != s.videoId } == true
+            oldMediaItemIndex != newMediaItemIndex ||
+            (oldMediaId != null && oldMediaId != s.videoId)
         ) {
-            pendingEndPositionMs = oldPosition.positionMs
+            pendingEndPositionMs = oldPositionMs
             return
         }
         if (reason == Player.DISCONTINUITY_REASON_SEEK ||
@@ -196,9 +198,9 @@ class WatchTimeReporter(
             // Keep segment accounting correct on any seek, but a video-mode rendition swap seeks to the
             // SAME position (position-continuous) — that is not a user seek and must stay transparent
             // to the session, so fire no spurious zero-progress ping for a sub-second delta.
-            s.segments.onSeek(oldPosition.positionMs, newPosition.positionMs, player.isPlaying)
-            if (kotlin.math.abs(newPosition.positionMs - oldPosition.positionMs) >= REAL_SEEK_MIN_MS) {
-                enqueueWatch(s, cmtMs = newPosition.positionMs, final = false)
+            s.segments.onSeek(oldPositionMs, newPositionMs, probe.isPlaying)
+            if (kotlin.math.abs(newPositionMs - oldPositionMs) >= REAL_SEEK_MIN_MS) {
+                enqueueWatch(s, cmtMs = newPositionMs, final = false)
             }
         }
     }
@@ -208,9 +210,9 @@ class WatchTimeReporter(
         val endMs = pendingEndPositionMs
         pendingEndPositionMs = -1
         finishSession(endPositionMs = endMs)
-        if (player.isPlaying) {
+        if (probe.isPlaying) {
             ensureSession()
-            session?.segments?.onPlay(player.currentPosition)
+            session?.segments?.onPlay(probe.positionMs)
             startTicker()
         }
     }
@@ -232,24 +234,23 @@ class WatchTimeReporter(
 
     /** The last item ran out (STATE_ENDED fires no transition). */
     fun onPlaybackEnded() {
-        finishSession(endPositionMs = player.currentPosition)
+        finishSession(endPositionMs = probe.positionMs)
     }
 
     fun onDestroy() {
         // Teardown is NOT a track change — the player still sits on the current item, so its position
         // is the real end (like onPlaybackEnded). Passing null would fall back to the segment's
         // last-known position, which lags the ticker cadence and drops the tail on a swipe-kill.
-        finishSession(endPositionMs = player.currentPosition)
+        finishSession(endPositionMs = probe.positionMs)
     }
 
     private fun ensureSession() {
-        val item = player.currentMediaItem ?: return
-        val id = item.mediaId
+        val id = probe.currentMediaId ?: return
         if (session?.videoId == id && session?.finished == false) return
         finishSession(endPositionMs = null)
         // The two hard exclusions: relay egress and cast (the receiver plays, not us).
         if (isRelay() || isCasting()) return
-        if (item.metadata == null) return
+        if (!probe.hasCurrentMetadata) return
         // The session cpn IS the one the media request was stamped with for this listen (the resolver
         // seeds it via mediaCpnFor before playback starts); getOrCreate returns that same value. Pin it
         // so the registry's LRU can never evict the live listen's cpn mid-stream.
@@ -262,7 +263,7 @@ class WatchTimeReporter(
             newSession.fmt = it.fmt
         }
         session = newSession
-        newSession.pings.trySend(Ping.Start(cmtMs = player.currentPosition, muted = playerMuted()))
+        newSession.pings.trySend(Ping.Start(cmtMs = probe.positionMs, muted = playerMuted()))
         newSession.consumer = scope.launch { consumePings(newSession) }
     }
 
@@ -276,7 +277,7 @@ class WatchTimeReporter(
         // matching the client — this keeps view counts incrementing on repeat).
         nonces.release(s.videoId)
         // The end position: the caller's captured value if valid, else this item's OWN last-known
-        // position — NEVER player.currentPosition. After a track/queue change the player's position
+        // position — NEVER the player's live position. After a track/queue change the player's position
         // already belongs to the NEW item, so using it would close the departed listen with a
         // fabricated range spanning into the next track (a station join mid-listen was the worst case:
         // a `final=1` ping claiming the live station offset as watched — invalid traffic, the hard rule).
@@ -304,7 +305,7 @@ class WatchTimeReporter(
     }
 
     private fun enqueueWatch(s: Session, cmtMs: Long, final: Boolean) {
-        val drained = s.segments.drain(cmtMs, stillPlaying = player.isPlaying && !final) ?: return
+        val drained = s.segments.drain(cmtMs, stillPlaying = probe.isPlaying && !final) ?: return
         s.pings.trySend(Ping.Watch(drained, cmtMs = cmtMs, rtMs = s.rtMs(), final = final, muted = playerMuted()))
     }
 
@@ -314,15 +315,15 @@ class WatchTimeReporter(
             // Fire watchtime pings at the server's scheduled wall-clock offsets (10s, 20s, 30s, then
             // every ~40s — matching the official client instead of a fixed interval). A pause/seek
             // ping is separate and never advances the scheduled count.
-            while (isActive && player.isPlaying) {
+            while (isActive && probe.isPlaying) {
                 val s = session ?: break
                 val dueAt = s.schedule.flushOffsetMs(s.scheduledFlushCount)
                 val wait = dueAt - s.rtMs()
                 if (wait > 0) delay(wait)
-                if (!isActive || !player.isPlaying || session !== s) break
-                s.segments.onProgress(player.currentPosition)
+                if (!isActive || !probe.isPlaying || session !== s) break
+                s.segments.onProgress(probe.positionMs)
                 s.scheduledFlushCount++
-                enqueueWatch(s, cmtMs = player.currentPosition, final = false)
+                enqueueWatch(s, cmtMs = probe.positionMs, final = false)
             }
         }
     }
@@ -446,14 +447,12 @@ class WatchTimeReporter(
         }
     }
 
-    private fun Player.PositionInfo.mediaItemId(): String? = mediaItem?.mediaId
-
     /**
      * Our player's real mute state (base.js encodes `muted`/`mos` as `isMuted()?1:0`). ExoPlayer has
      * no mute separate from volume, so zero output IS muted — a truthful read, not a fabricated flag.
      * Read on the main thread at enqueue time.
      */
-    private fun playerMuted(): Boolean = player.volume <= 0f
+    private fun playerMuted(): Boolean = probe.volume <= 0f
 
     companion object {
         private const val MAX_CACHED_TRACKING = 64

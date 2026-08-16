@@ -241,11 +241,24 @@ class MusicService :
         EpisodePositionTracker(player, scope, database) { discoveryHandler.isConnected }
     }
 
+    // Adapts the real media3 Player to the reporter's PlaybackProbe seam (read-only; each member
+    // returns exactly what the reporter read from the Player directly - the extraction is
+    // behavior-preserving and lets the reporter's event/state machine be JVM-unit-tested with a fake).
+    private val watchTimeProbe = object : PlaybackProbe {
+        override val positionMs get() = player.currentPosition
+        override val isPlaying get() = player.isPlaying
+        override val playbackState get() = player.playbackState
+        override val playWhenReady get() = player.playWhenReady
+        override val currentMediaId get() = player.currentMediaItem?.mediaId
+        override val hasCurrentMetadata get() = player.currentMediaItem?.metadata != null
+        override val volume get() = player.volume
+    }
+
     // The YouTube playback-stats session per DIRECT listen (playback ping at start + real watchtime
     // pings; music, video-songs and episodes alike). Never relay, never while casting.
     private val watchTimeReporter by lazy {
         WatchTimeReporter(
-            player = player,
+            probe = watchTimeProbe,
             scope = scope,
             isCasting = { discoveryHandler.isConnected },
             // Fail-safe on the unresolved (null) cold-start window: only DIRECT (relayModeNow == false)
@@ -1731,7 +1744,14 @@ class MusicService :
         }
         // Watch-time honesty: a seek closes the watched segment at the departed position (seeking is
         // never watched time), and an item change captures where the old listen really ended.
-        watchTimeReporter.onPositionDiscontinuity(oldPosition, newPosition, reason)
+        watchTimeReporter.onPositionDiscontinuity(
+            oldMediaItemIndex = oldPosition.mediaItemIndex,
+            oldPositionMs = oldPosition.positionMs,
+            oldMediaId = oldPosition.mediaItem?.mediaId,
+            newMediaItemIndex = newPosition.mediaItemIndex,
+            newPositionMs = newPosition.positionMs,
+            reason = reason,
+        )
     }
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
