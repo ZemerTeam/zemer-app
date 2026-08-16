@@ -344,7 +344,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/search/ResultDedupe.kt` | 78 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerGenresModels.kt` | 149 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerPodcastGenresModels.kt` | 81 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/search/ZemerResultMapper.kt` | 698 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/search/ZemerResultMapper.kt` | 699 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerRoutes.kt` | 71 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchClient.kt` | 599 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchModels.kt` | 410 lines | `.kt` |
@@ -677,7 +677,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/LyricsMenuViewModel.kt` | 96 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/NewReleaseViewModel.kt` | 110 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/OfflineSearchSettingsViewModel.kt` | 61 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnboardingViewModel.kt` | 186 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnboardingViewModel.kt` | 156 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlinePlaylistViewModel.kt` | 203 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlinePodcastViewModel.kt` | 184 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlineSearchSuggestionViewModel.kt` | 100 lines | `.kt` |
@@ -688,7 +688,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/PodcastHomeRowsViewModel.kt` | 74 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/PodcastSubscriptionsHomeViewModel.kt` | 81 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/RecognitionHistoryViewModel.kt` | 42 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/RecognizeMusicViewModel.kt` | 111 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/RecognizeMusicViewModel.kt` | 104 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/ReportContentViewModel.kt` | 37 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/SavedStatusViewModel.kt` | 38 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/StatsViewModel.kt` | 175 lines | `.kt` |

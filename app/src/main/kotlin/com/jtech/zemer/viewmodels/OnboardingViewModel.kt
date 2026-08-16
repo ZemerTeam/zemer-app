@@ -139,37 +139,7 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Check if content filters should be skipped
-     * Returns true if already auto-restored OR complete local configuration exists
-     */
-    suspend fun shouldSkipContentFilters(): Boolean {
-        // Check if already auto-restored
-        if (userPreferencesRepository.isAutoRestored()) {
-            return true
-        }
-
-        // Check for complete local configuration using existing preferences
-        // Note: This would need access to context in a real implementation
-        // For now, we'll delegate this to the UI layer that has context access
-        return false
-    }
-
-    /**
-     * Enhanced version that includes context for proper preference checking
-     */
-    fun shouldSkipContentFilters(context: Context): Boolean {
-        // For now, just check for complete local configuration
-        // Auto-restore check will be handled in the UI with proper coroutine scope
-        val prefs = context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE)
-        val hasEnableFilter = prefs.contains(EnableContentFiltersKey.name)
-        val hasFemaleSetting = prefs.contains(AllowFemaleSingersKey.name)
-        val hasVideoSetting = prefs.contains(BlockVideosKey.name)
-
-        // Only skip if ALL content filter settings are present
-        return hasEnableFilter && hasFemaleSetting && hasVideoSetting
-    }
-
+    
     /**
      * Get the restored email for display purposes
      */

@@ -85,13 +85,6 @@ class RecognizeMusicViewModel @Inject constructor(
         }
     }
 
-    /** Cancels any in-flight attempt and returns to the idle state. */
-    fun reset() {
-        job?.cancel()
-        job = null
-        _state.value = RecognizeUiState.Idle
-    }
-
     companion object {
         private const val TAG = "RecognizeMusicVM"
     }

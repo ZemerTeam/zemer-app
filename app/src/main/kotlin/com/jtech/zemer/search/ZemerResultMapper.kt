@@ -683,8 +683,9 @@ object ZemerResultMapper {
     /** Per-section preview cap on the grouped summary, so a merged section isn't a long scroll. */
     private const val SUMMARY_SECTION_LIMIT = 8
 
-    // Verbatim match of the YouTube summary section titles/order (YouTube.searchSummary hardcodes
-    // these English literals too), so the summary looks identical whichever engine is selected.
+    // Verbatim match of the old YouTube summary section titles/order (the since-deleted
+    // YouTube.searchSummary hardcoded these English literals), so the Zemer summary kept the
+    // exact look users knew.
     private const val TITLE_ALBUMS = "Albums"
     private const val TITLE_SINGLES = "Singles"
     private const val TITLE_SONGS = "Songs"

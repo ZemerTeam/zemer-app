@@ -184,7 +184,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/search/ResultDedupe.kt` | 78 | `com.jtech.zemer.search` | no | 2 | 9 |  |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerGenresModels.kt` | 149 | `com.jtech.zemer.search` | no | 1 | 42 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerPodcastGenresModels.kt` | 81 | `com.jtech.zemer.search` | no | 1 | 26 | kotlinx.serialization |
-| `app/src/main/kotlin/com/jtech/zemer/search/ZemerResultMapper.kt` | 698 | `com.jtech.zemer.search` | no | 21 | 103 |  |
+| `app/src/main/kotlin/com/jtech/zemer/search/ZemerResultMapper.kt` | 699 | `com.jtech.zemer.search` | no | 21 | 103 |  |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerRoutes.kt` | 71 | `com.jtech.zemer.search` | no | 1 | 14 |  |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchClient.kt` | 599 | `com.jtech.zemer.search` | no | 16 | 62 | io.ktor, java.io, javax.inject, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchModels.kt` | 410 | `com.jtech.zemer.search` | no | 2 | 158 | kotlinx.serialization |
@@ -517,7 +517,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/LyricsMenuViewModel.kt` | 96 | `com.jtech.zemer.viewmodels` | no | 22 | 15 | android.content, androidx.compose, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/NewReleaseViewModel.kt` | 110 | `com.jtech.zemer.viewmodels` | no | 20 | 19 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/OfflineSearchSettingsViewModel.kt` | 61 | `com.jtech.zemer.viewmodels` | no | 14 | 7 | android.content, androidx.datastore, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnboardingViewModel.kt` | 186 | `com.jtech.zemer.viewmodels` | no | 19 | 30 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnboardingViewModel.kt` | 156 | `com.jtech.zemer.viewmodels` | no | 19 | 24 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlinePlaylistViewModel.kt` | 203 | `com.jtech.zemer.viewmodels` | no | 28 | 33 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlinePodcastViewModel.kt` | 184 | `com.jtech.zemer.viewmodels` | no | 33 | 27 | android.content, androidx.lifecycle, dagger.hilt, java.time, javax.inject, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlineSearchSuggestionViewModel.kt` | 100 | `com.jtech.zemer.viewmodels` | no | 23 | 13 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
@@ -528,7 +528,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/PodcastHomeRowsViewModel.kt` | 74 | `com.jtech.zemer.viewmodels` | no | 20 | 13 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/PodcastSubscriptionsHomeViewModel.kt` | 81 | `com.jtech.zemer.viewmodels` | no | 18 | 7 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/RecognitionHistoryViewModel.kt` | 42 | `com.jtech.zemer.viewmodels` | no | 12 | 6 | androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/RecognizeMusicViewModel.kt` | 111 | `com.jtech.zemer.viewmodels` | no | 18 | 23 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/RecognizeMusicViewModel.kt` | 104 | `com.jtech.zemer.viewmodels` | no | 18 | 22 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/ReportContentViewModel.kt` | 37 | `com.jtech.zemer.viewmodels` | no | 6 | 3 | androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/SavedStatusViewModel.kt` | 38 | `com.jtech.zemer.viewmodels` | no | 10 | 5 | androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/StatsViewModel.kt` | 175 | `com.jtech.zemer.viewmodels` | no | 20 | 9 | androidx.lifecycle, dagger.hilt, java.time, javax.inject, kotlinx.coroutines |
