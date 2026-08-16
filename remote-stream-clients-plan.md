@@ -350,17 +350,14 @@ toggle migration from a v37-installed build, relay session untouched, Stream Sou
 navigation. Zero-regressions mandate applies; the streaming pipeline is the danger zone — every
 resolution-loop change is proven against the live CDN with the harness before merge.
 
-## 12. Open questions (owner input wanted)
+## 12. Resolved questions (owner, 2026-08-16)
 
-1. **Settings descriptions:** accept the generic-per-group description tradeoff (§6), or keep
-   bespoke localized descriptions for the six known families with generic text only for unknown
-   new ones? (Recommend: known-family bespoke strings kept as a compiled map keyed by family id,
-   falling back to generic — best of both, tiny code.)
-2. **`families[].title` language:** config-carried English-only display names for NEW families —
-   acceptable (server-driven precedent), or should unknown families display their id only?
-3. **TTL:** inherit 6h (cipher parity) or shorten to 3h? A dead client self-heals via the
-   all-failed trigger regardless, so 6h is fine unless faster ORDER tweaks matter.
-4. **Kill-switch field:** add an optional per-entry `"enabled": false` (temporarily bench a
-   client while keeping its entry/notes in the file) or is deletion always sufficient? Cheap to
-   include; recommend yes for operational convenience.
-5. Timing: land PR 1 (pure refactor) immediately, or hold the whole stack until a quiet window?
+1. **Settings text: HYBRID.** The six known families keep their bespoke localized title +
+   description strings via a compiled map keyed by family id; a remotely-added family shows the
+   config's English `families[].title` with a generic per-group description.
+2. **TTL: 6 hours** (cipher parity; breaking changes recover via the all-failed trigger).
+3. **Kill switch: YES.** Optional per-entry `"enabled": false` — parsed as a skip (like unknown
+   protocol), lets a client be benched while its entry/notes stay in the file. Subject to the
+   same file-level rules (a file whose usable set is empty, or whose entry 0 is disabled, is
+   rejected wholesale).
+4. **Timing: whole stack now** — PRs 1-3 implemented back to back.
