@@ -51,7 +51,7 @@ const result = spawnSync(
   process.execPath,
   [join(here, "client-fulldownload.mjs"), ...(videoId ? [videoId] : [])],
   {
-    stdio: "inherit",
+    encoding: "utf8",
     env: {
       ...process.env,
       STREAM_CLIENTS_JSON: candidatePath,
@@ -59,4 +59,31 @@ const result = spawnSync(
     },
   },
 );
-process.exit(result.status ?? 1);
+const out = (result.stdout || "") + (result.stderr || "");
+process.stdout.write(out);
+
+// client-fulldownload.mjs is a REPORT (it always exits 0), so the gate has to read its verdicts —
+// otherwise "push only after this passes" would pass on a chain that cannot stream at all.
+const verdicts = clients.map((c) => {
+  const line = out.split("\n").find((l) => l.startsWith(c.key + " ") || l.startsWith(c.key.padEnd(20)));
+  return { key: c.key, line, ok: !!line && line.includes("WHOLE SONG") };
+});
+const missing = verdicts.filter((v) => !v.line).map((v) => v.key);
+const failed = verdicts.filter((v) => v.line && !v.ok).map((v) => v.key);
+
+console.log("");
+if (missing.length) console.log(`NOT TESTED: ${missing.join(", ")} (no result line - check the run above)`);
+if (failed.length) {
+  console.log(`FAILED to deliver a whole song: ${failed.join(", ")}`);
+  if (failed.includes(clients[0].key)) {
+    console.log("The MAIN client (entry 0) failed - this table must NOT be pushed.");
+  } else {
+    console.log(
+      "A fallback failed. Delivery can be VIDEO-SPECIFIC (a client that drains one video may 403 on\n" +
+      "another), so re-run with a different id before concluding a client is dead:\n" +
+      `  node tests/validate-stream-clients.mjs ${args[0] ?? ""} <otherVideoId>`.replace(/\s+/g, " "),
+    );
+  }
+}
+if (!failed.length && !missing.length) console.log("PASS: every client in the candidate table delivered a whole song.");
+process.exit(failed.length || missing.length ? 1 : 0);
