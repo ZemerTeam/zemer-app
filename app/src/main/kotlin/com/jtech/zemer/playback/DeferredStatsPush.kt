@@ -10,10 +10,13 @@ import com.metrolist.innertube.models.response.PlayerResponse
  *
  * Network I/O is injected ([fetchTracking]/[sendPlayback]/[sendWatchtime], each returning the HTTP
  * status or null on throw) so the keep-vs-drop classification is unit-testable without YouTube.
- * Status classification, applied to both beacons:
- *  - both 2xx        → [DeferredPushOutcome.SUCCESS] (accepted; remove)
- *  - either exactly 400 → [DeferredPushOutcome.DROP] (malformed; remove, never poison the queue)
- *  - anything else (null/5xx/429, or no resolvable tracking) → [DeferredPushOutcome.RETRY] (keep)
+ *
+ * The watchtime ping is fired ONLY after the playback (session-open) ping is accepted — a watchtime
+ * with no preceding playback ping is the orphan shape a real client never produces, AND on a partial
+ * failure (playback ok, watchtime not) the whole record is re-pushed under a fresh cpn next time, so
+ * beaconing the watchtime before the playback succeeds would double-count on retry. Classification:
+ *  - playback not 2xx → 400 ⇒ DROP (malformed), else ⇒ RETRY (watchtime NOT sent)
+ *  - playback 2xx, then watchtime: 2xx ⇒ SUCCESS, 400 ⇒ DROP, else ⇒ RETRY
  */
 suspend fun pushDeferredStats(
     record: DeferredStatsRecord,
@@ -28,12 +31,16 @@ suspend fun pushDeferredStats(
     val playbackUrl = tracking.videostatsPlaybackUrl?.baseUrl ?: return DeferredPushOutcome.RETRY
     val watchtimeUrl = tracking.videostatsWatchtimeUrl?.baseUrl ?: return DeferredPushOutcome.RETRY
 
+    // Open the session first; do NOT beacon watch time until it is accepted.
     val playbackStatus = sendPlayback(playbackUrl, cpn)
-    val watchtimeStatus = sendWatchtime(watchtimeUrl, cpn, record)
+    if (!playbackStatus.is2xx()) {
+        return if (playbackStatus == 400) DeferredPushOutcome.DROP else DeferredPushOutcome.RETRY
+    }
 
+    val watchtimeStatus = sendWatchtime(watchtimeUrl, cpn, record)
     return when {
-        playbackStatus.is2xx() && watchtimeStatus.is2xx() -> DeferredPushOutcome.SUCCESS
-        playbackStatus == 400 || watchtimeStatus == 400 -> DeferredPushOutcome.DROP
+        watchtimeStatus.is2xx() -> DeferredPushOutcome.SUCCESS
+        watchtimeStatus == 400 -> DeferredPushOutcome.DROP
         else -> DeferredPushOutcome.RETRY
     }
 }

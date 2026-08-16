@@ -61,4 +61,22 @@ class DeferredStatsPushTest {
         assertEquals(DeferredPushOutcome.RETRY, push(tracking(playback = null), 204, 204))
         assertEquals(DeferredPushOutcome.RETRY, push(tracking(watchtime = null), 204, 204))
     }
+
+    @Test
+    fun `watchtime is NOT sent when the playback open ping fails`() {
+        var watchtimeSent = false
+        val outcome = runBlocking {
+            pushDeferredStats(
+                record = record,
+                fetchTracking = { tracking() },
+                cpn = "CPN",
+                sendPlayback = { _, _ -> 503 },
+                sendWatchtime = { _, _, _ -> watchtimeSent = true; 204 },
+            )
+        }
+        assertEquals(DeferredPushOutcome.RETRY, outcome)
+        // A watchtime with no accepted playback ping is the orphan shape; re-pushing under a fresh cpn
+        // next time would double-count the ranges. The open ping must succeed first.
+        org.junit.Assert.assertFalse("watchtime must not ride a failed session-open", watchtimeSent)
+    }
 }

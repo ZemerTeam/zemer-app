@@ -157,7 +157,6 @@ import com.metrolist.innertube.utils.parseCookieString
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -287,18 +286,26 @@ class MusicService :
                     cpn = YouTube.generateCpn(),
                     sendPlayback = { url, cpn ->
                         YouTube.registerPlayback(playbackTracking = url, cpn = cpn, cmt = "0.0", final = false)
-                            .getOrNull()?.status?.value
+                            .beaconStatus()
                     },
                     sendWatchtime = { url, cpn, rec ->
                         YouTube.registerWatchtime(
                             watchtimeTracking = url, cpn = cpn,
                             st = rec.st, et = rec.et, cmt = rec.cmt, rt = rec.rt, final = true,
-                        ).getOrNull()?.status?.value
+                        ).beaconStatus()
                     },
                 )
             },
         )
     }
+
+    // The beacon HTTP status, whether the call succeeded (2xx — the InnerTube client is expectSuccess,
+    // so only 2xx returns normally) or threw on a non-2xx (a ResponseException carries the real status,
+    // e.g. a 400 that must classify as DROP, not the null-shaped RETRY a bare getOrNull would yield).
+    private fun Result<io.ktor.client.statement.HttpResponse>.beaconStatus(): Int? = fold(
+        onSuccess = { it.status.value },
+        onFailure = { (it as? io.ktor.client.plugins.ResponseException)?.response?.status?.value },
+    )
 
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -2781,7 +2788,9 @@ class MusicService :
         // Best-effort final watchtime ping for the in-flight listen (the scope may not outlive us,
         // but the enqueue is synchronous and the consumer usually drains before teardown).
         watchTimeReporter.onDestroy()
-        deferredStatsScope.cancel()
+        // Do NOT cancel deferredStatsScope here: the offline consumer resumes AFTER onDestroy returns
+        // and enqueues onto this scope, so cancelling would silently drop the very offline listen the
+        // queue exists to recover. The scope dies with the process anyway (nothing to clean up).
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
         }

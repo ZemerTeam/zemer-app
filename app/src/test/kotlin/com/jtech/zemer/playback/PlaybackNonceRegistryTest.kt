@@ -98,6 +98,25 @@ class PlaybackNonceRegistryTest {
         assertNotEquals("an unpinned, untouched stray should have been evicted", old, reg.getOrCreate("old"))
     }
 
+    @Test
+    fun `a pinned eldest does not block eviction of older strays`() {
+        val (reg, _) = counting()
+        val pinnedCpn = reg.getOrCreate("pinned")
+        reg.pin("pinned") // pinned is now the ELDEST and never re-touched
+        val firstStrayCpn = reg.getOrCreate("stray0") // the oldest UNPINNED, sits right behind pinned
+
+        repeat(PlaybackNonceRegistry.MAX_ENTRIES * 2) { reg.getOrCreate("filler$it") }
+
+        assertEquals("the pinned live cpn always survives", pinnedCpn, reg.getOrCreate("pinned"))
+        // Without skip-past-pinned eviction, the pinned eldest vetoes removeEldestEntry and NOTHING is
+        // evicted (unbounded growth). With it, the oldest UNPINNED stray is evicted → re-minted fresh.
+        assertNotEquals(
+            "eviction must proceed past the pinned eldest to the oldest unpinned key",
+            firstStrayCpn,
+            reg.getOrCreate("stray0"),
+        )
+    }
+
     // --- appendCpn: the pure URL stamp ---
 
     @Test

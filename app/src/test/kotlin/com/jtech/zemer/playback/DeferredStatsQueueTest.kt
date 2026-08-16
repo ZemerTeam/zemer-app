@@ -2,6 +2,7 @@ package com.jtech.zemer.playback
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -30,6 +31,7 @@ class DeferredStatsQueueTest {
 
     @After
     fun tearDown() {
+        scope.cancel() // drop any pending self-rescheduled retry coroutine
         file.delete()
     }
 

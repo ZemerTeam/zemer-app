@@ -236,7 +236,10 @@ class WatchTimeReporter(
     }
 
     fun onDestroy() {
-        finishSession(endPositionMs = null)
+        // Teardown is NOT a track change — the player still sits on the current item, so its position
+        // is the real end (like onPlaybackEnded). Passing null would fall back to the segment's
+        // last-known position, which lags the ticker cadence and drops the tail on a swipe-kill.
+        finishSession(endPositionMs = player.currentPosition)
     }
 
     private fun ensureSession() {
@@ -350,24 +353,33 @@ class WatchTimeReporter(
             // OFFLINE listen: no live URLs to beacon now. Accumulate the SAME real ranges the reporter
             // computed (the pings' st/et are honest deltas) and hand ONE record to the deferred sink to
             // re-push on reconnect. Nothing is fabricated; a listen below the genuine-play gate is dropped.
+            // Privacy MUST match the live path exactly (a deferred beacon is still a beacon): the live
+            // consumer opens nothing if paused at the Start ping, and silences forward pings once paused
+            // mid-listen. Mirror both here — capture nothing if paused at start, and stop accumulating at
+            // the first paused ping — so a private listen is never queued even if unpaused before it ends.
             val st = StringBuilder()
             val et = StringBuilder()
             var watchedMs = 0L
             var lastCmtMs = 0L
+            var startedPaused = false
+            var stoppedForPause = false
             for (ping in s.pings) {
-                if (ping is Ping.Watch) {
-                    if (ping.segments.watchedMs > 0) {
-                        if (st.isNotEmpty()) { st.append(','); et.append(',') }
-                        st.append(ping.segments.st)
-                        et.append(ping.segments.et)
-                        watchedMs += ping.segments.watchedMs
+                when (ping) {
+                    is Ping.Start -> startedPaused = historyPaused()
+                    is Ping.Watch -> {
+                        if (startedPaused || stoppedForPause) continue
+                        if (historyPaused()) { stoppedForPause = true; continue }
+                        if (ping.segments.watchedMs > 0) {
+                            if (st.isNotEmpty()) { st.append(','); et.append(',') }
+                            st.append(ping.segments.st)
+                            et.append(ping.segments.et)
+                            watchedMs += ping.segments.watchedMs
+                        }
+                        lastCmtMs = ping.cmtMs
                     }
-                    lastCmtMs = ping.cmtMs
                 }
             }
-            // Respect the privacy switch: a deferred beacon is still a beacon, so a listen the user
-            // marked private is never queued for later push either.
-            if (watchedMs >= MIN_DEFERRED_MS && st.isNotEmpty() && !historyPaused()) {
+            if (!startedPaused && watchedMs >= MIN_DEFERRED_MS && st.isNotEmpty()) {
                 runCatching {
                     onOfflineListen(
                         DeferredStatsRecord(
@@ -398,8 +410,11 @@ class WatchTimeReporter(
             when (ping) {
                 is Ping.Start -> {
                     if (paused) continue
-                    opened = true
                     urls.playbackUrl?.let { url ->
+                        // opened is set INSIDE the send: a tracking block with only a watchtime URL
+                        // (null playbackUrl) must NOT open the session, or the watchtime pings below
+                        // would be the orphan shape this gate forbids.
+                        opened = true
                         YouTube.registerPlayback(
                             playlistId = null,
                             playbackTracking = url,

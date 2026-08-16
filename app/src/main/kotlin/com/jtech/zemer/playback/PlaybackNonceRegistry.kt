@@ -29,16 +29,26 @@ class PlaybackNonceRegistry(
     /** Ids the reporter has pinned as actively playing — never evicted regardless of LRU age. */
     private val pinned = HashSet<String>()
 
-    // Access-ordered (accessOrder = true): getOrPut touches an entry to youngest, so the eldest is
-    // genuinely the least-recently-used. removeEldestEntry evicts it past the cap, but never a pinned
-    // (currently-playing) id — so the live listen's cpn survives no matter how many strays accrue.
-    private val nonces = object : LinkedHashMap<String, String>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>): Boolean =
-            size > MAX_ENTRIES && eldest.key !in pinned
-    }
+    // Access-ordered (accessOrder = true): a get touches an entry to youngest, so iterating keys is
+    // eldest-first (least-recently-used first).
+    private val nonces = LinkedHashMap<String, String>(16, 0.75f, /* accessOrder = */ true)
 
     fun getOrCreate(videoId: String): String = synchronized(lock) {
-        nonces.getOrPut(videoId) { generate() }
+        nonces[videoId]?.let { return@synchronized it } // get touches access order (marks recently used)
+        val cpn = generate()
+        nonces[videoId] = cpn
+        // Manual eviction that SKIPS PAST pinned entries to the oldest UNPINNED key. LinkedHashMap's
+        // removeEldestEntry can only veto THE eldest (it won't fall through), so a pinned eldest would
+        // stop all eviction and grow the map unbounded — this iterates instead, so the live listen's
+        // cpn survives AND the cap holds (bounded at MAX_ENTRIES + the few pinned ids).
+        if (nonces.size > MAX_ENTRIES) {
+            val iter = nonces.keys.iterator()
+            while (nonces.size > MAX_ENTRIES && iter.hasNext()) {
+                val key = iter.next()
+                if (key != videoId && key !in pinned) iter.remove()
+            }
+        }
+        cpn
     }
 
     /** Protect the active listen's cpn from LRU eviction for the life of the listen. */

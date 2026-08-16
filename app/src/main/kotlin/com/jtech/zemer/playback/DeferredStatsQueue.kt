@@ -3,6 +3,7 @@ package com.jtech.zemer.playback
 import com.jtech.zemer.tracking.FlushSchedule
 import com.jtech.zemer.tracking.TrackingQueue
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -43,6 +44,7 @@ class DeferredStatsQueue(
     private val queue = TrackingQueue(file, MAX_SIZE)
     private val schedule = FlushSchedule(now)
     private var inFlight = false
+    private var retryScheduled = false
 
     /** Capture (from the reporter's offline branch): persist one qualifying listen, then try to flush. */
     fun enqueue(record: DeferredStatsRecord) {
@@ -52,7 +54,7 @@ class DeferredStatsQueue(
         }
     }
 
-    /** A flush trigger — app foreground or connectivity-available (mirrors the telemetry triggers). */
+    /** An external flush trigger — wired to connectivity-available (the offline→online edge). */
     fun onFlushTrigger() {
         scope.launch { flush() }
     }
@@ -61,9 +63,10 @@ class DeferredStatsQueue(
         if (inFlight || !isConnected() || queue.size == 0) return
         if (schedule.delayUntilAllowed() > 0) return
         inFlight = true
+        var retryAfterMs = 0L
         try {
-            // Bounded per flush (each record costs a /player round-trip) — the triggers fire again and
-            // any remainder drains across reconnects.
+            // Bounded per flush (each record costs a /player round-trip) — a self-reschedule (below) and
+            // the reconnect trigger drain any remainder.
             for (line in queue.peekBatch(BATCH_SIZE)) {
                 if (!isConnected()) break
                 val record = DeferredStatsRecord.decode(line)
@@ -78,13 +81,24 @@ class DeferredStatsQueue(
                     }
                     DeferredPushOutcome.DROP -> queue.removeBatch(listOf(line))
                     DeferredPushOutcome.RETRY -> {
-                        schedule.onFailure(rateLimited = false)
-                        break // respect the backoff window; the next trigger retries the rest
+                        retryAfterMs = schedule.onFailure(rateLimited = false)
+                        break // respect the backoff window; the reschedule below retries the rest
                     }
                 }
             }
         } finally {
             inFlight = false
+        }
+        // Self-reschedule after the backoff: the ONLY external trigger is the reconnect edge, so a
+        // record that RETRYs while the device stays online would otherwise sit until it goes stale. One
+        // pending retry at a time (the guard); the delayUntilAllowed gate makes an early fire a no-op.
+        if (retryAfterMs > 0 && queue.size > 0 && !retryScheduled) {
+            retryScheduled = true
+            scope.launch {
+                delay(retryAfterMs)
+                retryScheduled = false
+                flush()
+            }
         }
     }
 
