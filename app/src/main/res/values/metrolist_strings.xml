@@ -289,6 +289,7 @@
     <string name="stream_source_web_creator_desc">YouTube Studio web client: requires sign-in</string>
     <string name="stream_source_other_clients">Other clients</string>
     <string name="stream_source_generic_desc">Streaming client</string>
+    <string name="stream_sources_updated">Updated %1$s</string>
 
     <!-- Mixes / suggested playlists -->
     <string name="mixes">Mixes</string>

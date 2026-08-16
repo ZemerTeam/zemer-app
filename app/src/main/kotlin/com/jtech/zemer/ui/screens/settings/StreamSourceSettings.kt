@@ -94,6 +94,16 @@ fun StreamSourceSettings(
         StreamSourceUiModel.families(table, StreamClientStore.config()?.families.orEmpty())
     }
 
+    // When the client table last synced with the deploy channel (200 applied or 304 unchanged);
+    // 0 = never synced this install (offline / file not published yet) — the line is hidden then.
+    val lastSyncedText = remember {
+        StreamClientStore.lastSyncedMs.takeIf { it > 0L }?.let {
+            java.text.DateFormat.getDateTimeInstance(
+                java.text.DateFormat.SHORT, java.text.DateFormat.SHORT,
+            ).format(java.util.Date(it))
+        }
+    }
+
     // One dynamic boolean preference per family (absent = enabled). The map is keyed in chain
     // order; families is stable for the composition, so the loop order is too.
     val familyStates = families.associate { family ->
@@ -169,6 +179,14 @@ fun StreamSourceSettings(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            lastSyncedText?.let { synced ->
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.stream_sources_updated, synced),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Spacer(Modifier.height(8.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
