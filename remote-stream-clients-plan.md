@@ -308,6 +308,7 @@ today's condition with the name test replaced by the flag.
 | Repo compromise | Same trust boundary as `player_configs.json` today (which is strictly worse: it feeds a WebView). Blast radius here is bounded by the DATA-not-CODE schema: attacker-controlled fields are header/body VALUES to a hardcoded origin. CR/LF locks prevent header injection; no URL/script fields exist. |
 | Old APK + future schemaVersion | Rejected wholesale, keeps last-good — old apps ride bundled/cached until updated (cipher precedent). |
 | First run offline | Bundled asset table (synchronous initialize). |
+| Device synced once, then config host permanently unreachable (e.g. filter blocks GitHub) | 14-day staleness cap: the cached table is dropped past it and the BUNDLED table (which tracks APK updates) wins - a frozen cache can never mask newer bundled chains indefinitely. |
 | Fetch races a resolution | Resolution snapshots the config once at entry; `@Volatile` swap; next resolution sees the new table. |
 | Login-required client in a login-less session | Loop-level skip, unchanged (`loginRequired && !isLoggedIn`). |
 | Remote bumps WEB_REMIX version | Stream chain uses it; browse/metadata keep the compiled constant (scope rule §2). Harmless skew. |

@@ -72,6 +72,10 @@ regress:
   invalid keeps the last-good table; the parser REJECTS a file with zero usable clients or an
   invalid/disabled/unknown-protocol MAIN entry (entry 0) - never-zero-clients is parser-enforced.
   A per-entry `"enabled": false` kill switch benches a client while its row stays in the file.
+  **The cached remote copy carries a 14-day staleness cap** (the offline-subset precedent):
+  because REPLACE lets a cache mask newer BUNDLED tables from APK updates, a device that synced
+  once and then can never reach raw.githubusercontent again (a filter that blocks it) must not
+  keep that frozen table forever - past the cap the cache is dropped and bundled wins.
 - **Self-heal trigger:** when a resolution exhausts EVERY client, `onAllClientsFailed()` fires a
   cooldown-gated (5 min, single-flight) `StreamClientStore.refreshAfterResolutionFailure()` - the
   client-kill recovery path, independent of the 6h TTL. The cooldown only arms when the server was
