@@ -379,7 +379,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/search/whitelist-findable.mjs` | 114 lines | text `.mjs` |
 | `tests/sts-mismatch.mjs` | 125 lines | text `.mjs` |
 | `tests/test-mweb-cipher.mjs` | 142 lines | text `.mjs` |
-| `tests/validate-player-config.mjs` | 186 lines | text `.mjs` |
+| `tests/validate-player-config.mjs` | 202 lines | text `.mjs` |
 | `tests/video-progressive-stream.mjs` | 276 lines | text `.mjs` |
 | `tests/video-qualities.mjs` | 306 lines | text `.mjs` |
 | `tests/watchtime-cpn-stream.mjs` | 110 lines | text `.mjs` |

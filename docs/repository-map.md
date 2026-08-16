@@ -1303,7 +1303,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/search/whitelist-findable.mjs` | 114 lines | `.mjs` |
 | `tests/sts-mismatch.mjs` | 125 lines | `.mjs` |
 | `tests/test-mweb-cipher.mjs` | 142 lines | `.mjs` |
-| `tests/validate-player-config.mjs` | 186 lines | `.mjs` |
+| `tests/validate-player-config.mjs` | 202 lines | `.mjs` |
 | `tests/video-progressive-stream.mjs` | 276 lines | `.mjs` |
 | `tests/video-qualities.mjs` | 306 lines | `.mjs` |
 | `tests/watchtime-cpn-stream.mjs` | 110 lines | `.mjs` |
