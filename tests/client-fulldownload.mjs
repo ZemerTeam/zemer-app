@@ -7,7 +7,8 @@
 //   node tests/client-fulldownload.mjs <videoId>
 
 import crypto from "node:crypto";
-import { CLIENTS, ORIGIN, PLAYER_URL } from "./clients.mjs";
+import { CLIENTS, STREAM_CLIENTS, ORIGIN, PLAYER_URL } from "./clients.mjs";
+import { needsWebTransforms } from "./stream-clients.mjs";
 import { getCred, describeCred } from "./cred.mjs";
 import { createCipher } from "./cipher.mjs";
 import { createMinter } from "./potoken.mjs";
@@ -18,10 +19,10 @@ const kb = (n) => `${(n / 1024).toFixed(0)}KB`;
 // Clients to test for full delivery: the app's MAIN_CLIENT + ALL_FALLBACK_CLIENTS in the same
 // order as YTPlayerUtils.kt ("ANDROID" here = the app's MOBILE client). Override with
 // CLIENTS=WEB_REMIX,TVHTML5,... to test a subset.
-const TEST = process.env.CLIENTS?.split(",").map((s) => s.trim()).filter(Boolean) || [
-  "WEB_REMIX", "VISIONOS", "VISIONOS_0_1", "WEB_CREATOR", "ANDROID_VR_1_65_10",
-  "TVHTML5_SIMPLY", "MWEB",
-];
+const TEST = process.env.CLIENTS?.split(",").map((s) => s.trim()).filter(Boolean)
+  // Default: the WHOLE chain from the stream-client table, in table order — never a hand-kept
+  // copy, which would silently skip a newly added client (`if (!c) continue` below).
+  || STREAM_CLIENTS.map((c) => c.key);
 
 function sapisidHash(cookie) {
   const m = cookie.match(/(?:^|; )SAPISID=([^;]+)/); if (!m) return null;
@@ -83,7 +84,7 @@ async function drainWhole(url, ua, cap) {
     try {
       // YTPlayerUtils.clientNeedsNTransform: useWebPoTokens OR one of the named web clients gets the
       // n-transform; the `pot=` append rides ONLY useWebPoTokens (applyWebUrlTransforms).
-      const needsN = c.useWebPoTokens || ["WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5"].includes(c.clientName);
+      const needsN = needsWebTransforms(c);
       const { http, j } = await playerRequest(c, visitorData, cred.dataSyncId, cred.cookie, {
         sts: c.useSignatureTimestamp ? cipher.sts : null,
         poToken: c.useWebPoTokens ? potVisitor : null,   // player-request pot (session-bound)

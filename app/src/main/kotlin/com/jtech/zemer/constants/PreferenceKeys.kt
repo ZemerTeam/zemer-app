@@ -112,8 +112,11 @@ val AudioQualityKey = stringPreferencesKey("audioQuality")
 val VideoQualityKey = stringPreferencesKey("videoQuality")
 
 // LEGACY stream source toggles — superseded by the per-family dynamic keys
-// (StreamSourcePrefs.familyKey); kept only as the one-time migration source. Old-version
-// rollbacks still read them, so they are migrated FROM, never deleted.
+// (StreamSourcePrefs.familyKey); kept ONLY as the one-time migration source, read once and never
+// written again. They are left in place rather than deleted (a delete buys nothing and a stale
+// read is harmless), but they do NOT track later changes: after migration the settings screen
+// writes only the per-family keys, so a downgrade to a pre-family build sees the pre-upgrade
+// choices, not the current ones.
 val StreamSourceWebRemixKey   = booleanPreferencesKey("streamSourceWebRemix")
 val StreamSourceTVHTML5Key    = booleanPreferencesKey("streamSourceTVHTML5")
 val StreamSourceAndroidVRKey  = booleanPreferencesKey("streamSourceAndroidVR")

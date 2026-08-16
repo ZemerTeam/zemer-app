@@ -71,18 +71,35 @@ object YTPlayerUtils {
     /** Family ids disabled by the user in Settings → Stream sources. Updated by MusicService. */
     var disabledStreamFamilies: Set<String> = emptySet()
 
+    // One in-flight table refresh at a time. The store is single-flight on its own mutex, but
+    // without this every failing resolution would QUEUE another coroutine behind it — and on a
+    // filtered network (where the config host is unreachable and each attempt runs to its connect
+    // timeout) those pile up faster than they drain.
+    private val tableRefreshInFlight = java.util.concurrent.atomic.AtomicBoolean(false)
+
     /**
-     * Every client failed for this resolution — the shape a YouTube-side client kill takes. Ask
-     * the remote stream-client table to refresh (cooldown-gated, single-flight, off this
-     * coroutine): if a corrected table was pushed, the NEXT resolution snapshots it and recovers
-     * mid-session with no APK. Fire-and-forget — the failure still surfaces to the caller.
+     * Every client failed to produce a usable STREAM for this resolution — the shape a
+     * YouTube-side client kill takes. Ask the remote stream-client table to refresh (cooldown-
+     * gated, single-flight, off this coroutine): if a corrected table was pushed, the NEXT
+     * resolution snapshots it and recovers mid-session with no APK. Fire-and-forget — the failure
+     * still surfaces to the caller.
+     *
+     * Deliberately NOT called for per-VIDEO failures, which are not a client-kill signal and which
+     * every client legitimately reports: a playability rejection (removed / region-blocked /
+     * age-gated) and an explicit-itag quality switch finding no client carrying that rung. Firing
+     * there would spam the config host on ordinary unavailable videos.
      */
     private fun onAllClientsFailed() {
+        if (!tableRefreshInFlight.compareAndSet(false, true)) return
         cipherRefreshScope.launch {
-            runCatching {
-                if (StreamClientStore.refreshAfterResolutionFailure()) {
-                    Timber.tag(TAG).i("Stream-client table changed after total resolution failure")
+            try {
+                runCatching {
+                    if (StreamClientStore.refreshAfterResolutionFailure()) {
+                        Timber.tag(TAG).i("Stream-client table changed after total resolution failure")
+                    }
                 }
+            } finally {
+                tableRefreshInFlight.set(false)
             }
         }
     }
@@ -414,8 +431,9 @@ object YTPlayerUtils {
 
         if (streamPlayerResponse.playabilityStatus.status != "OK") {
             val errorReason = streamPlayerResponse.playabilityStatus.reason
+            // Per-VIDEO rejection (removed / region-blocked / age-gated), not a client kill — no
+            // table refresh.
             Timber.tag(TAG).e( "Playability not OK: $errorReason")
-            onAllClientsFailed()
             throw PlaybackException(
                 errorReason,
                 null,
@@ -425,7 +443,10 @@ object YTPlayerUtils {
 
         if (format == null) {
             Timber.tag(TAG).e( "No playable format found for $videoId")
-            onAllClientsFailed()
+            // No client offered a playable format: the SABR-only client-kill shape — UNLESS this
+            // was an explicit quality-rung request, where "no client carries that itag" is an
+            // ordinary per-video outcome that reverts to audio.
+            if (videoItag == null) onAllClientsFailed()
             throw PlaybackException(
                 "No playable format found",
                 null,
@@ -434,8 +455,9 @@ object YTPlayerUtils {
         }
 
         if (streamUrl == null) {
+            // Deciphering/URL resolution failed, which is the CIPHER's domain (it runs its own
+            // config self-heal via onStreamRejected) — not a stream-client-table signal.
             Timber.tag(TAG).e( "No stream URL found for $videoId")
-            onAllClientsFailed()
             throw PlaybackException(
                 "No stream URL found",
                 null,
@@ -445,7 +467,6 @@ object YTPlayerUtils {
 
         if (streamExpiresInSeconds == null) {
             Timber.tag(TAG).e( "Stream expired for $videoId")
-            onAllClientsFailed()
             throw PlaybackException(
                 "Stream expired",
                 null,

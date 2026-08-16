@@ -23,6 +23,9 @@ export const STREAM_CLIENTS_PATH = process.env.STREAM_CLIENTS_JSON || join(
 );
 
 const SUPPORTED_SCHEMA_VERSION = 1;
+// Mirrors StreamClientParser.MAX_CLIENTS: the one bound whose cost is live network round-trips
+// (one /player request per client on failure).
+const MAX_CLIENTS = 32;
 const KEY_RE = /^[A-Z0-9_]{1,32}$/;
 const CLIENT_ID_RE = /^[0-9]{1,4}$/;
 const VERSIONISH_RE = /^[A-Za-z0-9._-]{1,32}$/;
@@ -43,7 +46,8 @@ function parseEntry(obj, label) {
   if (obj === null || typeof obj !== "object" || Array.isArray(obj)) {
     throw new Error(`${label}: entry is not an object`);
   }
-  if ("enabled" in obj) {
+  // Explicit JSON null == absent, matching StreamClientParser's JsonNull handling.
+  if ("enabled" in obj && obj.enabled !== null && obj.enabled !== undefined) {
     if (typeof obj.enabled !== "boolean") throw new Error(`${label}: enabled must be a boolean`);
     if (obj.enabled === false) return "disabled";
   }
@@ -78,7 +82,7 @@ function parseEntry(obj, label) {
   const androidSdkVersion = optional("androidSdkVersion", (v) => VERSIONISH_RE.test(v));
 
   const bool = (field) => {
-    if (!(field in obj)) return false;
+    if (!(field in obj) || obj[field] === null || obj[field] === undefined) return false;
     if (typeof obj[field] !== "boolean") bad(field);
     return obj[field];
   };
@@ -147,6 +151,7 @@ export function parseStreamClients(text) {
     clients.push(parsed);
   }
   req(clients.length > 0, "no usable client entries (never-zero-clients invariant)");
+  req(clients.length <= MAX_CLIENTS, `too many client entries (${clients.length} > ${MAX_CLIENTS})`);
 
   // Families are display metadata: bad rows skipped, duplicate ids keep the first (app parity).
   const families = {};
@@ -173,6 +178,20 @@ export function fileVerdictRejects(text) {
     if (e instanceof FileReject) return true;
     throw e; // malformed non-main entry: not a file-level verdict — surface it
   }
+}
+
+/**
+ * THE web-transform predicate, mirroring YTPlayerUtils.clientNeedsNTransform (protocol, never a
+ * client-name list — the name list was retired with the remote table). Scripts must call this
+ * instead of re-deriving it, or the harness can prove a drain the app path never runs.
+ */
+export function needsWebTransforms(client) {
+  if (client.protocol) return client.protocol === "web_cipher_pot";
+  // Defs that predate the table and carry no protocol — the hand-defined browse-only WEB and the
+  // retired clients in clients-retired.mjs, which several probe scripts still exercise. Fall back
+  // to the pre-table signal so those probes keep behaving exactly as they did.
+  return Boolean(client.useWebPoTokens) ||
+    ["WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5"].includes(client.clientName);
 }
 
 export function loadStreamClients(path = STREAM_CLIENTS_PATH) {

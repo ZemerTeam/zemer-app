@@ -56,8 +56,8 @@ object StreamSourcePrefs {
 
     /**
      * One-time copy of the legacy toggles onto the per-family keys, stamped by
-     * [StreamSourcePrefsMigratedKey]. The legacy keys are left in place (harmless, and an
-     * old-version rollback still reads them).
+     * [StreamSourcePrefsMigratedKey]. The legacy keys are left in place but never written again —
+     * they are the migration SOURCE, not a mirror (see PreferenceKeys).
      */
     suspend fun migrateLegacyToggles(dataStore: DataStore<Preferences>) {
         val prefs = dataStore.data.first()
