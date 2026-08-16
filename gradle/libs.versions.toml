@@ -39,8 +39,6 @@ googleGmsGoogleServices = "4.4.4"
 firebaseBom = "34.6.0"
 firebaseCrashlyticsPlugin = "3.0.7"
 playServicesAuth = "21.4.0"
-credentials = "1.5.0"
-googleid = "1.1.1"
 coroutinesPlayServices = "1.10.2"
 glance = "1.1.1"
 shizuku = "13.1.5"
@@ -134,9 +132,6 @@ firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 firebase-crashlytics-ndk = { module = "com.google.firebase:firebase-crashlytics-ndk" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
-googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutinesPlayServices" }
 glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
 glance-material3 = { module = "androidx.glance:glance-material3", version.ref = "glance" }
