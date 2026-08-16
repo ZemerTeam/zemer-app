@@ -14,7 +14,6 @@ import com.jtech.zemer.sync.models.DeviceContentFilters
 import com.jtech.zemer.sync.models.DeviceMetadata
 import com.jtech.zemer.sync.models.UserDeviceData
 import com.jtech.zemer.utils.ContentFilterConfig
-import com.jtech.zemer.utils.sanitizeEmailForDocumentId
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.DeviceIdGenerator
 import androidx.datastore.preferences.core.longPreferencesKey

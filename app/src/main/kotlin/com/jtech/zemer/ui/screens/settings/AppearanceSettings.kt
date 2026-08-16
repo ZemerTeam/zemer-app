@@ -1108,8 +1108,3 @@ enum class LyricsPosition {
     CENTER,
     RIGHT,
 }
-
-enum class PlayerTextAlignment {
-    SIDED,
-    CENTER,
-}

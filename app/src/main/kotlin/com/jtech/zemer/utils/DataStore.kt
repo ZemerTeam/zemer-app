@@ -111,19 +111,6 @@ inline fun <reified T : Enum<T>> enumPreferenceFlow(
         .map { it[key].toEnum(defaultValue = defaultValue) }
         .distinctUntilChanged()
 
-/**
- * Non-blocking Flow-based access to preferences.
- * Use this instead of preference in hot paths or initialization code.
- */
-fun <T> preferenceFlow(
-    context: Context,
-    key: Preferences.Key<T>,
-    defaultValue: T,
-): Flow<T> =
-    context.dataStore.data
-        .map { it[key] ?: defaultValue }
-        .distinctUntilChanged()
-
 @Composable
 fun <T> rememberPreference(
     key: Preferences.Key<T>,

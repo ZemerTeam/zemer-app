@@ -139,7 +139,7 @@
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/LyricsScreen.kt` | 796 | LyricsScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/MiniPlayer.kt` | 900 | MiniPlayer, NewMiniPlayer, LegacyMiniPlayer, LegacyMiniMediaInfo |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/PlaybackError.kt` | 45 | PlaybackError |
-| `app/src/main/kotlin/com/jtech/zemer/ui/player/Player.kt` | 1364 | BottomSheetPlayer, BottomSheetPlayerPreview |
+| `app/src/main/kotlin/com/jtech/zemer/ui/player/Player.kt` | 1531 | BottomSheetPlayer |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt` | 1131 | Queue |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 472 | Thumbnail |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AccountScreen.kt` | 200 | AccountScreen |

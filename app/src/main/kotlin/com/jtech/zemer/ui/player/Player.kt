@@ -93,7 +93,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.C
 import androidx.media3.common.Player
@@ -1527,24 +1526,6 @@ private fun TransportSkipButton(
             painter = painterResource(iconRes),
             contentDescription = contentDescription,
             modifier = Modifier.size(32.dp),
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun BottomSheetPlayerPreview() {
-    val state = rememberBottomSheetState(
-        dismissedBound = 80.dp,
-        expandedBound = 500.dp,
-        collapsedBound = 80.dp + 1.dp,
-        initialAnchor = 1
-    )
-    Box(modifier = Modifier.fillMaxSize()) {
-        BottomSheetPlayer(
-            state = state,
-            navController = androidx.navigation.compose.rememberNavController(),
-            pureBlack = false
         )
     }
 }
