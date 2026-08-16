@@ -10,7 +10,7 @@
 // is the app's ONLY remaining InnerTube search entry point; Zemer serves everything else.)
 import {
   splitBySeparator, oddElements, clean, parseTime, thumbnailUrl,
-  isSong, isPlaylist, isAlbum, isArtist, videoIdOf, flexRuns, getContinuation,
+  isSong, isPlaylist, isAlbum, isArtist, videoIdOf, flexRuns,
 } from "./lib.mjs";
 
 const drop = (kind, reason) => ({ ok: false, kind, reason });

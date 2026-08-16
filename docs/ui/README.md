@@ -90,7 +90,6 @@
 | File | Lines | Composable declarations found |
 | --- | ---: | --- |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AccountSettingsDialog.kt` | 66 | AccountSettingsDialog |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/AnonymousAuthEmailDialog.kt` | 121 | AnonymousAuthEmailDialog |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AppStateViews.kt` | 111 | AppStateView |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AutoResizeText.kt` | 97 | AutoResizeText |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/BigSeekBar.kt` | 58 | BigSeekBar |
@@ -201,7 +200,6 @@
 | File | Lines | Key declarations |
 | --- | ---: | --- |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AccountSettingsDialog.kt` | 66 | fun AccountSettingsDialog |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/AnonymousAuthEmailDialog.kt` | 121 | fun AnonymousAuthEmailDialog, val coroutineScope, var isLoading |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AppStateViews.kt` | 111 | fun AppStateView |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AutoResizeText.kt` | 97 | fun AutoResizeText, var fontSizeValue, var readyToDraw, val nextFontSizeValue, class FontSizeRange, val min, val max, val step, val DEFAULT_TEXT_STEP |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/BigSeekBar.kt` | 58 | fun BigSeekBar, var width |

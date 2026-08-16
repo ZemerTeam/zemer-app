@@ -1,14 +1,10 @@
 package com.jtech.zemer.viewmodels
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtech.zemer.auth.UserAuthManager
 import com.jtech.zemer.auth.AuthState
 import com.jtech.zemer.auth.WebViewGoogleAuthManager
-import com.jtech.zemer.constants.AllowFemaleSingersKey
-import com.jtech.zemer.constants.BlockVideosKey
-import com.jtech.zemer.constants.EnableContentFiltersKey
 import com.jtech.zemer.sync.UserPreferencesRepository
 import com.jtech.zemer.sync.ContentFilterSyncService
 import com.jtech.zemer.utils.ContentFilterConfig

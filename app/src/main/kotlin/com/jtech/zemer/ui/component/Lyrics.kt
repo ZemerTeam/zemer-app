@@ -4,7 +4,6 @@ package com.jtech.zemer.ui.component
 
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.content.res.Configuration
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
@@ -136,9 +135,6 @@ fun Lyrics(
     val density = LocalDensity.current
     val context = LocalContext.current
     val configuration = LocalConfiguration.current // Get configuration
-
-    val landscapeOffset =
-        configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     val lyricsTextPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
     val changeLyrics by rememberPreference(LyricsClickKey, true)

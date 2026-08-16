@@ -1,9 +1,7 @@
 package com.jtech.zemer.viewmodels
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jtech.zemer.App
 import com.jtech.zemer.utils.SyncUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers

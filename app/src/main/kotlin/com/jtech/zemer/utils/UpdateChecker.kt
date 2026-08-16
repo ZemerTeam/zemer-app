@@ -1,8 +1,6 @@
 package com.jtech.zemer.utils
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.utils.updater.NightlyUpdates
 import io.ktor.client.*
