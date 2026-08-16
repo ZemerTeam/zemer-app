@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { validate } from "./schema.mjs";
 import { splitBySeparator, oddElements, clean, parseTime } from "./lib.mjs";
-import { toYTItem, fromMRLIR_suggestion, searchContinuationResult } from "./parsers.mjs";
+import { toYTItem } from "./parsers.mjs";
 
 const has = (ctx, type, field) => ctx.violations.some((v) => v.type === type && v.field === field);
 
@@ -38,11 +38,11 @@ test("strict: a Run missing its non-null text is flagged", () => {
   assert.ok(has(ctx, "Run", "text"), "should flag Run.text");
 });
 
-test("strict: a chip missing isSelected / navigationEndpoint is flagged (zemer-strict chip cloud)", () => {
+test("strict: a chip missing navigationEndpoint is flagged; defaulted isSelected is not", () => {
   const chips = { chips: [{ chipCloudChipRenderer: { text: { runs: [{ text: "Songs" }] } } }] };
   const ctx = validate(chips, "ChipCloudRenderer");
-  assert.ok(has(ctx, "ChipCloudChipRenderer", "isSelected"), "should flag isSelected");
   assert.ok(has(ctx, "ChipCloudChipRenderer", "navigationEndpoint"), "should flag navigationEndpoint");
+  assert.ok(!has(ctx, "ChipCloudChipRenderer", "isSelected"), "isSelected has a Kotlin default (= false) - absent must NOT flag");
 });
 
 test("strict: Icon missing its non-null iconType is flagged", () => {
@@ -73,39 +73,6 @@ test("parser: toYTItem extracts a valid song", () => {
   assert.equal(res.kind, "song");
   assert.equal(res.item.id, "abc12345678");
   assert.equal(res.item.duration, 3 * 60 + 21);
-});
-
-test("parser: suggestion song drops when thumbnail missing", () => {
-  const r = validSong();
-  delete r.thumbnail;
-  const res = fromMRLIR_suggestion(r);
-  assert.equal(res.ok, false);
-  assert.match(res.reason, /thumbnail null/);
-});
-
-// ---- searchContinuation fix (the Songs/Videos infinite-shimmer bug) ----------------------------
-test("searchContinuation: a non-musicShelfContinuation response yields empty + NULL continuation (no throw)", () => {
-  // The app's current `!!` throws here -> loadMore() bails without clearing the continuation -> the
-  // list shimmers forever. The fix must not throw AND must null the continuation so loadMore stops.
-  assert.doesNotThrow(() => searchContinuationResult({}));
-  const r = searchContinuationResult({ continuationContents: null });
-  assert.deepEqual(r.items, []);
-  assert.equal(r.continuation, null, "continuation must be null so the load-more shimmer stops");
-});
-
-test("searchContinuation: a valid page yields items + the next continuation token", () => {
-  const json = {
-    continuationContents: {
-      musicShelfContinuation: {
-        contents: [{ musicResponsiveListItemRenderer: validSong() }],
-        continuations: [{ nextContinuationData: { continuation: "TOKEN2" } }],
-      },
-    },
-  };
-  const r = searchContinuationResult(json);
-  assert.equal(r.items.length, 1);
-  assert.equal(r.items[0].id, "abc12345678");
-  assert.equal(r.continuation, "TOKEN2");
 });
 
 // ---- helper parity with Kotlin -----------------------------------------------------------------

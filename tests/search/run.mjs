@@ -1,20 +1,23 @@
-// Exercises EVERY app search function against live YouTube Music, exactly as the app does, and
-// reports any error: a strict-deserialization break (a non-null field YouTube stopped sending ->
-// whole response fails to parse -> "No results"), a parser drop (item silently lost, with the exact
-// field that caused it), the searchContinuation `!!` NPE, or an unexpectedly empty result.
+// Exercises the app's ONE remaining InnerTube search function - YouTube.search(query, filter) - against
+// live YouTube Music, exactly as the app does (RecognitionResolver, Android Auto voice search and the
+// add-to-playlist online search all call it), and reports any error: a strict-deserialization break
+// (a non-null field YouTube stopped sending -> whole response fails to parse -> "No results"), a
+// parser drop (item silently lost, with the exact field that caused it), or an unexpectedly empty
+// result. (searchSuggestions/searchSummary/searchContinuation were removed from the app - Zemer is
+// the only search engine for the UI - so their probes are gone from this harness too.)
 //
-//   node tests/search/run.mjs                       # default query set, all functions
+//   node tests/search/run.mjs                       # default query set, all filters
 //   node tests/search/run.mjs "mordechai shapiro"   # one custom query
 //   node tests/search/run.mjs q1 q2 q3 ...           # several custom queries
 //   SAVE=1 node tests/search/run.mjs                # also dump raw JSON responses to tests/search/out/
 //
-// Exit code: 0 = no whole-response killers found; 1 = a strict break or a continuation NPE was found.
+// Exit code: 0 = no whole-response killers found; 1 = a strict break was found.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { postSearch, postSuggestions, cred, FILTERS, getItems, getShelfContinuation, getContinuation } from "./lib.mjs";
+import { postSearch, cred, FILTERS, getItems, getShelfContinuation, getContinuation } from "./lib.mjs";
 import { validate } from "./schema.mjs";
-import { toYTItem, fromMRLIR_summary, fromCardShelf, fromMRLIR_suggestion } from "./parsers.mjs";
+import { toYTItem } from "./parsers.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const QUERIES = process.argv.slice(2);
@@ -105,43 +108,7 @@ function save(name, json) {
 const sectionContents = (j) =>
   j?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents ?? null;
 
-// ---- YouTube.searchSummary ---------------------------------------------------------------------
-async function runSummary(query, visitorData) {
-  console.log(`\n  [searchSummary] "${query}"`);
-  const { status, json } = await postSearch({ query, visitorData });
-  save(`summary_${query}.json`.replace(/\s+/g, "_"), json);
-  console.log(`    HTTP ${status}`);
-  reportStrict(`summary "${query}"`, json, "SearchResponse");
-
-  const contents = sectionContents(json);
-  if (contents == null) { console.log(`    ${C("NO sectionListRenderer")} — keys: ${Object.keys(json?.contents || json || {})}`); critical.push(`[summary "${query}"] no sectionListRenderer`); return; }
-
-  const card = contents.find((c) => c.musicCardShelfRenderer)?.musicCardShelfRenderer;
-  let topResults = [];
-  if (card) {
-    topResults = [safe(`summary "${query}" card`, () => fromCardShelf(card)),
-      ...((card.contents || []).map((c) => c.musicResponsiveListItemRenderer).filter(Boolean).map((r) => safe(`summary "${query}"`, () => fromMRLIR_summary(r))))];
-    console.log(`    top-result card:`);
-    printItemsAndDrops("      ", topResults);
-  } else {
-    console.log(`    top-result card: (none in this response)`);
-  }
-
-  const otherResults = (contents || []).flatMap((section) => {
-    if (section.musicShelfRenderer) return getItems(section.musicShelfRenderer.contents).map((r) => safe(`summary "${query}"`, () => fromMRLIR_summary(r)));
-    if (section.itemSectionRenderer) return (section.itemSectionRenderer.contents || []).map((c) => c.musicResponsiveListItemRenderer).filter(Boolean).map((r) => safe(`summary "${query}"`, () => fromMRLIR_summary(r)));
-    return [];
-  });
-  console.log(`    other sections:`);
-  const items = printItemsAndDrops("      ", otherResults);
-  const total = topResults.filter((r) => r.ok).length + items.length;
-  if (total === 0) {
-    if (isNoResults(contents)) console.log(`    EMPTY (YouTube returned "No results") — not an app error`);
-    else { console.log(`    ${C("EMPTY")} — searchSummary surfaced 0 items but YouTube did NOT say "No results" (suspect a parse drop)`); critical.push(`[summary "${query}"] 0 items surfaced despite results present`); }
-  }
-}
-
-// ---- YouTube.search(filter) + searchContinuation -----------------------------------------------
+// ---- YouTube.search(filter) --------------------------------------------------------------------
 async function runFiltered(query, filterName, visitorData) {
   const params = FILTERS[filterName];
   console.log(`\n  [search filter=${filterName}] "${query}"`);
@@ -170,49 +137,7 @@ async function runFiltered(query, filterName, visitorData) {
     if (isNoResults(contents)) console.log(`    EMPTY (YouTube returned "No results") — not an app error`);
     else { console.log(`    ${C("EMPTY")} — filter ${filterName} surfaced 0 items but YouTube did NOT say "No results" (suspect a parse drop)`); critical.push(`[${filterName} "${query}"] 0 items despite results present`); }
   }
-  console.log(`    continuation: ${continuation ? "present" : "none"}`);
-
-  if (continuation) await runContinuation(query, filterName, continuation, visitorData);
-}
-
-async function runContinuation(query, filterName, continuation, visitorData) {
-  console.log(`    [searchContinuation] paging ${filterName} "${query}"`);
-  const { status, json } = await postSearch({ continuation, visitorData });
-  console.log(`      HTTP ${status}`);
-  reportStrict(`continuation ${filterName} "${query}"`, json, "SearchResponse");
-
-  // Faithful to YouTube.searchContinuation: response.continuationContents?.musicShelfContinuation
-  //   ?.contents?.mapNotNull { toYTItem(...) }!!   <-- the !! throws NPE if that chain is null.
-  const msc = json?.continuationContents?.musicShelfContinuation;
-  if (msc?.contents == null) {
-    console.log(`      ${C("NPE")} — continuationContents.musicShelfContinuation.contents is null; the app's \`!!\` THROWS here (continuation crash).`);
-    console.log(`      response top-level keys: ${Object.keys(json || {})}; continuationContents keys: ${Object.keys(json?.continuationContents || {})}`);
-    critical.push(`[continuation ${filterName} "${query}"] searchContinuation !! NPE (no musicShelfContinuation.contents)`);
-    return;
-  }
-  const results = msc.contents.map((c) => safe(`continuation ${filterName} "${query}"`, () => toYTItem(c.musicResponsiveListItemRenderer)));
-  printItemsAndDrops("      ", results);
-  console.log(`      next continuation: ${getContinuation(msc.continuations) ? "present" : "none"}`);
-}
-
-// ---- YouTube.searchSuggestions -----------------------------------------------------------------
-async function runSuggestions(query, visitorData) {
-  console.log(`\n  [searchSuggestions] "${query}"`);
-  const { status, json } = await postSuggestions({ input: query, visitorData });
-  save(`suggest_${query}.json`.replace(/\s+/g, "_"), json);
-  console.log(`    HTTP ${status}`);
-  reportStrict(`suggest "${query}"`, json, "GetSearchSuggestionsResponse");
-
-  const queries = (json?.contents?.[0]?.searchSuggestionsSectionRenderer?.contents || [])
-    .map((c) => c.searchSuggestionRenderer?.suggestion?.runs?.map((r) => r.text).join(""))
-    .filter(Boolean);
-  const recResults = (json?.contents?.[1]?.searchSuggestionsSectionRenderer?.contents || [])
-    .map((c) => c.musicResponsiveListItemRenderer)
-    .filter(Boolean)
-    .map((r) => safe(`suggest "${query}"`, () => fromMRLIR_suggestion(r)));
-  console.log(`    query suggestions: ${queries.length} ${queries.length ? JSON.stringify(queries.slice(0, 3)) + (queries.length > 3 ? " ..." : "") : ""}`);
-  console.log(`    recommended items:`);
-  printItemsAndDrops("      ", recResults);
+  console.log(`    continuation: ${continuation ? "present" : "none"} (the app never pages YouTube search)`);
 }
 
 async function main() {
@@ -225,17 +150,15 @@ async function main() {
 
   for (const q of queries) {
     console.log(`\n${"=".repeat(78)}\nQUERY: "${q}"\n${"=".repeat(78)}`);
-    await runSuggestions(q, visitorData);
-    await runSummary(q, visitorData);
     for (const f of Object.keys(FILTERS)) await runFiltered(q, f, visitorData);
   }
 
   console.log(`\n${"=".repeat(78)}\nVERDICT\n${"=".repeat(78)}`);
   if (critical.length === 0) {
-    console.log("OK — no whole-response killers found across any function/filter/query.");
-    console.log("Every search function parsed live data without a strict-deserialization break, a");
-    console.log("continuation NPE, or an empty result. If search misbehaves in the app, the cause is");
-    console.log("downstream of these functions (whitelist filter / UI), not the InnerTube search layer.");
+    console.log("OK — no whole-response killers found across any filter/query.");
+    console.log("YouTube.search(filter) parsed live data without a strict-deserialization break or an");
+    console.log("empty result. If search misbehaves in the app, the cause is downstream of this");
+    console.log("function (whitelist filter / UI), not the InnerTube search layer.");
     process.exit(0);
   } else {
     console.log(`FOUND ${critical.length} whole-response killer(s) — these break search in the app:`);

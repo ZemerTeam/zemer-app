@@ -1,7 +1,8 @@
-// Whitelist-driven coverage probe. Runs EVERY app search function over a large sample of REAL
-// whitelisted artist names and aggregates, across all of them: strict-deserialization breaks (the
-// whole-response killer), continuation NPEs, parser drops, and per-function/filter coverage
-// (results vs YouTube "No results" vs the dangerous "sections present but we parsed 0" bucket).
+// Whitelist-driven coverage probe. Runs the app's ONE remaining InnerTube search function -
+// YouTube.search(query, filter) - over a large sample of REAL whitelisted artist names and
+// aggregates, across all of them: strict-deserialization breaks (the whole-response killer), parser
+// drops, and per-filter coverage (results vs YouTube "No results" vs the dangerous "sections present
+// but we parsed 0" bucket).
 //
 // Names come from a JSON file — an array of strings or of objects with a `name` field. NO secrets
 // live here; fetch the whitelist into that file separately.
@@ -11,9 +12,9 @@
 //   N=ALL CONC=6 node tests/search/coverage.mjs   # every name (slow)
 //   FILTERS=FILTER_ALBUM node tests/search/coverage.mjs   # restrict to one/some filters (comma-sep)
 import fs from "node:fs";
-import { postSearch, postSuggestions, cred, FILTERS as ALL_FILTERS, getItems, getShelfContinuation, getContinuation } from "./lib.mjs";
+import { postSearch, cred, FILTERS as ALL_FILTERS, getItems } from "./lib.mjs";
 import { validate } from "./schema.mjs";
-import { toYTItem, fromMRLIR_summary, fromCardShelf, fromMRLIR_suggestion } from "./parsers.mjs";
+import { toYTItem } from "./parsers.mjs";
 
 const FILE = process.argv[2] || new URL("./.cache/whitelist.json", import.meta.url);
 const N = process.env.N || "120";
@@ -45,7 +46,6 @@ const isNoResults = (contents) => {
 // Aggregators
 const strict = new Map();   // "Type.field:why" -> { type, field, why, count, artists:Set, example }
 const unencoded = new Set();
-const npe = [];             // { artist, filter }
 const drops = new Map();    // "fn reason" -> count
 const parseThrows = [];     // { artist, fn, msg }
 const http = new Map();     // status -> count
@@ -86,67 +86,21 @@ function classify(fn, status, json, contents, parsedCount, wouldBreak) {
 }
 
 async function probe(artist, vd) {
-  // ---- searchSuggestions ----
-  try {
-    const { status, json } = await postSuggestions({ input: artist, visitorData: vd });
-    const wb = runStrict(json, "GetSearchSuggestionsResponse", artist);
-    const rec = (json?.contents?.[1]?.searchSuggestionsSectionRenderer?.contents || [])
-      .map((c) => c.musicResponsiveListItemRenderer).filter(Boolean)
-      .map((r) => safe("suggest", artist, () => fromMRLIR_suggestion(r)));
-    const ok = tally("suggest", rec, artist);
-    const qs = (json?.contents?.[0]?.searchSuggestionsSectionRenderer?.contents || []).filter((c) => c.searchSuggestionRenderer).length;
-    if (status !== 200) { http.set(status, (http.get(status) || 0) + 1); bucket("suggest", "empty"); }
-    else if (wb) bucket("suggest", "wouldBreak");
-    else if (ok > 0 || qs > 0) bucket("suggest", "items");
-    else bucket("suggest", "empty");
-  } catch (e) { parseThrows.push({ artist, fn: "suggest", msg: e.message }); }
-
-  // ---- searchSummary ----
-  try {
-    const { status, json } = await postSearch({ query: artist, visitorData: vd });
-    const wb = runStrict(json, "SearchResponse", artist);
-    const contents = sectionContents(json);
-    const card = (contents || []).find((c) => c.musicCardShelfRenderer)?.musicCardShelfRenderer;
-    const results = [];
-    if (card) {
-      results.push(safe("summary", artist, () => fromCardShelf(card)));
-      results.push(...(card.contents || []).map((c) => c.musicResponsiveListItemRenderer).filter(Boolean).map((r) => safe("summary", artist, () => fromMRLIR_summary(r))));
-    }
-    for (const sec of contents || []) {
-      if (sec.musicShelfRenderer) results.push(...getItems(sec.musicShelfRenderer.contents).map((r) => safe("summary", artist, () => fromMRLIR_summary(r))));
-      else if (sec.itemSectionRenderer) results.push(...(sec.itemSectionRenderer.contents || []).map((c) => c.musicResponsiveListItemRenderer).filter(Boolean).map((r) => safe("summary", artist, () => fromMRLIR_summary(r))));
-    }
-    classify("summary", status, json, contents, tally("summary", results, artist), wb);
-  } catch (e) { parseThrows.push({ artist, fn: "summary", msg: e.message }); }
-
-  // ---- search(filter) x N, + one continuation ----
-  let didContinuation = false;
+  // ---- search(filter) x N ----
   for (const fk of FILTER_KEYS) {
     try {
       const { status, json } = await postSearch({ query: artist, params: ALL_FILTERS[fk], visitorData: vd });
       const wb = runStrict(json, "SearchResponse", artist);
       const contents = sectionContents(json);
       const results = [];
-      let continuation = null;
       for (const sec of contents || []) {
         if (sec.musicShelfRenderer) {
           results.push(...getItems(sec.musicShelfRenderer.contents).map((r) => safe(fk, artist, () => toYTItem(r))));
-          if (continuation == null) continuation = getContinuation(sec.musicShelfRenderer.continuations) ?? getShelfContinuation(sec.musicShelfRenderer.contents);
         } else if (sec.itemSectionRenderer) {
           results.push(...(sec.itemSectionRenderer.contents || []).map((c) => c.musicResponsiveListItemRenderer).filter(Boolean).map((r) => safe(fk, artist, () => toYTItem(r))));
         }
       }
       classify(fk, status, json, contents, tally(fk, results, artist), wb);
-
-      // Exercise searchContinuation once per artist (first filter that offers a token).
-      if (continuation && !didContinuation) {
-        didContinuation = true;
-        const c = await postSearch({ continuation, visitorData: vd });
-        runStrict(c.json, "SearchResponse", artist);
-        const msc = c.json?.continuationContents?.musicShelfContinuation;
-        if (msc?.contents == null) npe.push({ artist, filter: fk });
-        else tally("continuation", msc.contents.map((x) => safe("continuation", artist, () => toYTItem(x.musicResponsiveListItemRenderer))), artist);
-      }
     } catch (e) { parseThrows.push({ artist, fn: fk, msg: e.message }); }
   }
 }
@@ -165,12 +119,12 @@ async function main() {
   const { visitorData, source } = await cred();
   const names = loadNames();
   console.log(`names file: ${FILE}  | sample: ${names.length}  | filters: ${FILTER_KEYS.join(",")}  | conc: ${CONC}  | cred: ${source ? "yes" : "no"}`);
-  console.log(`functions per artist: searchSuggestions + searchSummary + ${FILTER_KEYS.length} filters + 1 continuation  (~${3 + FILTER_KEYS.length} requests each)\n`);
+  console.log(`requests per artist: ${FILTER_KEYS.length} (one YouTube.search per filter - the app's only InnerTube search entry point)\n`);
 
   await pool(names, CONC, (n) => probe(n, visitorData));
 
   console.log(`\n${"=".repeat(86)}\nCOVERAGE  (per function: items / noResults / suspicious / empty / wouldBreak)\n${"=".repeat(86)}`);
-  const order = ["suggest", "summary", ...FILTER_KEYS, "continuation"];
+  const order = [...FILTER_KEYS];
   for (const fn of order) {
     const c = cover[fn]; if (!c) continue;
     const tot = c.items + c.noResults + c.suspicious + c.empty + c.wouldBreak;
@@ -184,7 +138,6 @@ async function main() {
     for (const e of [...strict.values()].sort((a, b) => b.artists.size - a.artists.size))
       console.log(`    * ${e.type}.${e.field} (${e.why}) — ${e.artists.size} artist(s), ${e.count} hit(s)  e.g. "${[...e.artists][0]}"  @ ${e.example}`);
   }
-  console.log(`  continuation NPEs: ${npe.length}${npe.length ? "  e.g. " + npe.slice(0, 3).map((x) => `${x.artist}/${x.filter}`).join(", ") : ""}`);
   console.log(`  parser throws: ${parseThrows.length}${parseThrows.length ? "  e.g. " + parseThrows.slice(0, 3).map((x) => `${x.artist}/${x.fn}: ${x.msg}`).join(" ; ") : ""}`);
   if (http.size) console.log(`  non-200 HTTP: ${[...http.entries()].map(([s, n]) => `${s}×${n}`).join(", ")}`);
   if (unencoded.size) console.log(`  note: un-encoded subtrees seen (not strict-checked): ${[...unencoded].join(", ")}`);
@@ -195,7 +148,7 @@ async function main() {
   console.log(`\n${"=".repeat(86)}\nTOP PARSER DROPS (aggregate)\n${"=".repeat(86)}`);
   for (const [k, n] of [...drops.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15)) console.log(`  ${String(n).padStart(5)}  ${k}`);
 
-  const killers = strict.size + npe.length + parseThrows.length;
+  const killers = strict.size + parseThrows.length;
   console.log(`\nVERDICT: ${killers === 0 ? "no whole-response killers across the sample — search layer is healthy for whitelisted content." : `${killers} whole-response killer condition(s) found — see ERRORS above.`}`);
   process.exit(killers === 0 ? 0 : 1);
 }

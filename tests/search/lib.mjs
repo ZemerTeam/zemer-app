@@ -2,9 +2,8 @@
 // accessors used by the search parsers. Reproduces the app's EXACT search HTTP path:
 //
 //   InnerTube.search(WEB_REMIX, ...)            -> POST /youtubei/v1/search
-//   InnerTube.getSearchSuggestions(WEB_REMIX..) -> POST /youtubei/v1/music/get_search_suggestions
 //
-// IMPORTANT (verified against InnerTube.kt ytClient): both calls run with setLogin=false, so the app
+// IMPORTANT (verified against InnerTube.kt ytClient): the call runs with setLogin=false, so the app
 // sends search requests with the WEB_REMIX client headers + X-Goog-Visitor-Id ONLY — NO cookie, NO
 // SAPISIDHASH Authorization. Search is unauthenticated. We match that here (visitorData only).
 import crypto from "node:crypto";
@@ -52,13 +51,6 @@ export async function postSearch({ query = null, params = null, continuation = n
   const url = new URL(`${ORIGIN}/youtubei/v1/search`);
   url.searchParams.set("prettyPrint", "false");
   if (continuation) { url.searchParams.set("continuation", continuation); url.searchParams.set("ctoken", continuation); }
-  const res = await fetch(url, { method: "POST", headers: headers(visitorData), body: JSON.stringify(body) });
-  return parseResponse(res);
-}
-
-export async function postSuggestions({ input, visitorData }) {
-  const body = { context: context(visitorData), input };
-  const url = `${ORIGIN}/youtubei/v1/music/get_search_suggestions?prettyPrint=false`;
   const res = await fetch(url, { method: "POST", headers: headers(visitorData), body: JSON.stringify(body) });
   return parseResponse(res);
 }

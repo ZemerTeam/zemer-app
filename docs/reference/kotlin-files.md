@@ -678,12 +678,12 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/viewmodels/StaleAlbumDeleteTest.kt` | 29 | `com.jtech.zemer.viewmodels` | no | 3 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/widget/WidgetLayoutTest.kt` | 26 | `com.jtech.zemer.widget` | no | 3 | 1 | org.junit |
 
-## `innertube` Kotlin files (96)
+## `innertube` Kotlin files (89)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
-| `innertube/src/main/kotlin/com/metrolist/innertube/InnerTube.kt` | 765 | `com.metrolist.innertube` | no | 49 | 51 | io.ktor, java.net, java.util, kotlinx.serialization, okhttp3.ConnectionPool, okhttp3.Dispatcher |
-| `innertube/src/main/kotlin/com/metrolist/innertube/YouTube.kt` | 1400 | `com.metrolist.innertube` | no | 67 | 206 | io.ktor, java.net, kotlin.random, kotlinx.coroutines, kotlinx.serialization |
+| `innertube/src/main/kotlin/com/metrolist/innertube/InnerTube.kt` | 751 | `com.metrolist.innertube` | no | 48 | 50 | io.ktor, java.net, java.util, kotlinx.serialization, okhttp3.ConnectionPool, okhttp3.Dispatcher |
+| `innertube/src/main/kotlin/com/metrolist/innertube/YouTube.kt` | 1171 | `com.metrolist.innertube` | no | 60 | 172 | io.ktor, java.net, kotlin.random, kotlinx.coroutines, kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/AccountInfo.kt` | 8 | `com.metrolist.innertube.models` | no | 0 | 5 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/AutomixPreviewVideoRenderer.kt` | 18 | `com.metrolist.innertube.models` | no | 1 | 6 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Badges.kt` | 13 | `com.metrolist.innertube.models` | no | 1 | 4 | kotlinx.serialization |
@@ -716,7 +716,6 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/ReturnYouTubeDislikeResponse.kt` | 14 | `com.metrolist.innertube.models` | no | 1 | 8 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Runs.kt` | 43 | `com.metrolist.innertube.models` | no | 1 | 10 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/SearchSuggestions.kt` | 6 | `com.metrolist.innertube.models` | no | 0 | 3 |  |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/SearchSuggestionsSectionRenderer.kt` | 20 | `com.metrolist.innertube.models` | no | 1 | 8 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/SectionListRenderer.kt` | 73 | `com.metrolist.innertube.models` | no | 3 | 35 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/SubscriptionButton.kt` | 14 | `com.metrolist.innertube.models` | no | 1 | 5 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Tabs.kt` | 26 | `com.metrolist.innertube.models` | no | 1 | 11 | kotlinx.serialization |
@@ -733,7 +732,6 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/EditPlaylistBody.kt` | 79 | `com.metrolist.innertube.models.body` | no | 2 | 37 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/FeedbackBody.kt` | 12 | `com.metrolist.innertube.models.body` | no | 2 | 5 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/GetQueueBody.kt` | 11 | `com.metrolist.innertube.models.body` | no | 2 | 4 | kotlinx.serialization |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/body/GetSearchSuggestionsBody.kt` | 10 | `com.metrolist.innertube.models.body` | no | 2 | 3 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/GetTranscriptBody.kt` | 10 | `com.metrolist.innertube.models.body` | no | 2 | 3 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/LikeBody.kt` | 18 | `com.metrolist.innertube.models.body` | no | 2 | 8 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/NextBody.kt` | 15 | `com.metrolist.innertube.models.body` | no | 2 | 8 | kotlinx.serialization |
@@ -743,20 +741,16 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/AccountMenuResponse.kt` | 53 | `com.metrolist.innertube.models.response` | no | 5 | 18 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/AddItemYouTubePlaylistResponse.kt` | 20 | `com.metrolist.innertube.models.response` | no | 1 | 8 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/BrowseResponse.kt` | 142 | `com.metrolist.innertube.models.response` | no | 14 | 72 | kotlinx.serialization |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/ContinuationResponse.kt` | 20 | `com.metrolist.innertube.models.response` | no | 2 | 6 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/CreatePlaylistResponse.kt` | 8 | `com.metrolist.innertube.models.response` | no | 1 | 2 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/EditPlaylistResponse.kt` | 8 | `com.metrolist.innertube.models.response` | no | 1 | 2 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/FeedbackResponse.kt` | 13 | `com.metrolist.innertube.models.response` | no | 1 | 4 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/GetQueueResponse.kt` | 14 | `com.metrolist.innertube.models.response` | no | 2 | 4 | kotlinx.serialization |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/GetSearchSuggestionsResponse.kt` | 14 | `com.metrolist.innertube.models.response` | no | 2 | 4 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/GetTranscriptResponse.kt` | 65 | `com.metrolist.innertube.models.response` | no | 1 | 26 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/ImageUploadResponse.kt` | 8 | `com.metrolist.innertube.models.response` | no | 1 | 2 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/NextResponse.kt` | 40 | `com.metrolist.innertube.models.response` | no | 5 | 15 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/PlayerResponse.kt` | 124 | `com.metrolist.innertube.models.response` | no | 4 | 66 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/SearchResponse.kt` | 33 | `com.metrolist.innertube.models.response` | no | 4 | 12 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/AlbumPage.kt` | 61 | `com.metrolist.innertube.pages` | no | 6 | 4 |  |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/ArtistItemsContinuationPage.kt` | 8 | `com.metrolist.innertube.pages` | no | 1 | 3 |  |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/ArtistItemsPage.kt` | 122 | `com.metrolist.innertube.pages` | no | 11 | 6 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/ArtistPage.kt` | 228 | `com.metrolist.innertube.pages` | no | 19 | 14 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/BrowseResult.kt` | 31 | `com.metrolist.innertube.pages` | no | 2 | 7 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/ChartsPage.kt` | 18 | `com.metrolist.innertube.pages` | no | 1 | 8 |  |
@@ -773,10 +767,9 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/PodcastPage.kt` | 15 | `com.metrolist.innertube.pages` | no | 2 | 4 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/RelatedPage.kt` | 163 | `com.metrolist.innertube.pages` | no | 10 | 7 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchPage.kt` | 211 | `com.metrolist.innertube.pages` | no | 11 | 6 |  |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchSuggestionPage.kt` | 147 | `com.metrolist.innertube.pages` | no | 9 | 3 |  |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchSummaryPage.kt` | 381 | `com.metrolist.innertube.pages` | no | 17 | 12 |  |
+| `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchSummaryPage.kt` | 12 | `com.metrolist.innertube.pages` | no | 1 | 5 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/utils/ResilientDns.kt` | 84 | `com.metrolist.innertube.utils` | no | 5 | 10 | java.net, okhttp3.Dns, okhttp3.HttpUrl, okhttp3.OkHttpClient, okhttp3.dnsoverhttps |
-| `innertube/src/main/kotlin/com/metrolist/innertube/utils/Utils.kt` | 95 | `com.metrolist.innertube.utils` | no | 4 | 23 | java.security |
+| `innertube/src/main/kotlin/com/metrolist/innertube/utils/Utils.kt` | 91 | `com.metrolist.innertube.utils` | no | 4 | 22 | java.security |
 | `innertube/src/test/kotlin/com/metrolist/innertube/pages/NextCounterpartTest.kt` | 127 | `com.metrolist.innertube.pages` | no | 6 | 9 | kotlinx.serialization, org.junit |
 
 ## `lrclib` Kotlin files (2)

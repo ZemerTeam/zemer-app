@@ -77,9 +77,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1215`
+- Files counted: `1208`
 - By extension:
-  - `.kt`: `771`
+  - `.kt`: `764`
   - `.xml`: `196`
   - `.mjs`: `77`
   - `.md`: `71`
@@ -1070,7 +1070,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/generate.py` | 486 lines | `.py` |
 | `docs/genres/README.md` | 120 lines | `.md` |
 | `docs/home_rows/README.md` | 100 lines | `.md` |
-| `docs/innertube/README.md` | 182 lines | `.md` |
+| `docs/innertube/README.md` | 172 lines | `.md` |
 | `docs/latest_releases/01-architecture-and-data-flow.md` | 94 lines | `.md` |
 | `docs/latest_releases/02-feed-format-and-server.md` | 95 lines | `.md` |
 | `docs/latest_releases/03-runtime-store.md` | 128 lines | `.md` |
@@ -1094,7 +1094,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 794 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 787 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 387 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
@@ -1105,7 +1105,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1325 lines | `.md` |
+| `docs/repository-map.md` | 1318 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
@@ -1125,8 +1125,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `gradlew.bat` | 93 lines | `.bat` |
 | `innertube/.gitignore` | 1 lines | `[none]` |
 | `innertube/build.gradle.kts` | 21 lines | `.kts` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/InnerTube.kt` | 765 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/YouTube.kt` | 1400 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/InnerTube.kt` | 751 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/YouTube.kt` | 1171 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/AccountInfo.kt` | 8 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/AutomixPreviewVideoRenderer.kt` | 18 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Badges.kt` | 13 lines | `.kt` |
@@ -1159,7 +1159,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/ReturnYouTubeDislikeResponse.kt` | 14 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Runs.kt` | 43 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/SearchSuggestions.kt` | 6 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/SearchSuggestionsSectionRenderer.kt` | 20 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/SectionListRenderer.kt` | 73 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/SubscriptionButton.kt` | 14 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Tabs.kt` | 26 lines | `.kt` |
@@ -1176,7 +1175,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/EditPlaylistBody.kt` | 79 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/FeedbackBody.kt` | 12 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/GetQueueBody.kt` | 11 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/body/GetSearchSuggestionsBody.kt` | 10 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/GetTranscriptBody.kt` | 10 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/LikeBody.kt` | 18 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/NextBody.kt` | 15 lines | `.kt` |
@@ -1186,20 +1184,16 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/AccountMenuResponse.kt` | 53 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/AddItemYouTubePlaylistResponse.kt` | 20 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/BrowseResponse.kt` | 142 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/ContinuationResponse.kt` | 20 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/CreatePlaylistResponse.kt` | 8 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/EditPlaylistResponse.kt` | 8 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/FeedbackResponse.kt` | 13 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/GetQueueResponse.kt` | 14 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/GetSearchSuggestionsResponse.kt` | 14 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/GetTranscriptResponse.kt` | 65 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/ImageUploadResponse.kt` | 8 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/NextResponse.kt` | 40 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/PlayerResponse.kt` | 124 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/SearchResponse.kt` | 33 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/AlbumPage.kt` | 61 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/ArtistItemsContinuationPage.kt` | 8 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/ArtistItemsPage.kt` | 122 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/ArtistPage.kt` | 228 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/BrowseResult.kt` | 31 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/ChartsPage.kt` | 18 lines | `.kt` |
@@ -1216,10 +1210,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/PodcastPage.kt` | 15 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/RelatedPage.kt` | 163 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchPage.kt` | 211 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchSuggestionPage.kt` | 147 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchSummaryPage.kt` | 381 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchSummaryPage.kt` | 12 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/utils/ResilientDns.kt` | 84 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/utils/Utils.kt` | 95 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/utils/Utils.kt` | 91 lines | `.kt` |
 | `innertube/src/test/kotlin/com/metrolist/innertube/pages/NextCounterpartTest.kt` | 127 lines | `.kt` |
 | `lint.xml` | 6 lines | `.xml` |
 | `lrclib/.gitignore` | 1 lines | `[none]` |
@@ -1302,17 +1295,17 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/run.mjs` | 181 lines | `.mjs` |
 | `tests/scan-live-players.mjs` | 124 lines | `.mjs` |
 | `tests/scan-live-players.test.mjs` | 44 lines | `.mjs` |
-| `tests/search/README.md` | 114 lines | `.md` |
+| `tests/search/README.md` | 113 lines | `.md` |
 | `tests/search/album-facet-probe.mjs` | 42 lines | `.mjs` |
-| `tests/search/coverage.mjs` | 202 lines | `.mjs` |
+| `tests/search/coverage.mjs` | 155 lines | `.mjs` |
 | `tests/search/diag-auth.mjs` | 77 lines | `.mjs` |
 | `tests/search/fetch-whitelist.mjs` | 59 lines | `.mjs` |
-| `tests/search/lib.mjs` | 163 lines | `.mjs` |
-| `tests/search/parsers.mjs` | 225 lines | `.mjs` |
-| `tests/search/pill-survival.mjs` | 114 lines | `.mjs` |
-| `tests/search/run.mjs` | 246 lines | `.mjs` |
-| `tests/search/schema.mjs` | 239 lines | `.mjs` |
-| `tests/search/self-test.mjs` | 136 lines | `.mjs` |
+| `tests/search/lib.mjs` | 155 lines | `.mjs` |
+| `tests/search/parsers.mjs` | 80 lines | `.mjs` |
+| `tests/search/pill-survival.mjs` | 101 lines | `.mjs` |
+| `tests/search/run.mjs` | 169 lines | `.mjs` |
+| `tests/search/schema.mjs` | 230 lines | `.mjs` |
+| `tests/search/self-test.mjs` | 103 lines | `.mjs` |
 | `tests/search/verify-album-fix.mjs` | 61 lines | `.mjs` |
 | `tests/search/whitelist-findable.mjs` | 114 lines | `.mjs` |
 | `tests/sts-mismatch.mjs` | 125 lines | `.mjs` |
