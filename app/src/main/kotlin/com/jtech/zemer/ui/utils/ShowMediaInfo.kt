@@ -114,7 +114,7 @@ fun ShowMediaInfo(videoId: String, isEpisodeHint: Boolean = false) {
         val notApplicable = stringResource(R.string.not_applicable)
         // Player hash + cipher date apply only to deciphered web clients; direct-URL clients
         // (VISIONOS/ANDROID_VR/IOS) never run the cipher, so show "N/A", not "Unknown".
-        val isWebStream = currentFormat?.streamClient in setOf("WEB_REMIX", "WEB_CREATOR", "TVHTML5", "WEB")
+        val isWebStream = currentFormat?.streamClient in setOf("WEB_REMIX", "WEB_CREATOR", "TVHTML5", "TVHTML5_SIMPLY", "MWEB", "WEB")
         val playerHash = if (isWebStream) CipherDeobfuscator.lastUsedPlayerHash else notApplicable
         val cipherSupportAdded =
             if (isWebStream) PlayerDatesStore.get(CipherDeobfuscator.lastUsedPlayerHash) else notApplicable

@@ -8,8 +8,6 @@ import com.jtech.zemer.playback.VideoDecoderCaps
 import com.jtech.zemer.playback.VideoQualityLogic
 import com.jtech.zemer.playback.VideoQualityRung
 import com.jtech.zemer.constants.StreamSourceAndroidVRKey
-import com.jtech.zemer.constants.StreamSourceIOSKey
-import com.jtech.zemer.constants.StreamSourceIPadOSKey
 import com.jtech.zemer.constants.StreamSourceTVHTML5Key
 import com.jtech.zemer.constants.StreamSourceWebRemixKey
 import kotlinx.coroutines.flow.first
@@ -22,16 +20,11 @@ import com.zemer.cipher.potoken.PoTokenGenerator
 import com.zemer.cipher.potoken.PoTokenResult
 import com.jtech.zemer.utils.sabr.EjsNTransformSolver
 import com.metrolist.innertube.models.YouTubeClient
-import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_CREATOR
-import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_NO_AUTH
-import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_43_32
-import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_61_48
-import com.metrolist.innertube.models.YouTubeClient.Companion.IOS
-import com.metrolist.innertube.models.YouTubeClient.Companion.IPADOS
+import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_65_10
 import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS
-import com.metrolist.innertube.models.YouTubeClient.Companion.MOBILE
-import com.metrolist.innertube.models.YouTubeClient.Companion.WEB
-import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5
+import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS_0_1
+import com.metrolist.innertube.models.YouTubeClient.Companion.MWEB
+import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.metrolist.innertube.models.response.PlayerResponse
@@ -77,7 +70,7 @@ object YTPlayerUtils {
 
     // Fire-and-forget scope for the cipher config self-heal triggered when a cipher client fails
     // stream validation during resolution. Only WEB_REMIX skips HEAD validation (so its bad URL
-    // 403s on ExoPlayer and hits MusicService's handler); WEB_CREATOR / TVHTML5 / WEB are validated
+    // 403s on ExoPlayer and hits MusicService's handler); WEB_CREATOR / TVHTML5_SIMPLY / MWEB are validated
     // here and never reach ExoPlayer, so without this trigger a WEB_REMIX-disabled user would never
     // self-heal a stale/wrong cipher config. Kept off the resolution coroutine so the (network)
     // refresh never blocks falling through to the next client.
@@ -90,21 +83,29 @@ object YTPlayerUtils {
 
     private val ALL_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
         // VISIONOS first: its CDN URL has no `spc` gate, so it streams the whole song with no
-        // poToken and no cipher (HEAD 200) — the most reliable fallback, ahead of TVHTML5 and the
-        // ANDROID_VR variants. IOS/IPADOS below ARE spc-gated and 403 past the 1 MiB free window
-        // (the web poToken can't satisfy iOS attestation) — verified via tests/re-apple.mjs — so
-        // they stay only as last-ditch attempts.
+        // poToken and no cipher (HEAD 200) — the most reliable fallback, ahead of the ANDROID_VR
+        // and TVHTML5 clients. (The proven-dead clients were removed 2026-08-15: the pre-1.65 VR
+        // variants are version-bot-gated; MOBILE 400s authenticated / SABR-only anonymous; WEB,
+        // IOS and IPADOS are SABR-only or 403-wall past the 1 MiB free window.)
         VISIONOS,
+        // The previous visionOS config as its second chance behind the current 1.02.
+        VISIONOS_0_1,
         WEB_CREATOR,
-        ANDROID_VR_1_43_32,
-        ANDROID_VR_1_61_48,
-        TVHTML5,
-        IOS,
-        IPADOS,
-        ANDROID_CREATOR,
-        ANDROID_VR_NO_AUTH,
-        MOBILE,
-        WEB
+        // The one living VR client (1.65.10, eureka build): its eureka-style UA clears the "confirm
+        // you're not a bot" gate that permanently rejects the older 1.61.48/1.43.32 versions (the
+        // gate keys on the VERSION — verified by probing the old versions under the eureka UA — so
+        // the retired variants were removed as proven dead). Direct URL, used AS-IS (yt-dlp
+        // android_vr: REQUIRE_JS_PLAYER=false, no poToken) — no cipher, no n-transform, no pot.
+        ANDROID_VR_1_65_10,
+        // The one TV cipher client, governed by the "TVHTML5" stream-source toggle (7.x TVHTML5 and
+        // tv_downgraded were both removed as proven dead: 7.x is SABR-only, tv_downgraded 403-walls
+        // even yt-dlp-master-exact — re-add from clients-retired.mjs only if YouTube reverts them).
+        TVHTML5_SIMPLY,
+        // MWEB (yt-dlp-master iPad UA) last: a login-required cipher fallback that drains whole
+        // songs when authenticated (the loginRequired gate skips it for login-less sessions). Last
+        // because it has the largest dependency surface (auth + cipher + pot) and the shortest
+        // track record; promote only after it has proven itself over time.
+        MWEB
     )
 
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient>
@@ -354,6 +355,9 @@ object YTPlayerUtils {
                 // Apply n-transform and PoToken for web clients (n-transform FIRST, then pot=)
                 val needsNTransform = clientNeedsNTransform(client)
 
+                // ANDROID_VR (and other direct-URL clients) use the URL AS-IS: per yt-dlp
+                // (REQUIRE_JS_PLAYER=False, no GVS poToken policy) their URLs are already ready — no
+                // sig, no n-transform, no pot. Applying the web transforms would CORRUPT them.
                 if (needsNTransform) {
                     try {
                         Timber.tag(TAG).d("Applying n-transform to stream URL for ${client.clientName}")

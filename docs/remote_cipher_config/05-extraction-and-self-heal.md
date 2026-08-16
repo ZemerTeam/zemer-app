@@ -73,7 +73,7 @@ with fresh player JS (`isRetry = true` → `forceRefresh` of the JS, not the con
 The triggers above only fire while *building* a WebView (incomplete extraction) or on a
 decipher *exception*. Once a `CipherWebView` is built it is reused for the life of the
 process — and that one WebView is shared by **every cipher (web) client**: WEB_REMIX,
-WEB_CREATOR, TVHTML5, WEB. Two gaps in that reuse let a wrong cipher survive until a
+WEB_CREATOR, TVHTML5_SIMPLY, MWEB. Two gaps in that reuse let a wrong cipher survive until a
 force-stop+reopen, breaking *all* of those clients at once (cipher commit `2826208`):
 
 1. **A config that self-heals AFTER the WebView was built was ignored until a restart.** The
@@ -93,7 +93,7 @@ force-stop+reopen, breaking *all* of those clients at once (cipher commit `28262
    - `MusicService.handleExpiredUrlError` (the ExoPlayer 403/410 path). Only **WEB_REMIX** skips
      HEAD validation, so only its bad URL reaches ExoPlayer and 403s.
    - `YTPlayerUtils`, when a `needsNTransform` (cipher) client fails `validateStatus` during
-     resolution. **WEB_CREATOR / TVHTML5 / WEB** are HEAD-validated, so a wrong sig is caught here
+     resolution. **WEB_CREATOR / TVHTML5_SIMPLY / MWEB** are HEAD-validated, so a wrong sig is caught here
      and never reaches ExoPlayer — without this site a WEB_REMIX-disabled user would never
      self-heal. Fired off a dedicated scope so the network refresh can't block the fall-through.
 

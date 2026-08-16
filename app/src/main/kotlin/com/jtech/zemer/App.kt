@@ -183,24 +183,6 @@ class App : Application(), SingletonImageLoader.Factory {
                 }
         }
 
-        // The iOS / iPadOS / ANDROID_CREATOR stream-source toggles are HIDDEN from Stream sources
-        // (owner decision - all three are spc/DroidGuard-gated poor choices). Hidden must also mean
-        // OFF: a user who enabled one before the hide (or restored an old backup) would otherwise
-        // keep it in the fallback list forever with no switch anywhere to turn it off (iOS truncates
-        // long songs past ~1 MiB). One-time-per-launch clamp back to the defaults, write-only-if-set.
-        applicationScope.launch(Dispatchers.IO) {
-            runCatching {
-                val prefs = dataStore.data.first()
-                val hiddenOnKeys = listOf(
-                    StreamSourceIOSKey,
-                    StreamSourceIPadOSKey,
-                    StreamSourceAndroidCreatorKey,
-                ).filter { prefs[it] == true }
-                if (hiddenOnKeys.isNotEmpty()) {
-                    dataStore.edit { settings -> hiddenOnKeys.forEach { settings[it] = false } }
-                }
-            }
-        }
 
         // Load the persisted Music Status source config so the last-good (server-driven) categories/keywords
         // are live at startup / offline, before the feature's first version-gated sync. There is no baked-in

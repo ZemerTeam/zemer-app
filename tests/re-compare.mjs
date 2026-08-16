@@ -2,6 +2,7 @@
 // pot. Diff their URLs to find what ungates ANDROID_VR, then try grafting it onto the IOS URL.
 
 import { CLIENTS, ORIGIN, PLAYER_URL } from "./clients.mjs";
+import { CLIENTS_WITH_RETIRED } from "./clients-retired.mjs"; // historical probes: retired clients live there
 import { getCred } from "./cred.mjs";
 
 const VID = process.argv[2] || "JTF9fLJvniI";
@@ -25,8 +26,8 @@ async function range(u, ua, s, e) { try { const r = await fetch(u, { headers: { 
 (async () => {
   const cred = await getCred();
   const vd = dec(cred.visitorData);
-  const vrC = CLIENTS.find((x) => x.key === "ANDROID_VR_NO_AUTH");
-  const iosC = CLIENTS.find((x) => x.key === "IOS");
+  const vrC = CLIENTS_WITH_RETIRED.find((x) => x.key === "ANDROID_VR_NO_AUTH");
+  const iosC = CLIENTS_WITH_RETIRED.find((x) => x.key === "IOS");
   const vr = audio(await player(vrC, vd));
   const ios = audio(await player(iosC, vd));
   const vp = params(vr.url), ip = params(ios.url);

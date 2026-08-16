@@ -48,12 +48,13 @@ different id as the first CLI arg or via `VIDEO_ID`.
 | `cred.mjs` | Loads cookie/visitorData/dataSyncId from `innertube_cookie.txt` (+ env overrides). |
 | `cipher.mjs` | Faithful Node port of the app's **Zemer cipher** (sig deobfuscation + n-transform + STS). Fetches the **same** `base.js` (iframe_api -> `player_ias.vflset/en_GB/base.js`), injects the **same** VM-dispatch expressions (`Tl(48,5831,sig)` / `Qp(25,37,sig)` / `v0(35,4499,sig)` / `Jf(20,3699,sig)`, `g.W_`/`g.W1`/`g.uY`/`g.iE` n-trick) into the IIFE, and runs it in jsdom. Byte-identical to `CipherWebView`. |
 | `potoken.mjs` | BotGuard **poToken** minter (`bgutils-js` + jsdom), request key `O43z0dpjhgX20SCx4KAo`. Mirrors the app's `PoTokenGenerator`: **streaming token bound to visitorData** (minted first), **player token bound to videoId**. |
-| `web-remix-stream.mjs` | Reproduces the WEB_REMIX **45s-drop + seek** bug via the app's exact resolve path, then exercises the URL like ExoPlayer (sequential range chunks on fresh connections, seek, one open GET, re-resolve, pot-variant probe) + an IOS control. |
+| `web-remix-stream.mjs` | Reproduces the WEB_REMIX **45s-drop + seek** bug via the app's exact resolve path, then exercises the URL like ExoPlayer (sequential range chunks on fresh connections, seek, one open GET, re-resolve, pot-variant probe) + a (retired-)IOS control from `clients-retired.mjs`. |
 | `pot-probe.mjs` | The **definitive poToken-binding matrix**: request-pot × url-pot × {none/videoId/visitorData-raw/visitorData-enc}, fetched past the 1-MiB window. |
 | `client-fulldownload.mjs` | Drains the **whole** file per client to show which clients actually deliver a full song right now (vs the old 2-byte check). Defaults to the app's MAIN+fallback client set; `CLIENTS=A,B` to subset. |
 | `sts-mismatch.mjs` | Regression test for **STS/cipher player coherence**: `/player` with the pinned player's own STS must stream past the wall; another live generation's STS 403s (the A/B-rollout bug — app fix: `CipherDeobfuscator.signatureTimestamp()` feeds `YTPlayerUtils`). |
 | `video-qualities.mjs` | The **beyond-720p quality ladder** prover: enumerates every video quality (progressive muxed + adaptive video-only, mirroring `VideoQualityLogic.ladderFormats`) plus the audio merge partner, resolves each URL the app's exact way, and per rung (high→low) verifies initial 206, a fresh-connection sweep past the 1-MiB pot wall, a 75% seek, and a **full drain to EOF** (the download proof). PASS/FAIL exit — can gate. |
-| `run.mjs`, `full-stream.mjs`, `retest-web.mjs`, `clients.mjs` | Older player-endpoint probes / client matrix (kept for reference). |
+| `clients.mjs` / `clients-retired.mjs` | The live client mirror of `models/YouTubeClient.kt` (keep in sync!) / the RETIRED client defs + dead-verdicts for the historical probes. |
+| `run.mjs`, `full-stream.mjs`, `retest-web.mjs` | Older player-endpoint probes (kept for reference). |
 
 ### Run them
 
@@ -147,17 +148,27 @@ Code fix options (pick one):
 
 | client | full song? | needs |
 |---|---|---|
-| **ANDROID_VR_1_43_32 / _NO_AUTH / _1_61_48** | yes whole song | nothing — anon, direct url, no pot/cipher/BotGuard |
-| **WEB_REMIX** | yes **only with the videoId-pot fix** | poToken (videoId-bound) + sig/n cipher |
-| **IOS / IPADOS** | no 403 (hits the 1-MiB wall, no pot) | — no longer reliable for full playback |
+| **VISIONOS (1.02, yt-dlp-master-exact) + VISIONOS_0_1** | yes whole song (both) | nothing — anon, direct url, no pot/cipher/BotGuard |
+| **WEB_REMIX / WEB_CREATOR** | yes with the videoId-bound pot | poToken (videoId-bound) + sig/n cipher |
+| **TVHTML5_SIMPLY** (clientId 75) | yes whole song | sig/n cipher + videoId-bound pot |
+| **ANDROID_VR_1_65_10** (eureka build) | yes on-device — flagged/datacenter IPs 403 at 0 bytes (yt-dlp: intermittent/selective POT enforcement since 2026.07) | nothing — anon, DIRECT url used AS-IS (web transforms CORRUPT it) |
+| **MWEB** (yt-dlp-master iPad UA) | yes whole song **signed-in only** (anonymous 403s at byte 0) | cookie/SAPISIDHASH + sig/n cipher + videoId-bound pot |
 
-Current `STREAM_FALLBACK_CLIENTS` order (as of 2026-06-08):
-`WEB_REMIX -> VISIONOS -> WEB_CREATOR -> ANDROID_VR_1_43_32 -> ANDROID_VR_1_61_48 -> TVHTML5 -> IOS -> IPADOS -> ANDROID_CREATOR -> ANDROID_VR_NO_AUTH -> MOBILE -> WEB`
+Current `STREAM_FALLBACK_CLIENTS` order (as of 2026-08-15):
+`WEB_REMIX -> VISIONOS -> VISIONOS_0_1 -> WEB_CREATOR -> ANDROID_VR_1_65_10 -> TVHTML5_SIMPLY -> MWEB`
 
-- **VISIONOS / ANDROID_VR are the reliable no-pot paths** — direct url, no BotGuard, no decipher, whole song confirmed via `re-apple.mjs` / `client-fulldownload.mjs`.
-- **WEB_CREATOR** streams the full song with videoId pot (no streaming pot needed) — ranks above TVHTML5.
-- **IOS/IPADOS 403 past 1 MiB** — spc-gated, no pot binding that satisfies it; deprioritised.
-- **TVHTML5** is a web/pot client subject to the same 1-MiB rule — needs videoId-pot fix.
+- **The proven-dead clients were REMOVED from the app 2026-08-15** (defs + verdicts preserved in
+  `clients-retired.mjs` so the historical probes still run): the pre-1.65 ANDROID_VR variants
+  (the bot gate keys on the VERSION — probed the old versions under the eureka UA, still gated),
+  MOBILE/ANDROID (HTTP 400 with auth, SABR-only without), WEB (SABR-only), IOS/IPADOS (403 past
+  the 1-MiB wall; yt-dlp-master ios 21.26.4 is SABR-only), ANDROID_CREATOR (400 with auth /
+  LOGIN_REQUIRED without), TVHTML5_SIMPLY_EMBEDDED_PLAYER (server-killed).
+- **VISIONOS is the most reliable fallback** — direct url, no BotGuard, no decipher; 1.02 is the
+  current client, the old 0.1 config rides behind it as a second chance.
+- **ANDROID_VR 1.65.10 must never get the web URL transforms** — its direct URL is final
+  (yt-dlp `android_vr`: REQUIRE_JS_PLAYER=false, no GVS pot policy); the n-transform corrupts it.
+- **TVHTML5_SIMPLY** is the one TV cipher client (`tv_downgraded` was probed yt-dlp-master-exact
+  and is dead on-device too); the TVHTML5 toggle governs it (the SABR-dead 7.x was removed from the app; def preserved in `clients-retired.mjs`).
 
 > Note: the earlier "Findings (2026-06-02)" in this file concluded IOS/ANDROID_VR "stream in one
 > request". That was based on `Range: bytes=0-1` (first 2 bytes) and does **not** hold for full

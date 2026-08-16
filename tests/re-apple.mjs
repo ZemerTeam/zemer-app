@@ -3,6 +3,7 @@
 // to find a non-gated client usable in place of IOS/IPADOS.
 
 import { CLIENTS, ORIGIN, PLAYER_URL } from "./clients.mjs";
+import { CLIENTS_WITH_RETIRED } from "./clients-retired.mjs"; // historical probes: retired clients live there
 import { getCred } from "./cred.mjs";
 
 const VID = process.argv[2] || "JTF9fLJvniI";
@@ -30,7 +31,7 @@ async function drain(u, ua, cap) { try { const r = await fetch(u, { headers: { "
   console.log(`video=${VID}\n`);
   console.log("client".padEnd(20), "play".padEnd(6), "spc?".padEnd(6), "@1MiB".padEnd(7), "full-drain");
   for (const key of SURVEY) {
-    const c = CLIENTS.find((x) => x.key === key);
+    const c = CLIENTS_WITH_RETIRED.find((x) => x.key === key);
     if (!c) { console.log(key.padEnd(20), "(not in clients.mjs)"); continue; }
     try {
       const j = await player(c, vd);

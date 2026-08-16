@@ -40,6 +40,7 @@ import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.constants.StreamSourceAndroidVRKey
 import com.jtech.zemer.constants.StreamSourceVisionOSKey
+import com.jtech.zemer.constants.StreamSourceMWEBKey
 import com.jtech.zemer.constants.StreamSourceTVHTML5Key
 import com.jtech.zemer.constants.StreamSourceWebCreatorKey
 import com.jtech.zemer.constants.StreamSourceWebRemixKey
@@ -66,6 +67,7 @@ fun StreamSourceSettings(
     val (androidVREnabled, onAndroidVRChange)   = rememberPreference(StreamSourceAndroidVRKey,  defaultValue = true)
     val (visionosEnabled, onVisionOSChange)     = rememberPreference(StreamSourceVisionOSKey,   defaultValue = true)
     val (webCreatorEnabled, onWebCreatorChange) = rememberPreference(StreamSourceWebCreatorKey, defaultValue = true)
+    val (mwebEnabled, onMWEBChange)             = rememberPreference(StreamSourceMWEBKey,       defaultValue = true)
 
     // RELAY playback mode: stream audio through the Zemer relay instead of resolving YouTube on-device.
     // Off (DIRECT) for every normal user. When ON, the per-client fallback list below is bypassed entirely.
@@ -89,6 +91,7 @@ fun StreamSourceSettings(
         "WEB_CREATOR" to webCreatorEnabled,
         "Android VR" to androidVREnabled,
         "TVHTML5" to tvhtml5Enabled,
+        "MWEB" to mwebEnabled,
     ).filter { it.second }.map { it.first }
 
     val backFocus = remember { FocusRequester() }
@@ -187,6 +190,15 @@ fun StreamSourceSettings(
                         onCheckedChange = onTVHTML5Change,
                     )
                 },
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.stream_source_mweb)) },
+                        description = stringResource(R.string.stream_source_mweb_desc),
+                        icon = { Icon(painterResource(R.drawable.play), null) },
+                        checked = mwebEnabled,
+                        onCheckedChange = onMWEBChange,
+                    )
+                },
             ),
         )
 
@@ -213,11 +225,6 @@ fun StreamSourceSettings(
                 },
             ),
         )
-
-        // iOS / iPadOS / ANDROID_CREATOR are HIDDEN here and force-disabled at startup (App.kt
-        // clamps a previously-enabled one back to off - hidden with no switch must not mean
-        // stuck-on): all three are spc/DroidGuard-gated poor choices. Keys and resolver support
-        // stay, so restoring the toggles is a UI-only change.
 
         SettingsCardGroup(
             title = stringResource(R.string.stream_source_creator_clients),
